@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Task Tracker</h1>
+    </header>
+
+    <main>
+        <section id="task-input">
+            <h2>Add New Task</h2>
+            <form id="task-form">
+                <label for="task-name">Task Name:</label>
+                <input type="text" id="task-name" required>
+
+                <label for="task-duration">Duration (minutes):</label>
+                <input type="number" id="task-duration" required>
+
+                <label for="task-priority">Priority:</label>
+                <select id="task-priority">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+
+                <button type="submit">Add Task</button>
+            </form>
+        </section>
+
+        <section id="task-list">
+            <h2>Your Tasks</h2>
+            <ul id="tasks"></ul>
+        </section>
+
+        <section id="calendar">
+            <h2>Calendar</h2>
+            <div id="calendar-view"></div>
+        </section>
+
+        <section id="progress">
+            <h2>Progress</h2>
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+            <p id="progress-text">0% Completed</p>
+        </section>
+
+        <section id="lofi-music">
+            <h2>Lofi Music</h2>
+            <iframe id="music-player" src="https://open.spotify.com/embed/playlist/37i9dQZF1DXd8cOUiye1o2" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        </section>
+
+        <section id="friends-progress">
+            <h2>Friends' Progress</h2>
+            <ul id="friends"></ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>Task Tracker &copy; 2025</p>
+    </footer>
+</body>
+</html>
