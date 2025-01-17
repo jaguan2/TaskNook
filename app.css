@@ -1,0 +1,135 @@
+/* General Reset */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #E8F6F9;
+    color: #333;
+    line-height: 1.6;
+}
+
+header {
+    background-color: #A2D2FF;
+    color: #ffffff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+}
+
+main {
+    padding: 1rem;
+}
+
+section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #D7E9F7;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    color: #055C9D;
+}
+
+/* Task Input Form */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+form label {
+    font-weight: bold;
+}
+
+form input, form select, form button {
+    padding: 0.5rem;
+    border: 1px solid #A2D2FF;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+form button {
+    background-color: #A2D2FF;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+form button:hover {
+    background-color: #055C9D;
+}
+
+/* Task List */
+#tasks {
+    list-style: none;
+    padding: 0;
+}
+
+#tasks li {
+    background-color: #FFFFFF;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #A2D2FF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Calendar */
+#calendar-view {
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #FFFFFF;
+    border: 1px solid #A2D2FF;
+    border-radius: 4px;
+}
+
+/* Progress Bar */
+#progress-bar {
+    width: 100%;
+    background-color: #E8F6F9;
+    border: 1px solid #A2D2FF;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 20px;
+    margin-bottom: 0.5rem;
+}
+
+#progress-fill {
+    height: 100%;
+    width: 0;
+    background-color: #055C9D;
+    transition: width 0.5s;
+}
+
+/* Friends' Progress */
+#friends {
+    list-style: none;
+    padding: 0;
+}
+
+#friends li {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: #FFFFFF;
+    border: 1px solid #A2D2FF;
+    border-radius: 4px;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 1rem 0;
+    background-color: #A2D2FF;
+    color: white;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+}
