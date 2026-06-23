@@ -3,6 +3,7 @@
 let ctx = null;
 let noiseSource = null;
 let masterGain = null;
+let lfo = null;
 let running = false;
 
 function createNoiseBuffer(context) {
@@ -48,7 +49,7 @@ export function startRain(volume = 0.5) {
   masterGain.gain.value = volume * 0.6;
 
   // Slow LFO so the rain "breathes" instead of sounding static.
-  const lfo = ctx.createOscillator();
+  lfo = ctx.createOscillator();
   const lfoGain = ctx.createGain();
   lfo.frequency.value = 0.12;
   lfoGain.gain.value = volume * 0.12;
@@ -66,10 +67,12 @@ export function stopRain() {
   if (!running) return;
   try {
     noiseSource.stop();
+    lfo.stop();
   } catch {
     /* already stopped */
   }
   noiseSource = null;
+  lfo = null;
   running = false;
 }
 

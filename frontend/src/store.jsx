@@ -101,18 +101,32 @@ export function StoreProvider({ children }) {
     await api.createTask(payload);
     await refreshAll();
   };
+  // Fire-and-forget UI actions: swallow + log so a failed request can't surface
+  // as an unhandled promise rejection from an onClick handler.
   const toggleTask = async (task) => {
-    await api.updateTask(task.id, { completed: !task.completed });
-    await refreshAll();
+    try {
+      await api.updateTask(task.id, { completed: !task.completed });
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to toggle task:", err);
+    }
   };
   const editTask = async (id, payload) => {
-    await api.updateTask(id, payload);
-    await refreshAll();
+    try {
+      await api.updateTask(id, payload);
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to update task:", err);
+    }
   };
   const removeTask = async (id) => {
-    if (activeTaskId === id) setActiveTaskId(null);
-    await api.deleteTask(id);
-    await refreshAll();
+    try {
+      if (activeTaskId === id) setActiveTaskId(null);
+      await api.deleteTask(id);
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
   };
   const reorderTasks = async (orderedActive) => {
     // Persist new manual positions and switch to custom ordering.
@@ -152,6 +166,7 @@ export function StoreProvider({ children }) {
     setRemaining(focusMinutes * 60);
   };
 
+  const completeFocusRef = useRef(null);
   const completeFocus = useCallback(async () => {
     setRunning(false);
     try {
@@ -171,20 +186,26 @@ export function StoreProvider({ children }) {
     }
   }, [focusMinutes, activeTask, refreshAll]);
 
+  // Keep the latest completeFocus in a ref so the ticking interval depends only
+  // on `running` — selecting a different task mid-focus won't restart the timer.
+  useEffect(() => {
+    completeFocusRef.current = completeFocus;
+  }, [completeFocus]);
+
   useEffect(() => {
     if (!running) return;
     tickRef.current = setInterval(() => {
       setRemaining((r) => {
         if (r <= 1) {
           clearInterval(tickRef.current);
-          completeFocus();
+          completeFocusRef.current?.();
           return 0;
         }
         return r - 1;
       });
     }, 1000);
     return () => clearInterval(tickRef.current);
-  }, [running, completeFocus]);
+  }, [running]);
 
   // ---------- Ambient ----------
   const toggleRain = () => {

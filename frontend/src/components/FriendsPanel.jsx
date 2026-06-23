@@ -25,8 +25,12 @@ export default function FriendsPanel() {
   };
 
   const remove = async (id) => {
-    await api.removeFriend(id);
-    await refreshAll();
+    try {
+      await api.removeFriend(id);
+      await refreshAll();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
