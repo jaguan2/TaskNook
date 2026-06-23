@@ -288,7 +288,7 @@ def register_routes(app):
     @app.delete("/api/friends/<int:friend_id>")
     @require_auth
     def remove_friend(user, friend_id):
-        friend = User.query.get(friend_id)
+        friend = db.session.get(User, friend_id)
         if friend and user.friends.filter_by(id=friend.id).first():
             user.friends.remove(friend)
             if friend.friends.filter_by(id=user.id).first():
@@ -408,4 +408,7 @@ def seed_demo_data():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # Debug is on by default for local dev; set FLASK_DEBUG=0 in production.
+    debug = os.environ.get("FLASK_DEBUG", "1") not in ("0", "false", "False")
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=debug, port=port)

@@ -134,7 +134,9 @@ export default function Cottage({ focused = false, night = true }) {
               height="16"
               rx="1"
               fill={c}
-              transform={`skewY(-30 ${x} ${y})`}
+              // rotate (angle cx cy) is valid SVG; skewY takes only an angle.
+              // Tilt each book about its own base so they lean on the shelf.
+              transform={`rotate(-32 ${x} ${y + 16})`}
             />
           ))}
         </g>
