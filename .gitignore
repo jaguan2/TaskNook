@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/tasknook.db
+
+# Node / Vite
+node_modules/
+frontend/dist/
+*.local
+
+# Editor / OS
+.DS_Store
+.vscode/

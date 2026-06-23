@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Quicksand", ui-rounded, system-ui, sans-serif;
+  background: radial-gradient(circle at 50% 18%, #4a2238 0%, #2b1830 60%, #1d0f1f 100%);
+  color: #f7e9e2;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Thin cozy scrollbars inside panels */
+.cozy-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.cozy-scroll::-webkit-scrollbar-thumb {
+  background: rgba(243, 198, 192, 0.25);
+  border-radius: 99px;
+}
+.cozy-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Frosted glass panel look */
+.glass {
+  background: rgba(59, 31, 51, 0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(243, 198, 192, 0.14);
+}
+
+/* Soft pill buttons */
+.pill {
+  border-radius: 9999px;
+  transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.pill:hover {
+  transform: translateY(-1px);
+}
+.pill:active {
+  transform: translateY(0);
+}
+
+/* Falling rain overlay */
+.rain-drop {
+  position: absolute;
+  top: -10%;
+  width: 1px;
+  height: 70px;
+  background: linear-gradient(transparent, rgba(214, 226, 255, 0.55));
+  animation: rainfall linear infinite;
+}
+@keyframes rainfall {
+  to {
+    transform: translateY(120vh);
+  }
+}
