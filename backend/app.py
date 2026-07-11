@@ -20,9 +20,10 @@ FRONTEND_DIST = os.path.join(BASE_DIR, "..", "frontend", "dist")
 
 def create_app():
     app = Flask(__name__, static_folder=None)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
-        BASE_DIR, "tasknook.db"
-    )
+    # DB lives next to this file by default; override with TASKNOOK_DB so the
+    # packaged desktop app can store it in a user-writable location.
+    db_path = os.environ.get("TASKNOOK_DB") or os.path.join(BASE_DIR, "tasknook.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     CORS(app)
     db.init_app(app)

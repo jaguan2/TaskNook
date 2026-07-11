@@ -13,6 +13,7 @@ block with lofi beats and rain on the window. Watch your productivity garden gro
 ## Contents
 
 - [Quick start](#-quick-start)
+- [Run as a desktop app](#-run-as-a-desktop-app)
 - [Features](#-features)
 - [Tech stack](#-tech-stack)
 - [API reference](#-api-reference)
@@ -44,28 +45,73 @@ npm run dev
 
 Then open **http://localhost:5173** and you're in. 🎉
 
-> [!TIP]
-> Click **"peek inside with the demo account"** on the login screen to jump
-> straight in — no signup needed. (Demo logins: `luna`, `kai`, `sora`, `mochi`,
-> all with password `lofi123`.)
+---
+
+## 🖥️ Run as a desktop app
+
+TaskNook can also run as a **native desktop application** — its own window, no
+browser tab. It boots the Flask server locally and opens it in an OS window
+(via [pywebview](https://pywebview.flowrl.com/); Windows uses the built-in
+WebView2 runtime, macOS uses WebKit).
+
+**One-click launch:** double-click the launcher for your platform:
+
+| Platform | File | Notes |
+|---|---|---|
+| Windows | **`TaskNook.bat`** | Works out of the box (WebView2). |
+| macOS | **`TaskNook.command`** | First time: `chmod +x TaskNook.command`. |
+| Linux | `TaskNook.command` | Also needs system WebKit, e.g. `sudo apt install python3-gi gir1.2-webkit2-4.1`. Without it, TaskNook falls back to opening in your browser. |
+
+On first launch it builds the frontend and installs the desktop dependencies,
+then opens the app. Subsequent launches start instantly.
+
+**Or run it manually:**
+
+```bash
+# one-time setup
+cd frontend && npm install && npm run build && cd ..
+pip install -r requirements-desktop.txt
+
+# launch the native window
+python desktop.py
+```
 
 <details>
-<summary><b>Run everything on a single port (production mode)</b></summary>
+<summary><b>Package it into a single <code>TaskNook.exe</code> (optional)</b></summary>
 
 <br>
 
-Build the frontend once, then let Flask serve it alongside the API:
+Bundle everything — Python, the server, and the built SPA — into one
+double-clickable executable with [PyInstaller](https://pyinstaller.org/).
+Run this from the repo root, on **Windows (cmd)**:
 
-```bash
-cd frontend && npm run build      # outputs frontend/dist
-cd ../backend && python app.py    # serves the whole app at http://localhost:5000
+```bat
+pip install pyinstaller
+npm --prefix frontend run build            :: ensure frontend/dist exists
+
+pyinstaller --noconfirm --windowed --name TaskNook ^
+  --paths backend ^
+  --add-data "frontend/dist;frontend/dist" ^
+  --add-data "backend;backend" ^
+  --hidden-import app --hidden-import models ^
+  --collect-all flask ^
+  --collect-all flask_sqlalchemy ^
+  --collect-all sqlalchemy ^
+  --hidden-import flask_cors ^
+  --collect-all webview ^
+  desktop.py
 ```
 
-</details>
+The app lands in `dist/TaskNook/TaskNook.exe`.
 
-> [!NOTE]
-> On first launch the backend creates `tasknook.db` and seeds a few demo
-> cottage-dwellers so the **Friends** panel isn't empty.
+> The `--paths` / `--hidden-import` / `--collect-all` flags are **required**:
+> `desktop.py` imports the backend at runtime (via `sys.path`), so PyInstaller
+> can't discover Flask/SQLAlchemy/pywebview on its own without them.
+
+On **macOS/Linux**, replace each `;` in `--add-data` with `:`, and swap the `^`
+line-continuations for `\`.
+
+</details>
 
 ---
 

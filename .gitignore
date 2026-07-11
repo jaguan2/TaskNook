@@ -5,6 +5,11 @@ __pycache__/
 venv/
 backend/tasknook.db
 
+# PyInstaller (desktop .exe packaging)
+/build/
+/dist/
+*.spec
+
 # Node / Vite
 node_modules/
 frontend/dist/
