@@ -55,6 +55,15 @@ cd frontend && npm install && npm run dev
 Single-port / production-style: `cd frontend && npm run build` (emits
 `frontend/dist`), then `python backend/app.py` serves the built SPA at `:5000`.
 
+**Desktop app**: `desktop.py` (repo root) boots the same Flask app on a local
+port via `waitress` and opens it in a native window with `pywebview` (WebView2
+on Windows). Requires `frontend/dist` to exist + `pip install -r
+requirements-desktop.txt`. One-click launchers: `TaskNook.bat` (Windows) /
+`TaskNook.command` (macOS/Linux) build + install + launch. It's also
+PyInstaller-packageable into a single `.exe` — `desktop.py` is frozen-aware
+(`sys._MEIPASS`, writable-DB fallback). Web mode is unchanged and needs neither
+`pywebview` nor `waitress`.
+
 Demo logins (seeded): `luna` / `kai` / `sora` / `mochi`, password `lofi123`.
 Or click **"peek inside with the demo account"** on the login screen.
 
@@ -62,6 +71,8 @@ Or click **"peek inside with the demo account"** on the login screen.
 
 - `FLASK_DEBUG=0` — disable debug mode (default on for dev)
 - `PORT=5000` — change the API port
+- `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
+  packaged desktop app to keep data in a user-writable dir)
 
 ## Conventions & key facts
 

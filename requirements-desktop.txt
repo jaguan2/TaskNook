@@ -1,0 +1,10 @@
+# Desktop (native-window) mode — installs on top of the base API dependencies.
+#   pip install -r requirements-desktop.txt
+#
+# Windows: works out of the box (uses the built-in WebView2 runtime).
+# macOS:   works out of the box (uses the system WebKit).
+# Linux:   ALSO needs system packages pip can't install, e.g.
+#            sudo apt install python3-gi gir1.2-webkit2-4.1
+-r backend/requirements.txt
+pywebview>=5.0,<7     # native OS window (WebView2 on Windows, WebKit on macOS)
+waitress>=3.0,<4      # lightweight production WSGI server for the local app
