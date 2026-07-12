@@ -54,6 +54,7 @@ export const api = {
   // sessions + stats
   logSession: (payload) => request("POST", "/sessions", payload),
   stats: () => request("GET", "/stats"),
+  sessionDays: () => request("GET", "/sessions/days"),
 
   // friends
   listFriends: () => request("GET", "/friends"),

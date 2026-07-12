@@ -10,7 +10,7 @@ const ITEMS = [
 
 export default function Dock({ active, onSelect }) {
   return (
-    <div className="absolute left-6 top-1/2 z-20 -translate-y-1/2">
+    <div className="intro-chrome absolute left-6 top-1/2 z-20 -translate-y-1/2">
       <div className="glass flex flex-col gap-2 rounded-3xl p-2 shadow-soft">
         {ITEMS.map((item) => (
           <button

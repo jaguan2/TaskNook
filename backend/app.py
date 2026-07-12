@@ -257,6 +257,18 @@ def register_routes(app):
     def stats(user):
         return jsonify(build_stats(user))
 
+    @app.get("/api/sessions/days")
+    @require_auth
+    def session_days(user):
+        """Focus minutes per day, for marking active days on the calendar."""
+        rows = (
+            db.session.query(FocusSession.day, db.func.sum(FocusSession.minutes))
+            .filter_by(user_id=user.id)
+            .group_by(FocusSession.day)
+            .all()
+        )
+        return jsonify({day: int(minutes) for day, minutes in rows})
+
     # ----- Friends -------------------------------------------------------- #
     @app.get("/api/friends")
     @require_auth
