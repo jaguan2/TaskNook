@@ -33,6 +33,21 @@ body {
   background: transparent;
 }
 
+/* Fades in at whichever edge still has scrollable content, so a panel with
+   more content below never looks like it simply ends (background-attachment:
+   local scrolls with content, scroll stays fixed to the viewport — the
+   overlap is what makes the shadow appear/disappear at the right moments). */
+.cozy-scroll {
+  background:
+    linear-gradient(rgba(59, 31, 51, 0.95), rgba(59, 31, 51, 0)) center top,
+    linear-gradient(rgba(59, 31, 51, 0), rgba(59, 31, 51, 0.95)) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)) center top,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)) center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px;
+  background-attachment: local, local, scroll, scroll;
+}
+
 /* Frosted glass panel look */
 .glass {
   background: rgba(59, 31, 51, 0.72);
@@ -64,5 +79,104 @@ body {
 @keyframes rainfall {
   to {
     transform: translateY(120vh);
+  }
+}
+/* Storm rain falls at a windswept angle */
+.rain-drop-storm {
+  animation-name: rainfall-storm;
+}
+@keyframes rainfall-storm {
+  to {
+    transform: translate(-60px, 120vh);
+  }
+}
+
+/* Drifting snow overlay */
+.snow-flake {
+  position: absolute;
+  top: -5%;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.85);
+  animation-name: snowfall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes snowfall {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(16px, 25vh);
+  }
+  50% {
+    transform: translate(-12px, 50vh);
+  }
+  75% {
+    transform: translate(14px, 75vh);
+  }
+  100% {
+    transform: translate(0, 120vh);
+  }
+}
+
+/* Storm lightning flash */
+.lightning-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.08s ease-out;
+}
+.lightning-flash-active {
+  opacity: 0.35;
+  transition: opacity 0.03s ease-in;
+}
+
+/* Rain streaks inside the Cottage window illustration */
+.window-rain {
+  animation-name: window-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes window-rain-fall {
+  0% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(190px);
+    opacity: 0;
+  }
+}
+
+/* Snow streaks inside the Cottage window illustration */
+.window-snow {
+  animation-name: window-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes window-snow-fall {
+  0% {
+    transform: translate(0, -14px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(8px, 90px);
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-6px, 190px);
+    opacity: 0;
   }
 }
