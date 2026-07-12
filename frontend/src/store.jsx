@@ -78,6 +78,22 @@ export function StoreProvider({ children }) {
     })()
   );
   const autoMatchRef = useRef(autoMatchWeather);
+  const [weatherPresets, setWeatherPresets] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tasknook.weather.presets") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  // ---- Settings ----
+  const [brightness, setBrightnessState] = useState(
+    () => Number(localStorage.getItem("tasknook.brightness")) || 1
+  );
+  const [colorScheme, setColorSchemeState] = useState(
+    () => localStorage.getItem("tasknook.colorScheme") || "plum"
+  );
+
   const [customStations, setCustomStations] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
@@ -279,6 +295,43 @@ export function StoreProvider({ children }) {
   };
   const toggleMusic = () => setMusicOn((m) => !m);
 
+  // A named snapshot of {weatherMode, timeOfDay, weatherVolume} so a whole
+  // "scene" can be recalled in one click instead of resetting each control.
+  const saveWeatherPreset = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const preset = { name: trimmed, weatherMode, timeOfDay, weatherVolume };
+    setWeatherPresets((prev) => {
+      const next = [...prev.filter((p) => p.name !== trimmed), preset];
+      localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+      return next;
+    });
+  };
+  const applyWeatherPreset = (name) => {
+    const preset = weatherPresets.find((p) => p.name === name);
+    if (!preset) return;
+    changeWeatherVolume(preset.weatherVolume);
+    setWeather(preset.weatherMode);
+    setTimeOfDay(preset.timeOfDay);
+  };
+  const deleteWeatherPreset = (name) => {
+    setWeatherPresets((prev) => {
+      const next = prev.filter((p) => p.name !== name);
+      localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // ---------- Settings ----------
+  const setBrightness = (v) => {
+    setBrightnessState(v);
+    localStorage.setItem("tasknook.brightness", String(v));
+  };
+  const setColorScheme = (scheme) => {
+    setColorSchemeState(scheme);
+    localStorage.setItem("tasknook.colorScheme", scheme);
+  };
+
   // ---------- Real-world weather ----------
   useEffect(() => {
     autoMatchRef.current = autoMatchWeather;
@@ -439,6 +492,16 @@ export function StoreProvider({ children }) {
     toggleAutoMatchWeather,
     refreshRealWeather,
     searchWeatherCity,
+    weatherPresets,
+    saveWeatherPreset,
+    applyWeatherPreset,
+    deleteWeatherPreset,
+
+    // settings
+    brightness,
+    setBrightness,
+    colorScheme,
+    setColorScheme,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

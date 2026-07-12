@@ -74,6 +74,18 @@ loose `--add-data` (not analyzed as source), which is why `flask_cors` and
 `desktop.py` itself references them for PyInstaller's analyzer to find.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
 
+**Desktop persistence (two easy-to-reintroduce bugs, both fixed in `desktop.py`):**
+1. `pywebview`'s `webview.start()` defaults to `private_mode=True` (incognito-style —
+   wipes `localStorage` on close). Must pass `private_mode=False` and an explicit
+   `storage_path` (under `APP_DATA_DIR`, i.e. `%LOCALAPPDATA%\TaskNook\webview`) or
+   nothing persists across launches — not the token, not any preference.
+2. `localStorage` is scoped by **origin** (host *and* port). The server used to bind
+   to a random free port every launch (`find_free_port()`), so even with storage
+   fixed, every relaunch was a "new origin" and couldn't see its own previous data.
+   `desktop.py` now binds a stable `DEFAULT_PORT = 39217` (falling back to a random
+   port only if that one's taken). Verified by checking the `Token` table doesn't
+   grow across a close+relaunch cycle — if it does, one of these two regressed.
+
 There's no login screen — TaskNook is a single-user local app, so on first
 launch the frontend silently signs into (or creates) one fixed local account
 (`store.jsx`'s `LOCAL_ACCOUNT`, username `you`). Seeded demo users `luna` /

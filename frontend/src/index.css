@@ -4,6 +4,36 @@
 
 :root {
   color-scheme: dark;
+
+  /* "Plum Night" (default) — RGB channels (not hex) so Tailwind's <alpha-value>
+     opacity modifiers (e.g. bg-rose/40) work against these variables. */
+  --color-night: 43 24 48;
+  --color-plum: 59 31 51;
+  --color-wine: 74 34 56;
+  --color-rose: 217 138 147;
+  --color-blush: 232 163 168;
+  --color-petal: 243 198 192;
+  --color-void: 29 15 31;
+}
+
+[data-theme="forest"] {
+  --color-night: 26 43 34;
+  --color-plum: 34 57 44;
+  --color-wine: 44 74 58;
+  --color-rose: 217 162 90;
+  --color-blush: 184 207 158;
+  --color-petal: 215 230 196;
+  --color-void: 15 26 20;
+}
+
+[data-theme="ocean"] {
+  --color-night: 22 35 46;
+  --color-plum: 30 50 69;
+  --color-wine: 40 69 89;
+  --color-rose: 111 184 207;
+  --color-blush: 159 211 224;
+  --color-petal: 203 232 239;
+  --color-void: 14 22 29;
 }
 
 html,
@@ -15,7 +45,12 @@ body,
 
 body {
   font-family: "Quicksand", ui-rounded, system-ui, sans-serif;
-  background: radial-gradient(circle at 50% 18%, #4a2238 0%, #2b1830 60%, #1d0f1f 100%);
+  background: radial-gradient(
+    circle at 50% 18%,
+    rgb(var(--color-wine)) 0%,
+    rgb(var(--color-night)) 60%,
+    rgb(var(--color-void)) 100%
+  );
   color: #f7e9e2;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
@@ -26,7 +61,7 @@ body {
   width: 8px;
 }
 .cozy-scroll::-webkit-scrollbar-thumb {
-  background: rgba(243, 198, 192, 0.25);
+  background: rgb(var(--color-petal) / 0.25);
   border-radius: 99px;
 }
 .cozy-scroll::-webkit-scrollbar-track {
@@ -39,8 +74,8 @@ body {
    overlap is what makes the shadow appear/disappear at the right moments). */
 .cozy-scroll {
   background:
-    linear-gradient(rgba(59, 31, 51, 0.95), rgba(59, 31, 51, 0)) center top,
-    linear-gradient(rgba(59, 31, 51, 0), rgba(59, 31, 51, 0.95)) center bottom,
+    linear-gradient(rgb(var(--color-plum) / 0.95), rgb(var(--color-plum) / 0)) center top,
+    linear-gradient(rgb(var(--color-plum) / 0), rgb(var(--color-plum) / 0.95)) center bottom,
     radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)) center top,
     radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)) center bottom;
   background-repeat: no-repeat;
@@ -50,9 +85,9 @@ body {
 
 /* Frosted glass panel look */
 .glass {
-  background: rgba(59, 31, 51, 0.72);
+  background: rgb(var(--color-plum) / 0.72);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(243, 198, 192, 0.14);
+  border: 1px solid rgb(var(--color-petal) / 0.14);
 }
 
 /* Soft pill buttons */
