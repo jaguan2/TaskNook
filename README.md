@@ -2,11 +2,13 @@
 
 > A cozy, full-stack task tracker inspired by the game **Virtual Cottage**.
 
-Curl up in a warm little isometric room, queue up your tasks, and start a focus
-block with lofi beats and rain on the window. Watch your productivity garden grow
+Settle in at a warm little desk by the window, queue up your tasks, and start a
+focus block with lofi beats and rain, snow, or a full storm outside. Switch the
+scene between night, sunset, and day — or let TaskNook check the real weather
+where you are and match it automatically. Watch your productivity garden grow
 — and cheer on your friends while you're at it.
 
-![A cozy isometric cottage with a focus timer, task list, and friends panel](docs/preview.png)
+![A cozy desk by a rainy window, with a focus timer, glowing monitor, and task list](docs/preview.png)
 
 ---
 
@@ -77,39 +79,39 @@ python desktop.py
 ```
 
 <details>
-<summary><b>Package it into a single <code>TaskNook.exe</code> (optional)</b></summary>
+<summary><b>Package it into a single <code>TaskNook.exe</code> (optional, Windows)</b></summary>
 
 <br>
 
 Bundle everything — Python, the server, and the built SPA — into one
 double-clickable executable with [PyInstaller](https://pyinstaller.org/).
-Run this from the repo root, on **Windows (cmd)**:
+
+**Easiest:** run `build-exe.bat` from the repo root. It builds the frontend,
+installs `requirements-desktop.txt` + `pyinstaller`, and packages `desktop.py`
+into `dist\TaskNook.exe` (one file, no console window).
+
+**Manually**, the equivalent command is:
 
 ```bat
-pip install pyinstaller
+pip install -r requirements-desktop.txt pyinstaller
 npm --prefix frontend run build            :: ensure frontend/dist exists
 
-pyinstaller --noconfirm --windowed --name TaskNook ^
-  --paths backend ^
-  --add-data "frontend/dist;frontend/dist" ^
+pyinstaller --onefile --windowed --name TaskNook ^
   --add-data "backend;backend" ^
-  --hidden-import app --hidden-import models ^
-  --collect-all flask ^
-  --collect-all flask_sqlalchemy ^
-  --collect-all sqlalchemy ^
+  --add-data "frontend/dist;frontend/dist" ^
   --hidden-import flask_cors ^
-  --collect-all webview ^
+  --hidden-import flask_sqlalchemy ^
   desktop.py
 ```
 
-The app lands in `dist/TaskNook/TaskNook.exe`.
+The app lands in `dist\TaskNook.exe`, and the DB it uses at runtime lives in
+`%LOCALAPPDATA%\TaskNook\tasknook.db` (not inside the read-only bundle).
 
-> The `--paths` / `--hidden-import` / `--collect-all` flags are **required**:
-> `desktop.py` imports the backend at runtime (via `sys.path`), so PyInstaller
-> can't discover Flask/SQLAlchemy/pywebview on its own without them.
-
-On **macOS/Linux**, replace each `;` in `--add-data` with `:`, and swap the `^`
-line-continuations for `\`.
+> `backend/` and `frontend/dist` are bundled as **loose data files**, not
+> analyzed as source — `desktop.py`'s `sys.path` trick then imports `app.py`
+> from real files on disk at runtime, same as it does unfrozen. That's why
+> `flask_cors`/`flask_sqlalchemy` need explicit `--hidden-import`: nothing in
+> `desktop.py` itself references them for PyInstaller's analyzer to find.
 
 </details>
 
@@ -119,14 +121,17 @@ line-continuations for `\`.
 
 | | Feature | What it does |
 |---|---|---|
-| 🏡 | **Cozy cottage scene** | A hand-built isometric SVG room (desk, loft bed, kitchen, plants, glowing window) that gently comes alive while you focus. |
+| 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor and lamp that respond to your focus state. |
 | ✅ | **Tasks** | Add tasks with a duration & priority, check them off, and drag to reorder. |
 | 🧠 | **Ordering algorithms** | Auto-arrange your list five different ways *(see below)*. |
 | ⏱️ | **Focus timer** | Pomodoro-style blocks (15 / 25 / 45 / 60 min) with a progress ring; finished blocks are logged as productivity time. |
 | 🗓️ | **Calendar** | Schedule tasks onto specific days and see what's planned. |
 | 📈 | **Progress** | A live completion bar, focus-hours, and a "productivity garden" that grows a plant for every 15 focused minutes. |
-| 🎧 | **Ambience** | Toggle embedded lofi radio and procedurally-generated rainfall (Web Audio — works offline). |
-| 🫶 | **Friends** | Add friends by username and watch each other's daily progress to stay motivated. |
+| 🎵 | **Music** | Built-in lofi YouTube stations, or paste any YouTube or Spotify link (playlist/album/track/show/episode) to play your own. |
+| 🌦️ | **Weather ambience** | Rain, snow, or a full storm (with thunder) — procedurally generated with the Web Audio API, works fully offline. The desk window shows matching weather. |
+| 🕰️ | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. |
+| 🌍 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
+| 🫶 | **Friends** | See everyone's daily progress to stay motivated — TaskNook auto-friends your local account with a few demo cottage-dwellers so it's never empty. |
 
 **Ordering algorithms:**
 
@@ -144,6 +149,7 @@ line-continuations for `\`.
 |---|---|
 | **Frontend** | React 18 + Vite · Tailwind CSS · Framer Motion |
 | **Backend** | Flask + Flask-SQLAlchemy (SQLite) · token auth · REST API |
+| **External** | [Open-Meteo](https://open-meteo.com/) for real weather (free, no API key) — the only feature that needs internet; everything else is fully local |
 
 The frontend is fully decoupled — it talks to the backend purely over the REST
 API under `/api`. In development, Vite proxies `/api` to Flask automatically.
@@ -155,6 +161,11 @@ API under `/api`. In development, Vite proxies `/api` to Flask automatically.
 All endpoints live under `/api`. Authenticated routes expect an
 `Authorization: Bearer <token>` header (returned by login & register).
 
+> There's no login screen — TaskNook is single-user and local, so the frontend
+> silently logs into (or creates, on first launch) one fixed local account
+> using the endpoints below. They're listed here because they're still real,
+> callable API routes, not because you'll ever see a login form.
+
 ### Auth
 
 | Method | Endpoint | Description |
@@ -162,6 +173,9 @@ All endpoints live under `/api`. Authenticated routes expect an
 | `POST` | `/auth/register` | Create an account, returns a token |
 | `POST` | `/auth/login` | Log in, returns a token |
 | `GET` | `/auth/me` | Get the current user |
+
+Real-world weather (the built-in Weather panel) isn't a backend route at all —
+the frontend calls Open-Meteo directly; see `lib/weather.js`.
 
 ### Tasks
 
@@ -193,11 +207,15 @@ TaskNook/
 │   ├── app.py            # Flask app: routes, seeding, optional static serving
 │   ├── models.py         # SQLAlchemy models (User, Task, FocusSession, Token)
 │   └── requirements.txt
+├── desktop.py         # Native-window launcher (pywebview + waitress)
+├── build-exe.bat      # One-command PyInstaller build → dist/TaskNook.exe
 └── frontend/
     ├── src/
-    │   ├── components/    # Cottage, TopBar, FocusTimer, panels, Drawer, Dock…
-    │   ├── lib/           # api client, ordering algorithms, ambient audio
-    │   ├── store.jsx      # React context: auth, tasks, timer, ambience
+    │   ├── components/    # Cottage (desk scene), TopBar, FocusTimer, Dock,
+    │   │                  #   Drawer, *Panel.jsx, WeatherOverlay
+    │   ├── lib/           # api client, ordering algorithms, procedural audio,
+    │   │                  #   Open-Meteo weather, YouTube/Spotify link parsing
+    │   ├── store.jsx      # React context: local account, tasks, ambience, weather
     │   └── App.jsx
     └── vite.config.js
 ```

@@ -25,12 +25,13 @@ TaskNook/
 │       ├── lib/
 │       │   ├── api.js        # fetch wrapper; token in localStorage
 │       │   ├── algorithms.js # task-ordering strategies (pure functions)
-│       │   ├── audio.js      # procedural rain via Web Audio API
+│       │   ├── audio.js      # procedural rain/snow/storm via Web Audio API
+│       │   ├── weather.js    # Open-Meteo: geolocation/geocoding + current conditions
 │       │   ├── musicLink.js  # resolves a pasted link to a YouTube/Spotify station
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
 │       │   └── spotify.js    # Spotify URL parsing (pure)
 │       └── components/   # Cottage (SVG scene), TopBar, FocusTimer, Dock,
-│                         #   Drawer, *Panel.jsx, RainOverlay
+│                         #   Drawer, *Panel.jsx, WeatherOverlay
 ├── requirements.txt      # mirror of backend/requirements.txt (root convenience)
 └── docs/preview.png      # README screenshot
 ```
@@ -108,21 +109,37 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   depends only on `running`; the completion callback is read through a ref to
   avoid recreating the interval when the active task changes. On completion it
   POSTs a `FocusSession` (used for "productivity hours" stats).
-- **Ambient audio**: rain is generated procedurally with the Web Audio API
-  (`lib/audio.js`) — no audio files, works offline. Web Audio must start from a
-  user gesture (it does — toggled by a button). Music is an iframe embed
-  (YouTube or Spotify) in `MusicPanel.jsx`: a few built-in YouTube lofi stations,
-  plus users can paste any YouTube or Spotify (playlist/album/track/show/episode)
-  link — `lib/musicLink.js` resolves it to a `{provider, id, kind?}` station,
-  persisted to `localStorage` (`tasknook.music.custom` / `tasknook.music.station`).
-  No API keys or fees involved on either side — both are just public iframe embeds.
+- **Ambient audio**: `weatherMode` (`off`/`rain`/`snow`/`storm`) drives procedurally
+  generated audio via the Web Audio API (`lib/audio.js`, `startWeather`/`stopWeather`) —
+  no audio files, works offline. Rain/snow/storm are the same filtered-noise engine
+  with different filter/gain presets; storm additionally schedules random thunder
+  bursts. Web Audio must start from a user gesture (it does). `WeatherOverlay.jsx`
+  renders the matching full-screen visual (falling rain/snow, storm gets a lightning
+  flash), and `Cottage.jsx`'s window shows the same weather via its `weather` prop.
+  Music is an iframe embed (YouTube or Spotify) in `MusicPanel.jsx`: a few built-in
+  YouTube lofi stations, plus users can paste any YouTube or Spotify
+  (playlist/album/track/show/episode) link — `lib/musicLink.js` resolves it to a
+  `{provider, id, kind?}` station, persisted to `localStorage`
+  (`tasknook.music.custom` / `tasknook.music.station`). No API keys or fees involved
+  on either side — both are just public iframe embeds.
+- **Real-world weather**: `WeatherPanel.jsx` + `lib/weather.js` hit Open-Meteo
+  (free, no API key) for current conditions — browser geolocation first, falling
+  back to manual city search via Open-Meteo's geocoding endpoint. This is the one
+  feature that needs internet + a location; everything else in TaskNook is fully
+  local/offline. "Match my real weather" (`autoMatchWeather` in `store.jsx`) maps
+  the fetched WMO weather code to `weatherMode` and the sunrise/sunset window to
+  `timeOfDay` (`night`/`sunset`/`day`), refreshing every 15 minutes while enabled.
 - **Dates**: format dates with **local** parts, not `toISOString()` (which is UTC
   and shifts the day for negative-UTC users). See `toISO()` in `CalendarPanel.jsx`.
   The backend buckets focus time by local `date.today()` for "today" stats.
 - **Styling**: Tailwind with a custom cozy palette in `tailwind.config.js`
   (`night`, `plum`, `wine`, `rose`, `blush`, `glow`, etc.). Reusable classes
   `.glass`, `.pill`, `.cozy-scroll` are defined in `src/index.css`.
-- **The cottage** in `Cottage.jsx` is hand-authored SVG (no image assets).
+- **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
+  assets, no isometric projection) — a desk by a window. It takes `focused`
+  (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
+  matches `WeatherOverlay`), and `timeOfDay` (`night`/`sunset`/`day`, swaps the sky
+  gradient/building colors/sun-or-moon position/lamp prominence via `TIME_PRESETS`).
   Remember SVG quirks: `skewY()` takes only an angle; use `rotate(angle cx cy)`
   for centered rotation.
 

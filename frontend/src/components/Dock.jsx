@@ -4,6 +4,7 @@ const ITEMS = [
   { key: "progress", icon: "📈", label: "Progress" },
   { key: "friends", icon: "🫶", label: "Friends" },
   { key: "music", icon: "🎧", label: "Sounds" },
+  { key: "weather", icon: "🌍", label: "Weather" },
 ];
 
 export default function Dock({ active, onSelect }) {
