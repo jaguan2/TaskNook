@@ -22,10 +22,11 @@ export default function TopBar() {
     remaining,
     musicOn,
     toggleMusic,
-    rainOn,
-    toggleRain,
+    weatherMode,
+    toggleWeather,
   } = useStore();
   const now = useClock();
+  const weatherIcon = { snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
 
   const minutesToGo = Math.ceil(remaining / 60);
   const status = running ? "Focusing" : "Cozy break";
@@ -60,8 +61,8 @@ export default function TopBar() {
         <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music">
           🎵
         </IconToggle>
-        <IconToggle active={rainOn} onClick={toggleRain} title="Rain ambience">
-          🌧️
+        <IconToggle active={weatherMode !== "off"} onClick={toggleWeather} title="Weather ambience">
+          {weatherIcon}
         </IconToggle>
 
         <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">

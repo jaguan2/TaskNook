@@ -5,12 +5,13 @@ import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
 import FocusTimer from "./components/FocusTimer";
-import RainOverlay from "./components/RainOverlay";
+import WeatherOverlay from "./components/WeatherOverlay";
 import TaskPanel from "./components/TaskPanel";
 import CalendarPanel from "./components/CalendarPanel";
 import ProgressPanel from "./components/ProgressPanel";
 import FriendsPanel from "./components/FriendsPanel";
 import MusicPanel from "./components/MusicPanel";
+import WeatherPanel from "./components/WeatherPanel";
 
 const PANELS = {
   tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
@@ -18,10 +19,11 @@ const PANELS = {
   progress: { title: "Progress", subtitle: "Your cozy productivity, today", Comp: ProgressPanel },
   friends: { title: "Friends", subtitle: "Cheer on your cottage neighbours", Comp: FriendsPanel },
   music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
+  weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },
 };
 
 export default function App() {
-  const { booting, running, rainOn } = useStore();
+  const { booting, running, weatherMode, timeOfDay } = useStore();
   const [panel, setPanel] = useState(null);
 
   if (booting) {
@@ -36,11 +38,11 @@ export default function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <RainOverlay active={rainOn} />
+      <WeatherOverlay mode={weatherMode} />
 
       {/* Centerpiece cottage */}
       <div className="absolute inset-0 grid place-items-center">
-        <Cottage focused={running} />
+        <Cottage focused={running} weather={weatherMode} timeOfDay={timeOfDay} />
       </div>
 
       <TopBar />

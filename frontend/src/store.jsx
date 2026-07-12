@@ -8,8 +8,9 @@ import {
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
 import { applyAlgorithm } from "./lib/algorithms";
-import { startRain, stopRain, setRainVolume } from "./lib/audio";
+import { startWeather, stopWeather, setWeatherVolume } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
+import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -49,9 +50,34 @@ export function StoreProvider({ children }) {
   const tickRef = useRef(null);
 
   // ---- Ambient ----
-  const [rainOn, setRainOn] = useState(false);
-  const [rainVolume, setRainVol] = useState(0.5);
+  const [weatherMode, setWeatherModeState] = useState("off");
+  const [weatherVolume, setWeatherVol] = useState(0.5);
+  const lastWeatherModeRef = useRef("rain");
+  const [timeOfDay, setTimeOfDayState] = useState(
+    () => localStorage.getItem("tasknook.timeOfDay") || "night"
+  );
   const [musicOn, setMusicOn] = useState(false);
+
+  // ---- Real-world weather ----
+  const [realWeather, setRealWeather] = useState(null);
+  const [weatherStatus, setWeatherStatus] = useState("idle"); // idle | loading | ready | error
+  const [weatherError, setWeatherError] = useState("");
+  const [weatherLocationLabel, setWeatherLocationLabel] = useState(
+    () => localStorage.getItem("tasknook.weather.location") || ""
+  );
+  const [autoMatchWeather, setAutoMatchWeather] = useState(
+    () => localStorage.getItem("tasknook.weather.automatch") === "1"
+  );
+  const weatherCoordsRef = useRef(
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem("tasknook.weather.coords") || "null");
+      } catch {
+        return null;
+      }
+    })()
+  );
+  const autoMatchRef = useRef(autoMatchWeather);
   const [customStations, setCustomStations] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
@@ -235,18 +261,93 @@ export function StoreProvider({ children }) {
   }, [running]);
 
   // ---------- Ambient ----------
-  const toggleRain = () => {
-    setRainOn((on) => {
-      if (on) stopRain();
-      else startRain(rainVolume);
-      return !on;
-    });
+  const setWeather = (nextMode) => {
+    if (nextMode !== "off") lastWeatherModeRef.current = nextMode;
+    setWeatherModeState(nextMode);
+    startWeather(nextMode, weatherVolume);
   };
-  const changeRainVolume = (v) => {
-    setRainVol(v);
-    setRainVolume(v);
+  const toggleWeather = () => {
+    setWeather(weatherMode === "off" ? lastWeatherModeRef.current : "off");
+  };
+  const changeWeatherVolume = (v) => {
+    setWeatherVol(v);
+    setWeatherVolume(v);
+  };
+  const setTimeOfDay = (mode) => {
+    setTimeOfDayState(mode);
+    localStorage.setItem("tasknook.timeOfDay", mode);
   };
   const toggleMusic = () => setMusicOn((m) => !m);
+
+  // ---------- Real-world weather ----------
+  useEffect(() => {
+    autoMatchRef.current = autoMatchWeather;
+    localStorage.setItem("tasknook.weather.automatch", autoMatchWeather ? "1" : "0");
+  }, [autoMatchWeather]);
+
+  // Keep the latest setWeather/setTimeOfDay in refs so refreshRealWeather (and
+  // the auto-match interval below) can stay a stable callback without ever
+  // acting on a stale weatherVolume from whichever render first created it.
+  const setWeatherRef = useRef(setWeather);
+  const setTimeOfDayRef = useRef(setTimeOfDay);
+  useEffect(() => {
+    setWeatherRef.current = setWeather;
+    setTimeOfDayRef.current = setTimeOfDay;
+  });
+
+  const refreshRealWeather = useCallback(async (coordsOverride) => {
+    setWeatherStatus("loading");
+    setWeatherError("");
+    try {
+      const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
+      weatherCoordsRef.current = coords;
+      localStorage.setItem("tasknook.weather.coords", JSON.stringify(coords));
+      const data = await fetchCurrentWeather(coords.lat, coords.lon);
+      setRealWeather(data);
+      setWeatherStatus("ready");
+      if (autoMatchRef.current) {
+        setWeatherRef.current(data.mode);
+        setTimeOfDayRef.current(data.timeOfDay);
+      }
+    } catch (err) {
+      setWeatherStatus("error");
+      setWeatherError(err.message || "Couldn't get the weather");
+    }
+  }, []);
+
+  const searchWeatherCity = async (name) => {
+    setWeatherStatus("loading");
+    setWeatherError("");
+    try {
+      const place = await geocodeCity(name);
+      setWeatherLocationLabel(place.label);
+      localStorage.setItem("tasknook.weather.location", place.label);
+      await refreshRealWeather({ lat: place.lat, lon: place.lon });
+    } catch (err) {
+      setWeatherStatus("error");
+      setWeatherError(err.message || "Couldn't find that place");
+    }
+  };
+
+  const toggleAutoMatchWeather = () => {
+    setAutoMatchWeather((v) => {
+      const next = !v;
+      if (next && realWeather) {
+        setWeather(realWeather.mode);
+        setTimeOfDay(realWeather.timeOfDay);
+      }
+      return next;
+    });
+  };
+
+  // While auto-match is on, keep real conditions from drifting stale.
+  useEffect(() => {
+    if (!autoMatchWeather) return undefined;
+    refreshRealWeather();
+    const id = setInterval(() => refreshRealWeather(), 15 * 60 * 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMatchWeather]);
 
   const setStation = (key) => {
     setActiveStationKey(key);
@@ -314,10 +415,13 @@ export function StoreProvider({ children }) {
     setActiveTaskId,
 
     // ambient
-    rainOn,
-    toggleRain,
-    rainVolume,
-    changeRainVolume,
+    weatherMode,
+    setWeather,
+    toggleWeather,
+    weatherVolume,
+    changeWeatherVolume,
+    timeOfDay,
+    setTimeOfDay,
     musicOn,
     toggleMusic,
     musicStations,
@@ -325,6 +429,16 @@ export function StoreProvider({ children }) {
     selectStation,
     addCustomStation,
     removeCustomStation,
+
+    // real-world weather
+    realWeather,
+    weatherStatus,
+    weatherError,
+    weatherLocationLabel,
+    autoMatchWeather,
+    toggleAutoMatchWeather,
+    refreshRealWeather,
+    searchWeatherCity,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

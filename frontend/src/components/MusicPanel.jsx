@@ -5,6 +5,13 @@ import { stationKey } from "../lib/musicLink";
 // Spotify's embed needs a taller frame for content with a tracklist.
 const SPOTIFY_TALL_KINDS = new Set(["playlist", "album", "show"]);
 
+const WEATHER_OPTIONS = [
+  { key: "off", label: "Off", icon: "🌤️" },
+  { key: "rain", label: "Rain", icon: "🌧️" },
+  { key: "snow", label: "Snow", icon: "❄️" },
+  { key: "storm", label: "Storm", icon: "⛈️" },
+];
+
 function embedProps(station) {
   if (station.provider === "spotify") {
     return {
@@ -29,10 +36,10 @@ export default function MusicPanel() {
     selectStation,
     addCustomStation,
     removeCustomStation,
-    rainOn,
-    toggleRain,
-    rainVolume,
-    changeRainVolume,
+    weatherMode,
+    setWeather,
+    weatherVolume,
+    changeWeatherVolume,
   } = useStore();
 
   const [url, setUrl] = useState("");
@@ -140,21 +147,26 @@ export default function MusicPanel() {
 
       <hr className="border-white/10" />
 
-      {/* Rain ambience */}
+      {/* Weather ambience */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🌧️ Rain ambience</p>
-          <button
-            onClick={toggleRain}
-            className={`pill px-3 py-1 text-xs font-semibold ${
-              rainOn ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
-            }`}
-          >
-            {rainOn ? "On" : "Off"}
-          </button>
+        <p className="text-sm font-semibold text-cream">🌦️ Weather ambience</p>
+        <div className="flex flex-wrap gap-1.5">
+          {WEATHER_OPTIONS.map((w) => (
+            <button
+              key={w.key}
+              onClick={() => setWeather(w.key)}
+              className={`pill px-3 py-1.5 text-xs font-semibold ${
+                weatherMode === w.key
+                  ? "bg-glow text-plum"
+                  : "bg-white/10 text-petal hover:bg-white/20"
+              }`}
+            >
+              {w.icon} {w.label}
+            </button>
+          ))}
         </div>
         <p className="text-xs text-petal/60">
-          Procedurally generated rainfall — no download, plays even offline.
+          Procedurally generated — no downloads, plays even offline.
         </p>
         <div className="flex items-center gap-3">
           <span className="text-xs text-petal/60">vol</span>
@@ -163,9 +175,10 @@ export default function MusicPanel() {
             min="0"
             max="1"
             step="0.05"
-            value={rainVolume}
-            onChange={(e) => changeRainVolume(Number(e.target.value))}
-            className="flex-1 accent-glow"
+            value={weatherVolume}
+            onChange={(e) => changeWeatherVolume(Number(e.target.value))}
+            disabled={weatherMode === "off"}
+            className="flex-1 accent-glow disabled:opacity-40"
           />
         </div>
       </section>
