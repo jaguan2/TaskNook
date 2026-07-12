@@ -4,13 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Cozy "Virtual Cottage" palette
-        night: "#2b1830",
-        plum: "#3b1f33",
-        wine: "#4a2238",
-        rose: "#d98a93",
-        blush: "#e8a3a8",
-        petal: "#f3c6c0",
+        // Cozy "Virtual Cottage" palette. night/plum/wine/rose/blush/petal are
+        // CSS variables (see :root in index.css) so a data-theme attribute can
+        // swap the whole app's color scheme; cream/glow/amber/sky/sage stay
+        // fixed across themes (CTA highlight + semantic priority colors).
+        night: "rgb(var(--color-night) / <alpha-value>)",
+        plum: "rgb(var(--color-plum) / <alpha-value>)",
+        wine: "rgb(var(--color-wine) / <alpha-value>)",
+        rose: "rgb(var(--color-rose) / <alpha-value>)",
+        blush: "rgb(var(--color-blush) / <alpha-value>)",
+        petal: "rgb(var(--color-petal) / <alpha-value>)",
         cream: "#f7e9e2",
         glow: "#ffe9b0",
         amber: "#e8b04b",
