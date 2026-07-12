@@ -1,3 +1,4 @@
+import { motion, useDragControls } from "framer-motion";
 import { useStore } from "../store";
 
 function fmt(seconds) {
@@ -23,10 +24,23 @@ export default function FocusTimer() {
 
   const total = focusMinutes * 60;
   const progress = total > 0 ? 1 - remaining / total : 0;
+  const dragControls = useDragControls();
 
   return (
-    <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+    <motion.div
+      drag
+      dragListener={false}
+      dragControls={dragControls}
+      dragMomentum={false}
+      dragElastic={0}
+      className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2"
+    >
       <div className="glass flex flex-col items-center gap-3 rounded-3xl px-6 py-4 shadow-soft">
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          title="Drag to move"
+          className="-mt-1 mb-1 h-1.5 w-10 shrink-0 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
+        />
         {/* progress ring + time */}
         <div className="flex items-center gap-5">
           <div className="relative grid h-20 w-20 place-items-center">
@@ -104,6 +118,6 @@ export default function FocusTimer() {
           {activeTask ? `Working on “${activeTask.name}”` : "No task selected — open Tasks to pick one"}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }

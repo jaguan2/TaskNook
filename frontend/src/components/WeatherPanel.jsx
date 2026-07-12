@@ -19,14 +19,26 @@ export default function WeatherPanel() {
     toggleAutoMatchWeather,
     timeOfDay,
     setTimeOfDay,
+    weatherPresets,
+    saveWeatherPreset,
+    applyWeatherPreset,
+    deleteWeatherPreset,
   } = useStore();
 
   const [city, setCity] = useState("");
+  const [presetName, setPresetName] = useState("");
 
   const submitCity = (e) => {
     e.preventDefault();
     if (!city.trim()) return;
     searchWeatherCity(city.trim());
+  };
+
+  const submitPreset = (e) => {
+    e.preventDefault();
+    if (!presetName.trim()) return;
+    saveWeatherPreset(presetName.trim());
+    setPresetName("");
   };
 
   return (
@@ -124,6 +136,56 @@ export default function WeatherPanel() {
             </button>
           ))}
         </div>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Saved scene presets */}
+      <section className="space-y-2">
+        <p className="text-sm font-semibold text-cream">💾 Presets</p>
+        <p className="text-xs text-petal/60">
+          Save the current weather, time of day, and volume as a preset to
+          recall later.
+        </p>
+
+        {weatherPresets.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {weatherPresets.map((p) => (
+              <div key={p.name} className="flex items-center">
+                <button
+                  onClick={() => applyWeatherPreset(p.name)}
+                  title={`${p.weatherMode} · ${p.timeOfDay}`}
+                  className="pill rounded-r-none bg-white/10 px-3 py-1 text-xs text-petal hover:bg-white/20"
+                >
+                  {p.name}
+                </button>
+                <button
+                  onClick={() => deleteWeatherPreset(p.name)}
+                  title="Delete preset"
+                  className="pill rounded-l-none bg-white/10 px-2 py-1 text-xs text-petal/60 hover:bg-white/20 hover:text-petal"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={submitPreset} className="flex gap-1.5">
+          <input
+            type="text"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            placeholder="Name this scene…"
+            className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-1.5 text-xs text-cream placeholder:text-petal/40 outline-none focus:bg-white/15"
+          />
+          <button
+            type="submit"
+            className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal hover:bg-white/20"
+          >
+            Save current
+          </button>
+        </form>
       </section>
     </div>
   );

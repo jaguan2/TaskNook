@@ -4,7 +4,8 @@ const ITEMS = [
   { key: "progress", icon: "📈", label: "Progress" },
   { key: "friends", icon: "🫶", label: "Friends" },
   { key: "music", icon: "🎧", label: "Sounds" },
-  { key: "weather", icon: "🌍", label: "Weather" },
+  { key: "weather", icon: "☁️", label: "Weather" },
+  { key: "settings", icon: "⚙️", label: "Settings" },
 ];
 
 export default function Dock({ active, onSelect }) {
@@ -15,9 +16,9 @@ export default function Dock({ active, onSelect }) {
           <button
             key={item.key}
             title={item.label}
-            onClick={() => onSelect(active === item.key ? null : item.key)}
+            onClick={() => onSelect(item.key)}
             className={`pill group relative grid h-12 w-12 place-items-center text-xl transition ${
-              active === item.key
+              active.includes(item.key)
                 ? "bg-glow text-plum"
                 : "text-cream hover:bg-white/10"
             }`}
