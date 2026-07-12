@@ -6,8 +6,16 @@ const SNOWFLAKES = [
   [298, 5], [326, 2], [352, 6], [378, 4], [404, 3],
 ];
 
+// String-light garland: [x, y-on-curve] sampled along the swag path below.
+const GARLAND_BULBS = [
+  [77, 33], [138, 39], [198, 44], [259, 47], [320, 48],
+  [381, 47], [442, 44], [502, 39], [563, 33],
+];
+
 // Lighting presets for the window/sky — the room's walls stay a constant
 // cozy plum (so the scene never clashes with the app's always-dark chrome).
+// lampGlow / screenGlow / bulbGlow drive how strongly the desk lamp, monitor
+// and garland read against the current sky.
 const TIME_PRESETS = {
   night: {
     skyTop: "#221b3f",
@@ -18,6 +26,9 @@ const TIME_PRESETS = {
     celestialFill: "#f7e9e2",
     celestialCy: 72,
     celestialR: 15,
+    lampGlow: 0.55,
+    screenGlow: 0.4,
+    bulbGlow: 0.95,
   },
   sunset: {
     skyTop: "#3d2f52",
@@ -28,6 +39,9 @@ const TIME_PRESETS = {
     celestialFill: "#ffa958",
     celestialCy: 172,
     celestialR: 28,
+    lampGlow: 0.4,
+    screenGlow: 0.25,
+    bulbGlow: 0.8,
   },
   day: {
     skyTop: "#5f97c9",
@@ -38,11 +52,15 @@ const TIME_PRESETS = {
     celestialFill: "#fff6da",
     celestialCy: 60,
     celestialR: 20,
+    lampGlow: 0.12,
+    screenGlow: 0.08,
+    bulbGlow: 0.3,
   },
 };
 
-// A cozy lofi-style desk by a rainy night window. Hand-built SVG so it scales
-// crisply and needs no image assets.
+// A cozy lofi-style desk by a rainy night window: proper desk with a drawer
+// cabinet, a monitor showing a tiny task list, an angled desk lamp, string
+// lights and a rug. Hand-built SVG so it scales crisply with no image assets.
 export default function Cottage({ weather = "off", timeOfDay = "night" }) {
   const [flash, setFlash] = useState(false);
   const time = TIME_PRESETS[timeOfDay] || TIME_PRESETS.night;
@@ -78,13 +96,49 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
             <stop offset="0" stopColor={time.skyTop} />
             <stop offset="1" stopColor={time.skyBottom} />
           </linearGradient>
+          <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#4a2740" />
+            <stop offset="1" stopColor="#31182e" />
+          </linearGradient>
+          <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#4a3a6b" />
+            <stop offset="1" stopColor="#2c2148" />
+          </linearGradient>
+          <radialGradient id="lampPool">
+            <stop offset="0" stopColor="#ffe9b0" />
+            <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="lampCone" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ffe9b0" stopOpacity="0.8" />
+            <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
+          </linearGradient>
           <clipPath id="skyClip">
             <rect x="98" y="46" width="320" height="212" />
+          </clipPath>
+          <clipPath id="roomClip">
+            <rect x="8" y="8" width="624" height="464" rx="28" />
           </clipPath>
         </defs>
 
         {/* ---------- Room backdrop ---------- */}
         <rect x="8" y="8" width="624" height="464" rx="28" fill="url(#wallGrad)" />
+
+        {/* ---------- Floor + rug ---------- */}
+        <g clipPath="url(#roomClip)">
+          <rect x="8" y="390" width="624" height="8" fill="#57304b" />
+          <rect x="8" y="396" width="624" height="76" fill="url(#floorGrad)" />
+          {/* floorboards */}
+          <line x1="8" y1="420" x2="632" y2="420" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
+          <line x1="8" y1="446" x2="632" y2="446" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
+          {[[130, 398, 420], [340, 398, 420], [540, 398, 420], [220, 420, 446], [450, 420, 446], [90, 446, 470], [380, 446, 470]].map(([x, y1, y2], i) => (
+            <line key={`board-${i}`} x1={x} y1={y1} x2={x} y2={y2} stroke="#26122a" strokeWidth="1.5" opacity="0.3" />
+          ))}
+          {/* rug */}
+          <ellipse cx="320" cy="440" rx="225" ry="24" fill="#b25a68" opacity="0.5" />
+          <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" stroke="#f3c6c0" strokeWidth="3" opacity="0.3" />
+          {/* soft shadow the desk casts */}
+          <ellipse cx="320" cy="402" rx="290" ry="10" fill="#000" opacity="0.18" />
+        </g>
 
         {/* ================= WINDOW ================= */}
         <rect x="88" y="36" width="340" height="232" rx="6" fill="#46396f" />
@@ -192,7 +246,19 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         <path d="M446 20 Q458 150 442 296 L410 296 Q424 150 414 20 Z" fill="#f3c6c0" opacity="0.94" />
         <path d="M434 26 Q442 150 430 288" stroke="#e0a3a3" strokeWidth="2" fill="none" opacity="0.6" />
 
-        {/* small wall decor */}
+        {/* string-light garland swagging across the top */}
+        <g>
+          <path d="M16 24 Q320 72 624 24" stroke="#2b2350" strokeWidth="2" fill="none" />
+          {GARLAND_BULBS.map(([x, y], i) => (
+            <g key={`bulb-${i}`}>
+              <line x1={x} y1={y} x2={x} y2={y + 5} stroke="#2b2350" strokeWidth="1.5" />
+              <circle cx={x} cy={y + 8} r="7" fill="#ffe9b0" opacity={time.bulbGlow * 0.22} />
+              <circle cx={x} cy={y + 8} r="3.5" fill="#ffe9b0" opacity={time.bulbGlow} />
+            </g>
+          ))}
+        </g>
+
+        {/* small wall decor: frame, hanging plant, wall clock */}
         <rect x="474" y="58" width="46" height="60" rx="4" fill="#f3c6c0" opacity="0.9" />
         <rect x="481" y="65" width="32" height="46" rx="2" fill="#7a5a6e" />
         <g>
@@ -206,27 +272,51 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
             strokeLinecap="round"
           />
         </g>
+        <g>
+          <circle cx="497" cy="158" r="17" fill="#f7e9e2" stroke="#8a5346" strokeWidth="3" />
+          <line x1="497" y1="144" x2="497" y2="147" stroke="#8a5346" strokeWidth="1.5" />
+          <line x1="497" y1="169" x2="497" y2="172" stroke="#8a5346" strokeWidth="1.5" />
+          <line x1="483" y1="158" x2="486" y2="158" stroke="#8a5346" strokeWidth="1.5" />
+          <line x1="508" y1="158" x2="511" y2="158" stroke="#8a5346" strokeWidth="1.5" />
+          <line x1="497" y1="158" x2="497" y2="148" stroke="#4a2238" strokeWidth="2" strokeLinecap="round" />
+          <line x1="497" y1="158" x2="504" y2="161" stroke="#4a2238" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="497" cy="158" r="1.5" fill="#4a2238" />
+        </g>
 
         {/* ================= DESK ================= */}
-        <polygon points="16,300 606,300 616,318 6,318" fill="#caa07f" />
-        <rect x="6" y="318" width="610" height="98" rx="10" fill="#a87f5f" />
+        {/* left side panel */}
+        <rect x="54" y="316" width="14" height="82" rx="2" fill="#8f5d49" />
+        <line x1="65" y1="318" x2="65" y2="396" stroke="#6e4435" strokeWidth="1.5" opacity="0.6" />
 
-        {/* drawer fronts */}
-        {[334, 368].map((y, i) => (
+        {/* drawer cabinet */}
+        <rect x="444" y="316" width="150" height="84" rx="4" fill="#a87f5f" stroke="#8a5346" />
+        {[325, 361].map((y, i) => (
           <g key={`drawer-${i}`}>
-            <rect x="460" y={y} width="112" height="28" rx="4" fill="#9c6c54" stroke="#8a5346" />
-            <circle cx="516" cy={y + 14} r="3" fill="#6e4435" />
+            <rect x="453" y={y} width="132" height="30" rx="3" fill="#9c6c54" stroke="#8a5346" />
+            <rect x="506" y={y + 13} width="26" height="4" rx="2" fill="#6e4435" />
           </g>
         ))}
+
+        {/* desk top: surface + front edge, with a hint of wood grain */}
+        <polygon points="44,292 596,292 610,306 30,306" fill="#caa07f" />
+        <path d="M80 299 q130 -3 250 0 t 220 0" stroke="#b8895f" strokeWidth="1.5" fill="none" opacity="0.5" />
+        <path d="M140 295 q90 2 180 0" stroke="#b8895f" strokeWidth="1" fill="none" opacity="0.4" />
+        <rect x="30" y="306" width="580" height="12" rx="2" fill="#a87f5f" />
+        <line x1="32" y1="307" x2="608" y2="307" stroke="#d8b28c" strokeWidth="1" opacity="0.5" />
+
+        {/* warm light pools on the desk (lamp right, monitor centre) */}
+        <ellipse cx="530" cy="299" rx="78" ry="12" fill="url(#lampPool)" opacity={time.lampGlow} />
+        <ellipse cx="290" cy="298" rx="70" ry="9" fill="#e9ddff" opacity={time.screenGlow * 0.5} />
 
         {/* potted plant */}
         <g>
           <path
             d="M78 300 q-14 -40 -3 -68 q8 20 14 24 q-11 -27 1 -46 q6 27 13 32 q0 -22 9 -33 q3 32 -5 59 q-5 24 -18 32 z"
             fill="#3f7f63"
+            transform="translate(0,-16)"
           />
-          <polygon points="68,298 106,298 101,322 73,322" fill="#c0563f" />
-          <polygon points="68,298 106,298 104,303 70,303" fill="#a8412d" />
+          <polygon points="70,282 104,282 100,305 74,305" fill="#c0563f" />
+          <polygon points="70,282 104,282 102,287 72,287" fill="#a8412d" />
         </g>
 
         {/* book stack */}
@@ -236,12 +326,32 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
           <rect x="126" y="262" width="56" height="13" rx="2" fill="#9b8bd6" transform="rotate(-1 154 268)" />
         </g>
 
+        {/* monitor with a tiny task list on screen */}
+        <g>
+          <rect x="252" y="297" width="76" height="7" rx="3.5" fill="#3a3142" />
+          <rect x="283" y="274" width="14" height="25" fill="#342c3e" />
+          <rect x="220" y="194" width="140" height="86" rx="9" fill="#2c2438" stroke="#201a30" strokeWidth="2" />
+          <rect x="228" y="202" width="124" height="70" rx="5" fill="url(#screenGrad)" />
+          {/* on-screen task rows */}
+          <circle cx="240" cy="218" r="3.5" fill="#7faf8f" />
+          <path d="M238.5 218 l1.2 1.4 l2 -2.6" stroke="#2c2148" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          <rect x="250" y="215" width="64" height="5" rx="2.5" fill="#f3c6c0" opacity="0.75" />
+          <circle cx="240" cy="232" r="3.5" fill="none" stroke="#f3c6c0" strokeWidth="1.5" opacity="0.5" />
+          <rect x="250" y="229" width="80" height="5" rx="2.5" fill="#f3c6c0" opacity="0.45" />
+          <circle cx="240" cy="246" r="3.5" fill="none" stroke="#f3c6c0" strokeWidth="1.5" opacity="0.5" />
+          <rect x="250" y="243" width="52" height="5" rx="2.5" fill="#f3c6c0" opacity="0.45" />
+          <rect x="236" y="258" width="108" height="5" rx="2.5" fill="#fff" opacity="0.12" />
+          <rect x="236" y="258" width="64" height="5" rx="2.5" fill="#7faf8f" opacity="0.9" />
+          {/* glass sheen */}
+          <polygon points="228,202 268,202 240,272 228,272" fill="#fff" opacity="0.05" />
+        </g>
+
         {/* mug + steam */}
         <g>
-          <path d="M218 300 h30 v-20 h-30 z" fill="#d98a93" />
-          <path d="M248 286 q10 -2 10 6 t-10 8" fill="none" stroke="#d98a93" strokeWidth="3" />
+          <path d="M380 300 h30 v-20 h-30 z" fill="#d98a93" />
+          <path d="M410 286 q10 -2 10 6 t-10 8" fill="none" stroke="#d98a93" strokeWidth="3" />
           <motion.path
-            d="M226 276 q4 -10 0 -18 M236 276 q4 -10 0 -18"
+            d="M388 276 q4 -10 0 -18 M398 276 q4 -10 0 -18"
             stroke="#f7e9e2"
             strokeWidth="2"
             fill="none"
@@ -251,20 +361,36 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
           />
         </g>
 
-        {/* open notebook */}
-        <g>
-          <polygon points="268,304 340,304 350,314 258,314" fill="#e7d9c9" />
-          <polygon points="268,304 304,304 309,309 273,309" fill="#f7e9e2" opacity="0.7" />
-          <polygon points="304,304 340,304 345,309 309,309" fill="#f7e9e2" opacity="0.5" />
-          <line x1="304" y1="304" x2="309" y2="314" stroke="#c9b8a4" strokeWidth="1.5" />
-        </g>
-
         {/* pencil cup */}
         <g>
-          <path d="M366 286 h26 l-3 26 h-20 z" fill="#cf8f93" />
-          <line x1="372" y1="286" x2="368" y2="258" stroke="#e8b04b" strokeWidth="3" strokeLinecap="round" />
-          <line x1="380" y1="286" x2="384" y2="252" stroke="#7faf8f" strokeWidth="3" strokeLinecap="round" />
-          <line x1="386" y1="286" x2="391" y2="262" stroke="#9b8bd6" strokeWidth="3" strokeLinecap="round" />
+          <path d="M425 286 h26 l-3 26 h-20 z" fill="#cf8f93" />
+          <line x1="431" y1="286" x2="427" y2="258" stroke="#e8b04b" strokeWidth="3" strokeLinecap="round" />
+          <line x1="439" y1="286" x2="443" y2="252" stroke="#7faf8f" strokeWidth="3" strokeLinecap="round" />
+          <line x1="445" y1="286" x2="450" y2="262" stroke="#9b8bd6" strokeWidth="3" strokeLinecap="round" />
+        </g>
+
+        {/* open notebook, sitting in the lamplight */}
+        <g>
+          <polygon points="463,304 535,304 545,314 453,314" fill="#e7d9c9" />
+          <polygon points="463,304 499,304 504,309 468,309" fill="#f7e9e2" opacity="0.7" />
+          <polygon points="499,304 535,304 540,309 504,309" fill="#f7e9e2" opacity="0.5" />
+          <line x1="499" y1="304" x2="504" y2="314" stroke="#c9b8a4" strokeWidth="1.5" />
+        </g>
+
+        {/* angled desk lamp */}
+        <g>
+          <ellipse cx="566" cy="296" rx="18" ry="5" fill="#3a3142" />
+          <line x1="566" y1="294" x2="552" y2="258" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
+          <line x1="552" y1="258" x2="528" y2="240" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="552" cy="258" r="3.5" fill="#2c2438" />
+          <path d="M512 232 h32 l8 18 h-48 z" fill="#e8b04b" stroke="#c98f3a" />
+          <circle cx="528" cy="252" r="4" fill="#ffe9b0" opacity={Math.max(0.4, time.lampGlow)} />
+          <polygon
+            className="animate-flicker"
+            points="516,254 540,254 566,294 490,294"
+            fill="url(#lampCone)"
+            opacity={time.lampGlow * 0.55}
+          />
         </g>
       </svg>
     </div>

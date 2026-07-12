@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "./store";
 import Cottage from "./components/Cottage";
 import TopBar from "./components/TopBar";
@@ -31,6 +31,7 @@ export default function App() {
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
   const [frontKey, setFrontKey] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
@@ -53,6 +54,22 @@ export default function App() {
   const togglePin = (key) =>
     setOpenPanels((prev) => prev.map((p) => (p.key === key ? { ...p, pinned: !p.pinned } : p)));
 
+  // Escape closes the front-most unpinned panel.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      setOpenPanels((prev) => {
+        const closable = prev.filter((p) => !p.pinned);
+        if (closable.length === 0) return prev;
+        const target =
+          closable.find((p) => p.key === frontKey) || closable[closable.length - 1];
+        return prev.filter((p) => p.key !== target.key);
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [frontKey]);
+
   if (booting) {
     return (
       <div className="grid h-full place-items-center text-petal">
@@ -68,10 +85,24 @@ export default function App() {
     >
       <WeatherOverlay mode={weatherMode} />
 
-      {/* Centerpiece cottage */}
-      <div className="absolute inset-0 grid place-items-center">
+      {/* Centerpiece cottage. On first open we start zoomed right into the
+          window and pull back to reveal the room — like stepping back from
+          peeking through it. The transform origin sits roughly on the window
+          within the centred SVG; UI chrome fades in afterwards via the
+          .intro-chrome CSS delay. */}
+      <motion.div
+        className="absolute inset-0 grid place-items-center"
+        style={{ transformOrigin: "48% 36%" }}
+        initial={reduceMotion ? { opacity: 0 } : { scale: 3, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{
+          duration: reduceMotion ? 0.6 : 2.2,
+          ease: [0.16, 1, 0.3, 1],
+          opacity: { duration: reduceMotion ? 0.6 : 0.9, ease: "easeOut" },
+        }}
+      >
         <Cottage weather={weatherMode} timeOfDay={timeOfDay} />
-      </div>
+      </motion.div>
 
       <TopBar />
       <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
@@ -98,6 +129,16 @@ export default function App() {
       </AnimatePresence>
 
       <FocusTimer />
+
+      {/* rkive. — the maker's signature, same wordmark as the portfolio */}
+      <div
+        className="intro-chrome absolute bottom-5 right-6 z-10 select-none"
+        title="A space where I archive and share my journey, wherever it takes me."
+      >
+        <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
+          rkive<span className="text-glow/70">.</span>
+        </span>
+      </div>
     </div>
   );
 }

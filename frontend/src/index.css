@@ -56,6 +56,37 @@ body {
   overflow: hidden;
 }
 
+/* App chrome (top bar, dock, focus timer) holds back while the opening
+   window zoom-out plays, then fades in. Runs once per page load. */
+.intro-chrome {
+  animation: chrome-in 0.9s ease 1.5s backwards;
+}
+@keyframes chrome-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-chrome {
+    animation-duration: 0.4s;
+    animation-delay: 0.3s;
+  }
+}
+
+/* Task delete buttons: tucked away until the row is hovered, but only on
+   devices that can hover — on touch screens they stay visible, otherwise
+   they'd be unreachable. The confirming state always shows. */
+@media (hover: hover) {
+  .task-delete {
+    opacity: 0;
+  }
+  .group:hover .task-delete,
+  .task-delete:focus-visible,
+  .task-delete.confirming {
+    opacity: 1;
+  }
+}
+
 /* Thin cozy scrollbars inside panels */
 .cozy-scroll::-webkit-scrollbar {
   width: 8px;

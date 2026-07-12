@@ -26,12 +26,19 @@ export default function Drawer({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 420, opacity: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 30 }}
+      // Positioned with explicit top/bottom (not a translate-y class):
+      // framer-motion writes its own inline `transform` for the slide/drag,
+      // which would silently overwrite any Tailwind translate and leave the
+      // panel half off-screen.
       style={{
-        top: `calc(50% + ${offset}px)`,
-        right: `calc(1rem + ${offset}px)`,
+        top: `calc(4vh + ${offset}px)`,
+        bottom: "4vh",
+        // Stack offset, capped so the panel's left edge can never be pushed
+        // off-screen on narrow viewports (width is min(92vw, 400px)).
+        right: `min(calc(1rem + ${offset}px), calc(100vw - min(92vw, 400px) - 0.5rem))`,
         zIndex,
       }}
-      className="absolute flex h-[88vh] w-[min(92vw,400px)] -translate-y-1/2 flex-col rounded-3xl glass shadow-soft"
+      className="absolute flex w-[min(92vw,400px)] flex-col rounded-3xl glass shadow-soft"
     >
       <header
         onPointerDown={(e) => dragControls.start(e)}

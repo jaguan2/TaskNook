@@ -7,7 +7,7 @@ import {
   useCallback,
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
-import { applyAlgorithm } from "./lib/algorithms";
+import { applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { startWeather, stopWeather, setWeatherVolume } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
@@ -38,6 +38,7 @@ export function StoreProvider({ children }) {
     completion: 0,
     focusMinutesToday: 0,
   });
+  const [sessionDays, setSessionDays] = useState({});
   const [algorithm, setAlgorithm] = useState(
     () => localStorage.getItem("tasknook.algo") || "custom"
   );
@@ -52,7 +53,6 @@ export function StoreProvider({ children }) {
   // ---- Ambient ----
   const [weatherMode, setWeatherModeState] = useState("off");
   const [weatherVolume, setWeatherVol] = useState(0.5);
-  const lastWeatherModeRef = useRef("rain");
   const [timeOfDay, setTimeOfDayState] = useState(
     () => localStorage.getItem("tasknook.timeOfDay") || "night"
   );
@@ -151,14 +151,16 @@ export function StoreProvider({ children }) {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    const [t, s, f] = await Promise.all([
+    const [t, s, f, d] = await Promise.all([
       api.listTasks(),
       api.stats(),
       api.listFriends(),
+      api.sessionDays(),
     ]);
     setTasks(t);
     setStats(s);
     setFriends(f);
+    setSessionDays(d);
   }, []);
 
   useEffect(() => {
@@ -211,12 +213,17 @@ export function StoreProvider({ children }) {
     await refreshAll();
   };
 
+  const [randomOrder, setRandomOrder] = useState([]);
+
   const chooseAlgorithm = (key) => {
     setAlgorithm(key);
     localStorage.setItem("tasknook.algo", key);
+    // Re-shuffle every time Random is picked, including clicking it again
+    // while it's already active — that's the whole point of the button.
+    if (key === "random") setRandomOrder(shuffledIds(tasks));
   };
 
-  const orderedTasks = applyAlgorithm(algorithm, tasks);
+  const orderedTasks = applyAlgorithm(algorithm, tasks, { randomOrder });
   const activeTask = tasks.find((t) => t.id === activeTaskId) || null;
 
   // ---------- Focus timer engine ----------
@@ -278,12 +285,8 @@ export function StoreProvider({ children }) {
 
   // ---------- Ambient ----------
   const setWeather = (nextMode) => {
-    if (nextMode !== "off") lastWeatherModeRef.current = nextMode;
     setWeatherModeState(nextMode);
     startWeather(nextMode, weatherVolume);
-  };
-  const toggleWeather = () => {
-    setWeather(weatherMode === "off" ? lastWeatherModeRef.current : "off");
   };
   const changeWeatherVolume = (v) => {
     setWeatherVol(v);
@@ -452,6 +455,7 @@ export function StoreProvider({ children }) {
 
     friends,
     stats,
+    sessionDays,
     refreshAll,
 
     // timer
@@ -470,7 +474,6 @@ export function StoreProvider({ children }) {
     // ambient
     weatherMode,
     setWeather,
-    toggleWeather,
     weatherVolume,
     changeWeatherVolume,
     timeOfDay,

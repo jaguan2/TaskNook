@@ -23,7 +23,7 @@ function monthMatrix(year, month) {
 const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function CalendarPanel() {
-  const { tasks, editTask } = useStore();
+  const { tasks, editTask, sessionDays } = useStore();
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [selected, setSelected] = useState(toISO(today));
@@ -38,6 +38,13 @@ export default function CalendarPanel() {
   tasks.forEach((t) => {
     if (t.scheduledDate)
       countByDate[t.scheduledDate] = (countByDate[t.scheduledDate] || 0) + 1;
+  });
+
+  // A day is "active" if you focused (sessionDays) or completed a task on it —
+  // completedAt is a UTC timestamp, so route it through toISO for the local day.
+  const activeDays = new Set(Object.keys(sessionDays));
+  tasks.forEach((t) => {
+    if (t.completedAt) activeDays.add(toISO(new Date(t.completedAt)));
   });
 
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);
@@ -69,15 +76,19 @@ export default function CalendarPanel() {
           const isToday = iso === toISO(today);
           const isSel = iso === selected;
           const count = countByDate[iso] || 0;
+          const isActive = activeDays.has(iso);
           return (
             <button
               key={i}
               onClick={() => setSelected(iso)}
+              title={isActive ? "You were active this day" : undefined}
               className={`relative grid h-9 place-items-center rounded-lg text-xs transition ${
                 isSel
                   ? "bg-glow font-bold text-plum"
                   : isToday
                   ? "bg-white/15 text-cream"
+                  : isActive
+                  ? "bg-sage/20 text-sage"
                   : "text-petal hover:bg-white/10"
               }`}
             >
@@ -93,6 +104,10 @@ export default function CalendarPanel() {
           );
         })}
       </div>
+
+      <p className="flex items-center gap-1.5 text-[10px] text-petal/50">
+        <span className="h-2 w-2 rounded-full bg-sage/40" /> focused or completed a task that day
+      </p>
 
       {/* Scheduled on selected day */}
       <div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useStore } from "../store";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
 
@@ -27,6 +27,23 @@ export default function TaskPanel() {
   const [error, setError] = useState("");
   const dragIndex = useRef(null);
 
+  // Two-tap delete: first tap arms the button ("sure?"), second tap within a
+  // few seconds actually deletes. Gentler than a confirm dialog, still saves
+  // tasks from one stray tap.
+  const [confirmId, setConfirmId] = useState(null);
+  const confirmTimer = useRef(null);
+  useEffect(() => () => clearTimeout(confirmTimer.current), []);
+  const requestDelete = (id) => {
+    clearTimeout(confirmTimer.current);
+    if (confirmId === id) {
+      setConfirmId(null);
+      removeTask(id);
+      return;
+    }
+    setConfirmId(id);
+    confirmTimer.current = setTimeout(() => setConfirmId(null), 2500);
+  };
+
   const active = orderedTasks.filter((t) => !t.completed);
   const done = orderedTasks.filter((t) => t.completed);
 
@@ -35,7 +52,8 @@ export default function TaskPanel() {
     if (!name.trim()) return;
     setError("");
     try {
-      await addTask({ name: name.trim(), duration: Number(duration), priority });
+      // Guard against an emptied number field (Number("") === 0).
+      await addTask({ name: name.trim(), duration: Math.max(1, Number(duration) || 25), priority });
       setName("");
       setDuration(25);
       setPriority("medium");
@@ -165,10 +183,14 @@ export default function TaskPanel() {
               <span className="cursor-grab text-petal/40">⠿</span>
             )}
             <button
-              onClick={() => removeTask(task.id)}
-              className="text-petal/40 opacity-0 transition hover:text-rose group-hover:opacity-100"
+              onClick={() => requestDelete(task.id)}
+              className={`task-delete shrink-0 transition ${
+                confirmId === task.id
+                  ? "confirming text-[10px] font-bold text-rose"
+                  : "text-petal/40 hover:text-rose"
+              }`}
             >
-              🗑
+              {confirmId === task.id ? "sure?" : "🗑"}
             </button>
           </div>
         ))}
@@ -195,10 +217,14 @@ export default function TaskPanel() {
                 {task.name}
               </p>
               <button
-                onClick={() => removeTask(task.id)}
-                className="text-petal/40 hover:text-rose"
+                onClick={() => requestDelete(task.id)}
+                className={`shrink-0 transition ${
+                  confirmId === task.id
+                    ? "text-[10px] font-bold text-rose"
+                    : "text-petal/40 hover:text-rose"
+                }`}
               >
-                🗑
+                {confirmId === task.id ? "sure?" : "🗑"}
               </button>
             </div>
           ))}

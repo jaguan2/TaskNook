@@ -121,7 +121,7 @@ The app lands in `dist\TaskNook.exe`, and the DB it uses at runtime lives in
 
 | | Feature | What it does |
 |---|---|---|
-| 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor and lamp that respond to your focus state. |
+| 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
 | ✅ | **Tasks** | Add tasks with a duration & priority, check them off, and drag to reorder. |
 | 🧠 | **Ordering algorithms** | Auto-arrange your list five different ways *(see below)*. |
 | ⏱️ | **Focus timer** | Pomodoro-style blocks (15 / 25 / 45 / 60 min) with a progress ring; finished blocks are logged as productivity time. |
