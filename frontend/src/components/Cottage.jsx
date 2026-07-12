@@ -195,10 +195,7 @@ export default function Cottage({ focused = false, night = true }) {
         </g>
 
         {/* ================= RIGHT SIDE: loft bed + ladder ================= */}
-        {/* loft platform */}
-        <polygon points="300,300 465,240 465,256 300,316" fill="#9c6c54" />
-        <polygon points="300,300 300,316 360,346 360,330" fill="#6e4435" />
-        {/* round roof window */}
+        {/* round roof window, above the head of the bed */}
         <ellipse cx="408" cy="200" rx="20" ry="26" fill="url(#windowGlow)" />
         <ellipse
           cx="408"
@@ -209,44 +206,43 @@ export default function Cottage({ focused = false, night = true }) {
           stroke="#f3e3c0"
           strokeWidth="3"
         />
-        {/* bed */}
-        <polygon points="330,300 452,256 452,236 330,280" fill="#f3c6c0" />
-        <polygon points="330,300 330,280 360,292 360,312" fill="#e0a9a6" />
-        {/* pillow + blanket */}
-        <polygon points="338,286 372,274 372,262 338,274" fill="#f7e9e2" />
-        <polygon points="372,290 448,262 448,244 372,272" fill="#e89aa0" />
 
-        {/* ladder */}
+        {/* loft bed (elevated platform against the back+right wall) */}
+        <polygon points="310,245 406,297 406,315 310,263" fill="#e0a9a6" />
+        <polygon points="369,213 465,265 406,297 310,245" fill="#f3c6c0" />
+        {/* blanket + pillow */}
+        <polygon points="343,221 430,269 401,285 313,237" fill="#e89aa0" />
+        <polygon points="424,238 460,258 432,273 396,253" fill="#f7e9e2" />
+
+        {/* ladder (floor, in the gap between the bed and the counter, up to the bed's front edge) */}
         <g stroke="#5b4a7a" strokeWidth="5" strokeLinecap="round">
-          <line x1="350" y1="318" x2="392" y2="430" />
-          <line x1="368" y1="312" x2="410" y2="424" />
+          <line x1="310" y1="381" x2="318" y2="254" />
+          <line x1="326" y1="390" x2="335" y2="263" />
           {[0.2, 0.45, 0.7, 0.95].map((t) => (
             <line
               key={`rg-${t}`}
-              x1={350 + 18 * t}
-              y1={318 + 112 * t}
-              x2={368 + 18 * t}
-              y2={312 + 112 * t}
+              x1={310 + 8 * t}
+              y1={381 - 127 * t}
+              x2={326 + 9 * t}
+              y2={390 - 127 * t}
               strokeWidth="4"
             />
           ))}
         </g>
 
-        {/* ================= KITCHEN (lower right) ================= */}
+        {/* ================= KITCHEN (lower right, below the loft) ================= */}
         <g>
           {/* counter */}
-          <polygon points="392,330 462,306 462,360 392,384" fill="#e3d3cf" />
-          <polygon points="392,330 392,384 404,390 404,336" fill="#cdb9b4" />
-          <polygon points="392,330 462,306 470,310 400,334" fill="#f1e6e2" />
+          <polygon points="346,359 396,386 356,407 307,380" fill="#e3d3cf" />
+          <polygon points="356,407 307,380 307,422 356,449" fill="#cdb9b4" />
+          <polygon points="396,386 356,407 356,449 396,428" fill="#b9a29d" />
           {/* sink */}
-          <polygon points="410,332 432,324 432,332 410,340" fill="#9fb4c0" />
+          <polygon points="339,379 362,391 350,397 327,385" fill="#9fb4c0" />
           {/* stove burners */}
-          <circle cx="446" cy="332" r="3.5" fill="#7a5a52" />
-          <circle cx="452" cy="340" r="3.5" fill="#7a5a52" />
-          {/* utensil jar */}
-          <polygon points="398,322 408,318 408,330 398,334" fill="#cf8f93" />
+          <circle cx="385" cy="384" r="3.5" fill="#7a5a52" />
+          <circle cx="378" cy="388" r="3.5" fill="#7a5a52" />
           {/* hanging shelf */}
-          <polygon points="420,300 460,286 460,292 420,306" fill="#b58c6a" />
+          <polygon points="362,300 406,324 398,329 354,304" fill="#b58c6a" />
         </g>
 
         {/* hanging plant (top-left interior) */}

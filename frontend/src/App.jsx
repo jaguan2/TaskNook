@@ -6,7 +6,6 @@ import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
 import FocusTimer from "./components/FocusTimer";
 import RainOverlay from "./components/RainOverlay";
-import AuthScreen from "./components/AuthScreen";
 import TaskPanel from "./components/TaskPanel";
 import CalendarPanel from "./components/CalendarPanel";
 import ProgressPanel from "./components/ProgressPanel";
@@ -22,7 +21,7 @@ const PANELS = {
 };
 
 export default function App() {
-  const { user, booting, running, rainOn } = useStore();
+  const { booting, running, rainOn } = useStore();
   const [panel, setPanel] = useState(null);
 
   if (booting) {
@@ -32,8 +31,6 @@ export default function App() {
       </div>
     );
   }
-
-  if (!user) return <AuthScreen />;
 
   const Active = panel ? PANELS[panel] : null;
 

@@ -43,7 +43,6 @@ export const api = {
   register: (payload) => request("POST", "/auth/register", payload),
   login: (payload) => request("POST", "/auth/login", payload),
   me: () => request("GET", "/auth/me"),
-  logout: () => request("POST", "/auth/logout"),
 
   // tasks
   listTasks: () => request("GET", "/tasks"),

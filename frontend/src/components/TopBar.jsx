@@ -24,7 +24,6 @@ export default function TopBar() {
     toggleMusic,
     rainOn,
     toggleRain,
-    logout,
   } = useStore();
   const now = useClock();
 
@@ -65,21 +64,11 @@ export default function TopBar() {
           🌧️
         </IconToggle>
 
-        <div className="group relative">
-          <button className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
-            <span className="text-base">{user?.avatar || "🌙"}</span>
-            <span className="hidden sm:block text-sm font-semibold">
-              {user?.displayName}
-            </span>
-          </button>
-          <div className="invisible absolute right-0 mt-2 w-36 rounded-2xl glass p-2 opacity-0 shadow-soft transition group-hover:visible group-hover:opacity-100">
-            <button
-              onClick={logout}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm text-petal hover:bg-white/10"
-            >
-              Log out
-            </button>
-          </div>
+        <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
+          <span className="text-base">{user?.avatar || "🌙"}</span>
+          <span className="hidden sm:block text-sm font-semibold">
+            {user?.displayName}
+          </span>
         </div>
       </div>
     </>
