@@ -1,22 +1,63 @@
+import { useState } from "react";
 import { useStore } from "../store";
+import { stationKey } from "../lib/musicLink";
 
-// A few cozy lofi streams (YouTube embeds). Loaded only while music is on.
-const STATIONS = [
-  { id: "jfKfPfyJRdk", label: "lofi hip hop radio 📚" },
-  { id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
-  { id: "rUxyKA_-grg", label: "lofi sleep & chill 🌙" },
-];
+// Spotify's embed needs a taller frame for content with a tracklist.
+const SPOTIFY_TALL_KINDS = new Set(["playlist", "album", "show"]);
+
+function embedProps(station) {
+  if (station.provider === "spotify") {
+    return {
+      src: `https://open.spotify.com/embed/${station.kind}/${station.id}?utm_source=generator&theme=0`,
+      height: SPOTIFY_TALL_KINDS.has(station.kind) ? 352 : 152,
+      allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
+    };
+  }
+  return {
+    src: `https://www.youtube.com/embed/${station.id}?autoplay=1`,
+    height: 180,
+    allow: "autoplay; encrypted-media",
+  };
+}
 
 export default function MusicPanel() {
-  const { musicOn, toggleMusic, rainOn, toggleRain, rainVolume, changeRainVolume } =
-    useStore();
+  const {
+    musicOn,
+    toggleMusic,
+    musicStations,
+    activeStationKey,
+    selectStation,
+    addCustomStation,
+    removeCustomStation,
+    rainOn,
+    toggleRain,
+    rainVolume,
+    changeRainVolume,
+  } = useStore();
+
+  const [url, setUrl] = useState("");
+  const [label, setLabel] = useState("");
+  const [error, setError] = useState("");
+
+  const activeStation = musicStations.find((s) => stationKey(s) === activeStationKey);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (!addCustomStation(url, label)) {
+      setError("Couldn't find a video or playlist in that link.");
+      return;
+    }
+    setError("");
+    setUrl("");
+    setLabel("");
+  };
 
   return (
     <div className="space-y-5">
-      {/* Lofi music */}
+      {/* Music */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🎵 Lofi music</p>
+          <p className="text-sm font-semibold text-cream">🎵 Music</p>
           <button
             onClick={toggleMusic}
             className={`pill px-3 py-1 text-xs font-semibold ${
@@ -27,37 +68,74 @@ export default function MusicPanel() {
           </button>
         </div>
 
-        {musicOn ? (
+        {musicOn && activeStation ? (
           <div className="overflow-hidden rounded-2xl border border-white/10">
             <iframe
-              title="lofi radio"
+              key={stationKey(activeStation)}
+              title="music player"
               width="100%"
-              height="180"
-              src={`https://www.youtube.com/embed/${STATIONS[0].id}?autoplay=1`}
-              allow="autoplay; encrypted-media"
-              allowFullScreen
               className="block"
+              {...embedProps(activeStation)}
+              allowFullScreen
             />
           </div>
         ) : (
           <p className="rounded-xl bg-white/5 px-3 py-4 text-center text-xs text-petal/60">
-            Turn on music for a stream of cozy beats to focus to.
+            Pick a station below to start a stream of cozy beats.
           </p>
         )}
 
         <div className="flex flex-wrap gap-1.5">
-          {STATIONS.map((s) => (
-            <a
-              key={s.id}
-              href={`https://www.youtube.com/watch?v=${s.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="pill bg-white/10 px-3 py-1 text-xs text-petal hover:bg-white/20"
-            >
-              {s.label}
-            </a>
+          {musicStations.map((s) => (
+            <div key={stationKey(s)} className="flex items-center">
+              <button
+                onClick={() => selectStation(s)}
+                className={`pill px-3 py-1 text-xs ${s.custom ? "rounded-r-none" : ""} ${
+                  musicOn && activeStationKey === stationKey(s)
+                    ? "bg-glow font-semibold text-plum"
+                    : "bg-white/10 text-petal hover:bg-white/20"
+                }`}
+              >
+                {s.provider === "spotify" ? "🟢" : "▶️"} {s.label}
+              </button>
+              {s.custom && (
+                <button
+                  onClick={() => removeCustomStation(s)}
+                  title="Remove station"
+                  className="pill rounded-l-none bg-white/10 px-2 py-1 text-xs text-petal/60 hover:bg-white/20 hover:text-petal"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           ))}
         </div>
+
+        <form onSubmit={handleAdd} className="space-y-1.5">
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Paste a YouTube or Spotify link…"
+              className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-1.5 text-xs text-cream placeholder:text-petal/40 outline-none focus:bg-white/15"
+            />
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="name (optional)"
+              className="w-24 rounded-xl bg-white/10 px-3 py-1.5 text-xs text-cream placeholder:text-petal/40 outline-none focus:bg-white/15"
+            />
+            <button
+              type="submit"
+              className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal hover:bg-white/20"
+            >
+              Add
+            </button>
+          </div>
+          {error && <p className="text-xs text-rose">{error}</p>}
+        </form>
       </section>
 
       <hr className="border-white/10" />
