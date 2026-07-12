@@ -81,11 +81,37 @@ export const ALGORITHMS = {
       ];
     },
   },
+  random: {
+    label: "Random",
+    hint: "Shuffled — click again for a new shuffle.",
+    icon: "🎲",
+    // Needs an explicit shuffled order (see store.jsx's shuffleRandom): the
+    // list re-renders far more often than the user clicks (e.g. every timer
+    // tick), so sorting with Math.random() here would reshuffle constantly
+    // instead of only when asked.
+    sort: (tasks, { randomOrder = [] } = {}) => {
+      const { active, done } = splitDone(tasks);
+      const rank = (t) => {
+        const i = randomOrder.indexOf(t.id);
+        return i === -1 ? Infinity : i;
+      };
+      return [...active.sort((a, b) => rank(a) - rank(b)), ...done];
+    },
+  },
 };
 
 export const ALGORITHM_KEYS = Object.keys(ALGORITHMS);
 
-export function applyAlgorithm(key, tasks) {
+export function applyAlgorithm(key, tasks, context) {
   const algo = ALGORITHMS[key] || ALGORITHMS.custom;
-  return algo.sort(tasks);
+  return algo.sort(tasks, context);
+}
+
+export function shuffledIds(tasks) {
+  const ids = tasks.filter((t) => !t.completed).map((t) => t.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids;
 }

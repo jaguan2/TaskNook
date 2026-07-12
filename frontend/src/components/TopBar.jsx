@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 
+const WEATHER_OPTIONS = [
+  { key: "off", label: "Off", icon: "🌤️" },
+  { key: "rain", label: "Rain", icon: "🌧️" },
+  { key: "snow", label: "Snow", icon: "❄️" },
+  { key: "storm", label: "Storm", icon: "⛈️" },
+];
+
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -23,9 +30,10 @@ export default function TopBar() {
     musicOn,
     toggleMusic,
     weatherMode,
-    toggleWeather,
+    setWeather,
   } = useStore();
   const now = useClock();
+  const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
   const weatherIcon = { snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
 
   const minutesToGo = Math.ceil(remaining / 60);
@@ -39,7 +47,7 @@ export default function TopBar() {
   return (
     <>
       {/* Top-left: current activity */}
-      <div className="absolute left-6 top-6 z-20">
+      <div className="intro-chrome absolute left-6 top-6 z-20">
         <h1 className="text-2xl font-bold tracking-wide text-cream drop-shadow">
           {status}
         </h1>
@@ -52,18 +60,55 @@ export default function TopBar() {
       </div>
 
       {/* Top-right: clock + ambient toggles + account */}
-      <div className="absolute right-6 top-6 z-20 flex items-center gap-2">
+      <div className="intro-chrome absolute right-6 top-6 z-20 flex items-center gap-2">
         <div className="glass pill flex items-center gap-2 px-4 py-2 text-cream shadow-soft">
           <span className="text-base">🕗</span>
           <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
         </div>
 
-        <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music">
+        <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music" slashWhenOff>
           🎵
         </IconToggle>
-        <IconToggle active={weatherMode !== "off"} onClick={toggleWeather} title="Weather ambience">
-          {weatherIcon}
-        </IconToggle>
+
+        <div className="relative">
+          <button
+            title="Weather ambience"
+            onClick={() => setWeatherMenuOpen((o) => !o)}
+            className={`pill grid h-11 w-11 place-items-center text-lg shadow-soft transition ${
+              weatherMode !== "off"
+                ? "bg-glow/90 text-plum"
+                : "glass text-cream hover:bg-white/10"
+            }`}
+          >
+            {weatherIcon}
+          </button>
+          {weatherMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setWeatherMenuOpen(false)}
+              />
+              <div className="glass absolute right-0 top-full z-40 mt-2 flex flex-col gap-1 rounded-2xl p-2 shadow-soft">
+                {WEATHER_OPTIONS.map((w) => (
+                  <button
+                    key={w.key}
+                    onClick={() => {
+                      setWeather(w.key);
+                      setWeatherMenuOpen(false);
+                    }}
+                    className={`pill flex items-center gap-2 whitespace-nowrap px-3 py-1.5 text-left text-xs font-semibold ${
+                      weatherMode === w.key
+                        ? "bg-glow text-plum"
+                        : "text-petal hover:bg-white/10"
+                    }`}
+                  >
+                    {w.icon} {w.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
           <span className="text-base">{user?.avatar || "🌙"}</span>
@@ -76,18 +121,23 @@ export default function TopBar() {
   );
 }
 
-function IconToggle({ active, onClick, title, children }) {
+function IconToggle({ active, onClick, title, slashWhenOff, children }) {
   return (
     <button
       title={title}
       onClick={onClick}
-      className={`pill grid h-11 w-11 place-items-center text-lg shadow-soft transition ${
+      className={`pill relative grid h-11 w-11 place-items-center text-lg shadow-soft transition ${
         active
           ? "bg-glow/90 text-plum"
           : "glass text-cream hover:bg-white/10"
       }`}
     >
       {children}
+      {slashWhenOff && !active && (
+        <span className="pointer-events-none absolute inset-0 grid place-items-center">
+          <span className="h-[2px] w-7 rotate-45 rounded-full bg-cream/80" />
+        </span>
+      )}
     </button>
   );
 }
