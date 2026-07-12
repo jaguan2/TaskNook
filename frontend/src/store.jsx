@@ -9,11 +9,21 @@ import {
 import { api, getToken, setToken } from "./lib/api";
 import { applyAlgorithm } from "./lib/algorithms";
 import { startRain, stopRain, setRainVolume } from "./lib/audio";
+import { resolveMusicLink, stationKey } from "./lib/musicLink";
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
 
 const FOCUS_PRESETS = [15, 25, 45, 60];
+
+const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
+
+// A few cozy lofi streams to start with; users can add their own via YouTube or Spotify link.
+const BUILT_IN_STATIONS = [
+  { provider: "youtube", id: "jfKfPfyJRdk", label: "lofi hip hop radio 📚" },
+  { provider: "youtube", id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
+  { provider: "youtube", id: "rUxyKA_-grg", label: "lofi sleep & chill 🌙" },
+];
 
 export function StoreProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -42,16 +52,56 @@ export function StoreProvider({ children }) {
   const [rainOn, setRainOn] = useState(false);
   const [rainVolume, setRainVol] = useState(0.5);
   const [musicOn, setMusicOn] = useState(false);
+  const [customStations, setCustomStations] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [activeStationKey, setActiveStationKey] = useState(
+    () => localStorage.getItem("tasknook.music.station") || stationKey(BUILT_IN_STATIONS[0])
+  );
+  const musicStations = [...BUILT_IN_STATIONS, ...customStations];
 
   // ---------- Bootstrap session ----------
+  // TaskNook is a single-user local app (SQLite file on this machine), so
+  // there's no real account system to speak of — instead of a login screen,
+  // sign into (or create, on first launch) one fixed local account.
   useEffect(() => {
     (async () => {
       if (getToken()) {
         try {
           const { user } = await api.me();
           setUser(user);
+          setBooting(false);
+          return;
         } catch {
           setToken(null);
+        }
+      }
+      try {
+        const { token, user } = await api.login(LOCAL_ACCOUNT);
+        setToken(token);
+        setUser(user);
+      } catch {
+        try {
+          const { token, user } = await api.register({
+            ...LOCAL_ACCOUNT,
+            displayName: "You",
+          });
+          setToken(token);
+          setUser(user);
+        } catch {
+          // A concurrent bootstrap (e.g. React StrictMode's double effect
+          // invocation in dev) may have just created the account — one more try.
+          try {
+            const { token, user } = await api.login(LOCAL_ACCOUNT);
+            setToken(token);
+            setUser(user);
+          } catch (err) {
+            console.error("Failed to set up the local TaskNook account:", err);
+          }
         }
       }
       setBooting(false);
@@ -72,29 +122,6 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (user) refreshAll().catch(() => {});
   }, [user, refreshAll]);
-
-  // ---------- Auth actions ----------
-  const login = async (payload) => {
-    const { token, user } = await api.login(payload);
-    setToken(token);
-    setUser(user);
-  };
-  const register = async (payload) => {
-    const { token, user } = await api.register(payload);
-    setToken(token);
-    setUser(user);
-  };
-  const logout = async () => {
-    try {
-      await api.logout();
-    } catch {
-      /* ignore */
-    }
-    setToken(null);
-    setUser(null);
-    setTasks([]);
-    setFriends([]);
-  };
 
   // ---------- Task actions ----------
   const addTask = async (payload) => {
@@ -221,12 +248,42 @@ export function StoreProvider({ children }) {
   };
   const toggleMusic = () => setMusicOn((m) => !m);
 
+  const setStation = (key) => {
+    setActiveStationKey(key);
+    localStorage.setItem("tasknook.music.station", key);
+  };
+  const selectStation = (station) => {
+    setStation(stationKey(station));
+    setMusicOn(true);
+  };
+
+  // Adds (and switches to) a station from a pasted YouTube or Spotify link.
+  // Returns false if no video/playlist could be parsed, so the UI can show an error.
+  const addCustomStation = (url, label) => {
+    const resolved = resolveMusicLink(url);
+    if (!resolved) return false;
+    const station = { ...resolved, label: label.trim() || "custom station 🎧", custom: true };
+    const key = stationKey(station);
+    if (!musicStations.some((s) => stationKey(s) === key)) {
+      const next = [...customStations, station];
+      setCustomStations(next);
+      localStorage.setItem("tasknook.music.custom", JSON.stringify(next));
+    }
+    selectStation(station);
+    return true;
+  };
+
+  const removeCustomStation = (station) => {
+    const key = stationKey(station);
+    const next = customStations.filter((s) => stationKey(s) !== key);
+    setCustomStations(next);
+    localStorage.setItem("tasknook.music.custom", JSON.stringify(next));
+    if (activeStationKey === key) setStation(stationKey(BUILT_IN_STATIONS[0]));
+  };
+
   const value = {
     user,
     booting,
-    login,
-    register,
-    logout,
 
     tasks,
     orderedTasks,
@@ -263,6 +320,11 @@ export function StoreProvider({ children }) {
     changeRainVolume,
     musicOn,
     toggleMusic,
+    musicStations,
+    activeStationKey,
+    selectStation,
+    addCustomStation,
+    removeCustomStation,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

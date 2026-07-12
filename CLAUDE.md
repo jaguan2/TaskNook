@@ -19,15 +19,18 @@ TaskNook/
 ├── frontend/             # React + Vite SPA
 │   └── src/
 │       ├── main.jsx      # Entry; wraps <App/> in <StoreProvider/>
-│       ├── App.jsx       # Shell: cottage scene, dock, drawer, timer, auth gate
-│       ├── store.jsx     # SINGLE source of truth (React Context): auth, tasks,
-│       │                 #   friends, stats, focus timer, ambient audio
+│       ├── App.jsx       # Shell: cottage scene, dock, drawer, timer
+│       ├── store.jsx     # SINGLE source of truth (React Context): local account,
+│       │                 #   tasks, friends, stats, focus timer, ambient audio
 │       ├── lib/
 │       │   ├── api.js        # fetch wrapper; token in localStorage
 │       │   ├── algorithms.js # task-ordering strategies (pure functions)
-│       │   └── audio.js      # procedural rain via Web Audio API
+│       │   ├── audio.js      # procedural rain via Web Audio API
+│       │   ├── musicLink.js  # resolves a pasted link to a YouTube/Spotify station
+│       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
+│       │   └── spotify.js    # Spotify URL parsing (pure)
 │       └── components/   # Cottage (SVG scene), TopBar, FocusTimer, Dock,
-│                         #   Drawer, *Panel.jsx, RainOverlay, AuthScreen
+│                         #   Drawer, *Panel.jsx, RainOverlay
 ├── requirements.txt      # mirror of backend/requirements.txt (root convenience)
 └── docs/preview.png      # README screenshot
 ```
@@ -60,12 +63,22 @@ port via `waitress` and opens it in a native window with `pywebview` (WebView2
 on Windows). Requires `frontend/dist` to exist + `pip install -r
 requirements-desktop.txt`. One-click launchers: `TaskNook.bat` (Windows) /
 `TaskNook.command` (macOS/Linux) build + install + launch. It's also
-PyInstaller-packageable into a single `.exe` — `desktop.py` is frozen-aware
-(`sys._MEIPASS`, writable-DB fallback). Web mode is unchanged and needs neither
-`pywebview` nor `waitress`.
+PyInstaller-packageable into a single `.exe` — run `build-exe.bat` (builds the
+frontend, installs `requirements-desktop.txt` + `pyinstaller`, then packages
+`desktop.py` into `dist\TaskNook.exe`, one-file + no console window).
+`desktop.py` is frozen-aware (`sys._MEIPASS`, writable-DB fallback under
+`%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
+loose `--add-data` (not analyzed as source), which is why `flask_cors` and
+`flask_sqlalchemy` need explicit `--hidden-import` flags — nothing in
+`desktop.py` itself references them for PyInstaller's analyzer to find.
+Web mode is unchanged and needs neither `pywebview` nor `waitress`.
 
-Demo logins (seeded): `luna` / `kai` / `sora` / `mochi`, password `lofi123`.
-Or click **"peek inside with the demo account"** on the login screen.
+There's no login screen — TaskNook is a single-user local app, so on first
+launch the frontend silently signs into (or creates) one fixed local account
+(`store.jsx`'s `LOCAL_ACCOUNT`, username `you`). Seeded demo users `luna` /
+`kai` / `sora` / `mochi` (password `lofi123`) still exist purely to populate
+the Friends panel with someone to compare productivity against — the local
+account is auto-friended with them on creation, same as the old sign-up flow.
 
 ### Useful env vars (backend)
 
@@ -79,6 +92,10 @@ Or click **"peek inside with the demo account"** on the login screen.
 - **Auth**: opaque bearer tokens (table `Token`). Client sends
   `Authorization: Bearer <token>`; `@require_auth` injects the `user` as the
   first arg to a route. Token is persisted in `localStorage` under `tasknook.token`.
+  The register/login/me endpoints are unchanged, but the frontend has no login UI —
+  `store.jsx`'s bootstrap effect calls them itself against the fixed `LOCAL_ACCOUNT`
+  credentials (login, falling back to register on first run) instead of a user
+  typing anything in. `/api/auth/logout` still exists but nothing calls it.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
   association table. The friend graph is a **self-referential many-to-many stored
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
@@ -92,9 +109,13 @@ Or click **"peek inside with the demo account"** on the login screen.
   avoid recreating the interval when the active task changes. On completion it
   POSTs a `FocusSession` (used for "productivity hours" stats).
 - **Ambient audio**: rain is generated procedurally with the Web Audio API
-  (`lib/audio.js`) — no audio files, works offline. Lofi music is a YouTube embed
-  in `MusicPanel.jsx`. Web Audio must start from a user gesture (it does — toggled
-  by a button).
+  (`lib/audio.js`) — no audio files, works offline. Web Audio must start from a
+  user gesture (it does — toggled by a button). Music is an iframe embed
+  (YouTube or Spotify) in `MusicPanel.jsx`: a few built-in YouTube lofi stations,
+  plus users can paste any YouTube or Spotify (playlist/album/track/show/episode)
+  link — `lib/musicLink.js` resolves it to a `{provider, id, kind?}` station,
+  persisted to `localStorage` (`tasknook.music.custom` / `tasknook.music.station`).
+  No API keys or fees involved on either side — both are just public iframe embeds.
 - **Dates**: format dates with **local** parts, not `toISOString()` (which is UTC
   and shifts the day for negative-UTC users). See `toISO()` in `CalendarPanel.jsx`.
   The backend buckets focus time by local `date.today()` for "today" stats.
