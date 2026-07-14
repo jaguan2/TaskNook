@@ -32,7 +32,6 @@ TaskNook/
 │       │   └── spotify.js    # Spotify URL parsing (pure)
 │       └── components/   # Cottage (SVG scene), TopBar, FocusTimer, Dock,
 │                         #   Drawer, *Panel.jsx, WeatherOverlay
-├── requirements.txt      # mirror of backend/requirements.txt (root convenience)
 └── docs/preview.png      # README screenshot
 ```
 

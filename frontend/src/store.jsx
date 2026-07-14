@@ -50,6 +50,31 @@ export function StoreProvider({ children }) {
   const [activeTaskId, setActiveTaskId] = useState(null);
   const tickRef = useRef(null);
 
+  // Pomodoro mode: focus → break → focus … for a set number of rounds.
+  const [pomodoro, setPomodoroState] = useState(() => {
+    const defaults = { enabled: false, breakMinutes: 5, rounds: 4 };
+    try {
+      return { ...defaults, ...JSON.parse(localStorage.getItem("tasknook.pomodoro") || "{}") };
+    } catch {
+      return defaults;
+    }
+  });
+  const [phase, setPhase] = useState("focus"); // "focus" | "break"
+  const [round, setRound] = useState(1);
+
+  const setPomodoro = (patch) => {
+    setPomodoroState((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem("tasknook.pomodoro", JSON.stringify(next));
+      return next;
+    });
+    // Changing the plan restarts the cycle from round 1 (but never yanks a
+    // countdown that's actively running).
+    setPhase("focus");
+    setRound(1);
+    if (!running) setRemaining(focusMinutes * 60);
+  };
+
   // ---- Ambient ----
   const [weatherMode, setWeatherModeState] = useState("off");
   const [weatherVolume, setWeatherVol] = useState(0.5);
@@ -229,7 +254,11 @@ export function StoreProvider({ children }) {
   // ---------- Focus timer engine ----------
   const setFocus = (minutes) => {
     setFocusMinutes(minutes);
-    if (!running) setRemaining(minutes * 60);
+    if (!running) {
+      setRemaining(minutes * 60);
+      setPhase("focus");
+      setRound(1);
+    }
   };
 
   const startTimer = () => {
@@ -239,12 +268,29 @@ export function StoreProvider({ children }) {
   const pauseTimer = () => setRunning(false);
   const resetTimer = () => {
     setRunning(false);
+    setPhase("focus");
+    setRound(1);
     setRemaining(focusMinutes * 60);
   };
 
-  const completeFocusRef = useRef(null);
-  const completeFocus = useCallback(async () => {
-    setRunning(false);
+  const notify = (title, body) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body });
+    }
+  };
+
+  // Runs when a countdown reaches zero. In pomodoro mode this advances the
+  // focus/break cycle (the interval keeps ticking through transitions);
+  // otherwise it just ends the block. Completed FOCUS phases are logged as
+  // sessions — breaks never are.
+  const handlePhaseComplete = useCallback(async () => {
+    if (phase === "break") {
+      setPhase("focus");
+      setRound((r) => r + 1);
+      setRemaining(focusMinutes * 60);
+      notify("🌱 Back to it", `Round ${round + 1} of ${pomodoro.rounds} — ${focusMinutes} focused minutes.`);
+      return;
+    }
     try {
       await api.logSession({
         minutes: focusMinutes,
@@ -254,34 +300,41 @@ export function StoreProvider({ children }) {
     } catch {
       /* ignore */
     }
-    // gentle chime via the audio context is optional; notify instead
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("🌙 Focus block complete", {
-        body: `${focusMinutes} cozy minutes logged. Time to stretch.`,
-      });
+    if (pomodoro.enabled && round < pomodoro.rounds) {
+      setPhase("break");
+      setRemaining(pomodoro.breakMinutes * 60);
+      notify("☕ Break time", `${pomodoro.breakMinutes} minutes — stretch, hydrate, breathe.`);
+    } else {
+      setRunning(false);
+      setPhase("focus");
+      setRound(1);
+      if (pomodoro.enabled) {
+        notify("🎉 Pomodoro complete", `All ${pomodoro.rounds} rounds done — ${pomodoro.rounds * focusMinutes} minutes logged.`);
+      } else {
+        notify("🌙 Focus block complete", `${focusMinutes} cozy minutes logged. Time to stretch.`);
+      }
     }
-  }, [focusMinutes, activeTask, refreshAll]);
+  }, [phase, round, focusMinutes, pomodoro, activeTask, refreshAll]);
 
-  // Keep the latest completeFocus in a ref so the ticking interval depends only
-  // on `running` — selecting a different task mid-focus won't restart the timer.
+  // Keep the latest handler in a ref so the ticking interval depends only on
+  // `running` — selecting a different task mid-focus won't restart the timer.
+  const handlePhaseCompleteRef = useRef(null);
   useEffect(() => {
-    completeFocusRef.current = completeFocus;
-  }, [completeFocus]);
+    handlePhaseCompleteRef.current = handlePhaseComplete;
+  }, [handlePhaseComplete]);
 
   useEffect(() => {
     if (!running) return;
-    tickRef.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(tickRef.current);
-          completeFocusRef.current?.();
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    tickRef.current = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
     return () => clearInterval(tickRef.current);
   }, [running]);
+
+  // Fire the phase handler from an effect (not inside the setState updater) so
+  // it can safely set more state / await API calls.
+  useEffect(() => {
+    if (!running || remaining > 0) return;
+    handlePhaseCompleteRef.current?.();
+  }, [remaining, running]);
 
   // ---------- Ambient ----------
   const setWeather = (nextMode) => {
@@ -470,6 +523,10 @@ export function StoreProvider({ children }) {
     activeTask,
     activeTaskId,
     setActiveTaskId,
+    pomodoro,
+    setPomodoro,
+    phase,
+    round,
 
     // ambient
     weatherMode,
