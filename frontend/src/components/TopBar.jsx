@@ -27,6 +27,7 @@ export default function TopBar() {
     activeTask,
     running,
     remaining,
+    phase,
     musicOn,
     toggleMusic,
     weatherMode,
@@ -37,7 +38,7 @@ export default function TopBar() {
   const weatherIcon = { snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
 
   const minutesToGo = Math.ceil(remaining / 60);
-  const status = running ? "Focusing" : "Cozy break";
+  const status = running ? (phase === "break" ? "Break time ☕" : "Focusing") : "Cozy break";
   const subtitle = activeTask
     ? activeTask.name
     : running

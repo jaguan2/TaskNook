@@ -12,8 +12,9 @@ const GARLAND_BULBS = [
   [381, 47], [442, 44], [502, 39], [563, 33],
 ];
 
-// Lighting presets for the window/sky — the room's walls stay a constant
-// cozy plum (so the scene never clashes with the app's always-dark chrome).
+// Lighting presets for the window/sky. The room itself (walls, floor, rug,
+// curtains) is colored via the theme's CSS variables so switching color
+// scheme re-tints the scene along with the rest of the app.
 // lampGlow / screenGlow / bulbGlow drive how strongly the desk lamp, monitor
 // and garland read against the current sky.
 const TIME_PRESETS = {
@@ -88,17 +89,20 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         className="w-full max-w-[720px] max-h-[54vh] drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
       >
         <defs>
+          {/* Room surfaces follow the active color scheme (CSS variables from
+              index.css) so "re-tint the whole app" includes the scene. var()
+              only resolves in style=, not SVG presentation attributes. */}
           <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3b1f33" />
-            <stop offset="1" stopColor="#2b1830" />
+            <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
+            <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
           </linearGradient>
           <linearGradient id="nightSky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={time.skyTop} />
             <stop offset="1" stopColor={time.skyBottom} />
           </linearGradient>
           <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#4a2740" />
-            <stop offset="1" stopColor="#31182e" />
+            <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
+            <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
           </linearGradient>
           <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#4a3a6b" />
@@ -125,7 +129,7 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
 
         {/* ---------- Floor + rug ---------- */}
         <g clipPath="url(#roomClip)">
-          <rect x="8" y="390" width="624" height="8" fill="#57304b" />
+          <rect x="8" y="390" width="624" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
           <rect x="8" y="396" width="624" height="76" fill="url(#floorGrad)" />
           {/* floorboards */}
           <line x1="8" y1="420" x2="632" y2="420" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
@@ -134,8 +138,8 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
             <line key={`board-${i}`} x1={x} y1={y1} x2={x} y2={y2} stroke="#26122a" strokeWidth="1.5" opacity="0.3" />
           ))}
           {/* rug */}
-          <ellipse cx="320" cy="440" rx="225" ry="24" fill="#b25a68" opacity="0.5" />
-          <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" stroke="#f3c6c0" strokeWidth="3" opacity="0.3" />
+          <ellipse cx="320" cy="440" rx="225" ry="24" style={{ fill: "rgb(var(--color-rose))" }} opacity="0.4" />
+          <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="3" opacity="0.3" />
           {/* soft shadow the desk casts */}
           <ellipse cx="320" cy="402" rx="290" ry="10" fill="#000" opacity="0.18" />
         </g>
@@ -241,10 +245,10 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         <line x1="50" y1="22" x2="466" y2="22" stroke="#2b2350" strokeWidth="4" strokeLinecap="round" />
         <circle cx="50" cy="22" r="5" fill="#2b2350" />
         <circle cx="466" cy="22" r="5" fill="#2b2350" />
-        <path d="M58 20 Q46 150 62 296 L94 296 Q80 150 90 20 Z" fill="#f3c6c0" opacity="0.94" />
-        <path d="M70 26 Q62 150 74 288" stroke="#e0a3a3" strokeWidth="2" fill="none" opacity="0.6" />
-        <path d="M446 20 Q458 150 442 296 L410 296 Q424 150 414 20 Z" fill="#f3c6c0" opacity="0.94" />
-        <path d="M434 26 Q442 150 430 288" stroke="#e0a3a3" strokeWidth="2" fill="none" opacity="0.6" />
+        <path d="M58 20 Q46 150 62 296 L94 296 Q80 150 90 20 Z" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.94" />
+        <path d="M70 26 Q62 150 74 288" style={{ stroke: "rgb(var(--color-blush))" }} strokeWidth="2" fill="none" opacity="0.6" />
+        <path d="M446 20 Q458 150 442 296 L410 296 Q424 150 414 20 Z" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.94" />
+        <path d="M434 26 Q442 150 430 288" style={{ stroke: "rgb(var(--color-blush))" }} strokeWidth="2" fill="none" opacity="0.6" />
 
         {/* string-light garland swagging across the top */}
         <g>
@@ -259,7 +263,7 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         </g>
 
         {/* small wall decor: frame, hanging plant, wall clock */}
-        <rect x="474" y="58" width="46" height="60" rx="4" fill="#f3c6c0" opacity="0.9" />
+        <rect x="474" y="58" width="46" height="60" rx="4" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.9" />
         <rect x="481" y="65" width="32" height="46" rx="2" fill="#7a5a6e" />
         <g>
           <line x1="544" y1="50" x2="544" y2="70" stroke="#8a5346" strokeWidth="1.5" />

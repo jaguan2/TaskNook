@@ -10,6 +10,11 @@ where you are and match it automatically. Watch your productivity garden grow
 
 ![A cozy desk by a rainy window, with a focus timer, glowing monitor, and task list](docs/preview.png)
 
+> **Just want to use it?** Grab `TaskNook.exe` from
+> [Releases](../../releases) if one is published — or clone the repo and
+> double-click **`TaskNook.bat`** (Windows) / **`TaskNook.command`** (macOS).
+> No setup beyond having Python + Node installed.
+
 ---
 
 ## Contents
@@ -107,6 +112,10 @@ pyinstaller --onefile --windowed --name TaskNook ^
 The app lands in `dist\TaskNook.exe`, and the DB it uses at runtime lives in
 `%LOCALAPPDATA%\TaskNook\tasknook.db` (not inside the read-only bundle).
 
+The `.exe` is a build artifact and stays out of git (`dist/` is ignored) — to
+share it with people who don't want to build anything, attach `TaskNook.exe`
+to a [GitHub Release](../../releases) so it's a one-click download.
+
 > `backend/` and `frontend/dist` are bundled as **loose data files**, not
 > analyzed as source — `desktop.py`'s `sys.path` trick then imports `app.py`
 > from real files on disk at runtime, same as it does unfrozen. That's why
@@ -124,7 +133,7 @@ The app lands in `dist\TaskNook.exe`, and the DB it uses at runtime lives in
 | 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
 | ✅ | **Tasks** | Add tasks with a duration & priority, check them off, and drag to reorder. |
 | 🧠 | **Ordering algorithms** | Auto-arrange your list five different ways *(see below)*. |
-| ⏱️ | **Focus timer** | Pomodoro-style blocks (15 / 25 / 45 / 60 min) with a progress ring; finished blocks are logged as productivity time. |
+| ⏱️ | **Focus timer** | Focus blocks (15 / 25 / 45 / 60 min) with a progress ring; finished blocks are logged as productivity time. Flip on 🍅 **Pomodoro mode** to cycle focus → break automatically for a set number of rounds, with your choice of break length. |
 | 🗓️ | **Calendar** | Schedule tasks onto specific days and see what's planned. |
 | 📈 | **Progress** | A live completion bar, focus-hours, and a "productivity garden" that grows a plant for every 15 focused minutes. |
 | 🎵 | **Music** | Built-in lofi YouTube stations, or paste any YouTube or Spotify link (playlist/album/track/show/episode) to play your own. |
@@ -201,24 +210,51 @@ the frontend calls Open-Meteo directly; see `lib/weather.js`.
 
 ## 📁 Project structure
 
+Everything a user needs sits at the repo root: the one-click launchers and the
+`.exe` build script. The app itself lives in `backend/` + `frontend/`.
+
 ```
 TaskNook/
-├── backend/
-│   ├── app.py            # Flask app: routes, seeding, optional static serving
-│   ├── models.py         # SQLAlchemy models (User, Task, FocusSession, Token)
-│   └── requirements.txt
-├── desktop.py         # Native-window launcher (pywebview + waitress)
-├── build-exe.bat      # One-command PyInstaller build → dist/TaskNook.exe
-└── frontend/
-    ├── src/
-    │   ├── components/    # Cottage (desk scene), TopBar, FocusTimer, Dock,
-    │   │                  #   Drawer, *Panel.jsx, WeatherOverlay
-    │   ├── lib/           # api client, ordering algorithms, procedural audio,
-    │   │                  #   Open-Meteo weather, YouTube/Spotify link parsing
-    │   ├── store.jsx      # React context: local account, tasks, ambience, weather
-    │   └── App.jsx
-    └── vite.config.js
+├── TaskNook.bat              # ⭐ Windows: double-click → build (first run) + open the app
+├── TaskNook.command          # ⭐ macOS/Linux: the same one-click launcher
+├── build-exe.bat             # Package everything into a single dist/TaskNook.exe
+├── desktop.py                # Native-window launcher (pywebview + waitress)
+├── requirements-desktop.txt  # Desktop-app Python deps (pulls in backend deps too)
+├── README.md
+├── CLAUDE.md                 # Deep-dive guide to the codebase (for contributors & AI tools)
+├── docs/
+│   └── preview.png           # The screenshot at the top of this README
+│
+├── backend/                  # Flask REST API (SQLite, fully local)
+│   ├── app.py                # Routes, token auth, demo seeding, static serving
+│   ├── models.py             # SQLAlchemy models (User, Task, FocusSession, Token)
+│   └── requirements.txt      # Backend Python deps
+│
+└── frontend/                 # React 18 + Vite single-page app
+    ├── index.html
+    ├── vite.config.js        # Dev server; proxies /api → Flask :5000
+    ├── tailwind.config.js    # The cozy color palette
+    └── src/
+        ├── main.jsx          # Entry point
+        ├── App.jsx           # Shell: scene, dock, panels, timer, intro animation
+        ├── store.jsx         # Single source of truth (React Context)
+        ├── index.css         # Tailwind layers + shared styles
+        ├── components/
+        │   ├── Cottage.jsx        # The hand-built SVG desk scene
+        │   ├── TopBar.jsx, Dock.jsx, Drawer.jsx, FocusTimer.jsx
+        │   ├── TaskPanel, CalendarPanel, ProgressPanel, FriendsPanel,
+        │   │   MusicPanel, WeatherPanel, SettingsPanel (.jsx)
+        │   └── WeatherOverlay.jsx # Full-screen rain / snow / storm visuals
+        └── lib/
+            ├── api.js             # Fetch wrapper (bearer-token auth)
+            ├── algorithms.js      # Task-ordering strategies (pure functions)
+            ├── audio.js           # Procedural rain/snow/storm (Web Audio API)
+            ├── weather.js         # Open-Meteo real-weather client
+            └── musicLink.js, youtube.js, spotify.js  # Music-link parsing
 ```
+
+> After building the desktop app you'll also see `build/`, `dist/`, and
+> `TaskNook.spec` locally — those are PyInstaller artifacts and are gitignored.
 
 ---
 
