@@ -36,6 +36,18 @@
   --color-void: 14 22 29;
 }
 
+/* Espresso browns + caramel + cream, borrowed from the personal-portfolio
+   ("rkive.") coffee palette, translated into TaskNook's dark-ambiance scale. */
+[data-theme="coffee"] {
+  --color-night: 46 32 23;
+  --color-plum: 63 42 25;
+  --color-wine: 92 61 36;
+  --color-rose: 186 143 104;
+  --color-blush: 209 171 127;
+  --color-petal: 245 221 168;
+  --color-void: 31 20 13;
+}
+
 html,
 body,
 #root {

@@ -4,6 +4,7 @@ const COLOR_SCHEMES = [
   { key: "plum", label: "Plum Night", swatch: ["#2b1830", "#d98a93", "#f3c6c0"] },
   { key: "forest", label: "Forest", swatch: ["#1a2b22", "#d9a25a", "#d7e6c4"] },
   { key: "ocean", label: "Ocean", swatch: ["#16232e", "#6fb8cf", "#cbe8ef"] },
+  { key: "coffee", label: "Coffee", swatch: ["#2e2017", "#ba8f68", "#f5dda8"] },
 ];
 
 export default function SettingsPanel() {
