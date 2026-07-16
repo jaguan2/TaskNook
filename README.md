@@ -94,32 +94,28 @@ installs `requirements-desktop.txt` + `pyinstaller`, and packages `desktop.py`
 into **`TaskNook.exe`** at the repo root (one file, no console window),
 replacing the existing one.
 
-**Manually**, the equivalent command is:
+It overwrites **`TaskNook.exe` at the repo root** — which is committed on
+purpose, so visitors can download and run it without building anything. Your
+tasks live in `%LOCALAPPDATA%\TaskNook\tasknook.db`, never inside the
+read-only bundle, so replacing the exe never touches your data.
 
-```bat
-pip install -r requirements-desktop.txt pyinstaller
-npm --prefix frontend run build            :: ensure frontend/dist exists
-
-pyinstaller --onefile --windowed --name TaskNook ^
-  --add-data "backend;backend" ^
-  --add-data "frontend/dist;frontend/dist" ^
-  --hidden-import flask_cors ^
-  --hidden-import flask_sqlalchemy ^
-  desktop.py
-```
-
-The app lands in `dist\TaskNook.exe`, and the DB it uses at runtime lives in
-`%LOCALAPPDATA%\TaskNook\tasknook.db` (not inside the read-only bundle).
-
-The `.exe` is a build artifact and stays out of git (`dist/` is ignored) — to
-share it with people who don't want to build anything, attach `TaskNook.exe`
-to a [GitHub Release](../../releases) so it's a one-click download.
-
-> `backend/` and `frontend/dist` are bundled as **loose data files**, not
-> analyzed as source — `desktop.py`'s `sys.path` trick then imports `app.py`
-> from real files on disk at runtime, same as it does unfrozen. That's why
-> `flask_cors`/`flask_sqlalchemy` need explicit `--hidden-import`: nothing in
-> `desktop.py` itself references them for PyInstaller's analyzer to find.
+> **The PyInstaller flags in `build-exe.bat` are the authoritative list — read
+> them there rather than copying them here** (this README has drifted from
+> them twice already). They aren't optional decoration:
+>
+> `backend/` and `frontend/dist` ship as **loose data files**, not analyzed as
+> source — `desktop.py` adds `backend/` to `sys.path` and imports `app.py` at
+> runtime, exactly as it does unfrozen. So PyInstaller's analyzer never sees
+> anything the backend imports, and each one needs an explicit
+> `--hidden-import` / `--collect-all`. Miss one and the exe fails **only at
+> runtime, silently** — `--windowed` has no console to print the traceback to.
+>
+> The backend is bundled file-by-file rather than as a whole folder, so your
+> local `tasknook.db` and its backups can't be published inside the binary.
+>
+> After changing anything there, prove the artifact still works:
+> `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code must be `0`. CI runs
+> this on every push for exactly this reason.
 
 </details>
 
@@ -156,7 +152,8 @@ to a [GitHub Release](../../releases) so it's a one-click download.
 | Layer | Tech |
 |---|---|
 | **Frontend** | React 18 + Vite · Tailwind CSS · Framer Motion |
-| **Backend** | Flask + Flask-SQLAlchemy (SQLite) · token auth · REST API |
+| **Backend** | Flask + Flask-SQLAlchemy (SQLite) · Alembic migrations (Flask-Migrate) · token auth · REST API |
+| **Tests/CI** | Vitest (frontend) · pytest (backend) · GitHub Actions — including a smoke test that boots the real `.exe` |
 | **External** | [Open-Meteo](https://open-meteo.com/) for real weather (free, no API key) — the only feature that needs internet; everything else is fully local |
 
 The frontend is fully decoupled — it talks to the backend purely over the REST
@@ -184,6 +181,9 @@ TaskNook/
 ├── backend/                  # Flask REST API (SQLite, fully local)
 │   ├── app.py                # Routes, token auth, demo seeding, static serving
 │   ├── models.py             # SQLAlchemy models (User, Task, FocusSession, Token)
+│   ├── schema.py             # Startup migration + pre-upgrade backup lifecycle
+│   ├── migrations/           # Alembic history — the source of truth for the schema
+│   ├── tests/                # pytest: the schema/upgrade guarantees
 │   └── requirements.txt      # Backend Python deps
 │
 └── frontend/                 # React 18 + Vite single-page app
