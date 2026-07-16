@@ -133,6 +133,34 @@ body {
   border: 1px solid rgb(var(--color-petal) / 0.14);
 }
 
+/* Hue / saturation sliders in Settings. appearance:none lets the gradient
+   track (set inline) show through, so the thumb must be drawn by hand — the
+   desktop WebView has no native colour dialog, these are the real control. */
+.color-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.color-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
 /* Soft pill buttons */
 .pill {
   border-radius: 9999px;

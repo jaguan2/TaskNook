@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "./store";
+import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
@@ -26,7 +27,8 @@ const PANELS = {
 };
 
 export default function App() {
-  const { booting, weatherMode, timeOfDay, brightness, colorScheme } = useStore();
+  const { booting, weatherMode, timeOfDay, brightness, colorScheme, customColor } =
+    useStore();
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
@@ -35,9 +37,21 @@ export default function App() {
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
+  // For the "custom" scheme there's no CSS block — we derive the ramp from the
+  // picked colour and set the variables inline (inline styles win over the
+  // [data-theme] rules). Switching back to a preset removes them again.
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", colorScheme);
-  }, [colorScheme]);
+    const root = document.documentElement;
+    root.setAttribute("data-theme", colorScheme);
+    if (colorScheme === "custom") {
+      const vars = derivePalette(customColor);
+      Object.entries(vars).forEach(([name, value]) =>
+        root.style.setProperty(name, value)
+      );
+    } else {
+      PALETTE_VARS.forEach((name) => root.style.removeProperty(name));
+    }
+  }, [colorScheme, customColor]);
 
   const toggleDockPanel = (key) => {
     setOpenPanels((prev) => {
