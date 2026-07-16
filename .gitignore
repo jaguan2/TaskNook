@@ -5,9 +5,10 @@ __pycache__/
 venv/
 backend/tasknook.db
 
-# PyInstaller (desktop .exe packaging)
+# PyInstaller (desktop .exe packaging) — build artifacts only;
+# TaskNook.exe at the repo root IS tracked on purpose, so GitHub
+# visitors can download and run it directly.
 /build/
-/dist/
 *.spec
 
 # Node / Vite
