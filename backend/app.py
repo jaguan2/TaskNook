@@ -9,13 +9,18 @@ from functools import wraps
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Task, FocusSession, Token, utcnow
+from schema import init_schema
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # If the frontend has been built (frontend/dist), Flask will also serve it.
 FRONTEND_DIST = os.path.join(BASE_DIR, "..", "frontend", "dist")
+# Absolute so Alembic finds the migrations regardless of the working directory
+# (and inside the packaged .exe, where backend/ is bundled under _MEIPASS).
+MIGRATIONS_DIR = os.path.join(BASE_DIR, "migrations")
 
 
 def create_app():
@@ -27,9 +32,12 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     CORS(app)
     db.init_app(app)
+    # render_as_batch is required for SQLite: it can't ALTER/DROP columns in
+    # place, so Alembic rebuilds the table instead.
+    Migrate(app, db, directory=MIGRATIONS_DIR, render_as_batch=True)
 
     with app.app_context():
-        db.create_all()
+        init_schema(db_path)
         seed_demo_data()
 
     register_routes(app)

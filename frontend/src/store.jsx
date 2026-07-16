@@ -118,6 +118,11 @@ export function StoreProvider({ children }) {
   const [colorScheme, setColorSchemeState] = useState(
     () => localStorage.getItem("tasknook.colorScheme") || "plum"
   );
+  // Base colour for the "custom" scheme; the full ramp is derived from its
+  // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
+  const [customColor, setCustomColorState] = useState(
+    () => localStorage.getItem("tasknook.customColor") || "#d98a93"
+  );
 
   const [customStations, setCustomStations] = useState(() => {
     try {
@@ -387,6 +392,12 @@ export function StoreProvider({ children }) {
     setColorSchemeState(scheme);
     localStorage.setItem("tasknook.colorScheme", scheme);
   };
+  // Picking a colour implies you want the custom scheme.
+  const setCustomColor = (hex) => {
+    setCustomColorState(hex);
+    localStorage.setItem("tasknook.customColor", hex);
+    setColorScheme("custom");
+  };
 
   // ---------- Real-world weather ----------
   useEffect(() => {
@@ -562,6 +573,8 @@ export function StoreProvider({ children }) {
     setBrightness,
     colorScheme,
     setColorScheme,
+    customColor,
+    setCustomColor,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

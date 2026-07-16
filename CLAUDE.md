@@ -61,16 +61,28 @@ Single-port / production-style: `cd frontend && npm run build` (emits
 **Desktop app**: `desktop.py` (repo root) boots the same Flask app on a local
 port via `waitress` and opens it in a native window with `pywebview` (WebView2
 on Windows). Requires `frontend/dist` to exist + `pip install -r
-requirements-desktop.txt`. One-click launchers: `TaskNook.bat` (Windows) /
-`TaskNook.command` (macOS/Linux) build + install + launch. It's also
-PyInstaller-packageable into a single `.exe` — run `build-exe.bat` (builds the
-frontend, installs `requirements-desktop.txt` + `pyinstaller`, then packages
-`desktop.py` into `dist\TaskNook.exe`, one-file + no console window).
+requirements-desktop.txt`. On Windows the shipping artefact is
+**`TaskNook.exe` at the repo root** — a one-file, no-console PyInstaller
+bundle that IS committed on purpose (so GitHub visitors can just download and
+run it); rebuild it with `build-exe.bat`, which builds the frontend, installs
+`requirements-desktop.txt` + `pyinstaller`, then packages `desktop.py` with
+`--onefile --windowed --distpath . --workpath build` (hence `build/` and
+`*.spec` are gitignored but the `.exe` is not). `TaskNook.command` remains the
+macOS/Linux one-click launcher (build + install + launch from source).
 `desktop.py` is frozen-aware (`sys._MEIPASS`, writable-DB fallback under
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
-loose `--add-data` (not analyzed as source), which is why `flask_cors` and
-`flask_sqlalchemy` need explicit `--hidden-import` flags — nothing in
-`desktop.py` itself references them for PyInstaller's analyzer to find.
+loose `--add-data` (not analyzed as source), so **nothing the backend imports
+is discoverable by PyInstaller's analyzer** — every one of its third-party
+imports needs an explicit flag in `build-exe.bat`, and forgetting one only
+fails at runtime *in the exe* (silently, since `--windowed` has no console).
+Currently required, each learned from an actual frozen-build failure:
+`--hidden-import flask_cors`, `--hidden-import flask_sqlalchemy`,
+`--hidden-import flask_migrate`, `--collect-all alembic` (Alembic loads
+`env.py` and the `versions/*.py` migrations *dynamically*, so the analyzer
+can't see them), and `--hidden-import logging.config` (a stdlib submodule
+`migrations/env.py` imports and PyInstaller otherwise omits). If you add a
+backend dependency, add its flag **and** re-run the frozen self-test:
+`set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
 
 **Desktop persistence (two easy-to-reintroduce bugs, both fixed in `desktop.py`):**
@@ -157,6 +169,20 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **Styling**: Tailwind with a custom cozy palette in `tailwind.config.js`
   (`night`, `plum`, `wine`, `rose`, `blush`, `glow`, etc.). Reusable classes
   `.glass`, `.pill`, `.cozy-scroll` are defined in `src/index.css`.
+- **Theming**: `night`/`plum`/`wine`/`rose`/`blush`/`petal` map to
+  `rgb(var(--color-x) / <alpha-value>)` — the vars are **space-separated RGB
+  channels, not hex**, so Tailwind's opacity modifiers (`bg-rose/40`) keep
+  working. Don't change that format. `--color-void` is used only by `<body>`'s
+  gradient in `index.css`; `cream`/`glow`/`amber`/`sage` are fixed and never
+  re-tint. Presets are `[data-theme="forest|ocean|coffee"]` blocks in
+  `index.css`; `App.jsx` stamps `data-theme` on `<html>` (not its own root) so
+  `<body>`'s gradient sees it. The `custom` scheme has **no CSS block** — 
+  `lib/palette.js`'s `derivePalette(hex)` builds the ramp from the picked
+  colour's hue/saturation and `App.jsx` sets the vars inline on `<html>`
+  (inline wins over `[data-theme]`); switching back to a preset must
+  `removeProperty` each `PALETTE_VARS` entry or the custom colours would stick.
+  Only hue + saturation are taken from the pick — the lightness stops are fixed,
+  which is what guarantees text stays legible (~9:1 contrast) for any colour.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
   assets, no isometric projection) — a desk by a window. It takes `focused`
   (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
@@ -170,16 +196,39 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **New API endpoint**: add the route in `register_routes()` in `app.py`
   (use `@require_auth` for authed routes), then a method in `lib/api.js`, then
   consume it via an action in `store.jsx`.
-- **New model field**: edit `models.py` and update the relevant `to_dict()`.
-  SQLite has no migrations here — during development, deleting `backend/tasknook.db`
-  recreates the schema (and reseeds demo data) on next launch.
+- **New model field**: edit `models.py`, update the relevant `to_dict()`, then
+  **generate a migration** — do not just delete the DB:
+
+  ```bash
+  cd backend
+  set FLASK_APP=app.py          # PowerShell: $env:FLASK_APP="app.py"
+  flask db migrate -m "add task.notes"   # writes migrations/versions/xxxx_*.py
+  flask db upgrade                       # apply locally (startup does this too)
+  ```
+
+  Read the generated file before committing — autogenerate is a good first
+  draft, not gospel (it misses renames, and can't infer a sensible default for
+  a new NOT NULL column on existing rows). Migrations are the **single source
+  of truth** for the schema: there is no `create_all()` fallback, so a model
+  change without a migration will break on a fresh DB immediately — which is
+  the point (better than silently diverging from what shipped users have).
 - **New panel**: create `components/XxxPanel.jsx`, register it in the `PANELS`
   map and `Dock` items in `App.jsx`.
 
 ## Gotchas
 
-- Deleting `backend/tasknook.db` is the dev "reset" — it's recreated + reseeded.
-  It is gitignored; never commit it.
+- Deleting `backend/tasknook.db` is the dev "reset" — it's rebuilt by running
+  the migrations and reseeded. It is gitignored; never commit it. **This is a
+  dev-only move**: a shipped user's DB lives in `%LOCALAPPDATA%\TaskNook\` and
+  holds real data, which is exactly why schema changes go through Alembic.
+- **Schema is managed by Alembic** (`backend/migrations/`, wired up in
+  `backend/schema.py`). `init_schema()` runs on every startup and handles three
+  cases: a fresh DB (runs migrations from zero), a *legacy* pre-migrations DB
+  (has tables but no `alembic_version` → stamped at `0001_baseline` rather than
+  replaying history against existing tables), and an up-to-date DB (a cheap
+  no-op). It backs the SQLite file up (keeping the newest 3) before applying
+  anything. `Migrate(..., render_as_batch=True)` is **required** — SQLite can't
+  `ALTER`/`DROP` columns in place, so Alembic rebuilds the table instead.
 - `node_modules/`, `frontend/dist/`, and `__pycache__/` are gitignored — keep them
   out of commits.
 - Vite proxies `/api` to `:5000` in dev (see `vite.config.js`), so the frontend

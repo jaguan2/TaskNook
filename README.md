@@ -10,10 +10,9 @@ where you are and match it automatically. Watch your productivity garden grow
 
 ![A cozy desk by a rainy window, with a focus timer, glowing monitor, and task list](docs/preview.png)
 
-> **Just want to use it?** Grab `TaskNook.exe` from
-> [Releases](../../releases) if one is published — or clone the repo and
-> double-click **`TaskNook.bat`** (Windows) / **`TaskNook.command`** (macOS).
-> No setup beyond having Python + Node installed.
+> **Just want to use it?** Download **`TaskNook.exe`** from the repo root and
+> double-click it — that's the whole app in one file, no Python or Node needed.
+> (macOS: clone the repo and run **`TaskNook.command`**.)
 
 ---
 
@@ -23,7 +22,6 @@ where you are and match it automatically. Watch your productivity garden grow
 - [Run as a desktop app](#-run-as-a-desktop-app)
 - [Features](#-features)
 - [Tech stack](#-tech-stack)
-- [API reference](#-api-reference)
 - [Project structure](#-project-structure)
 
 ---
@@ -61,16 +59,16 @@ browser tab. It boots the Flask server locally and opens it in an OS window
 (via [pywebview](https://pywebview.flowrl.com/); Windows uses the built-in
 WebView2 runtime, macOS uses WebKit).
 
-**One-click launch:** double-click the launcher for your platform:
+**One-click launch:**
 
 | Platform | File | Notes |
 |---|---|---|
-| Windows | **`TaskNook.bat`** | Works out of the box (WebView2). |
-| macOS | **`TaskNook.command`** | First time: `chmod +x TaskNook.command`. |
+| Windows | **`TaskNook.exe`** | Standalone — Python, the server and the app are all bundled inside. Nothing to install. |
+| macOS | **`TaskNook.command`** | Needs Python + Node. First time: `chmod +x TaskNook.command`. |
 | Linux | `TaskNook.command` | Also needs system WebKit, e.g. `sudo apt install python3-gi gir1.2-webkit2-4.1`. Without it, TaskNook falls back to opening in your browser. |
 
-On first launch it builds the frontend and installs the desktop dependencies,
-then opens the app. Subsequent launches start instantly.
+Your tasks and settings live in `%LOCALAPPDATA%\TaskNook\`, so they survive
+closing the app — and updating the exe.
 
 **Or run it manually:**
 
@@ -93,7 +91,8 @@ double-clickable executable with [PyInstaller](https://pyinstaller.org/).
 
 **Easiest:** run `build-exe.bat` from the repo root. It builds the frontend,
 installs `requirements-desktop.txt` + `pyinstaller`, and packages `desktop.py`
-into `dist\TaskNook.exe` (one file, no console window).
+into **`TaskNook.exe`** at the repo root (one file, no console window),
+replacing the existing one.
 
 **Manually**, the equivalent command is:
 
@@ -165,59 +164,16 @@ API under `/api`. In development, Vite proxies `/api` to Flask automatically.
 
 ---
 
-## 🔌 API reference
-
-All endpoints live under `/api`. Authenticated routes expect an
-`Authorization: Bearer <token>` header (returned by login & register).
-
-> There's no login screen — TaskNook is single-user and local, so the frontend
-> silently logs into (or creates, on first launch) one fixed local account
-> using the endpoints below. They're listed here because they're still real,
-> callable API routes, not because you'll ever see a login form.
-
-### Auth
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/auth/register` | Create an account, returns a token |
-| `POST` | `/auth/login` | Log in, returns a token |
-| `GET` | `/auth/me` | Get the current user |
-
-Real-world weather (the built-in Weather panel) isn't a backend route at all —
-the frontend calls Open-Meteo directly; see `lib/weather.js`.
-
-### Tasks
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/tasks` | List your tasks |
-| `POST` | `/tasks` | Create a task |
-| `PUT` | `/tasks/:id` | Update (complete, edit, schedule) |
-| `PUT` | `/tasks/reorder` | Persist a manual ordering |
-| `DELETE` | `/tasks/:id` | Delete a task |
-
-### Progress & social
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/sessions` | Log a completed focus block |
-| `GET` | `/stats` | Today's completion & focus minutes |
-| `GET` | `/friends` | List friends + their daily progress |
-| `POST` | `/friends` | Add a friend by username |
-| `DELETE` | `/friends/:id` | Remove a friend |
-
----
-
 ## 📁 Project structure
 
-Everything a user needs sits at the repo root: the one-click launchers and the
-`.exe` build script. The app itself lives in `backend/` + `frontend/`.
+Everything a user needs sits at the repo root: the app itself and the launchers.
+The source lives in `backend/` + `frontend/`.
 
 ```
 TaskNook/
-├── TaskNook.bat              # ⭐ Windows: double-click → build (first run) + open the app
-├── TaskNook.command          # ⭐ macOS/Linux: the same one-click launcher
-├── build-exe.bat             # Package everything into a single dist/TaskNook.exe
+├── TaskNook.exe              # ⭐ Windows: double-click → the whole app, standalone
+├── TaskNook.command          # ⭐ macOS/Linux one-click launcher (needs Python + Node)
+├── build-exe.bat             # Rebuilds TaskNook.exe from source
 ├── desktop.py                # Native-window launcher (pywebview + waitress)
 ├── requirements-desktop.txt  # Desktop-app Python deps (pulls in backend deps too)
 ├── README.md
