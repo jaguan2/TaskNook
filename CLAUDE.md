@@ -15,6 +15,9 @@ TaskNook/
 ├── backend/              # Flask REST API (Python)
 │   ├── app.py            # App factory, all routes, auth, seeding, static serving
 │   ├── models.py         # SQLAlchemy models + db instance
+│   ├── schema.py         # Startup migration/backup lifecycle (init_schema)
+│   ├── migrations/       # Alembic history — SOURCE OF TRUTH for the schema
+│   ├── tests/            # pytest (schema lifecycle guarantees)
 │   └── requirements.txt
 ├── frontend/             # React + Vite SPA
 │   └── src/
@@ -67,8 +70,13 @@ bundle that IS committed on purpose (so GitHub visitors can just download and
 run it); rebuild it with `build-exe.bat`, which builds the frontend, installs
 `requirements-desktop.txt` + `pyinstaller`, then packages `desktop.py` with
 `--onefile --windowed --distpath . --workpath build` (hence `build/` and
-`*.spec` are gitignored but the `.exe` is not). `TaskNook.command` remains the
-macOS/Linux one-click launcher (build + install + launch from source).
+`*.spec` are gitignored but the `.exe` is not). **Deliberate choice**: TaskNook
+is a personal project, so it keeps updating that one committed build rather
+than publishing GitHub Releases — the download link never moves. The tradeoff
+is that every rebuild adds another ~42 MB to git history permanently, so
+rebuild + commit the exe when shipping something worth downloading, not on
+every code change. `TaskNook.command` remains the macOS/Linux one-click
+launcher (build + install + launch from source).
 `desktop.py` is frozen-aware (`sys._MEIPASS`, writable-DB fallback under
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
 loose `--add-data` (not analyzed as source), so **nothing the backend imports
@@ -83,7 +91,23 @@ can't see them), and `--hidden-import logging.config` (a stdlib submodule
 `migrations/env.py` imports and PyInstaller otherwise omits). If you add a
 backend dependency, add its flag **and** re-run the frozen self-test:
 `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0.
+The backend is bundled **file-by-file, never as a whole folder** — an
+`--add-data "backend;backend"` would publish your local `tasknook.db` and its
+backups inside the committed binary.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
+
+**Single instance**: `desktop.py`'s `claim_single_instance()` takes an
+OS-level lock on `%LOCALAPPDATA%\TaskNook\tasknook.lock` **before importing
+`app`** (that import is what runs the migrations) — keep that ordering. A
+second launch exits 0 with a "already running" notice. Two instances would
+otherwise migrate the same SQLite file concurrently *and* land on different
+ports — and since `localStorage` is scoped by origin (host **and** port), the
+second window would silently have its own settings and token. This isn't
+theoretical: the one-file exe takes seconds to unpack, which is exactly when
+people double-click again. The lock is held by the kernel, so it's released
+even on a crash — never "clean up" a stale lock file. Dialogs
+(`_message_box`) only appear in the **frozen** build; from source you have a
+console, and a modal would block scripts and tests.
 
 **Desktop persistence (two easy-to-reintroduce bugs, both fixed in `desktop.py`):**
 1. `pywebview`'s `webview.start()` defaults to `private_mode=True` (incognito-style —
@@ -238,6 +262,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 ## Validating changes
 
-- Frontend: `cd frontend && npm run build` is a fast full type/parse check.
-- Backend: `cd backend && python -c "import app"` imports/creates the app and DB.
-- There is no automated test suite yet; verify UI changes by running both servers.
+- Frontend: `cd frontend && npm test` (Vitest — pure logic: ordering
+  algorithms, the palette ramp, local-date formatting), then `npm run build`
+  for a full parse check.
+- Backend: `cd backend && python -m pytest tests -q` (the schema/upgrade
+  guarantees). `pip install -r requirements-dev.txt` first.
+- **Schema drift**: `flask db check` reports "new upgrade operations" whenever
+  `models.py` has changes with no matching migration. CI runs it.
+- **The packaged app**: `npm run build` and `import app` can BOTH pass while
+  `TaskNook.exe` is completely broken — the backend ships as loose data, so a
+  missing `--hidden-import` only fails at runtime, silently (`--windowed` has
+  no console). The only real check is running the artifact:
+  `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0. CI does this on
+  every push (`.github/workflows/ci.yml`).
+- No UI/component tests yet — verify visual changes by running both servers.

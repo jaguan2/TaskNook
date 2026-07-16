@@ -13,9 +13,17 @@ if [ ! -f "frontend/dist/index.html" ]; then
   ( cd frontend && { [ -d node_modules ] || npm install; } && npm run build )
 fi
 
-# 2. Ensure desktop Python dependencies are present
+# 2. Ensure desktop Python dependencies are present.
+# Not silenced with `|| true`: a failed install used to be cosmetic, but the
+# app now imports flask_migrate at startup, so swallowing the error just trades
+# a clear message here for an ImportError traceback later.
 echo "Checking Python dependencies..."
-python3 -m pip install -r requirements-desktop.txt >/dev/null 2>&1 || true
+python3 -m pip install -r requirements-desktop.txt || {
+  echo
+  echo "Could not install TaskNook's Python dependencies."
+  echo "Try: python3 -m pip install -r requirements-desktop.txt"
+  exit 1
+}
 
 # 3. Launch the native desktop app
 echo "Opening TaskNook..."

@@ -3,7 +3,21 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+
+# The local database and everything SQLite/our migrations put beside it.
+# `backend/tasknook.db` alone is an EXACT match and would NOT cover the
+# pre-migration backups schema.py writes (tasknook.db.<timestamp>.bak) or
+# SQLite's own sidecars — i.e. real task data could be committed by accident.
 backend/tasknook.db
+backend/tasknook.db.*.bak
+backend/tasknook.db-journal
+backend/tasknook.db-wal
+backend/tasknook.db-shm
+# Written beside the DB when startup fails (see app.py's _log_startup_failure).
+tasknook-error.log
+# Single-instance lock (see desktop.py's claim_single_instance).
+tasknook.lock
 
 # PyInstaller (desktop .exe packaging) — build artifacts only;
 # TaskNook.exe at the repo root IS tracked on purpose, so GitHub

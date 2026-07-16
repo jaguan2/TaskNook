@@ -37,9 +37,94 @@ if getattr(sys, "frozen", False):
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
+
+MB_ICON_ERROR = 0x10
+MB_ICON_INFO = 0x40
+
+
+def _message_box(message, icon):
+    """Say something the user will actually see.
+
+    The dialog is for the packaged build only: `--windowed` has no console, so
+    print() goes nowhere and the app would appear to do nothing. Run from
+    source you have a terminal, and a modal dialog would just block whoever
+    (or whatever) launched it.
+    """
+    print(message)
+    if sys.platform == "win32" and getattr(sys, "frozen", False):
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(None, message, "TaskNook", icon)
+        except Exception:
+            pass
+
+
+def fatal(message):
+    _message_box(f"[!] {message}", MB_ICON_ERROR)
+    sys.exit(1)
+
+
+# Held for the life of the process; released by the OS when it exits (including
+# on a crash), so a stale lock can never wedge the app shut.
+_instance_lock = None
+
+
+def claim_single_instance():
+    """True if we're the only TaskNook; False if one is already running.
+
+    Two instances must never run at once:
+      * They'd migrate the same SQLite file concurrently. The loser either
+        blocks past SQLite's busy timeout or replays an applied migration —
+        an uncaught error which, with no console, is a silent death.
+      * Only one can bind DEFAULT_PORT, so the other lands on a random port.
+        localStorage is scoped by origin (host *and* port), so that window
+        would silently have its own settings and its own login token.
+
+    This is not a rare edge case: the packaged app is a ~40 MB one-file exe
+    that spends a few seconds unpacking before any window appears, which is
+    precisely when people double-click it again.
+
+    Uses an OS-level lock on a file rather than the file's mere existence —
+    the kernel drops it if we're killed, so there's nothing to clean up.
+    """
+    global _instance_lock
+    handle = open(os.path.join(APP_DATA_DIR, "tasknook.lock"), "w")
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return False
+    _instance_lock = handle  # keep a reference so it isn't garbage-collected
+    return True
+
+
+if not claim_single_instance():
+    # Not an error — just tell them where it went, or they'll keep clicking.
+    _message_box(
+        "TaskNook is already running.\n\nLook for its window (check the taskbar).",
+        MB_ICON_INFO,
+    )
+    sys.exit(0)
+
+
 # Make the backend package importable and import the configured Flask app.
+# create_app() runs at import: it migrates the database and can legitimately
+# refuse (e.g. the DB is from a newer release), so guard the import itself.
+# NOTE: this must stay *below* the single-instance check — importing app is
+# what runs the migrations we're serialising.
 sys.path.insert(0, BACKEND_DIR)
-from app import app  # noqa: E402  (create_app() already ran DB init + seeding)
+try:
+    from app import app  # noqa: E402  (create_app() already ran DB init + seeding)
+except BaseException as exc:  # noqa: BLE001 — SystemExit must not escape silently
+    fatal(f"TaskNook couldn't start.\n\n{exc}")
 
 
 def find_free_port():

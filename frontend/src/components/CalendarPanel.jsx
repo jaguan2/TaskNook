@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../store";
-
-function toISO(d) {
-  // Format using LOCAL date parts. Using toISOString() here would convert to
-  // UTC and shift the day for users in negative UTC offsets (e.g. the Americas).
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { toISO } from "../lib/dates";
 
 function monthMatrix(year, month) {
   const first = new Date(year, month, 1);

@@ -2,4 +2,8 @@ Flask==3.0.3
 Flask-Cors==4.0.1
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.7
+# Pinned explicitly, not left to Flask-Migrate: schema.py imports alembic
+# directly (MigrationContext / ScriptDirectory), so it's a first-party
+# dependency. An unpinned major could break the packaged .exe silently.
+alembic==1.13.2
 Werkzeug==3.0.3

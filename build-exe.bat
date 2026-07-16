@@ -23,10 +23,24 @@ echo Installing build dependencies (pywebview, waitress, pyinstaller)...
 %PY% -m pip install -r requirements-desktop.txt pyinstaller || goto :error
 
 echo Building TaskNook.exe (this can take a minute)...
+REM  IMPORTANT: bundle backend source EXPLICITLY, never the whole folder.
+REM  "--add-data backend;backend" would sweep in your local tasknook.db (real
+REM  tasks), its .bak backups and __pycache__ — publishing personal data inside
+REM  a committed binary. The frozen app reads its DB from %LOCALAPPDATA% anyway
+REM  (see desktop.py), so a bundled copy is pure dead weight.
+REM
+REM  Every backend third-party import needs an explicit flag: backend/ ships as
+REM  loose data, so PyInstaller's analyzer never sees its imports. Missing one
+REM  only fails at runtime, silently (--windowed has no console). Verify with:
+REM    set TASKNOOK_SELFTEST=1 && TaskNook.exe   (exit code must be 0)
 %PY% -m PyInstaller --onefile --windowed --name TaskNook ^
   --distpath . ^
   --workpath build ^
-  --add-data "backend;backend" ^
+  --add-data "backend\*.py;backend" ^
+  --add-data "backend\migrations\*.py;backend\migrations" ^
+  --add-data "backend\migrations\*.ini;backend\migrations" ^
+  --add-data "backend\migrations\*.mako;backend\migrations" ^
+  --add-data "backend\migrations\versions\*.py;backend\migrations\versions" ^
   --add-data "frontend\dist;frontend\dist" ^
   --hidden-import flask_cors ^
   --hidden-import flask_sqlalchemy ^
@@ -43,6 +57,6 @@ goto :eof
 :error
 echo.
 echo Something went wrong during the build.
-popd
 pause
-endlocal
+REM  Non-zero exit so CI and callers actually see the failure.
+exit /b 1

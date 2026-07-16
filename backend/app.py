@@ -4,6 +4,7 @@ Run:  python app.py    (serves the REST API on http://localhost:5000)
 """
 import os
 import secrets
+import traceback
 from datetime import datetime, timezone, date
 from functools import wraps
 
@@ -13,7 +14,7 @@ from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Task, FocusSession, Token, utcnow
-from schema import init_schema
+from schema import init_schema, SchemaError
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # If the frontend has been built (frontend/dist), Flask will also serve it.
@@ -37,12 +38,49 @@ def create_app():
     Migrate(app, db, directory=MIGRATIONS_DIR, render_as_batch=True)
 
     with app.app_context():
-        init_schema(db_path)
+        _prepare_database(db_path)
         seed_demo_data()
 
     register_routes(app)
     register_frontend(app)
     return app
+
+
+def _prepare_database(db_path):
+    """Run migrations, and make sure a failure is never invisible.
+
+    Flask-Migrate wraps Alembic commands in a handler that logs and then calls
+    `sys.exit(1)` — a SystemExit, which `except Exception` does NOT catch. Since
+    create_app() runs at import time and the packaged app is --windowed (no
+    console), an unhandled failure here means the .exe simply vanishes on
+    double-click with nothing to diagnose. So: catch BaseException, leave a log
+    file beside the database, and re-raise as a normal exception the launcher
+    can present to the user.
+    """
+    try:
+        init_schema(db_path)
+    except BaseException as exc:  # noqa: BLE001 — SystemExit is the point
+        _log_startup_failure(exc, db_path)
+        if isinstance(exc, SchemaError):
+            raise
+        raise SchemaError(
+            "TaskNook couldn't prepare its database. Your data has not been "
+            f"changed. Details were written to the log beside {db_path}."
+        ) from exc
+
+
+def _log_startup_failure(exc, db_path):
+    directory = os.path.dirname(db_path) or BASE_DIR
+    try:
+        with open(
+            os.path.join(directory, "tasknook-error.log"), "a", encoding="utf-8"
+        ) as fh:
+            fh.write(f"\n=== {datetime.now(timezone.utc).isoformat()} ===\n")
+            fh.write(
+                "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            )
+    except OSError:
+        pass  # last resort: never mask the original error with a logging error
 
 
 # --------------------------------------------------------------------------- #
