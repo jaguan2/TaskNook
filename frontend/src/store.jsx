@@ -20,10 +20,21 @@ const FOCUS_PRESETS = [15, 25, 45, 60];
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 
 // A few cozy lofi streams to start with; users can add their own via YouTube or Spotify link.
+// Stored as video ids, not playlist ids. Links like ...&list=RD<id> are
+// YouTube's auto-generated "radio" mixes, and RD… lists refuse to load in an
+// iframe embed — the underlying video plays fine.
 const BUILT_IN_STATIONS = [
   { provider: "youtube", id: "jfKfPfyJRdk", label: "lofi hip hop radio 📚" },
   { provider: "youtube", id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
   { provider: "youtube", id: "rUxyKA_-grg", label: "lofi sleep & chill 🌙" },
+  { provider: "youtube", id: "foEjHAkrIDA", label: "secret cafe r&b ☕" },
+  { provider: "youtube", id: "mWI10M1M7JM", label: "jazzy chillhop 🧺" },
+  {
+    provider: "youtube",
+    kind: "playlist",
+    id: "PLwzQP2wCE5w5_L9yjomQyX2CMFa0T-pw_",
+    label: "homework music 📝",
+  },
 ];
 
 export function StoreProvider({ children }) {
