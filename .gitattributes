@@ -1,0 +1,6 @@
+# Binaries must never get end-of-line conversion applied — that would corrupt
+# them. TaskNook.exe is committed on purpose, so this matters here.
+*.exe binary
+*.png binary
+*.ico binary
+*.db binary

@@ -24,6 +24,9 @@ tasknook.lock
 # visitors can download and run it directly.
 /build/
 *.spec
+# The old exe location, before the build moved to --distpath . — an exe here
+# is a stale duplicate of the tracked root one (~24 MB), never commit it.
+/dist/
 
 # Node / Vite
 node_modules/
