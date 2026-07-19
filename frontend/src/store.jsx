@@ -29,6 +29,7 @@ const BUILT_IN_STATIONS = [
   { provider: "youtube", id: "rUxyKA_-grg", label: "lofi sleep & chill 🌙" },
   { provider: "youtube", id: "foEjHAkrIDA", label: "secret cafe r&b ☕" },
   { provider: "youtube", id: "mWI10M1M7JM", label: "jazzy chillhop 🧺" },
+  { provider: "youtube", id: "WPfOjN8aY-Y", label: "weathering with you 🌦️" },
   {
     provider: "youtube",
     kind: "playlist",
