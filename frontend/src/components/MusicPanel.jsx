@@ -20,11 +20,13 @@ function embedProps(station) {
       allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
     };
   }
-  return {
-    src: `https://www.youtube.com/embed/${station.id}?autoplay=1`,
-    height: 180,
-    allow: "autoplay; encrypted-media",
-  };
+  // A YouTube playlist embeds through the `videoseries` endpoint, not the
+  // plain video one.
+  const src =
+    station.kind === "playlist"
+      ? `https://www.youtube.com/embed/videoseries?list=${station.id}&autoplay=1`
+      : `https://www.youtube.com/embed/${station.id}?autoplay=1`;
+  return { src, height: 180, allow: "autoplay; encrypted-media" };
 }
 
 export default function MusicPanel() {
