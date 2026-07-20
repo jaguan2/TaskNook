@@ -1,7 +1,8 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ITEMS, ZONES, clampToZone, snap, sortForRender } from "../lib/room";
+import { ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
 import { ITEM_SPRITES } from "./RoomItems";
+import RoomTintPicker from "./RoomTintPicker";
 
 // The scene scales with the window instead of being pinned to a fixed max
 // width: whichever viewport budget is smaller wins, so the 4:3 room grows as
@@ -70,8 +71,10 @@ function Cottage({
   timeOfDay = "night",
   room = [],
   editMode = false,
+  scale = 1,
   onMoveItem,
   onRemoveItem,
+  onTintItem,
   onDragEnd,
 }) {
   const [flash, setFlash] = useState(false);
@@ -137,7 +140,7 @@ function Cottage({
     if (!drag) return;
     const p = toScene(e);
     if (!p) return;
-    const { x, y } = clampToZone(drag.item, snap(p.x - drag.dx), snap(p.y - drag.dy));
+    const { x, y } = clampToRoom(drag.item, snap(p.x - drag.dx), snap(p.y - drag.dy));
     onMoveItem?.(drag.id, x, y);
   };
 
@@ -148,12 +151,13 @@ function Cottage({
     onDragEnd?.();
   };
 
-  const draggingZone = dragRef.current ? ITEMS[dragRef.current.item]?.zone : null;
   const ordered = sortForRender(room);
+  const selectedPlacement =
+    editMode && selectedId ? room.find((p) => p.id === selectedId) : null;
 
   return (
     <div
-      className={`select-none w-full flex items-center justify-center ${
+      className={`select-none relative w-full flex items-center justify-center ${
         editMode ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
@@ -161,7 +165,8 @@ function Cottage({
         ref={svgRef}
         viewBox="0 0 640 480"
         style={{
-          width: SCENE_WIDTH,
+          // Responsive base size × the user's own size preference (Room panel).
+          width: `calc(${SCENE_WIDTH} * ${scale})`,
           // Without this a touch drag pans/scrolls the page instead of moving
           // the item. Only while decorating, so normal scrolling is unaffected.
           touchAction: editMode ? "none" : undefined,
@@ -380,22 +385,6 @@ function Cottage({
 
         {/* ================= PLACED ITEMS ================= */}
         <g clipPath="url(#roomClip)">
-          {/* zone hint while dragging */}
-          {editMode && draggingZone && ZONES[draggingZone] && (
-            <rect
-              x={ZONES[draggingZone].x - 10}
-              y={ZONES[draggingZone].y - 10}
-              width={ZONES[draggingZone].w + 20}
-              height={ZONES[draggingZone].h + 20}
-              rx="10"
-              fill="none"
-              stroke="#ffe9b0"
-              strokeWidth="1.5"
-              strokeDasharray="6 5"
-              opacity="0.5"
-            />
-          )}
-
           {ordered.map((p) => {
             const item = ITEMS[p.item];
             const Sprite = ITEM_SPRITES[p.item];
@@ -405,6 +394,9 @@ function Cottage({
               <g
                 key={p.id}
                 transform={`translate(${p.x},${p.y})`}
+                // The user's colour choice rides a CSS variable; sprites paint
+                // their main material with var(--tint, <classic colour>).
+                style={p.tint ? { "--tint": p.tint } : undefined}
                 className={editMode ? (item.fixed ? "room-item-fixed" : "room-item") : undefined}
                 onPointerDown={startDrag(p)}
               >
@@ -469,6 +461,13 @@ function Cottage({
           })}
         </g>
       </svg>
+
+      {/* Colour popover for the selected item — HTML, not SVG, because it
+          needs a real text input for hex codes. Anchored inside the scene
+          container so it follows the room at any size. */}
+      {selectedPlacement && ITEMS[selectedPlacement.item]?.tintable !== false && (
+        <RoomTintPicker placement={selectedPlacement} onTint={onTintItem} />
+      )}
     </div>
   );
 }

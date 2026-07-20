@@ -135,7 +135,7 @@ read-only bundle, so replacing the exe never touches your data.
 | 🌦️ | **Weather ambience** | Rain, snow, or a full storm (with thunder) — procedurally generated with the Web Audio API, works fully offline. The desk window shows matching weather. |
 | 🕰️ | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. |
 | 🌍 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
-| 🛋️ | **Decorate your room** | Freeform decoration: drag 20+ items — plants, rugs, lamps, posters, a sleeping cat — anywhere on the wall, desk or floor. Start from a preset (Classic, Greenhouse, Library, Night owl) and make it yours. Everything is free; your layout is saved in the database. |
+| 🛋️ | **Decorate your room** | Freeform decoration: drag 20+ items — plants, rugs, lamps, posters, a sleeping cat — literally anywhere, recolour each one with palette swatches, and resize the whole room to taste. Start from a preset (Classic, Greenhouse, Library, Night owl) and make it yours. Everything is free; your layout is saved in the database. |
 | 🫶 | **Friends** | See everyone's daily progress to stay motivated — TaskNook auto-friends your local account with a few demo cottage-dwellers so it's never empty. |
 
 **Ordering algorithms:**

@@ -9,6 +9,15 @@ import { motion } from "framer-motion";
 //
 // Every sprite receives `time` (the active TIME_PRESETS entry) so lamps and
 // lights can dim with the sky.
+//
+// RECOLOURING: each sprite paints its main material with
+// `var(--tint, <original colour>)` — the placement group sets `--tint` when
+// the user picks a swatch; the fallback keeps the classic look otherwise.
+// Shade details (pot rims, lamp-shade edges) are translucent black overlays
+// rather than fixed darker hues, so they read correctly over ANY tint.
+
+const tinted = (fallback) => ({ fill: `var(--tint, ${fallback})` });
+const tintedStroke = (fallback) => ({ stroke: `var(--tint, ${fallback})` });
 
 /* ---------------- desk items ---------------- */
 
@@ -26,8 +35,8 @@ function DeskPlant() {
           fill="#3f7f63"
         />
       </g>
-      <polygon points="70,282 104,282 100,305 74,305" fill="#c0563f" />
-      <polygon points="70,282 104,282 102,287 72,287" fill="#a8412d" />
+      <polygon points="70,282 104,282 100,305 74,305" style={tinted("#c0563f")} />
+      <polygon points="70,282 104,282 102,287 72,287" fill="#000" opacity="0.18" />
     </g>
   );
 }
@@ -37,7 +46,7 @@ function Books() {
     <g transform="translate(-156,-300)">
       <rect x="128" y="286" width="58" height="14" rx="2" fill="#7faf8f" transform="rotate(-2 157 293)" />
       <rect x="132" y="274" width="54" height="13" rx="2" fill="#e8a3a8" transform="rotate(1.5 159 280)" />
-      <rect x="126" y="262" width="56" height="13" rx="2" fill="#9b8bd6" transform="rotate(-1 154 268)" />
+      <rect x="126" y="262" width="56" height="13" rx="2" style={tinted("#9b8bd6")} transform="rotate(-1 154 268)" />
     </g>
   );
 }
@@ -45,8 +54,8 @@ function Books() {
 function Mug() {
   return (
     <g transform="translate(-394,-300)">
-      <path d="M380 300 h30 v-20 h-30 z" fill="#d98a93" />
-      <path d="M410 286 q10 -2 10 6 t-10 8" fill="none" stroke="#d98a93" strokeWidth="3" />
+      <path d="M380 300 h30 v-20 h-30 z" style={tinted("#d98a93")} />
+      <path d="M410 286 q10 -2 10 6 t-10 8" fill="none" style={tintedStroke("#d98a93")} strokeWidth="3" />
       <motion.path
         d="M388 276 q4 -10 0 -18 M398 276 q4 -10 0 -18"
         stroke="#f7e9e2"
@@ -63,7 +72,7 @@ function Mug() {
 function PencilCup() {
   return (
     <g transform="translate(-438,-304)">
-      <path d="M425 286 h26 l-3 26 h-20 z" fill="#cf8f93" transform="translate(0,-8)" />
+      <path d="M425 286 h26 l-3 26 h-20 z" style={tinted("#cf8f93")} transform="translate(0,-8)" />
       <line x1="431" y1="278" x2="427" y2="250" stroke="#e8b04b" strokeWidth="3" strokeLinecap="round" />
       <line x1="439" y1="278" x2="443" y2="244" stroke="#7faf8f" strokeWidth="3" strokeLinecap="round" />
       <line x1="445" y1="278" x2="450" y2="254" stroke="#9b8bd6" strokeWidth="3" strokeLinecap="round" />
@@ -91,7 +100,7 @@ function DeskLamp({ time }) {
       <line x1="566" y1="294" x2="552" y2="258" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
       <line x1="552" y1="258" x2="528" y2="240" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
       <circle cx="552" cy="258" r="3.5" fill="#2c2438" />
-      <path d="M512 232 h32 l8 18 h-48 z" fill="#e8b04b" stroke="#c98f3a" />
+      <path d="M512 232 h32 l8 18 h-48 z" style={tinted("#e8b04b")} stroke="rgba(0,0,0,0.28)" />
       <circle cx="528" cy="252" r="4" fill="#ffe9b0" opacity={Math.max(0.4, time.lampGlow)} />
       <polygon
         className="animate-flicker"
@@ -110,8 +119,8 @@ function Cactus() {
       <path d="M-6 -22 q-7 -1 -7 -8 q5 -1 8 3 z" fill="#56a07c" />
       <path d="M6 -24 q7 -2 7 -8 q-5 -1 -8 3 z" fill="#56a07c" />
       <path d="M-2 -26 v4 M2 -22 v3" stroke="#cbe6d3" strokeWidth="1" strokeLinecap="round" />
-      <polygon points="-10,-14 10,-14 8,0 -8,0" fill="#d98a93" />
-      <polygon points="-10,-14 10,-14 9,-10 -9,-10" fill="#c47882" />
+      <polygon points="-10,-14 10,-14 8,0 -8,0" style={tinted("#d98a93")} />
+      <polygon points="-10,-14 10,-14 9,-10 -9,-10" fill="#000" opacity="0.15" />
     </g>
   );
 }
@@ -120,8 +129,8 @@ function Headphones() {
   return (
     <g>
       <path d="M-16 -4 a16 14 0 0 1 32 0" fill="none" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
-      <rect x="-22" y="-8" width="9" height="12" rx="3" fill="#4a3a6b" stroke="#3a3142" />
-      <rect x="13" y="-8" width="9" height="12" rx="3" fill="#4a3a6b" stroke="#3a3142" />
+      <rect x="-22" y="-8" width="9" height="12" rx="3" style={tinted("#4a3a6b")} stroke="#3a3142" />
+      <rect x="13" y="-8" width="9" height="12" rx="3" style={tinted("#4a3a6b")} stroke="#3a3142" />
       <path d="M-18 4 q-4 4 -2 7 q10 5 20 0" fill="none" stroke="#2c2438" strokeWidth="1.5" opacity="0.6" />
     </g>
   );
@@ -132,7 +141,7 @@ function Headphones() {
 function Frame() {
   return (
     <g transform="translate(-496,-88)">
-      <rect x="474" y="58" width="46" height="60" rx="4" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.9" />
+      <rect x="474" y="58" width="46" height="60" rx="4" style={{ fill: "var(--tint, rgb(var(--color-petal)))" }} opacity="0.9" />
       <rect x="481" y="65" width="32" height="46" rx="2" fill="#7a5a6e" />
     </g>
   );
@@ -143,7 +152,7 @@ function HangPlant() {
     <g transform="translate(-544,-76)">
       <line x1="544" y1="50" x2="544" y2="70" stroke="#8a5346" strokeWidth="1.5" />
       <g className="room-sway-hanging">
-        <ellipse cx="544" cy="76" rx="12" ry="7" fill="#c0563f" />
+        <ellipse cx="544" cy="76" rx="12" ry="7" style={tinted("#c0563f")} />
         <path
           d="M535 74 q3 22 -2 32 M544 78 q1 26 0 38 M553 74 q-2 22 3 30"
           stroke="#56a07c"
@@ -159,7 +168,7 @@ function HangPlant() {
 function Clock() {
   return (
     <g transform="translate(-496,-158)">
-      <circle cx="497" cy="158" r="17" fill="#f7e9e2" stroke="#8a5346" strokeWidth="3" />
+      <circle cx="497" cy="158" r="17" fill="#f7e9e2" style={tintedStroke("#8a5346")} strokeWidth="3" />
       <line x1="497" y1="144" x2="497" y2="147" stroke="#8a5346" strokeWidth="1.5" />
       <line x1="497" y1="169" x2="497" y2="172" stroke="#8a5346" strokeWidth="1.5" />
       <line x1="483" y1="158" x2="486" y2="158" stroke="#8a5346" strokeWidth="1.5" />
@@ -175,7 +184,7 @@ function Poster() {
   return (
     <g>
       <rect x="-21" y="-28" width="42" height="56" rx="3" fill="#f7e9e2" />
-      <rect x="-17" y="-24" width="34" height="48" rx="2" fill="#3d2f52" />
+      <rect x="-17" y="-24" width="34" height="48" rx="2" style={tinted("#3d2f52")} />
       <circle cx="0" cy="-10" r="8" fill="#ffa958" />
       <path d="M-17 12 l10 -12 l7 8 l6 -7 l11 13 z" fill="#2a2038" />
       <path d="M-17 12 l10 -12 l7 8 l6 -7 l11 13" fill="none" stroke="#d9784f" strokeWidth="1.5" />
@@ -202,7 +211,7 @@ function Polaroids() {
 function Shelf() {
   return (
     <g>
-      <rect x="-34" y="0" width="68" height="6" rx="2" fill="#8a5346" />
+      <rect x="-34" y="0" width="68" height="6" rx="2" style={tinted("#8a5346")} />
       <rect x="-30" y="-16" width="10" height="16" rx="1" fill="#7faf8f" />
       <rect x="-18" y="-14" width="9" height="14" rx="1" fill="#e8a3a8" />
       <path d="M14 -8 q-5 0 -5 -6 q0 -5 5 -5 q5 0 5 5 q0 6 -5 6 z" fill="#56a07c" />
@@ -216,7 +225,7 @@ function Shelf() {
 function Rug() {
   return (
     <g transform="translate(-320,-440)">
-      <ellipse cx="320" cy="440" rx="225" ry="24" style={{ fill: "rgb(var(--color-rose))" }} opacity="0.4" />
+      <ellipse cx="320" cy="440" rx="225" ry="24" style={{ fill: "var(--tint, rgb(var(--color-rose)))" }} opacity="0.4" />
       <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="3" opacity="0.3" />
     </g>
   );
@@ -225,7 +234,7 @@ function Rug() {
 function RugStripe() {
   return (
     <g>
-      <ellipse cx="0" cy="0" rx="105" ry="19" style={{ fill: "rgb(var(--color-rose))" }} opacity="0.45" />
+      <ellipse cx="0" cy="0" rx="105" ry="19" style={{ fill: "var(--tint, rgb(var(--color-rose)))" }} opacity="0.45" />
       <ellipse cx="0" cy="0" rx="82" ry="14" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="4" opacity="0.35" />
       <ellipse cx="0" cy="0" rx="55" ry="9" fill="none" style={{ stroke: "rgb(var(--color-blush))" }} strokeWidth="4" opacity="0.4" />
     </g>
@@ -242,8 +251,8 @@ function Monstera() {
         <path d="M-2 -64 l8 -6 M-16 -52 l-8 -4 M16 -56 l8 -8" stroke="#2c5b46" strokeWidth="1.5" opacity="0.6" />
         <path d="M-3 -30 q1 -20 3 -34 M1 -30 q6 -14 14 -24" stroke="#2c5b46" strokeWidth="2" fill="none" strokeLinecap="round" />
       </g>
-      <polygon points="-18,-32 18,-32 14,0 -14,0" fill="#c0563f" />
-      <polygon points="-18,-32 18,-32 17,-26 -17,-26" fill="#a8412d" />
+      <polygon points="-18,-32 18,-32 14,0 -14,0" style={tinted("#c0563f")} />
+      <polygon points="-18,-32 18,-32 17,-26 -17,-26" fill="#000" opacity="0.18" />
     </g>
   );
 }
@@ -253,7 +262,7 @@ function FloorLamp({ time }) {
     <g>
       <ellipse cx="0" cy="0" rx="16" ry="4" fill="#3a3142" />
       <line x1="0" y1="-2" x2="0" y2="-96" stroke="#3a3142" strokeWidth="4" />
-      <polygon points="-18,-96 18,-96 12,-122 -12,-122" fill="#e8b04b" stroke="#c98f3a" />
+      <polygon points="-18,-96 18,-96 12,-122 -12,-122" style={tinted("#e8b04b")} stroke="rgba(0,0,0,0.28)" />
       <circle cx="0" cy="-92" r="5" fill="#ffe9b0" opacity={Math.max(0.35, time.lampGlow)} />
       <ellipse
         className="room-breathe"
@@ -271,11 +280,11 @@ function FloorLamp({ time }) {
 function Cat() {
   return (
     <g>
-      <ellipse cx="0" cy="-8" rx="26" ry="13" fill="#3a3142" />
-      <circle cx="-18" cy="-16" r="9" fill="#3a3142" />
-      <polygon points="-25,-21 -22,-30 -17,-23" fill="#3a3142" />
-      <polygon points="-13,-24 -9,-31 -6,-22" fill="#3a3142" />
-      <path d="M24 -10 q12 -2 10 -14" fill="none" stroke="#3a3142" strokeWidth="5" strokeLinecap="round" />
+      <ellipse cx="0" cy="-8" rx="26" ry="13" style={tinted("#3a3142")} />
+      <circle cx="-18" cy="-16" r="9" style={tinted("#3a3142")} />
+      <polygon points="-25,-21 -22,-30 -17,-23" style={tinted("#3a3142")} />
+      <polygon points="-13,-24 -9,-31 -6,-22" style={tinted("#3a3142")} />
+      <path d="M24 -10 q12 -2 10 -14" fill="none" style={tintedStroke("#3a3142")} strokeWidth="5" strokeLinecap="round" />
       <path d="M-24 -15 q2 2 4 0 M-16 -15 q2 2 4 0" stroke="#1e1926" strokeWidth="1.5" fill="none" strokeLinecap="round" />
       <motion.g animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
         <path d="M6 -26 q2 -4 0 -7 M11 -24 q2 -4 0 -7" stroke="#f3c6c0" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
@@ -287,7 +296,7 @@ function Cat() {
 function Bookshelf() {
   return (
     <g>
-      <rect x="-40" y="-100" width="80" height="100" rx="4" fill="#a87f5f" stroke="#8a5346" />
+      <rect x="-40" y="-100" width="80" height="100" rx="4" style={tinted("#a87f5f")} stroke="#8a5346" />
       <rect x="-33" y="-92" width="66" height="36" fill="#6e4435" />
       <rect x="-33" y="-48" width="66" height="38" fill="#6e4435" />
       {[[-31, -78, "#7faf8f"], [-21, -80, "#e8a3a8"], [-12, -76, "#9b8bd6"], [-2, -79, "#e8b04b"], [8, -77, "#cf8f93"]].map(([x, y, c], i) => (
@@ -308,7 +317,7 @@ function Beanbag() {
     <g>
       <path
         d="M-38 0 q-4 -22 12 -28 q4 -8 26 -8 q22 0 26 8 q16 6 12 28 q-38 8 -76 0 z"
-        style={{ fill: "rgb(var(--color-rose))" }}
+        style={{ fill: "var(--tint, rgb(var(--color-rose)))" }}
         opacity="0.75"
       />
       <path d="M-24 -26 q24 -8 48 0" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="2" opacity="0.4" />
@@ -336,8 +345,8 @@ function Garland({ time }) {
           {/* Staggered so the string shimmers along its length rather than
               pulsing as one block. */}
           <g className="room-twinkle" style={{ animationDelay: `${(i % 5) * 0.8}s` }}>
-            <circle cx={x} cy={y + 8} r="7" fill="#ffe9b0" opacity={time.bulbGlow * 0.22} />
-            <circle cx={x} cy={y + 8} r="3.5" fill="#ffe9b0" opacity={time.bulbGlow} />
+            <circle cx={x} cy={y + 8} r="7" style={tinted("#ffe9b0")} opacity={time.bulbGlow * 0.22} />
+            <circle cx={x} cy={y + 8} r="3.5" style={tinted("#ffe9b0")} opacity={time.bulbGlow} />
           </g>
         </g>
       ))}
