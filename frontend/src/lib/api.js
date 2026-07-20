@@ -51,6 +51,10 @@ export const api = {
   deleteTask: (id) => request("DELETE", `/tasks/${id}`),
   reorderTasks: (order) => request("PUT", "/tasks/reorder", { order }),
 
+  // room decoration
+  getRoom: () => request("GET", "/room"),
+  saveRoom: (placements) => request("PUT", "/room", { placements }),
+
   // sessions + stats
   logSession: (payload) => request("POST", "/sessions", payload),
   stats: () => request("GET", "/stats"),

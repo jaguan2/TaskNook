@@ -24,6 +24,10 @@ class User(db.Model):
     display_name = db.Column(db.String(60), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     avatar = db.Column(db.String(8), default="🌙")  # emoji avatar
+    # Freeform room-decoration layout, stored as a JSON string of
+    # [{id, item, x, y}] placements. The frontend owns the catalog; the
+    # backend just keeps the layout safe alongside the rest of the user's data.
+    room_config = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     tasks = db.relationship(

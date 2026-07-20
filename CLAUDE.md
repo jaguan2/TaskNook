@@ -32,8 +32,10 @@ TaskNook/
 │       │   ├── weather.js    # Open-Meteo: geolocation/geocoding + current conditions
 │       │   ├── musicLink.js  # resolves a pasted link to a YouTube/Spotify station
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
-│       │   └── spotify.js    # Spotify URL parsing (pure)
-│       └── components/   # Cottage (SVG scene), TopBar, FocusTimer, Dock,
+│       │   ├── spotify.js    # Spotify URL parsing (pure)
+│       │   └── room.js       # freeform decoration model: catalog, zones, presets
+│       └── components/   # Cottage (SVG scene + drag engine), RoomItems
+│                         #   (item sprites), TopBar, FocusTimer, Dock,
 │                         #   Drawer, *Panel.jsx, WeatherOverlay
 └── docs/preview.png      # README screenshot
 ```
@@ -207,6 +209,48 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `removeProperty` each `PALETTE_VARS` entry or the custom colours would stick.
   Only hue + saturation are taken from the pick — the lightness stops are fixed,
   which is what guarantees text stays legible (~9:1 contrast) for any colour.
+- **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
+  layout of `{id, item, x, y}` placements the user arranges by dragging in
+  edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the item
+  catalog, per-zone bounds (`wall`/`desk`/`floor`; `ceiling` items are fixed),
+  `GRID` snapping, origin clamping, painter's-order `sortForRender` (zones
+  back-to-front, then flat `layer:-1` rugs first, then by `y`), presets, and
+  `validatePlacements` (tolerant: unknown items are dropped so catalog changes
+  can't brick a saved room). Fixed items (`fixed: true`, e.g. the garland) are
+  **singletons pinned to their SPAWN position** — they can't be dragged, so a
+  duplicate spawned anywhere else could never be nudged back;
+  `validatePlacements` collapses duplicates and re-homes them, healing layouts
+  saved before that rule existed. Sprites live in `components/RoomItems.jsx`, each
+  drawn around an ORIGIN at (0,0) — the point touching its surface — usually
+  by wrapping the original hand-placed artwork in a `translate(-ox,-oy)`; the
+  `default` preset therefore reproduces the classic scene exactly. Drag logic
+  (pointer events → `getScreenCTM().inverse()` → snap → clamp) is inside
+  `Cottage.jsx`. Persistence: DB (`user.room_config` via GET/PUT `/api/room`)
+  with a `tasknook.room` localStorage mirror for instant paint; saves are
+  debounced 600ms; on boot the server copy wins, and an empty server adopts
+  the local layout. RoomPanel previews reuse the same sprites in tiny SVGs
+  (no local `<defs>` — `url(#lampPool)` resolves to the Cottage's, which is
+  always mounted). Pointer capture is taken on the **`<svg>`**, not the item's
+  `<g>`: `sortForRender` reorders those groups as `y` changes mid-drag, and a
+  moved/recreated captured element silently drops the capture. `pointercancel`
+  is handled alongside `pointerup` (touch drags fire cancel, not up) and
+  `touch-action: none` is set while decorating, or a touch drag pans the page
+  instead of moving the item. On reconcile, a server layout of `[]` is a
+  deliberate empty room and must win — only `null` (never saved) may be
+  overwritten by the local layout.
+- **Scene sizing & animation**: the SVG's width is `min(90vw, 84vh)`
+  (`SCENE_WIDTH`), so the 4:3 room scales with the window instead of being
+  pinned to a fixed max-width — verified to grow 588→1176px across window
+  sizes. Idle ambience (plant sway, garland twinkle, lamp breathe) is **CSS**
+  keyframes, not framer-motion, because the scene re-renders every second (the
+  focus timer ticks) and CSS animations live on the element, so they survive
+  re-renders for free; all are disabled under `prefers-reduced-motion`. SVG
+  needs `transform-box: fill-box` or those rotations pivot about the canvas
+  origin. Item pop-in/drag-lift *is* framer-motion, on an **inner** `<g>` —
+  framer-motion writes its own inline `transform`, which on the positioning
+  `<g>` would overwrite `translate(x,y)` and fling the item to the origin.
+  `Cottage` is `memo`'d and the room actions are `useCallback`'d so the
+  per-second context change doesn't re-render the whole scene.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
   assets, no isometric projection) — a desk by a window. It takes `focused`
   (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
@@ -257,8 +301,22 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   out of commits.
 - Vite proxies `/api` to `:5000` in dev (see `vite.config.js`), so the frontend
   always uses **relative** `/api/...` URLs — don't hardcode `http://localhost:5000`.
+- **Never unmount (or `display:none`) chrome that carries `.intro-chrome`** —
+  remounting replays its boot animation: 1.5s of invisible UI before the fade
+  begins. To hide such chrome temporarily (the focus timer steps aside during
+  room decorating), toggle `visibility` on a wrapper: it removes the element
+  from hit-testing without restarting animations.
+- **CSS animation classes must not share an element with an SVG `transform`
+  attribute** — the animation's `transform` property overrides the attribute
+  entirely (the desk plant's foliage once dropped 16px into its pot this way).
+  Put the attribute transform on a wrapper `<g>` and animate the child.
 - Demo seeding only runs when the `luna` user is absent, so it's safe across
   restarts.
+- Seeding tolerates `OperationalError` (schema behind models) with a printed
+  warning instead of crashing. That's deliberate: `flask db migrate` imports
+  the app to autogenerate a revision, at which exact moment the models are
+  legitimately ahead of the DB. A *forgotten* migration is still caught — by
+  CI's `flask db check`, and by any data endpoint failing loudly.
 
 ## Validating changes
 

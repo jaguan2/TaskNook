@@ -11,6 +11,12 @@ import { applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { startWeather, stopWeather, setWeatherVolume } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
+import {
+  MAX_ITEMS,
+  newPlacement,
+  presetPlacements,
+  validatePlacements,
+} from "./lib/room";
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -148,6 +154,44 @@ export function StoreProvider({ children }) {
   );
   const musicStations = [...BUILT_IN_STATIONS, ...customStations];
 
+  // ---------- Room (freeform decoration) ----------
+  // The layout lives in the DB (rides the migration/backup system) with a
+  // localStorage mirror so the room paints instantly on boot.
+  const [roomPlacements, setRoomPlacements] = useState(() => {
+    try {
+      const saved = validatePlacements(
+        JSON.parse(localStorage.getItem("tasknook.room") || "null")
+      );
+      if (saved) return saved;
+    } catch {
+      /* corrupted mirror — fall through to the default preset */
+    }
+    return presetPlacements("default");
+  });
+  const [roomEditMode, setRoomEditMode] = useState(false);
+  const roomRef = useRef(roomPlacements);
+  const roomSaveTimer = useRef(null);
+  // Applying server state on boot must not immediately echo back as a "save".
+  const roomSkipSave = useRef(true);
+
+  useEffect(() => {
+    roomRef.current = roomPlacements;
+    if (roomSkipSave.current) {
+      roomSkipSave.current = false;
+      return undefined;
+    }
+    // Debounced persistence: dragging fires a state update per pointer move,
+    // so both the mirror write and the API call wait for the dust to settle.
+    clearTimeout(roomSaveTimer.current);
+    roomSaveTimer.current = setTimeout(() => {
+      localStorage.setItem("tasknook.room", JSON.stringify(roomPlacements));
+      api
+        .saveRoom(roomPlacements)
+        .catch((err) => console.error("Failed to save room layout:", err));
+    }, 600);
+    return () => clearTimeout(roomSaveTimer.current);
+  }, [roomPlacements]);
+
   // ---------- Bootstrap session ----------
   // TaskNook is a single-user local app (SQLite file on this machine), so
   // there's no real account system to speak of — instead of a login screen,
@@ -208,6 +252,33 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (user) refreshAll().catch(() => {});
   }, [user, refreshAll]);
+
+  // Reconcile the room with the server once signed in: the DB copy wins (it
+  // survives cleared browser storage); if the DB has none yet, adopt this
+  // device's layout so nothing the user arranged is lost.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const data = await api.getRoom();
+        const server = validatePlacements(data?.placements);
+        // `server` is null only when the account has never saved a layout —
+        // that's the one case where this device's layout should be adopted.
+        // An EMPTY array is a real, deliberate choice ("Empty room"), so it
+        // must win too; testing `.length` here would silently restore the
+        // default preset over a room the user had emptied on purpose.
+        if (server) {
+          roomSkipSave.current = true;
+          setRoomPlacements(server);
+          localStorage.setItem("tasknook.room", JSON.stringify(server));
+        } else {
+          await api.saveRoom(roomRef.current);
+        }
+      } catch (err) {
+        console.error("Failed to load room layout:", err);
+      }
+    })();
+  }, [user]);
 
   // ---------- Task actions ----------
   const addTask = async (payload) => {
@@ -514,6 +585,27 @@ export function StoreProvider({ children }) {
     if (activeStationKey === key) setStation(stationKey(BUILT_IN_STATIONS[0]));
   };
 
+  // ---------- Room actions ----------
+  // useCallback throughout: these are handed to <Cottage/>, which is memo'd so
+  // it can skip the per-second focus-timer re-render. New function identities
+  // every tick would defeat that entirely.
+  const moveRoomItem = useCallback((id, x, y) => {
+    setRoomPlacements((prev) => prev.map((p) => (p.id === id ? { ...p, x, y } : p)));
+  }, []);
+  const addRoomItem = useCallback((key) => {
+    setRoomPlacements((prev) => {
+      if (prev.length >= MAX_ITEMS) return prev;
+      const placement = newPlacement(key, prev);
+      return placement ? [...prev, placement] : prev;
+    });
+    setRoomEditMode(true); // they'll want to drag the new arrival into place
+  }, []);
+  const removeRoomItem = useCallback((id) => {
+    setRoomPlacements((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+  const applyRoomPreset = useCallback((key) => setRoomPlacements(presetPlacements(key)), []);
+  const clearRoom = useCallback(() => setRoomPlacements([]), []);
+
   const value = {
     user,
     booting,
@@ -533,6 +625,16 @@ export function StoreProvider({ children }) {
     stats,
     sessionDays,
     refreshAll,
+
+    // room decoration
+    roomPlacements,
+    roomEditMode,
+    setRoomEditMode,
+    moveRoomItem,
+    addRoomItem,
+    removeRoomItem,
+    applyRoomPreset,
+    clearRoom,
 
     // timer
     focusMinutes,

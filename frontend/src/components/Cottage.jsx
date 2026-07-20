@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { memo, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ITEMS, ZONES, clampToZone, snap, sortForRender } from "../lib/room";
+import { ITEM_SPRITES } from "./RoomItems";
+
+// The scene scales with the window instead of being pinned to a fixed max
+// width: whichever viewport budget is smaller wins, so the 4:3 room grows as
+// the app is resized and never outgrows its space. 84vh of *width* is 63vh of
+// height at this aspect ratio, which clears the top bar and the focus timer.
+const SCENE_WIDTH = "min(90vw, 84vh)";
 
 const SNOWFLAKES = [
   [112, 3], [136, 6], [162, 2], [190, 5], [216, 4], [242, 7], [270, 3],
   [298, 5], [326, 2], [352, 6], [378, 4], [404, 3],
-];
-
-// String-light garland: [x, y-on-curve] sampled along the swag path below.
-const GARLAND_BULBS = [
-  [77, 33], [138, 39], [198, 44], [259, 47], [320, 48],
-  [381, 47], [442, 44], [502, 39], [563, 33],
 ];
 
 // Lighting presets for the window/sky. The room itself (walls, floor, rug,
@@ -59,11 +61,29 @@ const TIME_PRESETS = {
   },
 };
 
-// A cozy lofi-style desk by a rainy night window: proper desk with a drawer
-// cabinet, a monitor showing a tiny task list, an angled desk lamp, string
-// lights and a rug. Hand-built SVG so it scales crisply with no image assets.
-export default function Cottage({ weather = "off", timeOfDay = "night" }) {
+// A cozy lofi-style desk by a rainy night window. The structure (walls,
+// window, desk, monitor) is a fixed shell; the decor is `room` — freeform
+// placements the user arranges in edit mode by dragging. Hand-built SVG so it
+// scales crisply with no image assets.
+function Cottage({
+  weather = "off",
+  timeOfDay = "night",
+  room = [],
+  editMode = false,
+  onMoveItem,
+  onRemoveItem,
+  onDragEnd,
+}) {
   const [flash, setFlash] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  // Mirrors dragRef.current?.id purely so the dragged item can render lifted.
+  // (The ref drives the maths; this drives the visuals.)
+  const [draggingId, setDraggingId] = useState(null);
+  const svgRef = useRef(null);
+  // { id, dx, dy } while a drag is in flight — offset keeps the grab point
+  // under the cursor instead of snapping the origin to it.
+  const dragRef = useRef(null);
+  const reduceMotion = useReducedMotion();
   const time = TIME_PRESETS[timeOfDay] || TIME_PRESETS.night;
 
   useEffect(() => {
@@ -80,13 +100,80 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
     return () => clearTimeout(timer);
   }, [weather]);
 
+  // Leaving edit mode drops any selection so no ghost outline lingers.
+  useEffect(() => {
+    if (!editMode) setSelectedId(null);
+  }, [editMode]);
+
   const isRainy = weather === "rain" || weather === "storm";
 
+  /* ---------------- drag engine ---------------- */
+  // Screen px -> the SVG's 640x480 viewBox coords, accounting for the scaled/
+  // letterboxed rendering (and the intro zoom transform, via the CTM).
+  const toScene = (e) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!ctm) return null;
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  };
+
+  const startDrag = (placement) => (e) => {
+    if (!editMode) return;
+    e.stopPropagation();
+    setSelectedId(placement.id);
+    if (ITEMS[placement.item].fixed) return; // selectable (for ✕) but pinned
+    const p = toScene(e);
+    if (!p) return;
+    dragRef.current = { id: placement.id, item: placement.item, dx: p.x - placement.x, dy: p.y - placement.y };
+    setDraggingId(placement.id);
+    // Capture on the <svg>, not this <g>: sortForRender reorders the item
+    // groups as their y changes, and React re-creating/moving the captured
+    // element mid-drag would silently drop the capture. The svg is stable.
+    svgRef.current?.setPointerCapture?.(e.pointerId);
+  };
+
+  const moveDrag = (e) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const p = toScene(e);
+    if (!p) return;
+    const { x, y } = clampToZone(drag.item, snap(p.x - drag.dx), snap(p.y - drag.dy));
+    onMoveItem?.(drag.id, x, y);
+  };
+
+  const endDrag = () => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setDraggingId(null);
+    onDragEnd?.();
+  };
+
+  const draggingZone = dragRef.current ? ITEMS[dragRef.current.item]?.zone : null;
+  const ordered = sortForRender(room);
+
   return (
-    <div className="pointer-events-none select-none w-full flex items-center justify-center">
+    <div
+      className={`select-none w-full flex items-center justify-center ${
+        editMode ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+    >
       <svg
+        ref={svgRef}
         viewBox="0 0 640 480"
-        className="w-full max-w-[720px] max-h-[54vh] drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
+        style={{
+          width: SCENE_WIDTH,
+          // Without this a touch drag pans/scrolls the page instead of moving
+          // the item. Only while decorating, so normal scrolling is unaffected.
+          touchAction: editMode ? "none" : undefined,
+        }}
+        className="drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        // Touch drags end with pointercancel, not pointerup — without this a
+        // touch drag would leave the engine stuck mid-drag.
+        onPointerCancel={endDrag}
+        onPointerDown={() => editMode && setSelectedId(null)}
       >
         <defs>
           {/* Room surfaces follow the active color scheme (CSS variables from
@@ -127,7 +214,7 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         {/* ---------- Room backdrop ---------- */}
         <rect x="8" y="8" width="624" height="464" rx="28" fill="url(#wallGrad)" />
 
-        {/* ---------- Floor + rug ---------- */}
+        {/* ---------- Floor ---------- */}
         <g clipPath="url(#roomClip)">
           <rect x="8" y="390" width="624" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
           <rect x="8" y="396" width="624" height="76" fill="url(#floorGrad)" />
@@ -137,9 +224,6 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
           {[[130, 398, 420], [340, 398, 420], [540, 398, 420], [220, 420, 446], [450, 420, 446], [90, 446, 470], [380, 446, 470]].map(([x, y1, y2], i) => (
             <line key={`board-${i}`} x1={x} y1={y1} x2={x} y2={y2} stroke="#26122a" strokeWidth="1.5" opacity="0.3" />
           ))}
-          {/* rug */}
-          <ellipse cx="320" cy="440" rx="225" ry="24" style={{ fill: "rgb(var(--color-rose))" }} opacity="0.4" />
-          <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="3" opacity="0.3" />
           {/* soft shadow the desk casts */}
           <ellipse cx="320" cy="402" rx="290" ry="10" fill="#000" opacity="0.18" />
         </g>
@@ -250,43 +334,6 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         <path d="M446 20 Q458 150 442 296 L410 296 Q424 150 414 20 Z" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.94" />
         <path d="M434 26 Q442 150 430 288" style={{ stroke: "rgb(var(--color-blush))" }} strokeWidth="2" fill="none" opacity="0.6" />
 
-        {/* string-light garland swagging across the top */}
-        <g>
-          <path d="M16 24 Q320 72 624 24" stroke="#2b2350" strokeWidth="2" fill="none" />
-          {GARLAND_BULBS.map(([x, y], i) => (
-            <g key={`bulb-${i}`}>
-              <line x1={x} y1={y} x2={x} y2={y + 5} stroke="#2b2350" strokeWidth="1.5" />
-              <circle cx={x} cy={y + 8} r="7" fill="#ffe9b0" opacity={time.bulbGlow * 0.22} />
-              <circle cx={x} cy={y + 8} r="3.5" fill="#ffe9b0" opacity={time.bulbGlow} />
-            </g>
-          ))}
-        </g>
-
-        {/* small wall decor: frame, hanging plant, wall clock */}
-        <rect x="474" y="58" width="46" height="60" rx="4" style={{ fill: "rgb(var(--color-petal))" }} opacity="0.9" />
-        <rect x="481" y="65" width="32" height="46" rx="2" fill="#7a5a6e" />
-        <g>
-          <line x1="544" y1="50" x2="544" y2="70" stroke="#8a5346" strokeWidth="1.5" />
-          <ellipse cx="544" cy="76" rx="12" ry="7" fill="#c0563f" />
-          <path
-            d="M535 74 q3 22 -2 32 M544 78 q1 26 0 38 M553 74 q-2 22 3 30"
-            stroke="#56a07c"
-            strokeWidth="2.5"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </g>
-        <g>
-          <circle cx="497" cy="158" r="17" fill="#f7e9e2" stroke="#8a5346" strokeWidth="3" />
-          <line x1="497" y1="144" x2="497" y2="147" stroke="#8a5346" strokeWidth="1.5" />
-          <line x1="497" y1="169" x2="497" y2="172" stroke="#8a5346" strokeWidth="1.5" />
-          <line x1="483" y1="158" x2="486" y2="158" stroke="#8a5346" strokeWidth="1.5" />
-          <line x1="508" y1="158" x2="511" y2="158" stroke="#8a5346" strokeWidth="1.5" />
-          <line x1="497" y1="158" x2="497" y2="148" stroke="#4a2238" strokeWidth="2" strokeLinecap="round" />
-          <line x1="497" y1="158" x2="504" y2="161" stroke="#4a2238" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="497" cy="158" r="1.5" fill="#4a2238" />
-        </g>
-
         {/* ================= DESK ================= */}
         {/* left side panel */}
         <rect x="54" y="316" width="14" height="82" rx="2" fill="#8f5d49" />
@@ -308,27 +355,8 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
         <rect x="30" y="306" width="580" height="12" rx="2" fill="#a87f5f" />
         <line x1="32" y1="307" x2="608" y2="307" stroke="#d8b28c" strokeWidth="1" opacity="0.5" />
 
-        {/* warm light pools on the desk (lamp right, monitor centre) */}
-        <ellipse cx="530" cy="299" rx="78" ry="12" fill="url(#lampPool)" opacity={time.lampGlow} />
+        {/* the monitor's cool light pool (the lamp's travels with the lamp) */}
         <ellipse cx="290" cy="298" rx="70" ry="9" fill="#e9ddff" opacity={time.screenGlow * 0.5} />
-
-        {/* potted plant */}
-        <g>
-          <path
-            d="M78 300 q-14 -40 -3 -68 q8 20 14 24 q-11 -27 1 -46 q6 27 13 32 q0 -22 9 -33 q3 32 -5 59 q-5 24 -18 32 z"
-            fill="#3f7f63"
-            transform="translate(0,-16)"
-          />
-          <polygon points="70,282 104,282 100,305 74,305" fill="#c0563f" />
-          <polygon points="70,282 104,282 102,287 72,287" fill="#a8412d" />
-        </g>
-
-        {/* book stack */}
-        <g>
-          <rect x="128" y="286" width="58" height="14" rx="2" fill="#7faf8f" transform="rotate(-2 157 293)" />
-          <rect x="132" y="274" width="54" height="13" rx="2" fill="#e8a3a8" transform="rotate(1.5 159 280)" />
-          <rect x="126" y="262" width="56" height="13" rx="2" fill="#9b8bd6" transform="rotate(-1 154 268)" />
-        </g>
 
         {/* monitor with a tiny task list on screen */}
         <g>
@@ -350,53 +378,104 @@ export default function Cottage({ weather = "off", timeOfDay = "night" }) {
           <polygon points="228,202 268,202 240,272 228,272" fill="#fff" opacity="0.05" />
         </g>
 
-        {/* mug + steam */}
-        <g>
-          <path d="M380 300 h30 v-20 h-30 z" fill="#d98a93" />
-          <path d="M410 286 q10 -2 10 6 t-10 8" fill="none" stroke="#d98a93" strokeWidth="3" />
-          <motion.path
-            d="M388 276 q4 -10 0 -18 M398 276 q4 -10 0 -18"
-            stroke="#f7e9e2"
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            animate={{ opacity: [0, 0.6, 0], y: [0, -10, -16] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeOut" }}
-          />
-        </g>
+        {/* ================= PLACED ITEMS ================= */}
+        <g clipPath="url(#roomClip)">
+          {/* zone hint while dragging */}
+          {editMode && draggingZone && ZONES[draggingZone] && (
+            <rect
+              x={ZONES[draggingZone].x - 10}
+              y={ZONES[draggingZone].y - 10}
+              width={ZONES[draggingZone].w + 20}
+              height={ZONES[draggingZone].h + 20}
+              rx="10"
+              fill="none"
+              stroke="#ffe9b0"
+              strokeWidth="1.5"
+              strokeDasharray="6 5"
+              opacity="0.5"
+            />
+          )}
 
-        {/* pencil cup */}
-        <g>
-          <path d="M425 286 h26 l-3 26 h-20 z" fill="#cf8f93" />
-          <line x1="431" y1="286" x2="427" y2="258" stroke="#e8b04b" strokeWidth="3" strokeLinecap="round" />
-          <line x1="439" y1="286" x2="443" y2="252" stroke="#7faf8f" strokeWidth="3" strokeLinecap="round" />
-          <line x1="445" y1="286" x2="450" y2="262" stroke="#9b8bd6" strokeWidth="3" strokeLinecap="round" />
-        </g>
-
-        {/* open notebook, sitting in the lamplight */}
-        <g>
-          <polygon points="463,304 535,304 545,314 453,314" fill="#e7d9c9" />
-          <polygon points="463,304 499,304 504,309 468,309" fill="#f7e9e2" opacity="0.7" />
-          <polygon points="499,304 535,304 540,309 504,309" fill="#f7e9e2" opacity="0.5" />
-          <line x1="499" y1="304" x2="504" y2="314" stroke="#c9b8a4" strokeWidth="1.5" />
-        </g>
-
-        {/* angled desk lamp */}
-        <g>
-          <ellipse cx="566" cy="296" rx="18" ry="5" fill="#3a3142" />
-          <line x1="566" y1="294" x2="552" y2="258" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
-          <line x1="552" y1="258" x2="528" y2="240" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
-          <circle cx="552" cy="258" r="3.5" fill="#2c2438" />
-          <path d="M512 232 h32 l8 18 h-48 z" fill="#e8b04b" stroke="#c98f3a" />
-          <circle cx="528" cy="252" r="4" fill="#ffe9b0" opacity={Math.max(0.4, time.lampGlow)} />
-          <polygon
-            className="animate-flicker"
-            points="516,254 540,254 566,294 490,294"
-            fill="url(#lampCone)"
-            opacity={time.lampGlow * 0.55}
-          />
+          {ordered.map((p) => {
+            const item = ITEMS[p.item];
+            const Sprite = ITEM_SPRITES[p.item];
+            if (!item || !Sprite) return null;
+            const selected = editMode && selectedId === p.id;
+            return (
+              <g
+                key={p.id}
+                transform={`translate(${p.x},${p.y})`}
+                className={editMode ? (item.fixed ? "room-item-fixed" : "room-item") : undefined}
+                onPointerDown={startDrag(p)}
+              >
+                {/* generous invisible grab target */}
+                {editMode && (
+                  <rect
+                    x={item.hit.x}
+                    y={item.hit.y}
+                    width={item.hit.w}
+                    height={item.hit.h}
+                    fill="transparent"
+                  />
+                )}
+                {/* The scale lives on an INNER group: framer-motion writes its
+                    own inline `transform`, which would overwrite the parent's
+                    translate() and fling the item to the origin. */}
+                <motion.g
+                  initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                  animate={{
+                    scale: draggingId === p.id && !reduceMotion ? 1.07 : 1,
+                    opacity: 1,
+                  }}
+                  transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                  style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                >
+                  <Sprite time={time} />
+                </motion.g>
+                {selected && (
+                  <>
+                    <rect
+                      x={item.hit.x - 4}
+                      y={item.hit.y - 4}
+                      width={item.hit.w + 8}
+                      height={item.hit.h + 8}
+                      rx="6"
+                      fill="none"
+                      stroke="#ffe9b0"
+                      strokeWidth="1.5"
+                      strokeDasharray="5 4"
+                      opacity="0.9"
+                    />
+                    <g
+                      className="room-remove"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onRemoveItem?.(p.id);
+                        setSelectedId(null);
+                      }}
+                    >
+                      <circle cx={item.hit.x + item.hit.w + 6} cy={item.hit.y - 6} r="9" fill="#d96a6a" />
+                      <path
+                        d={`M${item.hit.x + item.hit.w + 2} ${item.hit.y - 10} l8 8 M${item.hit.x + item.hit.w + 10} ${item.hit.y - 10} l-8 8`}
+                        stroke="#fff"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  </>
+                )}
+              </g>
+            );
+          })}
         </g>
       </svg>
     </div>
   );
 }
+
+// The store's context value changes every second (the focus timer ticks), so
+// every consumer — including this fairly heavy SVG — re-renders each second by
+// default. None of Cottage's props change on a tick, so memoising skips that
+// work entirely and keeps the idle animations smooth. Relies on the room
+// action props being stable (they're useCallback'd in store.jsx).
+export default memo(Cottage);
