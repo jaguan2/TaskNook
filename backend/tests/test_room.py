@@ -125,3 +125,18 @@ def test_room_strips_unknown_fields(client, auth):
     client.put("/api/room", json={"placements": dirty}, headers=auth)
     saved = client.get("/api/room", headers=auth).get_json()["placements"]
     assert saved == [{"id": "p1", "item": "rug", "x": 1, "y": 2}]
+
+
+def test_room_roundtrips_a_tint(client, auth):
+    layout = [{"id": "p1", "item": "rug", "x": 320, "y": 440, "tint": "#6fb8cf"}]
+    assert client.put("/api/room", json={"placements": layout}, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json() == {"placements": layout}
+
+
+@pytest.mark.parametrize(
+    "bad_tint",
+    ["6fb8cf", "#6fb8c", "#6fb8cfff", "#gggggg", 123, {"r": 1}, "red"],
+)
+def test_room_rejects_malformed_tints(client, auth, bad_tint):
+    layout = [{"id": "p1", "item": "rug", "x": 1, "y": 2, "tint": bad_tint}]
+    assert client.put("/api/room", json={"placements": layout}, headers=auth).status_code == 400

@@ -1,12 +1,15 @@
-// The freeform room-decoration model: which items exist, where they're allowed
-// to sit, and how a layout is ordered for drawing. Pure data + functions — the
-// SVG artwork itself lives in components/RoomItems.jsx.
+// The freeform room-decoration model: which items exist and how a layout is
+// ordered for drawing. Pure data + functions — the SVG artwork itself lives in
+// components/RoomItems.jsx.
 //
-// A layout ("placements") is an array of { id, item, x, y } in the scene's
-// 640x480 viewBox coordinates. (x, y) is the item's ORIGIN — the point of the
-// sprite that touches its surface (base of a plant pot, centre of a wall
-// frame) — so clamping the origin to a zone keeps items on believable
-// surfaces while leaving arrangement completely free.
+// A layout ("placements") is an array of { id, item, x, y, tint? } in the
+// scene's 640x480 viewBox coordinates. (x, y) is the item's ORIGIN — the point
+// of the sprite that touches its surface (base of a plant pot, centre of a
+// wall frame). Placement is deliberately unbounded: an item's `zone` is only
+// its spawn point and panel grouping, never a constraint — a plant can sit on
+// the desk, a clock can lean on the floor. The only clamp keeps the origin
+// inside the room so nothing can be dragged somewhere it can't be grabbed
+// back from. `tint` is an optional #rrggbb the sprite's main material takes on.
 
 export const SCENE = { width: 640, height: 480 };
 
@@ -14,16 +17,23 @@ export const SCENE = { width: 640, height: 480 };
 // that nudged items line up.
 export const GRID = 4;
 
-// Where each kind of item may sit (bounds for the item ORIGIN, pre-padded so
-// sprites stay inside the room's rounded frame).
-//   wall  — the free wall right of the window
-//   desk  — along the desktop surface (y is a shallow band: desk depth)
-//   floor — the floor in front of the desk
-export const ZONES = {
-  wall: { x: 450, y: 52, w: 158, h: 158 },
-  desk: { x: 66, y: 294, w: 516, h: 14 },
-  floor: { x: 46, y: 404, w: 548, h: 58 },
-};
+// The one placement rule: the ORIGIN stays inside the room's frame, so every
+// item remains reachable in edit mode (sprites may overhang; roomClip trims).
+export const ROOM_BOUNDS = { x: 20, y: 20, w: 600, h: 446 };
+
+// Curated tint swatches shown on a selected item — drawn from the app's own
+// palette so any recolour still feels at home in the scene.
+export const TINT_SWATCHES = [
+  "#d98a93", // rose
+  "#e8b04b", // amber
+  "#7faf8f", // sage
+  "#6fb8cf", // sky
+  "#9b8bd6", // lavender
+  "#f7e9e2", // cream
+  "#3a3142", // charcoal
+];
+
+const TINT_RE = /^#[0-9a-f]{6}$/i;
 
 // layer: flat things (rugs) always draw first within their zone so standing
 // items can never be overpainted by a rug edge; everything else sorts by y
@@ -34,7 +44,7 @@ export const ITEMS = {
   clock: { label: "Wall clock", icon: "🕰️", zone: "wall", hit: { x: -20, y: -20, w: 40, h: 40 } },
   hangplant: { label: "Hanging plant", icon: "🌿", zone: "wall", hit: { x: -15, y: -32, w: 30, h: 72 } },
   poster: { label: "Sunrise poster", icon: "🌄", zone: "wall", hit: { x: -22, y: -29, w: 44, h: 58 } },
-  polaroids: { label: "Polaroids", icon: "📸", zone: "wall", hit: { x: -26, y: -18, w: 52, h: 40 } },
+  polaroids: { label: "Polaroids", icon: "📸", zone: "wall", tintable: false, hit: { x: -26, y: -18, w: 52, h: 40 } },
   shelf: { label: "Floating shelf", icon: "🪵", zone: "wall", hit: { x: -36, y: -26, w: 72, h: 32 } },
 
   // ---- desk ----
@@ -42,7 +52,7 @@ export const ITEMS = {
   books: { label: "Book stack", icon: "📚", zone: "desk", hit: { x: -32, y: -42, w: 64, h: 44 } },
   mug: { label: "Steaming mug", icon: "☕", zone: "desk", hit: { x: -18, y: -44, w: 42, h: 46 } },
   pencilcup: { label: "Pencil cup", icon: "✏️", zone: "desk", hit: { x: -16, y: -58, w: 32, h: 60 } },
-  notebook: { label: "Open notebook", icon: "📓", zone: "desk", hit: { x: -46, y: -12, w: 92, h: 14 } },
+  notebook: { label: "Open notebook", icon: "📓", zone: "desk", tintable: false, hit: { x: -46, y: -12, w: 92, h: 14 } },
   desklamp: { label: "Desk lamp", icon: "💡", zone: "desk", hit: { x: -56, y: -64, w: 78, h: 66 } },
   cactus: { label: "Tiny cactus", icon: "🌵", zone: "desk", hit: { x: -12, y: -34, w: 24, h: 36 } },
   headphones: { label: "Headphones", icon: "🎧", zone: "desk", hit: { x: -24, y: -22, w: 48, h: 24 } },
@@ -62,26 +72,27 @@ export const ITEMS = {
 
 export const ITEM_KEYS = Object.keys(ITEMS);
 
-const ZONE_DRAW_ORDER = { ceiling: 0, wall: 1, desk: 2, floor: 3 };
-
 export const snap = (v) => Math.round(v / GRID) * GRID;
 
-export function clampToZone(itemKey, x, y) {
+/** The only placement constraint: keep the origin inside the room so the item
+ *  can always be grabbed again. Anything else goes — that's the point. */
+export function clampToRoom(itemKey, x, y) {
   const item = ITEMS[itemKey];
   if (!item || item.fixed) return { x, y };
-  const z = ZONES[item.zone];
+  const b = ROOM_BOUNDS;
   return {
-    x: Math.min(Math.max(x, z.x), z.x + z.w),
-    y: Math.min(Math.max(y, z.y), z.y + z.h),
+    x: Math.min(Math.max(x, b.x), b.x + b.w),
+    y: Math.min(Math.max(y, b.y), b.y + b.h),
   };
 }
 
-/** Painter's ordering: ceiling, wall, desk, floor; rugs before standing items;
- *  then nearer (larger y) drawn later. Returns a NEW array. */
+/** Painter's ordering, purely by depth: flat rugs (`layer: -1`) go down first
+ *  so nothing standing is ever overpainted by a rug edge, then lower on screen
+ *  = nearer = drawn later. No per-kind ordering — with unbounded placement an
+ *  item's depth is wherever the user put it. Returns a NEW array. */
 export function sortForRender(placements) {
   return [...placements].sort(
     (a, b) =>
-      ZONE_DRAW_ORDER[ITEMS[a.item].zone] - ZONE_DRAW_ORDER[ITEMS[b.item].zone] ||
       (ITEMS[a.item].layer || 0) - (ITEMS[b.item].layer || 0) ||
       a.y - b.y ||
       a.x - b.x ||
@@ -116,7 +127,7 @@ export function newPlacement(itemKey, existing = []) {
     return { id: makeId(), item: itemKey, x: snap(base.x), y: snap(base.y) };
   }
   const siblings = existing.filter((p) => ITEMS[p.item]?.zone === item.zone).length;
-  const { x, y } = clampToZone(
+  const { x, y } = clampToRoom(
     itemKey,
     base.x + (siblings % 6) * 36,
     base.y + (siblings % 3) * 10
@@ -145,6 +156,8 @@ export function validatePlacements(raw) {
     let id = typeof p.id === "string" && p.id.length <= 32 ? p.id : makeId();
     while (seen.has(id)) id = makeId();
     seen.add(id);
+    // An invalid tint is dropped, never rejected — the placement survives.
+    const tint = typeof p.tint === "string" && TINT_RE.test(p.tint) ? p.tint : undefined;
     if (item.fixed) {
       // Singletons, and always at their home position — this also heals
       // layouts saved before that rule existed (an offset duplicate could
@@ -152,10 +165,10 @@ export function validatePlacements(raw) {
       if (fixedSeen.has(p.item)) continue;
       fixedSeen.add(p.item);
       const home = SPAWN[item.zone];
-      clean.push({ id, item: p.item, x: snap(home.x), y: snap(home.y) });
+      clean.push({ id, item: p.item, x: snap(home.x), y: snap(home.y), ...(tint && { tint }) });
     } else {
-      const { x, y } = clampToZone(p.item, snap(p.x), snap(p.y));
-      clean.push({ id, item: p.item, x, y });
+      const { x, y } = clampToRoom(p.item, snap(p.x), snap(p.y));
+      clean.push({ id, item: p.item, x, y, ...(tint && { tint }) });
     }
     if (clean.length >= MAX_ITEMS) break;
   }

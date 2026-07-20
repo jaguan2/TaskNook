@@ -41,6 +41,8 @@ export default function App() {
     setRoomEditMode,
     moveRoomItem,
     removeRoomItem,
+    setRoomItemTint,
+    roomScale,
   } = useStore();
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
   // item is clicked instead of being replaced by it.
@@ -133,8 +135,10 @@ export default function App() {
           timeOfDay={timeOfDay}
           room={roomPlacements}
           editMode={roomEditMode}
+          scale={roomScale}
           onMoveItem={moveRoomItem}
           onRemoveItem={removeRoomItem}
+          onTintItem={setRoomItemTint}
         />
       </motion.div>
 

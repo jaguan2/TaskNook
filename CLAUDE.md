@@ -210,13 +210,27 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   Only hue + saturation are taken from the pick — the lightness stops are fixed,
   which is what guarantees text stays legible (~9:1 contrast) for any colour.
 - **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
-  layout of `{id, item, x, y}` placements the user arranges by dragging in
-  edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the item
-  catalog, per-zone bounds (`wall`/`desk`/`floor`; `ceiling` items are fixed),
-  `GRID` snapping, origin clamping, painter's-order `sortForRender` (zones
-  back-to-front, then flat `layer:-1` rugs first, then by `y`), presets, and
-  `validatePlacements` (tolerant: unknown items are dropped so catalog changes
-  can't brick a saved room). Fixed items (`fixed: true`, e.g. the garland) are
+  layout of `{id, item, x, y, tint?}` placements the user arranges by dragging
+  in edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the
+  item catalog, `GRID` snapping, `clampToRoom` (**the only placement rule** —
+  the origin stays inside `ROOM_BOUNDS` so items stay grabbable; an item's
+  `zone` is just its spawn point and panel grouping, never a constraint),
+  painter's-order `sortForRender` (**pure depth**: flat `layer:-1` rugs first,
+  then by `y` — no per-kind ordering, an item's depth is wherever the user put
+  it), presets, and `validatePlacements` (tolerant: unknown items and invalid
+  tints are dropped so catalog changes can't brick a saved room).
+  **Recolouring**: sprites paint their main material with
+  `var(--tint, <classic colour>)`; the placement `<g>` sets `--tint`. The
+  picker is `RoomTintPicker.jsx` — an HTML popover (bottom-centre of the
+  scene, the spot the focus timer vacates in edit mode) with a hex field,
+  full H/S/L sliders and `TINT_SWATCHES` quick picks; hex/sliders are the
+  primary controls because the desktop WebView has no native colour dialog
+  (same trade-off as SettingsPanel). Items with no sensible material opt out
+  via `tintable: false`; shade details are translucent black overlays, not
+  fixed darker hues, so they read over any tint.
+  **Room size**: `roomScale` (0.6–1.2, Room panel slider) multiplies the
+  responsive `SCENE_WIDTH`; it's a display preference so it lives in
+  localStorage (`tasknook.roomScale`), not the DB. Fixed items (`fixed: true`, e.g. the garland) are
   **singletons pinned to their SPAWN position** — they can't be dragged, so a
   duplicate spawned anywhere else could never be nudged back;
   `validatePlacements` collapses duplicates and re-homes them, healing layouts

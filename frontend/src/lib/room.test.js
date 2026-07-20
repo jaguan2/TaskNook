@@ -5,8 +5,9 @@ import {
   ITEM_KEYS,
   MAX_ITEMS,
   PRESETS,
-  ZONES,
-  clampToZone,
+  ROOM_BOUNDS,
+  TINT_SWATCHES,
+  clampToRoom,
   newPlacement,
   presetPlacements,
   snap,
@@ -15,21 +16,30 @@ import {
 } from "./room";
 import { ITEM_SPRITES } from "../components/RoomItems";
 
-const inZone = (itemKey, x, y) => {
-  const z = ZONES[ITEMS[itemKey].zone];
-  return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
-};
+const inRoom = (x, y) =>
+  x >= ROOM_BOUNDS.x &&
+  x <= ROOM_BOUNDS.x + ROOM_BOUNDS.w &&
+  y >= ROOM_BOUNDS.y &&
+  y <= ROOM_BOUNDS.y + ROOM_BOUNDS.h;
+
+const ZONE_NAMES = ["wall", "desk", "floor", "ceiling"];
 
 describe("catalog integrity", () => {
-  it("every item has a sprite, a zone, and a hit box", () => {
+  it("every item has a sprite, a spawn category, and a hit box", () => {
     for (const key of ITEM_KEYS) {
       const item = ITEMS[key];
       expect(ITEM_SPRITES[key], `sprite for ${key}`).toBeTypeOf("function");
-      expect(item.zone === "ceiling" || ZONES[item.zone], `zone for ${key}`).toBeTruthy();
+      expect(ZONE_NAMES, `zone for ${key}`).toContain(item.zone);
       expect(item.hit.w).toBeGreaterThan(0);
       expect(item.hit.h).toBeGreaterThan(0);
       expect(item.label).toBeTruthy();
       expect(item.icon).toBeTruthy();
+    }
+  });
+
+  it("tint swatches are strict #rrggbb colours", () => {
+    for (const c of TINT_SWATCHES) {
+      expect(c).toMatch(/^#[0-9a-f]{6}$/i);
     }
   });
 
@@ -47,19 +57,20 @@ describe("snap & clamp", () => {
     expect(snap(517.7) % GRID).toBe(0);
   });
 
-  it("clamps an origin into its item's zone", () => {
-    const { x, y } = clampToZone("mug", -500, 900);
-    expect(inZone("mug", x, y)).toBe(true);
+  it("keeps a dragged origin inside the room so items stay grabbable", () => {
+    const { x, y } = clampToRoom("mug", -500, 900);
+    expect(inRoom(x, y)).toBe(true);
   });
 
-  it("leaves in-zone points alone", () => {
-    const z = ZONES.floor;
-    const p = clampToZone("cat", z.x + 10, z.y + 10);
-    expect(p).toEqual({ x: z.x + 10, y: z.y + 10 });
+  it("otherwise leaves placement completely free — desk items on the floor,\
+ wall items on the desk, anything anywhere", () => {
+    // A mug deep in the floor area and a clock on the desk: no zone snapping.
+    expect(clampToRoom("mug", 320, 450)).toEqual({ x: 320, y: 450 });
+    expect(clampToRoom("clock", 150, 300)).toEqual({ x: 150, y: 300 });
   });
 
   it("passes fixed items through untouched", () => {
-    expect(clampToZone("garland", 1, 2)).toEqual({ x: 1, y: 2 });
+    expect(clampToRoom("garland", 1, 2)).toEqual({ x: 1, y: 2 });
   });
 });
 
@@ -73,12 +84,12 @@ describe("render ordering", () => {
     expect(out.map((o) => o.item)).toEqual(["rug", "cat"]);
   });
 
-  it("draws nearer (lower) items later within a zone", () => {
+  it("draws nearer (lower) items later", () => {
     const out = sortForRender([p("cat", 460), p("monstera", 410)]);
     expect(out.map((o) => o.item)).toEqual(["monstera", "cat"]);
   });
 
-  it("orders zones ceiling → wall → desk → floor", () => {
+  it("orders purely by depth, whatever kind of item sits there", () => {
     const out = sortForRender([
       p("cat", 430),
       p("mug", 300),
@@ -86,6 +97,13 @@ describe("render ordering", () => {
       p("garland", 24),
     ]);
     expect(out.map((o) => o.item)).toEqual(["garland", "clock", "mug", "cat"]);
+  });
+
+  it("a wall item dragged low paints in front of floor items above it", () => {
+    // With unbounded placement, an item's depth is wherever the user put it —
+    // kind must not override position.
+    const out = sortForRender([p("bookshelf", 430), p("poster", 450)]);
+    expect(out.map((o) => o.item)).toEqual(["bookshelf", "poster"]);
   });
 
   it("does not mutate its input", () => {
@@ -97,10 +115,10 @@ describe("render ordering", () => {
 });
 
 describe("newPlacement", () => {
-  it("spawns inside the item's zone with a unique id", () => {
+  it("spawns inside the room with a unique id", () => {
     const a = newPlacement("mug", []);
     const b = newPlacement("mug", [a]);
-    expect(inZone("mug", a.x, a.y)).toBe(true);
+    expect(inRoom(a.x, a.y)).toBe(true);
     expect(a.id).not.toBe(b.id);
   });
 
@@ -149,9 +167,21 @@ describe("validatePlacements", () => {
     expect(out.map((p) => p.id)).toEqual(["c"]);
   });
 
-  it("re-clamps out-of-zone saves back onto their surface", () => {
+  it("re-clamps out-of-room saves back inside so items stay grabbable", () => {
     const [p] = validatePlacements([{ id: "a", item: "mug", x: -999, y: 999 }]);
-    expect(inZone("mug", p.x, p.y)).toBe(true);
+    expect(inRoom(p.x, p.y)).toBe(true);
+  });
+
+  it("keeps a valid tint and drops an invalid one without losing the item", () => {
+    const out = validatePlacements([
+      { id: "a", item: "mug", x: 200, y: 300, tint: "#6fb8cf" },
+      { id: "b", item: "cat", x: 200, y: 430, tint: "magenta" },
+      { id: "c", item: "rug", x: 320, y: 440, tint: "#12345" },
+    ]);
+    expect(out.find((p) => p.id === "a").tint).toBe("#6fb8cf");
+    expect(out.find((p) => p.id === "b").tint).toBeUndefined();
+    expect(out.find((p) => p.id === "c").tint).toBeUndefined();
+    expect(out).toHaveLength(3); // bad tints never cost the placement itself
   });
 
   it("de-duplicates colliding ids", () => {
@@ -189,12 +219,12 @@ describe("validatePlacements", () => {
 });
 
 describe("presets", () => {
-  it("only reference items that exist, placed inside their zones", () => {
+  it("only reference items that exist, placed inside the room", () => {
     for (const [name, preset] of Object.entries(PRESETS)) {
       for (const p of preset.placements) {
         expect(ITEMS[p.item], `${name} references ${p.item}`).toBeTruthy();
         if (!ITEMS[p.item].fixed) {
-          expect(inZone(p.item, p.x, p.y), `${name}: ${p.item} at ${p.x},${p.y}`).toBe(true);
+          expect(inRoom(p.x, p.y), `${name}: ${p.item} at ${p.x},${p.y}`).toBe(true);
         }
       }
     }

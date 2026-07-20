@@ -139,6 +139,16 @@ def _finite_number(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
+def _hex_color(v):
+    """A strict #rrggbb item tint."""
+    return (
+        isinstance(v, str)
+        and len(v) == 7
+        and v[0] == "#"
+        and all(c in "0123456789abcdefABCDEF" for c in v[1:])
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Routes
 # --------------------------------------------------------------------------- #
@@ -374,7 +384,13 @@ def register_routes(app):
                 return jsonify({"error": "Invalid room layout"}), 400
             if not _finite_number(x) or not _finite_number(y):
                 return jsonify({"error": "Invalid room layout"}), 400
-            clean.append({"id": pid, "item": item, "x": x, "y": y})
+            entry = {"id": pid, "item": item, "x": x, "y": y}
+            tint = p.get("tint")
+            if tint is not None:
+                if not _hex_color(tint):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                entry["tint"] = tint
+            clean.append(entry)
         user.room_config = json.dumps(clean)
         db.session.commit()
         return jsonify({"ok": True})

@@ -169,6 +169,18 @@ export function StoreProvider({ children }) {
     return presetPlacements("default");
   });
   const [roomEditMode, setRoomEditMode] = useState(false);
+  // The user's own size preference for the scene, multiplied onto the
+  // responsive base size. A display preference, so it stays device-local
+  // (localStorage) rather than in the DB.
+  const [roomScale, setRoomScaleState] = useState(() => {
+    const saved = Number(localStorage.getItem("tasknook.roomScale"));
+    return saved >= 0.6 && saved <= 1.2 ? saved : 1;
+  });
+  const setRoomScale = useCallback((value) => {
+    const clamped = Math.min(1.2, Math.max(0.6, Number(value) || 1));
+    setRoomScaleState(clamped);
+    localStorage.setItem("tasknook.roomScale", String(clamped));
+  }, []);
   const roomRef = useRef(roomPlacements);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
@@ -605,6 +617,20 @@ export function StoreProvider({ children }) {
   }, []);
   const applyRoomPreset = useCallback((key) => setRoomPlacements(presetPlacements(key)), []);
   const clearRoom = useCallback(() => setRoomPlacements([]), []);
+  // tint: an #rrggbb string recolours the item's main material; null returns
+  // it to the classic colour (the key is removed so saves stay minimal).
+  const setRoomItemTint = useCallback((id, tint) => {
+    setRoomPlacements((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        if (!tint) {
+          const { tint: _dropped, ...rest } = p;
+          return rest;
+        }
+        return { ...p, tint };
+      })
+    );
+  }, []);
 
   const value = {
     user,
@@ -635,6 +661,9 @@ export function StoreProvider({ children }) {
     removeRoomItem,
     applyRoomPreset,
     clearRoom,
+    setRoomItemTint,
+    roomScale,
+    setRoomScale,
 
     // timer
     focusMinutes,

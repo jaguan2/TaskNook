@@ -39,6 +39,8 @@ export default function RoomPanel() {
     addRoomItem,
     applyRoomPreset,
     clearRoom,
+    roomScale,
+    setRoomScale,
   } = useStore();
 
   const counts = roomPlacements.reduce((acc, p) => {
@@ -62,8 +64,38 @@ export default function RoomPanel() {
         </button>
         <p className="text-xs text-petal/60">
           {roomEditMode
-            ? "Drag items to arrange them. Tap an item, then ✕ to put it away. Everything is free — make it yours."
+            ? "Drag anything anywhere — wall, desk or floor. Tap an item for colours and ✕ to put it away."
             : "Turn on decorating to drag things around the room."}
+        </p>
+      </section>
+
+      {/* Room size */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-cream">🔍 Room size</p>
+          <span className="text-xs tabular-nums text-petal/60">
+            {Math.round(roomScale * 100)}%
+            {roomScale !== 1 && (
+              <button
+                onClick={() => setRoomScale(1)}
+                className="ml-2 text-glow/80 hover:text-glow"
+              >
+                reset
+              </button>
+            )}
+          </span>
+        </div>
+        <input
+          type="range"
+          min="0.6"
+          max="1.2"
+          step="0.05"
+          value={roomScale}
+          onChange={(e) => setRoomScale(Number(e.target.value))}
+          className="w-full accent-glow"
+        />
+        <p className="text-xs text-petal/50">
+          On top of this, the room already grows and shrinks with the window.
         </p>
       </section>
 
