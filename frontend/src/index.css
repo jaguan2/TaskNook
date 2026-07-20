@@ -161,6 +161,85 @@ body {
   cursor: pointer;
 }
 
+/* ---- Idle life in the room ------------------------------------------- */
+/* Driven by CSS, not framer-motion, deliberately: the scene re-renders every
+   second (the focus timer ticks), and CSS animations live on the element so
+   they keep running smoothly across re-renders at no React cost.
+   SVG needs transform-box/transform-origin or these rotate about the whole
+   canvas origin instead of the sprite. */
+@keyframes room-sway {
+  0%,
+  100% {
+    transform: rotate(-1.4deg);
+  }
+  50% {
+    transform: rotate(1.4deg);
+  }
+}
+.room-sway {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: room-sway 7s ease-in-out infinite;
+}
+/* Hanging things pivot from where they're pinned, not from their base. */
+.room-sway-hanging {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: room-sway 5.5s ease-in-out infinite;
+}
+
+@keyframes room-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.room-twinkle {
+  animation: room-twinkle 4s ease-in-out infinite;
+}
+
+@keyframes room-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.room-breathe {
+  animation: room-breathe 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-sway,
+  .room-sway-hanging,
+  .room-twinkle,
+  .room-breathe {
+    animation: none;
+  }
+}
+
+/* Freeform room decoration (Cottage edit mode) */
+.room-item {
+  cursor: grab;
+}
+.room-item:active {
+  cursor: grabbing;
+}
+.room-item:hover {
+  filter: brightness(1.15);
+}
+.room-item-fixed {
+  cursor: pointer; /* selectable for removal, but pinned in place */
+}
+.room-remove {
+  cursor: pointer;
+}
+
 /* Soft pill buttons */
 .pill {
   border-radius: 9999px;

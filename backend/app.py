@@ -2,6 +2,8 @@
 
 Run:  python app.py    (serves the REST API on http://localhost:5000)
 """
+import json
+import math
 import os
 import secrets
 import traceback
@@ -11,6 +13,7 @@ from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
+from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Task, FocusSession, Token, utcnow
@@ -39,7 +42,15 @@ def create_app():
 
     with app.app_context():
         _prepare_database(db_path)
-        seed_demo_data()
+        try:
+            seed_demo_data()
+        except OperationalError:
+            # The models are ahead of the migration history — the one moment
+            # this legitimately happens is while `flask db migrate` imports the
+            # app to autogenerate the missing revision, so don't block it.
+            # A *forgotten* migration is caught by CI's `flask db check`.
+            db.session.rollback()
+            print("[!] Schema behind models (pending migration?) — skipped seeding.")
 
     register_routes(app)
     register_frontend(app)
@@ -115,6 +126,17 @@ def require_auth(fn):
 
 def today_str():
     return date.today().isoformat()
+
+
+def _finite_number(v):
+    """A real, storable coordinate.
+
+    Two traps this closes: `isinstance(True, int)` is True in Python, so a bare
+    bool would sail through a naive numeric check; and NaN/Infinity are floats
+    that `json.dumps` writes as bare `NaN`/`Infinity` — invalid JSON that a
+    browser's JSON.parse rejects, which would corrupt the saved room for good.
+    """
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 # --------------------------------------------------------------------------- #
@@ -314,6 +336,48 @@ def register_routes(app):
             .all()
         )
         return jsonify({day: int(minutes) for day, minutes in rows})
+
+    # ----- Room decoration ------------------------------------------------- #
+    # The frontend owns the item catalog and zone rules; the backend only
+    # enforces shape and size so a bug can't balloon the stored blob.
+    @app.get("/api/room")
+    @require_auth
+    def get_room(user):
+        if not user.room_config:
+            return jsonify({"placements": None})
+        try:
+            saved = json.loads(user.room_config)
+        except ValueError:
+            return jsonify({"placements": None})
+        # Anything that isn't a list is unusable to the client (e.g. written by
+        # a future/older shape). Report "no layout" rather than handing the
+        # frontend something it would choke on.
+        if not isinstance(saved, list):
+            return jsonify({"placements": None})
+        return jsonify({"placements": saved})
+
+    @app.put("/api/room")
+    @require_auth
+    def save_room(user):
+        data = request.get_json(silent=True) or {}
+        placements = data.get("placements")
+        if not isinstance(placements, list) or len(placements) > 80:
+            return jsonify({"error": "Invalid room layout"}), 400
+        clean = []
+        for p in placements:
+            if not isinstance(p, dict):
+                return jsonify({"error": "Invalid room layout"}), 400
+            pid, item, x, y = p.get("id"), p.get("item"), p.get("x"), p.get("y")
+            if not (isinstance(pid, str) and 0 < len(pid) <= 32):
+                return jsonify({"error": "Invalid room layout"}), 400
+            if not (isinstance(item, str) and 0 < len(item) <= 32):
+                return jsonify({"error": "Invalid room layout"}), 400
+            if not _finite_number(x) or not _finite_number(y):
+                return jsonify({"error": "Invalid room layout"}), 400
+            clean.append({"id": pid, "item": item, "x": x, "y": y})
+        user.room_config = json.dumps(clean)
+        db.session.commit()
+        return jsonify({"ok": True})
 
     # ----- Friends -------------------------------------------------------- #
     @app.get("/api/friends")

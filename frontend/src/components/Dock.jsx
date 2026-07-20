@@ -5,6 +5,7 @@ const ITEMS = [
   { key: "friends", icon: "🫶", label: "Friends" },
   { key: "music", icon: "🎧", label: "Sounds" },
   { key: "weather", icon: "☁️", label: "Weather" },
+  { key: "room", icon: "🛋️", label: "Room" },
   { key: "settings", icon: "⚙️", label: "Settings" },
 ];
 
