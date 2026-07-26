@@ -180,8 +180,13 @@ export default function RoomPanel() {
                 )}
               </div>
               <div
-                className="grid touch-none select-none gap-px rounded-lg bg-white/5 p-1"
-                style={{ gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)` }}
+                className="grid touch-none select-none rounded-lg bg-white/5 p-1"
+                style={{
+                  gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
+                  // hairline gaps up to ~24 wide; beyond that the gaps would
+                  // eat the (tiny) cells
+                  gap: isoRoom.w > 24 ? 0 : 1,
+                }}
                 onPointerUp={() => setPaintMode(null)}
                 onPointerLeave={() => setPaintMode(null)}
               >

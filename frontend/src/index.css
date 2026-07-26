@@ -224,11 +224,27 @@ body {
   animation: room-breathe 6s ease-in-out infinite;
 }
 
+/* Sky clouds drifting across the whole viewport (SkyOverlay) */
+@keyframes sky-drift {
+  from {
+    transform: translateX(-280px);
+  }
+  to {
+    transform: translateX(calc(100vw + 280px));
+  }
+}
+.sky-cloud {
+  animation-name: sky-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .room-sway,
   .room-sway-hanging,
   .room-twinkle,
-  .room-breathe {
+  .room-breathe,
+  .sky-cloud {
     animation: none;
   }
 }
