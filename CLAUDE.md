@@ -143,6 +143,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 ## Conventions & key facts
 
+- **Failure feedback**: failed API writes are never console-only — every
+  catch also calls the store's `showToast(message)` (one transient glass
+  pill, top-centre, auto-dismisses; rendered in `App.jsx`). A hard bootstrap
+  failure sets `bootError` → App shows a retry screen instead of an empty
+  cottage. Error text/destructive hovers/"sure?" states use the fixed
+  `danger` color, NOT `rose` (rose re-tints per theme and goes grey/tan in
+  three of them). Hover-revealed row controls use `.hover-reveal`
+  (index.css) — visible on touch, revealed by keyboard focus — never raw
+  `opacity-0 group-hover:opacity-100`. Destructive taps that lose real work
+  are two-tap armed buttons ("sure?"), shared rhythm across TaskPanel,
+  HudTasks and the timer reset.
 - **Auth**: opaque bearer tokens (table `Token`). Client sends
   `Authorization: Bearer <token>`; `@require_auth` injects the `user` as the
   first arg to a route. Token is persisted in `localStorage` under `tasknook.token`.
@@ -184,7 +195,13 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   nudges (`nudgeTimer`) adjust `remaining` AND accumulate `nudgeSeconds`, so
   the progress bar's total stretches and the logged session reflects real
   planned time; nudges reset on start/reset/mode-switch/completion and are
-  focus-phase only. The UI is `HudFocusCard`
+  focus-phase only. Phase edges play a quiet procedural chime (`playChime` in
+  `lib/audio.js`) and post a system notification — permission is requested on
+  the first ▶ press (never at boot); without that request `notify()` is
+  permanently dead ("default" permission). `skipBreak` ends a break early
+  into the next round; changing pomodoro settings mid-run no longer resets
+  phase/round (only applies when idle). The ✕ reset arms first ("sure?")
+  once a block has progress, since it discards unlogged time. The UI is `HudFocusCard`
   (top-left) — a SMALL VC2-style transport card: round pips, the time (nudge
   buttons flanking it), a thin progress bar, `✕ ▶/⏸ ✓ ⚙`, with
   mode/presets/pomodoro tucked behind the
@@ -210,6 +227,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   **Design north star (user preference)**: VC2's UI — prefer chromeless
   on-scene elements (HUD text, small pills, bottom bars, popovers) over new
   drawers/dialogs; panels are for infrequent configuration.
+  **Before touching any UI, read `docs/DESIGN.md`** — the full design-rules
+  sheet (zone ownership map, motion rules, composition, tinting, the
+  new-feature checklist). It is the authority on visual decisions.
 - **Ambient audio**: `lib/audio.js` is a procedural **mixer** — channels
   (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, birds) play
   simultaneously, each at its own volume, via `setChannel(name, 0..1)` /

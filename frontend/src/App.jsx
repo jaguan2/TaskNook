@@ -29,12 +29,14 @@ const PANELS = {
   music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
   weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },
   room: { title: "Room", subtitle: "Make the space yours — drag to arrange", Comp: RoomPanel },
-  settings: { title: "Settings", subtitle: "Volume & brightness", Comp: SettingsPanel },
+  settings: { title: "Settings", subtitle: "Brightness & colours", Comp: SettingsPanel },
 };
 
 export default function App() {
   const {
     booting,
+    bootError,
+    toast,
     weatherMode,
     timeOfDay,
     brightness,
@@ -101,6 +103,17 @@ export default function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
+      // Never yank a panel out from under someone mid-typing (same guard the
+      // iso room's Delete shortcut uses).
+      const t = e.target;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
       if (roomEditMode) {
         setRoomEditMode(false);
         return;
@@ -121,6 +134,30 @@ export default function App() {
     return (
       <div className="grid h-full place-items-center text-petal">
         <div className="animate-float text-4xl">🏡</div>
+      </div>
+    );
+  }
+
+  // Bootstrap failed outright (backend unreachable) — say so instead of
+  // rendering a silently empty cottage.
+  if (bootError) {
+    return (
+      <div className="grid h-full place-items-center px-6 text-center text-petal">
+        <div className="space-y-3">
+          <div className="text-4xl">🌧️</div>
+          <p className="text-sm font-semibold text-cream">
+            TaskNook couldn't reach its backend.
+          </p>
+          <p className="text-xs text-petal/60">
+            Your data is safe — start the server and try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="pill glass px-4 py-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -189,13 +226,37 @@ export default function App() {
             onClick={() => setRoomEditMode(false)}
             className="pill glass absolute bottom-6 left-6 z-30 px-4 py-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
-            🛋️ Decorating — drag items · click to finish
+            {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
+                ⌫ only works in the iso scene (the flat one has per-item ✕). */}
+            {isoPreview
+              ? "🛋️ Decorating — drag items · ⌫ removes · Esc or click to finish"
+              : "🛋️ Decorating — drag items · Esc or click to finish"}
           </motion.button>
         )}
       </AnimatePresence>
 
       <TopBar />
       <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
+
+      {/* Shared error toast — top-centre (the one HUD zone nothing owns).
+          Outside the decorating visibility wrapper: failures matter in every
+          mode. The wrapper div centres it because framer-motion owns the
+          motion.div's transform (a -translate-x-1/2 there would be lost). */}
+      <div className="pointer-events-none absolute inset-x-0 top-5 z-50 flex justify-center">
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              key={toast.id}
+              initial={{ y: -16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -16, opacity: 0 }}
+              className="glass rounded-full px-4 py-2 text-xs font-semibold text-cream shadow-soft"
+            >
+              {toast.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <AnimatePresence>
         {openPanels.map(({ key, pinned }, i) => {

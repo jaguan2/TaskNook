@@ -105,7 +105,7 @@ export default function MusicPanel() {
               Add
             </button>
           </div>
-          {error && <p className="text-xs text-rose">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
         </form>
       </section>
 

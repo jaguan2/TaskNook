@@ -1,86 +1,44 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
-// rows can be deleted with ✕, re-ordered by dragging the ⠿ handle, marked as
-// a daily routine with ↻, and organised under group headers (VC2's "New
-// Group"). The full Tasks drawer stays behind ⚙.
-export default function HudTasks({ onOpenTasks }) {
-  const {
-    orderedTasks,
-    toggleTask,
-    addTask,
-    removeTask,
-    reorderTasks,
-    activeTaskId,
-    setActiveTaskId,
-    taskGroups,
-    addTaskGroup,
-    removeTaskGroup,
-    toggleRoutine,
-  } = useStore();
-  const [draft, setDraft] = useState("");
-  const [draftGroup, setDraftGroup] = useState("");
-  const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
-  const dragFrom = useRef(null); // { section, index }
+// rows can be deleted with ✕ (two-tap: arm then confirm, like the Tasks
+// panel), re-ordered by dragging the ⠿ handle, marked as a daily routine with
+// ↻, and organised under group headers (VC2's "New Group"). The full Tasks
+// drawer stays behind ⚙.
 
-  // orderedTasks already sinks completed tasks to the bottom. Grouping only
-  // partitions the active rows — done rows collapse into one flat pile.
-  const active = orderedTasks.filter((t) => !t.completed);
-  const done = orderedTasks.filter((t) => t.completed);
-  const sections = [
-    { key: "", tasks: active.filter((t) => !t.group) },
-    ...taskGroups.map((g) => ({ key: g, tasks: active.filter((t) => t.group === g) })),
-  ];
-
-  const submit = async (e) => {
-    e.preventDefault();
-    const name = draft.trim();
-    if (!name) return;
-    setDraft("");
-    try {
-      await addTask({ name, duration: 25, priority: "medium", group: draftGroup || null });
-    } catch (err) {
-      console.error("Quick-add failed:", err);
-    }
-  };
-
-  const submitGroup = (e) => {
-    e.preventDefault();
-    const name = (groupDraft || "").trim();
-    if (name) addTaskGroup(name);
-    setGroupDraft(null);
-  };
-
-  const onDrop = (section, index) => {
-    const from = dragFrom.current;
-    dragFrom.current = null;
-    if (!from || from.section !== section || from.index === index) return;
-    const rows = sections.find((s) => s.key === section)?.tasks;
-    if (!rows) return;
-    const next = [...rows];
-    const [moved] = next.splice(from.index, 1);
-    next.splice(index, 0, moved);
-    // Persist the FULL active ordering (all sections, display order) so
-    // positions stay consistent for the ordering algorithms.
-    reorderTasks(
-      sections.flatMap((s) => (s.key === section ? next : s.tasks))
-    );
-  };
-
-  const Row = ({ task, section, index, draggableRow }) => (
+// Row lives at module scope, NOT inside HudTasks: an inner component gets a
+// new function identity every render, so React remounts every row — and the
+// store re-renders this HUD once per second while a focus session runs, which
+// killed in-flight drag-reorders (learned the hard way).
+function Row({
+  task,
+  section,
+  index,
+  draggableRow,
+  activeTaskId,
+  confirmId,
+  toggleTask,
+  setActiveTaskId,
+  toggleRoutine,
+  requestDelete,
+  onDragStartRow,
+  onDropRow,
+}) {
+  const confirming = confirmId === task.id;
+  return (
     <div
       draggable={draggableRow}
-      onDragStart={() => (dragFrom.current = { section, index })}
+      onDragStart={() => onDragStartRow(section, index)}
       onDragOver={(e) => e.preventDefault()}
-      onDrop={() => draggableRow && onDrop(section, index)}
+      onDrop={() => draggableRow && onDropRow(section, index)}
       className={`group flex items-center gap-1.5 rounded-lg px-1 py-1 transition ${
         activeTaskId === task.id ? "bg-glow/10" : "hover:bg-white/5"
       }`}
     >
       <span
-        className={`w-3 shrink-0 text-xs text-petal/40 opacity-0 transition group-hover:opacity-100 ${
+        className={`hover-reveal w-3 shrink-0 text-xs text-petal/40 transition ${
           draggableRow ? "cursor-grab" : "invisible"
         }`}
       >
@@ -122,29 +80,128 @@ export default function HudTasks({ onOpenTasks }) {
       <button
         onClick={() => toggleRoutine(task)}
         title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
-        className={`shrink-0 px-0.5 text-xs transition ${
-          task.routine
-            ? "text-sage opacity-0 group-hover:opacity-100"
-            : "text-petal/30 opacity-0 hover:text-sage group-hover:opacity-100"
+        className={`hover-reveal shrink-0 px-0.5 text-xs transition ${
+          task.routine ? "text-sage" : "text-petal/30 hover:text-sage"
         }`}
       >
         ↻
       </button>
       <button
-        onClick={() => removeTask(task.id)}
+        onClick={() => requestDelete(task.id)}
         title="Delete task"
-        className="shrink-0 px-1 text-sm text-petal/30 opacity-0 transition hover:text-rose group-hover:opacity-100"
+        className={`hover-reveal shrink-0 px-1 transition ${
+          confirming
+            ? "confirming text-[10px] font-bold text-danger"
+            : "text-sm text-petal/30 hover:text-danger"
+        }`}
       >
-        ✕
+        {confirming ? "sure?" : "✕"}
       </button>
     </div>
   );
+}
+
+export default function HudTasks({ onOpenTasks }) {
+  const {
+    orderedTasks,
+    toggleTask,
+    addTask,
+    removeTask,
+    reorderTasks,
+    activeTaskId,
+    setActiveTaskId,
+    taskGroups,
+    addTaskGroup,
+    removeTaskGroup,
+    toggleRoutine,
+    showToast,
+  } = useStore();
+  const [draft, setDraft] = useState("");
+  const [draftGroup, setDraftGroup] = useState("");
+  const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
+  const dragFrom = useRef(null); // { section, index }
+
+  // Two-tap delete, same rhythm as the Tasks panel: first tap arms ("sure?"),
+  // second tap within a few seconds deletes.
+  const [confirmId, setConfirmId] = useState(null);
+  const confirmTimer = useRef(null);
+  useEffect(() => () => clearTimeout(confirmTimer.current), []);
+  const requestDelete = (id) => {
+    clearTimeout(confirmTimer.current);
+    if (confirmId === id) {
+      setConfirmId(null);
+      removeTask(id);
+      return;
+    }
+    setConfirmId(id);
+    confirmTimer.current = setTimeout(() => setConfirmId(null), 2500);
+  };
+
+  // orderedTasks already sinks completed tasks to the bottom. Grouping only
+  // partitions the active rows — done rows collapse into one flat pile.
+  const active = orderedTasks.filter((t) => !t.completed);
+  const done = orderedTasks.filter((t) => t.completed);
+  const sections = [
+    { key: "", tasks: active.filter((t) => !t.group) },
+    ...taskGroups.map((g) => ({ key: g, tasks: active.filter((t) => t.group === g) })),
+  ];
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const name = draft.trim();
+    if (!name) return;
+    setDraft("");
+    try {
+      await addTask({ name, duration: 25, priority: "medium", group: draftGroup || null });
+    } catch (err) {
+      console.error("Quick-add failed:", err);
+      setDraft(name); // give the typed text back instead of eating it
+      showToast("Couldn't add the task 🌧️");
+    }
+  };
+
+  const submitGroup = (e) => {
+    e.preventDefault();
+    const name = (groupDraft || "").trim();
+    if (name) addTaskGroup(name);
+    setGroupDraft(null);
+  };
+
+  const onDragStartRow = (section, index) => {
+    dragFrom.current = { section, index };
+  };
+  const onDropRow = (section, index) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (!from || from.section !== section || from.index === index) return;
+    const rows = sections.find((s) => s.key === section)?.tasks;
+    if (!rows) return;
+    const next = [...rows];
+    const [moved] = next.splice(from.index, 1);
+    next.splice(index, 0, moved);
+    // Persist the FULL active ordering (all sections, display order) so
+    // positions stay consistent for the ordering algorithms.
+    reorderTasks(
+      sections.flatMap((s) => (s.key === section ? next : s.tasks))
+    );
+  };
+
+  const rowProps = {
+    activeTaskId,
+    confirmId,
+    toggleTask,
+    setActiveTaskId,
+    toggleRoutine,
+    requestDelete,
+    onDragStartRow,
+    onDropRow,
+  };
 
   return (
     <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="text-base font-bold tracking-wide text-cream drop-shadow">
-          To-Do-List{" "}
+          To-Do List{" "}
           <span className="text-sm font-semibold text-petal/60">
             ({done.length}/{orderedTasks.length})
           </span>
@@ -187,7 +244,7 @@ export default function HudTasks({ onOpenTasks }) {
         {sections.map((section) =>
           section.key === "" ? (
             section.tasks.map((task, i) => (
-              <Row key={task.id} task={task} section="" index={i} draggableRow />
+              <Row key={task.id} task={task} section="" index={i} draggableRow {...rowProps} />
             ))
           ) : (
             <div key={section.key} className="group/header mt-1">
@@ -199,23 +256,37 @@ export default function HudTasks({ onOpenTasks }) {
                 <button
                   onClick={() => removeTaskGroup(section.key)}
                   title="Remove group (its tasks stay, ungrouped)"
-                  className="px-1 text-xs text-petal/30 opacity-0 transition hover:text-rose group-hover/header:opacity-100"
+                  className="hover-reveal px-1 text-xs text-petal/30 transition hover:text-danger"
                 >
                   ✕
                 </button>
               </div>
               {section.tasks.length === 0 && (
-                <p className="px-2 pb-1 text-[11px] italic text-petal/35">empty — add below</p>
+                <p className="px-2 pb-1 text-[11px] italic text-petal/35">nothing here yet</p>
               )}
               {section.tasks.map((task, i) => (
-                <Row key={task.id} task={task} section={section.key} index={i} draggableRow />
+                <Row
+                  key={task.id}
+                  task={task}
+                  section={section.key}
+                  index={i}
+                  draggableRow
+                  {...rowProps}
+                />
               ))}
             </div>
           )
         )}
         {done.length > 0 && <div className="mt-1 h-px bg-white/5" />}
         {done.map((task) => (
-          <Row key={task.id} task={task} section="done" index={-1} draggableRow={false} />
+          <Row
+            key={task.id}
+            task={task}
+            section="done"
+            index={-1}
+            draggableRow={false}
+            {...rowProps}
+          />
         ))}
       </div>
 

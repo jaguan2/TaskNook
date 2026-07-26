@@ -90,6 +90,7 @@ function IsoRoom({
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const panRef = useRef(null); // the world point the pointer grabbed
+  const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
   const [view, setView] = useState(loadView);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -191,6 +192,9 @@ function IsoRoom({
   const startDrag = (placement) => (e) => {
     if (!editMode) return;
     e.stopPropagation();
+    // dblclick isn't stopped by the pointerdown's stopPropagation — it still
+    // reaches the svg root, where it would recenter the camera mid-decorating.
+    pointerOnItemRef.current = true;
     setSelectedId(placement.id);
     const p = toScene(e);
     if (!p) return;
@@ -244,6 +248,7 @@ function IsoRoom({
   };
 
   const startPan = (e) => {
+    pointerOnItemRef.current = false;
     if (editMode) setSelectedId(null);
     const p = toWorld(e);
     if (!p) return;
@@ -356,7 +361,12 @@ function IsoRoom({
         onPointerLeave={endDrag}
         onPointerCancel={endDrag}
         onPointerDown={startPan}
-        onDoubleClick={() => applyView(DEFAULT_VIEW)}
+        onDoubleClick={() => {
+          // Recenter only from empty space — double-clicking furniture (two
+          // quick drag-grabs) shouldn't fling the camera.
+          if (pointerOnItemRef.current) return;
+          applyView(DEFAULT_VIEW);
+        }}
       >
         <defs>
           {/* soft pool of light the room sits in — replaces the old card */}

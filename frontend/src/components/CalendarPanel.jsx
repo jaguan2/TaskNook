@@ -108,7 +108,11 @@ export default function CalendarPanel() {
         </p>
         {scheduled.length === 0 ? (
           <p className="rounded-xl bg-white/5 px-3 py-3 text-center text-xs text-petal/60">
-            Nothing scheduled. Drop a task in below.
+            {/* The actual gesture is a click on an unscheduled row — the old
+                copy promised a drag-and-drop that doesn't exist. */}
+            {unscheduled.length > 0
+              ? "Nothing scheduled — pick a task below to plan it here."
+              : "Nothing scheduled for this day."}
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -122,7 +126,7 @@ export default function CalendarPanel() {
                 </span>
                 <button
                   onClick={() => editTask(t.id, { scheduledDate: null })}
-                  className="text-xs text-petal/60 hover:text-rose"
+                  className="text-xs text-petal/60 hover:text-danger"
                 >
                   unschedule
                 </button>

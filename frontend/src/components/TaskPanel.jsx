@@ -109,7 +109,7 @@ export default function TaskPanel() {
         <button className="pill w-full bg-glow py-2 font-semibold text-plum hover:bg-amber">
           + Add task
         </button>
-        {error && <p className="text-xs text-rose">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
       </form>
 
       {/* Algorithm selector */}
@@ -164,6 +164,7 @@ export default function TaskPanel() {
             </button>
             <button
               onClick={() => setActiveTaskId(task.id)}
+              title="Focus on this task"
               className="min-w-0 flex-1 text-left"
             >
               <p className="truncate text-sm font-medium text-cream">{task.name}</p>
@@ -184,10 +185,10 @@ export default function TaskPanel() {
             )}
             <button
               onClick={() => requestDelete(task.id)}
-              className={`task-delete shrink-0 transition ${
+              className={`hover-reveal shrink-0 transition ${
                 confirmId === task.id
-                  ? "confirming text-[10px] font-bold text-rose"
-                  : "text-petal/40 hover:text-rose"
+                  ? "confirming text-[10px] font-bold text-danger"
+                  : "text-petal/40 hover:text-danger"
               }`}
             >
               {confirmId === task.id ? "sure?" : "🗑"}
@@ -220,8 +221,8 @@ export default function TaskPanel() {
                 onClick={() => requestDelete(task.id)}
                 className={`shrink-0 transition ${
                   confirmId === task.id
-                    ? "text-[10px] font-bold text-rose"
-                    : "text-petal/40 hover:text-rose"
+                    ? "text-[10px] font-bold text-danger"
+                    : "text-petal/40 hover:text-danger"
                 }`}
               >
                 {confirmId === task.id ? "sure?" : "🗑"}

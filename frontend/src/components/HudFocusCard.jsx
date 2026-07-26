@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useDragControls } from "framer-motion";
 import { useStore } from "../store";
 import { focusStreak, localTodayISO } from "../lib/stats";
@@ -38,6 +38,7 @@ export default function HudFocusCard() {
     setTimerMode,
     elapsed,
     finishStopwatch,
+    skipBreak,
     nudgeSeconds,
     nudgeTimer,
     focusMinutesLive,
@@ -46,6 +47,12 @@ export default function HudFocusCard() {
   } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
+
+  // ✕ discards the block (nothing is logged), so once there's real progress
+  // on the clock it arms first — same two-tap rhythm as task deletes.
+  const [confirmReset, setConfirmReset] = useState(false);
+  const confirmTimer = useRef(null);
+  useEffect(() => () => clearTimeout(confirmTimer.current), []);
 
   const today = localTodayISO();
   const streak = focusStreak(
@@ -64,6 +71,18 @@ export default function HudFocusCard() {
   const barColor = inBreak ? "#7faf8f" : stopwatch ? "#6fb8cf" : "#ffe9b0";
 
   const heading = inBreak ? "Break time ☕" : activeTask?.name;
+
+  const hasProgress = stopwatch ? elapsed > 0 : running || remaining < total;
+  const requestReset = () => {
+    clearTimeout(confirmTimer.current);
+    if (hasProgress && !confirmReset) {
+      setConfirmReset(true);
+      confirmTimer.current = setTimeout(() => setConfirmReset(false), 2500);
+      return;
+    }
+    setConfirmReset(false);
+    resetTimer();
+  };
 
   return (
     // z-30: when the ⚙ options are expanded on a short window the panel may
@@ -122,6 +141,15 @@ export default function HudFocusCard() {
             <p className="text-center text-[26px] font-bold leading-8 tabular-nums text-cream">
               {fmt(stopwatch ? elapsed : remaining)}
             </p>
+            {inBreak && (
+              <button
+                onClick={skipBreak}
+                title="Skip the break — straight into the next round"
+                className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
+              >
+                skip ▸
+              </button>
+            )}
             {!stopwatch && !inBreak && (
               <button
                 onClick={() => nudgeTimer(60)}
@@ -148,11 +176,15 @@ export default function HudFocusCard() {
           {/* transport row */}
           <div className="mt-2 flex items-center justify-center gap-1.5">
             <button
-              onClick={resetTimer}
-              title="Reset"
-              className="pill grid h-8 w-8 place-items-center text-sm text-petal/70 hover:bg-white/10 hover:text-cream"
+              onClick={requestReset}
+              title="Reset (discards this block — nothing is logged)"
+              className={`pill grid h-8 place-items-center transition ${
+                confirmReset
+                  ? "px-2 text-[10px] font-bold text-danger hover:bg-white/10"
+                  : "w-8 text-sm text-petal/70 hover:bg-white/10 hover:text-cream"
+              }`}
             >
-              ✕
+              {confirmReset ? "sure?" : "✕"}
             </button>
             {!running ? (
               <button

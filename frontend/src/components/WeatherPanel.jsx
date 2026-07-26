@@ -75,7 +75,7 @@ export default function WeatherPanel() {
           </p>
         )}
         {weatherStatus === "error" && (
-          <p className="text-xs text-rose">{weatherError}</p>
+          <p className="text-xs text-danger">{weatherError}</p>
         )}
 
         <form onSubmit={submitCity} className="flex gap-1.5">
@@ -144,8 +144,8 @@ export default function WeatherPanel() {
       <section className="space-y-2">
         <p className="text-sm font-semibold text-cream">💾 Presets</p>
         <p className="text-xs text-petal/60">
-          Save the current weather, time of day, and volume as a preset to
-          recall later.
+          Save the current weather, time of day, and sound mix as a scene to
+          recall in one click.
         </p>
 
         {weatherPresets.length > 0 && (

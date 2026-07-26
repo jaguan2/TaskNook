@@ -95,16 +95,19 @@ body {
   }
 }
 
-/* Task delete buttons: tucked away until the row is hovered, but only on
-   devices that can hover — on touch screens they stay visible, otherwise
-   they'd be unreachable. The confirming state always shows. */
+/* Hover-revealed row controls (deletes, drag handles, quick actions): tucked
+   away until the row is hovered, but only on devices that can hover — on
+   touch screens they stay visible, otherwise they'd be unreachable. Keyboard
+   focus and an armed "sure?" state always show. Use THIS class, never raw
+   `opacity-0 group-hover:opacity-100` (which strands touch and keyboard). */
 @media (hover: hover) {
-  .task-delete {
+  .hover-reveal {
     opacity: 0;
   }
-  .group:hover .task-delete,
-  .task-delete:focus-visible,
-  .task-delete.confirming {
+  .group:hover .hover-reveal,
+  .group\/header:hover .hover-reveal,
+  .hover-reveal:focus-visible,
+  .hover-reveal.confirming {
     opacity: 1;
   }
 }
