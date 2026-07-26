@@ -256,6 +256,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `{provider, id, kind?}` station, persisted to `localStorage`
   (`tasknook.music.custom` / `tasknook.music.station`). No API keys or fees involved
   on either side.
+- **Ambience conflicts**: manually picking a weather visual or time of day
+  while "Match my real weather" is on turns auto-match OFF (the user's pick
+  wins; auto-match's internal appliers bypass this). The iso room takes
+  `timeOfDay` too (`ISO_TIME`: window sky/orb + string-light brightness) —
+  don't let a new scene hardcode night again.
 - **Real-world weather**: `WeatherPanel.jsx` + `lib/weather.js` hit Open-Meteo
   (free, no API key) for current conditions — browser geolocation first, falling
   back to manual city search via Open-Meteo's geocoding endpoint. This is the one
@@ -274,7 +279,7 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   channels, not hex**, so Tailwind's opacity modifiers (`bg-rose/40`) keep
   working. Don't change that format. `--color-void` is used only by `<body>`'s
   gradient in `index.css`; `cream`/`glow`/`amber`/`sage` are fixed and never
-  re-tint. Presets are `[data-theme="forest|ocean|coffee"]` blocks in
+  re-tint. Presets are `[data-theme="abyss|shore|linen|walnut"]` blocks in
   `index.css`; `App.jsx` stamps `data-theme` on `<html>` (not its own root) so
   `<body>`'s gradient sees it. The `custom` scheme has **no CSS block** — 
   `lib/palette.js`'s `derivePalette(hex)` builds the ramp from the picked
