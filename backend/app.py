@@ -353,45 +353,74 @@ def register_routes(app):
     @app.get("/api/room")
     @require_auth
     def get_room(user):
+        empty = {"placements": None, "iso": None}
         if not user.room_config:
-            return jsonify({"placements": None})
+            return jsonify(empty)
         try:
             saved = json.loads(user.room_config)
         except ValueError:
-            return jsonify({"placements": None})
-        # Anything that isn't a list is unusable to the client (e.g. written by
-        # a future/older shape). Report "no layout" rather than handing the
-        # frontend something it would choke on.
-        if not isinstance(saved, list):
-            return jsonify({"placements": None})
-        return jsonify({"placements": saved})
+            return jsonify(empty)
+        # Legacy shape: a bare list of flat placements (saves from before the
+        # isometric room existed).
+        if isinstance(saved, list):
+            return jsonify({"placements": saved, "iso": None})
+        if isinstance(saved, dict):
+            return jsonify({
+                "placements": saved.get("placements"),
+                "iso": saved.get("iso"),
+            })
+        return jsonify(empty)
+
+    def _clean_layout(placements, xkey, ykey):
+        """Validate one placement list. Returns (cleaned, ok) — shared by the
+        flat layout (x/y) and the isometric layout (gx/gy)."""
+        if not isinstance(placements, list) or len(placements) > 80:
+            return None, False
+        clean = []
+        for p in placements:
+            if not isinstance(p, dict):
+                return None, False
+            pid, item = p.get("id"), p.get("item")
+            x, y = p.get(xkey), p.get(ykey)
+            if not (isinstance(pid, str) and 0 < len(pid) <= 32):
+                return None, False
+            if not (isinstance(item, str) and 0 < len(item) <= 32):
+                return None, False
+            if not _finite_number(x) or not _finite_number(y):
+                return None, False
+            entry = {"id": pid, "item": item, xkey: x, ykey: y}
+            tint = p.get("tint")
+            if tint is not None:
+                if not _hex_color(tint):
+                    return None, False
+                entry["tint"] = tint
+            clean.append(entry)
+        return clean, True
 
     @app.put("/api/room")
     @require_auth
     def save_room(user):
         data = request.get_json(silent=True) or {}
-        placements = data.get("placements")
-        if not isinstance(placements, list) or len(placements) > 80:
+        clean, ok = _clean_layout(data.get("placements"), "x", "y")
+        if not ok:
             return jsonify({"error": "Invalid room layout"}), 400
-        clean = []
-        for p in placements:
-            if not isinstance(p, dict):
+
+        stored = {"placements": clean, "iso": None}
+        iso = data.get("iso")
+        if iso is not None:
+            if not isinstance(iso, dict):
                 return jsonify({"error": "Invalid room layout"}), 400
-            pid, item, x, y = p.get("id"), p.get("item"), p.get("x"), p.get("y")
-            if not (isinstance(pid, str) and 0 < len(pid) <= 32):
+            w, depth = iso.get("w"), iso.get("d")
+            if not (isinstance(w, int) and not isinstance(w, bool) and 3 <= w <= 16):
                 return jsonify({"error": "Invalid room layout"}), 400
-            if not (isinstance(item, str) and 0 < len(item) <= 32):
+            if not (isinstance(depth, int) and not isinstance(depth, bool) and 3 <= depth <= 16):
                 return jsonify({"error": "Invalid room layout"}), 400
-            if not _finite_number(x) or not _finite_number(y):
+            iso_clean, iso_ok = _clean_layout(iso.get("placements"), "gx", "gy")
+            if not iso_ok:
                 return jsonify({"error": "Invalid room layout"}), 400
-            entry = {"id": pid, "item": item, "x": x, "y": y}
-            tint = p.get("tint")
-            if tint is not None:
-                if not _hex_color(tint):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                entry["tint"] = tint
-            clean.append(entry)
-        user.room_config = json.dumps(clean)
+            stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
+
+        user.room_config = json.dumps(stored)
         db.session.commit()
         return jsonify({"ok": True})
 

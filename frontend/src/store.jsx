@@ -17,6 +17,14 @@ import {
   presetPlacements,
   validatePlacements,
 } from "./lib/room";
+import {
+  ISO_MAX_ITEMS,
+  clampIsoSize,
+  clampIsoPlacement,
+  defaultIsoLayout,
+  newIsoPlacement,
+  validateIsoLayout,
+} from "./lib/isoRoom";
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -175,6 +183,20 @@ export function StoreProvider({ children }) {
     return presetPlacements("default");
   });
   const [roomEditMode, setRoomEditMode] = useState(false);
+  // The isometric room's own layout: { w, d, placements } — decorated when
+  // the iso view is active, persisted alongside the flat layout.
+  const [isoRoom, setIsoRoom] = useState(() => {
+    try {
+      const saved = validateIsoLayout(
+        JSON.parse(localStorage.getItem("tasknook.isoRoom") || "null")
+      );
+      if (saved) return saved;
+    } catch {
+      /* corrupted mirror — fall through */
+    }
+    return defaultIsoLayout();
+  });
+  const isoRef = useRef(isoRoom);
   // The user's own size preference for the scene, multiplied onto the
   // responsive base size. A display preference, so it stays device-local
   // (localStorage) rather than in the DB.
@@ -187,6 +209,68 @@ export function StoreProvider({ children }) {
     setRoomScaleState(clamped);
     localStorage.setItem("tasknook.roomScale", String(clamped));
   }, []);
+  // Experimental: swap the flat scene for the static isometric mock (the
+  // first look at the future Sims-style room). Decorating is disabled while
+  // previewing — the mock has no placement engine yet.
+  const [isoPreview, setIsoPreviewState] = useState(
+    () => localStorage.getItem("tasknook.isoPreview") === "1"
+  );
+  const setIsoPreview = useCallback((on) => {
+    setIsoPreviewState(!!on);
+    localStorage.setItem("tasknook.isoPreview", on ? "1" : "0");
+  }, []);
+
+  // ---------- Isometric room actions ----------
+  const moveIsoItem = useCallback((id, gx, gy) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+    }));
+  }, []);
+  const addIsoItem = useCallback((key) => {
+    setIsoRoom((prev) => {
+      if (prev.placements.length >= ISO_MAX_ITEMS) return prev;
+      const placement = newIsoPlacement(key, prev.placements, prev);
+      return placement ? { ...prev, placements: [...prev.placements, placement] } : prev;
+    });
+    setRoomEditMode(true);
+  }, []);
+  const removeIsoItem = useCallback((id) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.filter((p) => p.id !== id),
+    }));
+  }, []);
+  const setIsoItemTint = useCallback((id, tint) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.map((p) => {
+        if (p.id !== id) return p;
+        if (!tint) {
+          const { tint: _dropped, ...rest } = p;
+          return rest;
+        }
+        return { ...p, tint };
+      }),
+    }));
+  }, []);
+  // Resizing keeps every item's footprint on the (possibly smaller) floor.
+  const setIsoSize = useCallback((w, d) => {
+    setIsoRoom((prev) => {
+      const size = { w: clampIsoSize(w), d: clampIsoSize(d) };
+      return {
+        ...size,
+        placements: prev.placements.map((p) => ({
+          ...p,
+          ...clampIsoPlacement(p.item, p.gx, p.gy, size),
+        })),
+      };
+    });
+  }, []);
+  const clearIsoRoom = useCallback(
+    () => setIsoRoom((prev) => ({ w: prev.w, d: prev.d, placements: [] })),
+    []
+  );
   const roomRef = useRef(roomPlacements);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
@@ -194,21 +278,24 @@ export function StoreProvider({ children }) {
 
   useEffect(() => {
     roomRef.current = roomPlacements;
+    isoRef.current = isoRoom;
     if (roomSkipSave.current) {
       roomSkipSave.current = false;
       return undefined;
     }
     // Debounced persistence: dragging fires a state update per pointer move,
     // so both the mirror write and the API call wait for the dust to settle.
+    // Flat and iso layouts travel together in one PUT.
     clearTimeout(roomSaveTimer.current);
     roomSaveTimer.current = setTimeout(() => {
       localStorage.setItem("tasknook.room", JSON.stringify(roomPlacements));
+      localStorage.setItem("tasknook.isoRoom", JSON.stringify(isoRoom));
       api
-        .saveRoom(roomPlacements)
+        .saveRoom(roomPlacements, isoRoom)
         .catch((err) => console.error("Failed to save room layout:", err));
     }, 600);
     return () => clearTimeout(roomSaveTimer.current);
-  }, [roomPlacements]);
+  }, [roomPlacements, isoRoom]);
 
   // ---------- Bootstrap session ----------
   // TaskNook is a single-user local app (SQLite file on this machine), so
@@ -280,17 +367,26 @@ export function StoreProvider({ children }) {
       try {
         const data = await api.getRoom();
         const server = validatePlacements(data?.placements);
-        // `server` is null only when the account has never saved a layout —
-        // that's the one case where this device's layout should be adopted.
-        // An EMPTY array is a real, deliberate choice ("Empty room"), so it
-        // must win too; testing `.length` here would silently restore the
-        // default preset over a room the user had emptied on purpose.
-        if (server) {
+        const serverIso = validateIsoLayout(data?.iso);
+        // A null server copy means "never saved" — the one case where this
+        // device's layout should be adopted. An EMPTY layout is a real,
+        // deliberate choice and must win; testing `.length` would silently
+        // restore defaults over a room the user emptied on purpose.
+        if (server || serverIso) {
           roomSkipSave.current = true;
-          setRoomPlacements(server);
-          localStorage.setItem("tasknook.room", JSON.stringify(server));
-        } else {
-          await api.saveRoom(roomRef.current);
+          if (server) {
+            setRoomPlacements(server);
+            localStorage.setItem("tasknook.room", JSON.stringify(server));
+          }
+          if (serverIso) {
+            setIsoRoom(serverIso);
+            localStorage.setItem("tasknook.isoRoom", JSON.stringify(serverIso));
+          }
+        }
+        if (!server || !serverIso) {
+          // Push whatever half the server is missing (first run, or a save
+          // from before the iso room existed).
+          await api.saveRoom(server || roomRef.current, serverIso || isoRef.current);
         }
       } catch (err) {
         console.error("Failed to load room layout:", err);
@@ -713,6 +809,15 @@ export function StoreProvider({ children }) {
     setRoomItemTint,
     roomScale,
     setRoomScale,
+    isoPreview,
+    setIsoPreview,
+    isoRoom,
+    moveIsoItem,
+    addIsoItem,
+    removeIsoItem,
+    setIsoItemTint,
+    setIsoSize,
+    clearIsoRoom,
 
     // timer
     focusMinutes,

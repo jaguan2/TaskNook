@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import {
+  DEFAULT_ISO_SIZE,
+  ISO_ITEMS,
+  ISO_ITEM_KEYS,
+  ISO_MAX_ITEMS,
+  clampIsoPlacement,
+  clampIsoSize,
+  defaultIsoLayout,
+  newIsoPlacement,
+  snapHalf,
+  sortIso,
+  validateIsoLayout,
+} from "./isoRoom";
+import { ISO_SPRITES } from "../components/IsoItems";
+
+const SIZE = { w: 9, d: 7 };
+
+describe("iso catalog integrity", () => {
+  it("every item has a sprite, a footprint and a hit height", () => {
+    for (const key of ISO_ITEM_KEYS) {
+      const item = ISO_ITEMS[key];
+      expect(ISO_SPRITES[key], `sprite for ${key}`).toBeTypeOf("function");
+      expect(item.foot[0]).toBeGreaterThan(0);
+      expect(item.foot[1]).toBeGreaterThan(0);
+      expect(item.hitH).toBeGreaterThan(0);
+      expect(item.label).toBeTruthy();
+    }
+  });
+
+  it("every sprite belongs to a catalog entry", () => {
+    for (const key of Object.keys(ISO_SPRITES)) {
+      expect(ISO_ITEMS[key], `catalog entry for ${key}`).toBeTruthy();
+    }
+  });
+});
+
+describe("grid maths", () => {
+  it("snaps to half tiles", () => {
+    expect(snapHalf(3.2)).toBe(3);
+    expect(snapHalf(3.3)).toBe(3.5);
+    expect(snapHalf(3.76)).toBe(4);
+  });
+
+  it("keeps a footprint fully on the floor", () => {
+    // rug is 3.5×2.5 — in a 9×7 room its origin caps at (5.5, 4.5)
+    expect(clampIsoPlacement("rug", 99, 99, SIZE)).toEqual({ gx: 5.5, gy: 4.5 });
+    expect(clampIsoPlacement("rug", -5, -5, SIZE)).toEqual({ gx: 0, gy: 0 });
+  });
+
+  it("clamps sizes into the allowed range as integers", () => {
+    expect(clampIsoSize(1)).toBe(3);
+    expect(clampIsoSize(99)).toBe(14);
+    expect(clampIsoSize(8.6)).toBe(9);
+    expect(clampIsoSize("junk")).toBe(DEFAULT_ISO_SIZE.w);
+  });
+});
+
+describe("render ordering", () => {
+  it("flat rugs paint first regardless of depth", () => {
+    const out = sortIso([
+      { id: "a", item: "cat", gx: 0, gy: 0 },
+      { id: "b", item: "rug", gx: 5, gy: 4 },
+    ]);
+    expect(out.map((p) => p.item)).toEqual(["rug", "cat"]);
+  });
+
+  it("nearer items (bigger front-corner depth) paint later", () => {
+    const out = sortIso([
+      { id: "a", item: "stool", gx: 6, gy: 5 },
+      { id: "b", item: "stool", gx: 1, gy: 1 },
+    ]);
+    expect(out.map((p) => p.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("newIsoPlacement", () => {
+  it("spawns on the grid with a unique id", () => {
+    const a = newIsoPlacement("stool", [], SIZE);
+    const b = newIsoPlacement("stool", [a], SIZE);
+    expect(a.id).not.toBe(b.id);
+    expect(`${a.gx},${a.gy}`).not.toBe(`${b.gx},${b.gy}`);
+    expect(a.gx).toBeGreaterThanOrEqual(0);
+    expect(a.gx).toBeLessThanOrEqual(SIZE.w - ISO_ITEMS.stool.foot[0]);
+  });
+
+  it("returns null for unknown items", () => {
+    expect(newIsoPlacement("hot-tub", [], SIZE)).toBeNull();
+  });
+});
+
+describe("validateIsoLayout", () => {
+  it("returns null for non-layouts", () => {
+    expect(validateIsoLayout(null)).toBeNull();
+    expect(validateIsoLayout("nope")).toBeNull();
+  });
+
+  it("clamps size and re-homes out-of-room furniture", () => {
+    const out = validateIsoLayout({
+      w: 99,
+      d: 1,
+      placements: [{ id: "a", item: "stool", gx: 50, gy: 50 }],
+    });
+    expect(out.w).toBe(14);
+    expect(out.d).toBe(3);
+    expect(out.placements[0].gx).toBeLessThanOrEqual(14 - ISO_ITEMS.stool.foot[0]);
+    expect(out.placements[0].gy).toBeLessThanOrEqual(3 - ISO_ITEMS.stool.foot[1]);
+  });
+
+  it("drops unknown items and bad coordinates, keeps valid tints", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "a", item: "stool", gx: 2, gy: 2, tint: "#6fb8cf" },
+        { id: "b", item: "jacuzzi", gx: 1, gy: 1 },
+        { id: "c", item: "cat", gx: NaN, gy: 2 },
+        { id: "d", item: "cat", gx: 3, gy: 3, tint: "purple" },
+      ],
+    });
+    expect(out.placements.map((p) => p.id)).toEqual(["a", "d"]);
+    expect(out.placements[0].tint).toBe("#6fb8cf");
+    expect(out.placements[1].tint).toBeUndefined();
+  });
+
+  it("caps runaway layouts", () => {
+    const many = Array.from({ length: ISO_MAX_ITEMS + 10 }, (_, i) => ({
+      id: `p${i}`,
+      item: "stool",
+      gx: 1,
+      gy: 1,
+    }));
+    expect(validateIsoLayout({ w: 9, d: 7, placements: many }).placements).toHaveLength(
+      ISO_MAX_ITEMS
+    );
+  });
+});
+
+describe("default layout", () => {
+  it("is valid by its own rules and fits the default floor", () => {
+    const layout = defaultIsoLayout();
+    const revalidated = validateIsoLayout(layout);
+    expect(revalidated.placements).toHaveLength(layout.placements.length);
+    for (const p of layout.placements) {
+      const clamped = clampIsoPlacement(p.item, p.gx, p.gy, layout);
+      expect({ gx: p.gx, gy: p.gy }).toEqual(clamped);
+    }
+  });
+});

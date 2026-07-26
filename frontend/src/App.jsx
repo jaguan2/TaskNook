@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "./store";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
+import IsoRoom from "./components/IsoRoom";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
@@ -44,6 +45,11 @@ export default function App() {
     removeRoomItem,
     setRoomItemTint,
     roomScale,
+    isoPreview,
+    isoRoom,
+    moveIsoItem,
+    removeIsoItem,
+    setIsoItemTint,
   } = useStore();
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
   // item is clicked instead of being replaced by it.
@@ -131,16 +137,28 @@ export default function App() {
           opacity: { duration: reduceMotion ? 0.6 : 0.9, ease: "easeOut" },
         }}
       >
-        <Cottage
-          weather={weatherMode}
-          timeOfDay={timeOfDay}
-          room={roomPlacements}
-          editMode={roomEditMode}
-          scale={roomScale}
-          onMoveItem={moveRoomItem}
-          onRemoveItem={removeRoomItem}
-          onTintItem={setRoomItemTint}
-        />
+        {isoPreview ? (
+          <IsoRoom
+            size={isoRoom}
+            placements={isoRoom.placements}
+            editMode={roomEditMode}
+            scale={roomScale}
+            onMoveItem={moveIsoItem}
+            onRemoveItem={removeIsoItem}
+            onTintItem={setIsoItemTint}
+          />
+        ) : (
+          <Cottage
+            weather={weatherMode}
+            timeOfDay={timeOfDay}
+            room={roomPlacements}
+            editMode={roomEditMode}
+            scale={roomScale}
+            onMoveItem={moveRoomItem}
+            onRemoveItem={removeRoomItem}
+            onTintItem={setRoomItemTint}
+          />
+        )}
       </motion.div>
 
       {/* Decorating chip: visible whenever edit mode is on, so there's always
