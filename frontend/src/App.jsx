@@ -9,6 +9,7 @@ import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
 import HudFocusCard from "./components/HudFocusCard";
 import HudTasks from "./components/HudTasks";
+import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
 import TaskPanel from "./components/TaskPanel";
 import CalendarPanel from "./components/CalendarPanel";
@@ -49,6 +50,7 @@ export default function App() {
     isoRoom,
     moveIsoItem,
     removeIsoItem,
+    rotateIsoItem,
     setIsoItemTint,
   } = useStore();
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
@@ -145,6 +147,7 @@ export default function App() {
             scale={roomScale}
             onMoveItem={moveIsoItem}
             onRemoveItem={removeIsoItem}
+            onRotateItem={rotateIsoItem}
             onTintItem={setIsoItemTint}
           />
         ) : (
@@ -216,6 +219,11 @@ export default function App() {
       >
         <HudFocusCard />
         <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
+        {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
+            music keeps playing when the panel closes; hidden (not unmounted)
+            while decorating so playback survives that too and the tint picker
+            gets the bottom-centre spot. */}
+        <MusicDock />
 
         {/* rkive. — the maker's signature, same wordmark as the portfolio */}
         <div

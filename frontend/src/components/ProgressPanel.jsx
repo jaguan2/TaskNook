@@ -1,4 +1,29 @@
 import { useStore } from "../store";
+import { focusStreak, localTodayISO } from "../lib/stats";
+
+// VC2-style daily goal ring: today's focus minutes against a user-set target.
+function GoalRing({ minutes, goal }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const frac = Math.min(1, goal > 0 ? minutes / goal : 0);
+  return (
+    <svg viewBox="0 0 84 84" className="h-24 w-24 -rotate-90">
+      <circle cx="42" cy="42" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+      <circle
+        cx="42"
+        cy="42"
+        r={r}
+        fill="none"
+        stroke={frac >= 1 ? "#7faf8f" : "#ffe9b0"}
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - frac)}
+        style={{ transition: "stroke-dashoffset 0.7s ease" }}
+      />
+    </svg>
+  );
+}
 
 function Stat({ label, value, sub }) {
   return (
@@ -11,7 +36,7 @@ function Stat({ label, value, sub }) {
 }
 
 export default function ProgressPanel() {
-  const { stats, tasks } = useStore();
+  const { stats, tasks, sessionDays, dailyGoal, setDailyGoal } = useStore();
   const completion = stats.completion || 0;
   const hours = Math.floor(stats.focusMinutesToday / 60);
   const mins = stats.focusMinutesToday % 60;
@@ -20,8 +45,51 @@ export default function ProgressPanel() {
     .filter((t) => !t.completed)
     .reduce((sum, t) => sum + t.duration, 0);
 
+  const streak = focusStreak(
+    { ...sessionDays, [localTodayISO()]: stats.focusMinutesToday },
+    dailyGoal,
+    localTodayISO()
+  );
+  const goalMet = stats.focusMinutesToday >= dailyGoal;
+
   return (
     <div className="space-y-5">
+      {/* Daily goal ring + streak */}
+      <div className="flex items-center gap-4 rounded-2xl bg-white/5 p-3">
+        <div className="relative grid place-items-center">
+          <GoalRing minutes={stats.focusMinutesToday} goal={dailyGoal} />
+          <span className="absolute text-lg">{goalMet ? "🌟" : "🎯"}</span>
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-semibold text-cream">
+            Daily goal{" "}
+            <span className={goalMet ? "text-sage" : "text-glow"}>
+              {stats.focusMinutesToday} / {dailyGoal} min
+            </span>
+          </p>
+          <p className="text-xs text-petal/60">
+            🔥 <span className="font-semibold text-cream">{streak}</span> day
+            {streak === 1 ? "" : "s"} streak
+            {goalMet ? " — today's in the bag." : streak > 0 ? " — keep it alive!" : ""}
+          </p>
+          <div className="flex items-center gap-1.5 pt-0.5">
+            {[60, 120, 180, 240].map((m) => (
+              <button
+                key={m}
+                onClick={() => setDailyGoal(m)}
+                className={`pill px-2 py-0.5 text-[11px] font-semibold transition ${
+                  dailyGoal === m
+                    ? "bg-petal text-plum"
+                    : "bg-white/10 text-petal hover:bg-white/20"
+                }`}
+              >
+                {m >= 60 ? `${m / 60}h` : `${m}m`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Completion bar */}
       <div>
         <div className="mb-2 flex items-center justify-between">

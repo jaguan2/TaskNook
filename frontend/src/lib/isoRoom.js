@@ -12,18 +12,38 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 
 // foot: [tiles along +gx, tiles along +gy] — used for clamping AND depth.
 // hitH: rough sprite height in px, for the edit-mode grab target.
+// rot 0|1 on a placement mirrors the sprite (screen-mirror = grid-transpose,
+// so the footprint swaps to [foot[1], foot[0]] and the item faces the other
+// wall). wall: true items hang ON a wall instead of standing on the floor —
+// rot picks the wall (0 = right wall along +gx, 1 = left wall along +gy) and
+// clamping glues them to it.
 export const ISO_ITEMS = {
   rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
+  squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.5, 1.05], hitH: 84, tintable: false },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28 },
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 62 },
+  coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30 },
+  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 58 },
+  cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
+  aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46 },
-  floorlamp: { label: "Floor lamp", icon: "🛋️", hitH: 116, foot: [0.8, 0.8] },
+  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 116, foot: [0.8, 0.8] },
   cat: { label: "Sleeping cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34 },
+  frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
+  wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
+  mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },
 };
 
 export const ISO_ITEM_KEYS = Object.keys(ISO_ITEMS);
+
+/** The placement's effective footprint: rot transposes it. */
+export const footOf = (itemKey, rot = 0) => {
+  const f = ISO_ITEMS[itemKey]?.foot || [1, 1];
+  return rot ? [f[1], f[0]] : f;
+};
 
 /** Half-tile snapping: fine enough to feel free, aligned enough to feel tidy. */
 export const snapHalf = (v) => Math.round(v * 2) / 2;
@@ -31,25 +51,38 @@ export const snapHalf = (v) => Math.round(v * 2) / 2;
 export const clampIsoSize = (v) =>
   Math.max(ISO_SIZE_MIN, Math.min(ISO_SIZE_MAX, Math.round(Number(v) || DEFAULT_ISO_SIZE.w)));
 
-/** Keep the whole FOOTPRINT on the floor — nothing can hang off the edge. */
-export function clampIsoPlacement(itemKey, gx, gy, size) {
+/** Keep the whole FOOTPRINT on the floor — nothing can hang off the edge.
+ *  Wall items are additionally glued to their wall: rot 0 → the right wall
+ *  (gy pinned to 0, sliding along gx), rot 1 → the left wall (gx pinned). */
+export function clampIsoPlacement(itemKey, gx, gy, size, rot = 0) {
   const item = ISO_ITEMS[itemKey];
   if (!item) return { gx, gy };
+  const f = footOf(itemKey, rot);
+  if (item.wall) {
+    return rot
+      ? { gx: 0, gy: Math.max(0, Math.min(size.d - f[1], gy)) }
+      : { gx: Math.max(0, Math.min(size.w - f[0], gx)), gy: 0 };
+  }
   return {
-    gx: Math.max(0, Math.min(size.w - item.foot[0], gx)),
-    gy: Math.max(0, Math.min(size.d - item.foot[1], gy)),
+    gx: Math.max(0, Math.min(size.w - f[0], gx)),
+    gy: Math.max(0, Math.min(size.d - f[1], gy)),
   };
 }
 
-/** Painter's order: flat rugs first, then by the front corner's depth. */
+/** Painter's order: wall decor first (it hangs behind everything), then flat
+ *  rugs, then by the front corner's depth. */
 export function sortIso(placements) {
   const depth = (p) => {
-    const f = ISO_ITEMS[p.item].foot;
+    const f = footOf(p.item, p.rot);
     return p.gx + f[0] + p.gy + f[1];
+  };
+  const layer = (p) => {
+    const item = ISO_ITEMS[p.item];
+    return item.wall ? -2 : item.layer || 0;
   };
   return [...placements].sort(
     (a, b) =>
-      (ISO_ITEMS[a.item].layer || 0) - (ISO_ITEMS[b.item].layer || 0) ||
+      layer(a) - layer(b) ||
       depth(a) - depth(b) ||
       String(a.id).localeCompare(String(b.id))
   );
@@ -64,14 +97,16 @@ function makeId() {
 export function newIsoPlacement(itemKey, existing = [], size = DEFAULT_ISO_SIZE) {
   const item = ISO_ITEMS[itemKey];
   if (!item) return null;
-  // Spawn near the room centre, fanning repeated adds so copies don't stack.
   const n = existing.length;
-  const { gx, gy } = clampIsoPlacement(
-    itemKey,
-    snapHalf(size.w / 2 - item.foot[0] / 2 + ((n % 4) - 1.5)),
-    snapHalf(size.d / 2 - item.foot[1] / 2 + ((Math.floor(n / 4) % 3) - 1)),
-    size
-  );
+  // Wall items spawn on the right wall, fanned along it; floor items spawn
+  // near the room centre, fanning repeated adds so copies don't stack.
+  const want = item.wall
+    ? { gx: size.w / 2 - item.foot[0] / 2 + ((n % 4) - 1.5), gy: 0 }
+    : {
+        gx: size.w / 2 - item.foot[0] / 2 + ((n % 4) - 1.5),
+        gy: size.d / 2 - item.foot[1] / 2 + ((Math.floor(n / 4) % 3) - 1),
+      };
+  const { gx, gy } = clampIsoPlacement(itemKey, snapHalf(want.gx), snapHalf(want.gy), size);
   return { id: makeId(), item: itemKey, gx: snapHalf(gx), gy: snapHalf(gy) };
 }
 
@@ -92,26 +127,85 @@ export function validateIsoLayout(raw) {
     while (seen.has(id)) id = makeId();
     seen.add(id);
     const tint = typeof p.tint === "string" && TINT_RE.test(p.tint) ? p.tint : undefined;
-    const { gx, gy } = clampIsoPlacement(p.item, snapHalf(p.gx), snapHalf(p.gy), size);
-    clean.push({ id, item: p.item, gx, gy, ...(tint && { tint }) });
+    const rot = p.rot === 1 || p.rot === true ? 1 : 0;
+    const { gx, gy } = clampIsoPlacement(p.item, snapHalf(p.gx), snapHalf(p.gy), size, rot);
+    clean.push({ id, item: p.item, gx, gy, ...(rot && { rot }), ...(tint && { tint }) });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }
   return { w, d, placements: clean };
 }
 
+/** Ready-made rooms — a happy default plus a couple of moods. Each preset
+ *  owns its floor size too. Coordinates must be half-snapped AND in-bounds as
+ *  written (the preset test asserts clamp-stability). */
+export const ISO_PRESETS = {
+  classic: {
+    label: "Cozy study",
+    icon: "⭐",
+    size: { w: 9, d: 7 },
+    items: [
+      { item: "rug", gx: 3, gy: 2.5 },
+      { item: "bookshelf", gx: 2, gy: 0 },
+      { item: "desk", gx: 5.5, gy: 0 },
+      { item: "stool", gx: 6, gy: 1.5 },
+      { item: "monstera", gx: 0.5, gy: 5 },
+      { item: "cat", gx: 4, gy: 3 },
+      { item: "floorlamp", gx: 7.5, gy: 3 },
+      { item: "frame", gx: 0.5, gy: 0 },
+    ],
+  },
+  loft: {
+    label: "Sleepy loft",
+    icon: "🌙",
+    size: { w: 8, d: 8 },
+    items: [
+      { item: "bed", gx: 5.5, gy: 0.5 },
+      { item: "squarerug", gx: 2, gy: 3 },
+      { item: "cushion", gx: 2.5, gy: 5.5 },
+      { item: "monstera", gx: 0.5, gy: 6 },
+      { item: "mirror", gx: 0, gy: 2, rot: 1 },
+      { item: "frame", gx: 1, gy: 0 },
+      { item: "floorlamp", gx: 6.5, gy: 4 },
+      { item: "cat", gx: 3.5, gy: 4.5 },
+      { item: "plant", gx: 7, gy: 6 },
+    ],
+  },
+  lounge: {
+    label: "Reading lounge",
+    icon: "📚",
+    size: { w: 10, d: 7 },
+    items: [
+      { item: "rug", gx: 2.5, gy: 2.5 },
+      { item: "sofa", gx: 3, gy: 3.5 },
+      { item: "coffeetable", gx: 3.5, gy: 5 },
+      { item: "bookshelf", gx: 1, gy: 0 },
+      { item: "wallshelf", gx: 4.5, gy: 0 },
+      { item: "aquarium", gx: 7.5, gy: 0.5 },
+      { item: "floorlamp", gx: 8.5, gy: 3.5 },
+      { item: "plant", gx: 0.5, gy: 5.5 },
+      { item: "cat", gx: 6, gy: 4.5 },
+    ],
+  },
+  empty: {
+    label: "Empty room",
+    icon: "🫙",
+    size: DEFAULT_ISO_SIZE,
+    items: [],
+  },
+};
+
+export const ISO_PRESET_KEYS = Object.keys(ISO_PRESETS);
+
+export function isoPresetLayout(key) {
+  const preset = ISO_PRESETS[key] || ISO_PRESETS.classic;
+  return {
+    w: preset.size.w,
+    d: preset.size.d,
+    placements: preset.items.map((p) => ({ ...p, id: makeId() })),
+  };
+}
+
 /** The starter arrangement (the original mock scene). */
 export function defaultIsoLayout() {
-  const items = [
-    { item: "rug", gx: 3, gy: 2.5 },
-    { item: "bookshelf", gx: 2, gy: 0 },
-    { item: "desk", gx: 5.5, gy: 0 },
-    { item: "stool", gx: 6, gy: 1.5 },
-    { item: "monstera", gx: 0.5, gy: 5 },
-    { item: "cat", gx: 4, gy: 3 },
-    { item: "floorlamp", gx: 7.5, gy: 3 },
-  ];
-  return {
-    ...DEFAULT_ISO_SIZE,
-    placements: items.map((p) => ({ ...p, id: makeId() })),
-  };
+  return isoPresetLayout("classic");
 }

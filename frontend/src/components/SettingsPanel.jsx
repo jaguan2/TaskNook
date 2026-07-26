@@ -40,8 +40,6 @@ const COLOR_SCHEMES = [
 
 export default function SettingsPanel() {
   const {
-    weatherVolume,
-    changeWeatherVolume,
     brightness,
     setBrightness,
     colorScheme,
@@ -65,28 +63,6 @@ export default function SettingsPanel() {
 
   return (
     <div className="space-y-5">
-      <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">🔊 Volume</p>
-        <p className="text-xs text-petal/60">
-          Controls the weather ambience (rain, snow, storm). Music volume is
-          controlled inside its own player.
-        </p>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-petal/60">vol</span>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={weatherVolume}
-            onChange={(e) => changeWeatherVolume(Number(e.target.value))}
-            className="flex-1 accent-glow"
-          />
-        </div>
-      </section>
-
-      <hr className="border-white/10" />
-
       <section className="space-y-2">
         <p className="text-sm font-semibold text-cream">☀️ Brightness</p>
         <p className="text-xs text-petal/60">Dims or brightens the whole scene.</p>

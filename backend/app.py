@@ -223,6 +223,22 @@ def register_routes(app):
             .order_by(Task.position.asc(), Task.created_at.asc())
             .all()
         )
+        # Routines reset lazily on read: a routine completed on a previous
+        # LOCAL day comes back as not-done. Same local-day convention as the
+        # "today" stats bucketing.
+        today = date.today()
+        changed = False
+        for t in tasks:
+            if t.is_routine and t.completed and t.completed_at:
+                done_at = t.completed_at
+                if done_at.tzinfo is None:
+                    done_at = done_at.replace(tzinfo=timezone.utc)
+                if done_at.astimezone().date() < today:
+                    t.completed = False
+                    t.completed_at = None
+                    changed = True
+        if changed:
+            db.session.commit()
         return jsonify([t.to_dict() for t in tasks])
 
     @app.post("/api/tasks")
@@ -245,6 +261,7 @@ def register_routes(app):
             .filter_by(user_id=user.id)
             .scalar()
         )
+        group = str(data.get("group") or "").strip()[:60] or None
         task = Task(
             user_id=user.id,
             name=name,
@@ -252,6 +269,8 @@ def register_routes(app):
             priority=priority,
             position=(max_pos or 0) + 1,
             scheduled_date=data.get("scheduledDate"),
+            group_name=group,
+            is_routine=bool(data.get("routine")),
         )
         db.session.add(task)
         db.session.commit()
@@ -281,6 +300,10 @@ def register_routes(app):
                 pass
         if "scheduledDate" in data:
             task.scheduled_date = data["scheduledDate"] or None
+        if "group" in data:
+            task.group_name = (str(data["group"] or "")).strip()[:60] or None
+        if "routine" in data:
+            task.is_routine = bool(data["routine"])
         if "completed" in data:
             task.completed = bool(data["completed"])
             task.completed_at = utcnow() if task.completed else None
@@ -394,6 +417,12 @@ def register_routes(app):
                 if not _hex_color(tint):
                     return None, False
                 entry["tint"] = tint
+            rot = p.get("rot")
+            if rot is not None:
+                if not (isinstance(rot, int) and not isinstance(rot, bool) and rot in (0, 1)):
+                    return None, False
+                if rot:
+                    entry["rot"] = 1
             clean.append(entry)
         return clean, True
 

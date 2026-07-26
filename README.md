@@ -126,17 +126,18 @@ read-only bundle, so replacing the exe never touches your data.
 | | Feature | What it does |
 |---|---|---|
 | 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
-| ✅ | **Tasks** | Add tasks with a duration & priority, check them off, and drag to reorder. |
+| ✅ | **Tasks, groups & routines** | Add tasks with a duration & priority, check them off, and drag to reorder — organised under named groups right in the on-screen to-do list. Mark a task ↻ as a daily routine and it un-checks itself each morning. |
 | 🧠 | **Ordering algorithms** | Auto-arrange your list five different ways *(see below)*. |
-| ⏱️ | **Focus timer, Pomodoro & stopwatch** | Always on screen as a cozy HUD: a compact transport-style timer card top-left (durations, Pomodoro plan and mode tucked behind ⚙), to-do list top-right, and a collapsible side menu so the scene can breathe. Focus blocks (15 / 25 / 45 / 60 min); flip on 🍅 **Pomodoro mode** for automatic focus → break rounds, or switch to **stopwatch** to count up open-ended — finished time is logged either way. Quick-add tasks right from the HUD. |
+| ⏱️ | **Focus timer, Pomodoro & stopwatch** | Always on screen as a cozy HUD: a compact transport-style timer card top-left (durations, Pomodoro plan and mode tucked behind ⚙, −1:00/+1:00 nudges mid-session), to-do list top-right, and a collapsible side menu so the scene can breathe. Focus blocks (15 / 25 / 45 / 60 min); flip on 🍅 **Pomodoro mode** for automatic focus → break rounds, or switch to **stopwatch** to count up open-ended — finished time is logged either way. Quick-add tasks right from the HUD. |
+| 🎯 | **Daily goal & streak** | Set a daily focus target (1–4h) and watch the goal ring fill; every goal-met day extends your 🔥 streak. The essentials sit right under the timer. |
 | 🗓️ | **Calendar** | Schedule tasks onto specific days and see what's planned. |
 | 📈 | **Progress** | A live completion bar, focus-hours, and a "productivity garden" that grows a plant for every 15 focused minutes. |
-| 🎵 | **Music** | Built-in lofi YouTube stations, or paste any YouTube or Spotify link (playlist/album/track/show/episode) to play your own. |
-| 🌦️ | **Weather ambience** | Rain, snow, or a full storm (with thunder) — procedurally generated with the Web Audio API, works fully offline. The desk window shows matching weather. |
+| 🎵 | **Music** | Built-in lofi YouTube stations, or paste any YouTube or Spotify link (playlist/album/track/show/episode) to play your own — controlled from a little transport bar at the bottom of the screen (play/pause, prev/next, volume) that keeps playing whatever panels you close. |
+| 🌦️ | **Ambient sound mixer** | Rain, storm, snow, wind, a crackling fireplace, birdsong — procedurally generated with the Web Audio API (fully offline) and mixable: layer as many as you like, each with its own volume. Weather picks also set the falling weather on screen and in the desk window. |
 | 🕰️ | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. |
 | 🌍 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
 | 🛋️ | **Decorate your room** | Freeform decoration: drag 20+ items — plants, rugs, lamps, posters, a sleeping cat — literally anywhere, recolour each one (swatches, hex code, or full hue/saturation/lightness sliders), and resize the whole room to taste. Start from a preset (Classic, Greenhouse, Library, Night owl) and make it yours. Everything is free; your layout is saved in the database. |
-| 🧊 | **Isometric room (beta)** | Flip the scene into a Sims-style 3D room: drag furniture across a tile grid with half-tile snapping, recolour it, and resize the floor itself from 3×3 up to 14×14. It keeps its own layout alongside the classic scene — switch between them any time. |
+| 🧊 | **Isometric room (beta)** | Flip the scene into a Sims-style 3D room: drag furniture (sofas, beds, aquariums, 17 pieces and counting) across a tile grid with half-tile snapping, ⟳ rotate it to face the other way, hang frames/shelves/mirrors on the walls, recolour anything, and resize the floor itself from 3×3 up to 14×14. Start from a preset (Cozy study, Sleepy loft, Reading lounge, or an empty floor) and make it yours. It keeps its own layout alongside the classic scene — switch between them any time. |
 | 🫶 | **Friends** | See everyone's daily progress to stay motivated — TaskNook auto-friends your local account with a few demo cottage-dwellers so it's never empty. |
 
 **Ordering algorithms:**
@@ -146,6 +147,11 @@ read-only bundle, so replacing the exe never touches your data.
 - ⛰️ **Deep work first** — longest first
 - 🌊 **Ebb & flow** — alternating short/long to pace yourself
 - 🔥 **Priority** — high-priority tasks rise to the top
+
+**Roadmap** (not built yet, in no particular order):
+
+- 🐾 **Pets that live** — the cat wakes up, wanders the room, naps somewhere new.
+- 🧑‍🤝‍🧑 **Multiplayer study rooms** — focus alongside friends in a shared cottage. Big one: TaskNook is currently a fully local single-user app, so this needs a real server story first.
 
 ---
 

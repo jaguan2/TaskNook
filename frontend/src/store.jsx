@@ -8,7 +8,7 @@ import {
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
 import { applyAlgorithm, shuffledIds } from "./lib/algorithms";
-import { startWeather, stopWeather, setWeatherVolume } from "./lib/audio";
+import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
 import {
@@ -22,6 +22,7 @@ import {
   clampIsoSize,
   clampIsoPlacement,
   defaultIsoLayout,
+  isoPresetLayout,
   newIsoPlacement,
   validateIsoLayout,
 } from "./lib/isoRoom";
@@ -104,12 +105,58 @@ export function StoreProvider({ children }) {
     // countdown that's actively running).
     setPhase("focus");
     setRound(1);
-    if (!running) setRemaining(focusMinutes * 60);
+    if (!running) {
+      setRemaining(focusMinutes * 60);
+      setNudgeSeconds(0);
+    }
   };
 
   // ---- Ambient ----
   const [weatherMode, setWeatherModeState] = useState("off");
   const [weatherVolume, setWeatherVol] = useState(0.5);
+  // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, birds).
+  // Slider positions persist; actual audio only starts from a user gesture.
+  const [soundMix, setSoundMixState] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("tasknook.soundMix") || "{}");
+      return saved && typeof saved === "object" ? saved : {};
+    } catch {
+      return {};
+    }
+  });
+  const soundMixRef = useRef(soundMix);
+  soundMixRef.current = soundMix;
+  // Web Audio can't start until the user interacts with the page, so a saved
+  // mix resumes on the first click/tap rather than on load.
+  useEffect(() => {
+    if (!Object.values(soundMixRef.current).some((v) => v > 0)) return undefined;
+    const resume = () => applyMix(soundMixRef.current);
+    window.addEventListener("pointerdown", resume, { once: true });
+    return () => window.removeEventListener("pointerdown", resume);
+  }, []);
+  // Set several channels at once. Side effects (audio, mirror write) stay
+  // OUTSIDE the setState updater — updaters must be pure, and StrictMode's
+  // double-invoke would otherwise fire them twice. The ref carries the
+  // freshest mix so back-to-back calls in one tick compose correctly.
+  const applySoundPatch = useCallback((patch) => {
+    const next = { ...soundMixRef.current };
+    for (const [name, v] of Object.entries(patch)) {
+      next[name] = Math.max(0, Math.min(1, Number(v) || 0));
+    }
+    soundMixRef.current = next;
+    setSoundMixState(next);
+    localStorage.setItem("tasknook.soundMix", JSON.stringify(next));
+    for (const name of Object.keys(patch)) setChannel(name, next[name]);
+  }, []);
+  const setSoundLevel = useCallback(
+    (name, v) => applySoundPatch({ [name]: v }),
+    [applySoundPatch]
+  );
+  const stopAllSounds = useCallback(() => {
+    const silence = {};
+    for (const { key } of SOUND_CHANNELS) silence[key] = 0;
+    applySoundPatch(silence);
+  }, [applySoundPatch]);
   const [timeOfDay, setTimeOfDayState] = useState(
     () => localStorage.getItem("tasknook.timeOfDay") || "night"
   );
@@ -142,6 +189,18 @@ export function StoreProvider({ children }) {
       return [];
     }
   });
+
+  // ---- Daily goal ----
+  // Target focus minutes per day; drives the goal ring + streak in Progress.
+  const [dailyGoal, setDailyGoalState] = useState(() => {
+    const saved = Number(localStorage.getItem("tasknook.dailyGoal"));
+    return saved >= 15 && saved <= 960 ? saved : 120;
+  });
+  const setDailyGoal = (minutes) => {
+    const clamped = Math.min(960, Math.max(15, Math.round(Number(minutes) || 120)));
+    setDailyGoalState(clamped);
+    localStorage.setItem("tasknook.dailyGoal", String(clamped));
+  };
 
   // ---- Settings ----
   const [brightness, setBrightnessState] = useState(
@@ -241,6 +300,23 @@ export function StoreProvider({ children }) {
       placements: prev.placements.filter((p) => p.id !== id),
     }));
   }, []);
+  // Mirror-rotation: the footprint transposes, so re-clamp in the new
+  // orientation (and wall items hop to the other wall).
+  const rotateIsoItem = useCallback((id) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.map((p) => {
+        if (p.id !== id) return p;
+        const rot = p.rot ? 0 : 1;
+        const { rot: _dropped, ...rest } = p;
+        return {
+          ...rest,
+          ...(rot && { rot }),
+          ...clampIsoPlacement(p.item, p.gx, p.gy, prev, rot),
+        };
+      }),
+    }));
+  }, []);
   const setIsoItemTint = useCallback((id, tint) => {
     setIsoRoom((prev) => ({
       ...prev,
@@ -262,7 +338,7 @@ export function StoreProvider({ children }) {
         ...size,
         placements: prev.placements.map((p) => ({
           ...p,
-          ...clampIsoPlacement(p.item, p.gx, p.gy, size),
+          ...clampIsoPlacement(p.item, p.gx, p.gy, size, p.rot || 0),
         })),
       };
     });
@@ -271,6 +347,8 @@ export function StoreProvider({ children }) {
     () => setIsoRoom((prev) => ({ w: prev.w, d: prev.d, placements: [] })),
     []
   );
+  // Presets replace the whole iso layout, floor size included.
+  const applyIsoPreset = useCallback((key) => setIsoRoom(isoPresetLayout(key)), []);
   const roomRef = useRef(roomPlacements);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
@@ -440,6 +518,44 @@ export function StoreProvider({ children }) {
     await refreshAll();
   };
 
+  // ---------- Task groups (VC2-style to-do headers) ----------
+  // Group names live on the tasks themselves (Task.group_name); this local
+  // list only exists so a freshly created EMPTY group has somewhere to be
+  // until its first task arrives.
+  const [emptyGroups, setEmptyGroups] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("tasknook.taskGroups") || "[]");
+      return Array.isArray(saved) ? saved.filter((g) => typeof g === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const persistEmptyGroups = (next) => {
+    setEmptyGroups(next);
+    localStorage.setItem("tasknook.taskGroups", JSON.stringify(next));
+  };
+  const taskGroups = [
+    ...new Set([...tasks.map((t) => t.group).filter(Boolean), ...emptyGroups]),
+  ];
+  const addTaskGroup = (name) => {
+    const trimmed = name.trim().slice(0, 60);
+    if (!trimmed || taskGroups.includes(trimmed)) return false;
+    persistEmptyGroups([...emptyGroups, trimmed]);
+    return true;
+  };
+  const removeTaskGroup = async (name) => {
+    persistEmptyGroups(emptyGroups.filter((g) => g !== name));
+    const affected = tasks.filter((t) => t.group === name);
+    if (!affected.length) return;
+    try {
+      await Promise.all(affected.map((t) => api.updateTask(t.id, { group: null })));
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to ungroup tasks:", err);
+    }
+  };
+  const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
+
   const [randomOrder, setRandomOrder] = useState([]);
 
   const chooseAlgorithm = (key) => {
@@ -454,12 +570,28 @@ export function StoreProvider({ children }) {
   const activeTask = tasks.find((t) => t.id === activeTaskId) || null;
 
   // ---------- Focus timer engine ----------
+  // Mid-session ±time nudges (VC2-style). Tracked separately so the progress
+  // bar's total stretches with the block and the logged session reflects the
+  // time actually planned, not the preset.
+  const [nudgeSeconds, setNudgeSeconds] = useState(0);
+  const nudgeTimer = (deltaSec) => {
+    if (timerMode !== "timer" || phase === "break") return;
+    // Only count what actually applied: −1:00 with 30s left clamps to 1s, and
+    // crediting the full minute would shrink the logged session and the
+    // progress total by time that never existed.
+    const applied = Math.max(1, remaining + deltaSec) - remaining;
+    if (applied === 0) return;
+    setRemaining((r) => Math.max(1, r + deltaSec));
+    setNudgeSeconds((n) => n + applied);
+  };
+
   const setFocus = (minutes) => {
     setFocusMinutes(minutes);
     if (!running) {
       setRemaining(minutes * 60);
       setPhase("focus");
       setRound(1);
+      setNudgeSeconds(0);
     }
   };
 
@@ -477,6 +609,7 @@ export function StoreProvider({ children }) {
     setPhase("focus");
     setRound(1);
     setRemaining(focusMinutes * 60);
+    setNudgeSeconds(0);
   };
 
   // Switching between countdown and stopwatch resets both clocks; blocked
@@ -489,6 +622,7 @@ export function StoreProvider({ children }) {
     setPhase("focus");
     setRound(1);
     setRemaining(focusMinutes * 60);
+    setNudgeSeconds(0);
   };
 
   const notify = (title, body) => {
@@ -511,13 +645,14 @@ export function StoreProvider({ children }) {
     }
     try {
       await api.logSession({
-        minutes: focusMinutes,
+        minutes: Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60)),
         taskName: activeTask ? activeTask.name : "Focus",
       });
       await refreshAll();
     } catch {
       /* ignore */
     }
+    setNudgeSeconds(0);
     if (pomodoro.enabled && round < pomodoro.rounds) {
       setPhase("break");
       setRemaining(pomodoro.breakMinutes * 60);
@@ -532,7 +667,7 @@ export function StoreProvider({ children }) {
         notify("🌙 Focus block complete", `${focusMinutes} cozy minutes logged. Time to stretch.`);
       }
     }
-  }, [phase, round, focusMinutes, pomodoro, activeTask, refreshAll]);
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshAll]);
 
   // Keep the latest handler in a ref so the ticking interval depends only on
   // `running` — selecting a different task mid-focus won't restart the timer.
@@ -582,13 +717,19 @@ export function StoreProvider({ children }) {
   };
 
   // ---------- Ambient ----------
+  // Weather quick-picks drive the VISUAL (overlay + cottage window) and keep
+  // pre-mixer muscle memory working: the matching sound channel comes on at
+  // the weather volume, sibling weather sounds go quiet — but non-weather
+  // channels (wind, fireplace, birds) are left exactly as the user mixed them.
   const setWeather = (nextMode) => {
     setWeatherModeState(nextMode);
-    startWeather(nextMode, weatherVolume);
+    const patch = { rain: 0, snow: 0, storm: 0 };
+    if (nextMode !== "off") patch[nextMode] = weatherVolume;
+    applySoundPatch(patch);
   };
   const changeWeatherVolume = (v) => {
     setWeatherVol(v);
-    setWeatherVolume(v);
+    if (weatherMode !== "off") applySoundPatch({ [weatherMode]: v });
   };
   const setTimeOfDay = (mode) => {
     setTimeOfDayState(mode);
@@ -596,12 +737,12 @@ export function StoreProvider({ children }) {
   };
   const toggleMusic = () => setMusicOn((m) => !m);
 
-  // A named snapshot of {weatherMode, timeOfDay, weatherVolume} so a whole
-  // "scene" can be recalled in one click instead of resetting each control.
+  // A named snapshot of the whole ambience "scene" — weather visual, time of
+  // day, and the full sound mix — recalled in one click.
   const saveWeatherPreset = (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const preset = { name: trimmed, weatherMode, timeOfDay, weatherVolume };
+    const preset = { name: trimmed, weatherMode, timeOfDay, weatherVolume, soundMix };
     setWeatherPresets((prev) => {
       const next = [...prev.filter((p) => p.name !== trimmed), preset];
       localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
@@ -611,9 +752,20 @@ export function StoreProvider({ children }) {
   const applyWeatherPreset = (name) => {
     const preset = weatherPresets.find((p) => p.name === name);
     if (!preset) return;
-    changeWeatherVolume(preset.weatherVolume);
-    setWeather(preset.weatherMode);
+    setWeatherVol(preset.weatherVolume);
+    setWeatherModeState(preset.weatherMode);
     setTimeOfDay(preset.timeOfDay);
+    if (preset.soundMix) {
+      // Full-mix snapshot: silence everything the preset doesn't mention.
+      const patch = {};
+      for (const { key } of SOUND_CHANNELS) patch[key] = preset.soundMix[key] || 0;
+      applySoundPatch(patch);
+    } else {
+      // Preset saved before the mixer existed — behave like the old quick-pick.
+      const patch = { rain: 0, snow: 0, storm: 0 };
+      if (preset.weatherMode !== "off") patch[preset.weatherMode] = preset.weatherVolume;
+      applySoundPatch(patch);
+    }
   };
   const deleteWeatherPreset = (name) => {
     setWeatherPresets((prev) => {
@@ -789,6 +941,11 @@ export function StoreProvider({ children }) {
     removeTask,
     reorderTasks,
 
+    taskGroups,
+    addTaskGroup,
+    removeTaskGroup,
+    toggleRoutine,
+
     algorithm,
     chooseAlgorithm,
 
@@ -796,6 +953,8 @@ export function StoreProvider({ children }) {
     stats,
     sessionDays,
     refreshAll,
+    dailyGoal,
+    setDailyGoal,
 
     // room decoration
     roomPlacements,
@@ -815,9 +974,11 @@ export function StoreProvider({ children }) {
     moveIsoItem,
     addIsoItem,
     removeIsoItem,
+    rotateIsoItem,
     setIsoItemTint,
     setIsoSize,
     clearIsoRoom,
+    applyIsoPreset,
 
     // timer
     focusMinutes,
@@ -832,6 +993,8 @@ export function StoreProvider({ children }) {
     setTimerMode,
     elapsed,
     finishStopwatch,
+    nudgeSeconds,
+    nudgeTimer,
     activeTask,
     activeTaskId,
     setActiveTaskId,
@@ -845,6 +1008,9 @@ export function StoreProvider({ children }) {
     setWeather,
     weatherVolume,
     changeWeatherVolume,
+    soundMix,
+    setSoundLevel,
+    stopAllSounds,
     timeOfDay,
     setTimeOfDay,
     musicOn,

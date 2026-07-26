@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
-import { ISO_ITEMS, clampIsoPlacement, snapHalf, sortIso } from "../lib/isoRoom";
+import { ISO_ITEMS, clampIsoPlacement, footOf, snapHalf, sortIso } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import RoomTintPicker from "./RoomTintPicker";
 import { unproject } from "../lib/iso";
@@ -19,6 +19,7 @@ export default function IsoRoom({
   scale = 1,
   onMoveItem,
   onRemoveItem,
+  onRotateItem,
   onTintItem,
 }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -56,6 +57,7 @@ export default function IsoRoom({
     dragRef.current = {
       id: placement.id,
       item: placement.item,
+      rot: placement.rot || 0,
       dgx: g.gx - placement.gx,
       dgy: g.gy - placement.gy,
     };
@@ -72,7 +74,8 @@ export default function IsoRoom({
       drag.item,
       snapHalf(g.gx - drag.dgx),
       snapHalf(g.gy - drag.dgy),
-      size
+      size,
+      drag.rot
     );
     onMoveItem?.(drag.id, gx, gy);
   };
@@ -242,7 +245,8 @@ export default function IsoRoom({
             if (!item || !Sprite) return null;
             const at = project(p.gx, p.gy);
             const selected = editMode && selectedId === p.id;
-            const hitR = project(item.foot[0], 0); // anchors the ✕ button
+            const foot = footOf(p.item, p.rot);
+            const hitR = project(foot[0], 0); // anchors the ✕/⟳ buttons
             return (
               <g
                 key={p.id}
@@ -256,23 +260,48 @@ export default function IsoRoom({
                     would let tall items (the floor lamp's pole) blanket
                     everything behind them. */}
                 {editMode && (
-                  <polygon
-                    points={floorPatch(0, 0, item.foot[0], item.foot[1])}
-                    fill="transparent"
-                  />
+                  <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
                 )}
-                <Sprite />
+                {/* Mirroring about the origin is a grid TRANSPOSE — the item
+                    faces the other wall and its footprint swaps to match. */}
+                {p.rot ? (
+                  <g transform="scale(-1,1)">
+                    <Sprite />
+                  </g>
+                ) : (
+                  <Sprite />
+                )}
                 {selected && (
                   <>
                     {/* footprint highlight on the grid */}
                     <polygon
-                      points={floorPatch(0, 0, item.foot[0], item.foot[1])}
+                      points={floorPatch(0, 0, foot[0], foot[1])}
                       fill="none"
                       stroke="#ffe9b0"
                       strokeWidth="1.5"
                       strokeDasharray="6 4"
                       opacity="0.9"
                     />
+                    <g
+                      className="room-remove"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onRotateItem?.(p.id);
+                      }}
+                    >
+                      <circle cx={hitR.x - 18} cy={-item.hitH - 2} r="9" fill="#8a7ac2" />
+                      <path
+                        d={`M${hitR.x - 22} ${-item.hitH - 2} a4.5 4.5 0 1 1 1.4 3.2`}
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d={`M${hitR.x - 23.5} ${-item.hitH + 3.5} l2.6 -1.2 l0.4 2.9 z`}
+                        fill="#fff"
+                      />
+                    </g>
                     <g
                       className="room-remove"
                       onPointerDown={(e) => {

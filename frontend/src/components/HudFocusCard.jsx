@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, useDragControls } from "framer-motion";
 import { useStore } from "../store";
+import { focusStreak, localTodayISO } from "../lib/stats";
 
 const BREAK_PRESETS = [3, 5, 10];
 const ROUND_PRESETS = [2, 3, 4, 6];
@@ -37,13 +38,28 @@ export default function HudFocusCard() {
     setTimerMode,
     elapsed,
     finishStopwatch,
+    nudgeSeconds,
+    nudgeTimer,
+    stats,
+    sessionDays,
+    dailyGoal,
   } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
 
+  const today = localTodayISO();
+  const streak = focusStreak(
+    { ...sessionDays, [today]: stats.focusMinutesToday },
+    dailyGoal,
+    today
+  );
+  const goalMet = stats.focusMinutesToday >= dailyGoal;
+
   const stopwatch = timerMode === "stopwatch";
   const inBreak = !stopwatch && phase === "break";
-  const total = (inBreak ? pomodoro.breakMinutes : focusMinutes) * 60;
+  // ±nudges stretch/shrink the block, so the bar's total moves with them.
+  const total =
+    (inBreak ? pomodoro.breakMinutes : focusMinutes) * 60 + (inBreak ? 0 : nudgeSeconds);
   const progress = stopwatch ? (elapsed % 60) / 60 : total > 0 ? 1 - remaining / total : 0;
   const barColor = inBreak ? "#7faf8f" : stopwatch ? "#6fb8cf" : "#ffe9b0";
 
@@ -93,9 +109,29 @@ export default function HudFocusCard() {
             </div>
           )}
 
-          <p className="text-center text-[26px] font-bold leading-8 tabular-nums text-cream">
-            {fmt(stopwatch ? elapsed : remaining)}
-          </p>
+          <div className="flex items-center justify-center gap-1.5">
+            {!stopwatch && !inBreak && (
+              <button
+                onClick={() => nudgeTimer(-60)}
+                title="One minute less"
+                className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
+              >
+                −1:00
+              </button>
+            )}
+            <p className="text-center text-[26px] font-bold leading-8 tabular-nums text-cream">
+              {fmt(stopwatch ? elapsed : remaining)}
+            </p>
+            {!stopwatch && !inBreak && (
+              <button
+                onClick={() => nudgeTimer(60)}
+                title="One more minute"
+                className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
+              >
+                +1:00
+              </button>
+            )}
+          </div>
 
           {/* thin progress bar (sweeps once per minute in stopwatch mode) */}
           <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
@@ -252,6 +288,18 @@ export default function HudFocusCard() {
             </div>
           )}
         </div>
+
+        {/* Daily goal + streak: chromeless, straight on the backdrop (VC2
+            keeps this on the main screen, not buried in a stats dialog). */}
+        <p
+          title="Today's focus vs your daily goal (set in Progress) and your streak of goal-met days"
+          className={`mt-1.5 text-center text-[11px] font-semibold drop-shadow ${
+            goalMet ? "text-sage" : "text-petal/60"
+          }`}
+        >
+          🎯 {stats.focusMinutesToday}/{dailyGoal}m{goalMet ? " ✓" : ""}
+          {streak > 0 && <span className="ml-1.5">🔥 {streak}d</span>}
+        </p>
       </motion.div>
     </div>
   );
