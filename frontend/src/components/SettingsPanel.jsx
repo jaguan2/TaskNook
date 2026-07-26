@@ -31,11 +31,14 @@ function Slider({ label, min, max, value, onChange, trackStyle }) {
   );
 }
 
+// Preset ramps live in index.css as [data-theme] blocks; the swatches here
+// are their night / rose / petal stops.
 const COLOR_SCHEMES = [
   { key: "plum", label: "Plum Night", swatch: ["#2b1830", "#d98a93", "#f3c6c0"] },
-  { key: "forest", label: "Forest", swatch: ["#1a2b22", "#d9a25a", "#d7e6c4"] },
-  { key: "ocean", label: "Ocean", swatch: ["#16232e", "#6fb8cf", "#cbe8ef"] },
-  { key: "coffee", label: "Coffee", swatch: ["#2e2017", "#ba8f68", "#f5dda8"] },
+  { key: "abyss", label: "Abyssal Deep", swatch: ["#01162b", "#6a90b4", "#d2dbeb"] },
+  { key: "shore", label: "Sea Breeze", swatch: ["#2c3943", "#9dabb4", "#ece6e3"] },
+  { key: "linen", label: "Linen Afternoon", swatch: ["#3a4147", "#9b8c7d", "#d7d2c4"] },
+  { key: "walnut", label: "Walnut Cream", swatch: ["#373a37", "#ab9d78", "#e5e2cd"] },
 ];
 
 export default function SettingsPanel() {

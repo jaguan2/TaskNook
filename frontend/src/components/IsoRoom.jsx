@@ -10,41 +10,123 @@ import { unproject } from "../lib/iso";
 // the flat scene — pointer → getScreenCTM().inverse() → unproject → snap →
 // clamp — which works because project/unproject are exact inverses.
 //
+// The room is NOT in a card: the SVG fills the viewport and the user flies a
+// little camera over it — scroll wheel zooms (anchored at the cursor), drag
+// on empty space pans, double-click recenters. All of it is plain viewBox
+// math, which the drag engine is oblivious to because getScreenCTM already
+// accounts for the viewBox.
+//
 // Re-declares the lampPool/lampCone gradient ids on purpose: only one scene
 // (this or Cottage) is ever mounted, and RoomPanel previews reference them.
+const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
+const VIEW_MIN_W = 220;
+const VIEW_MAX_W = 1600;
+
+function loadView() {
+  try {
+    const v = JSON.parse(localStorage.getItem("tasknook.isoView") || "null");
+    if (
+      v &&
+      [v.x, v.y, v.w, v.h].every(Number.isFinite) &&
+      v.w >= VIEW_MIN_W &&
+      v.w <= VIEW_MAX_W
+    ) {
+      return v;
+    }
+  } catch {
+    /* corrupted — fall back */
+  }
+  return DEFAULT_VIEW;
+}
+
+// Keep the room's centre (world 320,240) from ever leaving the view — you
+// can't scroll the whole room off-screen and "lose" it.
+function clampView(v) {
+  const margin = 60;
+  return {
+    ...v,
+    x: Math.min(320 - margin, Math.max(320 + margin - v.w, v.x)),
+    y: Math.min(240 - margin, Math.max(240 + margin - v.h, v.y)),
+  };
+}
+
+// What the window (and the frame's little painting, which shares the
+// gradient) sees at each time of day, plus how bright the string lights read.
+const ISO_TIME = {
+  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1 },
+  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3 },
+};
+
 export default function IsoRoom({
   size,
   placements = [],
   editMode = false,
-  scale = 1,
+  timeOfDay = "night",
   onMoveItem,
   onRemoveItem,
   onRotateItem,
   onTintItem,
 }) {
+  const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
   const [selectedId, setSelectedId] = useState(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
+  const panRef = useRef(null); // the world point the pointer grabbed
+  const [view, setView] = useState(loadView);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  const applyView = (next) => {
+    const clamped = clampView(next);
+    setView(clamped);
+    localStorage.setItem("tasknook.isoView", JSON.stringify(clamped));
+  };
 
   useEffect(() => {
     if (!editMode) setSelectedId(null);
   }, [editMode]);
+
+  // Wheel zoom must preventDefault (page scroll), so it can't be a React
+  // onWheel prop — React registers those passively.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+      const v = viewRef.current;
+      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      const w = Math.min(VIEW_MAX_W, Math.max(VIEW_MIN_W, v.w * factor));
+      const s = w / v.w;
+      if (s === 1) return;
+      // Anchor the zoom at the cursor: that world point stays put on screen.
+      applyView({ x: p.x - (p.x - v.x) * s, y: p.y - (p.y - v.y) * s, w, h: v.h * s });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
 
   const { w, d } = size;
   const farL = project(0, d);
   const farR = project(w, 0);
   const front = project(w, d);
 
-  // Centre the room inside the 640×480 card, whatever its dimensions.
+  // Centre the room around world (320,240), whatever its dimensions.
   const cx = 320 - (farL.x + farR.x) / 2;
   const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
 
-  const toScene = (e) => {
+  const toWorld = (e) => {
     const svg = svgRef.current;
     const ctm = svg?.getScreenCTM();
     if (!ctm) return null;
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-    return { x: p.x - cx, y: p.y - cy };
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  };
+  const toScene = (e) => {
+    const p = toWorld(e);
+    return p ? { x: p.x - cx, y: p.y - cy } : null;
   };
 
   const startDrag = (placement) => (e) => {
@@ -66,22 +148,41 @@ export default function IsoRoom({
 
   const moveDrag = (e) => {
     const drag = dragRef.current;
-    if (!drag) return;
-    const p = toScene(e);
-    if (!p) return;
-    const g = unproject(p.x, p.y);
-    const { gx, gy } = clampIsoPlacement(
-      drag.item,
-      snapHalf(g.gx - drag.dgx),
-      snapHalf(g.gy - drag.dgy),
-      size,
-      drag.rot
-    );
-    onMoveItem?.(drag.id, gx, gy);
+    if (drag) {
+      const p = toScene(e);
+      if (!p) return;
+      const g = unproject(p.x, p.y);
+      const { gx, gy } = clampIsoPlacement(
+        drag.item,
+        snapHalf(g.gx - drag.dgx),
+        snapHalf(g.gy - drag.dgy),
+        size,
+        drag.rot
+      );
+      onMoveItem?.(drag.id, gx, gy);
+      return;
+    }
+    // Camera pan: keep the grabbed world point glued under the pointer.
+    const pan = panRef.current;
+    if (pan) {
+      const p = toWorld(e);
+      if (!p) return;
+      const v = viewRef.current;
+      applyView({ ...v, x: v.x + (pan.x - p.x), y: v.y + (pan.y - p.y) });
+    }
   };
 
   const endDrag = () => {
     dragRef.current = null;
+    panRef.current = null;
+  };
+
+  const startPan = (e) => {
+    if (editMode) setSelectedId(null);
+    const p = toWorld(e);
+    if (!p) return;
+    panRef.current = { x: p.x, y: p.y };
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
   const ordered = sortIso(placements);
@@ -89,29 +190,24 @@ export default function IsoRoom({
     editMode && selectedId ? placements.find((p) => p.id === selectedId) : null;
 
   return (
-    <div
-      className={`select-none relative w-full flex items-center justify-center ${
-        editMode ? "pointer-events-auto" : "pointer-events-none"
-      }`}
-    >
+    <div className="pointer-events-auto absolute inset-0 select-none">
       <svg
         ref={svgRef}
-        viewBox="0 0 640 480"
-        style={{
-          width: `calc(min(90vw, 84vh) * ${scale})`,
-          touchAction: editMode ? "none" : undefined,
-        }}
-        className="drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
+        viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
+        style={{ touchAction: "none" }}
+        className="h-full w-full"
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
         onPointerCancel={endDrag}
-        onPointerDown={() => editMode && setSelectedId(null)}
+        onPointerDown={startPan}
+        onDoubleClick={() => applyView(DEFAULT_VIEW)}
       >
         <defs>
-          <radialGradient id="isoAmbient" cx="0.5" cy="0.35" r="0.9">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
+          {/* soft pool of light the room sits in — replaces the old card */}
+          <radialGradient id="isoAmbient" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} stopOpacity="0.85" />
+            <stop offset="1" style={{ stopColor: "rgb(var(--color-wine))" }} stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
@@ -126,8 +222,8 @@ export default function IsoRoom({
             <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
           </linearGradient>
           <linearGradient id="isoSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#221b3f" />
-            <stop offset="1" stopColor="#40355f" />
+            <stop offset="0" stopColor={tod.skyTop} />
+            <stop offset="1" stopColor={tod.skyBot} />
           </linearGradient>
           <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#4a3a6b" />
@@ -143,7 +239,7 @@ export default function IsoRoom({
           </linearGradient>
         </defs>
 
-        <rect x="8" y="8" width="624" height="464" rx="28" fill="url(#isoAmbient)" />
+        <ellipse cx="320" cy="250" rx="430" ry="330" fill="url(#isoAmbient)" />
 
         <g transform={`translate(${cx}, ${cy})`}>
           {/* ---------- walls ---------- */}
@@ -170,7 +266,7 @@ export default function IsoRoom({
             <>
               <polygon points={wallRect("left", 1.1, 2.4, 28, 70)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 34, 58)} fill="url(#isoSky)" />
-              <circle cx={project(0, 2.3).x} cy={project(0, 2.3).y - 74} r="7" fill="#f7e9e2" />
+              <circle cx={project(0, 2.3).x} cy={project(0, 2.3).y - 74} r="7" fill={tod.orb} />
               <polygon points={wallRect("left", 2.24, 0.12, 34, 58)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 60, 3.5)} fill="#46396f" />
               <polygon points={wallRect("left", 1.05, 2.5, 24, 5)} fill="#8a5346" />
@@ -178,9 +274,10 @@ export default function IsoRoom({
             </>
           )}
 
-          {/* string lights on the right wall — only when it fits */}
+          {/* string lights on the right wall — only when it fits; they fade
+              with daylight */}
           {w >= 5 && (
-            <>
+            <g opacity={tod.bulbs}>
               <path
                 d={`M ${project(0.5, 0).x} ${project(0.5, 0).y - 100} Q ${project(w / 2, 0).x} ${project(w / 2, 0).y - 68} ${project(w - 0.5, 0).x} ${project(w - 0.5, 0).y - 100}`}
                 stroke="#2b2350"
@@ -199,7 +296,7 @@ export default function IsoRoom({
                   </g>
                 );
               })}
-            </>
+            </g>
           )}
 
           {/* ---------- floor + grid ---------- */}

@@ -717,23 +717,26 @@ export function StoreProvider({ children }) {
   };
 
   // ---------- Ambient ----------
-  // Weather quick-picks drive the VISUAL (overlay + cottage window) and keep
-  // pre-mixer muscle memory working: the matching sound channel comes on at
-  // the weather volume, sibling weather sounds go quiet — but non-weather
-  // channels (wind, fireplace, birds) are left exactly as the user mixed them.
-  const setWeather = (nextMode) => {
-    setWeatherModeState(nextMode);
-    const patch = { rain: 0, snow: 0, storm: 0 };
-    if (nextMode !== "off") patch[nextMode] = weatherVolume;
-    applySoundPatch(patch);
-  };
-  const changeWeatherVolume = (v) => {
-    setWeatherVol(v);
-    if (weatherMode !== "off") applySoundPatch({ [weatherMode]: v });
-  };
-  const setTimeOfDay = (mode) => {
+  // Weather quick-picks drive ONLY the visual (overlay + cottage window).
+  // Sound is the mixer's business — picking a rainy scene without rain audio
+  // is a legitimate mood, so the two never auto-couple.
+  // Internal appliers: what auto-match calls. The PUBLIC setters below are
+  // what the UI calls, and a manual pick switches auto-match OFF — otherwise
+  // the 15-minute refresh silently overwrites the user's choice and the two
+  // settings fight each other.
+  const applyWeatherVisual = (nextMode) => setWeatherModeState(nextMode);
+  const applyTimeOfDay = (mode) => {
     setTimeOfDayState(mode);
     localStorage.setItem("tasknook.timeOfDay", mode);
+  };
+  const setWeather = (nextMode) => {
+    if (autoMatchRef.current) setAutoMatchWeather(false);
+    applyWeatherVisual(nextMode);
+  };
+  const changeWeatherVolume = (v) => setWeatherVol(v);
+  const setTimeOfDay = (mode) => {
+    if (autoMatchRef.current) setAutoMatchWeather(false);
+    applyTimeOfDay(mode);
   };
   const toggleMusic = () => setMusicOn((m) => !m);
 
@@ -755,15 +758,12 @@ export function StoreProvider({ children }) {
     setWeatherVol(preset.weatherVolume);
     setWeatherModeState(preset.weatherMode);
     setTimeOfDay(preset.timeOfDay);
+    // A saved scene is an explicit user snapshot, so restoring its sounds IS
+    // what applying it means (unlike the weather quick-picks, which are
+    // visual-only). Legacy presets from before the mixer just set the visual.
     if (preset.soundMix) {
-      // Full-mix snapshot: silence everything the preset doesn't mention.
       const patch = {};
       for (const { key } of SOUND_CHANNELS) patch[key] = preset.soundMix[key] || 0;
-      applySoundPatch(patch);
-    } else {
-      // Preset saved before the mixer existed — behave like the old quick-pick.
-      const patch = { rain: 0, snow: 0, storm: 0 };
-      if (preset.weatherMode !== "off") patch[preset.weatherMode] = preset.weatherVolume;
       applySoundPatch(patch);
     }
   };
@@ -797,16 +797,6 @@ export function StoreProvider({ children }) {
     localStorage.setItem("tasknook.weather.automatch", autoMatchWeather ? "1" : "0");
   }, [autoMatchWeather]);
 
-  // Keep the latest setWeather/setTimeOfDay in refs so refreshRealWeather (and
-  // the auto-match interval below) can stay a stable callback without ever
-  // acting on a stale weatherVolume from whichever render first created it.
-  const setWeatherRef = useRef(setWeather);
-  const setTimeOfDayRef = useRef(setTimeOfDay);
-  useEffect(() => {
-    setWeatherRef.current = setWeather;
-    setTimeOfDayRef.current = setTimeOfDay;
-  });
-
   const refreshRealWeather = useCallback(async (coordsOverride) => {
     setWeatherStatus("loading");
     setWeatherError("");
@@ -818,8 +808,10 @@ export function StoreProvider({ children }) {
       setRealWeather(data);
       setWeatherStatus("ready");
       if (autoMatchRef.current) {
-        setWeatherRef.current(data.mode);
-        setTimeOfDayRef.current(data.timeOfDay);
+        // Internal appliers — the public setters would disable auto-match.
+        setWeatherModeState(data.mode);
+        setTimeOfDayState(data.timeOfDay);
+        localStorage.setItem("tasknook.timeOfDay", data.timeOfDay);
       }
     } catch (err) {
       setWeatherStatus("error");
@@ -845,8 +837,8 @@ export function StoreProvider({ children }) {
     setAutoMatchWeather((v) => {
       const next = !v;
       if (next && realWeather) {
-        setWeather(realWeather.mode);
-        setTimeOfDay(realWeather.timeOfDay);
+        applyWeatherVisual(realWeather.mode);
+        applyTimeOfDay(realWeather.timeOfDay);
       }
       return next;
     });

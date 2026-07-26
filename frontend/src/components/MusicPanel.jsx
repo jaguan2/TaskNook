@@ -3,13 +3,6 @@ import { useStore } from "../store";
 import { stationKey } from "../lib/musicLink";
 import { SOUND_CHANNELS } from "../lib/audio";
 
-const WEATHER_OPTIONS = [
-  { key: "off", label: "Off", icon: "🌤️" },
-  { key: "rain", label: "Rain", icon: "🌧️" },
-  { key: "snow", label: "Snow", icon: "❄️" },
-  { key: "storm", label: "Storm", icon: "⛈️" },
-];
-
 export default function MusicPanel() {
   const {
     musicOn,
@@ -19,8 +12,6 @@ export default function MusicPanel() {
     selectStation,
     addCustomStation,
     removeCustomStation,
-    weatherMode,
-    setWeather,
     soundMix,
     setSoundLevel,
     stopAllSounds,
@@ -155,30 +146,6 @@ export default function MusicPanel() {
             </div>
           ))}
         </div>
-
-        <hr className="border-white/10" />
-
-        {/* Weather scene quick-picks (visual + matching sound in one tap) */}
-        <p className="text-sm font-semibold text-cream">🌦️ Weather scene</p>
-        <div className="flex flex-wrap gap-1.5">
-          {WEATHER_OPTIONS.map((w) => (
-            <button
-              key={w.key}
-              onClick={() => setWeather(w.key)}
-              className={`pill px-3 py-1.5 text-xs font-semibold ${
-                weatherMode === w.key
-                  ? "bg-glow text-plum"
-                  : "bg-white/10 text-petal hover:bg-white/20"
-              }`}
-            >
-              {w.icon} {w.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-petal/60">
-          Sets the falling weather on screen (and in the cottage window) with
-          its matching sound — your other ambient sounds keep playing.
-        </p>
       </section>
     </div>
   );

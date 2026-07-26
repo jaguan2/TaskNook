@@ -1,9 +1,9 @@
 // Procedural ambience using the Web Audio API — no audio files needed, works
-// fully offline. A small mixer: each named channel (rain, snow, storm,
-// fireplace, birds, wind) can play at its own volume, simultaneously.
+// fully offline. A small mixer: each named channel (rain, storm, snow, wind,
+// fireplace, birds) can play at its own volume, simultaneously.
 // Rain/snow/storm/wind are the same filtered-noise engine with different
-// presets; storm adds random thunder, fireplace adds crackles, birds are
-// scheduled oscillator chirps.
+// presets; rain adds droplet plinks, storm adds random thunder, fireplace
+// adds crackles, birds are scheduled oscillator chirps.
 let ctx = null;
 const channels = {}; // name -> { master, nodes: [], timers: [] }
 
@@ -17,11 +17,13 @@ export const SOUND_CHANNELS = [
 ];
 
 const NOISE_PRESETS = {
-  rain: { lowpass: 2600, highpass: 380, gain: 0.6, lfoFreq: 0.12, lfoDepth: 0.12 },
+  // Rain reads as rain (not radio static) because of the droplet plinks the
+  // channel schedules on top — the noise bed itself stays dark and soft.
+  rain: { lowpass: 1900, highpass: 240, gain: 0.5, lfoFreq: 0.12, lfoDepth: 0.14 },
   // Snow has no patter of its own — just a hushed, heavily-muffled wind.
   snow: { lowpass: 900, highpass: 120, gain: 0.22, lfoFreq: 0.045, lfoDepth: 0.22 },
   // Storm is rain pushed louder/brighter, with gustier modulation.
-  storm: { lowpass: 3600, highpass: 260, gain: 0.85, lfoFreq: 0.2, lfoDepth: 0.18 },
+  storm: { lowpass: 3200, highpass: 220, gain: 0.8, lfoFreq: 0.2, lfoDepth: 0.18 },
   // Wind is deep and slow, with strong gusting.
   wind: { lowpass: 620, highpass: 70, gain: 0.5, lfoFreq: 0.07, lfoDepth: 0.4 },
   // Fireplace base: a low, steady rumble (the crackles ride on top).
@@ -81,6 +83,25 @@ function playCrackle(master) {
   pop.connect(band).connect(env).connect(master);
   pop.start();
   pop.stop(now + 0.15);
+}
+
+// A single raindrop hitting a surface: a tiny bright tap with instant decay.
+// These transients are what make the ear read "rain" instead of "static".
+function playDroplet(master, strength = 1) {
+  const tap = ctx.createBufferSource();
+  tap.buffer = createNoiseBuffer(ctx, 0.05);
+  const band = ctx.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 1100 + Math.random() * 2400;
+  band.Q.value = 5;
+  const env = ctx.createGain();
+  const now = ctx.currentTime;
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(strength * (0.18 + Math.random() * 0.3), now + 0.003);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.02 + Math.random() * 0.04);
+  tap.connect(band).connect(env).connect(master);
+  tap.start();
+  tap.stop(now + 0.08);
 }
 
 function playChirp(master) {
@@ -157,6 +178,7 @@ function startChannel(name, volume) {
   if (name === "storm") loop(name, playThunder, 6000, 20000);
   if (name === "fireplace") loop(name, playCrackle, 90, 420);
   if (name === "birds") loop(name, playChirp, 1800, 7000);
+  if (name === "rain") loop(name, (m) => playDroplet(m, 1), 70, 220);
 }
 
 function stopChannel(name) {

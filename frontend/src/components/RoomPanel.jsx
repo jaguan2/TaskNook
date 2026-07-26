@@ -129,7 +129,9 @@ export default function RoomPanel() {
             </div>
             <p className="text-xs text-petal/50">
               A {isoRoom.w}×{isoRoom.d} tile floor — resize freely, furniture
-              stays on the grid. The classic scene keeps its own layout.
+              stays on the grid. Scroll to zoom, drag empty space to look
+              around, double-click to recenter. The classic scene keeps its
+              own layout.
             </p>
           </>
         ) : (
@@ -140,7 +142,9 @@ export default function RoomPanel() {
         )}
       </section>
 
-      {/* Room size */}
+      {/* Room size — the flat scene's display scale. The iso room doesn't
+          need it: its camera zooms freely with the scroll wheel. */}
+      {!isoPreview && (
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-cream">🔍 Room size</p>
@@ -169,6 +173,7 @@ export default function RoomPanel() {
           On top of this, the room already grows and shrinks with the window.
         </p>
       </section>
+      )}
 
       {/* Iso presets — a happy default plus a couple of moods */}
       {isoPreview && (
