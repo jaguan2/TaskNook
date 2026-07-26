@@ -128,7 +128,7 @@ read-only bundle, so replacing the exe never touches your data.
 | 🏡 | **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
 | ✅ | **Tasks** | Add tasks with a duration & priority, check them off, and drag to reorder. |
 | 🧠 | **Ordering algorithms** | Auto-arrange your list five different ways *(see below)*. |
-| ⏱️ | **Focus timer** | Focus blocks (15 / 25 / 45 / 60 min) with a progress ring; finished blocks are logged as productivity time. Flip on 🍅 **Pomodoro mode** to cycle focus → break automatically for a set number of rounds, with your choice of break length. |
+| ⏱️ | **Focus timer, Pomodoro & stopwatch** | Always on screen as a cozy HUD: timer card top-left, to-do list top-right. Focus blocks (15 / 25 / 45 / 60 min) with a progress ring; flip on 🍅 **Pomodoro mode** for automatic focus → break rounds, or switch to **stopwatch** to count up open-ended — finished time is logged either way. Quick-add tasks right from the HUD. |
 | 🗓️ | **Calendar** | Schedule tasks onto specific days and see what's planned. |
 | 📈 | **Progress** | A live completion bar, focus-hours, and a "productivity garden" that grows a plant for every 15 focused minutes. |
 | 🎵 | **Music** | Built-in lofi YouTube stations, or paste any YouTube or Spotify link (playlist/album/track/show/episode) to play your own. |

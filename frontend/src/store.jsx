@@ -67,6 +67,12 @@ export function StoreProvider({ children }) {
   const [running, setRunning] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
   const tickRef = useRef(null);
+  // "timer" counts down to a target; "stopwatch" counts up open-ended and
+  // logs whatever it measured when finished. Pomodoro belongs to timer mode.
+  const [timerMode, setTimerModeState] = useState(() =>
+    localStorage.getItem("tasknook.timerMode") === "stopwatch" ? "stopwatch" : "timer"
+  );
+  const [elapsed, setElapsed] = useState(0);
 
   // Pomodoro mode: focus → break → focus … for a set number of rounds.
   const [pomodoro, setPomodoroState] = useState(() => {
@@ -362,12 +368,28 @@ export function StoreProvider({ children }) {
   };
 
   const startTimer = () => {
-    if (remaining <= 0) setRemaining(focusMinutes * 60);
+    if (timerMode === "timer" && remaining <= 0) setRemaining(focusMinutes * 60);
     setRunning(true);
   };
   const pauseTimer = () => setRunning(false);
   const resetTimer = () => {
     setRunning(false);
+    if (timerMode === "stopwatch") {
+      setElapsed(0);
+      return;
+    }
+    setPhase("focus");
+    setRound(1);
+    setRemaining(focusMinutes * 60);
+  };
+
+  // Switching between countdown and stopwatch resets both clocks; blocked
+  // while running so a mid-session flip can't eat tracked time.
+  const setTimerMode = (mode) => {
+    if (running || (mode !== "timer" && mode !== "stopwatch")) return;
+    setTimerModeState(mode);
+    localStorage.setItem("tasknook.timerMode", mode);
+    setElapsed(0);
     setPhase("focus");
     setRound(1);
     setRemaining(focusMinutes * 60);
@@ -423,18 +445,45 @@ export function StoreProvider({ children }) {
     handlePhaseCompleteRef.current = handlePhaseComplete;
   }, [handlePhaseComplete]);
 
+  // timerMode can't change while running (setTimerMode blocks it), so adding
+  // it to the deps never restarts a live interval.
   useEffect(() => {
     if (!running) return;
-    tickRef.current = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
+    tickRef.current = setInterval(
+      timerMode === "stopwatch"
+        ? () => setElapsed((e) => e + 1)
+        : () => setRemaining((r) => Math.max(0, r - 1)),
+      1000
+    );
     return () => clearInterval(tickRef.current);
-  }, [running]);
+  }, [running, timerMode]);
 
   // Fire the phase handler from an effect (not inside the setState updater) so
-  // it can safely set more state / await API calls.
+  // it can safely set more state / await API calls. Countdown mode only — a
+  // stopwatch has no "zero" to reach.
   useEffect(() => {
-    if (!running || remaining > 0) return;
+    if (!running || remaining > 0 || timerMode !== "timer") return;
     handlePhaseCompleteRef.current?.();
-  }, [remaining, running]);
+  }, [remaining, running, timerMode]);
+
+  // Ending a stopwatch logs whatever it measured (rounded to minutes) as a
+  // focus session, exactly like a completed countdown block.
+  const finishStopwatch = async () => {
+    setRunning(false);
+    const minutes = Math.round(elapsed / 60);
+    setElapsed(0);
+    if (minutes < 1) return; // nothing meaningful to log
+    try {
+      await api.logSession({
+        minutes,
+        taskName: activeTask ? activeTask.name : "Stopwatch",
+      });
+      await refreshAll();
+    } catch {
+      /* ignore */
+    }
+    notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
+  };
 
   // ---------- Ambient ----------
   const setWeather = (nextMode) => {
@@ -674,6 +723,10 @@ export function StoreProvider({ children }) {
     startTimer,
     pauseTimer,
     resetTimer,
+    timerMode,
+    setTimerMode,
+    elapsed,
+    finishStopwatch,
     activeTask,
     activeTaskId,
     setActiveTaskId,

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 
+// Historically the top bar — now the BOTTOM-RIGHT corner cluster (clock,
+// ambient toggles, account), Virtual Cottage-style. The top corners belong to
+// the focus card (left) and the to-do list (right); see HudFocusCard/HudTasks.
+
 const WEATHER_OPTIONS = [
   { key: "off", label: "Off", icon: "🌤️" },
   { key: "rain", label: "Rain", icon: "🌧️" },
@@ -22,103 +26,70 @@ function fmtClock(d) {
 }
 
 export default function TopBar() {
-  const {
-    user,
-    activeTask,
-    running,
-    remaining,
-    phase,
-    musicOn,
-    toggleMusic,
-    weatherMode,
-    setWeather,
-  } = useStore();
+  const { user, musicOn, toggleMusic, weatherMode, setWeather } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
   const weatherIcon = { snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
 
-  const minutesToGo = Math.ceil(remaining / 60);
-  const status = running ? (phase === "break" ? "Break time ☕" : "Focusing") : "Cozy break";
-  const subtitle = activeTask
-    ? activeTask.name
-    : running
-    ? `${minutesToGo} minutes to go`
-    : "Pick a task & press play";
-
   return (
-    <>
-      {/* Top-left: current activity */}
-      <div className="intro-chrome absolute left-6 top-6 z-20">
-        <h1 className="text-2xl font-bold tracking-wide text-cream drop-shadow">
-          {status}
-        </h1>
-        <p className="mt-1 text-sm font-medium text-petal/90">
-          {running ? `${minutesToGo} minutes to go` : subtitle}
-        </p>
-        {activeTask && (
-          <p className="mt-0.5 text-xs text-petal/60">on “{activeTask.name}”</p>
+    <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">
+      <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music" slashWhenOff>
+        🎵
+      </IconToggle>
+
+      <div className="relative">
+        <button
+          title="Weather ambience"
+          onClick={() => setWeatherMenuOpen((o) => !o)}
+          className={`pill grid h-11 w-11 place-items-center text-lg shadow-soft transition ${
+            weatherMode !== "off"
+              ? "bg-glow/90 text-plum"
+              : "glass text-cream hover:bg-white/10"
+          }`}
+        >
+          {weatherIcon}
+        </button>
+        {weatherMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setWeatherMenuOpen(false)}
+            />
+            {/* opens UPWARD now that the cluster lives at the bottom */}
+            <div className="glass absolute bottom-full right-0 z-40 mb-2 flex flex-col gap-1 rounded-2xl p-2 shadow-soft">
+              {WEATHER_OPTIONS.map((w) => (
+                <button
+                  key={w.key}
+                  onClick={() => {
+                    setWeather(w.key);
+                    setWeatherMenuOpen(false);
+                  }}
+                  className={`pill flex items-center gap-2 whitespace-nowrap px-3 py-1.5 text-left text-xs font-semibold ${
+                    weatherMode === w.key
+                      ? "bg-glow text-plum"
+                      : "text-petal hover:bg-white/10"
+                  }`}
+                >
+                  {w.icon} {w.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Top-right: clock + ambient toggles + account */}
-      <div className="intro-chrome absolute right-6 top-6 z-20 flex items-center gap-2">
-        <div className="glass pill flex items-center gap-2 px-4 py-2 text-cream shadow-soft">
-          <span className="text-base">🕗</span>
-          <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
-        </div>
-
-        <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music" slashWhenOff>
-          🎵
-        </IconToggle>
-
-        <div className="relative">
-          <button
-            title="Weather ambience"
-            onClick={() => setWeatherMenuOpen((o) => !o)}
-            className={`pill grid h-11 w-11 place-items-center text-lg shadow-soft transition ${
-              weatherMode !== "off"
-                ? "bg-glow/90 text-plum"
-                : "glass text-cream hover:bg-white/10"
-            }`}
-          >
-            {weatherIcon}
-          </button>
-          {weatherMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setWeatherMenuOpen(false)}
-              />
-              <div className="glass absolute right-0 top-full z-40 mt-2 flex flex-col gap-1 rounded-2xl p-2 shadow-soft">
-                {WEATHER_OPTIONS.map((w) => (
-                  <button
-                    key={w.key}
-                    onClick={() => {
-                      setWeather(w.key);
-                      setWeatherMenuOpen(false);
-                    }}
-                    className={`pill flex items-center gap-2 whitespace-nowrap px-3 py-1.5 text-left text-xs font-semibold ${
-                      weatherMode === w.key
-                        ? "bg-glow text-plum"
-                        : "text-petal hover:bg-white/10"
-                    }`}
-                  >
-                    {w.icon} {w.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
-          <span className="text-base">{user?.avatar || "🌙"}</span>
-          <span className="hidden sm:block text-sm font-semibold">
-            {user?.displayName}
-          </span>
-        </div>
+      <div className="glass pill flex items-center gap-2 px-4 py-2 text-cream shadow-soft">
+        <span className="text-base">🕗</span>
+        <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
       </div>
-    </>
+
+      <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
+        <span className="text-base">{user?.avatar || "🌙"}</span>
+        <span className="hidden sm:block text-sm font-semibold">
+          {user?.displayName}
+        </span>
+      </div>
+    </div>
   );
 }
 
