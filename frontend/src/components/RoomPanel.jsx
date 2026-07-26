@@ -271,7 +271,7 @@ export default function RoomPanel() {
                 key={key}
                 onClick={() => applyIsoPreset(key)}
                 className={`pill bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
-                  key === "empty" ? "text-petal/60 hover:text-rose" : "text-petal"
+                  key === "empty" ? "text-petal/60 hover:text-danger" : "text-petal"
                 }`}
               >
                 {ISO_PRESETS[key].icon} {ISO_PRESETS[key].label}
@@ -310,7 +310,7 @@ export default function RoomPanel() {
                   </span>
                   <span className="text-[10px] text-petal/50">
                     {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
-                    <span className="text-glow/80 opacity-0 transition group-hover:opacity-100">
+                    <span className="hover-reveal text-glow/80 transition">
                       + add
                     </span>
                   </span>
@@ -344,7 +344,7 @@ export default function RoomPanel() {
           ))}
           <button
             onClick={clearRoom}
-            className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal/60 hover:bg-white/20 hover:text-rose"
+            className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal/60 hover:bg-white/20 hover:text-danger"
           >
             🧹 Empty room
           </button>
@@ -387,7 +387,7 @@ export default function RoomPanel() {
                       {maxed ? (
                         "up ✓"
                       ) : (
-                        <span className="text-glow/80 opacity-0 transition group-hover:opacity-100">
+                        <span className="hover-reveal text-glow/80 transition">
                           + add
                         </span>
                       )}

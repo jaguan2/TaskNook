@@ -95,7 +95,7 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
           spellCheck="false"
           placeholder="#rrggbb"
           className={`w-full select-text rounded-lg bg-white/10 px-2 py-1 font-mono text-xs outline-none focus:bg-white/15 ${
-            !hexDraft || normalizeHex(hexDraft) ? "text-cream" : "text-rose"
+            !hexDraft || normalizeHex(hexDraft) ? "text-cream" : "text-danger"
           }`}
         />
       </div>

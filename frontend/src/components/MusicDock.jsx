@@ -251,7 +251,7 @@ export default function MusicDock({ onOpenPanel }) {
                 {title}
               </p>
               {playing && track.live && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-rose">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-danger">
                   ● live
                 </p>
               )}
@@ -294,7 +294,7 @@ export default function MusicDock({ onOpenPanel }) {
         <button
           onClick={toggleMusic}
           title="Stop the music"
-          className="pill grid h-7 w-7 place-items-center text-xs text-petal/50 hover:bg-white/10 hover:text-rose"
+          className="pill grid h-7 w-7 place-items-center text-xs text-petal/50 hover:bg-white/10 hover:text-danger"
         >
           ✕
         </button>

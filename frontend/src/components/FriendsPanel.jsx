@@ -49,7 +49,7 @@ export default function FriendsPanel() {
           +
         </button>
       </form>
-      {error && <p className="text-xs text-rose">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <div className="space-y-2">
         {friends.length === 0 && (
@@ -76,7 +76,7 @@ export default function FriendsPanel() {
                     </p>
                     <button
                       onClick={() => remove(f.id)}
-                      className="text-xs text-petal/40 opacity-0 transition hover:text-rose group-hover:opacity-100"
+                      className="hover-reveal text-xs text-petal/40 transition hover:text-danger"
                     >
                       remove
                     </button>

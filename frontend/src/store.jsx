@@ -8,7 +8,7 @@ import {
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
 import { applyAlgorithm, shuffledIds } from "./lib/algorithms";
-import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
+import { SOUND_CHANNELS, applyMix, playChime, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
 import {
@@ -56,6 +56,20 @@ const BUILT_IN_STATIONS = [
 export function StoreProvider({ children }) {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
+  // Set only when the local-account bootstrap itself fails — App shows a real
+  // error screen instead of silently rendering an empty cottage.
+  const [bootError, setBootError] = useState(false);
+
+  // One transient toast at a time (latest wins) — the shared "something went
+  // wrong" channel. Failures must never be console-only: the UI otherwise
+  // keeps looking like the action worked.
+  const [toast, setToast] = useState(null); // { id, message }
+  const toastTimer = useRef(null);
+  const showToast = useCallback((message) => {
+    setToast({ id: Date.now(), message });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }, []);
 
   const [tasks, setTasks] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -101,11 +115,14 @@ export function StoreProvider({ children }) {
       localStorage.setItem("tasknook.pomodoro", JSON.stringify(next));
       return next;
     });
-    // Changing the plan restarts the cycle from round 1 (but never yanks a
-    // countdown that's actively running).
-    setPhase("focus");
-    setRound(1);
+    // Changing the plan restarts the cycle from round 1 — but only when idle.
+    // While a session runs, only the settings change: resetting phase/round
+    // mid-run silently wiped round progress, and doing it during a BREAK
+    // relabelled the remaining break time as a focus phase (which then got
+    // logged as a session).
     if (!running) {
+      setPhase("focus");
+      setRound(1);
       setRemaining(focusMinutes * 60);
       setNudgeSeconds(0);
     }
@@ -394,7 +411,10 @@ export function StoreProvider({ children }) {
       localStorage.setItem("tasknook.isoRoom", JSON.stringify(isoRoom));
       api
         .saveRoom(roomPlacements, isoRoom)
-        .catch((err) => console.error("Failed to save room layout:", err));
+        .catch((err) => {
+          console.error("Failed to save room layout:", err);
+          showToast("Couldn't save the room — it's still safe on this device 🌧️");
+        });
     }, 600);
     return () => clearTimeout(roomSaveTimer.current);
   }, [roomPlacements, isoRoom]);
@@ -436,6 +456,7 @@ export function StoreProvider({ children }) {
             setUser(user);
           } catch (err) {
             console.error("Failed to set up the local TaskNook account:", err);
+            setBootError(true);
           }
         }
       }
@@ -457,8 +478,11 @@ export function StoreProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (user) refreshAll().catch(() => {});
-  }, [user, refreshAll]);
+    if (user)
+      refreshAll().catch(() =>
+        showToast("Couldn't load your data — is the backend running? 🌧️")
+      );
+  }, [user, refreshAll, showToast]);
 
   // Reconcile the room with the server once signed in: the DB copy wins (it
   // survives cleared browser storage); if the DB has none yet, adopt this
@@ -509,6 +533,7 @@ export function StoreProvider({ children }) {
       await refreshAll();
     } catch (err) {
       console.error("Failed to toggle task:", err);
+      showToast("Couldn't save that change 🌧️");
     }
   };
   const editTask = async (id, payload) => {
@@ -517,6 +542,7 @@ export function StoreProvider({ children }) {
       await refreshAll();
     } catch (err) {
       console.error("Failed to update task:", err);
+      showToast("Couldn't save that change 🌧️");
     }
   };
   const removeTask = async (id) => {
@@ -526,6 +552,7 @@ export function StoreProvider({ children }) {
       await refreshAll();
     } catch (err) {
       console.error("Failed to delete task:", err);
+      showToast("Couldn't delete the task 🌧️");
     }
   };
   const reorderTasks = async (orderedActive) => {
@@ -538,8 +565,13 @@ export function StoreProvider({ children }) {
     });
     setAlgorithm("custom");
     localStorage.setItem("tasknook.algo", "custom");
-    await api.reorderTasks(orderedActive.map((t) => t.id));
-    await refreshAll();
+    try {
+      await api.reorderTasks(orderedActive.map((t) => t.id));
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to save the task order:", err);
+      showToast("Couldn't save the new order 🌧️");
+    }
   };
 
   // ---------- Task groups (VC2-style to-do headers) ----------
@@ -576,6 +608,7 @@ export function StoreProvider({ children }) {
       await refreshAll();
     } catch (err) {
       console.error("Failed to ungroup tasks:", err);
+      showToast("Couldn't ungroup those tasks 🌧️");
     }
   };
   const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
@@ -621,6 +654,16 @@ export function StoreProvider({ children }) {
 
   const startTimer = () => {
     if (timerMode === "timer" && remaining <= 0) setRemaining(focusMinutes * 60);
+    // First start is the natural moment to ask — completion/break alerts are
+    // exactly what was just signed up for. Without this request the notify()
+    // calls below are permanently dead (permission starts as "default").
+    try {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    } catch {
+      /* older webviews may not implement it */
+    }
     setRunning(true);
   };
   const pauseTimer = () => setRunning(false);
@@ -660,6 +703,9 @@ export function StoreProvider({ children }) {
   // otherwise it just ends the block. Completed FOCUS phases are logged as
   // sessions — breaks never are.
   const handlePhaseComplete = useCallback(async () => {
+    // A soft in-app chime marks every phase edge for someone at the screen;
+    // the system notification covers whoever stepped away.
+    playChime();
     if (phase === "break") {
       setPhase("focus");
       setRound((r) => r + 1);
@@ -673,8 +719,10 @@ export function StoreProvider({ children }) {
         taskName: activeTask ? activeTask.name : "Focus",
       });
       await refreshAll();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      // Not ignorable: a silently-unlogged block reads as a frozen streak.
+      console.error("Failed to log the focus session:", err);
+      showToast("Couldn't log that session — it may be missing from today 🌧️");
     }
     setNudgeSeconds(0);
     if (pomodoro.enabled && round < pomodoro.rounds) {
@@ -691,7 +739,16 @@ export function StoreProvider({ children }) {
         notify("🌙 Focus block complete", `${focusMinutes} cozy minutes logged. Time to stretch.`);
       }
     }
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshAll]);
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshAll, showToast]);
+
+  // Ends a break early and moves straight into the next focus round — before
+  // this, the only way out of a break was ✕, which discards the whole cycle.
+  const skipBreak = () => {
+    if (phase !== "break") return;
+    setPhase("focus");
+    setRound((r) => r + 1);
+    setRemaining(focusMinutes * 60);
+  };
 
   // Keep the latest handler in a ref so the ticking interval depends only on
   // `running` — selecting a different task mid-focus won't restart the timer.
@@ -728,14 +785,16 @@ export function StoreProvider({ children }) {
     const minutes = Math.round(elapsed / 60);
     setElapsed(0);
     if (minutes < 1) return; // nothing meaningful to log
+    playChime();
     try {
       await api.logSession({
         minutes,
         taskName: activeTask ? activeTask.name : "Stopwatch",
       });
       await refreshAll();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error("Failed to log the stopwatch session:", err);
+      showToast("Couldn't log that session — it may be missing from today 🌧️");
     }
     notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
   };
@@ -959,6 +1018,9 @@ export function StoreProvider({ children }) {
   const value = {
     user,
     booting,
+    bootError,
+    toast,
+    showToast,
 
     tasks,
     orderedTasks,
@@ -1025,6 +1087,7 @@ export function StoreProvider({ children }) {
     setTimerMode,
     elapsed,
     finishStopwatch,
+    skipBreak,
     nudgeSeconds,
     nudgeTimer,
     activeTask,

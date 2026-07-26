@@ -17,13 +17,14 @@ const CLOUDS = [
 ];
 
 function Cloud({ top, scale, duration, delay, opacity, dark }) {
-  const tone = dark ? "rgba(18, 12, 24, 0.85)" : "rgba(210, 200, 220, 0.5)";
+  const tone = dark ? "rgba(14, 9, 20, 0.95)" : "rgba(210, 200, 220, 0.5)";
   return (
     <div
       className="sky-cloud absolute"
       style={{
         top,
-        opacity,
+        // storm clouds must read HEAVY, not misty
+        opacity: dark ? Math.min(0.85, opacity * 1.6) : opacity,
         animationDuration: `${duration}s`,
         animationDelay: `${delay}s`,
       }}
@@ -82,13 +83,19 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
           />
         ))}
 
-      {/* the sun / moon — parked upper-centre, clear of both HUD corners */}
+      {/* The sun / moon. Composition, not decoration: rule-of-thirds — the
+          orb sits at the upper-RIGHT third intersection (dead-centre above
+          the room crowds the focal subject and reads stuck-on), clear of the
+          to-do list (starts ~78% x) and agreeing with the right-wall string
+          lights about where light comes from. Sunset is the exception: the
+          sun drops LOW on the left and half-sinks behind the room's
+          silhouette — a horizon. */}
       {night ? (
         <div
           className="absolute rounded-full"
           style={{
-            left: "40%",
-            top: "9%",
+            left: "63%",
+            top: "13%",
             width: 46,
             height: 46,
             background: "#f7e9e2",
@@ -104,14 +111,14 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
         <div
           className="absolute rounded-full"
           style={{
-            left: sunset ? "24%" : "42%",
-            top: sunset ? "26%" : "8%",
-            width: sunset ? 58 : 52,
-            height: sunset ? 58 : 52,
+            left: sunset ? "13%" : "63%",
+            top: sunset ? "34%" : "12%",
+            width: sunset ? 64 : 52,
+            height: sunset ? 64 : 52,
             background: sunset ? "#ffb45e" : "#ffd76a",
             opacity: orbOpacity,
             boxShadow: sunset
-              ? "0 0 70px 26px rgba(255, 150, 80, 0.3)"
+              ? "0 0 90px 34px rgba(255, 150, 80, 0.35)"
               : "0 0 60px 22px rgba(255, 215, 106, 0.28)",
           }}
         />

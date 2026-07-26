@@ -87,7 +87,7 @@ export default function SettingsPanel() {
       <hr className="border-white/10" />
 
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">🎨 Color scheme</p>
+        <p className="text-sm font-semibold text-cream">🎨 Colour scheme</p>
         <p className="text-xs text-petal/60">Re-tint the whole app, including the desk scene.</p>
         <div className="flex flex-wrap gap-2">
           {COLOR_SCHEMES.map((s) => (
@@ -160,7 +160,7 @@ export default function SettingsPanel() {
                   spellCheck="false"
                   placeholder="#d98a93"
                   className={`w-full rounded-lg bg-white/10 px-2 py-1 font-mono text-xs outline-none focus:bg-white/15 ${
-                    normalizeHex(hexDraft) ? "text-cream" : "text-rose"
+                    normalizeHex(hexDraft) ? "text-cream" : "text-danger"
                   }`}
                 />
               </label>

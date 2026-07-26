@@ -19,6 +19,10 @@ export default {
         amber: "#e8b04b",
         sky: "#3a2f5e",
         sage: "#7faf8f",
+        // Fixed danger color for errors, destructive hovers, "sure?" states
+        // and the LIVE dot. `rose` is theme-swapped (grey-blue in shore, tan
+        // in linen…) so it can't carry danger meaning — this one never moves.
+        danger: "#d98a93",
       },
       fontFamily: {
         cozy: ['"Quicksand"', "ui-rounded", "system-ui", "sans-serif"],

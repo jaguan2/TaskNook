@@ -220,6 +220,28 @@ export function applyMix(mix) {
   for (const { key } of SOUND_CHANNELS) setChannel(key, mix?.[key] || 0);
 }
 
+// A soft two-note chime for timer moments (block done, break over) — same
+// no-files philosophy as the ambience. Deliberately quiet: it marks the
+// moment for someone in the room, it doesn't demand attention. System
+// notifications cover the stepped-away case.
+export function playChime() {
+  const context = ensureContext();
+  const now = context.currentTime;
+  [523.25, 783.99].forEach((freq, i) => {
+    const osc = context.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const env = context.createGain();
+    const t = now + i * 0.16;
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.07, t + 0.02);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+    osc.connect(env).connect(context.destination);
+    osc.start(t);
+    osc.stop(t + 1.2);
+  });
+}
+
 export function stopAllSound() {
   Object.keys(channels).forEach(stopChannel);
 }

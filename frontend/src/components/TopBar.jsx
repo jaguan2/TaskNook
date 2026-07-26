@@ -30,7 +30,24 @@ export default function TopBar() {
   const { user, musicOn, toggleMusic, weatherMode, setWeather } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
-  const weatherIcon = { cloudy: "☁️", snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
+  // The trigger mirrors the active option — including Clear (🌤️), which used
+  // to fall through to the rain icon and read as "rain is on".
+  const weatherIcon = (
+    WEATHER_OPTIONS.find((w) => w.key === weatherMode) || WEATHER_OPTIONS[0]
+  ).icon;
+
+  // Escape closes the popover. Capture phase + stopPropagation so App's own
+  // Escape handler (which would close a drawer) doesn't also fire.
+  useEffect(() => {
+    if (!weatherMenuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setWeatherMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [weatherMenuOpen]);
 
   return (
     <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">

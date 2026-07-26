@@ -61,7 +61,7 @@ export const ITEMS = {
   rug: { label: "Round rug", icon: "🟣", zone: "floor", layer: -1, hit: { x: -110, y: -26, w: 220, h: 52 } },
   rugstripe: { label: "Striped rug", icon: "🧶", zone: "floor", layer: -1, hit: { x: -105, y: -20, w: 210, h: 40 } },
   monstera: { label: "Monstera", icon: "🌱", zone: "floor", hit: { x: -34, y: -96, w: 68, h: 98 } },
-  floorlamp: { label: "Floor lamp", icon: "🛋️", zone: "floor", hit: { x: -26, y: -128, w: 52, h: 130 } },
+  floorlamp: { label: "Floor lamp", icon: "💡", zone: "floor", hit: { x: -26, y: -128, w: 52, h: 130 } },
   cat: { label: "Sleeping cat", icon: "🐈", zone: "floor", hit: { x: -30, y: -26, w: 60, h: 28 } },
   bookshelf: { label: "Bookshelf", icon: "📖", zone: "floor", hit: { x: -42, y: -104, w: 84, h: 106 } },
   beanbag: { label: "Beanbag", icon: "🫘", zone: "floor", hit: { x: -40, y: -34, w: 80, h: 36 } },

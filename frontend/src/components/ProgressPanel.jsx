@@ -103,7 +103,9 @@ export default function ProgressPanel() {
           />
         </div>
         <p className="mt-1 text-xs text-petal/60">
-          {stats.tasksDone} of {stats.tasksTotal} tasks done
+          {stats.tasksTotal === 0
+            ? "No tasks yet today — they'll show up here as you add them. 🌿"
+            : `${stats.tasksDone} of ${stats.tasksTotal} tasks done`}
         </p>
       </div>
 
