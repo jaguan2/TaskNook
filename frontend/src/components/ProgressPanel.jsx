@@ -1,4 +1,4 @@
-import { useStore } from "../store";
+﻿import { useStore } from "../store";
 import { focusStreak, localTodayISO } from "../lib/stats";
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
@@ -36,35 +36,35 @@ function Stat({ label, value, sub }) {
 }
 
 export default function ProgressPanel() {
-  const { stats, tasks, sessionDays, dailyGoal, setDailyGoal } = useStore();
+  const { stats, tasks, sessionDays, dailyGoal, setDailyGoal, focusMinutesLive } = useStore();
   const completion = stats.completion || 0;
-  const hours = Math.floor(stats.focusMinutesToday / 60);
-  const mins = stats.focusMinutesToday % 60;
+  const hours = Math.floor(focusMinutesLive / 60);
+  const mins = focusMinutesLive % 60;
 
   const totalPlannedMin = tasks
     .filter((t) => !t.completed)
     .reduce((sum, t) => sum + t.duration, 0);
 
   const streak = focusStreak(
-    { ...sessionDays, [localTodayISO()]: stats.focusMinutesToday },
+    { ...sessionDays, [localTodayISO()]: focusMinutesLive },
     dailyGoal,
     localTodayISO()
   );
-  const goalMet = stats.focusMinutesToday >= dailyGoal;
+  const goalMet = focusMinutesLive >= dailyGoal;
 
   return (
     <div className="space-y-5">
       {/* Daily goal ring + streak */}
       <div className="flex items-center gap-4 rounded-2xl bg-white/5 p-3">
         <div className="relative grid place-items-center">
-          <GoalRing minutes={stats.focusMinutesToday} goal={dailyGoal} />
+          <GoalRing minutes={focusMinutesLive} goal={dailyGoal} />
           <span className="absolute text-lg">{goalMet ? "🌟" : "🎯"}</span>
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-semibold text-cream">
             Daily goal{" "}
             <span className={goalMet ? "text-sage" : "text-glow"}>
-              {stats.focusMinutesToday} / {dailyGoal} min
+              {focusMinutesLive} / {dailyGoal} min
             </span>
           </p>
           <p className="text-xs text-petal/60">
@@ -120,16 +120,16 @@ export default function ProgressPanel() {
           Productivity garden
         </p>
         <div className="flex flex-wrap gap-1 rounded-2xl bg-white/5 p-3 text-xl">
-          {Array.from({ length: Math.max(1, Math.ceil(stats.focusMinutesToday / 15)) }).map(
+          {Array.from({ length: Math.max(1, Math.ceil(focusMinutesLive / 15)) }).map(
             (_, i) => (
               <span key={i} className="animate-float" style={{ animationDelay: `${i * 0.2}s` }}>
-                {stats.focusMinutesToday === 0 ? "🌱" : ["🌿", "🍃", "🌷", "🌻"][i % 4]}
+                {focusMinutesLive === 0 ? "🌱" : ["🌿", "🍃", "🌷", "🌻"][i % 4]}
               </span>
             )
           )}
         </div>
         <p className="mt-1 text-xs text-petal/60">
-          {stats.focusMinutesToday === 0
+          {focusMinutesLive === 0
             ? "Start a focus block to grow your garden."
             : "Every 15 minutes of focus grows a new plant. Keep going! 🌙"}
         </p>
@@ -137,3 +137,4 @@ export default function ProgressPanel() {
     </div>
   );
 }
+

@@ -19,7 +19,6 @@ import {
 } from "./lib/room";
 import {
   ISO_MAX_ITEMS,
-  clampIsoSize,
   clampIsoPlacement,
   defaultIsoLayout,
   isoPresetLayout,
@@ -38,10 +37,11 @@ const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 // Stored as video ids, not playlist ids. Links like ...&list=RD<id> are
 // YouTube's auto-generated "radio" mixes, and RD… lists refuse to load in an
 // iframe embed — the underlying video plays fine.
+// The two "lofi ... radio" LIVE streams were removed 2026-07 — they refused
+// to play in the embedded player (user-verified), while regular videos and
+// playlists work fine.
 const BUILT_IN_STATIONS = [
-  { provider: "youtube", id: "jfKfPfyJRdk", label: "lofi hip hop radio 📚" },
   { provider: "youtube", id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
-  { provider: "youtube", id: "rUxyKA_-grg", label: "lofi sleep & chill 🌙" },
   { provider: "youtube", id: "foEjHAkrIDA", label: "secret cafe r&b ☕" },
   { provider: "youtube", id: "mWI10M1M7JM", label: "jazzy chillhop 🧺" },
   { provider: "youtube", id: "WPfOjN8aY-Y", label: "weathering with you 🌦️" },
@@ -271,8 +271,10 @@ export function StoreProvider({ children }) {
   // Experimental: swap the flat scene for the static isometric mock (the
   // first look at the future Sims-style room). Decorating is disabled while
   // previewing — the mock has no placement engine yet.
+  // The isometric room is the DEFAULT scene (user decision — the flat 2D
+  // cottage is the opt-in throwback now).
   const [isoPreview, setIsoPreviewState] = useState(
-    () => localStorage.getItem("tasknook.isoPreview") === "1"
+    () => localStorage.getItem("tasknook.isoPreview") !== "0"
   );
   const setIsoPreview = useCallback((on) => {
     setIsoPreviewState(!!on);
@@ -286,12 +288,16 @@ export function StoreProvider({ children }) {
       placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
     }));
   }, []);
+  // The id of the most recently added iso item — the scene auto-selects it
+  // so the user can see what just appeared.
+  const [lastIsoAddedId, setLastIsoAddedId] = useState(null);
   const addIsoItem = useCallback((key) => {
-    setIsoRoom((prev) => {
-      if (prev.placements.length >= ISO_MAX_ITEMS) return prev;
-      const placement = newIsoPlacement(key, prev.placements, prev);
-      return placement ? { ...prev, placements: [...prev.placements, placement] } : prev;
-    });
+    const prev = isoRef.current;
+    if (prev.placements.length >= ISO_MAX_ITEMS) return;
+    const placement = newIsoPlacement(key, prev.placements, prev);
+    if (!placement) return;
+    setIsoRoom({ ...prev, placements: [...prev.placements, placement] });
+    setLastIsoAddedId(placement.id);
     setRoomEditMode(true);
   }, []);
   const removeIsoItem = useCallback((id) => {
@@ -330,25 +336,43 @@ export function StoreProvider({ children }) {
       }),
     }));
   }, []);
-  // Resizing keeps every item's footprint on the (possibly smaller) floor.
+  // Resizing keeps every item's footprint on the (possibly smaller) floor;
+  // running through the validator also re-fits the corner cuts.
   const setIsoSize = useCallback((w, d) => {
+    setIsoRoom((prev) => validateIsoLayout({ ...prev, w, d }));
+  }, []);
+  // Environment swap (room ↔ garden); validation drops wall decor outdoors.
+  const setIsoEnv = useCallback((env) => {
+    setIsoRoom((prev) => validateIsoLayout({ ...prev, env }));
+  }, []);
+  // Floor-plan painting (irregular shapes): toggle one tile of the mask.
+  const setIsoTile = useCallback((x, y, on) => {
     setIsoRoom((prev) => {
-      const size = { w: clampIsoSize(w), d: clampIsoSize(d) };
-      return {
-        ...size,
-        placements: prev.placements.map((p) => ({
-          ...p,
-          ...clampIsoPlacement(p.item, p.gx, p.gy, size, p.rot || 0),
-        })),
-      };
+      const rows = (
+        prev.mask || Array.from({ length: prev.d }, () => "1".repeat(prev.w))
+      ).map((r) => r.split(""));
+      if (!rows[y] || rows[y][x] === undefined) return prev;
+      rows[y][x] = on ? "1" : "0";
+      const mask = rows.map((r) => r.join(""));
+      // Refuse to paint away the last floor tile — a room must exist.
+      if (!mask.some((r) => r.includes("1"))) return prev;
+      return validateIsoLayout({ ...prev, mask });
     });
   }, []);
+  const resetIsoShape = useCallback(
+    () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
+    []
+  );
   const clearIsoRoom = useCallback(
     () => setIsoRoom((prev) => ({ w: prev.w, d: prev.d, placements: [] })),
     []
   );
-  // Presets replace the whole iso layout, floor size included.
-  const applyIsoPreset = useCallback((key) => setIsoRoom(isoPresetLayout(key)), []);
+  // Presets replace the whole iso layout, floor size included (validated so
+  // preset `cuts` shorthand becomes a mask immediately).
+  const applyIsoPreset = useCallback(
+    (key) => setIsoRoom(validateIsoLayout(isoPresetLayout(key))),
+    []
+  );
   const roomRef = useRef(roomPlacements);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
@@ -716,6 +740,17 @@ export function StoreProvider({ children }) {
     notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
   };
 
+  // "Focus today" including the CURRENT running block — the DB only knows
+  // about completed sessions, which read as "the app isn't tracking me".
+  const inSessionMinutes = !running
+    ? 0
+    : timerMode === "stopwatch"
+    ? Math.floor(elapsed / 60)
+    : phase === "focus"
+    ? Math.max(0, Math.floor((focusMinutes * 60 + nudgeSeconds - remaining) / 60))
+    : 0;
+  const focusMinutesLive = (stats.focusMinutesToday || 0) + inSessionMinutes;
+
   // ---------- Ambient ----------
   // Weather quick-picks drive ONLY the visual (overlay + cottage window).
   // Sound is the mixer's business — picking a rainy scene without rain audio
@@ -943,6 +978,7 @@ export function StoreProvider({ children }) {
 
     friends,
     stats,
+    focusMinutesLive,
     sessionDays,
     refreshAll,
     dailyGoal,
@@ -963,12 +999,16 @@ export function StoreProvider({ children }) {
     isoPreview,
     setIsoPreview,
     isoRoom,
+    lastIsoAddedId,
     moveIsoItem,
     addIsoItem,
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
     setIsoSize,
+    setIsoTile,
+    resetIsoShape,
+    setIsoEnv,
     clearIsoRoom,
     applyIsoPreset,
 

@@ -222,20 +222,17 @@ function Sofa() {
   const f = "#b0687a";
   return (
     <g>
-      <TintedBox gx={0} gy={0} dx={2} dy={0.32} h={52} fallback={f} />
-      <TintedBox gx={0} gy={0.28} dx={2} dy={0.72} h={24} fallback={f} />
-      <TintedBox gx={0} gy={0} dx={0.28} dy={1} h={38} fallback={f} />
-      <TintedBox gx={1.72} gy={0} dx={0.28} dy={1} h={38} fallback={f} />
-      {/* cushion seam */}
-      <line
-        x1={project(1, 0.3).x}
-        y1={project(1, 0.3).y - 24}
-        x2={project(1, 1).x}
-        y2={project(1, 1).y - 24}
-        stroke="#000"
-        strokeWidth="1.4"
-        opacity="0.22"
-      />
+      {/* one low base, back INSET between the arms, cushions in front — the
+          old stacked-slab version read as random boxes (user feedback) */}
+      <TintedBox gx={0} gy={0} dx={2} dy={1} h={14} fallback={f} dark={0.4} mid={0.26} />
+      <TintedBox gx={0.22} gy={0} dx={1.56} dy={0.3} h={44} fallback={f} />
+      <TintedBox gx={0} gy={0} dx={0.26} dy={1} h={32} fallback={f} dark={0.36} mid={0.2} />
+      <TintedBox gx={1.74} gy={0} dx={0.26} dy={1} h={32} fallback={f} dark={0.36} mid={0.2} />
+      <TintedBox gx={0.24} gy={0.28} dx={0.74} dy={0.68} h={24} fallback={f} dark={0.26} mid={0.14} />
+      <TintedBox gx={1.02} gy={0.28} dx={0.74} dy={0.68} h={24} fallback={f} dark={0.26} mid={0.14} />
+      {/* soft top highlights so the cushions read plush */}
+      <polygon points={floorPatch(0.3, 0.34, 0.6, 0.5)} transform="translate(0,-24)" fill="#fff" opacity="0.08" />
+      <polygon points={floorPatch(1.08, 0.34, 0.6, 0.5)} transform="translate(0,-24)" fill="#fff" opacity="0.08" />
     </g>
   );
 }
@@ -368,7 +365,131 @@ function Mirror() {
   );
 }
 
+// ---- outdoor set ------------------------------------------------------- //
+
+function Tree() {
+  const c = project(0.75, 0.75);
+  return (
+    <g>
+      <ellipse cx={c.x} cy={c.y} rx="30" ry="11" fill="#000" opacity="0.2" />
+      <path
+        d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 46} L${c.x + 3} ${c.y - 46} L${c.x + 5} ${c.y} Z`}
+        fill="#6b4a39"
+      />
+      <g className="room-sway">
+        <ellipse cx={c.x} cy={c.y - 58} rx="34" ry="22" style={tinted("#3f7f63")} />
+        <ellipse cx={c.x} cy={c.y - 58} rx="34" ry="22" fill="#000" opacity="0.12" />
+        <ellipse cx={c.x - 6} cy={c.y - 76} rx="27" ry="18" style={tinted("#3f7f63")} />
+        <ellipse cx={c.x + 8} cy={c.y - 90} rx="18" ry="13" style={tinted("#3f7f63")} />
+        <ellipse cx={c.x + 10} cy={c.y - 92} rx="10" ry="7" fill="#fff" opacity="0.12" />
+      </g>
+    </g>
+  );
+}
+
+function Bush() {
+  const c = project(0.5, 0.5);
+  return (
+    <g>
+      <ellipse cx={c.x} cy={c.y + 2} rx="20" ry="8" fill="#000" opacity="0.18" />
+      <ellipse cx={c.x - 8} cy={c.y - 10} rx="14" ry="11" style={tinted("#3f7f63")} />
+      <ellipse cx={c.x + 8} cy={c.y - 9} rx="13" ry="10" style={tinted("#3f7f63")} />
+      <ellipse cx={c.x + 8} cy={c.y - 9} rx="13" ry="10" fill="#000" opacity="0.12" />
+      <ellipse cx={c.x} cy={c.y - 18} rx="12" ry="9" style={tinted("#3f7f63")} />
+      <ellipse cx={c.x - 3} cy={c.y - 21} rx="6" ry="4" fill="#fff" opacity="0.12" />
+    </g>
+  );
+}
+
+function Pond() {
+  const c = project(1.75, 1.25);
+  return (
+    <g>
+      <ellipse cx={c.x} cy={c.y} rx="76" ry="38" fill="#2c4a52" />
+      <ellipse cx={c.x} cy={c.y - 1.5} rx="70" ry="34" fill="#4a90ac" opacity="0.9" />
+      <ellipse cx={c.x - 8} cy={c.y - 4} rx="46" ry="21" fill="#6fb8cf" opacity="0.45" />
+      <path
+        d={`M${c.x - 30} ${c.y + 6} q14 4 30 1`}
+        stroke="#cbe8ef"
+        strokeWidth="1.6"
+        fill="none"
+        opacity="0.5"
+      />
+      {/* lilypads */}
+      <g className="room-sway" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+        <ellipse cx={c.x + 26} cy={c.y - 8} rx="9" ry="5" fill="#56a07c" />
+        <ellipse cx={c.x + 34} cy={c.y + 4} rx="6" ry="3.5" fill="#3f7f63" />
+        <ellipse cx={c.x - 34} cy={c.y + 8} rx="7" ry="4" fill="#56a07c" />
+        <circle cx={c.x + 24} cy={c.y - 10} r="2" fill="#e8a3a8" />
+      </g>
+    </g>
+  );
+}
+
+function Picnic() {
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 2, 1.5)} style={tinted("#d98a93")} opacity="0.85" />
+      {[0, 1, 2, 3].map((i) =>
+        [0, 1, 2].map((j) =>
+          (i + j) % 2 === 0 ? (
+            <polygon
+              key={`${i}-${j}`}
+              points={floorPatch(i * 0.5, j * 0.5, 0.5, 0.5)}
+              fill="#fff"
+              opacity="0.22"
+            />
+          ) : null
+        )
+      )}
+      <polygon
+        points={floorPatch(0.06, 0.06, 1.88, 1.38)}
+        fill="none"
+        stroke="#fff"
+        strokeWidth="1.2"
+        opacity="0.3"
+      />
+    </g>
+  );
+}
+
+function Bench() {
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={1.6} dy={0.12} h={30} fallback="#8f5d49" dark={0.38} mid={0.22} />
+      <TintedBox gx={0} gy={0.12} dx={1.6} dy={0.45} h={16} fallback="#a87f5f" />
+    </g>
+  );
+}
+
+function Flowerbed() {
+  const c = project(0.5, 0.3);
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 1, 0.6)} fill="#2e5540" opacity="0.8" />
+      {[
+        [-12, -6],
+        [-2, -12],
+        [8, -5],
+        [0, -2],
+        [14, -10],
+      ].map(([dx, dy], i) => (
+        <g key={i}>
+          <circle cx={c.x + dx} cy={c.y + dy} r="3" style={tinted("#e8b04b")} />
+          <circle cx={c.x + dx} cy={c.y + dy} r="1.2" fill="#fff" opacity="0.8" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 export const ISO_SPRITES = {
+  tree: Tree,
+  bush: Bush,
+  pond: Pond,
+  picnic: Picnic,
+  bench: Bench,
+  flowerbed: Flowerbed,
   rug: Rug,
   squarerug: SquareRug,
   desk: Desk,

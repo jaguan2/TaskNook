@@ -440,14 +440,53 @@ def register_routes(app):
             if not isinstance(iso, dict):
                 return jsonify({"error": "Invalid room layout"}), 400
             w, depth = iso.get("w"), iso.get("d")
-            if not (isinstance(w, int) and not isinstance(w, bool) and 3 <= w <= 16):
+            if not (isinstance(w, int) and not isinstance(w, bool) and 3 <= w <= 64):
                 return jsonify({"error": "Invalid room layout"}), 400
-            if not (isinstance(depth, int) and not isinstance(depth, bool) and 3 <= depth <= 16):
+            if not (isinstance(depth, int) and not isinstance(depth, bool) and 3 <= depth <= 64):
                 return jsonify({"error": "Invalid room layout"}), 400
             iso_clean, iso_ok = _clean_layout(iso.get("placements"), "gx", "gy")
             if not iso_ok:
                 return jsonify({"error": "Invalid room layout"}), 400
             stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
+            env = iso.get("env")
+            if env is not None:
+                if env not in ("room", "garden"):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["env"] = env
+            # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
+            # at least one floor tile.
+            mask = iso.get("mask")
+            if mask is not None:
+                if (
+                    not isinstance(mask, list)
+                    or len(mask) != depth
+                    or not all(
+                        isinstance(r, str) and len(r) == w and set(r) <= {"0", "1"}
+                        for r in mask
+                    )
+                    or not any("1" in r for r in mask)
+                ):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["mask"] = mask
+            # Optional corner cuts (irregular floors). The frontend owns the
+            # geometry rules; here we only pin the shape and sizes.
+            cuts = iso.get("cuts")
+            if cuts is not None:
+                if not isinstance(cuts, list) or len(cuts) > 4:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                clean_cuts = []
+                for c in cuts:
+                    if not isinstance(c, dict):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    corner = c.get("corner")
+                    cw, cd = c.get("cw"), c.get("cd")
+                    if corner not in ("back", "right", "left", "front"):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    for v in (cw, cd):
+                        if not (isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 16):
+                            return jsonify({"error": "Invalid room layout"}), 400
+                    clean_cuts.append({"corner": corner, "cw": cw, "cd": cd})
+                stored["iso"]["cuts"] = clean_cuts
 
         user.room_config = json.dumps(stored)
         db.session.commit()

@@ -255,7 +255,9 @@ export default function MusicDock({ onOpenPanel }) {
                   ● live
                 </p>
               )}
-              {playing && !track.live && track.d > 0 && (
+              {/* keep the bar mounted through pauses and seek-buffering —
+                  hiding it on every state change made seeking feel broken */}
+              {!track.live && track.d > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] tabular-nums text-petal/60">
                     {fmtTime(track.t)}

@@ -48,6 +48,7 @@ export default function App() {
     roomScale,
     isoPreview,
     isoRoom,
+    lastIsoAddedId,
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
@@ -92,10 +93,15 @@ export default function App() {
   const togglePin = (key) =>
     setOpenPanels((prev) => prev.map((p) => (p.key === key ? { ...p, pinned: !p.pinned } : p)));
 
-  // Escape closes the front-most unpinned panel.
+  // Escape leaves decorating mode first; otherwise it closes the front-most
+  // unpinned panel.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
+      if (roomEditMode) {
+        setRoomEditMode(false);
+        return;
+      }
       setOpenPanels((prev) => {
         const closable = prev.filter((p) => !p.pinned);
         if (closable.length === 0) return prev;
@@ -106,7 +112,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frontKey]);
+  }, [frontKey, roomEditMode, setRoomEditMode]);
 
   if (booting) {
     return (
@@ -145,6 +151,7 @@ export default function App() {
             placements={isoRoom.placements}
             editMode={roomEditMode}
             timeOfDay={timeOfDay}
+            highlightId={lastIsoAddedId}
             onMoveItem={moveIsoItem}
             onRemoveItem={removeIsoItem}
             onRotateItem={rotateIsoItem}

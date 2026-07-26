@@ -8,13 +8,18 @@ import {
   ISO_PRESETS,
   clampIsoPlacement,
   clampIsoSize,
+  cutsToMask,
   defaultIsoLayout,
   footOf,
+  footprintFree,
   isoPresetLayout,
+  lipRuns,
   newIsoPlacement,
+  normalizeMask,
   snapHalf,
   sortIso,
   validateIsoLayout,
+  wallRuns,
 } from "./isoRoom";
 import { ISO_SPRITES } from "../components/IsoItems";
 
@@ -54,7 +59,7 @@ describe("grid maths", () => {
 
   it("clamps sizes into the allowed range as integers", () => {
     expect(clampIsoSize(1)).toBe(3);
-    expect(clampIsoSize(99)).toBe(14);
+    expect(clampIsoSize(99)).toBe(30);
     expect(clampIsoSize(8.6)).toBe(9);
     expect(clampIsoSize("junk")).toBe(DEFAULT_ISO_SIZE.w);
   });
@@ -130,9 +135,9 @@ describe("validateIsoLayout", () => {
       d: 1,
       placements: [{ id: "a", item: "stool", gx: 50, gy: 50 }],
     });
-    expect(out.w).toBe(14);
+    expect(out.w).toBe(30);
     expect(out.d).toBe(3);
-    expect(out.placements[0].gx).toBeLessThanOrEqual(14 - ISO_ITEMS.stool.foot[0]);
+    expect(out.placements[0].gx).toBeLessThanOrEqual(30 - ISO_ITEMS.stool.foot[0]);
     expect(out.placements[0].gy).toBeLessThanOrEqual(3 - ISO_ITEMS.stool.foot[1]);
   });
 
@@ -177,6 +182,83 @@ describe("validateIsoLayout", () => {
     expect(validateIsoLayout({ w: 9, d: 7, placements: many }).placements).toHaveLength(
       ISO_MAX_ITEMS
     );
+  });
+});
+
+describe("floor masks (drawn shapes)", () => {
+  // 10×8 with the front-right 4×3 painted away (an L)
+  const L_MASK = [
+    "1111111111",
+    "1111111111",
+    "1111111111",
+    "1111111111",
+    "1111111111",
+    "1111110000",
+    "1111110000",
+    "1111110000",
+  ];
+  const L_ROOM = { w: 10, d: 8, mask: L_MASK };
+
+  it("footprints must sit on painted tiles only", () => {
+    expect(footprintFree(1, 1, [1, 1], L_ROOM)).toBe(true);
+    expect(footprintFree(7, 6, [1, 1], L_ROOM)).toBe(false);
+    expect(footprintFree(5.5, 4.5, [1, 1], L_ROOM)).toBe(false); // straddles
+  });
+
+  it("normalize pads junk (missing = floor), all-on implicit, all-off refused", () => {
+    expect(normalizeMask(["10", "0"], 2, 2)).toEqual(["10", "01"]);
+    expect(normalizeMask(["11", "11"], 2, 2)).toBeUndefined();
+    expect(normalizeMask(["00", "00"], 2, 2)).toBeUndefined();
+  });
+
+  it("legacy corner cuts convert to the same mask", () => {
+    expect(cutsToMask([{ corner: "front", cw: 4, cd: 3 }], 10, 8)).toEqual(L_MASK);
+  });
+
+  it("walls and lip are computed per tile edge", () => {
+    expect(wallRuns({ w: 10, d: 8 })).toHaveLength(2);
+    // back-corner hole: main walls shorten + two inner planes appear
+    const back = { w: 10, d: 8, mask: cutsToMask([{ corner: "back", cw: 3, cd: 2 }], 10, 8) };
+    expect(wallRuns(back)).toHaveLength(4);
+    expect(lipRuns({ w: 10, d: 8 })).toHaveLength(2);
+    expect(lipRuns(L_ROOM)).toHaveLength(4);
+  });
+
+  it("wall items slide only along the wall's remaining main run", () => {
+    const back = { w: 10, d: 8, mask: cutsToMask([{ corner: "back", cw: 3, cd: 2 }], 10, 8) };
+    expect(clampIsoPlacement("frame", 0, 0, back, 0).gx).toBe(3);
+    expect(clampIsoPlacement("frame", 0, 0, back, 1).gy).toBe(2);
+  });
+
+  it("validate relocates items off void tiles (or drops them if hopeless)", () => {
+    const out = validateIsoLayout({
+      ...L_ROOM,
+      placements: [{ id: "a", item: "stool", gx: 8, gy: 6 }],
+    });
+    expect(out.placements).toHaveLength(1);
+    const p = out.placements[0];
+    expect(footprintFree(p.gx, p.gy, footOf("stool", 0), out)).toBe(true);
+  });
+});
+
+describe("environments", () => {
+  it("keeps a known env, defaults junk to room (implicit)", () => {
+    expect(validateIsoLayout({ w: 9, d: 7, env: "garden", placements: [] }).env).toBe("garden");
+    expect(validateIsoLayout({ w: 9, d: 7, env: "space", placements: [] }).env).toBeUndefined();
+    expect(validateIsoLayout({ w: 9, d: 7, env: "room", placements: [] }).env).toBeUndefined();
+  });
+
+  it("drops wall decor outdoors (no walls to hang it on)", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      env: "garden",
+      placements: [
+        { id: "a", item: "frame", gx: 2, gy: 0 },
+        { id: "b", item: "tree", gx: 2, gy: 2 },
+      ],
+    });
+    expect(out.placements.map((p) => p.item)).toEqual(["tree"]);
   });
 });
 
