@@ -1,6 +1,15 @@
+import { useState } from "react";
 import { useStore } from "../store";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
-import { ISO_ITEMS, ISO_ITEM_KEYS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
+import {
+  ISO_ENVS,
+  ISO_ENV_KEYS,
+  ISO_ITEMS,
+  ISO_ITEM_KEYS,
+  ISO_PRESETS,
+  ISO_PRESET_KEYS,
+  ISO_SIZE_MAX,
+} from "../lib/isoRoom";
 import { ITEM_SPRITES } from "./RoomItems";
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
@@ -47,8 +56,17 @@ export default function RoomPanel() {
     isoRoom,
     addIsoItem,
     setIsoSize,
+    setIsoTile,
+    resetIsoShape,
+    setIsoEnv,
     applyIsoPreset,
   } = useStore();
+  const isoEnv = isoRoom.env || "room";
+  // Floor-plan painting: pointerdown picks add/remove from the first tile,
+  // dragging applies it to every tile crossed (the Sims floor-tool feel).
+  const [paintMode, setPaintMode] = useState(null);
+  const maskRows =
+    isoRoom.mask || Array.from({ length: isoRoom.d }, () => "1".repeat(isoRoom.w));
 
   const counts = roomPlacements.reduce((acc, p) => {
     acc[p.item] = (acc[p.item] || 0) + 1;
@@ -104,7 +122,7 @@ export default function RoomPanel() {
               <input
                 type="range"
                 min="3"
-                max="14"
+                max={ISO_SIZE_MAX}
                 step="1"
                 value={isoRoom.w}
                 onChange={(e) => setIsoSize(Number(e.target.value), isoRoom.d)}
@@ -119,7 +137,7 @@ export default function RoomPanel() {
               <input
                 type="range"
                 min="3"
-                max="14"
+                max={ISO_SIZE_MAX}
                 step="1"
                 value={isoRoom.d}
                 onChange={(e) => setIsoSize(isoRoom.w, Number(e.target.value))}
@@ -127,11 +145,72 @@ export default function RoomPanel() {
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>
             </div>
+            {/* environment: walled room or open-air garden */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                setting
+              </span>
+              {ISO_ENV_KEYS.map((env) => (
+                <button
+                  key={env}
+                  onClick={() => setIsoEnv(env)}
+                  className={`pill px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                    isoEnv === env
+                      ? "bg-glow text-plum"
+                      : "bg-white/10 text-petal hover:bg-white/20"
+                  }`}
+                >
+                  {ISO_ENVS[env].icon} {ISO_ENVS[env].label}
+                </button>
+              ))}
+            </div>
+            {/* floor plan: drag across the grid to draw any shape */}
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                  floor plan — drag to draw
+                </span>
+                {isoRoom.mask && (
+                  <button
+                    onClick={resetIsoShape}
+                    className="text-[11px] font-semibold text-glow/80 hover:text-glow"
+                  >
+                    ⟲ full rectangle
+                  </button>
+                )}
+              </div>
+              <div
+                className="grid touch-none select-none gap-px rounded-lg bg-white/5 p-1"
+                style={{ gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)` }}
+                onPointerUp={() => setPaintMode(null)}
+                onPointerLeave={() => setPaintMode(null)}
+              >
+                {maskRows.map((row, y) =>
+                  row.split("").map((c, x) => (
+                    <div
+                      key={`${x}-${y}`}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        const on = c !== "1";
+                        setPaintMode(on);
+                        setIsoTile(x, y, on);
+                      }}
+                      onPointerEnter={() => {
+                        if (paintMode !== null) setIsoTile(x, y, paintMode);
+                      }}
+                      className={`aspect-square cursor-crosshair rounded-[2px] transition-colors ${
+                        c === "1" ? "bg-glow/70" : "bg-white/10 hover:bg-white/20"
+                      }`}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
             <p className="text-xs text-petal/50">
-              A {isoRoom.w}×{isoRoom.d} tile floor — resize freely, furniture
-              stays on the grid. Scroll to zoom, drag empty space to look
-              around, double-click to recenter. The classic scene keeps its
-              own layout.
+              A {isoRoom.w}×{isoRoom.d} floor — resize with the sliders, then
+              paint tiles away above for L-shapes, courtyards, anything.
+              Furniture stays on the drawn floor. Scroll to zoom, drag empty
+              space to look around, double-click to recenter.
             </p>
           </>
         ) : (
@@ -208,7 +287,9 @@ export default function RoomPanel() {
             Furniture
           </p>
           <div className="grid grid-cols-2 gap-1.5">
-            {ISO_ITEM_KEYS.map((key) => (
+            {ISO_ITEM_KEYS.filter(
+              (key) => !(ISO_ITEMS[key].wall && !ISO_ENVS[isoEnv].walls)
+            ).map((key) => (
               <button
                 key={key}
                 onClick={() => addIsoItem(key)}

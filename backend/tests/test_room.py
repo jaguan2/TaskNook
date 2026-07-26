@@ -174,7 +174,11 @@ def test_flat_only_save_keeps_iso_none(client, auth):
     [
         "not a dict",
         {"w": 2, "d": 7, "placements": []},  # below minimum size
-        {"w": 9, "d": 17, "placements": []},  # above maximum size
+        {"w": 9, "d": 65, "placements": []},  # above maximum size
+        {"w": 9, "d": 7, "placements": [], "cuts": "corner"},  # cuts not a list
+        {"w": 9, "d": 7, "placements": [], "cuts": [{"corner": "top", "cw": 2, "cd": 2}]},
+        {"w": 9, "d": 7, "placements": [], "cuts": [{"corner": "back", "cw": 0, "cd": 2}]},
+        {"w": 9, "d": 7, "placements": [], "cuts": [{"corner": "back", "cw": True, "cd": 2}]},
         {"w": True, "d": 7, "placements": []},  # bool masquerading as int
         {"w": 9, "d": 7, "placements": "nope"},
         {"w": 9, "d": 7, "placements": [{"id": "i1", "item": "rug", "gx": "left", "gy": 1}]},
@@ -189,6 +193,62 @@ def test_iso_rejects_malformed_layouts(client, auth, bad_iso):
 
     # the good save is untouched
     assert client.get("/api/room", headers=auth).get_json()["iso"] == ISO
+
+
+def test_iso_roundtrips_an_environment(client, auth):
+    iso = {"w": 11, "d": 9, "env": "garden", "placements": []}
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+    bad = {"w": 11, "d": 9, "env": "space", "placements": []}
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": bad}, headers=auth).status_code
+        == 400
+    )
+
+
+def test_iso_roundtrips_a_floor_mask(client, auth):
+    iso = {"w": 4, "d": 3, "mask": ["1111", "1100", "1100"], "placements": []}
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+@pytest.mark.parametrize(
+    "bad_mask",
+    [
+        "1111",  # not a list
+        ["1111", "1100"],  # wrong row count for d=3
+        ["1111", "110", "1100"],  # wrong row length
+        ["1111", "11x0", "1100"],  # bad chars
+        ["0000", "0000", "0000"],  # no floor at all
+    ],
+)
+def test_iso_rejects_malformed_masks(client, auth, bad_mask):
+    iso = {"w": 4, "d": 3, "mask": bad_mask, "placements": []}
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 400
+    )
+
+
+def test_iso_roundtrips_corner_cuts(client, auth):
+    iso = {
+        "w": 12,
+        "d": 9,
+        "cuts": [{"corner": "front", "cw": 4, "cd": 3}],
+        "placements": [],
+    }
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
 
 
 def test_iso_roundtrips_a_rotation(client, auth):

@@ -171,7 +171,8 @@ function Cottage({
           // the item. Only while decorating, so normal scrolling is unaffected.
           touchAction: editMode ? "none" : undefined,
         }}
-        className="drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
+        // No drop shadow / card bevel — the scene should feel built into the
+        // backdrop, not floating on a card (user feedback).
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}

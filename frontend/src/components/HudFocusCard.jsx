@@ -40,7 +40,7 @@ export default function HudFocusCard() {
     finishStopwatch,
     nudgeSeconds,
     nudgeTimer,
-    stats,
+    focusMinutesLive,
     sessionDays,
     dailyGoal,
   } = useStore();
@@ -49,11 +49,11 @@ export default function HudFocusCard() {
 
   const today = localTodayISO();
   const streak = focusStreak(
-    { ...sessionDays, [today]: stats.focusMinutesToday },
+    { ...sessionDays, [today]: focusMinutesLive },
     dailyGoal,
     today
   );
-  const goalMet = stats.focusMinutesToday >= dailyGoal;
+  const goalMet = focusMinutesLive >= dailyGoal;
 
   const stopwatch = timerMode === "stopwatch";
   const inBreak = !stopwatch && phase === "break";
@@ -297,7 +297,7 @@ export default function HudFocusCard() {
             goalMet ? "text-sage" : "text-petal/60"
           }`}
         >
-          🎯 {stats.focusMinutesToday}/{dailyGoal}m{goalMet ? " ✓" : ""}
+          🎯 {focusMinutesLive}/{dailyGoal}m{goalMet ? " ✓" : ""}
           {streak > 0 && <span className="ml-1.5">🔥 {streak}d</span>}
         </p>
       </motion.div>

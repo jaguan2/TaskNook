@@ -191,6 +191,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `⚙` expander, and a chromeless daily-goal/streak chip underneath
   (`🎯 focused/goal · 🔥 streak` — goal lives in `tasknook.dailyGoal`, streak
   math is `lib/stats.js`'s pure `focusStreak`, configured in ProgressPanel).
+  The chip and ProgressPanel show `focusMinutesLive` = the DB's completed
+  sessions + the CURRENT running block's minutes — without the live part the
+  app reads as "not tracking me" (user feedback).
   The active-task name is the heading above it **only when one
   exists** — when idle there is NO heading and NO filler text; don't add any
   back. The card is `z-30` so the expanded options overlay the dock like a
@@ -351,9 +354,28 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   keeps its OWN layout:
   `{ w, d, placements: [{id, item, gx, gy, rot?, tint?}] }`
   in tile coordinates, resizable 3–14 per axis (resizing re-clamps footprints
-  onto the floor). `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 / Loft 🌙 /
-  Morning café ☕ / Empty 🫙) are whole-layout replacements that set the floor
-  size too and use `tint`/`rot` for mood; preset coordinates must be
+  onto the floor). **The iso room is the DEFAULT scene** (`isoPreview`
+  defaults on; the flat cottage is the opt-out throwback, its card
+  drop-shadow removed so it sits into the backdrop). Layouts also carry
+  `env` ("room" default, stored
+  implicitly; "garden" = open-air: grass floor, soil lip, NO walls — wall
+  decor is dropped by validation and hidden from the panel) and `mask` —
+  **the floor is a tile mask** (d row-strings of w "0"/"1"s) painted in the
+  Room panel's drag-to-draw floor-plan grid, so any shape works: walls and
+  the front lip are computed PER TILE EDGE (`wallRuns`/`lipRuns`), the floor
+  is per-tile clipPath'd under one gradient sheet, drags refuse void tiles
+  (the item stops at the shape's edge), and validation relocates stranded
+  items to the nearest free spot or drops them. Legacy corner-`cuts` saves
+  convert via `cutsToMask`. Edit-mode keyboard: Backspace/Delete removes the
+  selection (unless typing in an input), Escape exits decorating (App's
+  handler, before panel-closing). A freshly added item is auto-selected
+  (`lastIsoAddedId` → `highlightId`), and the selection chrome (dashed
+  footprint + ⟳/✕) renders as the LAST svg layer so nearer furniture can't
+  bury it. `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 /
+  Loft 🌙 / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
+  replacements that set floor size, env and shape too and use `tint`/`rot`
+  for mood (applied via validate so preset `cuts` shorthand becomes a mask);
+  preset coordinates must be
   half-snapped and in-bounds AS WRITTEN — the
   preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
   the user. **The scene is full-bleed, not a card**: the SVG fills the
