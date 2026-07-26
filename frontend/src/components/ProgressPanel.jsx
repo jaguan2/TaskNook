@@ -79,7 +79,7 @@ export default function ProgressPanel() {
                 onClick={() => setDailyGoal(m)}
                 className={`pill px-2 py-0.5 text-[11px] font-semibold transition ${
                   dailyGoal === m
-                    ? "bg-petal text-plum"
+                    ? "bg-glow text-plum"
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >

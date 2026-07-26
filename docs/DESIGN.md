@@ -109,8 +109,11 @@ learned the hard way):
   surprising — the item stops at the edge.
 - Hard-to-reverse actions get no confirmation dialogs; they get forgiving
   models instead (validation relocates, tolerates, heals). Where real work
-  would be lost outright (deleting a task, resetting a running focus block),
-  the button itself arms first — a two-tap "sure?" state, never a modal.
+  would be lost outright, the button itself arms first — a two-tap "sure?"
+  state (`lib/useArmed.js`), never a modal. **Every delete of user data
+  arms**: tasks, custom stations, scene presets, friends, clearing the room,
+  resetting a block in progress. Putting decor items away doesn't (they come
+  straight back from the catalog), and ungrouping doesn't (the tasks stay).
 - **Hover-revealed row controls use `.hover-reveal`** (index.css), never raw
   `opacity-0 group-hover:opacity-100`: the class keeps them visible on touch
   devices and revealed by keyboard focus. (Decorative tooltips are exempt.)
@@ -127,6 +130,17 @@ learned the hard way):
 - Surfaces: `.glass` panels, `.pill` buttons, soft shadows (`shadow-soft`).
 - Ghost buttons (`text-petal/50 hover:text-cream`) for secondary actions;
   filled glow buttons only for THE primary action of a surface.
+- **One delete grammar**: the glyph is ✕ (U+2715 — never ×/🗑/a bare word),
+  idle `text-petal`-ish, `hover:text-danger`, armed state is the lowercase
+  word "sure?" in bold danger. Surface CLOSES (drawer, popover) also use ✕
+  but live in header pills — position is what separates "close" from
+  "delete", so never put a delete ✕ in a header.
+- **Selected-option pills are `bg-glow text-plum`** — one selection color
+  everywhere (dock, stations, schemes, presets, arrange-by, goals, modes).
+  Exception: pills whose color IS meaning (sage break presets, rose pomodoro
+  cluster) keep their theme.
+- Button labels are Sentence case ("Save current", "Unschedule", "Skip ▸");
+  "sure?" is the one deliberate lowercase (it's a whisper, not a command).
 - Labels: tiny uppercase tracking-wide `text-petal/50`; emoji are the icon
   set — no icon library.
 - Empty states are one warm sentence, not filler UI ("All clear 🌿"). Idle

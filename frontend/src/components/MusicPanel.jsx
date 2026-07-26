@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { stationKey } from "../lib/musicLink";
 import { SOUND_CHANNELS } from "../lib/audio";
+import { useArmed } from "../lib/useArmed";
 
 export default function MusicPanel() {
   const {
@@ -20,6 +21,8 @@ export default function MusicPanel() {
   const [url, setUrl] = useState("");
   const [label, setLabel] = useState("");
   const [error, setError] = useState("");
+  // A pasted URL the user curated shouldn't vanish on one stray tap.
+  const [armedKey, arm] = useArmed();
 
   const anySound = SOUND_CHANNELS.some(({ key }) => (soundMix[key] || 0) > 0);
 
@@ -71,11 +74,15 @@ export default function MusicPanel() {
               </button>
               {s.custom && (
                 <button
-                  onClick={() => removeCustomStation(s)}
+                  onClick={() => arm(stationKey(s), () => removeCustomStation(s))}
                   title="Remove station"
-                  className="pill rounded-l-none bg-white/10 px-2 py-1 text-xs text-petal/60 hover:bg-white/20 hover:text-petal"
+                  className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
+                    armedKey === stationKey(s)
+                      ? "font-bold text-danger"
+                      : "text-petal/60 hover:text-danger"
+                  }`}
                 >
-                  ×
+                  {armedKey === stationKey(s) ? "sure?" : "✕"}
                 </button>
               )}
             </div>

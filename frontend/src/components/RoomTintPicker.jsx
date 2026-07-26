@@ -60,7 +60,7 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
           disabled={!active}
           className="text-[10px] font-semibold text-petal/60 hover:text-glow disabled:opacity-40"
         >
-          classic ↺
+          Classic ↺
         </button>
       </div>
 

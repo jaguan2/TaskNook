@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../store";
+import { useArmed } from "../lib/useArmed";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
 import {
   ISO_ENVS,
@@ -65,6 +66,8 @@ export default function RoomPanel() {
   // Floor-plan painting: pointerdown picks add/remove from the first tile,
   // dragging applies it to every tile crossed (the Sims floor-tool feel).
   const [paintMode, setPaintMode] = useState(null);
+  // Clearing the room destroys an arrangement outright — armed like a delete.
+  const [armedId, arm] = useArmed();
   const maskRows =
     isoRoom.mask || Array.from({ length: isoRoom.d }, () => "1".repeat(isoRoom.w));
 
@@ -110,7 +113,7 @@ export default function RoomPanel() {
               isoPreview ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
             }`}
           >
-            {isoPreview ? "On" : "Try it"}
+            {isoPreview ? "On" : "Off"}
           </button>
         </div>
         {isoPreview ? (
@@ -175,7 +178,7 @@ export default function RoomPanel() {
                     onClick={resetIsoShape}
                     className="text-[11px] font-semibold text-glow/80 hover:text-glow"
                   >
-                    ⟲ full rectangle
+                    ⟲ Full rectangle
                   </button>
                 )}
               </div>
@@ -239,7 +242,7 @@ export default function RoomPanel() {
                 onClick={() => setRoomScale(1)}
                 className="ml-2 text-glow/80 hover:text-glow"
               >
-                reset
+                Reset
               </button>
             )}
           </span>
@@ -342,11 +345,18 @@ export default function RoomPanel() {
               {preset.icon} {preset.label}
             </button>
           ))}
+          {/* "Clear", not "Empty room" — the iso presets have an "Empty room"
+              PRESET, and the same words meaning a state there and an action
+              here read as one feature. */}
           <button
-            onClick={clearRoom}
-            className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal/60 hover:bg-white/20 hover:text-danger"
+            onClick={() => arm("clear", clearRoom)}
+            className={`pill bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
+              armedId === "clear"
+                ? "font-bold text-danger"
+                : "text-petal/60 hover:text-danger"
+            }`}
           >
-            🧹 Empty room
+            {armedId === "clear" ? "sure?" : "🧹 Clear the room"}
           </button>
         </div>
         <p className="mt-2 text-xs text-petal/50">

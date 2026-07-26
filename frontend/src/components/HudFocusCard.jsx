@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { motion, useDragControls } from "framer-motion";
 import { useStore } from "../store";
 import { focusStreak, localTodayISO } from "../lib/stats";
+import { useArmed } from "../lib/useArmed";
 
 const BREAK_PRESETS = [3, 5, 10];
 const ROUND_PRESETS = [2, 3, 4, 6];
@@ -49,10 +50,9 @@ export default function HudFocusCard() {
   const dragControls = useDragControls();
 
   // ✕ discards the block (nothing is logged), so once there's real progress
-  // on the clock it arms first — same two-tap rhythm as task deletes.
-  const [confirmReset, setConfirmReset] = useState(false);
-  const confirmTimer = useRef(null);
-  useEffect(() => () => clearTimeout(confirmTimer.current), []);
+  // on the clock it arms first — the app-wide two-tap rhythm (lib/useArmed).
+  const [armedId, arm] = useArmed();
+  const confirmReset = armedId === "reset";
 
   const today = localTodayISO();
   const streak = focusStreak(
@@ -74,14 +74,8 @@ export default function HudFocusCard() {
 
   const hasProgress = stopwatch ? elapsed > 0 : running || remaining < total;
   const requestReset = () => {
-    clearTimeout(confirmTimer.current);
-    if (hasProgress && !confirmReset) {
-      setConfirmReset(true);
-      confirmTimer.current = setTimeout(() => setConfirmReset(false), 2500);
-      return;
-    }
-    setConfirmReset(false);
-    resetTimer();
+    if (hasProgress) arm("reset", resetTimer);
+    else resetTimer();
   };
 
   return (
@@ -147,7 +141,7 @@ export default function HudFocusCard() {
                 title="Skip the break — straight into the next round"
                 className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
               >
-                skip ▸
+                Skip ▸
               </button>
             )}
             {!stopwatch && !inBreak && (
@@ -229,8 +223,8 @@ export default function HudFocusCard() {
             <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
               <div className="flex justify-center gap-1">
                 {[
-                  { key: "timer", label: "⏳ timer" },
-                  { key: "stopwatch", label: "⏱ stopwatch" },
+                  { key: "timer", label: "⏳ Timer" },
+                  { key: "stopwatch", label: "⏱ Stopwatch" },
                 ].map((m) => (
                   <button
                     key={m.key}
@@ -238,7 +232,7 @@ export default function HudFocusCard() {
                     disabled={running}
                     className={`pill px-2.5 py-0.5 text-[10px] font-semibold transition disabled:opacity-50 ${
                       timerMode === m.key
-                        ? "bg-petal text-plum"
+                        ? "bg-glow text-plum"
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
@@ -256,7 +250,7 @@ export default function HudFocusCard() {
                         onClick={() => setFocus(m)}
                         className={`pill px-2 py-0.5 text-[11px] font-semibold transition ${
                           focusMinutes === m
-                            ? "bg-petal text-plum"
+                            ? "bg-glow text-plum"
                             : "bg-white/10 text-petal hover:bg-white/20"
                         }`}
                       >
@@ -272,12 +266,14 @@ export default function HudFocusCard() {
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
-                    🍅 pomodoro {pomodoro.enabled ? "on" : "off"}
+                    🍅 Pomodoro {pomodoro.enabled ? "on" : "off"}
                   </button>
                   {pomodoro.enabled && (
                     <>
                       <div className="flex items-center justify-center gap-1">
-                        <span className="text-[10px] text-petal/60">break</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                          break
+                        </span>
                         {BREAK_PRESETS.map((m) => (
                           <button
                             key={m}
@@ -293,7 +289,9 @@ export default function HudFocusCard() {
                         ))}
                       </div>
                       <div className="flex items-center justify-center gap-1">
-                        <span className="text-[10px] text-petal/60">rounds</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                          rounds
+                        </span>
                         {ROUND_PRESETS.map((n) => (
                           <button
                             key={n}

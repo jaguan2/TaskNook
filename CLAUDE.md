@@ -151,9 +151,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `danger` color, NOT `rose` (rose re-tints per theme and goes grey/tan in
   three of them). Hover-revealed row controls use `.hover-reveal`
   (index.css) — visible on touch, revealed by keyboard focus — never raw
-  `opacity-0 group-hover:opacity-100`. Destructive taps that lose real work
-  are two-tap armed buttons ("sure?"), shared rhythm across TaskPanel,
-  HudTasks and the timer reset.
+  `opacity-0 group-hover:opacity-100`. Every delete of user data is a
+  two-tap armed ✕ ("sure?") via the shared `lib/useArmed.js` hook — tasks,
+  custom stations, scene presets, friends, room clear, and the timer reset
+  once a block has progress. See docs/DESIGN.md's "Chrome vocabulary" for
+  the full delete/selection grammar.
 - **Auth**: opaque bearer tokens (table `Token`). Client sends
   `Authorization: Bearer <token>`; `@require_auth` injects the `user` as the
   first arg to a route. Token is persisted in `localStorage` under `tasknook.token`.
