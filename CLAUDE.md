@@ -214,25 +214,43 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   filtered-noise engine with per-channel presets; storm schedules thunder,
   fireplace schedules crackles, birds are oscillator chirps — all one-shots
   route through the channel's master gain so its slider scales them.
+  **Rain schedules droplet plinks on top of a dark noise bed** — the
+  transients are what make it read as rain instead of radio static (user
+  feedback). Keep noise beds dark; brightness comes from one-shots. (A
+  separate "soft rain" channel existed briefly and was cut — didn't earn its
+  slot; iterate on the main rain instead of adding variants.)
   The mix lives in `soundMix` (`tasknook.soundMix`); since Web Audio needs a
   user gesture, a saved mix resumes on the first `pointerdown` after boot.
-  `weatherMode` (`off`/`rain`/`snow`/`storm`) is now the VISUAL: quick-pick
-  buttons set the overlay + the matching sound channel while zeroing sibling
-  weather sounds, leaving wind/fireplace/birds alone ("Match my real weather"
-  flows through the same `setWeather`). `WeatherOverlay.jsx`
+  `weatherMode` (`off`/`rain`/`snow`/`storm`) is **VISUAL-ONLY** — its only
+  control is the TopBar cluster's weather popover (the Sounds panel
+  deliberately has no weather buttons), and neither it nor "Match my real
+  weather" ever touches the sound mix (explicit user decision: a rainy scene
+  without rain audio is a legitimate mood). The
+  one exception: applying a saved ambience preset restores its snapshot of
+  the mix, because that's what a snapshot is. `WeatherOverlay.jsx`
   renders the matching full-screen visual (falling rain/snow, storm gets a lightning
   flash), and `Cottage.jsx`'s window shows the same weather via its `weather` prop.
   Music: stations are picked in `MusicPanel.jsx` but PLAY in `MusicDock.jsx` —
   a persistent App-level component (bottom-centre transport bar + an
   off-screen 320×180 player), so music survives closing the panel and hides
   via the same `visibility` wrapper while decorating. YouTube stations use
-  the IFrame API (real play/pause + volume, `tasknook.music.volume`; single
-  videos loop via the `playlist` doubling trick); Spotify stations embed
-  Spotify's compact 80px player in the bar (Spotify keeps its own controls).
+  the IFrame API: play/pause, volume (`tasknook.music.volume`), a **seek bar
+  with times** (a ~1Hz poll of `getCurrentTime`/`getDuration`/`getVideoData`
+  also feeds the current TRACK title into the bar; absurd/zero durations mean
+  a live stream → LIVE badge, no seeking), and `⏮⏭` that move through
+  **tracks** for playlist stations (`previousVideo`/`nextVideo`) but through
+  **stations** for single videos. Playlists start via an explicit
+  `loadPlaylist()` in `onReady` (more reliable than autoplay playerVars);
+  single videos loop via the `playlist` doubling trick; a track that errors
+  inside a playlist is auto-skipped (bounded at 5 consecutive) instead of
+  killing the station. The 🎧 button opens the Sounds panel. Spotify
+  stations embed Spotify's compact 80px player (Spotify keeps its controls).
   Two failure states, deliberately distinct: the API script failing to load =
-  "needs internet", a player error = "won't play — try ⏭" (station-specific).
+  "needs internet", a player error = "won't play" (station-specific).
   YouTube bot-flags automated browsers (ERR 150 even headful), so transport
-  playback can only be truly verified by a human in the real app.
+  playback can only be truly verified by a human in the real app. All 7
+  built-in stations verified valid + embeddable via YouTube oEmbed
+  (2026-07-26).
   Station model: built-ins + pasted YouTube/Spotify links —
   `lib/musicLink.js` resolves a link to a
   `{provider, id, kind?}` station, persisted to `localStorage`
@@ -263,8 +281,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   colour's hue/saturation and `App.jsx` sets the vars inline on `<html>`
   (inline wins over `[data-theme]`); switching back to a preset must
   `removeProperty` each `PALETTE_VARS` entry or the custom colours would stick.
-  Only hue + saturation are taken from the pick — the lightness stops are fixed,
-  which is what guarantees text stays legible (~9:1 contrast) for any colour.
+  The pick maps faithfully onto the ROSE accent (hue, saturation, and its
+  lightness within 52–72%); blush/petal grade off it and the dark surfaces
+  keep fixed low-lightness stops — that fixed dark floor is what guarantees
+  text stays legible for any colour.
 - **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
   layout of `{id, item, x, y, tint?}` placements the user arranges by dragging
   in edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the
@@ -326,11 +346,19 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   keeps its OWN layout:
   `{ w, d, placements: [{id, item, gx, gy, rot?, tint?}] }`
   in tile coordinates, resizable 3–14 per axis (resizing re-clamps footprints
-  onto the floor). `ISO_PRESETS` (Cozy study ⭐ / Sleepy loft 🌙 / Reading
-  lounge 📚 / Empty 🫙) are whole-layout replacements that set the floor size
-  too; preset coordinates must be half-snapped and in-bounds AS WRITTEN — the
+  onto the floor). `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 / Loft 🌙 /
+  Morning café ☕ / Empty 🫙) are whole-layout replacements that set the floor
+  size too and use `tint`/`rot` for mood; preset coordinates must be
+  half-snapped and in-bounds AS WRITTEN — the
   preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
-  the user. Model in `lib/isoRoom.js` (footprints, half-tile snapping,
+  the user. **The scene is full-bleed, not a card**: the SVG fills the
+  viewport and a camera flies over it — wheel zoom anchored at the cursor,
+  drag-on-empty-space pans, double-click recenters, all plain viewBox math
+  (`tasknook.isoView`, clamped so the room's centre can't leave the view).
+  The wheel listener is added manually with `{passive:false}` — React's
+  onWheel is passive and can't preventDefault. The flat scene's `roomScale`
+  slider is hidden in iso mode (the camera replaces it).
+  Model in `lib/isoRoom.js` (footprints, half-tile snapping,
   depth sort by front corner, validation), projection in `lib/iso.js` (2:1
   dimetric; `project`/`unproject` are exact inverses — that's what makes
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at

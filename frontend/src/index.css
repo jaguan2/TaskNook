@@ -16,36 +16,46 @@
   --color-void: 29 15 31;
 }
 
-[data-theme="forest"] {
-  --color-night: 26 43 34;
-  --color-plum: 34 57 44;
-  --color-wine: 44 74 58;
-  --color-rose: 217 162 90;
-  --color-blush: 184 207 158;
-  --color-petal: 215 230 196;
-  --color-void: 15 26 20;
+[data-theme="abyss"] {
+  --color-night: 1 22 43;
+  --color-plum: 12 42 71;
+  --color-wine: 0 56 90;
+  --color-rose: 106 144 180;
+  --color-blush: 148 162 191;
+  --color-petal: 210 219 235;
+  --color-void: 1 14 29;
 }
 
-[data-theme="ocean"] {
-  --color-night: 22 35 46;
-  --color-plum: 30 50 69;
-  --color-wine: 40 69 89;
-  --color-rose: 111 184 207;
-  --color-blush: 159 211 224;
-  --color-petal: 203 232 239;
-  --color-void: 14 22 29;
+[data-theme="shore"] {
+  --color-night: 44 57 67;
+  --color-plum: 58 70 82;
+  --color-wine: 119 114 111;
+  --color-rose: 157 171 180;
+  --color-blush: 229 212 202;
+  --color-petal: 236 230 227;
+  --color-void: 29 38 45;
 }
 
 /* Espresso browns + caramel + cream, borrowed from the personal-portfolio
    ("rkive.") coffee palette, translated into TaskNook's dark-ambiance scale. */
-[data-theme="coffee"] {
-  --color-night: 46 32 23;
-  --color-plum: 63 42 25;
-  --color-wine: 92 61 36;
-  --color-rose: 186 143 104;
-  --color-blush: 209 171 127;
-  --color-petal: 245 221 168;
-  --color-void: 31 20 13;
+[data-theme="linen"] {
+  --color-night: 58 65 71;
+  --color-plum: 74 82 88;
+  --color-wine: 128 109 92;
+  --color-rose: 155 140 125;
+  --color-blush: 170 177 177;
+  --color-petal: 215 210 196;
+  --color-void: 42 47 51;
+}
+
+[data-theme="walnut"] {
+  --color-night: 55 58 55;
+  --color-plum: 70 63 57;
+  --color-wine: 107 87 70;
+  --color-rose: 171 157 120;
+  --color-blush: 182 200 210;
+  --color-petal: 229 226 205;
+  --color-void: 36 38 36;
 }
 
 html,

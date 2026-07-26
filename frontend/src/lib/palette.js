@@ -1,10 +1,13 @@
 // Derive TaskNook's whole colour ramp from a single base colour.
 //
-// Only the base HUE and SATURATION are taken from the picked colour — the
-// lightness stops are fixed, modelled on the hand-tuned presets in index.css.
-// That's deliberate: the dark surfaces (void→wine) and the light text/accents
-// (rose→petal) always keep their contrast relationship, so no pick can produce
-// an illegible theme. Saturation is clamped to a cozy band so nothing goes neon.
+// The picked colour maps onto the ROSE stop (the main accent) as faithfully
+// as legibility allows — its hue, its saturation, and its lightness within a
+// cozy band — so the theme visibly IS the colour that was picked, instead of
+// a sat-boosted cousin of it. Everything else grades off that: blush/petal
+// lighten and desaturate toward text duty, and the dark surfaces (void→wine)
+// keep FIXED low lightness stops with muted saturation, which is what
+// guarantees text stays readable for any pick. Nothing can go neon or
+// illegible.
 
 // [css variable, lightness %, role]
 const RAMP = [
@@ -12,9 +15,9 @@ const RAMP = [
   ["--color-night", 13.5, "dark"],
   ["--color-plum", 18, "dark"], // panel surfaces
   ["--color-wine", 24, "dark"], // gradient centre
-  ["--color-rose", 63, "accent"],
-  ["--color-blush", 74, "accent"],
-  ["--color-petal", 85, "accent"], // lightest — body/label text
+  ["--color-rose", 0, "accent"], // lightness comes from the pick (bounded)
+  ["--color-blush", 0, "accent2"],
+  ["--color-petal", 85, "text"], // lightest — body/label text
 ];
 
 export const PALETTE_VARS = RAMP.map(([name]) => name);
@@ -89,14 +92,23 @@ export function normalizeHex(input) {
  *   opacity modifiers (bg-rose/40) keep working.
  */
 export function derivePalette(hex) {
-  const { h, s } = hexToHsl(hex);
-  const darkSat = clamp(s, 18, 45);
-  const accentSat = clamp(s + 12, 32, 70);
+  const { h, s, l } = hexToHsl(hex);
+  const darkSat = clamp(s * 0.6, 14, 40);
+  const accentSat = clamp(s, 22, 68);
+  const roseL = clamp(l, 52, 72); // the pick itself, kept off the extremes
 
   const vars = {};
   for (const [name, lightness, role] of RAMP) {
-    const sat = role === "dark" ? darkSat : accentSat;
-    vars[name] = hslToRgb(h, sat, lightness).join(" ");
+    if (role === "dark") {
+      vars[name] = hslToRgb(h, darkSat, lightness).join(" ");
+    } else if (role === "accent") {
+      vars[name] = hslToRgb(h, accentSat, roseL).join(" ");
+    } else if (role === "accent2") {
+      vars[name] = hslToRgb(h, accentSat * 0.85, clamp(roseL + 11, 62, 80)).join(" ");
+    } else {
+      // text — calm saturation so labels never look tinted-neon
+      vars[name] = hslToRgb(h, clamp(s * 0.7, 18, 50), lightness).join(" ");
+    }
   }
   return vars;
 }

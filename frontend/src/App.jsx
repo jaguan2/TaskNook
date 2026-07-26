@@ -144,7 +144,7 @@ export default function App() {
             size={isoRoom}
             placements={isoRoom.placements}
             editMode={roomEditMode}
-            scale={roomScale}
+            timeOfDay={timeOfDay}
             onMoveItem={moveIsoItem}
             onRemoveItem={removeIsoItem}
             onRotateItem={rotateIsoItem}
@@ -223,7 +223,7 @@ export default function App() {
             music keeps playing when the panel closes; hidden (not unmounted)
             while decorating so playback survives that too and the tint picker
             gets the bottom-centre spot. */}
-        <MusicDock />
+        <MusicDock onOpenPanel={() => toggleDockPanel("music")} />
 
         {/* rkive. — the maker's signature, same wordmark as the portfolio */}
         <div
