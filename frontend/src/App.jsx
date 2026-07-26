@@ -6,7 +6,8 @@ import Cottage from "./components/Cottage";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
-import FocusTimer from "./components/FocusTimer";
+import HudFocusCard from "./components/HudFocusCard";
+import HudTasks from "./components/HudTasks";
 import WeatherOverlay from "./components/WeatherOverlay";
 import TaskPanel from "./components/TaskPanel";
 import CalendarPanel from "./components/CalendarPanel";
@@ -182,31 +183,33 @@ export default function App() {
         })}
       </AnimatePresence>
 
-      {/* The timer card floats over the bottom of the scene — the deepest
-          strip of the floor zone — so while decorating it steps aside or it
-          would sit on top of exactly the items being grabbed. Hidden via
-          `visibility`, NOT unmounting/display:none: those replay the
-          .intro-chrome boot animation on return (1.5s of invisible timer),
-          while visibility:hidden also removes it from hit-testing without
-          restarting anything. The countdown itself lives in the store and
-          keeps ticking either way. */}
+      {/* The HUD cards own the scene's top corners (focus card left, to-do
+          right) — exactly where wall items can now be placed — and the maker's
+          signature sits bottom-left where the decorating chip appears. So all
+          three step aside while decorating. Hidden via `visibility`, NOT
+          unmounting/display:none: those replay the .intro-chrome boot
+          animation on return (1.5s of invisible chrome), while
+          visibility:hidden also removes them from hit-testing without
+          restarting anything. Timers keep ticking in the store either way. */}
       <div
         className={`transition-opacity duration-300 ${
           roomEditMode ? "invisible opacity-0" : "opacity-100"
         }`}
       >
-        <FocusTimer />
+        <HudFocusCard />
+        <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
+
+        {/* rkive. — the maker's signature, same wordmark as the portfolio */}
+        <div
+          className="intro-chrome absolute bottom-5 left-6 z-10 select-none"
+          title="A space where I archive and share my journey, wherever it takes me."
+        >
+          <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
+            rkive<span className="text-glow/70">.</span>
+          </span>
+        </div>
       </div>
 
-      {/* rkive. — the maker's signature, same wordmark as the portfolio */}
-      <div
-        className="intro-chrome absolute bottom-5 right-6 z-10 select-none"
-        title="A space where I archive and share my journey, wherever it takes me."
-      >
-        <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
-          rkive<span className="text-glow/70">.</span>
-        </span>
-      </div>
     </div>
   );
 }

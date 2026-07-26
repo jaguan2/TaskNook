@@ -22,7 +22,7 @@ TaskNook/
 ├── frontend/             # React + Vite SPA
 │   └── src/
 │       ├── main.jsx      # Entry; wraps <App/> in <StoreProvider/>
-│       ├── App.jsx       # Shell: cottage scene, dock, drawer, timer
+│       ├── App.jsx       # Shell: cottage scene, dock, drawers, HUD cards
 │       ├── store.jsx     # SINGLE source of truth (React Context): local account,
 │       │                 #   tasks, friends, stats, focus timer, ambient audio
 │       ├── lib/
@@ -35,8 +35,11 @@ TaskNook/
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   └── room.js       # freeform decoration model: catalog, zones, presets
 │       └── components/   # Cottage (SVG scene + drag engine), RoomItems
-│                         #   (item sprites), TopBar, FocusTimer, Dock,
-│                         #   Drawer, *Panel.jsx, WeatherOverlay
+│                         #   (item sprites), HudFocusCard (top-left timer/
+│                         #   stopwatch), HudTasks (top-right to-do), TopBar
+│                         #   (bottom-right clock/toggles cluster — the name
+│                         #   is historical), Dock, Drawer, *Panel.jsx,
+│                         #   WeatherOverlay, RoomTintPicker
 └── docs/preview.png      # README screenshot
 ```
 
@@ -166,9 +169,16 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   from `task.completedAt` (routed through the same local-date `toISO()` used
   elsewhere) to tint "active" days.
 - **Focus timer** is driven entirely from `store.jsx`. The ticking `useEffect`
-  depends only on `running`; the completion callback is read through a ref to
-  avoid recreating the interval when the active task changes. On completion it
-  POSTs a `FocusSession` (used for "productivity hours" stats).
+  depends only on `running` + `timerMode`; the completion callback is read
+  through a ref to avoid recreating the interval when the active task changes.
+  On completion it POSTs a `FocusSession` (used for "productivity hours"
+  stats). `timerMode` is `"timer" | "stopwatch"` (persisted): stopwatch counts
+  `elapsed` up open-ended and `finishStopwatch()` logs the rounded minutes as
+  a session (sub-minute runs log nothing); mode switching is blocked while
+  running. Pomodoro belongs to timer mode only. The UI is `HudFocusCard`
+  (top-left, VC2-style HUD) with `HudTasks` (top-right always-visible to-do,
+  quick-add posts a 25-min medium task); both hide via `visibility` while
+  decorating.
 - **Ambient audio**: `weatherMode` (`off`/`rain`/`snow`/`storm`) drives procedurally
   generated audio via the Web Audio API (`lib/audio.js`, `startWeather`/`stopWeather`) —
   no audio files, works offline. Rain/snow/storm are the same filtered-noise engine
@@ -317,9 +327,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   always uses **relative** `/api/...` URLs — don't hardcode `http://localhost:5000`.
 - **Never unmount (or `display:none`) chrome that carries `.intro-chrome`** —
   remounting replays its boot animation: 1.5s of invisible UI before the fade
-  begins. To hide such chrome temporarily (the focus timer steps aside during
-  room decorating), toggle `visibility` on a wrapper: it removes the element
-  from hit-testing without restarting animations.
+  begins. To hide such chrome temporarily (the HUD cards + signature step
+  aside during room decorating), toggle `visibility` on a wrapper: it removes
+  the element from hit-testing without restarting animations.
 - **CSS animation classes must not share an element with an SVG `transform`
   attribute** — the animation's `transform` property overrides the attribute
   entirely (the desk plant's foliage once dropped 16px into its pot this way).
