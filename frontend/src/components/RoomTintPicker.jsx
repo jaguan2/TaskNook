@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 import { ITEMS, TINT_SWATCHES } from "../lib/room";
+// Catalog-agnostic: callers may pass the catalog entry via the `item` prop
+// (the iso room has its own catalog); without it we fall back to the flat
+// room's ITEMS for backwards compatibility.
 
 // Full colour control for the selected room item: quick swatches, a hex
 // field, and hue/saturation/lightness sliders covering the whole gamut.
@@ -27,8 +30,8 @@ function Slider({ label, min, max, value, onChange, track }) {
   );
 }
 
-export default function RoomTintPicker({ placement, onTint }) {
-  const item = ITEMS[placement.item];
+export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
+  const item = itemProp || ITEMS[placement.item];
   const active = placement.tint || null;
   // Sliders mirror the current tint; untinted items start from the first
   // swatch so there's something sensible to move away from.

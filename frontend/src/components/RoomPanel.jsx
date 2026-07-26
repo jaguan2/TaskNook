@@ -1,5 +1,6 @@
 import { useStore } from "../store";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
+import { ISO_ITEMS, ISO_ITEM_KEYS } from "../lib/isoRoom";
 import { ITEM_SPRITES } from "./RoomItems";
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
@@ -41,9 +42,19 @@ export default function RoomPanel() {
     clearRoom,
     roomScale,
     setRoomScale,
+    isoPreview,
+    setIsoPreview,
+    isoRoom,
+    addIsoItem,
+    setIsoSize,
+    clearIsoRoom,
   } = useStore();
 
   const counts = roomPlacements.reduce((acc, p) => {
+    acc[p.item] = (acc[p.item] || 0) + 1;
+    return acc;
+  }, {});
+  const isoCounts = isoRoom.placements.reduce((acc, p) => {
     acc[p.item] = (acc[p.item] || 0) + 1;
     return acc;
   }, {});
@@ -64,9 +75,69 @@ export default function RoomPanel() {
         </button>
         <p className="text-xs text-petal/60">
           {roomEditMode
-            ? "Drag anything anywhere — wall, desk or floor. Tap an item for colours and ✕ to put it away."
+            ? isoPreview
+              ? "Drag furniture across the grid — half-tile snapping. Tap an item for colours and ✕ to put it away."
+              : "Drag anything anywhere — wall, desk or floor. Tap an item for colours and ✕ to put it away."
             : "Turn on decorating to drag things around the room."}
         </p>
+      </section>
+
+      {/* Isometric room (beta) */}
+      <section className="space-y-2 rounded-2xl border border-glow/20 bg-glow/5 p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-cream">🧊 Isometric room</p>
+          <button
+            onClick={() => setIsoPreview(!isoPreview)}
+            className={`pill px-3 py-1 text-xs font-semibold ${
+              isoPreview ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
+            }`}
+          >
+            {isoPreview ? "On" : "Try it"}
+          </button>
+        </div>
+        {isoPreview ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="w-10 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                width
+              </span>
+              <input
+                type="range"
+                min="3"
+                max="14"
+                step="1"
+                value={isoRoom.w}
+                onChange={(e) => setIsoSize(Number(e.target.value), isoRoom.d)}
+                className="flex-1 accent-glow"
+              />
+              <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.w}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-10 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                depth
+              </span>
+              <input
+                type="range"
+                min="3"
+                max="14"
+                step="1"
+                value={isoRoom.d}
+                onChange={(e) => setIsoSize(isoRoom.w, Number(e.target.value))}
+                className="flex-1 accent-glow"
+              />
+              <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>
+            </div>
+            <p className="text-xs text-petal/50">
+              A {isoRoom.w}×{isoRoom.d} tile floor — resize freely, furniture
+              stays on the grid. The classic scene keeps its own layout.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-petal/60">
+            The Sims-style room (beta): place furniture on a resizable tile
+            grid. Both rooms keep their own layouts.
+          </p>
+        )}
       </section>
 
       {/* Room size */}
@@ -99,7 +170,54 @@ export default function RoomPanel() {
         </p>
       </section>
 
-      {/* Presets */}
+      {/* Iso furniture (its own catalog while the iso room is active) */}
+      {isoPreview && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-petal/60">
+              Furniture
+            </p>
+            <button
+              onClick={clearIsoRoom}
+              className="pill px-2.5 py-1 text-[11px] font-semibold text-petal/60 hover:bg-white/20 hover:text-rose"
+            >
+              🧹 Empty room
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {ISO_ITEM_KEYS.map((key) => (
+              <button
+                key={key}
+                onClick={() => addIsoItem(key)}
+                title={`Add ${ISO_ITEMS[key].label.toLowerCase()}`}
+                className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center text-xl">
+                  {ISO_ITEMS[key].icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium text-cream">
+                    {ISO_ITEMS[key].label}
+                  </span>
+                  <span className="text-[10px] text-petal/50">
+                    {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
+                    <span className="text-glow/80 opacity-0 transition group-hover:opacity-100">
+                      + add
+                    </span>
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-petal/50">
+            The iso catalog is small while it's in beta — more furniture as the
+            room grows up.
+          </p>
+        </section>
+      )}
+
+      {/* Presets (classic scene) */}
+      {!isoPreview && (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
           Start from a preset
@@ -125,9 +243,11 @@ export default function RoomPanel() {
           Presets replace the current layout — then tweak from there.
         </p>
       </section>
+      )}
 
-      {/* Inventory */}
-      {ZONE_SECTIONS.map(({ zone, label }) => (
+      {/* Inventory (classic scene) */}
+      {!isoPreview &&
+        ZONE_SECTIONS.map(({ zone, label }) => (
         <section key={zone}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
             {label}
@@ -168,7 +288,7 @@ export default function RoomPanel() {
             })}
           </div>
         </section>
-      ))}
+        ))}
     </div>
   );
 }

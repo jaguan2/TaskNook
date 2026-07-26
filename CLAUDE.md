@@ -33,7 +33,8 @@ TaskNook/
 │       │   ├── musicLink.js  # resolves a pasted link to a YouTube/Spotify station
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
-│       │   └── room.js       # freeform decoration model: catalog, zones, presets
+│       │   ├── room.js       # freeform decoration model: catalog, zones, presets
+│       │   └── iso.js        # isometric projection math (Sims-style room seed)
 │       └── components/   # Cottage (SVG scene + drag engine), RoomItems
 │                         #   (item sprites), HudFocusCard (top-left timer/
 │                         #   stopwatch), HudTasks (top-right to-do), TopBar
@@ -176,9 +177,18 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `elapsed` up open-ended and `finishStopwatch()` logs the rounded minutes as
   a session (sub-minute runs log nothing); mode switching is blocked while
   running. Pomodoro belongs to timer mode only. The UI is `HudFocusCard`
-  (top-left, VC2-style HUD) with `HudTasks` (top-right always-visible to-do,
-  quick-add posts a 25-min medium task); both hide via `visibility` while
-  decorating.
+  (top-left) — a SMALL VC2-style transport card: round pips, the time, a thin
+  progress bar, `✕ ▶/⏸ ✓ ⚙`, with mode/presets/pomodoro tucked behind the
+  `⚙` expander. The active-task name is the heading above it **only when one
+  exists** — when idle there is NO heading and NO filler text; don't add any
+  back. The card is `z-30` so the expanded options overlay the dock like a
+  dropdown on short windows. `HudTasks` (top-right) is drawn straight on the
+  backdrop with no card chrome: completed rows stay crossed-out, per-row ✕
+  delete, ⠿ drag-reorder of active rows, quick-add posts a 25-min medium
+  task. Both hide via `visibility` while decorating. The `Dock` collapses to
+  a single ☰ button (`tasknook.dockCollapsed`) and its top is
+  `max(172px, calc(50% - 220px))` — clamped so a centred column can never
+  climb into the focus card's corner on short windows.
 - **Ambient audio**: `weatherMode` (`off`/`rain`/`snow`/`storm`) drives procedurally
   generated audio via the Web Audio API (`lib/audio.js`, `startWeather`/`stopWeather`) —
   no audio files, works offline. Rain/snow/storm are the same filtered-noise engine
@@ -275,6 +285,24 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `<g>` would overwrite `translate(x,y)` and fling the item to the origin.
   `Cottage` is `memo`'d and the room actions are `useCallback`'d so the
   per-second context change doesn't re-render the whole scene.
+- **Isometric room (beta)**: a real, decoratable Sims-style room toggled from
+  the Room panel (`isoPreview`, localStorage) — it swaps in for `Cottage` and
+  keeps its OWN layout: `{ w, d, placements: [{id, item, gx, gy, tint?}] }`
+  in tile coordinates, resizable 3–14 per axis (resizing re-clamps footprints
+  onto the floor). Model in `lib/isoRoom.js` (footprints, half-tile snapping,
+  depth sort by front corner, validation), projection in `lib/iso.js` (2:1
+  dimetric; `project`/`unproject` are exact inverses — that's what makes
+  grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
+  grid (0,0); linear projection makes them relocatable by translate), scene +
+  drag engine in `IsoRoom.jsx`. **Hit-testing is painted-pixels + the
+  footprint diamond only** — a bounding-box grab target lets tall items (the
+  floor-lamp pole) blanket everything behind them (found the hard way).
+  Persistence: `room_config` now stores `{"placements": [...], "iso": {...}}`;
+  GET still understands the legacy bare-list shape. `IsoRoom` re-declares the
+  `lampPool`/`lampCone` gradient ids — RoomPanel previews reference them
+  document-wide and only one scene is ever mounted. Wall decor (window,
+  clock) is drawn upright inside a `skewY(±26.565°)` group — that angle is
+  `atan(TILE_H / TILE_W)` — and only renders when the wall is long enough.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
   assets, no isometric projection) — a desk by a window. It takes `focused`
   (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
