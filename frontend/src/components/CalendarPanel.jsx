@@ -128,7 +128,7 @@ export default function CalendarPanel() {
                   onClick={() => editTask(t.id, { scheduledDate: null })}
                   className="text-xs text-petal/60 hover:text-danger"
                 >
-                  unschedule
+                  Unschedule
                 </button>
               </div>
             ))}

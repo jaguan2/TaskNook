@@ -205,7 +205,7 @@ export default function MusicDock({ onOpenPanel }) {
       <div className="glass flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 shadow-soft">
         <button
           onClick={onOpenPanel}
-          title="Stations & sounds"
+          title="Open the Sounds panel (stations & ambience)"
           className="pill grid h-7 w-7 place-items-center text-xs text-petal/60 hover:bg-white/10 hover:text-cream"
         >
           🎧

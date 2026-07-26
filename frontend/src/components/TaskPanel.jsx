@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useStore } from "../store";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
+import { useArmed } from "../lib/useArmed";
 
 const PRIORITY_STYLE = {
   high: "bg-rose/30 text-rose border-rose/40",
@@ -27,22 +28,9 @@ export default function TaskPanel() {
   const [error, setError] = useState("");
   const dragIndex = useRef(null);
 
-  // Two-tap delete: first tap arms the button ("sure?"), second tap within a
-  // few seconds actually deletes. Gentler than a confirm dialog, still saves
-  // tasks from one stray tap.
-  const [confirmId, setConfirmId] = useState(null);
-  const confirmTimer = useRef(null);
-  useEffect(() => () => clearTimeout(confirmTimer.current), []);
-  const requestDelete = (id) => {
-    clearTimeout(confirmTimer.current);
-    if (confirmId === id) {
-      setConfirmId(null);
-      removeTask(id);
-      return;
-    }
-    setConfirmId(id);
-    confirmTimer.current = setTimeout(() => setConfirmId(null), 2500);
-  };
+  // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
+  const [confirmId, arm] = useArmed();
+  const requestDelete = (id) => arm(id, () => removeTask(id));
 
   const active = orderedTasks.filter((t) => !t.completed);
   const done = orderedTasks.filter((t) => t.completed);
@@ -124,7 +112,7 @@ export default function TaskPanel() {
               onClick={() => chooseAlgorithm(key)}
               className={`pill px-3 py-1.5 text-xs font-semibold transition ${
                 algorithm === key
-                  ? "bg-petal text-plum"
+                  ? "bg-glow text-plum"
                   : "bg-white/10 text-petal hover:bg-white/20"
               }`}
             >
@@ -185,13 +173,14 @@ export default function TaskPanel() {
             )}
             <button
               onClick={() => requestDelete(task.id)}
+              title="Delete task"
               className={`hover-reveal shrink-0 transition ${
                 confirmId === task.id
                   ? "confirming text-[10px] font-bold text-danger"
-                  : "text-petal/40 hover:text-danger"
+                  : "text-sm text-petal/40 hover:text-danger"
               }`}
             >
-              {confirmId === task.id ? "sure?" : "🗑"}
+              {confirmId === task.id ? "sure?" : "✕"}
             </button>
           </div>
         ))}
@@ -219,13 +208,14 @@ export default function TaskPanel() {
               </p>
               <button
                 onClick={() => requestDelete(task.id)}
+                title="Delete task"
                 className={`shrink-0 transition ${
                   confirmId === task.id
                     ? "text-[10px] font-bold text-danger"
-                    : "text-petal/40 hover:text-danger"
+                    : "text-sm text-petal/40 hover:text-danger"
                 }`}
               >
-                {confirmId === task.id ? "sure?" : "🗑"}
+                {confirmId === task.id ? "sure?" : "✕"}
               </button>
             </div>
           ))}

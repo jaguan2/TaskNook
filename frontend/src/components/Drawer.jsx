@@ -60,6 +60,7 @@ export default function Drawer({
           </button>
           <button
             onClick={onClose}
+            title="Close (Esc)"
             className="pill grid h-8 w-8 place-items-center text-cream hover:bg-white/10"
           >
             ✕

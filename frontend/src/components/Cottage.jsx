@@ -108,6 +108,20 @@ function Cottage({
     if (!editMode) setSelectedId(null);
   }, [editMode]);
 
+  // Escape deselects first (closing the tint picker); only the NEXT press
+  // reaches App's handler and exits decorating. Capture + stopPropagation
+  // keeps App's window listener out of this one (same trick as IsoRoom).
+  useEffect(() => {
+    if (!editMode || !selectedId) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [editMode, selectedId]);
+
   const isRainy = weather === "rain" || weather === "storm";
 
   /* ---------------- drag engine ---------------- */

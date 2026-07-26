@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "../store";
+import { useArmed } from "../lib/useArmed";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
@@ -121,21 +122,9 @@ export default function HudTasks({ onOpenTasks }) {
   const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
   const dragFrom = useRef(null); // { section, index }
 
-  // Two-tap delete, same rhythm as the Tasks panel: first tap arms ("sure?"),
-  // second tap within a few seconds deletes.
-  const [confirmId, setConfirmId] = useState(null);
-  const confirmTimer = useRef(null);
-  useEffect(() => () => clearTimeout(confirmTimer.current), []);
-  const requestDelete = (id) => {
-    clearTimeout(confirmTimer.current);
-    if (confirmId === id) {
-      setConfirmId(null);
-      removeTask(id);
-      return;
-    }
-    setConfirmId(id);
-    confirmTimer.current = setTimeout(() => setConfirmId(null), 2500);
-  };
+  // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
+  const [confirmId, arm] = useArmed();
+  const requestDelete = (id) => arm(id, () => removeTask(id));
 
   // orderedTasks already sinks completed tasks to the bottom. Grouping only
   // partitions the active rows — done rows collapse into one flat pile.
@@ -213,7 +202,7 @@ export default function HudTasks({ onOpenTasks }) {
               title="New group"
               className="pill px-2 py-0.5 text-xs text-petal/60 hover:bg-white/10 hover:text-petal"
             >
-              ＋ group
+              ＋ Group
             </button>
           ) : (
             <form onSubmit={submitGroup}>
@@ -304,7 +293,7 @@ export default function HudTasks({ onOpenTasks }) {
             title="Add into group"
             className="max-w-[7rem] rounded-lg bg-white/10 px-1.5 py-0.5 text-xs text-petal outline-none"
           >
-            <option value="">no group</option>
+            <option value="">No group</option>
             {taskGroups.map((g) => (
               <option key={g} value={g}>
                 {g}

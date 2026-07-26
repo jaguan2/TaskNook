@@ -51,9 +51,12 @@ export default function Dock({ active, onSelect }) {
               ◂
             </button>
             {ITEMS.map((item) => (
+              // No `title` here — the custom hover tooltip below already
+              // shows the label (a title would double it up with the OS
+              // tooltip) and, being inside the button, it also provides the
+              // accessible name.
               <button
                 key={item.key}
-                title={item.label}
                 onClick={() => onSelect(item.key)}
                 className={`pill group relative grid h-10 w-10 place-items-center text-lg transition ${
                   active.includes(item.key)

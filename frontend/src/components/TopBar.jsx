@@ -51,7 +51,7 @@ export default function TopBar() {
 
   return (
     <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">
-      <IconToggle active={musicOn} onClick={toggleMusic} title="Lofi music" slashWhenOff>
+      <IconToggle active={musicOn} onClick={toggleMusic} title="Music on/off" slashWhenOff>
         🎵
       </IconToggle>
 

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
+import { useArmed } from "../lib/useArmed";
 
 export default function FriendsPanel() {
   const { friends, refreshAll } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [armedId, arm] = useArmed();
 
   const add = async (e) => {
     e.preventDefault();
@@ -75,10 +77,15 @@ export default function FriendsPanel() {
                       {f.displayName}
                     </p>
                     <button
-                      onClick={() => remove(f.id)}
-                      className="hover-reveal text-xs text-petal/40 transition hover:text-danger"
+                      onClick={() => arm(f.id, () => remove(f.id))}
+                      title="Remove friend"
+                      className={`hover-reveal shrink-0 transition ${
+                        armedId === f.id
+                          ? "confirming text-[10px] font-bold text-danger"
+                          : "text-sm text-petal/40 hover:text-danger"
+                      }`}
                     >
-                      remove
+                      {armedId === f.id ? "sure?" : "✕"}
                     </button>
                   </div>
                   <p className="text-xs text-petal/60">

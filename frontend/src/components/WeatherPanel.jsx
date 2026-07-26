@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../store";
+import { useArmed } from "../lib/useArmed";
 
 const TIME_OPTIONS = [
   { key: "night", label: "Night", icon: "🌙" },
@@ -27,6 +28,7 @@ export default function WeatherPanel() {
 
   const [city, setCity] = useState("");
   const [presetName, setPresetName] = useState("");
+  const [armedName, arm] = useArmed();
 
   const submitCity = (e) => {
     e.preventDefault();
@@ -160,11 +162,15 @@ export default function WeatherPanel() {
                   {p.name}
                 </button>
                 <button
-                  onClick={() => deleteWeatherPreset(p.name)}
+                  onClick={() => arm(p.name, () => deleteWeatherPreset(p.name))}
                   title="Delete preset"
-                  className="pill rounded-l-none bg-white/10 px-2 py-1 text-xs text-petal/60 hover:bg-white/20 hover:text-petal"
+                  className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
+                    armedName === p.name
+                      ? "font-bold text-danger"
+                      : "text-petal/60 hover:text-danger"
+                  }`}
                 >
-                  ×
+                  {armedName === p.name ? "sure?" : "✕"}
                 </button>
               </div>
             ))}
