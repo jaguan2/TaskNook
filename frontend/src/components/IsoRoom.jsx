@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
+import { memo, useEffect, useRef, useState } from "react";
+import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
   clampIsoPlacement,
   footOf,
   footprintFree,
   lipRuns,
+  seatFor,
   snapHalf,
   sortIso,
   tileOn,
@@ -69,7 +70,10 @@ const ISO_TIME = {
   day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3 },
 };
 
-export default function IsoRoom({
+// memo: App re-renders every second (the focus timer ticks) and a big floor
+// is thousands of SVG nodes — the scene must only re-render when the room
+// actually changes (all callbacks are useCallback'd in the store).
+function IsoRoom({
   size,
   placements = [],
   editMode = false,
@@ -88,6 +92,8 @@ export default function IsoRoom({
   const [view, setView] = useState(loadView);
   const viewRef = useRef(view);
   viewRef.current = view;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
 
   const applyView = (next) => {
     const clamped = clampView(next);
@@ -133,7 +139,11 @@ export default function IsoRoom({
       const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
       const v = viewRef.current;
       const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
-      const w = Math.min(VIEW_MAX_W, Math.max(VIEW_MIN_W, v.w * factor));
+      // Big floors need a farther zoom-out: the limit grows with the room so
+      // a 48-wide lot still fits on screen.
+      const roomSpan = ((sizeRef.current.w + sizeRef.current.d) * TILE_W) / 2;
+      const maxW = Math.max(VIEW_MAX_W, roomSpan * 1.25);
+      const w = Math.min(maxW, Math.max(VIEW_MIN_W, v.w * factor));
       const s = w / v.w;
       if (s === 1) return;
       // Anchor the zoom at the cursor: that world point stays put on screen.
@@ -240,9 +250,65 @@ export default function IsoRoom({
     svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
-  const ordered = sortIso(placements);
+  // Personas: seated ones snap onto their seat (slightly forward so they
+  // draw in front of the backrest, lifted by the seat height); standing ones
+  // idle-wander via a VISUAL-ONLY offset (never persisted — their stored
+  // spot is "home"), collision-checked against the floor shape AND furniture.
+  const roamRef = useRef({});
+  const [, setRoamTick] = useState(0);
+  useEffect(() => {
+    if (editMode) {
+      roamRef.current = {};
+      return undefined;
+    }
+    const id = setInterval(() => {
+      const wanderers = placements.filter(
+        (p) => ISO_ITEMS[p.item]?.persona && !seatFor(p, placements)
+      );
+      if (!wanderers.length) return;
+      const p = wanderers[Math.floor(Math.random() * wanderers.length)];
+      const cur = roamRef.current[p.id] || { dx: 0, dy: 0 };
+      const next = {
+        dx: Math.max(-1.5, Math.min(1.5, cur.dx + (Math.random() * 2 - 1))),
+        dy: Math.max(-1.5, Math.min(1.5, cur.dy + (Math.random() * 2 - 1))),
+      };
+      const f = footOf(p.item, p.rot);
+      const gx = p.gx + next.dx;
+      const gy = p.gy + next.dy;
+      if (!footprintFree(gx, gy, f, size)) return; // off the floor — stay put
+      const blocked = placements.some((o) => {
+        if (o.id === p.id) return false;
+        const it = ISO_ITEMS[o.item];
+        if (!it || it.wall || it.persona || it.layer === -1) return false;
+        const of = footOf(o.item, o.rot);
+        return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
+      });
+      if (blocked) return; // bumped into furniture — stay put
+      roamRef.current = { ...roamRef.current, [p.id]: next };
+      setRoamTick((t) => t + 1);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [editMode, placements, size]);
+
+  const effective = placements.map((p) => {
+    if (!ISO_ITEMS[p.item]?.persona) return p;
+    const seat = seatFor(p, placements);
+    if (seat) {
+      const sf = footOf(seat.placement.item, seat.placement.rot);
+      const pf = footOf(p.item, p.rot);
+      return {
+        ...p,
+        gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
+        gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
+        _seat: seat.height,
+      };
+    }
+    const off = !editMode && roamRef.current[p.id];
+    return off ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy } : p;
+  });
+  const ordered = sortIso(effective);
   const selectedPlacement =
-    editMode && selectedId ? placements.find((p) => p.id === selectedId) : null;
+    editMode && selectedId ? effective.find((p) => p.id === selectedId) : null;
 
   return (
     <div className="pointer-events-auto absolute inset-0 select-none">
@@ -444,11 +510,26 @@ export default function IsoRoom({
             const selected = editMode && selectedId === p.id;
             const foot = footOf(p.item, p.rot);
             const hitR = project(foot[0], 0); // anchors the ✕/⟳ buttons
+            const persona = !!item.persona;
+            // Personas use a CSS transform (transition = the wander glide);
+            // everything else keeps the attribute transform (instant drags).
+            const placeProps =
+              persona && !editMode
+                ? {
+                    style: {
+                      transform: `translate(${at.x}px, ${at.y}px)`,
+                      transition: "transform 2.6s ease-in-out",
+                      ...(p.tint && { "--tint": p.tint }),
+                    },
+                  }
+                : {
+                    transform: `translate(${at.x},${at.y})`,
+                    style: p.tint ? { "--tint": p.tint } : undefined,
+                  };
             return (
               <g
                 key={p.id}
-                transform={`translate(${at.x},${at.y})`}
-                style={p.tint ? { "--tint": p.tint } : undefined}
+                {...placeProps}
                 className={editMode ? "room-item" : undefined}
                 onPointerDown={startDrag(p)}
               >
@@ -461,13 +542,16 @@ export default function IsoRoom({
                 )}
                 {/* Mirroring about the origin is a grid TRANSPOSE — the item
                     faces the other wall and its footprint swaps to match. */}
-                {p.rot ? (
-                  <g transform="scale(-1,1)">
+                {(() => {
+                  const sprite = persona ? (
+                    <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
+                      <Sprite seated={!!p._seat} />
+                    </g>
+                  ) : (
                     <Sprite />
-                  </g>
-                ) : (
-                  <Sprite />
-                )}
+                  );
+                  return p.rot ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
+                })()}
               </g>
             );
           })}
@@ -543,3 +627,5 @@ export default function IsoRoom({
     </div>
   );
 }
+
+export default memo(IsoRoom);

@@ -4,7 +4,7 @@
 // lib/iso.js and the artwork in components/IsoItems.jsx.
 
 export const ISO_SIZE_MIN = 3;
-export const ISO_SIZE_MAX = 30;
+export const ISO_SIZE_MAX = 48;
 export const DEFAULT_ISO_SIZE = { w: 9, d: 7 };
 export const ISO_MAX_ITEMS = 60;
 // Irregular floors, the full Sims way: a TILE MASK. `mask` is d row-strings
@@ -38,11 +38,11 @@ export const ISO_ITEMS = {
   rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.5, 1.05], hitH: 84, tintable: false },
-  stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28 },
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 62 },
+  stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 62, seat: 24 },
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30 },
-  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 58 },
-  cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18 },
+  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 58, seat: 30 },
+  cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
   aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
@@ -57,9 +57,31 @@ export const ISO_ITEMS = {
   bush: { label: "Bush", icon: "🌲", foot: [1, 1], hitH: 40 },
   pond: { label: "Pond", icon: "🪷", foot: [3.5, 2.5], layer: -1, hitH: 12, tintable: false },
   picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10 },
-  bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34 },
+  bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16 },
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
+  // the resident — a little person you drop anywhere: onto a seat (they sit)
+  // or the open floor (they idle-wander). Tint = their sweater.
+  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 56, persona: true },
 };
+
+/** The seat a persona is placed on, if their centre is over one. */
+export function seatFor(placement, placements) {
+  const item = ISO_ITEMS[placement.item];
+  if (!item?.persona) return null;
+  const f = footOf(placement.item, placement.rot);
+  const cx = placement.gx + f[0] / 2;
+  const cy = placement.gy + f[1] / 2;
+  for (const other of placements) {
+    if (other.id === placement.id) continue;
+    const seatItem = ISO_ITEMS[other.item];
+    if (!seatItem?.seat) continue;
+    const of = footOf(other.item, other.rot);
+    if (cx >= other.gx && cx <= other.gx + of[0] && cy >= other.gy && cy <= other.gy + of[1]) {
+      return { placement: other, height: seatItem.seat };
+    }
+  }
+  return null;
+}
 
 export const ISO_ITEM_KEYS = Object.keys(ISO_ITEMS);
 
@@ -338,9 +360,11 @@ export const ISO_PRESETS = {
     icon: "⭐",
     size: { w: 9, d: 7 },
     items: [
-      // work wall: desk flush against the right wall, stool on its centre
+      // work wall: desk flush against the right wall, stool on its centre —
+      // and the resident seated on it, studying (VC2-style)
       { item: "desk", gx: 3, gy: 0 },
       { item: "stool", gx: 4, gy: 1.5 },
+      { item: "resident", gx: 4, gy: 1.5 },
       { item: "frame", gx: 1, gy: 0 },
       { item: "wallshelf", gx: 6, gy: 0 },
       { item: "floorlamp", gx: 8, gy: 0.5 },
@@ -443,6 +467,7 @@ export const ISO_PRESETS = {
       { item: "pond", gx: 5.5, gy: 0.5 },
       { item: "tree", gx: 9, gy: 0.5 },
       { item: "bench", gx: 6, gy: 3.5 },
+      { item: "resident", gx: 6.5, gy: 3.5, tint: "#c98a4b" },
       // study spot: desk + stool on the open lawn, like VC2's picnic table
       { item: "desk", gx: 2.5, gy: 2.5 },
       { item: "stool", gx: 3.5, gy: 4 },

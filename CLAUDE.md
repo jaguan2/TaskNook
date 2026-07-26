@@ -230,7 +230,14 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   weather" ever touches the sound mix (explicit user decision: a rainy scene
   without rain audio is a legitimate mood). The
   one exception: applying a saved ambience preset restores its snapshot of
-  the mix, because that's what a snapshot is. `WeatherOverlay.jsx`
+  the mix, because that's what a snapshot is. `weatherMode` also has
+  `cloudy` (WMO codes 2/3/45/48 map to it): no particles, just
+  `SkyOverlay.jsx` — the ambient sky BEHIND the scene (first in App's DOM):
+  twinkling stars + cratered moon at night, sun by day (low/warm at sunset,
+  muted to 0.3 opacity under clouds), and CSS-keyframe clouds
+  (`sky-drift`, deterministic star positions — no Math.random per render)
+  that turn storm-dark for rain/storm. A huge iso floor can cover the whole
+  sky — that's expected ("you're inside"). `WeatherOverlay.jsx`
   renders the matching full-screen visual (falling rain/snow, storm gets a lightning
   flash), and `Cottage.jsx`'s window shows the same weather via its `weather` prop.
   Music: stations are picked in `MusicPanel.jsx` but PLAY in `MusicDock.jsx` —
@@ -353,8 +360,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   the Room panel (`isoPreview`, localStorage) — it swaps in for `Cottage` and
   keeps its OWN layout:
   `{ w, d, placements: [{id, item, gx, gy, rot?, tint?}] }`
-  in tile coordinates, resizable 3–14 per axis (resizing re-clamps footprints
-  onto the floor). **The iso room is the DEFAULT scene** (`isoPreview`
+  in tile coordinates, resizable 3–48 per axis (resizing re-clamps footprints
+  onto the floor; the camera's zoom-out limit scales with the room, and
+  IsoRoom is `memo`'d — a 48×48 lot is thousands of SVG nodes and must not
+  re-render on the store's per-second timer tick). **The iso room is the DEFAULT scene** (`isoPreview`
   defaults on; the flat cottage is the opt-out throwback, its card
   drop-shadow removed so it sits into the backdrop). Layouts also carry
   `env` ("room" default, stored
@@ -371,7 +380,16 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   handler, before panel-closing). A freshly added item is auto-selected
   (`lastIsoAddedId` → `highlightId`), and the selection chrome (dashed
   footprint + ⟳/✕) renders as the LAST svg layer so nearer furniture can't
-  bury it. `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 /
+  bury it. **Personas**: items with `persona: true` (the Resident 🧍) are
+  little people — drop one whose CENTRE lands on an item with a `seat`
+  height (stool/sofa/bench/cushion/bed) and `seatFor` seats them there at
+  render time (snapped to the seat's centre, +0.15 gy so they draw in front
+  of the backrest, lifted by the seat height, sitting pose); on open floor
+  they idle-wander via a VISUAL-ONLY offset (never persisted — the stored
+  spot is home; the interval collision-checks the floor mask AND furniture
+  footprints, and pauses in edit mode). Personas use a CSS transform +
+  transition (the glide) instead of the attribute transform others use.
+  `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 /
   Loft 🌙 / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);

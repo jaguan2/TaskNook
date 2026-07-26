@@ -11,6 +11,7 @@ import HudFocusCard from "./components/HudFocusCard";
 import HudTasks from "./components/HudTasks";
 import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
+import SkyOverlay from "./components/SkyOverlay";
 import TaskPanel from "./components/TaskPanel";
 import CalendarPanel from "./components/CalendarPanel";
 import ProgressPanel from "./components/ProgressPanel";
@@ -127,6 +128,9 @@ export default function App() {
       className="relative h-full w-full overflow-hidden"
       style={{ filter: `brightness(${brightness})` }}
     >
+      {/* Sky first in the DOM = behind the scene: the room floats in front
+          of the moon/stars/sun/clouds. */}
+      <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
       <WeatherOverlay mode={weatherMode} />
 
       {/* Centerpiece cottage. On first open we start zoomed right into the

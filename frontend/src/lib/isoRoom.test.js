@@ -16,6 +16,7 @@ import {
   lipRuns,
   newIsoPlacement,
   normalizeMask,
+  seatFor,
   snapHalf,
   sortIso,
   validateIsoLayout,
@@ -59,7 +60,7 @@ describe("grid maths", () => {
 
   it("clamps sizes into the allowed range as integers", () => {
     expect(clampIsoSize(1)).toBe(3);
-    expect(clampIsoSize(99)).toBe(30);
+    expect(clampIsoSize(99)).toBe(48);
     expect(clampIsoSize(8.6)).toBe(9);
     expect(clampIsoSize("junk")).toBe(DEFAULT_ISO_SIZE.w);
   });
@@ -135,9 +136,9 @@ describe("validateIsoLayout", () => {
       d: 1,
       placements: [{ id: "a", item: "stool", gx: 50, gy: 50 }],
     });
-    expect(out.w).toBe(30);
+    expect(out.w).toBe(48);
     expect(out.d).toBe(3);
-    expect(out.placements[0].gx).toBeLessThanOrEqual(30 - ISO_ITEMS.stool.foot[0]);
+    expect(out.placements[0].gx).toBeLessThanOrEqual(48 - ISO_ITEMS.stool.foot[0]);
     expect(out.placements[0].gy).toBeLessThanOrEqual(3 - ISO_ITEMS.stool.foot[1]);
   });
 
@@ -238,6 +239,21 @@ describe("floor masks (drawn shapes)", () => {
     expect(out.placements).toHaveLength(1);
     const p = out.placements[0];
     expect(footprintFree(p.gx, p.gy, footOf("stool", 0), out)).toBe(true);
+  });
+});
+
+describe("personas", () => {
+  it("a persona over a seat is seated; on open floor is not", () => {
+    const placements = [
+      { id: "s", item: "stool", gx: 2, gy: 2 },
+      { id: "p", item: "resident", gx: 2, gy: 2 },
+      { id: "q", item: "resident", gx: 5, gy: 5 },
+    ];
+    const seat = seatFor(placements[1], placements);
+    expect(seat?.placement.id).toBe("s");
+    expect(seat?.height).toBe(ISO_ITEMS.stool.seat);
+    expect(seatFor(placements[2], placements)).toBeNull();
+    expect(seatFor(placements[0], placements)).toBeNull(); // not a persona
   });
 });
 

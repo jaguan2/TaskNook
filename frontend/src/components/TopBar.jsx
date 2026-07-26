@@ -6,7 +6,8 @@ import { useStore } from "../store";
 // the focus card (left) and the to-do list (right); see HudFocusCard/HudTasks.
 
 const WEATHER_OPTIONS = [
-  { key: "off", label: "Off", icon: "🌤️" },
+  { key: "off", label: "Clear", icon: "🌤️" },
+  { key: "cloudy", label: "Cloudy", icon: "☁️" },
   { key: "rain", label: "Rain", icon: "🌧️" },
   { key: "snow", label: "Snow", icon: "❄️" },
   { key: "storm", label: "Storm", icon: "⛈️" },
@@ -29,7 +30,7 @@ export default function TopBar() {
   const { user, musicOn, toggleMusic, weatherMode, setWeather } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
-  const weatherIcon = { snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
+  const weatherIcon = { cloudy: "☁️", snow: "❄️", storm: "⛈️" }[weatherMode] || "🌧️";
 
   return (
     <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">

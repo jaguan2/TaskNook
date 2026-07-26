@@ -483,7 +483,42 @@ function Flowerbed() {
   );
 }
 
+// The resident: a little person. `seated` swaps the pose — the scene decides
+// by checking whether they were dropped onto something with a seat.
+function Resident({ seated = false }) {
+  const c = project(0.4, 0.4);
+  const torsoY = seated ? -28 : -34;
+  const headY = seated ? -35 : -41;
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      {!seated && <ellipse cx="0" cy="2" rx="13" ry="5.5" fill="#000" opacity="0.22" />}
+      {seated ? (
+        <>
+          <rect x="-8" y="-10" width="6.5" height="13" rx="3" fill="#4a3a5b" />
+          <rect x="2" y="-9" width="6.5" height="13" rx="3" fill="#4a3a5b" />
+        </>
+      ) : (
+        <>
+          <rect x="-6.8" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
+          <rect x="1.2" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
+        </>
+      )}
+      <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
+        <rect x="-9.5" y={torsoY} width="19" height="22" rx="8" style={tinted("#7faf8f")} />
+        <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
+        <rect x="8" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
+        <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" fill="#000" opacity="0.12" />
+        <circle cx="0" cy={headY} r="7.6" fill="#edc39e" />
+        <path d={`M-7.6 ${headY} a7.6 7.6 0 0 1 15.2 0 l-2 -1.4 q-5.6 -3.4 -11.2 0 z`} fill="#3a3142" />
+        <circle cx="-3" cy={headY + 2} r="0.9" fill="#3a3142" />
+        <circle cx="3" cy={headY + 2} r="0.9" fill="#3a3142" />
+      </g>
+    </g>
+  );
+}
+
 export const ISO_SPRITES = {
+  resident: Resident,
   tree: Tree,
   bush: Bush,
   pond: Pond,
