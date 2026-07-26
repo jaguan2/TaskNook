@@ -117,6 +117,33 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
         />
       )}
 
+      {/* rare delights: a shooting star at night, a bird passing by day.
+          Both are pure CSS — the "rarity" is a long animation cycle where
+          the visible part is only a sliver of it. */}
+      {night && !hasClouds && (
+        <span
+          className="shooting-star absolute"
+          style={{ left: "18%", top: "12%" }}
+        />
+      )}
+      {!night && (
+        <svg
+          className="bird-fly absolute"
+          style={{ top: sunset ? "20%" : "14%" }}
+          width="26"
+          height="12"
+          viewBox="0 0 26 12"
+        >
+          <path
+            d="M1 8 Q7 1 13 7 Q19 1 25 8"
+            fill="none"
+            stroke={sunset ? "#5a3a50" : "#3a3142"}
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+
       {hasClouds &&
         CLOUDS.map((c, i) => <Cloud key={i} {...c} dark={darkClouds} />)}
     </div>

@@ -53,11 +53,24 @@ function Desk() {
         })()}
         {(() => {
           const mug = isoBox(2.15, 0.35, 0.24, 0.24, 10);
+          const m = project(2.27, 0.47);
           return (
             <g>
               <polygon points={mug.left} fill="#d98a93" />
               <polygon points={mug.right} fill="#c47882" />
               <polygon points={mug.top} fill="#e8a3a8" />
+              {/* steam curling off the coffee */}
+              {[0, 1, 2].map((i) => (
+                <circle
+                  key={i}
+                  className="steam-puff"
+                  cx={m.x - 2 + i * 2.5}
+                  cy={m.y - 12}
+                  r={1.6 + (i % 2) * 0.6}
+                  fill="#f7e9e2"
+                  style={{ animationDelay: `${i * 1.1}s` }}
+                />
+              ))}
             </g>
           );
         })()}
@@ -174,8 +187,31 @@ function FloorLamp() {
   );
 }
 
-function Cat() {
+function Cat({ awake = false }) {
   const c = project(0.6, 0.4);
+  if (awake) {
+    // On the prowl: body up on legs, head high, tail curled skyward.
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <ellipse cx="0" cy="2" rx="22" ry="8" fill="#000" opacity="0.2" />
+        <rect x="-14" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
+        <rect x="8" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
+        <ellipse cx="-1" cy="-18" rx="18" ry="9.5" style={tinted("#3a3142")} />
+        <circle cx="-15" cy="-27" r="7.5" style={tinted("#3a3142")} />
+        <polygon points="-21,-31 -19,-39 -14,-32" style={tinted("#3a3142")} />
+        <polygon points="-12,-33 -8,-40 -5,-32" style={tinted("#3a3142")} />
+        <circle cx="-17" cy="-27" r="0.9" fill="#ffe9b0" />
+        <circle cx="-12" cy="-28" r="0.9" fill="#ffe9b0" />
+        <path
+          d="M15 -20 q10 -4 8 -18"
+          fill="none"
+          style={{ stroke: "var(--tint, #3a3142)" }}
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
       <ellipse cx="0" cy="2" rx="26" ry="9" fill="#000" opacity="0.2" />
@@ -318,6 +354,18 @@ function Aquarium() {
           <ellipse cx={c.x - 4} cy={c.y - 9} rx="4" ry="2.4" fill="#d98a93" />
           <polygon points={`${c.x},${c.y - 9} ${c.x + 4},${c.y - 11.5} ${c.x + 4},${c.y - 6.5}`} fill="#d98a93" />
         </g>
+        {/* bubbles drifting up the tank */}
+        {[0, 1, 2].map((i) => (
+          <circle
+            key={i}
+            className="bubble-rise"
+            cx={c.x - 10 + i * 9}
+            cy={c.y - 4}
+            r={1.3 + (i % 2) * 0.5}
+            fill="#cbe8ef"
+            style={{ animationDelay: `${i * 1.6}s` }}
+          />
+        ))}
         <polygon points={glass.top} fill="#cbe8ef" opacity="0.4" />
       </g>
     </g>
@@ -415,6 +463,17 @@ function Pond() {
         fill="none"
         opacity="0.5"
       />
+      {/* a ripple ring slowly spreading */}
+      <ellipse
+        className="pond-ripple"
+        cx={c.x - 12}
+        cy={c.y + 2}
+        rx="16"
+        ry="7"
+        fill="none"
+        stroke="#cbe8ef"
+        strokeWidth="1.4"
+      />
       {/* lilypads */}
       <g className="room-sway" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
         <ellipse cx={c.x + 26} cy={c.y - 8} rx="9" ry="5" fill="#56a07c" />
@@ -485,7 +544,7 @@ function Flowerbed() {
 
 // The resident: a little person. `seated` swaps the pose — the scene decides
 // by checking whether they were dropped onto something with a seat.
-function Resident({ seated = false }) {
+function Resident({ seated = false, working = false }) {
   const c = project(0.4, 0.4);
   const torsoY = seated ? -28 : -34;
   const headY = seated ? -35 : -41;
@@ -505,9 +564,12 @@ function Resident({ seated = false }) {
       )}
       <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         <rect x="-9.5" y={torsoY} width="19" height="22" rx="8" style={tinted("#7faf8f")} />
-        <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
-        <rect x="8" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
-        <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" fill="#000" opacity="0.12" />
+        {/* arms — they type when a focus block is running and they're seated */}
+        <g className={working && seated ? "resident-type" : undefined}>
+          <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
+          <rect x="8" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
+          <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" fill="#000" opacity="0.12" />
+        </g>
         <circle cx="0" cy={headY} r="7.6" fill="#edc39e" />
         <path d={`M-7.6 ${headY} a7.6 7.6 0 0 1 15.2 0 l-2 -1.4 q-5.6 -3.4 -11.2 0 z`} fill="#3a3142" />
         <circle cx="-3" cy={headY + 2} r="0.9" fill="#3a3142" />

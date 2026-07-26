@@ -79,6 +79,7 @@ function IsoRoom({
   editMode = false,
   timeOfDay = "night",
   highlightId = null,
+  working = false,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -261,25 +262,42 @@ function IsoRoom({
       roamRef.current = {};
       return undefined;
     }
+    // Does a wanderer's current spot overlap a rug/blanket? (Cats nap there.)
+    const onSoftSpot = (gx, gy, f) =>
+      placements.some((o) => {
+        if (ISO_ITEMS[o.item]?.layer !== -1) return false;
+        const of = footOf(o.item, o.rot);
+        return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
+      });
     const id = setInterval(() => {
-      const wanderers = placements.filter(
-        (p) => ISO_ITEMS[p.item]?.persona && !seatFor(p, placements)
-      );
+      const wanderers = placements.filter((p) => {
+        const it = ISO_ITEMS[p.item];
+        if (it?.persona) return !seatFor(p, placements);
+        return !!it?.roamer;
+      });
       if (!wanderers.length) return;
       const p = wanderers[Math.floor(Math.random() * wanderers.length)];
       const cur = roamRef.current[p.id] || { dx: 0, dy: 0 };
+      const f = footOf(p.item, p.rot);
+      // Cat rule: once curled up on a rug, mostly stay there.
+      if (
+        ISO_ITEMS[p.item].roamer &&
+        onSoftSpot(p.gx + cur.dx, p.gy + cur.dy, f) &&
+        Math.random() < 0.8
+      ) {
+        return;
+      }
       const next = {
         dx: Math.max(-1.5, Math.min(1.5, cur.dx + (Math.random() * 2 - 1))),
         dy: Math.max(-1.5, Math.min(1.5, cur.dy + (Math.random() * 2 - 1))),
       };
-      const f = footOf(p.item, p.rot);
       const gx = p.gx + next.dx;
       const gy = p.gy + next.dy;
       if (!footprintFree(gx, gy, f, size)) return; // off the floor — stay put
       const blocked = placements.some((o) => {
         if (o.id === p.id) return false;
         const it = ISO_ITEMS[o.item];
-        if (!it || it.wall || it.persona || it.layer === -1) return false;
+        if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
         const of = footOf(o.item, o.rot);
         return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
       });
@@ -290,8 +308,24 @@ function IsoRoom({
     return () => clearInterval(id);
   }, [editMode, placements, size]);
 
+  const softSpotAt = (gx, gy, f) =>
+    placements.some((o) => {
+      if (ISO_ITEMS[o.item]?.layer !== -1) return false;
+      const of = footOf(o.item, o.rot);
+      return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
+    });
   const effective = placements.map((p) => {
-    if (!ISO_ITEMS[p.item]?.persona) return p;
+    const item = ISO_ITEMS[p.item];
+    if (item?.roamer) {
+      const off = !editMode && roamRef.current[p.id];
+      const gx = off ? p.gx + off.dx : p.gx;
+      const gy = off ? p.gy + off.dy : p.gy;
+      // Awake while out wandering; asleep at home or curled on a rug.
+      const moved = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
+      const awake = moved && !softSpotAt(gx, gy, footOf(p.item, p.rot));
+      return { ...p, gx, gy, _awake: awake };
+    }
+    if (!item?.persona) return p;
     const seat = seatFor(p, placements);
     if (seat) {
       const sf = footOf(seat.placement.item, seat.placement.rot);
@@ -511,10 +545,11 @@ function IsoRoom({
             const foot = footOf(p.item, p.rot);
             const hitR = project(foot[0], 0); // anchors the ✕/⟳ buttons
             const persona = !!item.persona;
-            // Personas use a CSS transform (transition = the wander glide);
+            const glides = persona || !!item.roamer;
+            // Wanderers use a CSS transform (transition = the glide);
             // everything else keeps the attribute transform (instant drags).
             const placeProps =
-              persona && !editMode
+              glides && !editMode
                 ? {
                     style: {
                       transform: `translate(${at.x}px, ${at.y}px)`,
@@ -545,8 +580,10 @@ function IsoRoom({
                 {(() => {
                   const sprite = persona ? (
                     <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-                      <Sprite seated={!!p._seat} />
+                      <Sprite seated={!!p._seat} working={working} />
                     </g>
+                  ) : item.roamer ? (
+                    <Sprite awake={!!p._awake} />
                   ) : (
                     <Sprite />
                   );
