@@ -48,7 +48,8 @@ export const ISO_ITEMS = {
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46 },
   floorlamp: { label: "Floor lamp", icon: "💡", hitH: 116, foot: [0.8, 0.8] },
-  cat: { label: "Sleeping cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34 },
+  // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
+  cat: { label: "Cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34, roamer: true },
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
   wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
   mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },

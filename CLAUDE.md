@@ -389,6 +389,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   spot is home; the interval collision-checks the floor mask AND furniture
   footprints, and pauses in edit mode). Personas use a CSS transform +
   transition (the glide) instead of the attribute transform others use.
+  Seated residents TYPE (`.resident-type` arm bob) while a focus block runs
+  (`working` prop = `running && phase === "focus"` — a boolean, so the
+  memo'd scene only re-renders on start/stop, not per tick). Items with
+  `roamer: true` (the cat) share the wander engine with cat rules: awake
+  walking pose while out roaming; once its spot overlaps any `layer:-1`
+  item (rug/blanket) it curls up asleep and mostly stays (80% per tick).
+  Micro-ambience is CSS one-shots: mug steam, aquarium bubbles, pond
+  ripple, plus SkyOverlay's rare shooting star (night, clear sky) and
+  passing bird (day) — rarity = a long animation cycle where the visible
+  part is a sliver. All motion classes are in the `prefers-reduced-motion`
+  block, and motion stays OUT of reading zones (HUD corners) by design.
   `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 /
   Loft 🌙 / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`

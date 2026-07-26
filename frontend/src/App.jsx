@@ -50,6 +50,8 @@ export default function App() {
     isoPreview,
     isoRoom,
     lastIsoAddedId,
+    running,
+    phase,
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
@@ -156,6 +158,7 @@ export default function App() {
             editMode={roomEditMode}
             timeOfDay={timeOfDay}
             highlightId={lastIsoAddedId}
+            working={running && phase === "focus"}
             onMoveItem={moveIsoItem}
             onRemoveItem={removeIsoItem}
             onRotateItem={rotateIsoItem}
