@@ -1,6 +1,6 @@
 import { useStore } from "../store";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
-import { ISO_ITEMS, ISO_ITEM_KEYS } from "../lib/isoRoom";
+import { ISO_ITEMS, ISO_ITEM_KEYS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
 import { ITEM_SPRITES } from "./RoomItems";
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
@@ -47,7 +47,7 @@ export default function RoomPanel() {
     isoRoom,
     addIsoItem,
     setIsoSize,
-    clearIsoRoom,
+    applyIsoPreset,
   } = useStore();
 
   const counts = roomPlacements.reduce((acc, p) => {
@@ -170,20 +170,38 @@ export default function RoomPanel() {
         </p>
       </section>
 
+      {/* Iso presets — a happy default plus a couple of moods */}
+      {isoPreview && (
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
+            Start from a preset
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {ISO_PRESET_KEYS.map((key) => (
+              <button
+                key={key}
+                onClick={() => applyIsoPreset(key)}
+                className={`pill bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
+                  key === "empty" ? "text-petal/60 hover:text-rose" : "text-petal"
+                }`}
+              >
+                {ISO_PRESETS[key].icon} {ISO_PRESETS[key].label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-petal/50">
+            Presets replace the current layout (floor size included) — then
+            tweak from there.
+          </p>
+        </section>
+      )}
+
       {/* Iso furniture (its own catalog while the iso room is active) */}
       {isoPreview && (
         <section>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-petal/60">
-              Furniture
-            </p>
-            <button
-              onClick={clearIsoRoom}
-              className="pill px-2.5 py-1 text-[11px] font-semibold text-petal/60 hover:bg-white/20 hover:text-rose"
-            >
-              🧹 Empty room
-            </button>
-          </div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
+            Furniture
+          </p>
           <div className="grid grid-cols-2 gap-1.5">
             {ISO_ITEM_KEYS.map((key) => (
               <button
@@ -210,8 +228,9 @@ export default function RoomPanel() {
             ))}
           </div>
           <p className="mt-2 text-xs text-petal/50">
-            The iso catalog is small while it's in beta — more furniture as the
-            room grows up.
+            Tap a placed item for its controls: ⟳ mirrors it to face the other
+            way (wall decor hops to the other wall), 🎨 recolours, ✕ puts it
+            away.
           </p>
         </section>
       )}

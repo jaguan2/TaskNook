@@ -151,7 +151,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   credentials (login, falling back to register on first run) instead of a user
   typing anything in. `/api/auth/logout` still exists but nothing calls it.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
-  association table. The friend graph is a **self-referential many-to-many stored
+  association table. `Task.group_name` is the VC2-style to-do group header
+  (nullable; a name list for still-empty groups lives client-side in
+  `tasknook.taskGroups`). `Task.is_routine` marks daily routines — they reset
+  to not-done **lazily in `list_tasks`** whenever their `completed_at` falls
+  on a previous LOCAL day (same local-day convention as the stats). The friend graph is a **self-referential many-to-many stored
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
   directions to stay symmetric. This is intentional; don't "simplify" to one row.
 - **Ordering algorithms** live in `lib/algorithms.js` as pure
@@ -176,32 +180,64 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   stats). `timerMode` is `"timer" | "stopwatch"` (persisted): stopwatch counts
   `elapsed` up open-ended and `finishStopwatch()` logs the rounded minutes as
   a session (sub-minute runs log nothing); mode switching is blocked while
-  running. Pomodoro belongs to timer mode only. The UI is `HudFocusCard`
-  (top-left) — a SMALL VC2-style transport card: round pips, the time, a thin
-  progress bar, `✕ ▶/⏸ ✓ ⚙`, with mode/presets/pomodoro tucked behind the
-  `⚙` expander. The active-task name is the heading above it **only when one
+  running. Pomodoro belongs to timer mode only. Mid-session `−1:00/+1:00`
+  nudges (`nudgeTimer`) adjust `remaining` AND accumulate `nudgeSeconds`, so
+  the progress bar's total stretches and the logged session reflects real
+  planned time; nudges reset on start/reset/mode-switch/completion and are
+  focus-phase only. The UI is `HudFocusCard`
+  (top-left) — a SMALL VC2-style transport card: round pips, the time (nudge
+  buttons flanking it), a thin progress bar, `✕ ▶/⏸ ✓ ⚙`, with
+  mode/presets/pomodoro tucked behind the
+  `⚙` expander, and a chromeless daily-goal/streak chip underneath
+  (`🎯 focused/goal · 🔥 streak` — goal lives in `tasknook.dailyGoal`, streak
+  math is `lib/stats.js`'s pure `focusStreak`, configured in ProgressPanel).
+  The active-task name is the heading above it **only when one
   exists** — when idle there is NO heading and NO filler text; don't add any
   back. The card is `z-30` so the expanded options overlay the dock like a
   dropdown on short windows. `HudTasks` (top-right) is drawn straight on the
   backdrop with no card chrome: completed rows stay crossed-out, per-row ✕
-  delete, ⠿ drag-reorder of active rows, quick-add posts a 25-min medium
-  task. Both hide via `visibility` while decorating. The `Dock` collapses to
+  delete, ↻ routine toggle, ⠿ drag-reorder of active rows (within a group),
+  quick-add posts a 25-min medium task into a selectable group, and tasks are
+  partitioned under VC2-style group headers (`＋ group` creates one; deleting
+  a group ungroups its tasks). Both hide via `visibility` while decorating.
+  The `Dock` collapses to
   a single ☰ button (`tasknook.dockCollapsed`) and its top is
   `max(172px, calc(50% - 220px))` — clamped so a centred column can never
   climb into the focus card's corner on short windows.
-- **Ambient audio**: `weatherMode` (`off`/`rain`/`snow`/`storm`) drives procedurally
-  generated audio via the Web Audio API (`lib/audio.js`, `startWeather`/`stopWeather`) —
-  no audio files, works offline. Rain/snow/storm are the same filtered-noise engine
-  with different filter/gain presets; storm additionally schedules random thunder
-  bursts. Web Audio must start from a user gesture (it does). `WeatherOverlay.jsx`
+  **Design north star (user preference)**: VC2's UI — prefer chromeless
+  on-scene elements (HUD text, small pills, bottom bars, popovers) over new
+  drawers/dialogs; panels are for infrequent configuration.
+- **Ambient audio**: `lib/audio.js` is a procedural **mixer** — channels
+  (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, birds) play
+  simultaneously, each at its own volume, via `setChannel(name, 0..1)` /
+  `applyMix`. No audio files, works offline. The noise channels share one
+  filtered-noise engine with per-channel presets; storm schedules thunder,
+  fireplace schedules crackles, birds are oscillator chirps — all one-shots
+  route through the channel's master gain so its slider scales them.
+  The mix lives in `soundMix` (`tasknook.soundMix`); since Web Audio needs a
+  user gesture, a saved mix resumes on the first `pointerdown` after boot.
+  `weatherMode` (`off`/`rain`/`snow`/`storm`) is now the VISUAL: quick-pick
+  buttons set the overlay + the matching sound channel while zeroing sibling
+  weather sounds, leaving wind/fireplace/birds alone ("Match my real weather"
+  flows through the same `setWeather`). `WeatherOverlay.jsx`
   renders the matching full-screen visual (falling rain/snow, storm gets a lightning
   flash), and `Cottage.jsx`'s window shows the same weather via its `weather` prop.
-  Music is an iframe embed (YouTube or Spotify) in `MusicPanel.jsx`: a few built-in
-  YouTube lofi stations, plus users can paste any YouTube or Spotify
-  (playlist/album/track/show/episode) link — `lib/musicLink.js` resolves it to a
+  Music: stations are picked in `MusicPanel.jsx` but PLAY in `MusicDock.jsx` —
+  a persistent App-level component (bottom-centre transport bar + an
+  off-screen 320×180 player), so music survives closing the panel and hides
+  via the same `visibility` wrapper while decorating. YouTube stations use
+  the IFrame API (real play/pause + volume, `tasknook.music.volume`; single
+  videos loop via the `playlist` doubling trick); Spotify stations embed
+  Spotify's compact 80px player in the bar (Spotify keeps its own controls).
+  Two failure states, deliberately distinct: the API script failing to load =
+  "needs internet", a player error = "won't play — try ⏭" (station-specific).
+  YouTube bot-flags automated browsers (ERR 150 even headful), so transport
+  playback can only be truly verified by a human in the real app.
+  Station model: built-ins + pasted YouTube/Spotify links —
+  `lib/musicLink.js` resolves a link to a
   `{provider, id, kind?}` station, persisted to `localStorage`
   (`tasknook.music.custom` / `tasknook.music.station`). No API keys or fees involved
-  on either side — both are just public iframe embeds.
+  on either side.
 - **Real-world weather**: `WeatherPanel.jsx` + `lib/weather.js` hit Open-Meteo
   (free, no API key) for current conditions — browser geolocation first, falling
   back to manual city search via Open-Meteo's geocoding endpoint. This is the one
@@ -287,22 +323,40 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   per-second context change doesn't re-render the whole scene.
 - **Isometric room (beta)**: a real, decoratable Sims-style room toggled from
   the Room panel (`isoPreview`, localStorage) — it swaps in for `Cottage` and
-  keeps its OWN layout: `{ w, d, placements: [{id, item, gx, gy, tint?}] }`
+  keeps its OWN layout:
+  `{ w, d, placements: [{id, item, gx, gy, rot?, tint?}] }`
   in tile coordinates, resizable 3–14 per axis (resizing re-clamps footprints
-  onto the floor). Model in `lib/isoRoom.js` (footprints, half-tile snapping,
+  onto the floor). `ISO_PRESETS` (Cozy study ⭐ / Sleepy loft 🌙 / Reading
+  lounge 📚 / Empty 🫙) are whole-layout replacements that set the floor size
+  too; preset coordinates must be half-snapped and in-bounds AS WRITTEN — the
+  preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
+  the user. Model in `lib/isoRoom.js` (footprints, half-tile snapping,
   depth sort by front corner, validation), projection in `lib/iso.js` (2:1
   dimetric; `project`/`unproject` are exact inverses — that's what makes
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
-  drag engine in `IsoRoom.jsx`. **Hit-testing is painted-pixels + the
+  drag engine in `IsoRoom.jsx`.
+  **Rotation** (`rot: 0|1`, the ⟳ button when selected): a screen-mirror
+  `scale(-1,1)` about the sprite origin IS a grid transpose, so one drawn
+  facing per item gives both orientations — `footOf(item, rot)` swaps the
+  footprint and everything (clamp, depth, highlight) flows from it. `rot` is
+  stored only when 1.
+  **Wall items** (`wall: true` — frame, wallshelf, mirror): sprites are drawn
+  for the RIGHT wall inside a `skewY(+26.565°)` group (that angle is
+  `atan(TILE_H / TILE_W)`); `rot` picks the wall (0 = right, pinned `gy: 0`;
+  1 = left, pinned `gx: 0` via the same mirror trick) and clamping glues them
+  there — dragging slides along the wall, ⟳ hops walls. They paint first
+  (layer −2), behind even rugs.
+  **Hit-testing is painted-pixels + the
   footprint diamond only** — a bounding-box grab target lets tall items (the
   floor-lamp pole) blanket everything behind them (found the hard way).
   Persistence: `room_config` now stores `{"placements": [...], "iso": {...}}`;
-  GET still understands the legacy bare-list shape. `IsoRoom` re-declares the
+  GET still understands the legacy bare-list shape; the backend's
+  `_clean_layout` passes `rot` through only as exactly int 0/1 (dropping 0).
+  `IsoRoom` re-declares the
   `lampPool`/`lampCone` gradient ids — RoomPanel previews reference them
-  document-wide and only one scene is ever mounted. Wall decor (window,
-  clock) is drawn upright inside a `skewY(±26.565°)` group — that angle is
-  `atan(TILE_H / TILE_W)` — and only renders when the wall is long enough.
+  document-wide and only one scene is ever mounted. Built-in wall decor (the
+  window, string lights) only renders when the wall is long enough.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
   assets, no isometric projection) — a desk by a window. It takes `focused`
   (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
@@ -328,7 +382,14 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
   Read the generated file before committing — autogenerate is a good first
   draft, not gospel (it misses renames, and can't infer a sensible default for
-  a new NOT NULL column on existing rows). Migrations are the **single source
+  a new NOT NULL column on existing rows). Two traps hit for real: (1) a new
+  NOT NULL column needs an explicit `server_default`; (2) **add each column in
+  its own `batch_alter_table` block** — two `add_column`s in one block work on
+  a normal upgrade but die with a column-ordering cycle when the batch
+  recreates the table on a legacy-adopted DB (the schema tests catch this).
+  When a migration adds a column, also drop it in
+  `tests/test_schema.py::make_pre_migrations`, which rewinds a fresh DB into a
+  true baseline-era install. Migrations are the **single source
   of truth** for the schema: there is no `create_all()` fallback, so a model
   change without a migration will break on a fresh DB immediately — which is
   the point (better than silently diverging from what shipped users have).

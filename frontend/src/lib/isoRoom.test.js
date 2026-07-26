@@ -4,9 +4,13 @@ import {
   ISO_ITEMS,
   ISO_ITEM_KEYS,
   ISO_MAX_ITEMS,
+  ISO_PRESET_KEYS,
+  ISO_PRESETS,
   clampIsoPlacement,
   clampIsoSize,
   defaultIsoLayout,
+  footOf,
+  isoPresetLayout,
   newIsoPlacement,
   snapHalf,
   sortIso,
@@ -54,6 +58,23 @@ describe("grid maths", () => {
     expect(clampIsoSize(8.6)).toBe(9);
     expect(clampIsoSize("junk")).toBe(DEFAULT_ISO_SIZE.w);
   });
+
+  it("rotation transposes the footprint (and the clamp with it)", () => {
+    expect(footOf("sofa", 0)).toEqual([2, 1]);
+    expect(footOf("sofa", 1)).toEqual([1, 2]);
+    // in a 9×7 room a rotated sofa's origin caps at (8, 5), not (7, 6)
+    expect(clampIsoPlacement("sofa", 99, 99, SIZE, 1)).toEqual({ gx: 8, gy: 5 });
+    expect(clampIsoPlacement("sofa", 99, 99, SIZE, 0)).toEqual({ gx: 7, gy: 6 });
+  });
+
+  it("wall items are glued to their wall; rot picks which one", () => {
+    // rot 0 → right wall: gy pinned to 0, slides along gx
+    expect(clampIsoPlacement("frame", 4, 5, SIZE, 0)).toEqual({ gx: 4, gy: 0 });
+    expect(clampIsoPlacement("frame", 99, 0, SIZE, 0)).toEqual({ gx: 9 - 1.4, gy: 0 });
+    // rot 1 → left wall: gx pinned to 0, slides along gy
+    expect(clampIsoPlacement("frame", 4, 5, SIZE, 1)).toEqual({ gx: 0, gy: 5 });
+    expect(clampIsoPlacement("frame", 0, 99, SIZE, 1)).toEqual({ gx: 0, gy: 7 - 1.4 });
+  });
 });
 
 describe("render ordering", () => {
@@ -71,6 +92,14 @@ describe("render ordering", () => {
       { id: "b", item: "stool", gx: 1, gy: 1 },
     ]);
     expect(out.map((p) => p.id)).toEqual(["b", "a"]);
+  });
+
+  it("wall decor paints behind everything, even rugs", () => {
+    const out = sortIso([
+      { id: "a", item: "rug", gx: 0, gy: 0 },
+      { id: "b", item: "frame", gx: 6, gy: 0 },
+    ]);
+    expect(out.map((p) => p.item)).toEqual(["frame", "rug"]);
   });
 });
 
@@ -123,6 +152,21 @@ describe("validateIsoLayout", () => {
     expect(out.placements[1].tint).toBeUndefined();
   });
 
+  it("keeps rot 1, normalises everything else to unrotated", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "a", item: "sofa", gx: 2, gy: 2, rot: 1 },
+        { id: "b", item: "sofa", gx: 2, gy: 2, rot: 7 },
+        { id: "c", item: "frame", gx: 3, gy: 6, rot: 1 }, // wall item re-glued
+      ],
+    });
+    expect(out.placements[0].rot).toBe(1);
+    expect(out.placements[1].rot).toBeUndefined();
+    expect(out.placements[2]).toMatchObject({ gx: 0, gy: 7 - 1.4, rot: 1 });
+  });
+
   it("caps runaway layouts", () => {
     const many = Array.from({ length: ISO_MAX_ITEMS + 10 }, (_, i) => ({
       id: `p${i}`,
@@ -136,14 +180,38 @@ describe("validateIsoLayout", () => {
   });
 });
 
-describe("default layout", () => {
-  it("is valid by its own rules and fits the default floor", () => {
-    const layout = defaultIsoLayout();
-    const revalidated = validateIsoLayout(layout);
-    expect(revalidated.placements).toHaveLength(layout.placements.length);
-    for (const p of layout.placements) {
-      const clamped = clampIsoPlacement(p.item, p.gx, p.gy, layout);
-      expect({ gx: p.gx, gy: p.gy }).toEqual(clamped);
+describe("presets", () => {
+  it("every preset is valid by its own rules and fits its own floor", () => {
+    for (const key of ISO_PRESET_KEYS) {
+      const layout = isoPresetLayout(key);
+      const revalidated = validateIsoLayout(layout);
+      expect(revalidated.placements, `preset ${key} loses items`).toHaveLength(
+        layout.placements.length
+      );
+      expect({ w: revalidated.w, d: revalidated.d }).toEqual({ w: layout.w, d: layout.d });
+      for (const p of layout.placements) {
+        const clamped = clampIsoPlacement(p.item, p.gx, p.gy, layout, p.rot || 0);
+        expect({ gx: p.gx, gy: p.gy }, `preset ${key}: ${p.item} out of bounds`).toEqual(
+          clamped
+        );
+        expect(p.gx, `${key}:${p.item} gx not half-snapped`).toBe(snapHalf(p.gx));
+        expect(p.gy, `${key}:${p.item} gy not half-snapped`).toBe(snapHalf(p.gy));
+      }
     }
+  });
+
+  it("each application mints fresh ids (presets can be applied repeatedly)", () => {
+    const a = isoPresetLayout("classic");
+    const b = isoPresetLayout("classic");
+    const ids = new Set([...a.placements, ...b.placements].map((p) => p.id));
+    expect(ids.size).toBe(a.placements.length * 2);
+  });
+
+  it("the default layout is the classic preset, and empty is empty", () => {
+    expect(defaultIsoLayout().placements.length).toBe(
+      ISO_PRESETS.classic.items.length
+    );
+    expect(isoPresetLayout("empty").placements).toEqual([]);
+    expect(isoPresetLayout("empty").w).toBe(DEFAULT_ISO_SIZE.w);
   });
 });

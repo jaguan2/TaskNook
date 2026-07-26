@@ -3,17 +3,36 @@ import { useStore } from "../store";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
-// rows can be deleted with ✕ and re-ordered by dragging the ⠿ handle. The
-// full Tasks drawer (priorities, durations, ordering algorithms) is behind ⚙.
+// rows can be deleted with ✕, re-ordered by dragging the ⠿ handle, marked as
+// a daily routine with ↻, and organised under group headers (VC2's "New
+// Group"). The full Tasks drawer stays behind ⚙.
 export default function HudTasks({ onOpenTasks }) {
-  const { orderedTasks, toggleTask, addTask, removeTask, reorderTasks, activeTaskId, setActiveTaskId } =
-    useStore();
+  const {
+    orderedTasks,
+    toggleTask,
+    addTask,
+    removeTask,
+    reorderTasks,
+    activeTaskId,
+    setActiveTaskId,
+    taskGroups,
+    addTaskGroup,
+    removeTaskGroup,
+    toggleRoutine,
+  } = useStore();
   const [draft, setDraft] = useState("");
-  const dragIndex = useRef(null);
+  const [draftGroup, setDraftGroup] = useState("");
+  const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
+  const dragFrom = useRef(null); // { section, index }
 
-  // orderedTasks already sinks completed tasks to the bottom.
+  // orderedTasks already sinks completed tasks to the bottom. Grouping only
+  // partitions the active rows — done rows collapse into one flat pile.
   const active = orderedTasks.filter((t) => !t.completed);
   const done = orderedTasks.filter((t) => t.completed);
+  const sections = [
+    { key: "", tasks: active.filter((t) => !t.group) },
+    ...taskGroups.map((g) => ({ key: g, tasks: active.filter((t) => t.group === g) })),
+  ];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -21,28 +40,41 @@ export default function HudTasks({ onOpenTasks }) {
     if (!name) return;
     setDraft("");
     try {
-      await addTask({ name, duration: 25, priority: "medium" });
+      await addTask({ name, duration: 25, priority: "medium", group: draftGroup || null });
     } catch (err) {
       console.error("Quick-add failed:", err);
     }
   };
 
-  const onDrop = (index) => {
-    const from = dragIndex.current;
-    dragIndex.current = null;
-    if (from === null || from === index) return;
-    const next = [...active];
-    const [moved] = next.splice(from, 1);
-    next.splice(index, 0, moved);
-    reorderTasks(next);
+  const submitGroup = (e) => {
+    e.preventDefault();
+    const name = (groupDraft || "").trim();
+    if (name) addTaskGroup(name);
+    setGroupDraft(null);
   };
 
-  const Row = ({ task, index, draggableRow }) => (
+  const onDrop = (section, index) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (!from || from.section !== section || from.index === index) return;
+    const rows = sections.find((s) => s.key === section)?.tasks;
+    if (!rows) return;
+    const next = [...rows];
+    const [moved] = next.splice(from.index, 1);
+    next.splice(index, 0, moved);
+    // Persist the FULL active ordering (all sections, display order) so
+    // positions stay consistent for the ordering algorithms.
+    reorderTasks(
+      sections.flatMap((s) => (s.key === section ? next : s.tasks))
+    );
+  };
+
+  const Row = ({ task, section, index, draggableRow }) => (
     <div
       draggable={draggableRow}
-      onDragStart={() => (dragIndex.current = index)}
+      onDragStart={() => (dragFrom.current = { section, index })}
       onDragOver={(e) => e.preventDefault()}
-      onDrop={() => onDrop(index)}
+      onDrop={() => draggableRow && onDrop(section, index)}
       className={`group flex items-center gap-1.5 rounded-lg px-1 py-1 transition ${
         activeTaskId === task.id ? "bg-glow/10" : "hover:bg-white/5"
       }`}
@@ -79,8 +111,24 @@ export default function HudTasks({ onOpenTasks }) {
               : "text-cream"
           }`}
         >
+          {task.routine && (
+            <span className="mr-1 text-xs text-sage" title="Daily routine">
+              ↻
+            </span>
+          )}
           {task.name}
         </span>
+      </button>
+      <button
+        onClick={() => toggleRoutine(task)}
+        title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
+        className={`shrink-0 px-0.5 text-xs transition ${
+          task.routine
+            ? "text-sage opacity-0 group-hover:opacity-100"
+            : "text-petal/30 opacity-0 hover:text-sage group-hover:opacity-100"
+        }`}
+      >
+        ↻
       </button>
       <button
         onClick={() => removeTask(task.id)}
@@ -101,34 +149,98 @@ export default function HudTasks({ onOpenTasks }) {
             ({done.length}/{orderedTasks.length})
           </span>
         </p>
-        <button
-          onClick={onOpenTasks}
-          title="Open the full task manager (priorities, ordering, durations)"
-          className="pill px-2 py-0.5 text-sm text-petal/60 hover:bg-white/10 hover:text-petal"
-        >
-          ⚙
-        </button>
+        <div className="flex items-center gap-1">
+          {groupDraft === null ? (
+            <button
+              onClick={() => setGroupDraft("")}
+              title="New group"
+              className="pill px-2 py-0.5 text-xs text-petal/60 hover:bg-white/10 hover:text-petal"
+            >
+              ＋ group
+            </button>
+          ) : (
+            <form onSubmit={submitGroup}>
+              <input
+                autoFocus
+                value={groupDraft}
+                onChange={(e) => setGroupDraft(e.target.value)}
+                onBlur={submitGroup}
+                placeholder="Group name"
+                className="w-24 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-cream placeholder:text-petal/40 outline-none"
+              />
+            </form>
+          )}
+          <button
+            onClick={onOpenTasks}
+            title="Open the full task manager (priorities, ordering, durations)"
+            className="pill px-2 py-0.5 text-sm text-petal/60 hover:bg-white/10 hover:text-petal"
+          >
+            ⚙
+          </button>
+        </div>
       </header>
 
       <div className="cozy-scroll min-h-0 flex-1 overflow-y-auto">
-        {orderedTasks.length === 0 && (
+        {orderedTasks.length === 0 && taskGroups.length === 0 && (
           <p className="px-2 py-3 text-xs text-petal/50">All clear 🌿</p>
         )}
-        {active.map((task, i) => (
-          <Row key={task.id} task={task} index={i} draggableRow />
-        ))}
+        {sections.map((section) =>
+          section.key === "" ? (
+            section.tasks.map((task, i) => (
+              <Row key={task.id} task={task} section="" index={i} draggableRow />
+            ))
+          ) : (
+            <div key={section.key} className="group/header mt-1">
+              <div className="flex items-center gap-1.5 px-1 pb-0.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
+                  {section.key}
+                </span>
+                <span className="h-px flex-1 bg-white/10" />
+                <button
+                  onClick={() => removeTaskGroup(section.key)}
+                  title="Remove group (its tasks stay, ungrouped)"
+                  className="px-1 text-xs text-petal/30 opacity-0 transition hover:text-rose group-hover/header:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+              {section.tasks.length === 0 && (
+                <p className="px-2 pb-1 text-[11px] italic text-petal/35">empty — add below</p>
+              )}
+              {section.tasks.map((task, i) => (
+                <Row key={task.id} task={task} section={section.key} index={i} draggableRow />
+              ))}
+            </div>
+          )
+        )}
+        {done.length > 0 && <div className="mt-1 h-px bg-white/5" />}
         {done.map((task) => (
-          <Row key={task.id} task={task} index={-1} draggableRow={false} />
+          <Row key={task.id} task={task} section="done" index={-1} draggableRow={false} />
         ))}
       </div>
 
-      <form onSubmit={submit} className="mt-1 border-t border-white/10 px-1 pt-1.5">
+      <form onSubmit={submit} className="mt-1 flex items-center gap-1 border-t border-white/10 px-1 pt-1.5">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="＋ New Task"
-          className="w-full bg-transparent px-1 py-1 text-sm text-cream placeholder:text-petal/40 outline-none"
+          className="min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-cream placeholder:text-petal/40 outline-none"
         />
+        {taskGroups.length > 0 && (
+          <select
+            value={draftGroup}
+            onChange={(e) => setDraftGroup(e.target.value)}
+            title="Add into group"
+            className="max-w-[7rem] rounded-lg bg-white/10 px-1.5 py-0.5 text-xs text-petal outline-none"
+          >
+            <option value="">no group</option>
+            {taskGroups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        )}
       </form>
     </div>
   );

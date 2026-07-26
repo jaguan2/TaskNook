@@ -56,8 +56,11 @@ def revision(db_path):
 def make_pre_migrations(db_path):
     """Rewind a freshly-booted DB into a true pre-migrations install: the
     schema exactly as it stood at the baseline (later columns removed), with
-    no alembic_version table at all."""
+    no alembic_version table at all. Every migration that ADDS a column must
+    drop it here, or this stops modelling a real legacy install."""
     sql(db_path, "ALTER TABLE user DROP COLUMN room_config")
+    sql(db_path, "ALTER TABLE task DROP COLUMN group_name")
+    sql(db_path, "ALTER TABLE task DROP COLUMN is_routine")
     sql(db_path, "DROP TABLE alembic_version")
 
 

@@ -191,6 +191,40 @@ def test_iso_rejects_malformed_layouts(client, auth, bad_iso):
     assert client.get("/api/room", headers=auth).get_json()["iso"] == ISO
 
 
+def test_iso_roundtrips_a_rotation(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [{"id": "i1", "item": "sofa", "gx": 2, "gy": 3, "rot": 1}],
+    }
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+    # rot 0 is the default orientation and stored implicitly (dropped).
+    iso0 = {
+        "w": 9,
+        "d": 7,
+        "placements": [{"id": "i1", "item": "sofa", "gx": 2, "gy": 3, "rot": 0}],
+    }
+    client.put("/api/room", json={"placements": [], "iso": iso0}, headers=auth)
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]
+    assert "rot" not in saved["placements"][0]
+
+
+@pytest.mark.parametrize("bad_rot", [2, -1, True, "1", 1.0])
+def test_iso_rejects_malformed_rotations(client, auth, bad_rot):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [{"id": "i1", "item": "sofa", "gx": 2, "gy": 3, "rot": bad_rot}],
+    }
+    res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+    assert res.status_code == 400
+
+
 def test_legacy_list_config_still_readable(app, client, auth):
     """Saves from before the iso room existed stored a bare list — GET must
     surface them as the flat layout, not error or hide them."""

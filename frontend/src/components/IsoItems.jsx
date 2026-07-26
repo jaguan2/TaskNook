@@ -188,13 +188,202 @@ function Cat() {
   );
 }
 
+function SquareRug() {
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 2.5, 2)} style={tinted("#8a7ac2")} opacity="0.38" />
+      <polygon
+        points={floorPatch(0.2, 0.18, 2.1, 1.64)}
+        fill="none"
+        style={{ stroke: "rgb(var(--color-petal))" }}
+        strokeWidth="1.6"
+        opacity="0.3"
+      />
+    </g>
+  );
+}
+
+// Shaded box helper: every face gets the tint, with translucent black
+// overlays for depth so ANY chosen colour reads correctly.
+function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18 }) {
+  const box = isoBox(gx, gy, dx, dy, h);
+  return (
+    <g>
+      <polygon points={box.left} style={tinted(fallback)} />
+      <polygon points={box.left} fill="#000" opacity={mid} />
+      <polygon points={box.right} style={tinted(fallback)} />
+      <polygon points={box.right} fill="#000" opacity={dark} />
+      <polygon points={box.top} style={tinted(fallback)} />
+    </g>
+  );
+}
+
+function Sofa() {
+  const f = "#b0687a";
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={2} dy={0.32} h={52} fallback={f} />
+      <TintedBox gx={0} gy={0.28} dx={2} dy={0.72} h={24} fallback={f} />
+      <TintedBox gx={0} gy={0} dx={0.28} dy={1} h={38} fallback={f} />
+      <TintedBox gx={1.72} gy={0} dx={0.28} dy={1} h={38} fallback={f} />
+      {/* cushion seam */}
+      <line
+        x1={project(1, 0.3).x}
+        y1={project(1, 0.3).y - 24}
+        x2={project(1, 1).x}
+        y2={project(1, 1).y - 24}
+        stroke="#000"
+        strokeWidth="1.4"
+        opacity="0.22"
+      />
+    </g>
+  );
+}
+
+function CoffeeTable() {
+  const A = project(0, 0);
+  const B = project(1.4, 0);
+  const C = project(1.4, 0.9);
+  const D = project(0, 0.9);
+  const up = (p, h) => `${p.x},${p.y - h}`;
+  const legs = [project(0.18, 0.16), project(1.22, 0.16), project(1.22, 0.74), project(0.18, 0.74)];
+  return (
+    <g>
+      {legs.map((p, i) => (
+        <line key={i} x1={p.x} y1={p.y} x2={p.x} y2={p.y - 20} stroke="#6b4a39" strokeWidth="3" />
+      ))}
+      {/* slab top with a thin skirt, not a solid crate */}
+      <polygon points={`${up(D, 26)} ${up(C, 26)} ${up(C, 19)} ${up(D, 19)}`} style={tinted("#a87f5f")} />
+      <polygon points={`${up(D, 26)} ${up(C, 26)} ${up(C, 19)} ${up(D, 19)}`} fill="#000" opacity="0.2" />
+      <polygon points={`${up(B, 26)} ${up(C, 26)} ${up(C, 19)} ${up(B, 19)}`} style={tinted("#a87f5f")} />
+      <polygon points={`${up(B, 26)} ${up(C, 26)} ${up(C, 19)} ${up(B, 19)}`} fill="#000" opacity="0.32" />
+      <polygon points={`${up(A, 26)} ${up(B, 26)} ${up(C, 26)} ${up(D, 26)}`} style={tinted("#a87f5f")} />
+      {/* a small book resting on top */}
+      <g transform="translate(0,-26)">
+        <polygon points={floorPatch(0.5, 0.3, 0.42, 0.3)} fill="#7faf8f" />
+      </g>
+    </g>
+  );
+}
+
+function Bed() {
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={2} dy={0.14} h={46} fallback="#8f5d49" dark={0.4} mid={0.24} />
+      <TintedBox gx={0} gy={0.1} dx={2} dy={2.7} h={16} fallback="#8f5d49" dark={0.4} mid={0.24} />
+      {/* blanket (the tintable material) */}
+      <TintedBox gx={0.04} gy={0.6} dx={1.92} dy={2.14} h={26} fallback="#7f9ec9" />
+      {/* fold line across the blanket */}
+      <line
+        x1={project(0.04, 1.3).x}
+        y1={project(0.04, 1.3).y - 26}
+        x2={project(1.96, 1.3).x}
+        y2={project(1.96, 1.3).y - 26}
+        stroke="#000"
+        strokeWidth="1.6"
+        opacity="0.18"
+      />
+      {/* pillow */}
+      <TintedBox gx={0.35} gy={0.16} dx={1.3} dy={0.42} h={10} fallback="#f7e9e2" dark={0.14} mid={0.08} />
+    </g>
+  );
+}
+
+function Cushion() {
+  const c = project(0.45, 0.45);
+  return (
+    <g>
+      <TintedBox gx={0.05} gy={0.05} dx={0.8} dy={0.8} h={13} fallback="#e8b04b" />
+      <circle cx={c.x} cy={c.y - 13} r="2.4" fill="#000" opacity="0.25" />
+    </g>
+  );
+}
+
+function Aquarium() {
+  const glass = isoBox(0.06, 0.06, 1.28, 0.58, 32);
+  const c = project(0.7, 0.35);
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={1.4} dy={0.7} h={24} fallback="#3a3142" dark={0.35} mid={0.2} />
+      <g transform="translate(0,-24)">
+        <ellipse cx={c.x} cy={c.y - 16} rx="26" ry="12" fill="#6fb8cf" opacity="0.18" className="room-breathe" />
+        <polygon points={glass.left} fill="#6fb8cf" opacity="0.22" />
+        <polygon points={glass.right} fill="#6fb8cf" opacity="0.32" />
+        {/* seaweed + fish inside */}
+        <path
+          d={`M ${c.x - 14} ${c.y} q -3 -12 2 -22 q 4 8 1 22 z`}
+          fill="#3f7f63"
+          opacity="0.85"
+        />
+        <g className="room-sway" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+          <ellipse cx={c.x + 4} cy={c.y - 18} rx="5" ry="3" fill="#e8b04b" />
+          <polygon points={`${c.x + 9},${c.y - 18} ${c.x + 13},${c.y - 21} ${c.x + 13},${c.y - 15}`} fill="#e8b04b" />
+          <ellipse cx={c.x - 4} cy={c.y - 9} rx="4" ry="2.4" fill="#d98a93" />
+          <polygon points={`${c.x},${c.y - 9} ${c.x + 4},${c.y - 11.5} ${c.x + 4},${c.y - 6.5}`} fill="#d98a93" />
+        </g>
+        <polygon points={glass.top} fill="#cbe8ef" opacity="0.4" />
+      </g>
+    </g>
+  );
+}
+
+// ---- wall decor — drawn for the RIGHT wall (the plane along +gx at gy=0)
+// inside a skewY group; the scene mirrors the whole sprite for the left wall.
+
+function Frame() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="1" y="-98" width="32" height="42" rx="2" style={tinted("#8a5346")} />
+      <rect x="1" y="-98" width="32" height="42" rx="2" fill="#000" opacity="0.15" />
+      <rect x="4.5" y="-94.5" width="25" height="35" fill="url(#isoSky)" />
+      <circle cx="22" cy="-87" r="4" fill="#f7e9e2" opacity="0.9" />
+      <path d="M4.5 -66 q6 -9 12 -3 q7 -8 12.5 -1 l0 10.5 l-24.5 0 z" fill="#2b2350" />
+    </g>
+  );
+}
+
+function WallShelf() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="0" y="-78" width="38" height="5" rx="1.5" style={tinted("#a87f5f")} />
+      <rect x="0" y="-78" width="38" height="5" rx="1.5" fill="#000" opacity="0.12" />
+      <polygon points="4,-73 10,-73 4,-66" fill="#6b4a39" />
+      <polygon points="30,-73 36,-73 30,-66" fill="#6b4a39" />
+      <rect x="4" y="-92" width="5" height="14" rx="1" fill="#7faf8f" />
+      <rect x="10" y="-90" width="5" height="12" rx="1" fill="#d98a93" />
+      <rect x="16" y="-93" width="5" height="15" rx="1" fill="#8a7ac2" />
+      {/* trailing plant spilling over the edge */}
+      <path d="M30 -80 q4 2 3 10 q-4 -2 -3 -10 z M33 -79 q5 4 3 14 q-5 -4 -3 -14 z" fill="#56a07c" />
+    </g>
+  );
+}
+
+function Mirror() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <circle cx="11" cy="-80" r="13" style={tinted("#e8b04b")} />
+      <circle cx="11" cy="-80" r="10" fill="#cbe8ef" opacity="0.85" />
+      <path d="M6 -86 q4 -3 8 -1" stroke="#fff" strokeWidth="1.6" fill="none" opacity="0.7" />
+    </g>
+  );
+}
+
 export const ISO_SPRITES = {
   rug: Rug,
+  squarerug: SquareRug,
   desk: Desk,
   stool: Stool,
+  sofa: Sofa,
+  coffeetable: CoffeeTable,
+  bed: Bed,
+  cushion: Cushion,
   bookshelf: Bookshelf,
+  aquarium: Aquarium,
   monstera: Monstera,
   plant: Plant,
   floorlamp: FloorLamp,
   cat: Cat,
+  frame: Frame,
+  wallshelf: WallShelf,
+  mirror: Mirror,
 };

@@ -68,6 +68,10 @@ class Task(db.Model):
     position = db.Column(db.Integer, nullable=False, default=0)
     # Optional ISO date (YYYY-MM-DD) the task is scheduled on the calendar.
     scheduled_date = db.Column(db.String(10), nullable=True)
+    # Optional to-do group header the task lives under (VC2-style).
+    group_name = db.Column(db.String(60), nullable=True)
+    # Routine tasks reset to not-done at the start of each (local) day.
+    is_routine = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
 
@@ -80,6 +84,8 @@ class Task(db.Model):
             "completed": self.completed,
             "position": self.position,
             "scheduledDate": self.scheduled_date,
+            "group": self.group_name,
+            "routine": self.is_routine,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "completedAt": self.completed_at.isoformat() if self.completed_at else None,
         }
