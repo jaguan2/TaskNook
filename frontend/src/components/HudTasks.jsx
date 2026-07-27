@@ -91,6 +91,7 @@ function Row({
       <button
         onClick={() => requestDelete(task.id)}
         title="Delete task"
+        aria-label="Delete task"
         className={`hover-reveal shrink-0 px-1 transition ${
           confirming
             ? "confirming text-[10px] font-bold text-danger"
@@ -220,6 +221,7 @@ export default function HudTasks({ onOpenTasks }) {
           <button
             onClick={onOpenTasks}
             title="Open the full task manager (priorities, ordering, durations)"
+            aria-label="Open the full task manager (priorities, ordering, durations)"
             className="pill px-2 py-1 text-petal/60 hover:bg-white/10 hover:text-petal"
           >
             <SlidersHorizontal size={13} />
@@ -248,6 +250,7 @@ export default function HudTasks({ onOpenTasks }) {
                 <button
                   onClick={() => removeTaskGroup(section.key)}
                   title="Remove group (its tasks stay, ungrouped)"
+                  aria-label="Remove group (its tasks stay, ungrouped)"
                   className="hover-reveal px-1 text-xs text-petal/30 transition hover:text-danger"
                 >
                   ✕
@@ -294,6 +297,7 @@ export default function HudTasks({ onOpenTasks }) {
             value={draftGroup}
             onChange={(e) => setDraftGroup(e.target.value)}
             title="Add into group"
+            aria-label="Add into group"
             className="max-w-[7rem] rounded-lg bg-white/10 px-1.5 py-0.5 text-xs text-petal outline-none"
           >
             <option value="">No group</option>

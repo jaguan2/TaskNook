@@ -1,12 +1,14 @@
 // Tiny fetch wrapper around the TaskNook REST API.
+import { readStored, removeStored, writeStored } from "./storage";
+
 const TOKEN_KEY = "tasknook.token";
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return readStored(TOKEN_KEY);
 }
 export function setToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  if (token) writeStored(TOKEN_KEY, token);
+  else removeStored(TOKEN_KEY);
 }
 
 async function request(method, path, body) {

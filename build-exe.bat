@@ -46,6 +46,7 @@ REM    set TASKNOOK_SELFTEST=1 && TaskNook.exe   (exit code must be 0)
   --hidden-import flask_migrate ^
   --collect-all alembic ^
   --hidden-import logging.config ^
+  --noconfirm ^
   desktop.py || goto :error
 
 echo.

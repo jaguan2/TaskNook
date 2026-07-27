@@ -70,6 +70,9 @@ function VariantPicker({ placement, item, onTint }) {
 
 export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
   const item = itemProp || ITEMS[placement.item];
+  // A placement whose catalog entry no longer exists (renamed or removed item)
+  // must not take the whole app down — the scenes already skip unknown items.
+  if (!item) return null;
   if (item.variants) {
     return <VariantPicker placement={placement} item={item} onTint={onTint} />;
   }
@@ -78,13 +81,30 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
 
 function FullTintPicker({ placement, item, onTint }) {
   const active = placement.tint || null;
-  // Sliders mirror the current tint; untinted items start from the first
-  // swatch so there's something sensible to move away from.
-  const { h, s, l } = hexToHsl(active || TINT_SWATCHES[0]);
+  // Slider positions are LOCAL STATE, not re-derived from the committed hex on
+  // every render. Deriving them was a dead end at both extremes: drag Lightness
+  // to 0 and the tint is #000000, whose hue and saturation are 0 *by
+  // definition* — so the hue and saturation sliders snapped to the left and
+  // then wrote black wherever you dragged them (same at 100 with white). Only a
+  // swatch or the hex field could escape. Local state remembers the hue you
+  // were working in, so lightness is a round trip.
+  // Untinted items start from the first swatch — something sensible to move
+  // away from.
+  const [hsl, setHsl] = useState(() => hexToHsl(active || TINT_SWATCHES[0]));
   const [hexDraft, setHexDraft] = useState(active || "");
 
-  // Selecting another item (or an external tint change) refreshes the draft.
-  useEffect(() => setHexDraft(active || ""), [active, placement.id]);
+  // Re-sync only when the tint changes from OUTSIDE these sliders (a swatch,
+  // the hex field, "Classic ↺", or selecting a different item). A slider's own
+  // change already agrees with `active`, so this never fights a drag.
+  useEffect(() => {
+    setHexDraft(active || "");
+    setHsl((prev) => {
+      if (!active) return hexToHsl(TINT_SWATCHES[0]);
+      return hslToHex(prev.h, prev.s, prev.l) === active ? prev : hexToHsl(active);
+    });
+  }, [active, placement.id]);
+
+  const { h, s, l } = hsl;
 
   const commitHex = (value) => {
     setHexDraft(value);
@@ -93,7 +113,10 @@ function FullTintPicker({ placement, item, onTint }) {
     const raw = value.trim().replace(/^#/, "");
     if (/^[0-9a-fA-F]{6}$/.test(raw)) onTint(placement.id, `#${raw.toLowerCase()}`);
   };
-  const fromSliders = (nh, ns, nl) => onTint(placement.id, hslToHex(nh, ns, nl));
+  const fromSliders = (nh, ns, nl) => {
+    setHsl({ h: nh, s: ns, l: nl });
+    onTint(placement.id, hslToHex(nh, ns, nl));
+  };
 
   return (
     // Bottom-centre: guaranteed clear while decorating — the focus timer that

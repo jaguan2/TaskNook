@@ -32,8 +32,10 @@ export function unproject(x, y) {
   };
 }
 
-/** Painter's depth: bigger = nearer the viewer = drawn later. */
-export const depthOf = (gx, gy) => gx + gy;
+// (No depthOf() here on purpose. Painter's depth is a property of a whole
+// PLACEMENT, not a point — sortIso in lib/isoRoom.js sorts on the footprint's
+// front corner, gx+dx + gy+dy. A point-based helper only ever tempted callers
+// into the wrong rule.)
 
 const pts = (list) => list.map((p) => `${p.x},${p.y}`).join(" ");
 

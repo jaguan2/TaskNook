@@ -1,5 +1,6 @@
 ﻿import { Flame, Sparkles, Target } from "lucide-react";
 import { useStore } from "../store";
+import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
@@ -37,7 +38,9 @@ function Stat({ label, value, sub }) {
 }
 
 export default function ProgressPanel() {
-  const { stats, tasks, sessionDays, dailyGoal, setDailyGoal, focusMinutesLive } = useStore();
+  const { stats, tasks, sessionDays, dailyGoal, setDailyGoal } = useStore();
+  // Live minutes tick with the running block, so they come from the timer.
+  const { focusMinutesLive } = useTimer();
   const completion = stats.completion || 0;
   const hours = Math.floor(focusMinutesLive / 60);
   const mins = focusMinutesLive % 60;
@@ -94,10 +97,14 @@ export default function ProgressPanel() {
         </div>
       </div>
 
-      {/* Completion bar */}
+      {/* Completion bar — this one is LIST-wide, not today's. `tasksDone`/
+          `tasksTotal` count the whole standing list (a to-do list isn't
+          recreated each morning), so the heading must not claim "today":
+          it said so over lifetime counts and never moved. Today's figures
+          are the two stats below. */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">Today's completion</p>
+          <p className="text-sm font-semibold text-cream">List completion</p>
           <p className="text-sm font-bold text-glow">{completion}%</p>
         </div>
         <div className="h-4 w-full overflow-hidden rounded-full bg-white/10">
@@ -108,7 +115,7 @@ export default function ProgressPanel() {
         </div>
         <p className="mt-1 text-xs text-petal/60">
           {stats.tasksTotal === 0
-            ? "No tasks yet today — they'll show up here as you add them. 🌿"
+            ? "No tasks yet — they'll show up here as you add them. 🌿"
             : `${stats.tasksDone} of ${stats.tasksTotal} tasks done`}
         </p>
       </div>
@@ -116,7 +123,11 @@ export default function ProgressPanel() {
       {/* Stat grid */}
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Focus today" value={`${hours}h ${mins}m`} />
-        <Stat label="Tasks done" value={stats.tasksDone} />
+        <Stat
+          label="Done today"
+          value={stats.tasksDoneToday || 0}
+          sub={stats.tasksTotal ? `${stats.tasksDone} on the list` : undefined}
+        />
         <Stat label="Remaining" value={`${totalPlannedMin}m`} sub="planned work" />
       </div>
 

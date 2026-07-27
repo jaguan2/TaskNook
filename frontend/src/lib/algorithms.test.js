@@ -150,3 +150,29 @@ describe("ordering algorithms", () => {
     }
   });
 });
+
+describe("random ordering — the parts that are easy to get subtly wrong", () => {
+  const tasks = [task(1), task(2), task(3), task(4)];
+
+  it("follows the shuffled order it is given", () => {
+    const out = applyAlgorithm("random", tasks, { randomOrder: [3, 1, 4, 2] });
+    expect(names(out)).toEqual([3, 1, 4, 2]);
+  });
+
+  it("sinks tasks the shuffle has never seen, without an unstable comparator", () => {
+    // Regression: unranked ids scored `Infinity`, so two of them compared
+    // `Infinity - Infinity` → NaN — an inconsistent comparator. V8 happens to
+    // leave them put, but that is luck, not a contract, and it means a
+    // freshly-added task's position was undefined behaviour.
+    const out = applyAlgorithm("random", tasks, { randomOrder: [4, 2] });
+    expect(names(out).slice(0, 2)).toEqual([4, 2]);
+    // The two unranked ones keep their relative (input) order.
+    expect(names(out).slice(2)).toEqual([1, 3]);
+  });
+
+  it("is a no-op ordering when the shuffle is empty, not a crash", () => {
+    // This is the state a fresh launch starts in, before the store seeds one.
+    const out = applyAlgorithm("random", tasks, { randomOrder: [] });
+    expect(names(out)).toEqual([1, 2, 3, 4]);
+  });
+});

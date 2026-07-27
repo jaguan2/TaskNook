@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Sofa } from "lucide-react";
 import { useStore } from "./store";
+import { useTimerStatus } from "./timer";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
+import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
@@ -13,14 +15,19 @@ import HudTasks from "./components/HudTasks";
 import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
 import SkyOverlay from "./components/SkyOverlay";
-import TaskPanel from "./components/TaskPanel";
-import CalendarPanel from "./components/CalendarPanel";
-import ProgressPanel from "./components/ProgressPanel";
-import FriendsPanel from "./components/FriendsPanel";
-import MusicPanel from "./components/MusicPanel";
-import WeatherPanel from "./components/WeatherPanel";
-import RoomPanel from "./components/RoomPanel";
-import SettingsPanel from "./components/SettingsPanel";
+// Panels are lazy: all eight shipped in the first chunk even though most
+// sessions open one or two, and several are heavy (the calendar, the room
+// browser). They live behind a dock click, so a chunk fetch is invisible.
+// The room panel's sprites are NOT duplicated into its chunk — IsoItems is
+// already in the main bundle via the always-mounted scene.
+const TaskPanel = lazy(() => import("./components/TaskPanel"));
+const CalendarPanel = lazy(() => import("./components/CalendarPanel"));
+const ProgressPanel = lazy(() => import("./components/ProgressPanel"));
+const FriendsPanel = lazy(() => import("./components/FriendsPanel"));
+const MusicPanel = lazy(() => import("./components/MusicPanel"));
+const WeatherPanel = lazy(() => import("./components/WeatherPanel"));
+const RoomPanel = lazy(() => import("./components/RoomPanel"));
+const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 
 const PANELS = {
   tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
@@ -53,13 +60,15 @@ export default function App() {
     isoPreview,
     isoRoom,
     lastIsoAddedId,
-    running,
-    phase,
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
   } = useStore();
+  // The NARROW timer context: running/phase only. Reading the full one here
+  // would re-render App — and with it the dock, the HUD and every open panel —
+  // once a second, which is exactly what splitting the timer out avoided.
+  const { running, phase } = useTimerStatus();
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
@@ -191,31 +200,55 @@ export default function App() {
           opacity: { duration: reduceMotion ? 0.6 : 0.9, ease: "easeOut" },
         }}
       >
-        {isoPreview ? (
-          <IsoRoom
-            size={isoRoom}
-            placements={isoRoom.placements}
-            editMode={roomEditMode}
-            timeOfDay={timeOfDay}
-            highlightId={lastIsoAddedId}
-            working={running && phase === "focus"}
-            onMoveItem={moveIsoItem}
-            onRemoveItem={removeIsoItem}
-            onRotateItem={rotateIsoItem}
-            onTintItem={setIsoItemTint}
-          />
-        ) : (
-          <Cottage
-            weather={weatherMode}
-            timeOfDay={timeOfDay}
-            room={roomPlacements}
-            editMode={roomEditMode}
-            scale={roomScale}
-            onMoveItem={moveRoomItem}
-            onRemoveItem={removeRoomItem}
-            onTintItem={setRoomItemTint}
-          />
-        )}
+        {/* The scene gets its OWN boundary. It's the most failure-prone thing
+            in the app (thousands of SVG nodes generated from editable layout
+            data), and it's also the most disposable: if the room can't draw,
+            the to-do list, the timer and the panels should all still work. */}
+        <ErrorBoundary
+          fallback={(error, retry) => (
+            <div className="glass max-w-xs rounded-2xl px-5 py-4 text-center shadow-soft">
+              <p className="text-sm font-semibold text-cream">
+                The room couldn&apos;t be drawn 🌫️
+              </p>
+              <p className="mt-1 text-xs text-petal/60">
+                Everything else still works — your layout is saved.
+              </p>
+              <button
+                onClick={retry}
+                title={String(error?.message || error)}
+                className="pill mt-3 bg-white/10 px-4 py-1.5 text-xs font-semibold text-glow hover:bg-white/20"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+        >
+          {isoPreview ? (
+            <IsoRoom
+              size={isoRoom}
+              placements={isoRoom.placements}
+              editMode={roomEditMode}
+              timeOfDay={timeOfDay}
+              highlightId={lastIsoAddedId}
+              working={running && phase === "focus"}
+              onMoveItem={moveIsoItem}
+              onRemoveItem={removeIsoItem}
+              onRotateItem={rotateIsoItem}
+              onTintItem={setIsoItemTint}
+            />
+          ) : (
+            <Cottage
+              weather={weatherMode}
+              timeOfDay={timeOfDay}
+              room={roomPlacements}
+              editMode={roomEditMode}
+              scale={roomScale}
+              onMoveItem={moveRoomItem}
+              onRemoveItem={removeRoomItem}
+              onTintItem={setRoomItemTint}
+            />
+          )}
+        </ErrorBoundary>
       </motion.div>
 
       {/* Decorating chip: visible whenever edit mode is on, so there's always
@@ -277,7 +310,13 @@ export default function App() {
               zIndex={frontKey === key ? 40 : 30}
               onPointerDownCapture={() => setFrontKey(key)}
             >
-              <Def.Comp />
+              {/* Each panel is its own chunk; the fallback is a beat at most
+                  (local file), so keep it quiet rather than a spinner. */}
+              <Suspense
+                fallback={<p className="px-1 py-4 text-xs text-petal/40">Opening…</p>}
+              >
+                <Def.Comp />
+              </Suspense>
             </Drawer>
           );
         })}

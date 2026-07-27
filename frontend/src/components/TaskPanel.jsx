@@ -155,6 +155,7 @@ export default function TaskPanel() {
             <button
               onClick={() => toggleTask(task)}
               title="Mark complete"
+              aria-label="Mark complete"
               className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-petal/50 text-transparent hover:border-glow"
             >
               ✓
@@ -183,6 +184,7 @@ export default function TaskPanel() {
             <button
               onClick={() => requestDelete(task.id)}
               title="Delete task"
+              aria-label="Delete task"
               className={`hover-reveal shrink-0 transition ${
                 confirmId === task.id
                   ? "confirming text-[10px] font-bold text-danger"
@@ -209,6 +211,7 @@ export default function TaskPanel() {
               <button
                 onClick={() => toggleTask(task)}
                 title="Mark as not done"
+                aria-label="Mark as not done"
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sage text-xs text-plum"
               >
                 ✓
@@ -219,6 +222,7 @@ export default function TaskPanel() {
               <button
                 onClick={() => requestDelete(task.id)}
                 title="Delete task"
+                aria-label="Delete task"
                 className={`shrink-0 transition ${
                   confirmId === task.id
                     ? "text-[10px] font-bold text-danger"

@@ -21,12 +21,15 @@ TaskNook/
 │   └── requirements.txt
 ├── frontend/             # React + Vite SPA
 │   └── src/
-│       ├── main.jsx      # Entry; wraps <App/> in <StoreProvider/>
+│       ├── main.jsx      # Entry; <ErrorBoundary><StoreProvider><TimerProvider><App/>
 │       ├── App.jsx       # Shell: cottage scene, dock, drawers, HUD cards
 │       ├── store.jsx     # SINGLE source of truth (React Context): local account,
-│       │                 #   tasks, friends, stats, focus timer, ambient audio
+│       │                 #   tasks, friends, stats, room, ambient audio
+│       ├── timer.jsx     # The focus timer, in its OWN provider (see below) —
+│       │                 #   its 1Hz tick must not re-render the whole app
 │       ├── lib/
 │       │   ├── api.js        # fetch wrapper; token in localStorage
+│       │   ├── storage.js    # THE localStorage gateway (never call it directly)
 │       │   ├── algorithms.js # task-ordering strategies (pure functions)
 │       │   ├── audio.js      # procedural rain/snow/storm via Web Audio API
 │       │   ├── weather.js    # Open-Meteo: geolocation/geocoding + current conditions
@@ -50,6 +53,12 @@ TaskNook/
 
 Most write actions call an API method then `refreshAll()` (re-fetches tasks +
 stats + friends). State lives in `store.jsx`; components are mostly presentational.
+
+`refreshAll()` awaits `listTasks()` **before** the other three, deliberately:
+GET `/api/tasks` is what lazily resets daily routines, so a `stats` call racing
+alongside it could be answered from pre-reset rows — one wrong completion
+number on the first refresh of each new day. Don't fold it back into the
+`Promise.all`.
 
 ## Running it
 
@@ -145,9 +154,23 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 - **Failure feedback**: failed API writes are never console-only — every
   catch also calls the store's `showToast(message)` (one transient glass
-  pill, top-centre, auto-dismisses; rendered in `App.jsx`). A hard bootstrap
+  pill, top-centre, auto-dismisses; rendered in `App.jsx`). Refusals toast
+  too, not just errors: hitting the item cap, or asking for a piece the drawn
+  floor has no room for. A hard bootstrap
   failure sets `bootError` → App shows a retry screen instead of an empty
-  cottage. Error text/destructive hovers/"sure?" states use the fixed
+  cottage. A render that THROWS hits `components/ErrorBoundary.jsx`: one at
+  the root in `main.jsx`, plus a second wrapping the scene in `App.jsx` with
+  its own `fallback` — a room that can't draw must not take the to-do list
+  and the timer with it. Without these a single throw is a blank window, and
+  the packaged app is `--windowed`, so a blank window is indistinguishable
+  from one that never launched.
+- **localStorage goes through `lib/storage.js`** (`readStored`/`writeStored`/
+  `readJSON`/`writeJSON`/`removeStored`) — never `localStorage.*` directly.
+  Both halves of the API throw for real reasons (QuotaExceededError when the
+  profile is full; SecurityError when storage is disabled or partitioned),
+  and TaskNook writes from inside effects and setters, so an unguarded throw
+  lands in React's commit phase and blanks the app. Reads degrade to "nothing
+  saved", writes return `false`. Error text/destructive hovers/"sure?" states use the fixed
   `danger` color, NOT `rose` (rose re-tints per theme and goes grey/tan in
   three of them). Hover-revealed row controls use `.hover-reveal`
   (index.css) — visible on touch, revealed by keyboard focus — never raw
@@ -159,6 +182,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **Auth**: opaque bearer tokens (table `Token`). Client sends
   `Authorization: Bearer <token>`; `@require_auth` injects the `user` as the
   first arg to a route. Token is persisted in `localStorage` under `tasknook.token`.
+  `issue_token` prunes to the newest `MAX_TOKENS_PER_USER` rows per user —
+  nothing used to delete them, so the table grew by one on every boot from
+  cleared storage, which is exactly what the desktop persistence check
+  asserts against.
   The register/login/me endpoints are unchanged, but the frontend has no login UI —
   `store.jsx`'s bootstrap effect calls them itself against the fixed `LOCAL_ACCOUNT`
   credentials (login, falling back to register on first run) instead of a user
@@ -186,12 +213,37 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   sorting with `Math.random()` directly — `orderedTasks` recomputes on every
   render (e.g. every timer tick), so a naive random sort would reshuffle
   constantly instead of only on click.
+- **Two time windows in `/api/stats`, don't mix them.** `tasksTotal` /
+  `tasksDone` / `completion` describe the **current list** — a standing to-do
+  list isn't recreated each morning — while `tasksDoneToday` and
+  `focusMinutesToday` are bucketed by the LOCAL day. ProgressPanel labels them
+  accordingly ("List completion" vs "Done today"); it used to say "Today's
+  completion" over lifetime counts, so a task finished a year ago read as
+  today's progress and the bar never moved. `local_day_start_utc()` in
+  `app.py` is how the day boundary reaches a naive-UTC `completed_at` column.
 - **Calendar activity marking**: `GET /api/sessions/days` aggregates focus
   minutes per day (`{day: minutes}`), fetched into `store.jsx`'s `sessionDays`
   as part of `refreshAll()`. `CalendarPanel.jsx` unions that with days derived
   from `task.completedAt` (routed through the same local-date `toISO()` used
-  elsewhere) to tint "active" days.
-- **Focus timer** is driven entirely from `store.jsx`. The ticking `useEffect`
+  elsewhere) to tint "active" days — filtering on `minutes > 0`, not on the
+  key existing. `POST /api/sessions` refuses anything under a minute for the
+  same reason (a zero-minute row is not a day you focused).
+- **Focus timer** lives in **`timer.jsx`**, its own provider nested inside
+  `StoreProvider` (it reads the active task and logs sessions through the
+  store). It used to be part of the store, which rebuilt that context every
+  second and re-rendered every `useStore()` consumer in the app — the dock,
+  the to-do list, the music bar, every open panel — whether or not it showed
+  a clock. The nesting is what fixes it: `children` is an element created by
+  StoreProvider, which no longer re-renders per tick, so React skips the
+  subtree and only context consumers update. There are **two** hooks, and
+  picking the wrong one undoes the whole thing:
+  `useTimer()` is everything including `remaining`/`elapsed` (HudFocusCard
+  and ProgressPanel — they display the clock, so ticking is correct), while
+  `useTimerStatus()` is a memoised `{running, phase, timerMode}` for
+  components that merely REACT to a session. `App` must use the status hook:
+  reading the full context there puts App back on a 1Hz re-render and drags
+  the whole tree along.
+  The ticking `useEffect`
   depends only on `running` + `timerMode`; the completion callback is read
   through a ref to avoid recreating the interval when the active task changes.
   On completion it POSTs a `FocusSession` (used for "productivity hours"
@@ -256,6 +308,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   slot; iterate on the main rain instead of adding variants.)
   The mix lives in `soundMix` (`tasknook.soundMix`); since Web Audio needs a
   user gesture, a saved mix resumes on the first `pointerdown` after boot.
+  `weatherMode` **and `timeOfDay` are both persisted** (`tasknook.weatherMode`
+  / `tasknook.timeOfDay`, each whitelisted on read). Only the time used to be:
+  the Weather-conditions matrix exists so ONE tap picks both axes, and a
+  relaunch was giving back half the choice — "cloudy night" came back as
+  "clear night".
   `weatherMode` (`off`/`rain`/`snow`/`storm`) is **VISUAL-ONLY** — its
   controls are the TopBar cluster's weather popover and the Weather panel's
   "Weather conditions" matrix (5 weather rows × 3 time pills; one tap sets
@@ -455,6 +512,18 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
   drag engine in `IsoRoom.jsx`.
+  **`clampIsoPlacement` is bounds-only and never consults the mask** — that's
+  by design (drags stop at the shape's edge; validation relocates on load),
+  but it means anything CREATING a placement has to check the floor itself.
+  `newIsoPlacement` runs `footprintFree` and falls back to `findFreeSpot`,
+  returning `null` when the drawn shape genuinely has no room: it used to
+  spawn at the room centre, which in a courtyard/donut layout is the hole, so
+  the new item floated over void and then refused every drag (the engine won't
+  move a footprint onto void) until a reload silently rehomed it.
+  The Room panel's furniture list and preset buttons both render REAL sprites
+  (`IsoItemPreview` / `IsoPresetPreview`), sizing themselves via `getBBox`
+  rather than a shared viewBox, and the preset thumbnails apply `seatFor` so
+  residents sit where they'll actually sit.
   **Rendered-PNG sprites**: 14 items (bed, sofa, armchair, nightstand,
   chair, shelf, bookcase, sidetable, radio, fridge, cafetable, counter,
   coffeecounter, tvunit) are pre-rendered isometric views from Kenney's
@@ -538,7 +607,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   change without a migration will break on a fresh DB immediately — which is
   the point (better than silently diverging from what shipped users have).
 - **New panel**: create `components/XxxPanel.jsx`, register it in the `PANELS`
-  map and `Dock` items in `App.jsx`.
+  map and `Dock` items in `App.jsx`. Panels are `React.lazy` — each is its own
+  chunk behind a dock click, and `App` renders them inside one `<Suspense>`.
+  Keep new ones lazy; an eager import pulls the panel back into the entry
+  bundle.
 
 ## Gotchas
 
@@ -579,12 +651,30 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 - Frontend: `cd frontend && npm run lint` (ESLint — just core recommended +
   the two battle-tested react-hooks rules; the plugin's compiler-era extras
-  are deliberately off), `npm test` (Vitest — pure logic: ordering
-  algorithms, the palette ramp incl. the dark-floor legibility guarantee,
-  local-date formatting), then `npm run build` for a full parse check. CI
-  runs all three.
-- Backend: `cd backend && python -m pytest tests -q` (the schema/upgrade
-  guarantees). `pip install -r requirements-dev.txt` first.
+  are deliberately off), `npm test` (Vitest), then `npm run build` for a full
+  parse check. CI runs all three.
+  Tests are in two flavours. **Pure logic** (ordering algorithms, the palette
+  ramp incl. the dark-floor legibility guarantee, iso geometry/validation,
+  local-date formatting) runs in the default `node` environment — keep it
+  fast. **Component tests** opt into jsdom per file with a
+  `// @vitest-environment jsdom` docblock on line 1 and use
+  `@testing-library/react` (call `cleanup()` in `afterEach` — `globals` is
+  off, so RTL's automatic cleanup isn't registered). They cover the two
+  classes of bug that actually shipped here: hook-order crashes
+  (`RoomTintPicker.test.jsx`) and sprites/catalog drifting apart
+  (`IsoItems.test.jsx` renders every catalog entry in both orientations).
+- Backend: `cd backend && python -m pytest tests -q` — the schema/upgrade
+  guarantees (`test_schema.py`), the room layout contract (`test_room.py`),
+  task groups + routines (`test_tasks.py`), and the rest of the API
+  (`test_api.py`: auth, the two time windows in `/api/stats`, sessions,
+  reorder, friend-graph symmetry, and the JSON error/404 contract).
+  `pip install -r requirements-dev.txt` first.
+  Two things to remember when adding tests here: **demo seeding has already
+  run** (the 4 cottage-dwellers own tasks, sessions and friendships, and every
+  new account is auto-friended with them), so scope assertions to your own
+  user rather than counting rows globally; and Flask locks its routing table
+  after the first request, so a test that registers a route must do so before
+  touching `client`.
 - **Schema drift**: `flask db check` reports "new upgrade operations" whenever
   `models.py` has changes with no matching migration. CI runs it.
 - **The packaged app**: `npm run build` and `import app` can BOTH pass while

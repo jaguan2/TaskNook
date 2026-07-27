@@ -79,6 +79,7 @@ export default function FriendsPanel() {
                     <button
                       onClick={() => arm(f.id, () => remove(f.id))}
                       title="Remove friend"
+                      aria-label="Remove friend"
                       className={`hover-reveal shrink-0 transition ${
                         armedId === f.id
                           ? "confirming text-[10px] font-bold text-danger"

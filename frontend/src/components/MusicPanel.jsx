@@ -108,6 +108,7 @@ export default function MusicPanel() {
                 <button
                   onClick={() => arm(stationKey(s), () => removeCustomStation(s))}
                   title="Remove station"
+                  aria-label="Remove station"
                   className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
                     armedKey === stationKey(s)
                       ? "font-bold text-danger"

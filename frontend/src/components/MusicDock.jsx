@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { useStore } from "../store";
+import { readStored, writeStored } from "../lib/storage";
 import { stationKey } from "../lib/musicLink";
 
 // The persistent music player + VC2-style bottom transport bar. Mounted at
@@ -10,25 +11,48 @@ import { stationKey } from "../lib/musicLink";
 // playlist, stations otherwise), a seek bar with times (live streams get a
 // LIVE badge instead), volume, and the current track's title. Spotify
 // stations embed their own compact player (Spotify keeps controls to itself).
+const YT_SCRIPT_SRC = "https://www.youtube.com/iframe_api";
+// How long to wait for the API before calling it a failure. `onerror` only
+// covers the script failing to LOAD; a captive portal or a proxy that serves
+// something else returns 200 and then `onYouTubeIframeAPIReady` simply never
+// fires — the promise never settled, so there was no player, no "needs
+// internet", and no way out short of restarting the app.
+const YT_LOAD_TIMEOUT = 12000;
+
 let ytApiPromise = null;
 function loadYouTubeApi() {
   if (window.YT?.Player) return Promise.resolve(window.YT);
   if (!ytApiPromise) {
     ytApiPromise = new Promise((resolve) => {
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        prev?.();
-        resolve(window.YT);
-      };
-      const script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.onerror = () => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         // Offline NOW isn't offline forever: clear the cached promise so the
         // next station change / toggle retries instead of pinning the bar to
         // "needs internet" until an app restart.
-        ytApiPromise = null;
-        resolve(null);
+        if (!value) ytApiPromise = null;
+        resolve(value);
       };
+      const timer = setTimeout(() => finish(null), YT_LOAD_TIMEOUT);
+
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        prev?.();
+        finish(window.YT);
+      };
+      // Reuse the tag if one is already in the document: every retry used to
+      // append another <script>, and a few failed stations left a pile of them
+      // in <head> all racing the same global callback.
+      const existing = document.querySelector(`script[src="${YT_SCRIPT_SRC}"]`);
+      if (existing) {
+        existing.addEventListener("error", () => finish(null), { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = YT_SCRIPT_SRC;
+      script.onerror = () => finish(null);
       document.head.appendChild(script);
     });
   }
@@ -49,7 +73,11 @@ const isLiveDuration = (d) => !Number.isFinite(d) || d <= 0 || d > 43200;
 export default function MusicDock({ onOpenPanel }) {
   const { musicOn, toggleMusic, musicStations, activeStationKey, selectStation } =
     useStore();
-  const station = musicStations.find((s) => stationKey(s) === activeStationKey);
+  // The store already resolves `activeStationKey` to a station that exists;
+  // the fallback is belt-and-braces, because the cost of getting it wrong here
+  // is a dock that renders nothing at all — including the ✕ that stops the music.
+  const station =
+    musicStations.find((s) => stationKey(s) === activeStationKey) || musicStations[0];
 
   const [playing, setPlaying] = useState(false);
   // Two distinct failure modes: the API script not loading means no internet;
@@ -59,7 +87,7 @@ export default function MusicDock({ onOpenPanel }) {
   const [streamError, setStreamError] = useState(false);
   const [track, setTrack] = useState({ title: "", t: 0, d: 0, live: false });
   const [volume, setVolume] = useState(() => {
-    const saved = Number(localStorage.getItem("tasknook.music.volume"));
+    const saved = Number(readStored("tasknook.music.volume"));
     return saved >= 0 && saved <= 100 ? saved : 70;
   });
   const playerRef = useRef(null);
@@ -166,7 +194,7 @@ export default function MusicDock({ onOpenPanel }) {
 
   if (!musicOn || !station) return null;
 
-  const index = musicStations.findIndex((s) => stationKey(s) === activeStationKey);
+  const index = musicStations.findIndex((s) => stationKey(s) === key);
   const stepStation = (delta) => {
     const next = musicStations[(index + delta + musicStations.length) % musicStations.length];
     selectStation(next);
@@ -193,7 +221,7 @@ export default function MusicDock({ onOpenPanel }) {
   };
   const changeVolume = (v) => {
     setVolume(v);
-    localStorage.setItem("tasknook.music.volume", String(v));
+    writeStored("tasknook.music.volume", String(v));
     playerRef.current?.setVolume?.(v);
   };
 
@@ -216,6 +244,7 @@ export default function MusicDock({ onOpenPanel }) {
         <button
           onClick={onOpenPanel}
           title="Open the Sounds panel (stations & ambience)"
+          aria-label="Open the Sounds panel (stations & ambience)"
           className="pill grid h-7 w-7 place-items-center text-petal/60 hover:bg-white/10 hover:text-cream"
         >
           <Headphones size={13} />
@@ -280,6 +309,7 @@ export default function MusicDock({ onOpenPanel }) {
                     value={Math.floor(track.t)}
                     onChange={(e) => seekTo(Number(e.target.value))}
                     title="Seek"
+                    aria-label="Seek"
                     className="h-1 min-w-0 flex-1 accent-glow"
                   />
                   <span className="text-[10px] tabular-nums text-petal/60">
@@ -296,6 +326,7 @@ export default function MusicDock({ onOpenPanel }) {
               value={volume}
               onChange={(e) => changeVolume(Number(e.target.value))}
               title="Music volume"
+              aria-label="Music volume"
               className="w-14 accent-glow"
             />
           </>
@@ -304,6 +335,7 @@ export default function MusicDock({ onOpenPanel }) {
         <button
           onClick={toggleMusic}
           title="Stop the music"
+          aria-label="Stop the music"
           className="pill grid h-7 w-7 place-items-center text-petal/50 hover:bg-white/10 hover:text-danger"
         >
           <X size={14} />
