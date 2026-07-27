@@ -551,13 +551,24 @@ export function cutsToMask(cuts, w, d) {
   return normalizeMask(rows.map((r) => r.join("")), w, d);
 }
 
+/** A placement's painter's depth: its footprint's FRONT corner. */
+export function isoDepth(p) {
+  const f = footOf(p.item, p.rot);
+  return p.gx + f[0] + p.gy + f[1];
+}
+
 /** Painter's order: wall decor first (it hangs behind everything), then flat
  *  rugs, then by the front corner's depth. */
 export function sortIso(placements) {
-  const depth = (p) => {
-    const f = footOf(p.item, p.rot);
-    return p.gx + f[0] + p.gy + f[1];
-  };
+  // `_depth` is a render-time override for something riding ON another item.
+  // Depth is the FRONT CORNER, so centring a small thing on a big one puts its
+  // corner further back than the host's: a 0.8×0.8 resident on a 2×0.85 sofa
+  // scores 4.875 against the sofa's 5.35 and gets drawn behind it — you saw
+  // the top of their head over the backrest. The old fix nudged them +0.15
+  // toward the viewer, which is only ever enough when the seat is about the
+  // person's own size (a stool). Riders now inherit their host's depth plus an
+  // epsilon, so they sort just in front of it without moving off the cushion.
+  const depth = (p) => (Number.isFinite(p._depth) ? p._depth : isoDepth(p));
   const layer = (p) => {
     // Unknown items are skipped by the renderer — but the SORT runs first, so
     // an unguarded lookup here threw before that guard ever got a chance, and

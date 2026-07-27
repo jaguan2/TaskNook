@@ -45,8 +45,15 @@ export default function WeatherOverlay({ mode, reduceMotion = false }) {
       {mode === "snow" &&
         FLAKES.map((_, i) => {
           const left = (i * 29) % 100;
-          const delay = (i % 12) * 0.4;
           const dur = 6 + ((i * 17) % 10);
+          // NEGATIVE, the same trick the leaves use. A positive delay parks a
+          // flake at its start position — which is above the viewport — so
+          // picking snow showed an empty sky for seconds and didn't look like
+          // real snowfall for a good fifteen. Starting each one part-way
+          // through its own fall means it's already snowing on the first
+          // frame. (Rain got away with it only because a drop crosses in
+          // under a second.)
+          const delay = -(((i * 13) % 17) / 17) * dur;
           const size = 2 + (i % 3);
           return (
             <span
@@ -67,8 +74,9 @@ export default function WeatherOverlay({ mode, reduceMotion = false }) {
       {isRainy &&
         DROPS.map((_, i) => {
           const left = (i * 37) % 100;
-          const delay = (i % 10) * 0.3;
           const dur = (mode === "storm" ? 0.35 : 0.6) + ((i * 13) % 7) / 10;
+          // negative for the same reason, so the first frame is already wet
+          const delay = -(((i * 7) % 11) / 11) * dur;
           return (
             <span
               key={i}

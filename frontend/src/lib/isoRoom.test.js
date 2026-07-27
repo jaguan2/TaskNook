@@ -14,6 +14,7 @@ import {
   defaultIsoLayout,
   footOf,
   footprintFree,
+  isoDepth,
   isoPresetLayout,
   lipRuns,
   newIsoPlacement,
@@ -341,6 +342,39 @@ describe("floor masks (drawn shapes)", () => {
     expect(out.placements).toHaveLength(1);
     const p = out.placements[0];
     expect(footprintFree(p.gx, p.gy, footOf("stool", 0), out)).toBe(true);
+  });
+});
+
+describe("things riding on other things sort in front of them", () => {
+  it("a big seat would otherwise bury its occupant", () => {
+    // Depth is the FRONT corner, so a 0.8x0.8 person centred on a 2x0.85 sofa
+    // scores LOWER than the sofa and draws behind its backrest — you saw the
+    // top of their head. Only a seat the person's own size ever worked.
+    const sofa = { id: "s", item: "sofa", gx: 0, gy: 2.5 };
+    const sat = { id: "p", item: "resident", gx: 0.6, gy: 2.675 }; // centred + the old nudge
+    expect(isoDepth(sat)).toBeLessThan(isoDepth(sofa));
+    expect(sortIso([sofa, sat]).map((p) => p.id)).toEqual(["p", "s"]); // wrong way round
+  });
+
+  it("_depth puts the rider in front, whatever the host's size", () => {
+    for (const host of ["sofa", "bed", "bench", "stool", "cushion"]) {
+      const seat = { id: "h", item: host, gx: 1, gy: 2 };
+      const rider = { id: "p", item: "resident", gx: 1.2, gy: 2.2, _depth: isoDepth(seat) + 0.01 };
+      expect(sortIso([rider, seat]).map((p) => p.id), `on a ${host}`).toEqual(["h", "p"]);
+    }
+  });
+
+  it("the override is small enough not to jump genuinely nearer furniture", () => {
+    const table = { id: "t", item: "coffeetable", gx: 0, gy: 0 };
+    const mug = { id: "m", item: "mug", gx: 0.5, gy: 0.4, _depth: isoDepth(table) + 0.01 };
+    const nearer = { id: "n", item: "plant", gx: 3, gy: 3 };
+    expect(sortIso([nearer, mug, table]).map((p) => p.id)).toEqual(["t", "m", "n"]);
+  });
+
+  it("a placement without _depth is unaffected", () => {
+    const a = { id: "a", item: "stool", gx: 0, gy: 0 };
+    const b = { id: "b", item: "stool", gx: 2, gy: 2 };
+    expect(sortIso([b, a]).map((p) => p.id)).toEqual(["a", "b"]);
   });
 });
 
