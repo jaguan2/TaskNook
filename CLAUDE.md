@@ -507,8 +507,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   passing bird (day) — rarity = a long animation cycle where the visible
   part is a sliver. All motion classes are in the `prefers-reduced-motion`
   block, and motion stays OUT of reading zones (HUD corners) by design.
-  `ISO_PRESETS` (Cozy study 🕯️ / Cozy cabin 🪵 /
-  Loft ⭐ / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
+  `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
+  Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
+  Terrace 🪴 / Empty room 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);
   preset coordinates must be

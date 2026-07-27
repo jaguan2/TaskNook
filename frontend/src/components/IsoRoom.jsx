@@ -6,6 +6,7 @@ import {
   envOf,
   footOf,
   footprintFree,
+  isoDepth,
   lipRuns,
   seatFor,
   snapHalf,
@@ -375,6 +376,7 @@ function IsoRoom({
         gx: on.placement.gx + sf[0] / 2 - pf[0] / 2,
         gy: on.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.1,
         _rest: on.height,
+        _depth: isoDepth(on.placement) + 0.01,
       };
     }
     if (!item?.persona) return p;
@@ -388,6 +390,8 @@ function IsoRoom({
         gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
         _seat: seat.height,
         _lie: seat.lie,
+        // draw in FRONT of the seat's backrest whatever size the seat is
+        _depth: isoDepth(seat.placement) + 0.01,
       };
     }
     const off = !editMode && roamRef.current[p.id];

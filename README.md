@@ -2,13 +2,17 @@
 
 > A cozy, full-stack task tracker inspired by the game **Virtual Cottage**.
 
-Settle in at a warm little desk by the window, queue up your tasks, and start a
-focus block with lofi beats and rain, snow, or a full storm outside. Switch the
+Settle into a little isometric room of your own, queue up your tasks, and start
+a focus block with lofi beats and rain, snow, or a full storm outside. Decorate
+the place, draw your own floor plan, and let someone live there. Switch the
 scene between night, sunset, and day — or let TaskNook check the real weather
 where you are and match it automatically. Watch your productivity garden grow
 — and cheer on your friends while you're at it.
 
-![A cozy desk by a rainy window, with a focus timer, glowing monitor, and task list](docs/preview.png)
+![An isometric loft at night — a sofa, bed and aquarium under string lights, someone sitting reading, a cat asleep on the floor, with a focus timer and to-do list overlaid](docs/preview.png)
+
+> More of it: **[screenshots](docs/screenshots/)** — every room preset, the
+> weather modes, and the panels.
 
 > **Just want to use it?** Download **`TaskNook.exe`** from the repo root and
 > double-click it — that's the whole app in one file, no Python or Node needed.
@@ -137,8 +141,9 @@ read-only bundle, so replacing the exe never touches your data.
 | 🕰️ | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. The whole backdrop joins in: twinkling stars and a glowing moon at night, a warm sun by day, and drifting clouds on cloudy days (storm-dark when it pours). |
 | 🌍 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
 | 🛋️ | **Decorate your room** | Freeform decoration: drag 20+ items — plants, rugs, lamps, posters, a sleeping cat — literally anywhere, recolour each one (swatches, hex code, or full hue/saturation/lightness sliders), and resize the whole room to taste. Start from a preset (Classic, Greenhouse, Library, Night owl) and make it yours. Everything is free; your layout is saved in the database. |
-| 🧊 | **Isometric room** | The main scene: a Sims-style 3D room that fills the screen — scroll to zoom, drag to look around, double-click to recenter. **Draw your own floor plan**: drag across a grid to paint tiles in or out and the walls follow any shape you make. Drag furniture (sofas, beds, aquariums, 17 pieces and counting) across the tile grid with half-tile snapping, ⟳ rotate it to face the other way, hang frames/shelves/mirrors on the walls, recolour anything, and resize the floor itself from 3×3 all the way up to a 48×48 lot. Take the whole floor **outdoors** — the garden setting swaps walls for open sky, grass, ponds, trees and picnic blankets. Start from a preset — Cozy study, Cozy cabin, an L-shaped Loft, Morning café, Secret garden, or an empty floor — and make it yours. It keeps its own layout alongside the classic scene. |
-| 🧍 | **A resident** | Drop a little person into your room — set them on a stool, sofa, bench or bed and they sit; leave them on the floor and they wander on their own (politely walking around your furniture). Recolour their sweater like anything else. |
+| 🧊 | **Isometric room** | The main scene: a Sims-style 3D room that fills the screen — scroll to zoom, drag to look around, double-click to recenter. **Draw your own floor plan**: drag across a grid to paint tiles in or out and the walls follow any shape you make. Drag furniture (sofas, beds, pianos, aquariums — 90+ pieces, sorted into browsable sections) across the tile grid with half-tile snapping, ⟳ rotate it to face the other way, hang frames/shelves/mirrors on the walls, recolour anything, and resize the floor itself from 3×3 all the way up to a 48×48 lot. Small things rest on whatever you put them on: a mug lands on the table top, a lamp on the desk. Change the **setting** too — room, café, library, terrace or an open-air garden that swaps walls for sky, grass, ponds and trees. Start from a preset — an L-shaped Loft, Cozy study, Cozy cabin, Morning café, Corner café, Reading room, Terrace, Secret garden, or an empty room — and make it yours. It keeps its own layout alongside the classic scene. |
+| 🧍 | **A resident** | Drop a little person into your room — set them on a stool, sofa, bench or bed and they sit (properly, legs out); leave them on the floor and they wander on their own, politely walking around your furniture. While a focus block runs, a seated resident types. Recolour their sweater like anything else. |
+| 🐾 | **Pets that live here** | A cat, a dog and a rabbit that wander the room on their own, pick their way around the furniture, and curl up asleep when they find a rug, a blanket or a pet bed. |
 | 🫶 | **Friends** | See everyone's daily progress to stay motivated — TaskNook auto-friends your local account with a few demo cottage-dwellers so it's never empty. |
 
 **Ordering algorithms:**
@@ -151,7 +156,6 @@ read-only bundle, so replacing the exe never touches your data.
 
 **Roadmap** (not built yet, in no particular order):
 
-- 🐾 **Pets that live** — the cat wakes up, wanders the room, naps somewhere new.
 - 🧑‍🤝‍🧑 **Multiplayer study rooms** — focus alongside friends in a shared cottage. Big one: TaskNook is currently a fully local single-user app, so this needs a real server story first.
 
 ---

@@ -15,6 +15,7 @@ import {
   cutsToMask,
   envHasWalls,
   footOf,
+  isoDepth,
   seatFor,
   sortIso,
   tileOn,
@@ -89,6 +90,7 @@ function IsoPresetPreview({ preset }) {
         gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
         gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
         _seat: seat.height,
+        _depth: isoDepth(seat.placement) + 0.01, // in front of the backrest
       };
     })
   );
