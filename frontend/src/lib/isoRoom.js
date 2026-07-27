@@ -36,51 +36,64 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 export const ISO_ITEMS = {
   rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
-  desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 58, tintable: false, noMirror: true },
+  desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44 },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
-  // noMirror: rendered PNG sprites (Kenney Furniture Kit, CC0) with a real
-  // second render per rotation — the scene passes `rot` in instead of
-  // mirroring, and PNGs can't take the tint variable. Fabric pieces offer
-  // `variants` instead of free tinting: a map of tint-hex → render suffix.
-  // The hex doubles as the swatch colour AND the stored placement tint, so
-  // persistence/validation need nothing new; unknown hexes (old saves) just
-  // fall back to the default render.
-  sofa: {
-    label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 42, seat: 24, tintable: false, noMirror: true,
-    variants: { "#f2e9dd": "cream", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
-  },
-  armchair: {
-    label: "Armchair", icon: "💺", foot: [1, 1], hitH: 40, seat: 22, tintable: false, noMirror: true,
-    variants: { "#f2e9dd": "cream", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
-  },
-  nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, tintable: false, noMirror: true },
-  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 44, seat: 18, tintable: false, noMirror: true },
-  shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60, tintable: false, noMirror: true },
-  bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 64, tintable: false, noMirror: true },
-  sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 34, tintable: false, noMirror: true },
-  radio: { label: "Radio", icon: "📻", foot: [0.7, 0.25], hitH: 20, tintable: false, noMirror: true },
-  fridge: { label: "Little fridge", icon: "🧊", foot: [1, 0.7], hitH: 48, tintable: false, noMirror: true },
-  cafetable: { label: "Café table", icon: "🍰", foot: [1.2, 1.2], hitH: 28, tintable: false, noMirror: true },
-  counter: { label: "Counter", icon: "🥐", foot: [1, 0.5], hitH: 32, tintable: false, noMirror: true },
-  coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 44, tintable: false, noMirror: true },
-  tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 60, tintable: false, noMirror: true },
-  coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30, tintable: false, noMirror: true },
-  bed: {
-    label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 50, seat: 30, tintable: false, noMirror: true,
-    variants: { "#e0774a": "orange", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
-  },
+  // Every item here is hand-drawn SVG (see the note atop IsoItems.jsx). The
+  // Kenney PNG era left two flags behind that no catalog entry needs any
+  // more: `noMirror` (raster needed a second render per orientation; vector
+  // just mirrors) and `variants` (raster needed pre-shaded colourway files;
+  // vector reads `--tint` and takes any colour). `tintable: false` survives
+  // for the handful of pieces that are inherently multi-coloured — an
+  // aquarium, a pond — where one flat colour would destroy them.
+  //
+  // `seat` is where a persona's feet land, so it tracks the actual cushion
+  // top; `hitH` parks the ⟳/✕ buttons just clear of the tallest part. Both
+  // have to move whenever a sprite's proportions change.
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 37, seat: 22 },
+  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 37, seat: 22 },
+  nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30 },
+  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19 },
+  shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
+  bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
+  sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 32 },
+  radio: { label: "Radio", icon: "📻", foot: [0.7, 0.25], hitH: 30 },
+  fridge: { label: "Little fridge", icon: "🧊", foot: [1, 0.7], hitH: 48 },
+  cafetable: { label: "Café table", icon: "🍰", foot: [1.2, 1.2], hitH: 30 },
+  counter: { label: "Counter", icon: "🥐", foot: [1, 0.5], hitH: 34 },
+  coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 50 },
+  tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 50 },
+  coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 24 },
+  // The tint paints the DUVET (mattress and pillows stay linen-white).
+  // seat = the duvet's top edge, hitH = clear of the headboard.
+  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 40, seat: 18 },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
+  // ---- storage & seating ----
+  wardrobe: { label: "Wardrobe", icon: "🚪", foot: [1.4, 0.7], hitH: 92 },
+  dresser: { label: "Dresser", icon: "🧦", foot: [1.6, 0.6], hitH: 42 },
+  deskchair: { label: "Desk chair", icon: "💺", foot: [0.8, 0.8], hitH: 50, seat: 24 },
+  beanbag: { label: "Beanbag", icon: "🫘", foot: [1.1, 1.1], hitH: 26, seat: 15 },
+  standmirror: { label: "Standing mirror", icon: "🪞", foot: [0.6, 0.4], hitH: 70 },
+  // ---- the small stuff that makes a room look lived in ----
+  desklamp: { label: "Desk lamp", icon: "🔆", foot: [0.4, 0.4], hitH: 34 },
+  guitar: { label: "Guitar", icon: "🎸", foot: [0.5, 0.4], hitH: 62 },
+  // multi-coloured by nature: one flat tint would turn it into a brick
+  bookstack: { label: "Stack of books", icon: "📗", foot: [0.5, 0.4], hitH: 16, tintable: false },
+  vinylcrate: { label: "Record crate", icon: "💿", foot: [0.7, 0.5], hitH: 24 },
+  basket: { label: "Laundry basket", icon: "🧺", foot: [0.6, 0.6], hitH: 24 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
   aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46 },
-  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 82, foot: [0.8, 0.8], tintable: false, noMirror: true },
+  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 84, foot: [0.8, 0.8] },
   // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
   cat: { label: "Cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34, roamer: true },
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
   wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
   mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },
   wallclock: { label: "Wall clock", icon: "🕰️", foot: [0.8, 0.3], wall: true, hitH: 100 },
+  poster: { label: "Poster", icon: "🖼️", foot: [1, 0.3], wall: true, hitH: 98 },
+  curtain: { label: "Curtains", icon: "🪟", foot: [1.6, 0.3], wall: true, hitH: 110 },
+  hangplant: { label: "Hanging plant", icon: "🌿", foot: [0.7, 0.3], wall: true, hitH: 110 },
   fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78 },
   recordplayer: { label: "Record player", icon: "📀", foot: [1.2, 0.7], hitH: 42 },
   candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28 },
@@ -410,12 +423,13 @@ export const ISO_PRESETS = {
       // work wall: desk flush against the right wall, stool on its centre —
       // and the resident seated on it, studying (VC2-style)
       { item: "desk", gx: 3, gy: 0 },
-      { item: "chair", gx: 4, gy: 1.5 },
+      { item: "deskchair", gx: 4, gy: 1.5 },
       { item: "resident", gx: 4, gy: 1.5 },
       { item: "frame", gx: 1, gy: 0 },
       { item: "wallclock", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 6, gy: 0 },
       { item: "floorlamp", gx: 8, gy: 0.5 },
+      { item: "bookstack", gx: 2, gy: 4.5 },
       // left wall: bookshelf faces into the room, clear of the window
       { item: "bookshelf", gx: 0, gy: 3, rot: 1 },
       // centre: rug + cat
@@ -456,6 +470,9 @@ export const ISO_PRESETS = {
       { item: "cushion", gx: 4, gy: 4.5, tint: "#c98a4b" },
       { item: "plant", gx: 0.5, gy: 0.5 },
       { item: "monstera", gx: 8, gy: 7 },
+      // curtains hang over the window (left wall, gy 1–2.5)
+      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#9a6a45" },
+      { item: "basket", gx: 7.5, gy: 3 },
     ],
   },
   loft: {
@@ -482,9 +499,11 @@ export const ISO_PRESETS = {
       { item: "mirror", gx: 0, gy: 5.5, rot: 1, tint: "#cbd5e8" },
       // the open nook the cut leaves behind
       { item: "floorlamp", gx: 5, gy: 4 },
-      { item: "cushion", gx: 4, gy: 5.5, tint: "#8a7ac2" },
+      { item: "beanbag", gx: 3.5, gy: 6, tint: "#8a7ac2" },
       { item: "cat", gx: 2, gy: 5.5, tint: "#2c2438" },
       { item: "monstera", gx: 0.5, gy: 7 },
+      { item: "vinylcrate", gx: 4, gy: 0.5, tint: "#4a3a5b" },
+      { item: "guitar", gx: 6, gy: 1.5 },
     ],
   },
   cafe: {

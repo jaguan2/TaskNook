@@ -30,15 +30,30 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(() => draw(<Sprite rot={1} />)).not.toThrow();
   });
 
-  it.each(ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].variants))(
-    "%s renders each of its colourways",
-    (key) => {
+  it("renders every colourway of every item that has them", () => {
+    // Not it.each: the fabric pieces went back to free tinting when they
+    // returned to SVG, so this list is legitimately empty now — and an empty
+    // it.each is a vitest error, not a pass.
+    for (const key of ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].variants)) {
       const Sprite = ISO_SPRITES[key];
       for (const variant of Object.values(ISO_ITEMS[key].variants)) {
         expect(() => draw(<Sprite rot={0} variant={variant} />)).not.toThrow();
       }
     }
-  );
+  });
+
+  it("tintable items actually respond to --tint", () => {
+    // The point of coming back to SVG for upholstery: a picked colour has to
+    // reach the fabric. A sprite that paints only literal fills would pass
+    // every other test here and silently ignore the picker.
+    for (const key of ["bed", "sofa", "armchair", "cushion"]) {
+      expect(ISO_ITEMS[key].tintable, `${key} is marked untintable`).not.toBe(false);
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.innerHTML, `${key} never references var(--tint)`).toContain("--tint");
+      cleanup();
+    }
+  });
 
   it("personas render seated, standing and walking", () => {
     const people = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].persona);

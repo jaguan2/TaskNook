@@ -66,11 +66,25 @@ describe("grid maths", () => {
   });
 
   it("rotation transposes the footprint (and the clamp with it)", () => {
-    expect(footOf("sofa", 0)).toEqual([2, 1]);
-    expect(footOf("sofa", 1)).toEqual([1, 2]);
-    // in a 9×7 room a rotated sofa's origin caps at (8, 5), not (7, 6)
-    expect(clampIsoPlacement("sofa", 99, 99, SIZE, 1)).toEqual({ gx: 8, gy: 5 });
-    expect(clampIsoPlacement("sofa", 99, 99, SIZE, 0)).toEqual({ gx: 7, gy: 6 });
+    // Derived from the catalog, not hardcoded: this is testing transposition,
+    // so it must not fail every time a piece is redrawn at a new size.
+    const oblong = ISO_ITEM_KEYS.find((k) => {
+      const item = ISO_ITEMS[k];
+      return !item.wall && item.foot[0] !== item.foot[1];
+    });
+    const [fx, fy] = ISO_ITEMS[oblong].foot;
+    expect(footOf(oblong, 0)).toEqual([fx, fy]);
+    expect(footOf(oblong, 1)).toEqual([fy, fx]);
+    // …and the clamp follows it: the origin caps at size minus the ROTATED
+    // footprint, so the two orientations bottom out in different corners.
+    expect(clampIsoPlacement(oblong, 99, 99, SIZE, 0)).toEqual({
+      gx: SIZE.w - fx,
+      gy: SIZE.d - fy,
+    });
+    expect(clampIsoPlacement(oblong, 99, 99, SIZE, 1)).toEqual({
+      gx: SIZE.w - fy,
+      gy: SIZE.d - fx,
+    });
   });
 
   it("wall items are glued to their wall; rot picks which one", () => {
