@@ -4,8 +4,26 @@ The PNG renders in this folder come from Kenney's "Furniture Kit"
 
 Credit is not required, but appreciated: assets by Kenney (kenney.nl).
 
-They are the pre-rendered isometric views shipped with the kit, used as-is:
-  bedDouble_*   -> the "bed" item        (SW = rot 0, SE = rot 1)
-  loungeSofa_*  -> the "sofa" item       (SE = rot 0, SW = rot 1)
-  loungeChair_* -> the "armchair" item   (SE = rot 0, SW = rot 1)
-  cabinetBed_*  -> the "nightstand" item (SW = rot 0, SE = rot 1)
+They are the pre-rendered isometric views shipped with the kit. One
+modification: bedDouble_* had its duvet palette-remapped from orange to
+warm white (shading preserved) — everything else is used as-is.
+
+Mapping to TaskNook items (r0 = the render used at rot 0, r1 at rot 1):
+  bedDouble_*            -> bed            (SW / SE)  [duvet recoloured]
+  loungeSofa_*           -> sofa           (SE / SW)
+  loungeChair_*          -> armchair       (SE / SW)
+  cabinetBed_*           -> nightstand     (SW / SE)
+  chairRounded_*         -> chair          (SE / SW)
+  bookcaseOpen_*         -> shelf          (SE / SW)
+  bookcaseClosedWide_*   -> bookcase       (SE / SW)
+  sideTableDrawers_*     -> sidetable      (SW / SE)
+  radio_*                -> radio          (SE / SW)
+  kitchenFridgeSmall_*   -> fridge         (SW / SE)
+  tableRound_*           -> cafetable      (SE / SW)
+  kitchenBar_*           -> counter, and the base of coffeecounter (SE / SW)
+  kitchenCoffeeMachine_* -> coffeecounter's top layer (SE / SW)
+  cabinetTelevision_*    -> tvunit's base (SE / SW)
+  televisionVintage_*    -> tvunit's top layer (SE / SW)
+
+Everything in this folder is bundled by an import.meta.glob in
+components/IsoItems.jsx — keep only files a manifest row uses.

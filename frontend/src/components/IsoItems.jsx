@@ -1,12 +1,15 @@
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
-import bedSW from "../assets/kenney/bedDouble_SW.png";
-import bedSE from "../assets/kenney/bedDouble_SE.png";
-import sofaSE from "../assets/kenney/loungeSofa_SE.png";
-import sofaSW from "../assets/kenney/loungeSofa_SW.png";
-import chairSE from "../assets/kenney/loungeChair_SE.png";
-import chairSW from "../assets/kenney/loungeChair_SW.png";
-import standSW from "../assets/kenney/cabinetBed_SW.png";
-import standSE from "../assets/kenney/cabinetBed_SE.png";
+
+// Every render in src/assets/kenney/ is imported by this one glob — adding a
+// Kenney item is "drop the PNG in the folder, add a manifest row below".
+// (eager: URLs are needed synchronously at render time; Vite inlines the
+// small ones as data URIs and hashes the rest. Anything in the folder gets
+// bundled, so keep only files a manifest row actually uses.)
+const KENNEY_URLS = import.meta.glob("../assets/kenney/*.png", {
+  eager: true,
+  import: "default",
+});
+const ken = (name) => KENNEY_URLS[`../assets/kenney/${name}.png`];
 
 // Sprites for the isometric room. Each is drawn for its footprint anchored at
 // grid (0,0) — the scene places it with translate(project(gx,gy)), which
@@ -301,59 +304,108 @@ function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18 }) {
 }
 
 // ---- Kenney Furniture Kit pieces (CC0, kenney.nl) ----------------------- //
-// The bed and sofa never stopped reading as stacked boxes in hand-drawn SVG
-// (user feedback, twice) — so these four items are pre-rendered isometric
-// views of real modelled furniture from a single CC0 pack (consistent theme;
-// see src/assets/kenney/LICENSE.txt), whose flat-shaded look sits well next
-// to the SVG pieces. Each PNG is tightly cropped: its width maps onto the
+// Solid furniture never stopped reading as stacked boxes in hand-drawn SVG
+// (user feedback, twice) — these items are pre-rendered isometric views of
+// real modelled furniture from a single CC0 pack (consistent theme; see
+// src/assets/kenney/LICENSE.txt), whose flat-shaded look sits well next to
+// the SVG pieces. Each PNG is tightly cropped: its width maps onto the
 // footprint diamond's screen width and its bottom edge lands on the
 // footprint's front corner. `rot` swaps to a REAL second render instead of
 // the mirror trick (lighting stays consistent) — the catalog marks these
 // `noMirror` so the scene skips scale(-1,1) and passes rot in. PNGs can't
-// take `--tint`, so they're `tintable: false`.
-function kenneySprite({ r0, r1, w0, h0, w1, h1, foot }) {
+// take `--tint`, so they're `tintable: false`; fixed recolours (the white
+// duvet) are palette-remapped into the committed PNGs instead.
+//
+// A sprite is a list of LAYERS so renders can stack (the TV on its cabinet,
+// the coffee machine on the counter). Layer fields: r0/r1 = [name, w, h]
+// per orientation, foot = the layer's own base in tiles, at = grid offset
+// within the item, lift = px raised off the floor (a parent's counter-top
+// height: its scaled render height minus its base diamond, width×0.5774 at
+// the kit's camera angle).
+function kenneySprite(layers) {
   return function KenneySprite({ rot = 0 }) {
-    const src = rot ? r1 : r0;
-    const iw = rot ? w1 : w0;
-    const ih = rot ? h1 : h0;
-    const f = rot ? [foot[1], foot[0]] : foot;
-    const width = ((f[0] + f[1]) * TILE_W) / 2;
-    const s = width / iw;
     return (
-      <image
-        href={src}
-        x={project(0, f[1]).x}
-        y={project(f[0], f[1]).y - ih * s}
-        width={width}
-        height={ih * s}
-      />
+      <g>
+        {layers.map((L, i) => {
+          const [name, iw, ih] = rot ? L.r1 : L.r0;
+          const f = rot ? [L.foot[1], L.foot[0]] : L.foot;
+          const at = L.at ? (rot ? [L.at[1], L.at[0]] : L.at) : [0, 0];
+          const width = ((f[0] + f[1]) * TILE_W) / 2;
+          const s = width / iw;
+          const o = project(at[0], at[1]);
+          return (
+            <image
+              key={i}
+              href={ken(name)}
+              x={o.x + project(0, f[1]).x}
+              y={o.y + project(f[0], f[1]).y - ih * s - (L.lift || 0)}
+              width={width}
+              height={ih * s}
+            />
+          );
+        })}
+      </g>
     );
   };
 }
 
-const Sofa = kenneySprite({
-  r0: sofaSE, w0: 104, h0: 103,
-  r1: sofaSW, w1: 103, h1: 103,
-  foot: [2, 1],
-});
-
-const Bed = kenneySprite({
-  r0: bedSW, w0: 157, h0: 138,
-  r1: bedSE, w1: 157, h1: 138,
-  foot: [2, 2.8],
-});
-
-const Armchair = kenneySprite({
-  r0: chairSE, w0: 67, h0: 77,
-  r1: chairSW, w1: 66, h1: 77,
-  foot: [1, 1],
-});
-
-const Nightstand = kenneySprite({
-  r0: standSW, w0: 36, h0: 42,
-  r1: standSE, w1: 37, h1: 42,
-  foot: [0.7, 0.7],
-});
+const Bed = kenneySprite([
+  { r0: ["bedDouble_SW", 157, 138], r1: ["bedDouble_SE", 157, 138], foot: [2, 2.8] },
+]);
+const Sofa = kenneySprite([
+  { r0: ["loungeSofa_SE", 104, 103], r1: ["loungeSofa_SW", 103, 103], foot: [2, 1] },
+]);
+const Armchair = kenneySprite([
+  { r0: ["loungeChair_SE", 67, 77], r1: ["loungeChair_SW", 66, 77], foot: [1, 1] },
+]);
+const Nightstand = kenneySprite([
+  { r0: ["cabinetBed_SW", 36, 42], r1: ["cabinetBed_SE", 37, 42], foot: [0.7, 0.7] },
+]);
+const Chair = kenneySprite([
+  { r0: ["chairRounded_SE", 31, 52], r1: ["chairRounded_SW", 31, 52], foot: [0.7, 0.7] },
+]);
+const Shelf = kenneySprite([
+  { r0: ["bookcaseOpen_SE", 50, 101], r1: ["bookcaseOpen_SW", 49, 101], foot: [1, 0.5] },
+]);
+const Bookcase = kenneySprite([
+  { r0: ["bookcaseClosedWide_SE", 80, 115], r1: ["bookcaseClosedWide_SW", 80, 116], foot: [2, 0.6] },
+]);
+const SideTable = kenneySprite([
+  { r0: ["sideTableDrawers_SW", 57, 69], r1: ["sideTableDrawers_SE", 58, 68], foot: [1.2, 0.5] },
+]);
+const Radio = kenneySprite([
+  { r0: ["radio_SE", 31, 36], r1: ["radio_SW", 30, 36], foot: [0.7, 0.25] },
+]);
+const Fridge = kenneySprite([
+  { r0: ["kitchenFridgeSmall_SW", 52, 81], r1: ["kitchenFridgeSmall_SE", 52, 81], foot: [1, 0.7] },
+]);
+const CafeTable = kenneySprite([
+  { r0: ["tableRound_SE", 83, 69], r1: ["tableRound_SW", 83, 68], foot: [1.2, 1.2] },
+]);
+const Counter = kenneySprite([
+  { r0: ["kitchenBar_SE", 49, 64], r1: ["kitchenBar_SW", 49, 64], foot: [1, 0.5] },
+]);
+// Composites: the child rides on the parent's top surface via `lift`.
+const CoffeeCounter = kenneySprite([
+  { r0: ["kitchenBar_SE", 49, 64], r1: ["kitchenBar_SW", 49, 64], foot: [1, 0.5] },
+  {
+    r0: ["kitchenCoffeeMachine_SE", 26, 32],
+    r1: ["kitchenCoffeeMachine_SW", 25, 32],
+    foot: [0.45, 0.55],
+    at: [0.25, 0],
+    lift: 26,
+  },
+]);
+const TvUnit = kenneySprite([
+  { r0: ["cabinetTelevision_SE", 80, 79], r1: ["cabinetTelevision_SW", 80, 80], foot: [2, 0.6] },
+  {
+    r0: ["televisionVintage_SE", 46, 53],
+    r1: ["televisionVintage_SW", 46, 53],
+    foot: [1, 0.65],
+    at: [0.5, 0],
+    lift: 26,
+  },
+]);
 
 function CoffeeTable() {
   const A = project(0, 0);
@@ -792,4 +844,14 @@ export const ISO_SPRITES = {
   candle: Candle,
   armchair: Armchair,
   nightstand: Nightstand,
+  chair: Chair,
+  shelf: Shelf,
+  bookcase: Bookcase,
+  sidetable: SideTable,
+  radio: Radio,
+  fridge: Fridge,
+  cafetable: CafeTable,
+  counter: Counter,
+  coffeecounter: CoffeeCounter,
+  tvunit: TvUnit,
 };
