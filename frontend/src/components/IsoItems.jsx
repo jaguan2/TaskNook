@@ -1091,7 +1091,52 @@ function Flowerbed() {
 const SKIN = "#edc39e";
 const HAIR = "#3a3142";
 const TROUSER = "#4a3a5b";
+// the far leg, so the two read as depth rather than one wide blob
+const TROUSER_FAR = "#3c2f4a";
 const SHOE = "#2b2350";
+const SHOE_FAR = "#221c40";
+
+/**
+ * One seated leg: thigh forward to the knee, shin down to the floor.
+ *
+ * Drawn as round-capped strokes rather than boxes. The pose used to be two
+ * axis-aligned rects stacked vertically, which is geometrically just a
+ * shorter straight leg — a standing figure sunk into the seat, not a sitting
+ * one. A joint you can actually see is the entire difference.
+ *
+ * `ankle` comes from the seat's height (the sprite is lifted by it, so the
+ * floor sits at +seatH here) so the feet land on the floor instead of
+ * dangling at cushion level.
+ */
+// The knee sits BELOW the torso's bottom edge and outside its width — a thigh
+// tucked behind the body is a thigh nobody can see, which is how you end up
+// back at a straight leg.
+const SEAT_KNEE_Y = 5;
+const SEAT_KNEE_X = 8.5;
+
+function SeatedLeg({ side, ankle, far = false }) {
+  const knee = side * SEAT_KNEE_X;
+  const cloth = far ? TROUSER_FAR : TROUSER;
+  return (
+    <g>
+      <path
+        d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
+        stroke={cloth}
+        strokeWidth="7.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
+        stroke={cloth}
+        strokeWidth="6.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <ellipse cx={knee} cy={ankle + 1.4} rx="4.3" ry="2.1" fill={far ? SHOE_FAR : SHOE} />
+    </g>
+  );
+}
 
 /**
  * The resident. Small enough that only the silhouette carries, so what got
@@ -1100,7 +1145,7 @@ const SHOE = "#2b2350";
  * standing in a hole), a neck, shoulders wider than the waist, hands on the
  * ends of the arms, and a face that actually has an expression.
  */
-function Resident({ seated = false, lying = false, working = false, moving = false }) {
+function Resident({ seated = false, lying = false, seatH = 0, working = false, moving = false }) {
   const c = project(0.4, 0.4);
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
@@ -1125,20 +1170,21 @@ function Resident({ seated = false, lying = false, working = false, moving = fal
       </g>
     );
   }
-  const torsoY = seated ? -27 : -33;
-  const headY = seated ? -35 : -41;
+  // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
+  // the seat line (sinking a px into the cushion), not hovering above it —
+  // and low enough that the thighs emerge from under it rather than behind it.
+  const torsoY = seated ? -21 : -33;
+  const headY = seated ? -29 : -41;
+  // The floor is at +seatH (the scene lifts a seated resident by exactly
+  // that), less a couple of px so the sole meets it instead of sinking
+  // through. The floor keeps a low cushion from reducing the shin to a stub.
+  const ankle = Math.max(SEAT_KNEE_Y + 6, seatH - 2);
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       {seated ? (
         <>
-          {/* thigh forward, shin down: the knee is the whole pose */}
-          <rect x="-8.4" y="-14" width="7" height="9" rx="3.2" fill={TROUSER} />
-          <rect x="1.4" y="-14" width="7" height="9" rx="3.2" fill={TROUSER} />
-          <rect x="-8.4" y="-7" width="7" height="8" rx="2.8" fill={TROUSER} />
-          <rect x="1.4" y="-7" width="7" height="8" rx="2.8" fill={TROUSER} />
-          <rect x="-8.4" y="-7" width="7" height="8" rx="2.8" fill="#000" opacity="0.14" />
-          <ellipse cx="-4.9" cy="1" rx="4.2" ry="2.1" fill={SHOE} />
-          <ellipse cx="4.9" cy="1" rx="4.2" ry="2.1" fill={SHOE} />
+          <SeatedLeg side={-1} ankle={ankle} far />
+          <SeatedLeg side={1} ankle={ankle} />
         </>
       ) : (
         <>
@@ -2078,6 +2124,512 @@ function MatRug() {
   );
 }
 
+// ---- more rugs ---------------------------------------------------------- //
+// Rugs are the cheapest way to change a room's character, and every one of
+// these is a flat diamond (layer -1) with a pattern painted inside it — no
+// height, no depth rules, and the cat treats all of them as a place to sleep.
+
+/** Bordered medallion rug: field, inner border, centre medallion, corner
+ *  lozenges. Reads "patterned" at postage-stamp size, which is the only size
+ *  that matters in the picker. */
+function PersianRug() {
+  const c = project(1.5, 1.1);
+  const ink = { stroke: "rgb(var(--color-petal))", fill: "none" };
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 3, 2.2)} style={tinted("#8f4a3c")} opacity="0.5" />
+      <polygon points={floorPatch(0.16, 0.12, 2.68, 1.96)} {...ink} strokeWidth="2.4" opacity="0.32" />
+      <polygon points={floorPatch(0.34, 0.26, 2.32, 1.68)} {...ink} strokeWidth="1.2" opacity="0.22" />
+      <g transform={`translate(${c.x}, ${c.y})`}>
+        {/* medallion: a diamond in plan is an ellipse on screen */}
+        <ellipse cx="0" cy="0" rx="26" ry="13" style={tinted("#e8b04b")} opacity="0.4" />
+        <ellipse cx="0" cy="0" rx="17" ry="8.5" {...ink} strokeWidth="1.4" opacity="0.3" />
+        <ellipse cx="0" cy="0" rx="7" ry="3.5" style={tinted("#e8b04b")} opacity="0.45" />
+      </g>
+      {[
+        [0.5, 0.38],
+        [2.5, 0.38],
+        [0.5, 1.82],
+        [2.5, 1.82],
+      ].map(([gx, gy]) => {
+        const p = project(gx, gy);
+        return (
+          <ellipse key={`${gx}-${gy}`} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#e8b04b")} opacity="0.3" />
+        );
+      })}
+    </g>
+  );
+}
+
+/** Stripes run along +gx, so they read as bands across the floor rather than
+ *  as a grid — the alternating widths are what stop it looking like a barcode. */
+function StripedRug() {
+  const bands = [0, 0.28, 0.52, 0.84, 1.12, 1.44];
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 2.6, 1.8)} style={tinted("#5b6b9b")} opacity="0.45" />
+      {bands.map((t, i) => (
+        <polygon
+          key={t}
+          points={floorPatch(0.12, t + 0.1, 2.36, i % 2 ? 0.1 : 0.17)}
+          fill="#f7e9e2"
+          opacity={i % 2 ? 0.12 : 0.2}
+        />
+      ))}
+      {/* fringe at both short ends */}
+      {[0, 1].map((end) =>
+        [0.2, 0.5, 0.8, 1.1, 1.4, 1.7].map((t) => {
+          const a = project(end ? 2.6 : 0, t);
+          return (
+            <line
+              key={`${end}-${t}`}
+              x1={a.x}
+              y1={a.y}
+              x2={a.x + (end ? 5 : -5)}
+              y2={a.y + (end ? 2.5 : -2.5)}
+              stroke="#f7e9e2"
+              strokeWidth="1.2"
+              opacity="0.25"
+            />
+          );
+        })
+      )}
+    </g>
+  );
+}
+
+/** Sheepskin: no straight edges anywhere. A ring of overlapping soft blobs,
+ *  which is also what makes it read as pile rather than as a flat shape. */
+function Sheepskin() {
+  const c = project(0.9, 0.75);
+  const puffs = [
+    [-30, -2, 15, 9],
+    [-14, -9, 17, 10],
+    [6, -10, 16, 9.5],
+    [24, -3, 14, 8],
+    [16, 6, 15, 8.5],
+    [-4, 9, 17, 9],
+    [-24, 6, 14, 8],
+    [0, 0, 26, 13],
+  ];
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      {puffs.map(([x, y, rx, ry]) => (
+        <ellipse key={`${x}-${y}`} cx={x} cy={y} rx={rx} ry={ry} style={tinted("#f2e7dc")} opacity="0.62" />
+      ))}
+      {puffs.slice(0, 5).map(([x, y, rx, ry]) => (
+        <ellipse key={`s${x}-${y}`} cx={x - 1} cy={y - 2} rx={rx * 0.6} ry={ry * 0.5} fill="#fff" opacity="0.18" />
+      ))}
+    </g>
+  );
+}
+
+// ---- pets --------------------------------------------------------------- //
+// Roamers, same engine as the cat: they wander on a visual-only offset and
+// settle once they find something flat (`layer: -1`) to lie on. Each needs a
+// distinct SILHOUETTE, since at this size that's all you get — the dog is long
+// and low with a plumed tail, the rabbit is a vertical teardrop with ears.
+
+function DogHead({ x, y, r, asleep }) {
+  return (
+    <g>
+      <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} style={tinted("#c98a4b")} />
+      {/* folded ears hang beside the skull rather than standing up */}
+      <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} style={tinted("#c98a4b")} />
+      <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} fill="#000" opacity="0.22" />
+      <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} style={tinted("#c98a4b")} />
+      <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} fill="#000" opacity="0.12" />
+      {/* cream muzzle + black nose: the two marks that say "dog" fastest */}
+      <ellipse cx={x - r * 0.1} cy={y + r * 0.5} rx={r * 0.62} ry={r * 0.42} fill="#f2e7dc" opacity="0.85" />
+      <ellipse cx={x - r * 0.28} cy={y + r * 0.34} rx={r * 0.18} ry={r * 0.13} fill="#2b2350" />
+      {asleep ? (
+        <>
+          <path d={`M${x - r * 0.62} ${y - r * 0.05} q${r * 0.2} ${r * 0.2} ${r * 0.4} 0`} fill="none" stroke="#2b2350" strokeWidth="1.1" strokeLinecap="round" opacity="0.8" />
+          <path d={`M${x + r * 0.22} ${y - r * 0.08} q${r * 0.2} ${r * 0.2} ${r * 0.4} 0`} fill="none" stroke="#2b2350" strokeWidth="1.1" strokeLinecap="round" opacity="0.8" />
+        </>
+      ) : (
+        <>
+          <circle cx={x - r * 0.4} cy={y - r * 0.08} r={r * 0.15} fill="#2b2350" />
+          <circle cx={x + r * 0.42} cy={y - r * 0.12} r={r * 0.15} fill="#2b2350" />
+          <circle cx={x - r * 0.36} cy={y - r * 0.14} r={r * 0.06} fill="#fff" opacity="0.85" />
+        </>
+      )}
+    </g>
+  );
+}
+
+function Dog({ awake = false }) {
+  const c = project(0.55, 0.35);
+  if (awake) {
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        {[
+          ["leg-step-b", 8],
+          ["leg-step-a", -11],
+        ].map(([cls, x]) => (
+          <g key={x} className={cls}>
+            <rect x={x} y="-13" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
+            <rect x={x} y="-13" width="4.8" height="14" rx="2.4" fill="#000" opacity="0.3" />
+          </g>
+        ))}
+        <g className="resident-type">
+          <ellipse cx="6" cy="-19" rx="11" ry="9" style={tinted("#c98a4b")} />
+          <ellipse cx="-3" cy="-18" rx="16" ry="8.5" style={tinted("#c98a4b")} />
+          {/* cream chest + belly shadow */}
+          <ellipse cx="-9" cy="-15" rx="8" ry="5" fill="#f2e7dc" opacity="0.5" />
+          <ellipse cx="-2" cy="-12" rx="14" ry="3.4" fill="#000" opacity="0.16" />
+          <rect x="-9" y="-14" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
+          <rect x="10" y="-14" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
+          <DogHead x={-16} y={-26} r={7.8} asleep={false} />
+        </g>
+        {/* the plume: a thick curl over the back, the dog's whole read at range */}
+        <path d="M15 -23 q12 -2 10 -13" fill="none" style={{ stroke: "var(--tint, #c98a4b)" }} strokeWidth="5.5" strokeLinecap="round" />
+        <path d="M15 -23 q12 -2 10 -13" fill="none" stroke="#f2e7dc" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+      </g>
+    );
+  }
+  return (
+    <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+      <path className="tail-flick" d="M13 -4 q14 2 15 -8" fill="none" style={{ stroke: "var(--tint, #c98a4b)" }} strokeWidth="5.5" strokeLinecap="round" />
+      <g className="cat-breathe">
+        <ellipse cx="0" cy="-7" rx="21" ry="10.5" style={tinted("#c98a4b")} />
+        <ellipse cx="8" cy="-11" rx="11" ry="8" style={tinted("#c98a4b")} />
+        <ellipse cx="-6" cy="-9" rx="12" ry="5" fill="#f2e7dc" opacity="0.4" />
+        <ellipse cx="0" cy="-2.5" rx="19" ry="5" fill="#000" opacity="0.2" />
+        <DogHead x={-14} y={-12} r={8} asleep />
+        {/* muzzle resting on the front paws — the pose that reads as content */}
+        <ellipse cx="-9" cy="-3.4" rx="5.4" ry="2.8" style={tinted("#c98a4b")} />
+        <ellipse cx="-9" cy="-4" rx="4.6" ry="2.2" fill="#f2e7dc" opacity="0.35" />
+      </g>
+    </g>
+  );
+}
+
+function Bunny({ awake = false }) {
+  const c = project(0.35, 0.3);
+  const ear = (x, tilt, dark) => (
+    <g transform={`rotate(${tilt} ${x} ${awake ? -20 : -9})`}>
+      <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={tinted("#d9d2e4")} />
+      <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : 0.5} />
+      {dark && <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} fill="#000" opacity="0.18" />}
+    </g>
+  );
+  if (awake) {
+    // Sitting up on the haunches: a vertical teardrop, ears apart and alert.
+    return (
+      <g transform={`translate(${c.x}, ${c.y})`}>
+        {ear(-4.5, -14, true)}
+        {ear(3.5, 12, false)}
+        <g className="resident-type">
+          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={tinted("#d9d2e4")} />
+          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={tinted("#d9d2e4")} />
+          <ellipse cx="-2" cy="-18" rx="4" ry="2.4" fill="#fff" opacity="0.2" />
+          <circle cx="-3.4" cy="-16.5" r="1.15" fill="#2b2350" />
+          <circle cx="2.6" cy="-16.8" r="1.15" fill="#2b2350" />
+          <ellipse cx="-0.4" cy="-13.8" rx="1.1" ry="0.8" fill="#e8a3a8" />
+          {/* forepaws tucked to the chest */}
+          <ellipse cx="-3.5" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
+          <ellipse cx="3" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
+        </g>
+        <ellipse cx="0" cy="-1" rx="10" ry="3.4" fill="#000" opacity="0.16" />
+        <circle cx="9" cy="-6" r="3.4" fill="#f7e9e2" opacity="0.85" />
+      </g>
+    );
+  }
+  // Loafed: legs folded away, ears laid back along the spine.
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      {ear(6, 62, true)}
+      {ear(7.5, 78, false)}
+      <g className="cat-breathe">
+        <ellipse cx="0" cy="-6" rx="13" ry="7.5" style={tinted("#d9d2e4")} />
+        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" style={tinted("#d9d2e4")} />
+        <ellipse cx="-3" cy="-9.5" rx="7" ry="3" fill="#fff" opacity="0.18" />
+        <ellipse cx="0" cy="-2" rx="12" ry="3.6" fill="#000" opacity="0.18" />
+        <path d="M-11.4 -8.8 q1.4 1.3 2.8 0" fill="none" stroke="#2b2350" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+        <ellipse cx="-13" cy="-7.4" rx="1" ry="0.75" fill="#e8a3a8" />
+      </g>
+      <circle cx="11" cy="-5" r="3.2" fill="#f7e9e2" opacity="0.8" />
+    </g>
+  );
+}
+
+// ---- new decoration ----------------------------------------------------- //
+
+/** Upright piano: case, fallboard, keys on the front-left face, candlesticks. */
+function Piano() {
+  const box = isoBox(0, 0, 2, 0.8, 62);
+  const face = project(0, 0.8);
+  return (
+    <g>
+      <polygon points={box.left} style={tinted("#4a3a5b")} />
+      <polygon points={box.left} fill="#000" opacity="0.16" />
+      <polygon points={box.right} style={tinted("#4a3a5b")} />
+      <polygon points={box.right} fill="#000" opacity="0.34" />
+      <polygon points={box.top} style={tinted("#4a3a5b")} />
+      <polygon points={box.top} fill="#fff" opacity="0.07" />
+      {/* everything below lives on the front-left face */}
+      <g transform={`translate(${face.x}, ${face.y}) skewY(${SKEW})`}>
+        <rect x="3" y="-56" width="42" height="20" rx="1.5" fill="#000" opacity="0.18" />
+        {/* fallboard, then the keybed jutting out over it */}
+        <rect x="2" y="-34" width="44" height="5" rx="1.5" fill="#2f2540" />
+        <rect x="1" y="-29" width="46" height="7" rx="1" fill="#f7e9e2" />
+        {Array.from({ length: 15 }, (_, i) => (
+          <rect key={i} x={2.5 + i * 3} y="-29" width="0.7" height="7" fill="#2b2350" opacity="0.55" />
+        ))}
+        {[0, 1, 3, 4, 5, 7, 8, 10, 11, 12].map((i) => (
+          <rect key={`b${i}`} x={4.1 + i * 3} y="-29" width="1.8" height="4.2" fill="#2b2350" />
+        ))}
+        <rect x="1" y="-22" width="46" height="3" rx="1" fill="#000" opacity="0.25" />
+        {/* pedals */}
+        <rect x="20" y="-6" width="3" height="4" fill="#e8b04b" opacity="0.7" />
+        <rect x="25" y="-6" width="3" height="4" fill="#e8b04b" opacity="0.7" />
+      </g>
+    </g>
+  );
+}
+
+/** Artist's easel: two front legs and a rear strut, canvas on the ledge. */
+function Easel() {
+  const c = project(0.45, 0.4);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <g stroke="var(--tint, #a87f5f)" strokeWidth="3.4" strokeLinecap="round" fill="none">
+        <path d="M-11 0 L-2 -54" />
+        <path d="M11 2 L2 -54" />
+        <path d="M4 -2 L1 -50" opacity="0.55" />
+      </g>
+      {/* canvas, tilted back a touch, with a half-finished sky on it */}
+      <g transform="translate(0,-34) rotate(-3)">
+        <rect x="-17" y="-20" width="34" height="28" rx="1" fill="#f7e9e2" />
+        <rect x="-17" y="-20" width="34" height="28" rx="1" fill="none" stroke="#000" opacity="0.16" strokeWidth="1.2" />
+        <rect x="-15" y="-18" width="30" height="13" fill="#8ec9ea" opacity="0.55" />
+        <ellipse cx="7" cy="-14" rx="4" ry="4" fill="#ffe9b0" opacity="0.8" />
+        <path d="M-15 -5 q8 -6 15 0 q7 -5 15 0 l0 11 l-30 0 z" fill="#7faf8f" opacity="0.6" />
+      </g>
+      {/* ledge + a palette hooked over its end */}
+      <rect x="-19" y="-21" width="38" height="3.6" rx="1.6" style={tinted("#a87f5f")} />
+      <rect x="-19" y="-21" width="38" height="3.6" rx="1.6" fill="#000" opacity="0.2" />
+      <ellipse cx="17" cy="-15" rx="6" ry="4.2" fill="#c98a4b" />
+      {[["#e8a3a8", 14.5], ["#7faf8f", 17], ["#5b6b9b", 19.5]].map(([col, x]) => (
+        <circle key={col} cx={x} cy={-15.5} r="1.2" fill={col} />
+      ))}
+    </g>
+  );
+}
+
+/** Birdcage on a stand — domed, with a live little occupant. */
+function Birdcage() {
+  const c = project(0.3, 0.3);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="9" ry="4.5" style={tinted("#8a7ac2")} />
+      <ellipse cx="0" cy="-1" rx="9" ry="4.5" fill="#000" opacity="0.3" />
+      <rect x="-1.6" y="-34" width="3.2" height="33" style={tinted("#8a7ac2")} />
+      <rect x="-1.6" y="-34" width="3.2" height="33" fill="#000" opacity="0.22" />
+      {/* cage: floor pan, dome, bars, ring on top */}
+      <ellipse cx="0" cy="-34" rx="13" ry="6" style={tinted("#8a7ac2")} />
+      <path d="M-13 -34 a13 13 0 0 1 26 0" fill="#2f2540" opacity="0.22" />
+      <path d="M-13 -34 a13 13 0 0 1 26 0" fill="none" style={{ stroke: "var(--tint, #8a7ac2)" }} strokeWidth="2" />
+      {[-9, -4.5, 0, 4.5, 9].map((x) => (
+        <line
+          key={x}
+          x1={x}
+          y1={-34}
+          x2={x * 0.62}
+          y2={-34 - Math.sqrt(Math.max(0, 169 - x * x)) * 0.78}
+          style={{ stroke: "var(--tint, #8a7ac2)" }}
+          strokeWidth="1.1"
+          opacity="0.75"
+        />
+      ))}
+      <path d="M-3 -47 a3 3 0 0 1 6 0" fill="none" style={{ stroke: "var(--tint, #8a7ac2)" }} strokeWidth="1.6" />
+      {/* perch + bird */}
+      <line x1="-7" y1="-40" x2="7" y2="-40" stroke="#a87f5f" strokeWidth="1.4" />
+      <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+        <ellipse cx="1" cy="-43.5" rx="4" ry="3.4" fill="#e8b04b" />
+        <circle cx="-2.2" cy="-46" r="2.6" fill="#e8b04b" />
+        <circle cx="-3" cy="-46.6" r="0.7" fill="#2b2350" />
+        <path d="M-4.6 -45.8 l-2 0.9 l2 0.9 z" fill="#cf8f93" />
+        <path d="M2 -44 q4 1 5 3" fill="none" stroke="#e8b04b" strokeWidth="1.8" strokeLinecap="round" />
+      </g>
+    </g>
+  );
+}
+
+/** Folding screen: three hinged panels, so it zig-zags across the tile rather
+ *  than standing as one flat wall. */
+function FoldingScreen() {
+  const H = 58;
+  // Panel corners in GRID space — the zig-zag is real geometry, which is what
+  // makes it read as folded from any camera angle.
+  const pts = [
+    [0, 0.34],
+    [0.55, 0.06],
+    [1.1, 0.34],
+    [1.6, 0.06],
+  ];
+  return (
+    <g>
+      {pts.slice(0, -1).map(([gx, gy], i) => {
+        const a = project(gx, gy);
+        const b = project(pts[i + 1][0], pts[i + 1][1]);
+        return (
+          <g key={i}>
+            <polygon
+              points={`${a.x},${a.y - H} ${b.x},${b.y - H} ${b.x},${b.y} ${a.x},${a.y}`}
+              style={tinted("#7faf8f")}
+            />
+            <polygon
+              points={`${a.x},${a.y - H} ${b.x},${b.y - H} ${b.x},${b.y} ${a.x},${a.y}`}
+              fill="#000"
+              opacity={i % 2 ? 0.3 : 0.12}
+            />
+            {/* paper inset + a branch motif on the lighter panels */}
+            <polygon
+              points={`${a.x + 3},${a.y - H + 6} ${b.x - 3},${b.y - H + 6} ${b.x - 3},${b.y - 8} ${a.x + 3},${a.y - 8}`}
+              fill="#f7e9e2"
+              opacity={i % 2 ? 0.12 : 0.22}
+            />
+            {i % 2 === 0 && (
+              <path
+                d={`M${a.x + 6} ${a.y - 12} q6 -14 12 -20`}
+                fill="none"
+                stroke="#2f2540"
+                strokeWidth="1.1"
+                opacity="0.28"
+              />
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Desk globe: sphere, tilted meridian ring, little foot. Stacks onto a desk. */
+function Globe() {
+  const c = project(0.22, 0.22);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="6" ry="3" fill="#5c3a2c" />
+      <rect x="-1.2" y="-8" width="2.4" height="7" fill="#5c3a2c" />
+      <g transform="rotate(-16)">
+        <circle cx="0" cy="-16" r="8.2" style={tinted("#5b6b9b")} />
+        {/* continents: three blobs, no geography implied */}
+        <path d="M-5 -19 q3 -3 6 -1 q2 3 -1 4 q-4 1 -5 -3 z" fill="#7faf8f" opacity="0.9" />
+        <path d="M1 -13 q4 -2 5 1 q0 3 -3 3 q-3 0 -2 -4 z" fill="#7faf8f" opacity="0.9" />
+        <ellipse cx="-4" cy="-12.5" rx="2.6" ry="1.6" fill="#7faf8f" opacity="0.8" />
+        <ellipse cx="-3" cy="-19" rx="3" ry="1.8" fill="#fff" opacity="0.16" />
+        <circle cx="0" cy="-16" r="8.2" fill="none" stroke="#000" opacity="0.18" strokeWidth="0.8" />
+        {/* meridian ring, open at the front so it reads as a ring not an outline */}
+        <path d="M0 -25.4 a9.6 9.6 0 1 0 0.01 0" fill="none" stroke="#e8b04b" strokeWidth="1.6" opacity="0.9" />
+      </g>
+    </g>
+  );
+}
+
+/** Chess set mid-game. Inherently two-coloured, hence tintable: false. */
+function ChessSet() {
+  const S = 0.6;
+  const D = 0.5;
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, S, D)} fill="#f2e7dc" />
+      {Array.from({ length: 4 }, (_, r) =>
+        Array.from({ length: 4 }, (_, f) =>
+          (r + f) % 2 ? (
+            <polygon
+              key={`${r}-${f}`}
+              points={floorPatch((f * S) / 4, (r * D) / 4, S / 4, D / 4)}
+              fill="#4a3a5b"
+            />
+          ) : null
+        )
+      )}
+      <polygon points={floorPatch(0, 0, S, D)} fill="none" stroke="#5c3a2c" strokeWidth="1.4" />
+      {/* a handful of pieces, light and dark, mid-game rather than set up */}
+      {[
+        [0.1, 0.12, "#f7e9e2", 7],
+        [0.3, 0.1, "#f7e9e2", 5],
+        [0.44, 0.3, "#2b2350", 7],
+        [0.22, 0.38, "#2b2350", 5],
+        [0.5, 0.14, "#f7e9e2", 5],
+      ].map(([gx, gy, fill, h]) => {
+        const p = project(gx, gy);
+        return (
+          <g key={`${gx}-${gy}`}>
+            <ellipse cx={p.x} cy={p.y} rx="2.6" ry="1.3" fill="#000" opacity="0.22" />
+            <path
+              d={`M${p.x - 2.2} ${p.y} q0.6 -${h * 0.5} 2.2 -${h} q1.6 ${h * 0.5} 2.2 ${h} z`}
+              fill={fill}
+            />
+            <circle cx={p.x} cy={p.y - h} r="1.5" fill={fill} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Garden hammock slung between two posts. `lie` seating, so a resident
+ *  dropped on it stretches out instead of perching. */
+function Hammock() {
+  const H = 40;
+  const left = project(0.18, 0.45);
+  const right = project(2.02, 0.45);
+  return (
+    <g>
+      {[left, right].map((p, i) => (
+        <g key={i}>
+          <ellipse cx={p.x} cy={p.y} rx="6" ry="3" fill="#000" opacity="0.18" />
+          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#8f5d49" />
+          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#000" opacity={i ? 0.28 : 0.1} />
+        </g>
+      ))}
+      {/* the sling: one filled curve, with a slat pattern following the sag */}
+      <path
+        d={`M${left.x} ${left.y - H + 4} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 30} ${right.x} ${right.y - H + 4}
+            L${right.x} ${right.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${left.x} ${left.y - H + 12} z`}
+        style={tinted("#c98a4b")}
+      />
+      <path
+        d={`M${left.x} ${left.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${right.x} ${right.y - H + 12}`}
+        fill="none"
+        stroke="#000"
+        opacity="0.22"
+        strokeWidth="2.5"
+      />
+      {[0.25, 0.4, 0.55, 0.7].map((t) => {
+        const x = left.x + (right.x - left.x) * t;
+        const sag = 26 * Math.sin(Math.PI * t);
+        const y = left.y + (right.y - left.y) * t - H + 4 + sag * 0.62;
+        return <line key={t} x1={x} y1={y} x2={x} y2={y + 7} stroke="#f7e9e2" strokeWidth="1.1" opacity="0.3" />;
+      })}
+    </g>
+  );
+}
+
+/** Garden lantern: post, glazed head, warm pool on the ground beneath it. */
+function GardenLantern() {
+  const c = project(0.25, 0.25);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-2" rx="20" ry="10" fill="url(#lampPool)" opacity="0.3" />
+      <ellipse cx="0" cy="-1" rx="6.5" ry="3.2" fill="#2f2540" />
+      <rect x="-1.8" y="-34" width="3.6" height="33" style={tinted("#2f2540")} />
+      <rect x="-1.8" y="-34" width="3.6" height="33" fill="#000" opacity="0.2" />
+      {/* head: a tapered glass box under a little pitched cap */}
+      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="#ffe9b0" opacity="0.85" className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
+      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="none" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.6" />
+      <line x1="0" y1="-34" x2="0" y2="-48" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.1" opacity="0.8" />
+      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" style={tinted("#2f2540")} />
+      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" fill="#000" opacity="0.15" />
+      <circle cx="0" cy="-56" r="1.6" style={tinted("#2f2540")} />
+    </g>
+  );
+}
+
 // ---- the café bar ------------------------------------------------------- //
 // A serving bar isn't a kitchen cabinet: it's taller, its top OVERHANGS on the
 // customer side, and its front is panelled rather than a cupboard door.
@@ -2191,6 +2743,19 @@ export const ISO_SPRITES = {
   woodstool: WoodStool,
   ovalrug: OvalRug,
   matrug: MatRug,
+  persianrug: PersianRug,
+  stripedrug: StripedRug,
+  sheepskin: Sheepskin,
+  dog: Dog,
+  bunny: Bunny,
+  piano: Piano,
+  easel: Easel,
+  birdcage: Birdcage,
+  screen: FoldingScreen,
+  globe: Globe,
+  chess: ChessSet,
+  hammock: Hammock,
+  lantern: GardenLantern,
   coatrack: CoatRack,
   cactus: Cactus,
   terrarium: Terrarium,

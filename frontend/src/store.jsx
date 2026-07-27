@@ -399,29 +399,63 @@ export function StoreProvider({ children }) {
       }),
     }));
   }, []);
-  // Resizing keeps every item's footprint on the (possibly smaller) floor;
-  // running through the validator also re-fits the corner cuts.
-  const setIsoSize = useCallback((w, d) => {
-    setIsoRoom((prev) => validateIsoLayout({ ...prev, w, d }));
-  }, []);
-  // Environment swap (room ↔ garden); validation drops wall decor outdoors.
-  const setIsoEnv = useCallback((env) => {
-    setIsoRoom((prev) => validateIsoLayout({ ...prev, env }));
-  }, []);
+  // Reshaping the room runs the layout back through the validator, and the
+  // validator is allowed to DELETE: wall art has nowhere to hang outdoors, and
+  // a floor that just shrank may have no free spot left for a piece. That's
+  // the right behaviour, but it used to happen in total silence — furniture
+  // you owned vanished with no word, which reads as data loss rather than a
+  // consequence of what you just did. Same rule as the item cap: a refusal
+  // gets a toast.
+  const reshapeIso = useCallback(
+    (change, lost) =>
+      setIsoRoom((prev) => {
+        const next = validateIsoLayout({ ...prev, ...change });
+        const gone = prev.placements.length - next.placements.length;
+        if (gone > 0) showToast(lost(gone, gone === 1 ? "piece" : "pieces"));
+        return next;
+      }),
+    [showToast]
+  );
+  const setIsoSize = useCallback(
+    (w, d) =>
+      reshapeIso({ w, d }, (n, s) => `The smaller floor had no room for ${n} ${s} 📦`),
+    [reshapeIso]
+  );
+  // Environment swap; validation drops wall decor where there's no full wall.
+  const setIsoEnv = useCallback(
+    (env) =>
+      reshapeIso({ env }, (n, s) => `Nothing to hang ${n} wall ${s} on out here 🖼️`),
+    [reshapeIso]
+  );
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
-  const setIsoTile = useCallback((x, y, on) => {
-    setIsoRoom((prev) => {
-      const rows = (
-        prev.mask || Array.from({ length: prev.d }, () => "1".repeat(prev.w))
-      ).map((r) => r.split(""));
-      if (!rows[y] || rows[y][x] === undefined) return prev;
-      rows[y][x] = on ? "1" : "0";
-      const mask = rows.map((r) => r.join(""));
-      // Refuse to paint away the last floor tile — a room must exist.
-      if (!mask.some((r) => r.includes("1"))) return prev;
-      return validateIsoLayout({ ...prev, mask });
-    });
-  }, []);
+  const setIsoTile = useCallback(
+    (x, y, on) => {
+      setIsoRoom((prev) => {
+        const rows = (
+          prev.mask || Array.from({ length: prev.d }, () => "1".repeat(prev.w))
+        ).map((r) => r.split(""));
+        if (!rows[y] || rows[y][x] === undefined) return prev;
+        rows[y][x] = on ? "1" : "0";
+        const mask = rows.map((r) => r.join(""));
+        // Refuse to paint away the last floor tile — a room must exist.
+        if (!mask.some((r) => r.includes("1"))) return prev;
+        const next = validateIsoLayout({ ...prev, mask });
+        // Erasing a tile relocates what stood on it, but with nowhere left to
+        // go the piece is dropped — say so, since a drag-to-erase gesture can
+        // cross a lot of tiles quickly.
+        const gone = prev.placements.length - next.placements.length;
+        if (gone > 0) {
+          showToast(
+            `Nowhere left to put ${gone} ${gone === 1 ? "piece" : "pieces"} — ${
+              gone === 1 ? "it's" : "they're"
+            } gone 📦`
+          );
+        }
+        return next;
+      });
+    },
+    [showToast]
+  );
   const resetIsoShape = useCallback(
     () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
     []

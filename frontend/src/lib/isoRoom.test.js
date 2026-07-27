@@ -3,6 +3,7 @@ import {
   DEFAULT_ISO_PRESET,
   DEFAULT_ISO_SIZE,
   ISO_ITEMS,
+  ISO_ITEM_GROUPS,
   ISO_ITEM_KEYS,
   ISO_MAX_ITEMS,
   ISO_PRESET_KEYS,
@@ -43,6 +44,27 @@ describe("iso catalog integrity", () => {
   it("every sprite belongs to a catalog entry", () => {
     for (const key of Object.keys(ISO_SPRITES)) {
       expect(ISO_ITEMS[key], `catalog entry for ${key}`).toBeTruthy();
+    }
+  });
+});
+
+describe("the picker's sections cover the catalog", () => {
+  const grouped = ISO_ITEM_GROUPS.flatMap((g) => g.keys);
+
+  it("lists every item exactly once", () => {
+    // The picker is the ONLY way to add an item, so a key missing from these
+    // sections is a piece of furniture that exists and can never be placed.
+    expect([...grouped].sort()).toEqual([...ISO_ITEM_KEYS].sort());
+  });
+
+  it("names no item that doesn't exist", () => {
+    expect(grouped.filter((k) => !ISO_ITEMS[k])).toEqual([]);
+  });
+
+  it("has no empty section", () => {
+    for (const g of ISO_ITEM_GROUPS) {
+      expect(g.keys.length, `${g.label} is empty`).toBeGreaterThan(0);
+      expect(g.label).toBeTruthy();
     }
   });
 });
@@ -383,6 +405,27 @@ describe("presets", () => {
     const b = isoPresetLayout("classic");
     const ids = new Set([...a.placements, ...b.placements].map((p) => p.id));
     expect(ids.size).toBe(a.placements.length * 2);
+  });
+
+  it("EVERY preset survives validation with all its furniture", () => {
+    // The default preset had this guarantee; the other eight didn't, and they
+    // are just as capable of losing pieces — validation drops wall decor in a
+    // wall-less env and anything it can't find floor for. A preset that
+    // quietly arrives short is invisible unless you count.
+    for (const key of ISO_PRESET_KEYS) {
+      const before = ISO_PRESETS[key].items;
+      const after = validateIsoLayout(isoPresetLayout(key));
+      expect(after.placements.length, `${key} lost furniture on apply`).toBe(before.length);
+      // and every piece is where it was written, not shuffled by the clamp
+      for (const want of before) {
+        expect(
+          after.placements.some(
+            (got) => got.item === want.item && got.gx === want.gx && got.gy === want.gy
+          ),
+          `${key}: ${want.item} moved from ${want.gx},${want.gy}`
+        ).toBe(true);
+      }
+    }
   });
 
   it("the default layout is the starter preset, and empty is empty", () => {

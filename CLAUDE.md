@@ -552,7 +552,28 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   The Room panel's furniture list and preset buttons both render REAL sprites
   (`IsoItemPreview` / `IsoPresetPreview`), sizing themselves via `getBBox`
   rather than a shared viewBox, and the preset thumbnails apply `seatFor` so
-  residents sit where they'll actually sit.
+  residents sit where they'll actually sit. The list is **sectioned by
+  `ISO_ITEM_GROUPS`** (seating / tables / storage / rugs / light / decoration /
+  tech / wall / outdoors / living things) — at 90+ entries a flat grid stopped
+  being browsable. Grouping lives beside the catalog rather than as a `group:`
+  field per entry, and a test asserts every key appears in exactly ONE section:
+  the picker is the only way to add an item, so a key missing from the sections
+  is furniture that exists and can never be placed. A section whose every item
+  is wall decor renders nothing outdoors rather than leaving a bare heading.
+  **`env` is duplicated across two languages** — `ISO_ENVS` here and
+  `ISO_ENVS` in `backend/app.py` — and has drifted once already: `cafe`,
+  `library` and `terrace` were added to the frontend only, so PUT `/api/room`
+  400'd for the three presets that use them and those rooms lived solely in
+  the localStorage mirror, toasting "couldn't save" on every change. Adding an
+  environment means editing BOTH; `test_room.py` parses this file's `ISO_ENVS`
+  block and fails if the backend doesn't accept every key it finds.
+  **Reshaping deletes, and deletion must be announced**: `setIsoSize`,
+  `setIsoEnv` and `setIsoTile` all re-run `validateIsoLayout`, which drops wall
+  decor where there's no wall and anything it can't find floor for. That's
+  correct, but it used to happen in silence — furniture you owned vanished with
+  no word, which reads as data loss rather than as a consequence of the action.
+  They now compare placement counts and `showToast` the difference, same rule
+  as the item cap.
   **Rendered-PNG sprites**: 14 items (bed, sofa, armchair, nightstand,
   chair, shelf, bookcase, sidetable, radio, fridge, cafetable, counter,
   coffeecounter, tvunit) are pre-rendered isometric views from Kenney's

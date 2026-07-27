@@ -1,6 +1,8 @@
 """Room-layout API tests: the decoration a user drags into place must survive
 the round trip, and malformed payloads must never reach the database."""
 import json
+import pathlib
+import re
 
 import pytest
 
@@ -208,6 +210,45 @@ def test_iso_roundtrips_an_environment(client, auth):
         client.put("/api/room", json={"placements": [], "iso": bad}, headers=auth).status_code
         == 400
     )
+
+
+def frontend_environments():
+    """The environment keys the SPA actually ships, read out of its source.
+
+    The list lives in two languages with no shared definition, and hardcoding
+    it here a second time would drift exactly the way the backend's own copy
+    did. Parsing is deliberately strict: a source change this can't read is an
+    error, not a silently-passing test.
+    """
+    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    block = re.search(r"export const ISO_ENVS = \{(.*?)\n\};", js, re.S)
+    assert block, f"couldn't find ISO_ENVS in {ISO_ROOM_JS} — has it moved?"
+    keys = re.findall(r"^  (\w+): \{$", block.group(1), re.M)
+    assert keys, "found ISO_ENVS but parsed no keys out of it"
+    return keys
+
+
+ISO_ROOM_JS = (
+    pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "isoRoom.js"
+)
+
+
+@pytest.mark.skipif(not ISO_ROOM_JS.exists(), reason="frontend sources not present")
+def test_backend_accepts_every_environment_the_frontend_ships(client, auth):
+    """The drift guard.
+
+    `cafe`, `library` and `terrace` were added to the frontend and never here,
+    so the three presets built on them failed to save — every apply toasted
+    "couldn't save the room" and the layout lived only in localStorage. The
+    old test only exercised `garden`, which happened to be one of the two the
+    backend already knew.
+    """
+    envs = frontend_environments()
+    assert len(envs) >= 2, "suspiciously few environments parsed"
+    for env in envs:
+        iso = {"w": 9, "d": 7, "env": env, "placements": []}
+        res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+        assert res.status_code == 200, f"backend rejects environment {env!r}"
 
 
 def test_iso_roundtrips_a_floor_mask(client, auth):

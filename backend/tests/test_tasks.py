@@ -1,5 +1,7 @@
 """Task API tests for groups and daily routines: a group name must survive the
 round trip, and a routine completed yesterday must come back not-done today."""
+import pathlib
+import re
 from datetime import timedelta
 
 import pytest
@@ -112,3 +114,41 @@ def test_non_routine_never_resets(app, client, auth):
         task.completed_at = utcnow() - timedelta(days=3)
         db.session.commit()
     assert client.get("/api/tasks", headers=auth).get_json()[0]["completed"] is True
+
+
+ALGORITHMS_JS = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "frontend"
+    / "src"
+    / "lib"
+    / "algorithms.js"
+)
+
+
+@pytest.mark.skipif(not ALGORITHMS_JS.exists(), reason="frontend sources not present")
+def test_backend_keeps_every_priority_the_frontend_can_produce():
+    """Same drift guard as room environments, for the enum that fails QUIETLY.
+
+    An unrecognised priority isn't rejected — create_task coerces it to
+    "medium" — so a fourth level added frontend-side would save, come back
+    downgraded, and sort wrong, with nothing anywhere to notice. `env` at
+    least toasted when it broke.
+    """
+    js = ALGORITHMS_JS.read_text(encoding="utf-8")
+    match = re.search(r"const PRIORITY_WEIGHT = \{(.*?)\}", js, re.S)
+    assert match, f"couldn't find PRIORITY_WEIGHT in {ALGORITHMS_JS} — has it moved?"
+    levels = re.findall(r"(\w+):\s*\d+", match.group(1))
+    assert levels, "found PRIORITY_WEIGHT but parsed no levels out of it"
+
+    app = create_app()
+    client = app.test_client()
+    token = client.post(
+        "/api/auth/register", json={"username": "sorter", "password": "test1234"}
+    ).get_json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    for level in levels:
+        res = client.post(
+            "/api/tasks", json={"name": f"a {level} task", "priority": level}, headers=headers
+        )
+        assert res.status_code == 201
+        assert res.get_json()["priority"] == level, f"backend downgraded {level!r}"
