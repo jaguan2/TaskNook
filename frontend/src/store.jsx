@@ -7,7 +7,8 @@ import {
   useCallback,
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
-import { applyAlgorithm, shuffledIds } from "./lib/algorithms";
+import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
+import { normalizeHex } from "./lib/palette";
 import { SOUND_CHANNELS, applyMix, playChime, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
@@ -80,9 +81,12 @@ export function StoreProvider({ children }) {
     focusMinutesToday: 0,
   });
   const [sessionDays, setSessionDays] = useState({});
-  const [algorithm, setAlgorithm] = useState(
-    () => localStorage.getItem("tasknook.algo") || "custom"
-  );
+  const [algorithm, setAlgorithm] = useState(() => {
+    // Whitelist: TaskPanel indexes ALGORITHMS[algorithm] directly, so an
+    // unknown stored key would crash the panel.
+    const saved = localStorage.getItem("tasknook.algo");
+    return ALGORITHM_KEYS.includes(saved) ? saved : "custom";
+  });
 
   // ---- Focus timer ----
   const [focusMinutes, setFocusMinutes] = useState(25);
@@ -110,11 +114,11 @@ export function StoreProvider({ children }) {
   const [round, setRound] = useState(1);
 
   const setPomodoro = (patch) => {
-    setPomodoroState((prev) => {
-      const next = { ...prev, ...patch };
-      localStorage.setItem("tasknook.pomodoro", JSON.stringify(next));
-      return next;
-    });
+    // Persist OUTSIDE the updater (updaters must stay pure — StrictMode
+    // double-invokes them); `pomodoro` is in scope, so compute next here.
+    const next = { ...pomodoro, ...patch };
+    localStorage.setItem("tasknook.pomodoro", JSON.stringify(next));
+    setPomodoroState(next);
     // Changing the plan restarts the cycle from round 1 — but only when idle.
     // While a session runs, only the settings change: resetting phase/round
     // mid-run silently wiped round progress, and doing it during a BREAK
@@ -193,7 +197,10 @@ export function StoreProvider({ children }) {
   const weatherCoordsRef = useRef(
     (() => {
       try {
-        return JSON.parse(localStorage.getItem("tasknook.weather.coords") || "null");
+        const c = JSON.parse(localStorage.getItem("tasknook.weather.coords") || "null");
+        // Shape-check: a corrupt cache would build latitude=undefined URLs
+        // and error forever with no recovery path.
+        return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) ? c : null;
       } catch {
         return null;
       }
@@ -202,7 +209,8 @@ export function StoreProvider({ children }) {
   const autoMatchRef = useRef(autoMatchWeather);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("tasknook.weather.presets") || "[]");
+      const saved = JSON.parse(localStorage.getItem("tasknook.weather.presets") || "[]");
+      return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
     }
@@ -229,13 +237,16 @@ export function StoreProvider({ children }) {
   );
   // Base colour for the "custom" scheme; the full ramp is derived from its
   // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
+  // normalizeHex on load: a corrupt value would derive "NaN NaN NaN" for
+  // every theme variable and unstyle the whole app with no way back.
   const [customColor, setCustomColorState] = useState(
-    () => localStorage.getItem("tasknook.customColor") || "#d98a93"
+    () => normalizeHex(localStorage.getItem("tasknook.customColor")) || "#d98a93"
   );
 
   const [customStations, setCustomStations] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
+      const saved = JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
+      return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
     }
@@ -381,10 +392,6 @@ export function StoreProvider({ children }) {
     () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
     []
   );
-  const clearIsoRoom = useCallback(
-    () => setIsoRoom((prev) => ({ w: prev.w, d: prev.d, placements: [] })),
-    []
-  );
   // Presets replace the whole iso layout, floor size included (validated so
   // preset `cuts` shorthand becomes a mask immediately).
   const applyIsoPreset = useCallback(
@@ -403,13 +410,15 @@ export function StoreProvider({ children }) {
       roomSkipSave.current = false;
       return undefined;
     }
-    // Debounced persistence: dragging fires a state update per pointer move,
-    // so both the mirror write and the API call wait for the dust to settle.
-    // Flat and iso layouts travel together in one PUT.
+    // The localStorage mirror is written SYNCHRONOUSLY — inside the debounce
+    // it sat behind a cleanup-cancellable timer, so closing the window within
+    // 600ms of a drag lost the edit from the mirror AND the server (the
+    // skipped save that looks like a success). Only the network PUT waits
+    // for the dust to settle. Flat and iso layouts travel in one PUT.
+    localStorage.setItem("tasknook.room", JSON.stringify(roomPlacements));
+    localStorage.setItem("tasknook.isoRoom", JSON.stringify(isoRoom));
     clearTimeout(roomSaveTimer.current);
     roomSaveTimer.current = setTimeout(() => {
-      localStorage.setItem("tasknook.room", JSON.stringify(roomPlacements));
-      localStorage.setItem("tasknook.isoRoom", JSON.stringify(isoRoom));
       api
         .saveRoom(roomPlacements, isoRoom)
         .catch((err) => {
@@ -418,7 +427,7 @@ export function StoreProvider({ children }) {
         });
     }, 600);
     return () => clearTimeout(roomSaveTimer.current);
-  }, [roomPlacements, isoRoom]);
+  }, [roomPlacements, isoRoom, showToast]);
 
   // ---------- Bootstrap session ----------
   // TaskNook is a single-user local app (SQLite file on this machine), so
@@ -516,9 +525,13 @@ export function StoreProvider({ children }) {
           await api.saveRoom(server || roomRef.current, serverIso || isoRef.current);
         }
       } catch (err) {
+        // This block also WRITES (pushing a first-run/legacy layout to the
+        // server), so a failure here must not be console-only.
         console.error("Failed to load room layout:", err);
+        showToast("Couldn't sync your room with the server 🌧️");
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // ---------- Task actions ----------
@@ -828,7 +841,6 @@ export function StoreProvider({ children }) {
     if (autoMatchRef.current) setAutoMatchWeather(false);
     applyWeatherVisual(nextMode);
   };
-  const changeWeatherVolume = (v) => setWeatherVol(v);
   const setTimeOfDay = (mode) => {
     if (autoMatchRef.current) setAutoMatchWeather(false);
     applyTimeOfDay(mode);
@@ -841,18 +853,21 @@ export function StoreProvider({ children }) {
     const trimmed = name.trim();
     if (!trimmed) return;
     const preset = { name: trimmed, weatherMode, timeOfDay, weatherVolume, soundMix };
-    setWeatherPresets((prev) => {
-      const next = [...prev.filter((p) => p.name !== trimmed), preset];
-      localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
-      return next;
-    });
+    // Persist outside the updater (purity — StrictMode double-invokes them).
+    const next = [...weatherPresets.filter((p) => p.name !== trimmed), preset];
+    localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+    setWeatherPresets(next);
   };
   const applyWeatherPreset = (name) => {
     const preset = weatherPresets.find((p) => p.name === name);
     if (!preset) return;
     setWeatherVol(preset.weatherVolume);
-    setWeatherModeState(preset.weatherMode);
-    setTimeOfDay(preset.timeOfDay);
+    // Recalling a scene is a manual pick: use the internal appliers for both
+    // axes and disable auto-match EXPLICITLY — the old mix of one internal
+    // and one public setter got the same net result only by accident.
+    applyWeatherVisual(preset.weatherMode);
+    applyTimeOfDay(preset.timeOfDay);
+    setAutoMatchWeather(false);
     // A saved scene is an explicit user snapshot, so restoring its sounds IS
     // what applying it means (unlike the weather quick-picks, which are
     // visual-only). Legacy presets from before the mixer just set the visual.
@@ -863,11 +878,9 @@ export function StoreProvider({ children }) {
     }
   };
   const deleteWeatherPreset = (name) => {
-    setWeatherPresets((prev) => {
-      const next = prev.filter((p) => p.name !== name);
-      localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
-      return next;
-    });
+    const next = weatherPresets.filter((p) => p.name !== name);
+    localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+    setWeatherPresets(next);
   };
 
   // ---------- Settings ----------
@@ -929,14 +942,14 @@ export function StoreProvider({ children }) {
   };
 
   const toggleAutoMatchWeather = () => {
-    setAutoMatchWeather((v) => {
-      const next = !v;
-      if (next && realWeather) {
-        applyWeatherVisual(realWeather.mode);
-        applyTimeOfDay(realWeather.timeOfDay);
-      }
-      return next;
-    });
+    // Side effects (other setState calls) outside the updater — updaters
+    // must be pure, and `autoMatchWeather` is already in scope.
+    const next = !autoMatchWeather;
+    if (next && realWeather) {
+      applyWeatherVisual(realWeather.mode);
+      applyTimeOfDay(realWeather.timeOfDay);
+    }
+    setAutoMatchWeather(next);
   };
 
   // While auto-match is on, keep real conditions from drifting stale.
@@ -1072,7 +1085,6 @@ export function StoreProvider({ children }) {
     setIsoTile,
     resetIsoShape,
     setIsoEnv,
-    clearIsoRoom,
     applyIsoPreset,
 
     // timer
@@ -1102,8 +1114,6 @@ export function StoreProvider({ children }) {
     // ambient
     weatherMode,
     setWeather,
-    weatherVolume,
-    changeWeatherVolume,
     soundMix,
     setSoundLevel,
     stopAllSounds,

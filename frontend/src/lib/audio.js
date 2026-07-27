@@ -49,26 +49,35 @@ const BEDLESS = new Set(["paper"]);
 
 function ensureContext() {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-  if (ctx.state === "suspended") ctx.resume();
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
 }
 
+// One buffer per (length, colour), generated once and shared — an
+// AudioBuffer can back any number of source nodes, and regenerating noise
+// per one-shot cost ~22k Math.random() calls a SECOND while rain played.
+// Per-shot character comes from the filters/envelopes, not fresh noise.
+const noiseCache = new Map();
 function createNoiseBuffer(context, seconds = 2, white = false) {
+  const key = `${seconds}|${white}`;
+  const hit = noiseCache.get(key);
+  if (hit && hit.sampleRate === context.sampleRate) return hit;
   const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
   const data = buffer.getChannelData(0);
   if (white) {
     // Plain white noise: bright and crisp — right for paper and steam,
     // where the sound IS the high end (brown noise has none to give).
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
-    return buffer;
+  } else {
+    // Brownian-ish noise: softer / less harsh than pure white noise.
+    let last = 0;
+    for (let i = 0; i < data.length; i++) {
+      const w = Math.random() * 2 - 1;
+      last = (last + 0.02 * w) / 1.02;
+      data[i] = last * 3.5;
+    }
   }
-  // Brownian-ish noise: softer / less harsh than pure white noise.
-  let last = 0;
-  for (let i = 0; i < data.length; i++) {
-    const w = Math.random() * 2 - 1;
-    last = (last + 0.02 * w) / 1.02;
-    data[i] = last * 3.5;
-  }
+  noiseCache.set(key, buffer);
   return buffer;
 }
 
@@ -222,19 +231,23 @@ function playClink(master) {
   });
 }
 
-// Self-rescheduling one-shot loop. Kept per-channel so stopping the channel
-// clears it; the callback re-checks the channel still exists before playing.
+// Self-rescheduling one-shot loop. Each loop owns ONE timer slot (pushing
+// every fired id into an array grew ~9 ids/second under rain, forever);
+// stopping the channel clears the slot, and the callback re-checks the
+// channel still exists before playing.
 function loop(name, fire, minMs, maxMs) {
+  const ch = channels[name];
+  if (!ch) return;
+  const slot = { id: null };
+  ch.loops.push(slot);
   const schedule = () => {
-    const ch = channels[name];
-    if (!ch) return;
-    const id = setTimeout(() => {
+    if (!channels[name]) return;
+    slot.id = setTimeout(() => {
       const live = channels[name];
       if (!live) return;
       fire(live.master);
       schedule();
     }, minMs + Math.random() * (maxMs - minMs));
-    channels[name].timers.push(id);
   };
   schedule();
 }
@@ -246,7 +259,7 @@ function startChannel(name, volume) {
   const master = context.createGain();
   master.gain.value = volume * (preset.gain ?? 1);
   master.connect(context.destination);
-  const ch = { master, nodes: [], timers: [], preset };
+  const ch = { master, nodes: [], loops: [], preset };
   channels[name] = ch;
 
   if (!BEDLESS.has(name)) {
@@ -288,7 +301,7 @@ function stopChannel(name) {
   const ch = channels[name];
   if (!ch) return;
   delete channels[name];
-  ch.timers.forEach(clearTimeout);
+  ch.loops.forEach((slot) => clearTimeout(slot.id));
   ch.nodes.forEach((node) => {
     try {
       node.stop();
@@ -298,7 +311,15 @@ function stopChannel(name) {
   });
   // Let any in-flight one-shots (thunder tail) fade instead of clicking off.
   ch.master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
-  setTimeout(() => ch.master.disconnect(), 1500);
+  setTimeout(() => {
+    ch.master.disconnect();
+    // With every channel silent, park the render thread — a running
+    // AudioContext keeps the audio hardware awake even when producing
+    // silence. ensureContext resumes it on the next play.
+    if (!Object.keys(channels).length && ctx?.state === "running") {
+      ctx.suspend().catch(() => {});
+    }
+  }, 1500);
 }
 
 // The mixer's whole API: volume 0 stops a channel, anything above starts it
@@ -345,6 +366,3 @@ export function playChime() {
   });
 }
 
-export function stopAllSound() {
-  Object.keys(channels).forEach(stopChannel);
-}

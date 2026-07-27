@@ -164,16 +164,25 @@ def wait_until_up(url, timeout=20):
 
 
 def serve(port):
-    """Serve the app. Prefer waitress (a real WSGI server); fall back to Flask."""
+    """Serve the app. Prefer waitress (a real WSGI server); fall back to Flask.
+
+    The try only covers the IMPORT: a bind failure inside waitress_serve used
+    to die invisibly on this daemon thread, leaving the exe to vanish after
+    the 20s health-check timeout with no explanation.
+    """
     try:
         import logging
         from waitress import serve as waitress_serve
-
-        # Quiet waitress's startup banner via its public logger.
-        logging.getLogger("waitress").setLevel(logging.ERROR)
-        waitress_serve(app, host="127.0.0.1", port=port, threads=8)
     except ImportError:
         app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+        return
+
+    # Quiet waitress's startup banner via its public logger.
+    logging.getLogger("waitress").setLevel(logging.ERROR)
+    try:
+        waitress_serve(app, host="127.0.0.1", port=port, threads=8)
+    except Exception as exc:  # noqa: BLE001 — surfaced, not swallowed
+        fatal(f"TaskNook couldn't start its server on port {port}: {exc}")
 
 
 def open_in_browser(url):
@@ -187,10 +196,13 @@ def open_in_browser(url):
 
 def main():
     if not os.path.isfile(os.path.join(DIST_DIR, "index.html")):
-        print("[!] Frontend build not found (frontend/dist/index.html).")
-        print("    Build it once, then relaunch:")
-        print("      cd frontend && npm install && npm run build")
-        sys.exit(1)
+        # fatal(), not print: in the frozen --windowed build print() goes
+        # nowhere and the app would appear to simply not launch.
+        fatal(
+            "Frontend build not found (frontend/dist/index.html).\n"
+            "Build it once, then relaunch:\n"
+            "  cd frontend && npm install && npm run build"
+        )
 
     port = get_port()
     threading.Thread(target=serve, args=(port,), daemon=True).start()
@@ -198,8 +210,10 @@ def main():
     url = f"http://127.0.0.1:{port}/"
     print(f"Starting TaskNook on {url}")
     if not wait_until_up(url + "api/health"):
-        print("[!] The TaskNook server did not start in time.")
-        sys.exit(1)
+        fatal(
+            "The TaskNook server did not start in time. If this keeps "
+            "happening, check tasknook-error.log next to the database."
+        )
 
     # Diagnostic path used for verification — confirms the server boots (and,
     # in a frozen build, that pywebview was bundled) without opening a window.
@@ -209,7 +223,14 @@ def main():
 
             print("SELFTEST OK (webview import OK)")
         except Exception as exc:  # pragma: no cover
-            print(f"SELFTEST OK (webview unavailable: {exc})")
+            # From source pywebview is genuinely optional (browser fallback),
+            # but in the FROZEN exe a missing bundle is precisely the failure
+            # this self-test exists to catch — it must exit non-zero or CI's
+            # exit-code check passes a broken artifact.
+            if getattr(sys, "frozen", False):
+                print(f"SELFTEST FAILED: pywebview missing from the bundle: {exc}")
+                sys.exit(1)
+            print(f"SELFTEST OK (webview unavailable from source: {exc})")
         return
 
     try:

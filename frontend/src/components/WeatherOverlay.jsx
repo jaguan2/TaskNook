@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 
 // Lightweight full-screen visuals to match the weather ambience mode.
 const DROPS = Array.from({ length: 60 });
@@ -6,20 +7,29 @@ const FLAKES = Array.from({ length: 45 });
 
 export default function WeatherOverlay({ mode }) {
   const [flash, setFlash] = useState(false);
+  // The lightning is a full-screen white pulse — under reduced motion it's
+  // not just a motion concern but a photosensitivity one, and being a CSS
+  // *transition* it escapes the prefers-reduced-motion animation block, so
+  // it must be gated here.
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (mode !== "storm") return undefined;
+    if (mode !== "storm" || reduceMotion) return undefined;
     let timer;
+    let flashTimer;
     const scheduleFlash = () => {
       timer = setTimeout(() => {
         setFlash(true);
-        setTimeout(() => setFlash(false), 150);
+        flashTimer = setTimeout(() => setFlash(false), 150);
         scheduleFlash();
       }, 4000 + Math.random() * 9000);
     };
     scheduleFlash();
-    return () => clearTimeout(timer);
-  }, [mode]);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(flashTimer);
+    };
+  }, [mode, reduceMotion]);
 
   if (!mode || mode === "off") return null;
 
@@ -68,7 +78,7 @@ export default function WeatherOverlay({ mode }) {
           );
         })}
 
-      {mode === "storm" && (
+      {mode === "storm" && !reduceMotion && (
         <div className={`lightning-flash ${flash ? "lightning-flash-active" : ""}`} />
       )}
     </div>

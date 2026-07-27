@@ -13,9 +13,9 @@ import {
   wallRuns,
   wallSegment,
 } from "../lib/isoRoom";
+import { unproject } from "../lib/iso";
 import { ISO_SPRITES } from "./IsoItems";
 import RoomTintPicker from "./RoomTintPicker";
-import { unproject } from "../lib/iso";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -97,10 +97,18 @@ function IsoRoom({
   const sizeRef = useRef(size);
   sizeRef.current = size;
 
+  const persistViewTimer = useRef(null);
+  useEffect(() => () => clearTimeout(persistViewTimer.current), []);
   const applyView = (next) => {
     const clamped = clampView(next);
     setView(clamped);
-    localStorage.setItem("tasknook.isoView", JSON.stringify(clamped));
+    // Persisting on every pointermove meant a synchronous JSON+disk write at
+    // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
+    // immediate.
+    clearTimeout(persistViewTimer.current);
+    persistViewTimer.current = setTimeout(() => {
+      localStorage.setItem("tasknook.isoView", JSON.stringify(clamped));
+    }, 300);
   };
 
   useEffect(() => {
@@ -575,9 +583,7 @@ function IsoRoom({
             const Sprite = ISO_SPRITES[p.item];
             if (!item || !Sprite) return null;
             const at = project(p.gx, p.gy);
-            const selected = editMode && selectedId === p.id;
             const foot = footOf(p.item, p.rot);
-            const hitR = project(foot[0], 0); // anchors the ✕/⟳ buttons
             const persona = !!item.persona;
             const glides = persona || !!item.roamer;
             // Wanderers use a CSS transform (transition = the glide);
@@ -635,7 +641,7 @@ function IsoRoom({
                   ) : item.roamer ? (
                     <Sprite awake={!!p._awake} />
                   ) : (
-                    <Sprite rot={p.rot ? 1 : 0} />
+                    <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
                   );
                   if (!p.rot) return sprite;
                   return item.noMirror ? sprite : <g transform="scale(-1,1)">{sprite}</g>;
@@ -705,13 +711,15 @@ function IsoRoom({
         </g>
       </svg>
 
-      {selectedPlacement && ISO_ITEMS[selectedPlacement.item]?.tintable !== false && (
-        <RoomTintPicker
-          placement={selectedPlacement}
-          item={ISO_ITEMS[selectedPlacement.item]}
-          onTint={onTintItem}
-        />
-      )}
+      {selectedPlacement &&
+        (ISO_ITEMS[selectedPlacement.item]?.tintable !== false ||
+          ISO_ITEMS[selectedPlacement.item]?.variants) && (
+          <RoomTintPicker
+            placement={selectedPlacement}
+            item={ISO_ITEMS[selectedPlacement.item]}
+            onTint={onTintItem}
+          />
+        )}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 import { useState } from "react";
+import { Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { WEATHER_OPTIONS } from "./TopBar";
 
 const TIME_OPTIONS = [
-  { key: "night", label: "Night", icon: "🌙" },
-  { key: "sunset", label: "Sunset", icon: "🌅" },
-  { key: "day", label: "Day", icon: "☀️" },
+  { key: "night", label: "Night", Icon: Moon },
+  { key: "sunset", label: "Sunset", Icon: Sunset },
+  { key: "day", label: "Day", Icon: Sun },
 ];
 
 export default function WeatherPanel() {
@@ -51,7 +52,9 @@ export default function WeatherPanel() {
       {/* Real-world weather */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🌍 Right now</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Globe size={15} className="text-petal/70" /> Right now
+          </p>
           <button
             onClick={() => refreshRealWeather()}
             disabled={weatherStatus === "loading"}
@@ -105,7 +108,9 @@ export default function WeatherPanel() {
       {/* Auto-match toggle */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🪄 Match my real weather</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Wand2 size={15} className="text-petal/70" /> Match my real weather
+          </p>
           <button
             onClick={toggleAutoMatchWeather}
             className={`pill px-3 py-1 text-xs font-semibold ${
@@ -128,7 +133,9 @@ export default function WeatherPanel() {
           weatherMode and timeOfDay. Visual only (same rule as the corner
           popover); the sound mix stays the Sounds panel's business. */}
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">🌆 Weather conditions</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Sunset size={15} className="text-petal/70" /> Weather conditions
+        </p>
         <p className="text-xs text-petal/60">
           One tap sets the whole scene — clear night, cloudy day, rainy
           sunset… Visual only: sounds stay yours in the Sounds panel.
@@ -136,8 +143,8 @@ export default function WeatherPanel() {
         <div className="space-y-1">
           {WEATHER_OPTIONS.map((w) => (
             <div key={w.key} className="flex items-center gap-1.5">
-              <span className="w-[4.5rem] shrink-0 text-xs text-petal">
-                {w.icon} {w.label}
+              <span className="flex w-[4.5rem] shrink-0 items-center gap-1 text-xs text-petal">
+                <w.Icon size={13} className="shrink-0 text-petal/70" /> {w.label}
               </span>
               {TIME_OPTIONS.map((t) => {
                 const active = weatherMode === w.key && timeOfDay === t.key;
@@ -149,13 +156,13 @@ export default function WeatherPanel() {
                       setTimeOfDay(t.key);
                     }}
                     title={`${w.label} ${t.label.toLowerCase()}`}
-                    className={`pill flex-1 px-2 py-1 text-[11px] font-semibold ${
+                    className={`pill flex flex-1 items-center justify-center gap-1 px-2 py-1 text-[11px] font-semibold ${
                       active
                         ? "bg-glow text-plum"
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
-                    {t.icon} {t.label}
+                    <t.Icon size={12} /> {t.label}
                   </button>
                 );
               })}
@@ -168,7 +175,9 @@ export default function WeatherPanel() {
 
       {/* Saved scene presets */}
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">💾 Presets</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Save size={15} className="text-petal/70" /> Presets
+        </p>
         <p className="text-xs text-petal/60">
           Save the current weather, time of day, and sound mix as a scene to
           recall in one click.

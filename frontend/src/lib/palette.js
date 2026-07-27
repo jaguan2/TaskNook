@@ -92,7 +92,10 @@ export function normalizeHex(input) {
  *   opacity modifiers (bg-rose/40) keep working.
  */
 export function derivePalette(hex) {
-  const { h, s, l } = hexToHsl(hex);
+  // Total function: garbage in must not mean "NaN NaN NaN" out — these values
+  // land directly on <html> as CSS variables, and one bad set unstyles the
+  // entire app with no in-app way back.
+  const { h, s, l } = hexToHsl(normalizeHex(hex) || "#d98a93");
   const darkSat = clamp(s * 0.6, 14, 40);
   const accentSat = clamp(s, 22, 68);
   const roseL = clamp(l, 52, 72); // the pick itself, kept off the extremes

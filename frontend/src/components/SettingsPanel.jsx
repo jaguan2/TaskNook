@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Palette, SunMedium } from "lucide-react";
 import { useStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 
@@ -60,14 +61,18 @@ export default function SettingsPanel() {
 
   const commitHex = (value) => {
     setHexDraft(value);
-    const hex = normalizeHex(value);
-    if (hex) setCustomColor(hex);
+    // Only commit a COMPLETE 6-digit colour: normalizeHex would expand a
+    // 3-digit prefix ("#abc" → "#aabbcc") mid-typing and hijack the field.
+    const raw = value.trim().replace(/^#/, "");
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) setCustomColor(`#${raw.toLowerCase()}`);
   };
 
   return (
     <div className="space-y-5">
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">☀️ Brightness</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <SunMedium size={15} className="text-petal/70" /> Brightness
+        </p>
         <p className="text-xs text-petal/60">Dims or brightens the whole scene.</p>
         <div className="flex items-center gap-3">
           <span className="text-xs text-petal/60">dim</span>
@@ -87,7 +92,9 @@ export default function SettingsPanel() {
       <hr className="border-white/10" />
 
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">🎨 Colour scheme</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Palette size={15} className="text-petal/70" /> Colour scheme
+        </p>
         <p className="text-xs text-petal/60">Re-tint the whole app, including the desk scene.</p>
         <div className="flex flex-wrap gap-2">
           {COLOR_SCHEMES.map((s) => (

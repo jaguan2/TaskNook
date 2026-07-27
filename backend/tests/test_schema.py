@@ -208,10 +208,26 @@ def test_pruning_never_touches_files_we_did_not_create(tmp_path, monkeypatch):
 
 
 def test_baseline_revision_still_exists_in_history():
-    """The legacy-adoption stamp targets this revision by name; renaming or
-    squashing it away would strand every pre-migrations install."""
-    import os
+    """The legacy-adoption stamp targets this revision ID; renaming or
+    squashing it away would strand every pre-migrations install.
 
-    versions = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "migrations", "versions")
-    joined = " ".join(os.listdir(versions))
-    assert BASELINE_REVISION in joined
+    Asserts on the `revision = "..."` identifiers declared INSIDE the files —
+    the stamp resolves against Alembic's revision graph, not filenames, so a
+    filename that merely CONTAINS the id must not keep this green."""
+    import os
+    import re
+
+    versions = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "migrations",
+        "versions",
+    )
+    revisions = set()
+    for fname in os.listdir(versions):
+        if not fname.endswith(".py"):
+            continue
+        with open(os.path.join(versions, fname), encoding="utf-8") as fh:
+            m = re.search(r"^revision\s*=\s*['\"]([^'\"]+)['\"]", fh.read(), re.M)
+        if m:
+            revisions.add(m.group(1))
+    assert BASELINE_REVISION in revisions

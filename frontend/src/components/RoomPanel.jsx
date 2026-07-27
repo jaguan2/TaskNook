@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Boxes, Check, Eraser, Scaling, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
+import { project, floorPatch } from "../lib/iso";
 import {
   ISO_ENVS,
   ISO_ENV_KEYS,
@@ -10,8 +12,62 @@ import {
   ISO_PRESETS,
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
+  cutsToMask,
+  sortIso,
+  tileOn,
 } from "../lib/isoRoom";
 import { ITEM_SPRITES } from "./RoomItems";
+import { ISO_SPRITES } from "./IsoItems";
+
+// A preset button IS the room in miniature: the same sprites the scene
+// renders, drawn over the preset's floor at postage-stamp size — emoji pills
+// told you nothing about what you'd get (user feedback).
+function IsoPresetPreview({ preset }) {
+  const { w, d } = preset.size;
+  const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
+  const size = { w, d, ...(mask && { mask }) };
+  const grass = preset.size.env === "garden";
+  const items = sortIso(preset.items.map((p, i) => ({ ...p, id: `pv${i}` })));
+  const L = project(0, d);
+  const R = project(w, 0);
+  const F = project(w, d);
+  return (
+    <svg
+      viewBox={`${L.x - 6} -104 ${R.x - L.x + 12} ${F.y + 118}`}
+      className="h-24 w-full"
+      aria-hidden="true"
+    >
+      {Array.from({ length: d }, (_, ty) =>
+        Array.from({ length: w }, (_, tx) =>
+          tileOn(size, tx, ty) ? (
+            <polygon
+              key={`${tx}-${ty}`}
+              points={floorPatch(tx, ty, 1, 1)}
+              fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+              opacity="0.8"
+            />
+          ) : null
+        )
+      )}
+      {items.map((p) => {
+        const item = ISO_ITEMS[p.item];
+        const Sprite = ISO_SPRITES[p.item];
+        if (!item || !Sprite) return null;
+        const at = project(p.gx, p.gy);
+        const sprite = <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />;
+        return (
+          <g
+            key={p.id}
+            transform={`translate(${at.x},${at.y})`}
+            style={p.tint ? { "--tint": p.tint } : undefined}
+          >
+            {p.rot && !item.noMirror ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
 const PREVIEW_TIME = { lampGlow: 0.55, screenGlow: 0.4, bulbGlow: 0.95 };
@@ -86,13 +142,21 @@ export default function RoomPanel() {
       <section className="space-y-2">
         <button
           onClick={() => setRoomEditMode(!roomEditMode)}
-          className={`pill w-full py-2.5 font-semibold ${
+          className={`pill flex w-full items-center justify-center gap-1.5 py-2.5 font-semibold ${
             roomEditMode
               ? "bg-glow text-plum"
               : "bg-white/10 text-cream hover:bg-white/20"
           }`}
         >
-          {roomEditMode ? "✓ Done decorating" : "🛋️ Decorate the room"}
+          {roomEditMode ? (
+            <>
+              <Check size={16} /> Done decorating
+            </>
+          ) : (
+            <>
+              <Sofa size={16} /> Decorate the room
+            </>
+          )}
         </button>
         <p className="text-xs text-petal/60">
           {roomEditMode
@@ -106,7 +170,9 @@ export default function RoomPanel() {
       {/* Isometric room (beta) */}
       <section className="space-y-2 rounded-2xl border border-glow/20 bg-glow/5 p-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🧊 Isometric room</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Boxes size={15} className="text-petal/70" /> Isometric room
+          </p>
           <button
             onClick={() => setIsoPreview(!isoPreview)}
             className={`pill px-3 py-1 text-xs font-semibold ${
@@ -199,6 +265,11 @@ export default function RoomPanel() {
                       key={`${x}-${y}`}
                       onPointerDown={(e) => {
                         e.preventDefault();
+                        // Touch gives the first cell implicit pointer capture,
+                        // which swallows the enter events drag-painting needs.
+                        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+                          e.currentTarget.releasePointerCapture(e.pointerId);
+                        }
                         const on = c !== "1";
                         setPaintMode(on);
                         setIsoTile(x, y, on);
@@ -234,7 +305,9 @@ export default function RoomPanel() {
       {!isoPreview && (
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🔍 Room size</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Scaling size={15} className="text-petal/70" /> Room size
+          </p>
           <span className="text-xs tabular-nums text-petal/60">
             {Math.round(roomScale * 100)}%
             {roomScale !== 1 && (
@@ -262,22 +335,23 @@ export default function RoomPanel() {
       </section>
       )}
 
-      {/* Iso presets — a happy default plus a couple of moods */}
+      {/* Iso presets — each button is a live miniature of the room it applies */}
       {isoPreview && (
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
             Start from a preset
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
             {ISO_PRESET_KEYS.map((key) => (
               <button
                 key={key}
                 onClick={() => applyIsoPreset(key)}
-                className={`pill bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
-                  key === "empty" ? "text-petal/60 hover:text-danger" : "text-petal"
-                }`}
+                className="rounded-xl bg-white/5 p-2 text-left transition hover:bg-white/15"
               >
-                {ISO_PRESETS[key].icon} {ISO_PRESETS[key].label}
+                <IsoPresetPreview preset={ISO_PRESETS[key]} />
+                <span className="mt-1 block truncate text-center text-xs font-medium text-cream">
+                  {ISO_PRESETS[key].icon} {ISO_PRESETS[key].label}
+                </span>
               </button>
             ))}
           </div>
@@ -350,13 +424,19 @@ export default function RoomPanel() {
               here read as one feature. */}
           <button
             onClick={() => arm("clear", clearRoom)}
-            className={`pill bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
+            className={`pill flex items-center gap-1 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 ${
               armedId === "clear"
                 ? "font-bold text-danger"
                 : "text-petal/60 hover:text-danger"
             }`}
           >
-            {armedId === "clear" ? "sure?" : "🧹 Clear the room"}
+            {armedId === "clear" ? (
+              "sure?"
+            ) : (
+              <>
+                <Eraser size={12} /> Clear the room
+              </>
+            )}
           </button>
         </div>
         <p className="mt-2 text-xs text-petal/50">

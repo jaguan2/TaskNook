@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
 import { toISO } from "../lib/dates";
 
@@ -53,9 +54,13 @@ export default function CalendarPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={() => shift(-1)} className="pill px-3 py-1 text-cream hover:bg-white/10">‹</button>
+        <button onClick={() => shift(-1)} title="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+          <ChevronLeft size={15} />
+        </button>
         <p className="text-sm font-semibold text-cream">{monthName}</p>
-        <button onClick={() => shift(1)} className="pill px-3 py-1 text-cream hover:bg-white/10">›</button>
+        <button onClick={() => shift(1)} title="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+          <ChevronRight size={15} />
+        </button>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center">

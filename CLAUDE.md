@@ -90,7 +90,7 @@ is discoverable by PyInstaller's analyzer** — every one of its third-party
 imports needs an explicit flag in `build-exe.bat`, and forgetting one only
 fails at runtime *in the exe* (silently, since `--windowed` has no console).
 Currently required, each learned from an actual frozen-build failure:
-`--hidden-import flask_cors`, `--hidden-import flask_sqlalchemy`,
+`--hidden-import flask_sqlalchemy`,
 `--hidden-import flask_migrate`, `--collect-all alembic` (Alembic loads
 `env.py` and the `versions/*.py` migrations *dynamically*, so the analyzer
 can't see them), and `--hidden-import logging.config` (a stdlib submodule
@@ -163,6 +163,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `store.jsx`'s bootstrap effect calls them itself against the fixed `LOCAL_ACCOUNT`
   credentials (login, falling back to register on first run) instead of a user
   typing anything in. `/api/auth/logout` still exists but nothing calls it.
+  There is deliberately NO CORS on the API: every legitimate client is
+  same-origin (the packaged app serves the SPA itself; the Vite dev server
+  PROXIES `/api`), and a wildcard `Access-Control-Allow-Origin` would let
+  any web page in any browser drive the localhost API with the well-known
+  local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
   association table. `Task.group_name` is the VC2-style to-do group header
   (nullable; a name list for still-empty groups lives client-side in
@@ -235,9 +240,12 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **Ambient audio**: `lib/audio.js` is a procedural **mixer** — channels
   (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, birds) play
   simultaneously, each at its own volume, via `setChannel(name, 0..1)` /
-  `applyMix`. No audio files, works offline. The noise channels share one
+  `applyMix`. No audio files, works offline. The mixer's channels are rain,
+  storm, snow, wind, fireplace, cafe and paper (birds were replaced — page
+  turns and a café suit a study nook better). The noise channels share one
   filtered-noise engine with per-channel presets; storm schedules thunder,
-  fireplace schedules crackles, birds are oscillator chirps — all one-shots
+  fireplace schedules crackles, the café murmurs under steam bursts and cup
+  clinks, paper is one-shot-only page turns (no bed) — all one-shots
   route through the channel's master gain so its slider scales them.
   **Rain schedules droplet plinks on top of a dark noise bed** — the
   transients are what make it read as rain instead of radio static (user
@@ -461,8 +469,15 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   CSS var reaches a PNG) and `noMirror: true`. Fixed recolours are done by
   palette-remapping the committed PNGs (the bed's white duvet: remap hue
   2–28°, sat>0.25 pixels, keep lightness order) — arbitrary live tinting
-  stays SVG-only. New Kenney items should come from the SAME kit so the
-  modelled style stays consistent.
+  stays SVG-only. Fabric pieces (bed/sofa/armchair) instead offer
+  **colourway variants**: catalog `variants` maps tint-hex → render suffix
+  (`bedDouble_rose_SW.png`…), the placement's ordinary `tint` field stores
+  the chosen hex (so persistence/validation are untouched; unknown hexes
+  fall back to the default render), RoomTintPicker shows a swatch-only
+  popover for these items, and only manifest layers flagged `v` respond
+  (a composite's counter doesn't recolour with its machine). New Kenney
+  items should come from the SAME kit so the modelled style stays
+  consistent.
   **Rotation** (`rot: 0|1`, the ⟳ button when selected): a screen-mirror
   `scale(-1,1)` about the sprite origin IS a grid transpose, so one drawn
   facing per item gives both orientations — `footOf(item, rot)` swaps the
@@ -562,9 +577,12 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 ## Validating changes
 
-- Frontend: `cd frontend && npm test` (Vitest — pure logic: ordering
-  algorithms, the palette ramp, local-date formatting), then `npm run build`
-  for a full parse check.
+- Frontend: `cd frontend && npm run lint` (ESLint — just core recommended +
+  the two battle-tested react-hooks rules; the plugin's compiler-era extras
+  are deliberately off), `npm test` (Vitest — pure logic: ordering
+  algorithms, the palette ramp incl. the dark-floor legibility guarantee,
+  local-date formatting), then `npm run build` for a full parse check. CI
+  runs all three.
 - Backend: `cd backend && python -m pytest tests -q` (the schema/upgrade
   guarantees). `pip install -r requirements-dev.txt` first.
 - **Schema drift**: `flask db check` reports "new upgrade operations" whenever

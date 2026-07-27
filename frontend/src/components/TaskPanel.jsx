@@ -26,6 +26,7 @@ export default function TaskPanel() {
   const [duration, setDuration] = useState(25);
   const [priority, setPriority] = useState("medium");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const dragIndex = useRef(null);
 
   // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
@@ -37,8 +38,11 @@ export default function TaskPanel() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    // busy guard: a double Enter would otherwise create the task twice
+    // (HudTasks clears its draft pre-await; Friends uses the same flag).
+    if (busy || !name.trim()) return;
     setError("");
+    setBusy(true);
     try {
       // Guard against an emptied number field (Number("") === 0).
       await addTask({ name: name.trim(), duration: Math.max(1, Number(duration) || 25), priority });
@@ -47,6 +51,8 @@ export default function TaskPanel() {
       setPriority("medium");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -94,7 +100,10 @@ export default function TaskPanel() {
             <option className="bg-plum" value="high">High</option>
           </select>
         </div>
-        <button className="pill w-full bg-glow py-2 font-semibold text-plum hover:bg-amber">
+        <button
+          disabled={busy}
+          className="pill w-full bg-glow py-2 font-semibold text-plum hover:bg-amber disabled:opacity-50"
+        >
           + Add task
         </button>
         {error && <p className="text-xs text-danger">{error}</p>}
@@ -199,6 +208,7 @@ export default function TaskPanel() {
             >
               <button
                 onClick={() => toggleTask(task)}
+                title="Mark as not done"
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sage text-xs text-plum"
               >
                 ✓

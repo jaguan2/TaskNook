@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
@@ -165,7 +166,9 @@ export default function App() {
   return (
     <div
       className="relative h-full w-full overflow-hidden"
-      style={{ filter: `brightness(${brightness})` }}
+      // No identity filter: any non-none filter on the root forces the whole
+      // app into one composited layer that re-rasterizes every paint.
+      style={brightness === 1 ? undefined : { filter: `brightness(${brightness})` }}
     >
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
@@ -224,13 +227,14 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={() => setRoomEditMode(false)}
-            className="pill glass absolute bottom-6 left-6 z-30 px-4 py-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="pill glass absolute bottom-6 left-6 z-30 flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
             {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
                 ⌫ only works in the iso scene (the flat one has per-item ✕). */}
+            <Sofa size={15} className="shrink-0" />
             {isoPreview
-              ? "🛋️ Decorating — drag items · ⌫ removes · Esc or click to finish"
-              : "🛋️ Decorating — drag items · Esc or click to finish"}
+              ? "Decorating — drag items · ⌫ removes · Esc or click to finish"
+              : "Decorating — drag items · Esc or click to finish"}
           </motion.button>
         )}
       </AnimatePresence>

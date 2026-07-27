@@ -42,7 +42,6 @@ REM    set TASKNOOK_SELFTEST=1 && TaskNook.exe   (exit code must be 0)
   --add-data "backend\migrations\*.mako;backend\migrations" ^
   --add-data "backend\migrations\versions\*.py;backend\migrations\versions" ^
   --add-data "frontend\dist;frontend\dist" ^
-  --hidden-import flask_cors ^
   --hidden-import flask_sqlalchemy ^
   --hidden-import flask_migrate ^
   --collect-all alembic ^

@@ -10,6 +10,22 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+def _utc_iso(dt):
+    """Serialize a stored timestamp WITH its UTC marker.
+
+    SQLite's DateTime column drops the offset on write and returns naive
+    datetimes, so a bare isoformat() has no 'Z'/'+00:00' — and JS parses an
+    offset-less date-time string as LOCAL time, shifting every timestamp by
+    the user's UTC offset (a task completed in the evening tinted the NEXT
+    day on the calendar for anyone west of UTC).
+    """
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
 # Association table for the (symmetric) friendship graph.
 friendships = db.Table(
     "friendships",
@@ -86,8 +102,8 @@ class Task(db.Model):
             "scheduledDate": self.scheduled_date,
             "group": self.group_name,
             "routine": self.is_routine,
-            "createdAt": self.created_at.isoformat() if self.created_at else None,
-            "completedAt": self.completed_at.isoformat() if self.completed_at else None,
+            "createdAt": _utc_iso(self.created_at),
+            "completedAt": _utc_iso(self.completed_at),
         }
 
 
@@ -108,7 +124,7 @@ class FocusSession(db.Model):
             "minutes": self.minutes,
             "taskName": self.task_name,
             "day": self.day,
-            "startedAt": self.started_at.isoformat() if self.started_at else None,
+            "startedAt": _utc_iso(self.started_at),
         }
 
 

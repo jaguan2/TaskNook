@@ -11,7 +11,6 @@
 // inside the room so nothing can be dragged somewhere it can't be grabbed
 // back from. `tint` is an optional #rrggbb the sprite's main material takes on.
 
-export const SCENE = { width: 640, height: 480 };
 
 // Dragging snaps to a fine grid: loose enough to feel freeform, tight enough
 // that nudged items line up.
