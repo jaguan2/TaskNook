@@ -45,6 +45,16 @@ export const ISO_ITEMS = {
   sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 42, seat: 24, tintable: false, noMirror: true },
   armchair: { label: "Armchair", icon: "💺", foot: [1, 1], hitH: 40, seat: 22, tintable: false, noMirror: true },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, tintable: false, noMirror: true },
+  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 44, seat: 18, tintable: false, noMirror: true },
+  shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60, tintable: false, noMirror: true },
+  bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 64, tintable: false, noMirror: true },
+  sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 34, tintable: false, noMirror: true },
+  radio: { label: "Radio", icon: "📻", foot: [0.7, 0.25], hitH: 20, tintable: false, noMirror: true },
+  fridge: { label: "Little fridge", icon: "🧊", foot: [1, 0.7], hitH: 48, tintable: false, noMirror: true },
+  cafetable: { label: "Café table", icon: "🍰", foot: [1.2, 1.2], hitH: 28, tintable: false, noMirror: true },
+  counter: { label: "Counter", icon: "🥐", foot: [1, 0.5], hitH: 32, tintable: false, noMirror: true },
+  coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 44, tintable: false, noMirror: true },
+  tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 60, tintable: false, noMirror: true },
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30 },
   bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 50, seat: 30, tintable: false, noMirror: true },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
@@ -373,7 +383,7 @@ export const ISO_PRESETS = {
       // work wall: desk flush against the right wall, stool on its centre —
       // and the resident seated on it, studying (VC2-style)
       { item: "desk", gx: 3, gy: 0 },
-      { item: "stool", gx: 4, gy: 1.5 },
+      { item: "chair", gx: 4, gy: 1.5 },
       { item: "resident", gx: 4, gy: 1.5 },
       { item: "frame", gx: 1, gy: 0 },
       { item: "wallclock", gx: 4.5, gy: 0 },
@@ -414,6 +424,7 @@ export const ISO_PRESETS = {
       { item: "cat", gx: 2, gy: 5.5, tint: "#8a5a3b" },
       { item: "floorlamp", gx: 0.5, gy: 6.5 },
       // loose warmth
+      { item: "radio", gx: 3.5, gy: 6.5 },
       { item: "cushion", gx: 4, gy: 4.5, tint: "#c98a4b" },
       { item: "plant", gx: 0.5, gy: 0.5 },
       { item: "monstera", gx: 8, gy: 7 },
@@ -428,7 +439,8 @@ export const ISO_PRESETS = {
       // bed tucked into the far right corner, nightstand beside it
       { item: "bed", gx: 8, gy: 0 },
       { item: "nightstand", gx: 7, gy: 0 },
-      // back wall: record console under the shelf, aquarium beside it
+      // back wall: TV corner, record console under the shelf, aquarium
+      { item: "tvunit", gx: 0.5, gy: 0 },
       { item: "recordplayer", gx: 3, gy: 0, tint: "#4a3a5b" },
       { item: "aquarium", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 2, gy: 0, tint: "#3a3142" },
@@ -451,22 +463,26 @@ export const ISO_PRESETS = {
     icon: "☕",
     size: { w: 10, d: 7 },
     items: [
-      // the counter row along the back wall
+      // a REAL counter row along the back wall: bar, espresso machine, bar,
+      // little fridge at the end — an actual café since the kit arrived
       { item: "bookshelf", gx: 0, gy: 0.5, rot: 1 },
-      { item: "desk", gx: 3.5, gy: 0 },
+      { item: "counter", gx: 3.5, gy: 0 },
+      { item: "coffeecounter", gx: 4.5, gy: 0 },
+      { item: "counter", gx: 5.5, gy: 0 },
+      { item: "fridge", gx: 6.5, gy: 0 },
       { item: "frame", gx: 1.5, gy: 0, tint: "#9a6a45" },
       { item: "wallclock", gx: 3, gy: 0, tint: "#6b4a39" },
       { item: "wallshelf", gx: 6.5, gy: 0, tint: "#9a6a45" },
       { item: "aquarium", gx: 8.5, gy: 0 },
-      // seating set A on the big rug: stools flank the table's centreline
+      // seating set A on the big rug: chairs flank the round table
       { item: "rug", gx: 0.5, gy: 2.5, tint: "#c98a4b" },
-      { item: "coffeetable", gx: 2, gy: 3 },
-      { item: "stool", gx: 1, gy: 3, tint: "#e8b04b" },
-      { item: "stool", gx: 3.5, gy: 3, tint: "#e8b04b" },
+      { item: "cafetable", gx: 2, gy: 3 },
+      { item: "chair", gx: 1, gy: 3 },
+      { item: "chair", gx: 3.5, gy: 3 },
       // seating set B, same geometry, shifted right and forward
-      { item: "coffeetable", gx: 6, gy: 4 },
-      { item: "stool", gx: 5, gy: 4, tint: "#d98a93" },
-      { item: "stool", gx: 7.5, gy: 4, tint: "#d98a93" },
+      { item: "cafetable", gx: 6, gy: 4 },
+      { item: "chair", gx: 5, gy: 4 },
+      { item: "chair", gx: 7.5, gy: 4 },
       // life
       { item: "floorlamp", gx: 9, gy: 2.5, tint: "#c98a4b" },
       { item: "cat", gx: 6, gy: 5.5 },

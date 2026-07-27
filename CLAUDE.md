@@ -447,14 +447,22 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
   drag engine in `IsoRoom.jsx`.
-  **Rendered-PNG sprites**: bed/sofa/armchair/nightstand are pre-rendered
-  isometric views from Kenney's Furniture Kit (CC0 — the hand-drawn SVG
-  versions never stopped reading as stacked boxes; see
-  `frontend/src/assets/kenney/LICENSE.txt`). They're `tintable: false` (no
-  CSS var reaches a PNG) and `noMirror: true`; the `kenneySprite` factory
-  maps each cropped render's width onto the footprint diamond and its
-  bottom edge onto the front corner. New Kenney items should come from the
-  SAME kit so the modelled style stays consistent.
+  **Rendered-PNG sprites**: 14 items (bed, sofa, armchair, nightstand,
+  chair, shelf, bookcase, sidetable, radio, fridge, cafetable, counter,
+  coffeecounter, tvunit) are pre-rendered isometric views from Kenney's
+  Furniture Kit (CC0 — the hand-drawn SVG versions never stopped reading as
+  stacked boxes; see `frontend/src/assets/kenney/LICENSE.txt` for the
+  file→item map). One `import.meta.glob` pulls in the whole assets/kenney
+  folder (everything there gets bundled — don't park unused renders in it);
+  each item is a manifest row of LAYERS in `IsoItems.jsx`, so renders can
+  stack (`coffeecounter` = bar + espresso machine, `tvunit` = cabinet + TV;
+  a layer's `lift` = the parent's scaled render height minus its base
+  diamond, width×0.5774 at the kit camera). All are `tintable: false` (no
+  CSS var reaches a PNG) and `noMirror: true`. Fixed recolours are done by
+  palette-remapping the committed PNGs (the bed's white duvet: remap hue
+  2–28°, sat>0.25 pixels, keep lightness order) — arbitrary live tinting
+  stays SVG-only. New Kenney items should come from the SAME kit so the
+  modelled style stays consistent.
   **Rotation** (`rot: 0|1`, the ⟳ button when selected): a screen-mirror
   `scale(-1,1)` about the sprite origin IS a grid transpose, so one drawn
   facing per item gives both orientations — `footOf(item, rot)` swaps the
