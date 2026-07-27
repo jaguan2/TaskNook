@@ -107,18 +107,56 @@ async function getJSON(url, fallback) {
   return data;
 }
 
-export async function geocodeCity(name) {
+const PLACE_LIMIT = 6;
+
+/** "140k" / "1.2m" — enough to tell two same-named towns apart at a glance. */
+export function formatPopulation(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)}k`;
+  return String(n);
+}
+
+/**
+ * Places matching a name, most prominent first.
+ *
+ * This used to ask for `count=1` and return that one silently, which meant
+ * "Gainesville" resolved to whichever Open-Meteo ranked first and there was no
+ * way to reach the other one. Returning the list makes the ambiguity the
+ * caller's to resolve: one hit can be used straight away, several have to be
+ * offered.
+ */
+export async function searchPlaces(name) {
   const data = await getJSON(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`,
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+      name
+    )}&count=${PLACE_LIMIT}`,
     "Couldn't reach the location service"
   );
-  const hit = data.results?.[0];
-  if (!hit) throw new Error(`No place found named "${name}"`);
-  return {
-    lat: hit.latitude,
-    lon: hit.longitude,
-    label: [hit.name, hit.admin1, hit.country].filter(Boolean).join(", "),
-  };
+  const results = Array.isArray(data.results) ? data.results : [];
+  const seen = new Set();
+  const places = [];
+  for (const hit of results) {
+    // A row we can't fetch weather for is worse than no row.
+    if (!Number.isFinite(hit?.latitude) || !Number.isFinite(hit?.longitude)) continue;
+    const region = [hit.admin1, hit.country].filter(Boolean).join(", ");
+    const label = [hit.name, region].filter(Boolean).join(", ");
+    // Open-Meteo can list the same place twice under different feature codes.
+    // Two identical rows in a "which one?" list are worse than useless.
+    if (seen.has(label)) continue;
+    seen.add(label);
+    places.push({
+      id: hit.id ?? `${hit.latitude},${hit.longitude}`,
+      lat: hit.latitude,
+      lon: hit.longitude,
+      name: hit.name,
+      region,
+      label,
+      population: Number.isFinite(hit.population) ? hit.population : 0,
+    });
+  }
+  if (!places.length) throw new Error(`No place found named "${name}"`);
+  return places;
 }
 
 // A 45-minute window around actual sunrise/sunset reads as "sunset" — the

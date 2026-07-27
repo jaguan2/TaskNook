@@ -107,7 +107,16 @@ def claim_single_instance():
 
 
 if not claim_single_instance():
-    # Not an error — just tell them where it went, or they'll keep clicking.
+    # A SELF-TEST that couldn't claim the lock has verified nothing — it never
+    # reached the server, the migrations or the pywebview import. Exiting 0
+    # there would report success for a stale or broken binary purely because a
+    # window happened to be open, which defeats the only check that actually
+    # proves the packaged app works.
+    if os.environ.get("TASKNOOK_SELFTEST"):
+        print("SELFTEST FAILED: another instance holds the lock — nothing was verified")
+        sys.exit(1)
+    # For a real launch this isn't an error — just tell them where it went, or
+    # they'll keep clicking.
     _message_box(
         "TaskNook is already running.\n\nLook for its window (check the taskbar).",
         MB_ICON_INFO,

@@ -10,9 +10,10 @@ import { api, getToken, setToken } from "./lib/api";
 import { readStored, writeStored } from "./lib/storage";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
+import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
-import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
+import { locateBrowser, searchPlaces, fetchCurrentWeather } from "./lib/weather";
 import {
   MAX_ITEMS,
   newPlacement,
@@ -33,7 +34,7 @@ export const useStore = () => useContext(StoreContext);
 
 // The two ambience axes, whitelisted because both are restored from
 // localStorage and both index into lookup tables in the scene components.
-const WEATHER_MODES = ["off", "cloudy", "rain", "snow", "storm"];
+const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
 const TIMES_OF_DAY = ["night", "sunset", "day"];
 
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
@@ -165,6 +166,9 @@ export function StoreProvider({ children }) {
   const [realWeather, setRealWeather] = useState(null);
   const [weatherStatus, setWeatherStatus] = useState("idle"); // idle | loading | ready | error
   const [weatherError, setWeatherError] = useState("");
+  // Candidate places from the last city search, when the name matched more
+  // than one. Empty means nothing to disambiguate.
+  const [weatherPlaces, setWeatherPlaces] = useState([]);
   const [weatherLocationLabel, setWeatherLocationLabel] = useState(
     () => readStored("tasknook.weather.location") || ""
   );
@@ -219,6 +223,41 @@ export function StoreProvider({ children }) {
   const [customColor, setCustomColorState] = useState(
     () => normalizeHex(readStored("tasknook.customColor")) || "#d98a93"
   );
+
+  // How much the room is allowed to move. "auto" follows the OS preference,
+  // which is what everything did before there was a setting at all — the
+  // other two let someone have a calm room without changing their whole
+  // system, or keep the room alive despite a system-wide preference they set
+  // for something else.
+  const [motionMode, setMotionModeState] = useState(() => {
+    const saved = readStored("tasknook.motion");
+    return MOTION_MODES.includes(saved) ? saved : "auto";
+  });
+  const setMotionMode = useCallback((mode) => {
+    if (!MOTION_MODES.includes(mode)) return;
+    setMotionModeState(mode);
+    writeStored("tasknook.motion", mode);
+    applyMotionMode(mode);
+  }, []);
+  // Keep the attribute honest if the OS preference changes mid-session while
+  // we're on "auto" — index.html only set it once, at boot.
+  useEffect(() => {
+    applyMotionMode(motionMode);
+    if (motionMode !== "auto") return undefined;
+    let mq;
+    try {
+      mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    } catch {
+      return undefined;
+    }
+    const onChange = () => applyMotionMode("auto");
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+      else mq.removeListener(onChange);
+    };
+  }, [motionMode]);
 
   const [customStations, setCustomStations] = useState(() => {
     try {
@@ -726,6 +765,7 @@ export function StoreProvider({ children }) {
     writeStored("tasknook.colorScheme", scheme);
   };
   // Picking a colour implies you want the custom scheme.
+  // (motion setter is below, next to its state)
   const setCustomColor = (hex) => {
     setCustomColorState(hex);
     writeStored("tasknook.customColor", hex);
@@ -761,14 +801,30 @@ export function StoreProvider({ children }) {
     }
   }, []);
 
+  /** Commit to one place: remember it and fetch its weather. */
+  const chooseWeatherPlace = async (place) => {
+    setWeatherPlaces([]);
+    setWeatherLocationLabel(place.label);
+    writeStored("tasknook.weather.location", place.label);
+    await refreshRealWeather({ lat: place.lat, lon: place.lon });
+  };
+
   const searchWeatherCity = async (name) => {
     setWeatherStatus("loading");
     setWeatherError("");
+    setWeatherPlaces([]);
     try {
-      const place = await geocodeCity(name);
-      setWeatherLocationLabel(place.label);
-      writeStored("tasknook.weather.location", place.label);
-      await refreshRealWeather({ lat: place.lat, lon: place.lon });
+      const places = await searchPlaces(name);
+      // One match is unambiguous — don't make someone confirm it. Several
+      // means the name is genuinely shared (Gainesville is in Florida AND
+      // Alabama), and guessing for them is how you end up showing the wrong
+      // state's weather with no way to correct it.
+      if (places.length === 1) {
+        await chooseWeatherPlace(places[0]);
+        return;
+      }
+      setWeatherPlaces(places);
+      setWeatherStatus("idle");
     } catch (err) {
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't find that place");
@@ -956,6 +1012,8 @@ export function StoreProvider({ children }) {
     weatherStatus,
     weatherError,
     weatherLocationLabel,
+    weatherPlaces,
+    chooseWeatherPlace,
     autoMatchWeather,
     toggleAutoMatchWeather,
     refreshRealWeather,
@@ -972,6 +1030,8 @@ export function StoreProvider({ children }) {
     setColorScheme,
     customColor,
     setCustomColor,
+    motionMode,
+    setMotionMode,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

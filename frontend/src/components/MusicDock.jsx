@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Headphones, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
+import { Headphones, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
 import { useStore } from "../store";
 import { readStored, writeStored } from "../lib/storage";
 import { stationKey } from "../lib/musicLink";
@@ -232,7 +232,8 @@ export default function MusicDock({ onOpenPanel }) {
     station.label;
 
   return (
-    <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2">
+    // bottom-6 + a 44px-tall bar = the shared bottom rail (see App.jsx)
+    <div className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2">
       {/* the YouTube player lives off-screen (audio only, effectively) */}
       <div
         ref={holderRef}
@@ -260,7 +261,7 @@ export default function MusicDock({ onOpenPanel }) {
           <button
             onClick={togglePlay}
             title={playing ? "Pause" : "Play"}
-            className="pill grid h-8 w-9 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
+            className="pill grid h-8 w-8 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
           >
             {playing ? <Pause size={14} /> : <Play size={14} />}
           </button>
@@ -284,21 +285,31 @@ export default function MusicDock({ onOpenPanel }) {
             className="rounded-xl border-0"
           />
         ) : (
-          <>
-            <div className="flex w-56 flex-col gap-0.5 px-1">
-              <p title={title} className="truncate text-xs font-semibold text-cream">
-                {title}
-              </p>
-              {playing && track.live && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-danger">
-                  ● live
-                </p>
-              )}
+          /* Title over ONE controls line. Volume used to sit outside this
+             column, so it centred on the whole bar while the seek bar sat in
+             the column's lower row — two sliders an inch apart on different
+             baselines, which is exactly what reads as sloppy. Putting them on
+             the same line aligns them by construction instead of by tuning
+             padding. Fixed heights (leading-4 + h-3.5 + gap-0.5 = 32px) keep
+             the bar 44px whatever state it's in, matching the pills opposite:
+             a transport bar that changes height as a track loads is its own
+             kind of misalignment. */
+          <div className="flex w-64 flex-col justify-center gap-0.5 px-1">
+            <p title={title} className="truncate text-xs font-semibold leading-4 text-cream">
+              {title}
+            </p>
+            <div className="flex h-3.5 items-center gap-1.5">
               {/* keep the bar mounted through pauses and seek-buffering —
                   hiding it on every state change made seeking feel broken */}
-              {!track.live && track.d > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] tabular-nums text-petal/60">
+              {playing && track.live ? (
+                <span className="flex-1 text-[10px] font-bold uppercase leading-none tracking-wider text-danger">
+                  ● live
+                </span>
+              ) : !track.live && track.d > 0 ? (
+                <>
+                  {/* fixed-width so the seek bar doesn't jump a few px wider
+                      the moment a track ticks past 9:59 */}
+                  <span className="w-10 shrink-0 text-[10px] leading-none tabular-nums text-petal/60">
                     {fmtTime(track.t)}
                   </span>
                   <input
@@ -312,24 +323,27 @@ export default function MusicDock({ onOpenPanel }) {
                     aria-label="Seek"
                     className="h-1 min-w-0 flex-1 accent-glow"
                   />
-                  <span className="text-[10px] tabular-nums text-petal/60">
+                  <span className="w-10 shrink-0 text-right text-[10px] leading-none tabular-nums text-petal/60">
                     {fmtTime(track.d)}
                   </span>
-                </div>
+                </>
+              ) : (
+                <span className="flex-1" />
               )}
+              <Volume2 size={11} className="shrink-0 text-petal/50" />
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={volume}
+                onChange={(e) => changeVolume(Number(e.target.value))}
+                title="Music volume"
+                aria-label="Music volume"
+                className="h-1 w-10 shrink-0 accent-glow"
+              />
             </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={volume}
-              onChange={(e) => changeVolume(Number(e.target.value))}
-              title="Music volume"
-              aria-label="Music volume"
-              className="w-14 accent-glow"
-            />
-          </>
+          </div>
         )}
 
         <button

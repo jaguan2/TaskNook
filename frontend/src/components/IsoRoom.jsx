@@ -3,12 +3,14 @@ import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } fr
 import {
   ISO_ITEMS,
   clampIsoPlacement,
+  envOf,
   footOf,
   footprintFree,
   lipRuns,
   seatFor,
   snapHalf,
   sortIso,
+  surfaceFor,
   tileOn,
   wallRuns,
   wallSegment,
@@ -31,6 +33,10 @@ import RoomTintPicker from "./RoomTintPicker";
 //
 // Re-declares the lampPool/lampCone gradient ids on purpose: only one scene
 // (this or Cottage) is ever mounted, and RoomPanel previews reference them.
+// A balustrade rather than a wall: high enough to enclose a terrace, low
+// enough that you still read it as outdoors.
+const LOW_WALL_H = 30;
+
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;
 const VIEW_MAX_W = 1600;
@@ -198,9 +204,11 @@ function IsoRoom({
   }
   const leftSeg = wallSegment("left", size);
   const rightSeg = wallSegment("right", size);
-  // Environment: "room" is the walled interior; "garden" is open-air (grass
-  // floor, soil lip, no walls/window/lights).
-  const outdoors = size.env === "garden";
+  // Environment: everything the scene draws AROUND the tiles. `wallH` is 0
+  // when there are none, so every wall-dependent bit of geometry falls away
+  // from one number instead of from a scatter of `outdoors` checks.
+  const env = envOf(size.env);
+  const wallH = env.walls === "full" ? WALL_H : env.walls === "low" ? LOW_WALL_H : 0;
 
   const toWorld = (e) => {
     const svg = svgRef.current;
@@ -354,6 +362,21 @@ function IsoRoom({
       const awake = moved && !softSpotAt(gx, gy, footOf(p.item, p.rot));
       return { ...p, gx, gy, _awake: awake };
     }
+    // Small objects rest on whatever surface they're over — same trick as
+    // seating, and equally render-only. The +0.1 gy nudge puts them a hair
+    // nearer than the surface so the depth sort draws them ON it.
+    if (item?.stacks) {
+      const on = surfaceFor(p, placements);
+      if (!on) return p;
+      const sf = footOf(on.placement.item, on.placement.rot);
+      const pf = footOf(p.item, p.rot);
+      return {
+        ...p,
+        gx: on.placement.gx + sf[0] / 2 - pf[0] / 2,
+        gy: on.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.1,
+        _rest: on.height,
+      };
+    }
     if (!item?.persona) return p;
     const seat = seatFor(p, placements);
     if (seat) {
@@ -364,6 +387,7 @@ function IsoRoom({
         gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
         gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
         _seat: seat.height,
+        _lie: seat.lie,
       };
     }
     const off = !editMode && roamRef.current[p.id];
@@ -416,6 +440,21 @@ function IsoRoom({
             <stop offset="0" stopColor="#48755a" />
             <stop offset="1" stopColor="#2e5540" />
           </linearGradient>
+          {/* One gradient per environment floor. They stay OUTSIDE the theme
+              variables on purpose — a café's terracotta and a library's dark
+              boards are the environment's identity, not the app's accent. */}
+          <linearGradient id="isoTile" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#8a5b45" />
+            <stop offset="1" stopColor="#5c3a2c" />
+          </linearGradient>
+          <linearGradient id="isoWood" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#6b4630" />
+            <stop offset="1" stopColor="#3f2a1e" />
+          </linearGradient>
+          <linearGradient id="isoStone" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#8f8a80" />
+            <stop offset="1" stopColor="#5c5850" />
+          </linearGradient>
           <linearGradient id="isoSky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={tod.skyTop} />
             <stop offset="1" stopColor={tod.skyBot} />
@@ -446,7 +485,7 @@ function IsoRoom({
         <g transform={`translate(${cx}, ${cy})`}>
           {/* ---------- walls (cut-aware: main walls plus the inner planes
               that step around a cut corner) ---------- */}
-          {!outdoors &&
+          {wallH > 0 &&
             wallRuns(size).map((run, i) => {
             const a =
               run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
@@ -455,11 +494,11 @@ function IsoRoom({
             return (
               <g key={`wall-${i}`}>
                 <polygon
-                  points={`${a.x},${a.y - WALL_H} ${b.x},${b.y - WALL_H} ${b.x},${b.y} ${a.x},${a.y}`}
+                  points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
                   fill={run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)"}
                 />
                 <polygon
-                  points={`${a.x},${a.y - WALL_H - 6} ${b.x},${b.y - WALL_H - 6} ${b.x},${b.y - WALL_H} ${a.x},${a.y - WALL_H}`}
+                  points={`${a.x},${a.y - wallH - 6} ${b.x},${b.y - wallH - 6} ${b.x},${b.y - wallH} ${a.x},${a.y - wallH}`}
                   style={{
                     fill: `rgb(var(--color-petal) / ${run.plane === "gy" ? 0.22 : 0.35})`,
                   }}
@@ -471,12 +510,12 @@ function IsoRoom({
               corner is actually floor — this used to test `size.cuts`, which
               validation converts to a `mask` long before the scene sees it, so
               the branch was dead and the seam drew over painted-away corners. */}
-          {!outdoors && tileOn(size, 0, 0) && (
-            <line x1="0" y1={-WALL_H} x2="0" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
+          {wallH > 0 && tileOn(size, 0, 0) && (
+            <line x1="0" y1={-wallH} x2="0" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
           )}
 
           {/* window on the left wall — only when that wall run covers it */}
-          {!outdoors && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
+          {env.window && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
             <>
               <polygon points={wallRect("left", 1.1, 2.4, 28, 70)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 34, 58)} fill="url(#isoSky)" />
@@ -490,7 +529,7 @@ function IsoRoom({
 
           {/* string lights along the right wall's main run; they fade with
               daylight */}
-          {!outdoors && rightSeg.to - rightSeg.from >= 4 && (
+          {env.lights && rightSeg.to - rightSeg.from >= 4 && (
             <g opacity={tod.bulbs}>
               {(() => {
                 const from = rightSeg.from + 0.5;
@@ -523,6 +562,28 @@ function IsoRoom({
             </g>
           )}
 
+          {/* Front lip: the slab's thickness under every viewer-facing tile
+              edge. Drawn BEFORE the floor on purpose. The skirt hangs straight
+              down in screen space, so at a concave corner its lower end lands
+              inside the top corner of the tile in FRONT of it — painted after
+              the floor, that bit an ~7px dark wedge out of a perfectly good
+              tile every time a floor plan stepped. Any floor pixel the skirt
+              reaches belongs to a nearer tile, which is exactly what should
+              occlude it, so letting the floor paint over it IS the fix. */}
+          {lipRuns(size).map((run, i) => {
+            const A =
+              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
+            const B =
+              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
+            return (
+              <polygon
+                key={`lip-${i}`}
+                points={`${A.x},${A.y} ${B.x},${B.y} ${B.x},${B.y + 7} ${A.x},${A.y + 7}`}
+                fill={env.lip[run.plane === "gx" ? 0 : 1]}
+              />
+            );
+          })}
+
           {/* ---------- floor + grid (clipped to the painted tiles) ---------- */}
           <clipPath id="isoFloorClip">
             {floorTiles.map(([tx, ty]) => (
@@ -531,7 +592,7 @@ function IsoRoom({
           </clipPath>
           <g clipPath="url(#isoFloorClip)">
             {/* one big gradient sheet so tiles shade as ONE surface */}
-            <polygon points={floorPoints(w, d)} fill={outdoors ? "url(#isoGrass)" : "url(#isoFloor)"} />
+            <polygon points={floorPoints(w, d)} fill={`url(#${env.floor})`} />
           </g>
           <g clipPath="url(#isoFloorClip)">
             {Array.from({ length: d - 1 }, (_, i) => i + 1).map((gy) => (
@@ -559,29 +620,6 @@ function IsoRoom({
               />
             ))}
           </g>
-          {/* front lip: under every viewer-facing tile edge */}
-          {lipRuns(size).map((run, i) => {
-            const A =
-              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
-            const B =
-              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
-            return (
-              <polygon
-                key={`lip-${i}`}
-                points={`${A.x},${A.y} ${B.x},${B.y} ${B.x},${B.y + 7} ${A.x},${A.y + 7}`}
-                fill={
-                  outdoors
-                    ? run.plane === "gx"
-                      ? "#2c2018"
-                      : "#241a12"
-                    : run.plane === "gx"
-                    ? "#1d0f1f"
-                    : "#170c19"
-                }
-              />
-            );
-          })}
-
           {/* ---------- placed items ---------- */}
           {ordered.map((p) => {
             const item = ISO_ITEMS[p.item];
@@ -625,7 +663,7 @@ function IsoRoom({
                     under every grounded item. This is most of what makes the
                     sprites read as sitting IN the room instead of pasted on
                     (flat rugs/ponds and wall decor obviously except). */}
-                {!item.wall && (item.layer || 0) >= 0 && !p._seat && (
+                {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (
                   <ellipse
                     cx={project(foot[0] / 2, foot[1] / 2).x}
                     cy={project(foot[0] / 2, foot[1] / 2).y}
@@ -641,12 +679,19 @@ function IsoRoom({
                 {(() => {
                   const sprite = persona ? (
                     <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-                      <Sprite seated={!!p._seat} working={working} moving={!!p._moving} />
+                      <Sprite
+                        seated={!!p._seat && !p._lie}
+                        lying={!!p._lie}
+                        working={working}
+                        moving={!!p._moving}
+                      />
                     </g>
                   ) : item.roamer ? (
                     <Sprite awake={!!p._awake} />
                   ) : (
-                    <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
+                    <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
+                      <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
+                    </g>
                   );
                   if (!p.rot) return sprite;
                   return item.noMirror ? sprite : <g transform="scale(-1,1)">{sprite}</g>;

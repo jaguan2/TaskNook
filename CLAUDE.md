@@ -462,12 +462,27 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   implicitly; "garden" = open-air: grass floor, soil lip, NO walls — wall
   decor is dropped by validation and hidden from the panel) and `mask` —
   **the floor is a tile mask** (d row-strings of w "0"/"1"s) painted in the
-  Room panel's drag-to-draw floor-plan grid, so any shape works: walls and
-  the front lip are computed PER TILE EDGE (`wallRuns`/`lipRuns`), the floor
+  Room panel's drag-to-draw floor-plan grid, so any shape works: the floor
   is per-tile clipPath'd under one gradient sheet, drags refuse void tiles
   (the item stops at the shape's edge), and validation relocates stranded
   items to the nearest free spot or drops them. Legacy corner-`cuts` saves
-  convert via `cutsToMask`. Edit-mode keyboard: Backspace/Delete removes the
+  convert via `cutsToMask`.
+  **Walls and the front lip are asymmetric, and that asymmetry is the whole
+  trick.** `lipRuns` is per tile EDGE — every viewer-facing rim gets the
+  slab's 7px thickness, including the rim around a hole punched mid-floor,
+  because that rim is exactly what you can see of a hole. `wallRuns` is per
+  ROW/COLUMN: only the lot's back SILHOUETTE (the first floor tile you meet
+  walking away from the camera). It used to be per-edge too, which is wrong
+  the moment a floor plan isn't a rectangle — a wall stands 118px tall and
+  its face shows through the void it faces, so a notch painted anywhere but
+  the true back raised a full-height slab through the middle of the room with
+  only a tile's worth of floor to hide its base. Walls belong where there is
+  nothing behind them. The lip is drawn BEFORE the floor for the matching
+  reason: its skirt hangs straight down in screen space, so at a concave
+  corner it reaches into the top corner of the tile in FRONT of it — and that
+  tile is nearer, so letting the floor paint over the intrusion IS the
+  occlusion. Move it back after the floor and every step in a floor plan
+  grows a dark wedge. Edit-mode keyboard: Backspace/Delete removes the
   selection (unless typing in an input), Escape exits decorating (App's
   handler, before panel-closing). A freshly added item is auto-selected
   (`lastIsoAddedId` → `highlightId`), and the selection chrome (dashed
@@ -492,14 +507,28 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   passing bird (day) — rarity = a long animation cycle where the visible
   part is a sliver. All motion classes are in the `prefers-reduced-motion`
   block, and motion stays OUT of reading zones (HUD corners) by design.
-  `ISO_PRESETS` (Cozy study ⭐ / Cozy cabin 🪵 /
-  Loft 🌙 / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
+  `ISO_PRESETS` (Cozy study 🕯️ / Cozy cabin 🪵 /
+  Loft ⭐ / Morning café ☕ / Secret garden 🌿 / Empty 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);
   preset coordinates must be
   half-snapped and in-bounds AS WRITTEN — the
   preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
-  the user. **The scene is full-bleed, not a card**: the SVG fills the
+  the user. `DEFAULT_ISO_PRESET` is what a fresh install opens on (the ⭐
+  marks it, so move the star if you move the default) and a test asserts it
+  survives validation with every item intact — a starter room that quietly
+  loses furniture on first paint is the worst possible first impression.
+  **Chairs only have two facings**, and preset seating has to be laid out
+  around that: a chair's backrest is drawn at its low-gy edge, so `rot: 0`
+  looks toward +gy and `rot: 1` (the mirror, which is a grid transpose)
+  toward +gx. A chair can therefore only ever look at something at HIGHER
+  gx/gy than itself, which is why the café's pairs sit back-left and
+  back-right of their table with their sight lines crossing over it rather
+  than flanking it — flanking gave two chairs the same facing, both turned
+  away. Genuine face-to-face needs four-way `rot`, which needs real back-view
+  artwork per item (a 180° grid turn is `scale(-1,-1)` on screen, i.e. upside
+  down) plus a backend change (`_clean_layout` validates `rot` as exactly
+  0/1). **The scene is full-bleed, not a card**: the SVG fills the
   viewport and a camera flies over it — wheel zoom anchored at the cursor,
   drag-on-empty-space pans, double-click recenters, all plain viewBox math
   (`tasknook.isoView`, clamped so the room's centre can't leave the view).

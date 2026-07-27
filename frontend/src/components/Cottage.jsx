@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
 import { ITEM_SPRITES } from "./RoomItems";
 import RoomTintPicker from "./RoomTintPicker";
@@ -75,6 +75,8 @@ function Cottage({
   onMoveItem,
   onRemoveItem,
   onTintItem,
+  // resolved by App from the Motion setting + the OS preference
+  reduceMotion = false,
 }) {
   const [flash, setFlash] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -85,7 +87,6 @@ function Cottage({
   // { id, dx, dy } while a drag is in flight — offset keeps the grab point
   // under the cursor instead of snapping the origin to it.
   const dragRef = useRef(null);
-  const reduceMotion = useReducedMotion();
   const time = TIME_PRESETS[timeOfDay] || TIME_PRESETS.night;
 
   useEffect(() => {
@@ -325,6 +326,27 @@ function Cottage({
                 style={{
                   animationDuration: `${4 + (i % 5)}s`,
                   animationDelay: `${(i % 6) * 0.5}s`,
+                }}
+              />
+            ))}
+
+          {/* leaves past the window — the same seasonal cue as the overlay,
+              since the window is meant to agree with the sky outside it */}
+          {weather === "leaves" &&
+            SNOWFLAKES.slice(0, 8).map(([x], i) => (
+              <rect
+                key={`leaf-${i}`}
+                className="window-snow"
+                x={x}
+                y="46"
+                width={5 + (i % 3)}
+                height={3.5 + (i % 3) * 0.7}
+                rx="2"
+                fill={["#c9622f", "#d98a3c", "#a8452c"][i % 3]}
+                opacity="0.85"
+                style={{
+                  animationDuration: `${6 + (i % 4)}s`,
+                  animationDelay: `${(i % 5) * 0.8}s`,
                 }}
               />
             ))}

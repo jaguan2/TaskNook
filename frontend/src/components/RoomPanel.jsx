@@ -13,6 +13,7 @@ import {
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
   cutsToMask,
+  envHasWalls,
   footOf,
   seatFor,
   sortIso,
@@ -439,7 +440,7 @@ export default function RoomPanel() {
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             {ISO_ITEM_KEYS.filter(
-              (key) => !(ISO_ITEMS[key].wall && !ISO_ENVS[isoEnv].walls)
+              (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv))
             ).map((key) => (
               <button
                 key={key}

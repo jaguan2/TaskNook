@@ -6,24 +6,32 @@
   color-scheme: dark;
 
   /* "Plum Night" (default) — RGB channels (not hex) so Tailwind's <alpha-value>
-     opacity modifiers (e.g. bg-rose/40) work against these variables. */
-  --color-night: 43 24 48;
-  --color-plum: 59 31 51;
-  --color-wine: 74 34 56;
-  --color-rose: 217 138 147;
-  --color-blush: 232 163 168;
-  --color-petal: 243 198 192;
-  --color-void: 29 15 31;
+     opacity modifiers (e.g. bg-rose/40) work against these variables.
+
+     THE RULE, learned from Sea Breeze being the only preset that worked:
+     dark surfaces stay near-neutral (≲25% saturation) and ONE accent family
+     carries the colour. These were 31–37% saturated with 68%-saturated text,
+     so every surface shouted and the text was pink. It's the same discipline
+     derivePalette() already enforces for the custom scheme — the hand-authored
+     presets just never got it. */
+  --color-void: 28 18 25;
+  --color-night: 43 29 39;
+  --color-plum: 55 37 50;
+  --color-wine: 70 47 63;
+  --color-rose: 209 137 152;
+  --color-blush: 222 181 188;
+  --color-petal: 232 222 224;
 }
 
+/* Was 71–100% saturation on the surfaces — electric blue, not deep water. */
 [data-theme="abyss"] {
-  --color-night: 1 22 43;
-  --color-plum: 12 42 71;
-  --color-wine: 0 56 90;
-  --color-rose: 106 144 180;
-  --color-blush: 148 162 191;
-  --color-petal: 210 219 235;
-  --color-void: 1 14 29;
+  --color-void: 13 18 22;
+  --color-night: 23 31 39;
+  --color-plum: 32 43 55;
+  --color-wine: 42 56 71;
+  --color-rose: 129 166 193;
+  --color-blush: 174 193 208;
+  --color-petal: 223 227 231;
 }
 
 [data-theme="shore"] {
@@ -38,24 +46,28 @@
 
 /* Espresso browns + caramel + cream, borrowed from the personal-portfolio
    ("rkive.") coffee palette, translated into TaskNook's dark-ambiance scale. */
+/* Was cool blue-grey darks under warm mids, with a blush so desaturated (4%)
+   that nothing read as an accent at all. One warm family throughout now. */
 [data-theme="linen"] {
-  --color-night: 58 65 71;
-  --color-plum: 74 82 88;
-  --color-wine: 128 109 92;
-  --color-rose: 155 140 125;
-  --color-blush: 170 177 177;
-  --color-petal: 215 210 196;
-  --color-void: 42 47 51;
+  --color-void: 50 46 41;
+  --color-night: 67 62 55;
+  --color-plum: 84 77 69;
+  --color-wine: 112 103 92;
+  --color-rose: 205 178 157;
+  --color-blush: 220 201 188;
+  --color-petal: 235 230 224;
 }
 
+/* The worst offender: blush was BLUE (201°) sitting inside a gold/brown
+   family, and the darks were green-grey while the mids were warm. */
 [data-theme="walnut"] {
-  --color-night: 55 58 55;
-  --color-plum: 70 63 57;
-  --color-wine: 107 87 70;
-  --color-rose: 171 157 120;
-  --color-blush: 182 200 210;
-  --color-petal: 229 226 205;
-  --color-void: 36 38 36;
+  --color-void: 40 35 31;
+  --color-night: 57 51 45;
+  --color-plum: 71 63 56;
+  --color-wine: 97 86 76;
+  --color-rose: 200 182 151;
+  --color-blush: 220 207 188;
+  --color-petal: 232 229 222;
 }
 
 html,
@@ -88,11 +100,13 @@ body {
     opacity: 0;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .intro-chrome {
-    animation-duration: 0.4s;
-    animation-delay: 0.3s;
-  }
+/* Motion is silenced by ONE condition: data-motion="reduced" on <html>. An
+   inline script in index.html sets it before first paint from the in-app
+   setting OR the OS preference, so there's no flash of movement and no second
+   copy of these selector lists to keep in sync. */
+:root[data-motion="reduced"] .intro-chrome {
+  animation-duration: 0.4s;
+  animation-delay: 0.3s;
 }
 
 /* Hover-revealed row controls (deletes, drag handles, quick actions): tucked
@@ -465,26 +479,40 @@ body {
   animation-delay: -18s;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .room-sway,
-  .room-sway-hanging,
-  .room-twinkle,
-  .room-breathe,
-  .sky-cloud,
-  .steam-puff,
-  .bubble-rise,
-  .pond-ripple,
-  .resident-type,
-  .leg-step-a,
-  .leg-step-b,
-  .cat-breathe,
-  .tail-flick,
-  .flame-dance,
-  .disc-spin,
-  .shooting-star,
-  .bird-fly {
-    animation: none;
-  }
+/* Every ambient animation, silenced together. The attribute selector outranks
+   the plain class rules above at any position in the file, so unlike the old
+   media query this no longer depends on being declared last. */
+:root[data-motion="reduced"]
+  :is(
+    .room-sway,
+    .room-sway-hanging,
+    .room-twinkle,
+    .room-breathe,
+    .sky-cloud,
+    .steam-puff,
+    .bubble-rise,
+    .pond-ripple,
+    .resident-type,
+    .leg-step-a,
+    .leg-step-b,
+    .cat-breathe,
+    .tail-flick,
+    .flame-dance,
+    .disc-spin,
+    .clock-tick,
+    .curtain-sway,
+    .shooting-star,
+    .bird-fly,
+    .rain-drop,
+    .snow-flake,
+    .leaf-fall,
+    .leaf-spin,
+    .window-rain,
+    .window-snow,
+    .animate-float,
+    .animate-flicker
+  ) {
+  animation: none;
 }
 
 /* Freeform room decoration (Cottage edit mode) */
@@ -568,6 +596,48 @@ body {
   }
 }
 
+/* Falling leaves. Two nested animations, because a leaf does two independent
+   things: it drifts side to side as it falls (outer) and it tumbles about its
+   own axis (inner). One keyframe set can't do both — the inner transform
+   would overwrite the outer. */
+.leaf-fall {
+  position: absolute;
+  top: -8%;
+  animation-name: leaf-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes leaf-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(28px, 30vh);
+  }
+  50% {
+    transform: translate(-14px, 55vh);
+  }
+  75% {
+    transform: translate(26px, 82vh);
+  }
+  100% {
+    transform: translate(-6px, 115vh);
+  }
+}
+.leaf-spin {
+  display: block;
+  /* a leaf, not a confetto: rounded at one end, pointed at the other */
+  border-radius: 60% 0 60% 0;
+  animation-name: leaf-spin;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes leaf-spin {
+  to {
+    transform: rotate(360deg) scaleX(0.55);
+  }
+}
+
 /* Storm lightning flash */
 .lightning-flash {
   position: absolute;
@@ -630,19 +700,28 @@ body {
   }
 }
 
-/* LAST RULE ON PURPOSE: reduced-motion for every animation class declared
-   AFTER the first prefers-reduced-motion block (weather particles, window
-   streaks, Tailwind's animate-*). At equal specificity the later declaration
-   wins, so a reduced-motion rule only silences classes declared ABOVE it —
-   keep this block at the end of the file. (The storm's lightning flash is a
-   transition, gated in WeatherOverlay/Cottage via useReducedMotion.) */
-@media (prefers-reduced-motion: reduce) {
-  .rain-drop,
-  .snow-flake,
-  .window-rain,
-  .window-snow,
-  .animate-float,
-  .animate-flicker {
-    animation: none;
+/* Curtains breathe near an open window — two drapes, offset so they don't
+   move as one sheet. */
+@keyframes curtain-sway {
+  0%,
+  100% {
+    transform: skewX(0deg) scaleX(1);
   }
+  50% {
+    transform: skewX(1.4deg) scaleX(0.985);
+  }
+}
+.curtain-sway {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: curtain-sway 8s ease-in-out infinite;
+}
+
+/* The wall clock's hands are positioned from the real time in JS, not
+   animated — this only softens the once-a-minute jump of the minute hand. */
+.clock-tick {
+  transition: transform 0.6s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+:root[data-motion="reduced"] .clock-tick {
+  transition: none;
 }
