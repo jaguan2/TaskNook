@@ -9,6 +9,7 @@ import {
   isoDepth,
   lipRuns,
   seatFor,
+  seatedPlacement,
   snapHalf,
   sortIso,
   surfaceFor,
@@ -394,19 +395,7 @@ function IsoRoom({
     }
     if (!item?.persona) return p;
     const seat = seatFor(p, placements);
-    if (seat) {
-      const sf = footOf(seat.placement.item, seat.placement.rot);
-      const pf = footOf(p.item, p.rot);
-      return {
-        ...p,
-        gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
-        gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
-        _seat: seat.height,
-        _lie: seat.lie,
-        // draw in FRONT of the seat's backrest whatever size the seat is
-        _depth: isoDepth(seat.placement) + 0.01,
-      };
-    }
+    if (seat) return { ...p, ...seatedPlacement(p, seat) };
     const off = !editMode && roamRef.current[p.id];
     // Mid-wander = walking: the sprite swaps to a stepping gait.
     const moving = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);

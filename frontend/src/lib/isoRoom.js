@@ -305,6 +305,37 @@ export function seatFor(placement, placements) {
 }
 
 /**
+ * Where a persona is actually drawn once they've been seated, and how deep.
+ * Render-time only: the stored gx/gy never changes, so persistence, validation
+ * and the drag engine know nothing about it.
+ *
+ * Which way the SEAT faces decides both. Rot 0/1 keep the backrest at the far
+ * edge, so the sitter shifts toward the viewer and paints in FRONT of it; rot
+ * 2/3 move it to the near edge, and then they belong BEHIND, with just their
+ * head and shoulders over the top. The shift also has to follow the seat's
+ * facing axis — odd rotations are the grid transpose, so they face along gx.
+ *
+ * Depth is forced from the seat rather than derived from the sitter's own
+ * footprint: depth is the FRONT CORNER, so a small person centred on a big
+ * sofa scores lower than it and would sort behind whichever way it faced.
+ */
+export function seatedPlacement(persona, seat) {
+  const sf = footOf(seat.placement.item, seat.placement.rot);
+  const pf = footOf(persona.item, persona.rot);
+  const seatRot = seat.placement.rot || 0;
+  const away = seatRot >= 2;
+  const shift = away ? -0.15 : 0.15;
+  const alongGx = seatRot % 2 === 1;
+  return {
+    gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2 + (alongGx ? shift : 0),
+    gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
+    _seat: seat.height,
+    _lie: seat.lie,
+    _depth: isoDepth(seat.placement) + (away ? -0.01 : 0.01),
+  };
+}
+
+/**
  * The surface a small item is resting on — the same idea as seatFor, applied
  * to objects instead of people.
  *
@@ -869,7 +900,9 @@ export const ISO_PRESETS = {
       { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
       // life
       { item: "floorlamp", gx: 9, gy: 2.5 },
-      { item: "cat", gx: 6, gy: 5.5 },
+      // clear of set B's far chair — the cat wanders, but it shouldn't
+      // START standing inside one
+      { item: "cat", gx: 4.5, gy: 5.5 },
       // cushion moved off the monstera — the two used to intersect by 0.16
       // tiles², so the plant appeared to grow out of it
       { item: "cushion", gx: 7.5, gy: 5.5, tint: "#d98a93" },
@@ -1074,7 +1107,9 @@ export const ISO_PRESETS = {
       { item: "monstera", gx: 0.5, gy: 3 },
       { item: "cactus", gx: 8, gy: 6 },
       { item: "cat", gx: 5.5, gy: 6 },
-      { item: "lightjar", gx: 5, gy: 5 },
+      // was ALSO on the side table at 5,5 — two `stacks` items at one spot
+      // both centre on the same surface and the second is invisible
+      { item: "lightjar", gx: 7.5, gy: 6 },
     ],
   },
   empty: {
