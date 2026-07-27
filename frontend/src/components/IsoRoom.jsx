@@ -682,6 +682,7 @@ function IsoRoom({
                       <Sprite
                         seated={!!p._seat && !p._lie}
                         lying={!!p._lie}
+                        seatH={p._seat || 0}
                         working={working}
                         moving={!!p._moving}
                       />

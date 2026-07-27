@@ -218,6 +218,16 @@ def _finite_number(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and -1e7 < v < 1e7
 
 
+# Room environments, mirroring ISO_ENVS in frontend/src/lib/isoRoom.js. This
+# list is duplicated across two languages and drifted once already: `cafe`,
+# `library` and `terrace` were added to the frontend and not here, so the three
+# presets that use them 400'd on every save — the room survived only in the
+# browser's localStorage mirror, toasting "couldn't save" each time. Adding an
+# environment means editing BOTH; test_room.py reads the JS and fails if they
+# disagree.
+ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
+
+
 def _hex_color(v):
     """A strict #rrggbb item tint."""
     return (
@@ -562,7 +572,7 @@ def register_routes(app):
             stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
             env = iso.get("env")
             if env is not None:
-                if env not in ("room", "garden"):
+                if env not in ISO_ENVS:
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["env"] = env
             # Optional floor-plan mask: d row-strings of w "0"/"1" chars with

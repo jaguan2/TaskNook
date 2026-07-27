@@ -196,7 +196,86 @@ export const ISO_ITEMS = {
   // the resident — a little person you drop anywhere: onto a seat (they sit)
   // or the open floor (they idle-wander). Tint = their sweater.
   resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 56, persona: true },
+  // ---- more pets: same roamer engine as the cat, different silhouettes ----
+  dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
+  bunny: { label: "Rabbit", icon: "🐇", foot: [0.7, 0.6], hitH: 26, roamer: true },
+  // ---- more rugs ----
+  persianrug: { label: "Patterned rug", icon: "🔶", foot: [3, 2.2], layer: -1, hitH: 10 },
+  stripedrug: { label: "Striped rug", icon: "🟦", foot: [2.6, 1.8], layer: -1, hitH: 10 },
+  sheepskin: { label: "Sheepskin", icon: "☁️", foot: [1.8, 1.5], layer: -1, hitH: 10 },
+  // ---- more decoration ----
+  piano: { label: "Upright piano", icon: "🎹", foot: [2, 0.8], hitH: 66, surface: 62 },
+  easel: { label: "Easel", icon: "🎨", foot: [0.9, 0.8], hitH: 62 },
+  birdcage: { label: "Birdcage", icon: "🐦", foot: [0.6, 0.6], hitH: 60 },
+  screen: { label: "Folding screen", icon: "🎏", foot: [1.6, 0.4], hitH: 62 },
+  globe: { label: "Globe", icon: "🌍", foot: [0.45, 0.45], hitH: 28, stacks: true },
+  // a checkered board is two colours by definition — one flat tint erases it
+  chess: { label: "Chess set", icon: "♟️", foot: [0.6, 0.5], hitH: 14, stacks: true, tintable: false },
+  // ---- more outdoors ----
+  hammock: { label: "Hammock", icon: "🏝️", foot: [2.2, 0.9], hitH: 44, seat: 22, lie: true },
+  lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58 },
 };
+
+/**
+ * The furniture picker's sections, in display order.
+ *
+ * The catalog is one flat object because that's what every lookup wants; the
+ * picker is a different problem. At 93 entries a single scrolling grid stopped
+ * being browsable — you can't find the rug you want, and worse, you can't tell
+ * a rug exists. Grouping lives here rather than as a `group:` field on each
+ * entry so the catalog stays a plain lookup table, and a test asserts every key
+ * appears in exactly one section, so a new item can't quietly go missing from
+ * the picker (the only place items can be added from).
+ */
+export const ISO_ITEM_GROUPS = [
+  {
+    label: "Seating & beds",
+    keys: ["sofa", "armchair", "chair", "deskchair", "stool", "woodstool", "beanbag",
+      "cushion", "bed", "bench", "log", "hammock"],
+  },
+  {
+    label: "Tables & desks",
+    keys: ["desk", "diningtable", "cafetable", "coffeetable", "sidetable", "nightstand",
+      "counter", "barcounter", "coffeecounter"],
+  },
+  {
+    label: "Storage",
+    keys: ["bookshelf", "bookcase", "shelf", "wardrobe", "dresser", "tvunit", "fridge",
+      "pastrycase", "crates", "basket", "vinylcrate", "ladder", "coatrack"],
+  },
+  {
+    label: "Rugs & floor",
+    keys: ["rug", "squarerug", "ovalrug", "runner", "persianrug", "stripedrug",
+      "sheepskin", "matrug", "picnic", "petbed", "pond"],
+  },
+  {
+    label: "Light & warmth",
+    keys: ["floorlamp", "desklamp", "lantern", "candle", "lightjar", "fireplace"],
+  },
+  {
+    label: "Decoration",
+    keys: ["piano", "easel", "screen", "birdcage", "standmirror", "aquarium", "terrarium",
+      "monstera", "plant", "cactus", "flowers", "flowerbed", "globe", "chess", "guitar",
+      "bookstack", "mug", "till"],
+  },
+  {
+    label: "Tech & music",
+    keys: ["computer", "radio", "recordplayer"],
+  },
+  {
+    label: "On the wall",
+    keys: ["frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
+      "pennant", "neon", "curtain", "hangplant"],
+  },
+  {
+    label: "Outdoors",
+    keys: ["tree", "pine", "birch", "bush", "hedge", "rock"],
+  },
+  {
+    label: "Living things",
+    keys: ["resident", "cat", "dog", "bunny"],
+  },
+];
 
 /** Is `placement`'s centre inside `other`'s footprint? */
 function centreOver(placement, other) {

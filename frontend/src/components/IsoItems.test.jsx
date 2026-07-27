@@ -66,6 +66,48 @@ describe("the isometric catalog and its artwork agree", () => {
     }
   });
 
+  describe("a seated persona actually sits", () => {
+    const Resident = ISO_SPRITES.resident;
+
+    /** Every straight-line stroke in the sprite, as {x1,y1,x2,y2}. */
+    const limbs = (node) => {
+      const { container } = draw(node);
+      return [...container.querySelectorAll("path[stroke-linecap='round']")]
+        .map((p) => /^M(-?[\d.]+) (-?[\d.]+) L(-?[\d.]+) (-?[\d.]+)$/.exec(p.getAttribute("d")))
+        .filter(Boolean)
+        .map(([, x1, y1, x2, y2]) => ({ x1: +x1, y1: +y1, x2: +x2, y2: +y2 }));
+    };
+
+    it("bends at the knee instead of just shortening the leg", () => {
+      // The whole complaint: two stacked vertical boxes is a standing figure
+      // with stubby legs. A sitting one needs a segment that travels
+      // FORWARD (dx != 0) before the shin drops.
+      const thighs = limbs(<Resident seated seatH={19} />).filter((l) => l.x1 !== l.x2);
+      expect(thighs.length, "no forward-travelling thigh — the pose is straight-legged").toBe(2);
+      for (const t of thighs) expect(t.y2).toBeGreaterThan(t.y1); // forward AND down
+    });
+
+    it("puts the feet on the floor, whatever it's sitting on", () => {
+      // The sprite is lifted by the seat's height, so the floor is at +seatH
+      // in its own coordinates. Feet that ignore it dangle at cushion level.
+      for (const seatH of [13, 19, 22]) {
+        const shins = limbs(<Resident seated seatH={seatH} />).filter((l) => l.x1 === l.x2);
+        expect(shins.length).toBe(2);
+        for (const s of shins) expect(s.y2).toBeCloseTo(seatH - 2, 5);
+        cleanup();
+      }
+    });
+
+    it("keeps a real shin on a low cushion rather than a stub", () => {
+      const shins = limbs(<Resident seated seatH={4} />).filter((l) => l.x1 === l.x2);
+      for (const s of shins) expect(s.y2 - s.y1).toBeGreaterThan(5);
+    });
+
+    it("stands with straight legs — the bend belongs to sitting only", () => {
+      expect(limbs(<Resident />)).toHaveLength(0);
+    });
+  });
+
   it("roamers render awake and asleep", () => {
     for (const key of ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].roamer)) {
       const Sprite = ISO_SPRITES[key];

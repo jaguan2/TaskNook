@@ -8,7 +8,7 @@ import {
   ISO_ENVS,
   ISO_ENV_KEYS,
   ISO_ITEMS,
-  ISO_ITEM_KEYS,
+  ISO_ITEM_GROUPS,
   ISO_PRESETS,
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
@@ -120,7 +120,7 @@ function IsoPresetPreview({ preset }) {
         const at = project(p.gx, p.gy);
         const sprite = item.persona ? (
           <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-            <Sprite seated={!!p._seat} />
+            <Sprite seated={!!p._seat} seatH={p._seat || 0} />
           </g>
         ) : (
           <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
@@ -438,30 +438,48 @@ export default function RoomPanel() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
             Furniture
           </p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {ISO_ITEM_KEYS.filter(
-              (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv))
-            ).map((key) => (
-              <button
-                key={key}
-                onClick={() => addIsoItem(key)}
-                title={`Add ${ISO_ITEMS[key].label.toLowerCase()}`}
-                className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
-              >
-                <IsoItemPreview itemKey={key} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-medium text-cream">
-                    {ISO_ITEMS[key].label}
-                  </span>
-                  <span className="text-[10px] text-petal/50">
-                    {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
-                    <span className="hover-reveal text-glow/80 transition">
-                      + add
-                    </span>
-                  </span>
-                </span>
-              </button>
-            ))}
+          {/* Sectioned, not one 93-item scroll: past about thirty entries a
+              flat grid stops being browsable and you can no longer tell what
+              the catalog even contains. A section whose every item is wall
+              decor disappears entirely outdoors rather than leaving a heading
+              over nothing. */}
+          <div className="space-y-3">
+            {ISO_ITEM_GROUPS.map((group) => {
+              const keys = group.keys.filter(
+                (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv))
+              );
+              if (!keys.length) return null;
+              return (
+                <div key={group.label}>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-petal/40">
+                    {group.label}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {keys.map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => addIsoItem(key)}
+                        title={`Add ${ISO_ITEMS[key].label.toLowerCase()}`}
+                        className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
+                      >
+                        <IsoItemPreview itemKey={key} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-medium text-cream">
+                            {ISO_ITEMS[key].label}
+                          </span>
+                          <span className="text-[10px] text-petal/50">
+                            {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
+                            <span className="hover-reveal text-glow/80 transition">
+                              + add
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <p className="mt-2 text-xs text-petal/50">
             Tap a placed item for its controls: ⟳ mirrors it to face the other
