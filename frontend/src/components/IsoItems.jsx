@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
@@ -152,6 +153,46 @@ function FloorLamp() {
   );
 }
 
+// A cat's silhouette is the whole read at this size, so both poses get the
+// same four things the old blob version lacked: a HAUNCH (the raised mound of
+// the back leg — without it a curled cat is just an oval), a muzzle with a
+// nose and whiskers, pink inner ears, and a belly shadow so it sits ON the
+// floor rather than hovering over it.
+function CatFace({ x, y, r, asleep }) {
+  return (
+    <g>
+      <circle cx={x} cy={y} r={r} style={tinted("#3a3142")} />
+      <ellipse cx={x - 2} cy={y - r * 0.4} rx={r * 0.6} ry={r * 0.34} fill="#fff" opacity="0.09" />
+      {/* ears: outer wedge on the skull, pink inner wedge inside it */}
+      <polygon points={`${x - r * 0.8},${y - r * 0.6} ${x - r * 0.5},${y - r * 1.75} ${x + r * 0.05},${y - r * 0.8}`} style={tinted("#3a3142")} />
+      <polygon points={`${x - r * 0.62},${y - r * 0.75} ${x - r * 0.48},${y - r * 1.36} ${x - r * 0.17},${y - r * 0.87}`} fill="#e8a3a8" opacity="0.5" />
+      <polygon points={`${x + r * 0.3},${y - r * 0.85} ${x + r * 1.1},${y - r * 1.2} ${x + r * 0.86},${y - r * 0.35}`} style={tinted("#3a3142")} />
+      <polygon points={`${x + r * 0.44},${y - r * 0.84} ${x + r * 0.87},${y - r * 1.03} ${x + r * 0.74},${y - r * 0.58}`} fill="#e8a3a8" opacity="0.5" />
+      {/* muzzle */}
+      <ellipse cx={x - r * 0.25} cy={y + r * 0.45} rx={r * 0.6} ry={r * 0.4} fill="#fff" opacity="0.1" />
+      <path d={`M${x - r * 0.32} ${y + r * 0.22} l${r * 0.18} ${r * 0.16} l${r * 0.18} ${-r * 0.16} z`} fill="#e8a3a8" opacity="0.85" />
+      {asleep ? (
+        <>
+          <path d={`M${x - r * 0.72} ${y - r * 0.05} q${r * 0.24} ${r * 0.22} ${r * 0.48} 0`} fill="none" stroke="#0d0a12" strokeWidth="1.1" strokeLinecap="round" opacity="0.75" />
+          <path d={`M${x + r * 0.24} ${y - r * 0.1} q${r * 0.22} ${r * 0.2} ${r * 0.44} 0`} fill="none" stroke="#0d0a12" strokeWidth="1.1" strokeLinecap="round" opacity="0.75" />
+        </>
+      ) : (
+        <>
+          <ellipse cx={x - r * 0.42} cy={y - r * 0.02} rx={r * 0.15} ry={r * 0.2} fill="#ffe9b0" />
+          <ellipse cx={x + r * 0.42} cy={y - r * 0.06} rx={r * 0.15} ry={r * 0.2} fill="#ffe9b0" />
+        </>
+      )}
+      {/* whiskers */}
+      {[-0.1, 0.28].map((dy, i) => (
+        <g key={i} stroke="#f7e9e2" strokeWidth="0.6" opacity="0.35" strokeLinecap="round">
+          <line x1={x - r * 0.5} y1={y + r * (0.35 + dy)} x2={x - r * 1.5} y2={y + r * (0.15 + dy)} />
+          <line x1={x + r * 0.1} y1={y + r * (0.38 + dy)} x2={x + r * 0.95} y2={y + r * (0.2 + dy)} />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 function Cat({ awake = false }) {
   const c = project(0.6, 0.4);
   // Ground shadows come from the scene now (one soft ellipse per item), so
@@ -159,23 +200,32 @@ function Cat({ awake = false }) {
   if (awake) {
     // On the prowl: body up on legs, head high, tail curled skyward. The
     // legs step in counter-phase and the body trots — walking, not sliding.
+    // On the prowl: body up on legs, head high, tail curled skyward. The far
+    // legs are drawn first and darkened, so the four of them read as depth
+    // rather than as a fringe.
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
-        <rect className="leg-step-a" x="-14" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
-        <rect className="leg-step-b" x="8" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
+        {[
+          ["leg-step-b", 7],
+          ["leg-step-a", -12],
+        ].map(([cls, x]) => (
+          <g key={x} className={cls}>
+            <rect x={x} y="-15" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
+            <rect x={x} y="-15" width="4.6" height="16" rx="2.3" fill="#000" opacity="0.28" />
+          </g>
+        ))}
         <g className="resident-type">
-          <ellipse cx="-1" cy="-18" rx="18" ry="9.5" style={tinted("#3a3142")} />
-          <ellipse cx="-4" cy="-21" rx="10" ry="4" fill="#fff" opacity="0.08" />
-          <circle cx="-15" cy="-27" r="7.5" style={tinted("#3a3142")} />
-          {/* both ear bases sit ON the head circle (the inner ear used to
-              float off the far side of the skull) */}
-          <polygon points="-21,-31 -19,-39 -14,-32" style={tinted("#3a3142")} />
-          <polygon points="-12.4,-34 -6.1,-36.5 -8.2,-30.2" style={tinted("#3a3142")} />
-          <circle cx="-17" cy="-27" r="0.9" fill="#ffe9b0" />
-          <circle cx="-12" cy="-28" r="0.9" fill="#ffe9b0" />
+          {/* haunch, then barrel — the two-mass body of a walking cat */}
+          <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" style={tinted("#3a3142")} />
+          <ellipse cx="-1" cy="-18" rx="17" ry="9" style={tinted("#3a3142")} />
+          <ellipse cx="-3" cy="-22" rx="10" ry="4" fill="#fff" opacity="0.09" />
+          <ellipse cx="-1" cy="-12.5" rx="15" ry="3.6" fill="#000" opacity="0.16" />
+          <rect x="-9.5" y="-16" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
+          <rect x="9.5" y="-16" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
+          <CatFace x={-15} y={-27} r={7.6} asleep={false} />
         </g>
         <path
-          d="M15 -20 q10 -4 8 -18"
+          d="M16 -22 q11 -3 8 -17"
           fill="none"
           style={{ stroke: "var(--tint, #3a3142)" }}
           strokeWidth="4"
@@ -188,23 +238,27 @@ function Cat({ awake = false }) {
   // long while the tail flicks (rarity is charm).
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
-      <g className="cat-breathe">
-        <ellipse cx="0" cy="-6" rx="24" ry="12" style={tinted("#3a3142")} />
-        <ellipse cx="-3" cy="-10" rx="13" ry="5" fill="#fff" opacity="0.07" />
-        <circle cx="-16" cy="-13" r="8" style={tinted("#3a3142")} />
-        <polygon points="-22,-18 -19,-26 -15,-19" style={tinted("#3a3142")} />
-        <polygon points="-13.3,-20.5 -6.8,-23 -8.8,-16.4" style={tinted("#3a3142")} />
-        {/* closed eye — a tiny sleeping arc */}
-        <path d="M-19 -13 q2 1.6 4 0" fill="none" stroke="#0d0a12" strokeWidth="1" strokeLinecap="round" opacity="0.7" />
-      </g>
+      {/* the tail wraps AROUND the curl and is drawn first, so the body sits
+          on top of it — that overlap is what sells "curled up" */}
       <path
         className="tail-flick"
-        d="M22 -8 q11 -2 9 -12"
+        d="M14 -3 q13 1 14 -8 q1 -8 -7 -9"
         fill="none"
         style={{ stroke: "var(--tint, #3a3142)" }}
-        strokeWidth="4.5"
+        strokeWidth="5"
         strokeLinecap="round"
       />
+      <g className="cat-breathe">
+        <ellipse cx="0" cy="-7" rx="22" ry="11.5" style={tinted("#3a3142")} />
+        <ellipse cx="9" cy="-12" rx="12" ry="9" style={tinted("#3a3142")} />
+        <ellipse cx="8" cy="-15" rx="7" ry="3.4" fill="#fff" opacity="0.07" />
+        <ellipse cx="-3" cy="-11" rx="12" ry="4.5" fill="#fff" opacity="0.07" />
+        <ellipse cx="0" cy="-2.5" rx="20" ry="5.5" fill="#000" opacity="0.2" />
+        <CatFace x={-14} y={-13} r={8.2} asleep />
+        {/* front paws tucked under the chin */}
+        <ellipse cx="-8" cy="-3.6" rx="5" ry="2.8" style={tinted("#3a3142")} />
+        <ellipse cx="-8" cy="-4.2" rx="4.4" ry="2.2" fill="#fff" opacity="0.08" />
+      </g>
     </g>
   );
 }
@@ -464,7 +518,7 @@ function Laptop() {
     <g>
       <TintedBox gx={0.58} gy={0.41} dx={0.6} dy={0.34} h={2.5} fallback="#3a3142" tint={false} dark={0.3} mid={0.16} />
       <polygon points={lid.left} fill="url(#isoScreen)" />
-      <polygon points={lid.left} fill="#9db4e8" opacity="0.35" />
+      <polygon className="animate-flicker" points={lid.left} fill="#9db4e8" opacity="0.35" />
       <polygon points={lid.right} fill="#2b2350" />
       <polygon points={lid.top} fill="#3a3142" />
     </g>
@@ -780,7 +834,7 @@ function TvUnit() {
           transform={`translate(${project(setX, 0.48).x}, ${project(setX, 0.48).y}) skewY(${SKEW})`}
         >
           <rect x="2" y={-SET + 3} width="20" height={SET - 8} rx="1.5" fill="url(#isoScreen)" />
-          <rect x="2" y={-SET + 3} width="20" height={SET - 8} rx="1.5" fill="#9db4e8" opacity="0.3" />
+          <rect className="animate-flicker" x="2" y={-SET + 3} width="20" height={SET - 8} rx="1.5" fill="#9db4e8" opacity="0.3" />
           <rect x="4" y={-SET + 5} width="7" height="4" rx="1" fill="#fff" opacity="0.16" />
           {/* little feet + a knob, so it reads as a set and not a monolith */}
           <rect x="3" y="-3" width="3" height="3" fill="#241d33" />
@@ -1034,35 +1088,108 @@ function Flowerbed() {
 // The resident: a little person. `seated` swaps the pose — the scene decides
 // by checking whether they were dropped onto something with a seat. `moving`
 // is true mid-glide: the legs step in counter-phase so they walk, not skate.
-function Resident({ seated = false, working = false, moving = false }) {
+const SKIN = "#edc39e";
+const HAIR = "#3a3142";
+const TROUSER = "#4a3a5b";
+const SHOE = "#2b2350";
+
+/**
+ * The resident. Small enough that only the silhouette carries, so what got
+ * added over the first pass is all outline work: shoes distinct from trouser
+ * legs, a bent knee when seated (a seated figure without one is a person
+ * standing in a hole), a neck, shoulders wider than the waist, hands on the
+ * ends of the arms, and a face that actually has an expression.
+ */
+function Resident({ seated = false, lying = false, working = false, moving = false }) {
   const c = project(0.4, 0.4);
-  const torsoY = seated ? -28 : -34;
+  // Lying down is its own drawing, not a squashed sitting pose: dropped on a
+  // bed the resident used to perch bolt upright on the duvet.
+  if (lying) {
+    return (
+      <g transform={`translate(${c.x}, ${c.y})`}>
+        <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+          {/* body along the bed, knees slightly raised */}
+          <rect x="-20" y="-11" width="34" height="12" rx="6" style={tinted("#7faf8f")} />
+          <rect x="-20" y="-5" width="34" height="6" rx="3" fill="#000" opacity="0.12" />
+          <ellipse cx="12" cy="-9" rx="8" ry="6" style={tinted("#7faf8f")} />
+          {/* arm resting on top of the covers */}
+          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={tinted("#7faf8f")} />
+          <circle cx="1" cy="-11.7" r="2.4" fill={SKIN} />
+          {/* head on the pillow, eyes closed */}
+          <circle cx="-23" cy="-13" r="7.4" fill={SKIN} />
+          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={HAIR} />
+          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={HAIR} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
+          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={HAIR} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
+          <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
+        </g>
+      </g>
+    );
+  }
+  const torsoY = seated ? -27 : -33;
   const headY = seated ? -35 : -41;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       {seated ? (
         <>
-          <rect x="-8" y="-10" width="6.5" height="13" rx="3" fill="#4a3a5b" />
-          <rect x="2" y="-9" width="6.5" height="13" rx="3" fill="#4a3a5b" />
+          {/* thigh forward, shin down: the knee is the whole pose */}
+          <rect x="-8.4" y="-14" width="7" height="9" rx="3.2" fill={TROUSER} />
+          <rect x="1.4" y="-14" width="7" height="9" rx="3.2" fill={TROUSER} />
+          <rect x="-8.4" y="-7" width="7" height="8" rx="2.8" fill={TROUSER} />
+          <rect x="1.4" y="-7" width="7" height="8" rx="2.8" fill={TROUSER} />
+          <rect x="-8.4" y="-7" width="7" height="8" rx="2.8" fill="#000" opacity="0.14" />
+          <ellipse cx="-4.9" cy="1" rx="4.2" ry="2.1" fill={SHOE} />
+          <ellipse cx="4.9" cy="1" rx="4.2" ry="2.1" fill={SHOE} />
         </>
       ) : (
         <>
-          <rect className={moving ? "leg-step-a" : undefined} x="-6.8" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
-          <rect className={moving ? "leg-step-b" : undefined} x="1.2" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
+          <g className={moving ? "leg-step-a" : undefined}>
+            <rect x="-6.8" y="-15" width="5.6" height="15" rx="2.6" fill={TROUSER} />
+            <ellipse cx="-4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE} />
+          </g>
+          <g className={moving ? "leg-step-b" : undefined}>
+            <rect x="1.2" y="-15" width="5.6" height="15" rx="2.6" fill={TROUSER} />
+            <ellipse cx="4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE} />
+          </g>
         </>
       )}
       <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
-        <rect x="-9.5" y={torsoY} width="19" height="22" rx="8" style={tinted("#7faf8f")} />
+        <rect x="-9" y={torsoY} width="18" height="22" rx="6.5" style={tinted("#7faf8f")} />
+        {/* shoulders proud of the waist, and a soft shadow where they meet */}
+        <ellipse cx="0" cy={torsoY + 4} rx="10" ry="5.4" style={tinted("#7faf8f")} />
+        <rect x="-9" y={torsoY + 14} width="18" height="8" rx="4" fill="#000" opacity="0.1" />
         {/* arms — they type when a focus block is running and they're seated */}
         <g className={working && seated ? "resident-type" : undefined}>
-          <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
-          <rect x="8" y={torsoY + 5} width="5" height="13" rx="2.5" style={tinted("#7faf8f")} />
-          <rect x="-13" y={torsoY + 5} width="5" height="13" rx="2.5" fill="#000" opacity="0.12" />
+          <g>
+            <rect x="-13.4" y={torsoY + 5} width="5" height="12" rx="2.5" style={tinted("#7faf8f")} />
+            <rect x="-13.4" y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
+            <circle cx="-10.9" cy={torsoY + 17.5} r="2.5" fill={SKIN} />
+          </g>
+          <g>
+            <rect x="8.4" y={torsoY + 5} width="5" height="12" rx="2.5" style={tinted("#7faf8f")} />
+            <circle cx="10.9" cy={torsoY + 17.5} r="2.5" fill={SKIN} />
+          </g>
         </g>
-        <circle cx="0" cy={headY} r="7.6" fill="#edc39e" />
-        <path d={`M-7.6 ${headY} a7.6 7.6 0 0 1 15.2 0 l-2 -1.4 q-5.6 -3.4 -11.2 0 z`} fill="#3a3142" />
-        <circle cx="-3" cy={headY + 2} r="0.9" fill="#3a3142" />
-        <circle cx="3" cy={headY + 2} r="0.9" fill="#3a3142" />
+        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill={SKIN} />
+        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill="#000" opacity="0.14" />
+        <circle cx="0" cy={headY} r="7.8" fill={SKIN} />
+        {/* hair with a parting and a sideburn, rather than a flat cap */}
+        <path
+          d={`M-7.8 ${headY} a7.8 7.8 0 0 1 15.6 0 q-2.2 -2.8 -5.4 -2.3 q-4.6 -3.4 -9.2 0.7 q-0.7 0.6 -1 1.6 z`}
+          fill={HAIR}
+        />
+        <path d={`M-7.7 ${headY - 0.6} q-1.6 5.6 0.3 9.4 q-3.4 -3.2 -3 -9 z`} fill={HAIR} />
+        <circle cx="-2.9" cy={headY + 2} r="0.95" fill={HAIR} />
+        <circle cx="2.9" cy={headY + 2} r="0.95" fill={HAIR} />
+        <path
+          d={`M-1.9 ${headY + 4.7} q1.9 1.5 3.8 0`}
+          fill="none"
+          stroke={HAIR}
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          opacity="0.75"
+        />
+        <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+        <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
       </g>
     </g>
   );
@@ -1110,7 +1237,27 @@ function Fireplace() {
   );
 }
 
+/**
+ * The wall clock tells the REAL time.
+ *
+ * It owns its own 30-second interval rather than being driven from above:
+ * IsoRoom is memo'd precisely so the scene doesn't re-render on a timer, and
+ * a component's own state updates re-render only itself, so this costs one
+ * tiny subtree a minute and only when a clock is actually placed.
+ *
+ * The hands rotate about (0,0) inside a translated group — no CSS
+ * transform-origin, which on SVG would fight the `transform` attribute the
+ * parent already carries (see the note in index.css about that class of bug).
+ */
 function WallClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const minutes = now.getMinutes() + now.getSeconds() / 60;
+  const minuteAngle = minutes * 6;
+  const hourAngle = ((now.getHours() % 12) + minutes / 60) * 30;
   return (
     <g transform={`skewY(${SKEW})`}>
       <circle cx="10" cy="-86" r="11" style={tinted("#8a5346")} />
@@ -1124,10 +1271,15 @@ function WallClock() {
       ].map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r="0.7" fill="#3a3142" />
       ))}
-      {/* ten past ten — the friendliest time a clock can show */}
-      <line x1="10" y1="-86" x2="6.2" y2="-90" stroke="#3a3142" strokeWidth="1.7" strokeLinecap="round" />
-      <line x1="10" y1="-86" x2="14.4" y2="-90.8" stroke="#3a3142" strokeWidth="1.2" strokeLinecap="round" />
-      <circle cx="10" cy="-86" r="1.1" fill="#3a3142" />
+      <g transform="translate(10,-86)">
+        <g className="clock-tick" transform={`rotate(${hourAngle})`}>
+          <line x1="0" y1="0" x2="0" y2="-5" stroke="#3a3142" strokeWidth="1.7" strokeLinecap="round" />
+        </g>
+        <g className="clock-tick" transform={`rotate(${minuteAngle})`}>
+          <line x1="0" y1="0" x2="0" y2="-7.6" stroke="#3a3142" strokeWidth="1.2" strokeLinecap="round" />
+        </g>
+        <circle cx="0" cy="0" r="1.1" fill="#3a3142" />
+      </g>
     </g>
   );
 }
@@ -1411,7 +1563,7 @@ function Curtain() {
     <g transform={`skewY(${SKEW})`}>
       <rect x="0" y="-104" width="38.4" height="2.6" rx="1.3" fill="#6b4a39" />
       {[1, 26].map((x) => (
-        <g key={x}>
+        <g key={x} className="curtain-sway" style={{ animationDelay: `${x * 0.09}s` }}>
           <path d={`M${x} -102 q-1.5 24 0.5 47 l11 0 q2 -23 0.5 -47 z`} style={tinted("#d98a93")} />
           <path d={`M${x + 3.5} -102 q-1 24 0 47 l3 0 q1 -23 0 -47 z`} fill="#000" opacity="0.13" />
           <path d={`M${x + 8} -102 q1 24 0 47 l2.5 0 q-1 -23 0 -47 z`} fill="#fff" opacity="0.08" />
@@ -1439,8 +1591,618 @@ function HangingPlant() {
   );
 }
 
+// ---- cosmetics ---------------------------------------------------------- //
+// Small things whose only job is to make a room feel occupied. Most are
+// under a tile across, so they lean on ONE recognisable shape each rather
+// than on detail that would vanish.
+
+function CoatRack() {
+  const c = project(0.25, 0.25);
+  const H = 68;
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="0" rx="8" ry="4" style={tinted("#6b4a39")} />
+      <ellipse cx="0" cy="0" rx="8" ry="4" fill="#000" opacity="0.32" />
+      <rect x="-1.4" y={-H} width="2.8" height={H} style={tinted("#6b4a39")} />
+      <rect x="-1.4" y={-H} width="2.8" height={H} fill="#000" opacity="0.15" />
+      {[-1, 1].map((s) => (
+        <line
+          key={s}
+          x1="0"
+          y1={-H + 4}
+          x2={s * 7}
+          y2={-H + 9}
+          style={{ stroke: "var(--tint, #6b4a39)" }}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      ))}
+      {/* a coat and a scarf, because an empty rack is a pole */}
+      <path d="M-7 -55 q-5 12 -3 24 l10 0 q2 -12 -2 -24 z" fill="#5b6b9b" />
+      <path d="M-7 -55 q-2 12 -1 24 l3 0 q-1 -12 -0.5 -24 z" fill="#000" opacity="0.14" />
+      <path d="M6 -57 q4 6 3 13 q-1 7 -4 10 q1 -11 1 -23 z" fill="#e8a3a8" />
+    </g>
+  );
+}
+
+function Cactus() {
+  const c = project(0.25, 0.25);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <TintedBox gx={0.02} gy={0.02} dx={0.46} dy={0.46} h={11} fallback="#c0563f" dark={0.32} mid={0.18} />
+      <g transform="translate(0,-11)">
+        <ellipse cx="0" cy="0" rx="9" ry="4.5" fill="#3a2a24" />
+        <rect x="-4.5" y="-27" width="9" height="27" rx="4.5" fill="#4f8f6a" />
+        <rect x="-4.5" y="-27" width="4" height="27" rx="4" fill="#fff" opacity="0.09" />
+        <rect x="-11" y="-19" width="6.5" height="6" rx="3" fill="#4f8f6a" />
+        <rect x="-11" y="-22" width="4.5" height="8" rx="2.2" fill="#4f8f6a" />
+        <rect x="4.5" y="-15" width="6" height="5.5" rx="2.7" fill="#3f7f63" />
+        <rect x="7" y="-21" width="4.5" height="8" rx="2.2" fill="#3f7f63" />
+        {[-22, -16, -10].map((y) => (
+          <line key={y} x1="-3" y1={y} x2="3" y2={y} stroke="#eaf3ec" strokeWidth="0.6" opacity="0.4" />
+        ))}
+      </g>
+    </g>
+  );
+}
+
+function Terrarium() {
+  const c = project(0.3, 0.3);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="10" ry="5" style={tinted("#8f5d49")} />
+      <ellipse cx="0" cy="-1" rx="10" ry="5" fill="#000" opacity="0.3" />
+      {/* soil, then the glass dome over it */}
+      <path d="M-9 -3 a9 4.5 0 0 0 18 0 l0 -4 a9 4.5 0 0 1 -18 0 z" fill="#3a2a24" />
+      <path d="M-6 -6 q3 -7 6 -1 q2 -6 5 0 q-1 4 -5 5 q-5 -1 -6 -4 z" fill="#3f7f63" />
+      <circle cx="2" cy="-9" r="1.6" fill="#e8a3a8" />
+      <path d="M-10 -6 a10 13 0 0 1 20 0 l0 1 a10 5 0 0 1 -20 0 z" fill="#cbe8ef" opacity="0.22" />
+      <path d="M-7 -8 a10 13 0 0 1 4 -8" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.35" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** layer -1 in the catalog, which puts it on the cat's list of soft spots —
+ *  drop one down and the cat will eventually curl up in it. */
+function PetBed() {
+  const c = project(0.55, 0.45);
+  return (
+    <g>
+      <g transform={`translate(${c.x}, ${c.y})`}>
+        <ellipse cx="0" cy="0" rx="26" ry="14" style={tinted("#9b8bd6")} />
+        <ellipse cx="0" cy="0" rx="26" ry="14" fill="#000" opacity="0.2" />
+        <ellipse cx="0" cy="-2.5" rx="26" ry="14" style={tinted("#9b8bd6")} />
+        <ellipse cx="0" cy="-3" rx="19" ry="9.5" fill="#000" opacity="0.22" />
+        <ellipse cx="0" cy="-3.5" rx="18" ry="9" fill="#f2e9dd" opacity="0.5" />
+        <ellipse cx="-4" cy="-6" rx="9" ry="4" fill="#fff" opacity="0.12" />
+      </g>
+    </g>
+  );
+}
+
+function Runner() {
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 3, 1)} style={tinted("rgb(var(--color-blush))")} opacity="0.45" />
+      <polygon
+        points={floorPatch(0.18, 0.14, 2.64, 0.72)}
+        fill="none"
+        style={{ stroke: "rgb(var(--color-petal))" }}
+        strokeWidth="2"
+        opacity="0.3"
+      />
+      {[0.6, 1.2, 1.8, 2.4].map((gx) => (
+        <polygon key={gx} points={floorPatch(gx, 0.14, 0.08, 0.72)} fill="#000" opacity="0.1" />
+      ))}
+    </g>
+  );
+}
+
+function Crates() {
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={0.8} dy={0.7} h={16} fallback="#c98a4b" dark={0.34} mid={0.2} />
+      <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
+        <line x1="2" y1="-8" x2="17" y2="-8" stroke="#000" strokeWidth="1" opacity="0.2" />
+      </g>
+      <g transform="translate(0,-16)">
+        <TintedBox gx={0.08} gy={0.06} dx={0.62} dy={0.56} h={14} fallback="#c98a4b" dark={0.34} mid={0.2} />
+        {/* tape across the top, so it reads as packed rather than as a plinth */}
+        <g transform="translate(0,-14)">
+          <polygon points={floorPatch(0.3, 0.06, 0.08, 0.56)} fill="#e8d9b8" opacity="0.75" />
+        </g>
+      </g>
+    </g>
+  );
+}
+
+function Mug() {
+  const c = project(0.15, 0.15);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="5" ry="2.6" style={tinted("#f2e9dd")} />
+      <ellipse cx="0" cy="-1" rx="5" ry="2.6" fill="#000" opacity="0.3" />
+      <rect x="-5" y="-9" width="10" height="8" style={tinted("#f2e9dd")} />
+      <rect x="-5" y="-9" width="10" height="8" fill="#000" opacity="0.14" />
+      <path d="M5 -7.5 q4 1.5 0 5" fill="none" style={{ stroke: "var(--tint, #f2e9dd)" }} strokeWidth="1.6" />
+      <ellipse cx="0" cy="-9" rx="5" ry="2.6" style={tinted("#f7f2ea")} />
+      <ellipse cx="0" cy="-9" rx="3.6" ry="1.8" fill="#5a3a24" />
+      <g className="steam-puff">
+        <ellipse cx="0" cy="-13" rx="2" ry="3" fill="#fff" opacity="0.3" />
+      </g>
+    </g>
+  );
+}
+
+function LightJar() {
+  const c = project(0.2, 0.2);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="2" rx="14" ry="6" fill="url(#lampPool)" className="room-breathe" opacity="0.45" />
+      <ellipse cx="0" cy="-1" rx="6" ry="3" fill="#cbe8ef" opacity="0.3" />
+      <path d="M-6 -2 l0 -10 a6 3 0 0 1 12 0 l0 10 a6 3 0 0 1 -12 0 z" fill="#cbe8ef" opacity="0.22" />
+      {[
+        [-2.5, -5],
+        [2, -7],
+        [-1, -9],
+        [3, -11],
+        [-3, -12],
+      ].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="#ffe9b0" className="room-twinkle" />
+      ))}
+      <ellipse cx="0" cy="-12" rx="6" ry="3" fill="none" stroke="#fff" strokeWidth="1" opacity="0.35" />
+      <rect x="-4.5" y="-15" width="9" height="3" rx="1.2" style={tinted("#c98a4b")} />
+    </g>
+  );
+}
+
+/** A leaning ladder shelf: the diagonal is the whole silhouette, and nothing
+ *  else in the room has one. */
+function LadderShelf() {
+  const D = 0.5;
+  const H = 62;
+  return (
+    <g>
+      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
+        {[0, 18].map((x) => (
+          <path key={x} d={`M${x + 2} 0 L${x + 5} ${-H} l2.4 0 L${x + 4.4} 0 z`} style={tinted("#a87f5f")} />
+        ))}
+        {[-14, -29, -44].map((y, i) => {
+          const inset = 2.6 + i * 0.7;
+          return (
+            <g key={y}>
+              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" style={tinted("#b58c6a")} />
+              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" fill="#000" opacity="0.12" />
+            </g>
+          );
+        })}
+        <rect x="6" y="-52" width="3.6" height="8" rx="0.6" fill="#7faf8f" />
+        <rect x="10" y="-51" width="3.6" height="7" rx="0.6" fill="#e8a3a8" />
+        <circle cx="12" cy="-33" r="3" fill="#e8b04b" />
+        <path d="M8 -14 q-3 -7 0 -9 q3 2 0 9 z" fill="#3f7f63" />
+      </g>
+    </g>
+  );
+}
+
+function NeonSign() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      {/* the glow is drawn twice: a wide soft pass, then the tube itself */}
+      <path
+        d="M4 -80 q6 -12 12 0 q6 12 12 0"
+        fill="none"
+        style={{ stroke: "var(--tint, #e8a3a8)" }}
+        strokeWidth="7"
+        strokeLinecap="round"
+        opacity="0.25"
+        className="room-breathe"
+      />
+      <path
+        d="M4 -80 q6 -12 12 0 q6 12 12 0"
+        fill="none"
+        style={{ stroke: "var(--tint, #e8a3a8)" }}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        className="room-breathe"
+      />
+      <path
+        d="M4 -80 q6 -12 12 0 q6 12 12 0"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="0.9"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+    </g>
+  );
+}
+
+function Corkboard() {
+  const NOTES = [
+    [3, -92, "#e8b04b", 8, 7],
+    [13, -93, "#7faf8f", 7, 8],
+    [21, -90, "#e8a3a8", 6, 6],
+    [4, -80, "#cbe8ef", 7, 6],
+    [14, -82, "#9b8bd6", 9, 7],
+  ];
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="0" y="-96" width="29" height="32" rx="1.5" style={tinted("#c98a4b")} />
+      <rect x="0" y="-96" width="29" height="32" rx="1.5" fill="#000" opacity="0.2" />
+      <rect x="1.5" y="-94.5" width="26" height="29" fill="#b5844f" />
+      {NOTES.map(([x, y, fill, w, h]) => (
+        <g key={`${x}-${y}`}>
+          <rect x={x} y={y} width={w} height={h} fill={fill} opacity="0.9" />
+          <circle cx={x + w / 2} cy={y + 1.2} r="0.8" fill="#d96a6a" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function Pennant() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <line x1="2" y1="-94" x2="20" y2="-94" stroke="#6b4a39" strokeWidth="1.2" />
+      <g className="room-sway-hanging">
+        <path d="M3 -93 l16 0 l-8 20 z" style={tinted("#5b6b9b")} />
+        <path d="M11 -93 l8 0 l-8 20 z" fill="#000" opacity="0.16" />
+        <circle cx="11" cy="-85" r="3.2" fill="#ffe9b0" opacity="0.85" />
+      </g>
+    </g>
+  );
+}
+
+// ---- things that sit ON surfaces --------------------------------------- //
+// All `stacks: true` in the catalog, so dropping one on a desk or table lifts
+// it onto the top instead of leaving it on the floor.
+
+/** An actual computer: monitor on a stand, keyboard in front, tower beside
+ *  it. The lit screen is the point — a dark rectangle reads as a box. */
+function Computer() {
+  const screen = isoBox(0.12, 0.34, 0.86, 0.06, 26);
+  return (
+    <g>
+      {/* tower, set back and to the side */}
+      <TintedBox gx={1.05} gy={0.12} dx={0.3} dy={0.5} h={22} fallback="#3a3142" tint={false} dark={0.32} mid={0.18} />
+      {/* monitor: foot, neck, then the panel standing on the back edge */}
+      <TintedBox gx={0.38} gy={0.36} dx={0.36} dy={0.22} h={2.5} fallback="#3a3142" tint={false} dark={0.3} mid={0.16} />
+      <TintedBox gx={0.51} gy={0.42} dx={0.1} dy={0.08} h={9} fallback="#3a3142" tint={false} dark={0.3} mid={0.16} />
+      <g transform="translate(0,-9)">
+        <polygon points={screen.left} fill="url(#isoScreen)" />
+        <polygon className="animate-flicker" points={screen.left} fill="#9db4e8" opacity="0.34" />
+        <polygon points={screen.right} fill="#2b2350" />
+        <polygon points={screen.top} fill="#3a3142" />
+        {/* a window and a cursor line, so it reads as a screen in use */}
+        <g transform={`translate(${project(0.12, 0.4).x}, ${project(0.12, 0.4).y}) skewY(${SKEW})`}>
+          <rect x="1.6" y="-23" width="7.5" height="6" rx="0.8" fill="#f7e9e2" opacity="0.5" />
+          <rect x="1.6" y="-15" width="5" height="1.2" rx="0.6" fill="#f7e9e2" opacity="0.4" />
+          <rect x="1.6" y="-12" width="8" height="1.2" rx="0.6" fill="#f7e9e2" opacity="0.28" />
+        </g>
+      </g>
+      {/* keyboard in front of it */}
+      <TintedBox gx={0.22} gy={0.66} dx={0.7} dy={0.22} h={2} fallback="#4a4152" tint={false} dark={0.28} mid={0.14} />
+    </g>
+  );
+}
+
+// ---- outdoors ----------------------------------------------------------- //
+// The garden had exactly one tree. Silhouette does the work at this size, so
+// each of these is a different OUTLINE rather than a different green.
+
+function Pine() {
+  const c = project(0.6, 0.6);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <rect x="-3" y="-16" width="6" height="16" fill="#6b4a39" />
+      <rect x="0" y="-16" width="3" height="16" fill="#000" opacity="0.2" />
+      <g className="room-sway">
+        {[
+          [-14, 34, 24],
+          [-32, 27, 20],
+          [-48, 19, 16],
+          [-62, 12, 12],
+        ].map(([y, w, h]) => (
+          <g key={y}>
+            <path d={`M${-w / 2} ${y} L0 ${y - h} L${w / 2} ${y} Z`} style={tinted("#2f6b4f")} />
+            <path d={`M0 ${y} L0 ${y - h} L${w / 2} ${y} Z`} fill="#000" opacity="0.16" />
+          </g>
+        ))}
+      </g>
+    </g>
+  );
+}
+
+function Birch() {
+  const c = project(0.6, 0.6);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <rect x="-3.5" y="-52" width="7" height="52" fill="#ddd6cc" />
+      <rect x="1" y="-52" width="2.5" height="52" fill="#000" opacity="0.14" />
+      {[-8, -19, -30, -41].map((y, i) => (
+        <rect key={y} x={i % 2 ? -3.5 : -1} y={y} width="4" height="2.2" rx="0.6" fill="#3a3142" opacity="0.55" />
+      ))}
+      <g className="room-sway">
+        <ellipse cx="-4" cy="-60" rx="17" ry="13" style={tinted("#7fb08a")} />
+        <ellipse cx="9" cy="-53" rx="12" ry="10" style={tinted("#7fb08a")} />
+        <ellipse cx="9" cy="-53" rx="12" ry="10" fill="#000" opacity="0.12" />
+        <ellipse cx="-8" cy="-66" rx="10" ry="7" fill="#fff" opacity="0.12" />
+      </g>
+    </g>
+  );
+}
+
+function Hedge() {
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={1.6} dy={0.6} h={22} fallback="#3f7f63" dark={0.3} mid={0.16} />
+      {/* clipped-top texture: a row of soft lobes along the crown */}
+      <g transform="translate(0,-22)">
+        {[0.2, 0.6, 1.0, 1.4].map((gx) => {
+          const p = project(gx, 0.3);
+          return <ellipse key={gx} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#4f8f6a")} />;
+        })}
+      </g>
+    </g>
+  );
+}
+
+function Rock() {
+  const c = project(0.45, 0.4);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <path d="M-16 0 q-4 -11 4 -16 q10 -7 18 0 q8 6 3 16 z" style={tinted("#8d8178")} />
+      <path d="M2 -20 q8 5 3 20 l-5 0 q4 -12 2 -20 z" fill="#000" opacity="0.22" />
+      <path d="M-12 -6 q4 -9 10 -11" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.14" strokeLinecap="round" />
+      <ellipse cx="-4" cy="-1" rx="15" ry="3" fill="#000" opacity="0.16" />
+    </g>
+  );
+}
+
+function Log() {
+  const c = project(0.7, 0.35);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <rect x="-20" y="-13" width="40" height="13" rx="6.5" style={tinted("#8f5d49")} />
+      <rect x="-20" y="-7" width="40" height="7" rx="3.5" fill="#000" opacity="0.2" />
+      <ellipse cx="-20" cy="-6.5" rx="4" ry="6.5" fill="#c9a06f" />
+      <ellipse cx="-20" cy="-6.5" rx="2.4" ry="4" fill="none" stroke="#8f5d49" strokeWidth="0.9" />
+      <ellipse cx="-20" cy="-6.5" rx="1" ry="1.7" fill="#8f5d49" />
+      {[-8, 4, 14].map((x) => (
+        <path key={x} d={`M${x} -12 q1.5 6 0 11`} stroke="#000" strokeWidth="0.8" fill="none" opacity="0.16" />
+      ))}
+    </g>
+  );
+}
+
+function Flowers() {
+  const c = project(0.35, 0.3);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      {[
+        [-9, -2, "#e8a3a8"],
+        [0, -5, "#e8b04b"],
+        [8, -1, "#9b8bd6"],
+        [-3, 1, "#f2e9dd"],
+      ].map(([x, dy, fill]) => (
+        <g key={`${x}-${dy}`}>
+          <path d={`M${x} ${dy} q1 -8 0 -13`} stroke="#3f7f63" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <g className="room-sway">
+            {[0, 72, 144, 216, 288].map((deg) => {
+              const r = (deg * Math.PI) / 180;
+              return (
+                <ellipse
+                  key={deg}
+                  cx={x + Math.cos(r) * 2.6}
+                  cy={dy - 13 + Math.sin(r) * 2}
+                  rx="2.2"
+                  ry="1.6"
+                  style={tinted(fill)}
+                />
+              );
+            })}
+            <circle cx={x} cy={dy - 13} r="1.5" fill="#ffe9b0" />
+          </g>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+// ---- more of what the room already had ---------------------------------- //
+
+function DiningTable() {
+  const W = 1.8;
+  const D = 1.1;
+  const H = 22;
+  return (
+    <g>
+      {[
+        [0.12, 0.12],
+        [W - 0.26, 0.12],
+        [0.12, D - 0.26],
+        [W - 0.26, D - 0.26],
+      ].map(([gx, gy]) => (
+        <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.14} dy={0.14} h={H} fallback="#8f5d49" dark={0.42} mid={0.26} />
+      ))}
+      <g transform={`translate(0,${-H})`}>
+        <TintedBox gx={0} gy={0} dx={W} dy={D} h={4.5} fallback="#a87f5f" dark={0.3} mid={0.16} />
+      </g>
+    </g>
+  );
+}
+
+function WoodStool() {
+  const c = project(0.35, 0.35);
+  const H = 19;
+  return (
+    <g>
+      {[
+        [0.1, 0.1],
+        [0.5, 0.1],
+        [0.1, 0.5],
+        [0.5, 0.5],
+      ].map(([gx, gy]) => (
+        <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.1} dy={0.1} h={H} fallback="#8f5d49" dark={0.42} mid={0.26} />
+      ))}
+      <g transform={`translate(${c.x}, ${c.y - H})`}>
+        <ellipse cx="0" cy="3" rx="13" ry="6.5" style={tinted("#a87f5f")} />
+        <ellipse cx="0" cy="3" rx="13" ry="6.5" fill="#000" opacity="0.3" />
+        <ellipse cx="0" cy="0" rx="13" ry="6.5" style={tinted("#b58c6a")} />
+        <ellipse cx="-3" cy="-1.5" rx="6" ry="2.6" fill="#fff" opacity="0.08" />
+      </g>
+    </g>
+  );
+}
+
+function OvalRug() {
+  const c = project(1.1, 0.85);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="0" rx="47" ry="23" style={tinted("rgb(var(--color-rose))")} opacity="0.45" />
+      <ellipse cx="0" cy="0" rx="39" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="2" opacity="0.3" />
+      <ellipse cx="0" cy="0" rx="30" ry="13" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="1.4" opacity="0.2" />
+    </g>
+  );
+}
+
+function MatRug() {
+  return (
+    <g>
+      <polygon points={floorPatch(0, 0, 1.4, 0.9)} style={tinted("rgb(var(--color-blush))")} opacity="0.5" />
+      {[0.16, 0.38, 0.6].map((t) => (
+        <polygon key={t} points={floorPatch(0.1, t, 1.2, 0.08)} fill="#000" opacity="0.09" />
+      ))}
+    </g>
+  );
+}
+
+// ---- the café bar ------------------------------------------------------- //
+// A serving bar isn't a kitchen cabinet: it's taller, its top OVERHANGS on the
+// customer side, and its front is panelled rather than a cupboard door.
+
+function BarCounter() {
+  const W = 1;
+  const D = 0.6;
+  const H = 33;
+  const face = W * (TILE_W / 2);
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#6b4a39" dark={0.38} mid={0.22} />
+      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
+        {[2.5, 8, 13.5, 19].map((x) => (
+          <rect key={x} x={x} y={-H + 5} width="3.4" height={H - 11} rx="1" fill="#000" opacity="0.14" />
+        ))}
+        <rect x="0" y={-H + 2} width={face} height="1.6" fill="#fff" opacity="0.08" />
+        {/* a brass footrail, which is most of what says "bar" */}
+        <rect x="0" y="-5" width={face} height="1.6" rx="0.8" fill="#e8b04b" opacity="0.55" />
+      </g>
+      <g transform={`translate(0,${-H})`}>
+        {/* the top runs past the front so people can sit at it */}
+        <TintedBox
+          gx={-0.05}
+          gy={-0.05}
+          dx={W + 0.1}
+          dy={D + 0.28}
+          h={3.5}
+          fallback="#4a3a2c"
+          tint={false}
+          dark={0.26}
+          mid={0.13}
+        />
+      </g>
+    </g>
+  );
+}
+
+/** Chalkboard menu — a wall item, so it hangs above the bar. */
+function MenuBoard() {
+  const face = 1.8 * (TILE_W / 2);
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="0" y="-98" width={face} height="35" rx="1.5" style={tinted("#6b4a39")} />
+      <rect x="0" y="-98" width={face} height="35" rx="1.5" fill="#000" opacity="0.16" />
+      <rect x="2.2" y="-95.8" width={face - 4.4} height="30.6" fill="#2b2b26" />
+      {/* heading, then items with prices ranged right */}
+      <rect x="5" y="-92" width="17" height="2.6" rx="1.3" fill="#f7e9e2" opacity="0.85" />
+      {[-85.5, -80.5, -75.5, -70.5].map((y, i) => (
+        <g key={y}>
+          <rect x="5" y={y} width={11 + (i % 3) * 5} height="1.7" rx="0.85" fill="#f7e9e2" opacity="0.42" />
+          <rect x={face - 12} y={y} width="6.5" height="1.7" rx="0.85" fill="#e8b04b" opacity="0.6" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function Till() {
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={0.5} dy={0.4} h={8} fallback="#3a3142" dark={0.32} mid={0.18} />
+      <g transform="translate(0,-8)">
+        <TintedBox gx={0.08} gy={0.05} dx={0.28} dy={0.28} h={7} fallback="#4a4152" tint={false} dark={0.3} mid={0.16} />
+      </g>
+      <g transform={`translate(${project(0, 0.4).x}, ${project(0, 0.4).y}) skewY(${SKEW})`}>
+        <rect x="1.5" y="-6.5" width="6" height="4" rx="0.8" fill="#9db4e8" opacity="0.65" />
+      </g>
+    </g>
+  );
+}
+
+/** Glass display case of cakes — sits on the bar top. */
+function PastryCase() {
+  const glass = isoBox(0.06, 0.06, 0.68, 0.38, 13);
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={0.8} dy={0.5} h={4} fallback="#8f5d49" dark={0.34} mid={0.2} />
+      <g transform="translate(0,-4)">
+        {[
+          [0.22, "#e8a3a8"],
+          [0.42, "#e8b04b"],
+          [0.62, "#cf8f93"],
+        ].map(([gx, fill]) => {
+          const p = project(gx, 0.25);
+          return <ellipse key={gx} cx={p.x} cy={p.y - 3} rx="4.2" ry="2.8" fill={fill} />;
+        })}
+        <polygon points={glass.left} fill="#cbe8ef" opacity="0.2" />
+        <polygon points={glass.right} fill="#cbe8ef" opacity="0.15" />
+        <polygon points={glass.top} fill="#cbe8ef" opacity="0.26" />
+        <polygon points={glass.top} fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.3" />
+      </g>
+    </g>
+  );
+}
+
 export const ISO_SPRITES = {
   resident: Resident,
+  barcounter: BarCounter,
+  menuboard: MenuBoard,
+  till: Till,
+  pastrycase: PastryCase,
+  computer: Computer,
+  pine: Pine,
+  birch: Birch,
+  hedge: Hedge,
+  rock: Rock,
+  log: Log,
+  flowers: Flowers,
+  diningtable: DiningTable,
+  woodstool: WoodStool,
+  ovalrug: OvalRug,
+  matrug: MatRug,
+  coatrack: CoatRack,
+  cactus: Cactus,
+  terrarium: Terrarium,
+  petbed: PetBed,
+  runner: Runner,
+  crates: Crates,
+  mug: Mug,
+  lightjar: LightJar,
+  ladder: LadderShelf,
+  neon: NeonSign,
+  corkboard: Corkboard,
+  pennant: Pennant,
   wardrobe: Wardrobe,
   dresser: Dresser,
   deskchair: DeskChair,

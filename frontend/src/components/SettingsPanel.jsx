@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Palette, SunMedium } from "lucide-react";
+import { MonitorCog, Palette, SunMedium, Waves, Wind } from "lucide-react";
 import { useStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
+
+const MOTION_OPTIONS = [
+  { key: "auto", label: "Auto", Icon: MonitorCog },
+  { key: "full", label: "Full", Icon: Wind },
+  { key: "reduced", label: "Reduced", Icon: Waves },
+];
 
 // One-tap starting points for the custom scheme.
 const QUICK_HUES = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"];
@@ -50,6 +56,8 @@ export default function SettingsPanel() {
     setColorScheme,
     customColor,
     setCustomColor,
+    motionMode,
+    setMotionMode,
   } = useStore();
 
   const customSwatch = paletteSwatch(customColor);
@@ -86,6 +94,37 @@ export default function SettingsPanel() {
             className="flex-1 accent-glow"
           />
           <span className="text-xs text-petal/60">bright</span>
+        </div>
+      </section>
+
+      {/* Motion. The room is full of small idle movement — swaying plants, a
+          breathing cat, drifting clouds — and until now the only way to still
+          it was a system-wide OS setting. */}
+      <section className="space-y-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Waves size={15} className="text-petal/70" /> Motion
+        </p>
+        <p className="text-xs text-petal/60">
+          {motionMode === "auto"
+            ? "Following your system setting."
+            : motionMode === "reduced"
+            ? "The room holds still — plants, weather, the cat and the clouds."
+            : "Everything moves, even if your system asks otherwise."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {MOTION_OPTIONS.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setMotionMode(m.key)}
+              className={`pill flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition ${
+                motionMode === m.key
+                  ? "bg-glow text-plum"
+                  : "bg-white/10 text-petal hover:bg-white/20"
+              }`}
+            >
+              <m.Icon size={13} /> {m.label}
+            </button>
+          ))}
         </div>
       </section>
 

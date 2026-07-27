@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { useReducedMotion } from "framer-motion";
 
 // Lightweight full-screen visuals to match the weather ambience mode.
 const DROPS = Array.from({ length: 60 });
 const FLAKES = Array.from({ length: 45 });
+// Fewer than snow: a leaf is a big shape, and autumn reads as occasional
+// rather than as a blizzard.
+const LEAVES = Array.from({ length: 22 });
+// Autumn, not a paint chart — four turning colours, seeded per leaf.
+const LEAF_COLOURS = ["#c9622f", "#d98a3c", "#a8452c", "#b8863a"];
 
-export default function WeatherOverlay({ mode }) {
+// `reduceMotion` is passed down rather than read here: it now resolves the
+// in-app Motion setting against the OS preference, and App already holds it.
+// The lightning is a full-screen white pulse — under reduced motion that's a
+// photosensitivity concern, not just a motion one, and being a CSS
+// *transition* it escapes the animation-silencing rules entirely, so it has
+// to be gated in JS.
+export default function WeatherOverlay({ mode, reduceMotion = false }) {
   const [flash, setFlash] = useState(false);
-  // The lightning is a full-screen white pulse — under reduced motion it's
-  // not just a motion concern but a photosensitivity one, and being a CSS
-  // *transition* it escapes the prefers-reduced-motion animation block, so
-  // it must be gated here.
-  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (mode !== "storm" || reduceMotion) return undefined;
@@ -75,6 +80,40 @@ export default function WeatherOverlay({ mode }) {
                 opacity: 0.25 + ((i % 5) / 10),
               }}
             />
+          );
+        })}
+
+      {/* Autumn. Each leaf gets its own fall speed, drift phase and tumble
+          direction from its index — deterministic, so nothing reshuffles on a
+          re-render (the same reason the star field is index-derived). */}
+      {mode === "leaves" &&
+        LEAVES.map((_, i) => {
+          const left = (i * 41) % 100;
+          const dur = 9 + ((i * 23) % 9);
+          const delay = -((i * 31) % 18);
+          const size = 9 + (i % 4) * 2;
+          return (
+            <span
+              key={i}
+              className="leaf-fall"
+              style={{
+                left: `${left}%`,
+                animationDuration: `${dur}s`,
+                animationDelay: `${delay}s`,
+                opacity: 0.55 + ((i % 4) / 10),
+              }}
+            >
+              <span
+                className="leaf-spin"
+                style={{
+                  width: `${size}px`,
+                  height: `${size * 0.72}px`,
+                  background: LEAF_COLOURS[i % LEAF_COLOURS.length],
+                  animationDuration: `${2.4 + (i % 5) * 0.6}s`,
+                  animationDirection: i % 2 ? "reverse" : "normal",
+                }}
+              />
+            </span>
           );
         })}
 

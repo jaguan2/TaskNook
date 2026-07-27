@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  DEFAULT_ISO_PRESET,
   DEFAULT_ISO_SIZE,
   ISO_ITEMS,
   ISO_ITEM_KEYS,
@@ -19,6 +20,7 @@ import {
   seatFor,
   snapHalf,
   sortIso,
+  surfaceFor,
   validateIsoLayout,
   wallRuns,
 } from "./isoRoom";
@@ -239,6 +241,70 @@ describe("floor masks (drawn shapes)", () => {
     expect(lipRuns(L_ROOM)).toHaveLength(4);
   });
 
+  // A wall stands 118px tall and its face shows through the void it faces, so
+  // one raised anywhere but the lot's back silhouette is a slab through the
+  // middle of the room. Painting any non-rectangular floor plan used to do
+  // exactly that.
+  describe("walls stay on the back silhouette", () => {
+    /** Every tile behind a wall run must be void, all the way to the edge. */
+    const nothingBehind = (size) =>
+      wallRuns(size).every((run) => {
+        for (let i = run.from; i < run.to; i++) {
+          for (let j = 0; j < run.at; j++) {
+            const on =
+              run.plane === "gy"
+                ? size.mask?.[j]?.[i] !== "0"
+                : size.mask?.[i]?.[j] !== "0";
+            if (on) return false;
+          }
+        }
+        return true;
+      });
+
+    it("a hole punched mid-floor raises no wall", () => {
+      const donut = { w: 5, d: 5, mask: ["11111", "11111", "11011", "11111", "11111"] };
+      expect(wallRuns(donut)).toHaveLength(2); // the two originals, nothing more
+      expect(nothingBehind(donut)).toBe(true);
+    });
+
+    it("a notch bitten out of the front raises no wall", () => {
+      const notched = { w: 5, d: 5, mask: ["11111", "11111", "11111", "11011", "11111"] };
+      expect(wallRuns(notched)).toHaveLength(2);
+    });
+
+    it("but the BACK wall still steps around a back-edge notch", () => {
+      const alcove = { w: 5, d: 5, mask: ["11011", "11111", "11111", "11111", "11111"] };
+      const gy = wallRuns(alcove).filter((r) => r.plane === "gy");
+      expect(gy).toEqual([
+        { plane: "gy", at: 0, from: 0, to: 2 },
+        { plane: "gy", at: 0, from: 3, to: 5 },
+        { plane: "gy", at: 1, from: 2, to: 3 }, // recessed by one tile
+      ]);
+      expect(nothingBehind(alcove)).toBe(true);
+    });
+
+    it("holds for a staircase, where every tile edge faces away", () => {
+      const stairs = { w: 4, d: 4, mask: ["1100", "0110", "0011", "0001"] };
+      expect(nothingBehind(stairs)).toBe(true);
+    });
+
+    it("skips a column and a row with no floor at all", () => {
+      const split = { w: 4, d: 2, mask: ["1101", "1101"] };
+      expect(wallRuns(split).filter((r) => r.plane === "gy")).toEqual([
+        { plane: "gy", at: 0, from: 0, to: 2 },
+        { plane: "gy", at: 0, from: 3, to: 4 },
+      ]);
+    });
+  });
+
+  it("the lip still rims a hole — that IS what you see of it", () => {
+    const donut = { w: 5, d: 5, mask: ["11111", "11111", "11011", "11111", "11111"] };
+    const rim = lipRuns(donut);
+    // far rim of the hole (its viewer-facing side) + the room's own two
+    expect(rim).toContainEqual({ plane: "gy", at: 2, from: 2, to: 3 });
+    expect(rim).toContainEqual({ plane: "gx", at: 2, from: 2, to: 3 });
+  });
+
   it("wall items slide only along the wall's remaining main run", () => {
     const back = { w: 10, d: 8, mask: cutsToMask([{ corner: "back", cw: 3, cd: 2 }], 10, 8) };
     expect(clampIsoPlacement("frame", 0, 0, back, 0).gx).toBe(3);
@@ -319,10 +385,13 @@ describe("presets", () => {
     expect(ids.size).toBe(a.placements.length * 2);
   });
 
-  it("the default layout is the classic preset, and empty is empty", () => {
+  it("the default layout is the starter preset, and empty is empty", () => {
+    // Survives the validator intact — a starter room that silently loses
+    // furniture on first paint is the worst possible first impression.
     expect(defaultIsoLayout().placements.length).toBe(
-      ISO_PRESETS.classic.items.length
+      ISO_PRESETS[DEFAULT_ISO_PRESET].items.length
     );
+    expect(ISO_PRESETS[DEFAULT_ISO_PRESET]).toBeTruthy();
     expect(isoPresetLayout("empty").placements).toEqual([]);
     expect(isoPresetLayout("empty").w).toBe(DEFAULT_ISO_SIZE.w);
   });
@@ -380,5 +449,65 @@ describe("newIsoPlacement lands items on real floor", () => {
     const p = newIsoPlacement("sofa", [], DEFAULT_ISO_SIZE);
     expect(p).toBeTruthy();
     expect(footprintFree(p.gx, p.gy, footOf("sofa", 0), DEFAULT_ISO_SIZE)).toBe(true);
+  });
+});
+
+describe("surfaceFor — small things rest on tables", () => {
+  const desk = { id: "d", item: "desk", gx: 2, gy: 1 }; // 2..4.2 x 1..2.2
+  const rug = { id: "r", item: "squarerug", gx: 0, gy: 0 };
+
+  it("lifts an item whose centre is over a surface", () => {
+    const mug = { id: "m", item: "mug", gx: 3, gy: 1.5 };
+    const on = surfaceFor(mug, [desk, mug]);
+    expect(on?.placement.id).toBe("d");
+    expect(on.height).toBe(ISO_ITEMS.desk.surface);
+  });
+
+  it("leaves it on the floor when it's only NEXT to the surface", () => {
+    const mug = { id: "m", item: "mug", gx: 5, gy: 1.5 };
+    expect(surfaceFor(mug, [desk, mug])).toBeNull();
+  });
+
+  it("ignores items that aren't stackable", () => {
+    // A wardrobe standing on a desk is not a feature.
+    const wardrobe = { id: "w", item: "wardrobe", gx: 3, gy: 1.5 };
+    expect(surfaceFor(wardrobe, [desk, wardrobe])).toBeNull();
+  });
+
+  it("ignores surfaces that aren't surfaces", () => {
+    const mug = { id: "m", item: "mug", gx: 1, gy: 1 };
+    expect(surfaceFor(mug, [rug, mug])).toBeNull();
+  });
+
+  it("picks the HIGHEST surface when they stack up", () => {
+    // A mug over both a low coffee table and a desk belongs on the desk.
+    const low = { id: "l", item: "coffeetable", gx: 2, gy: 1 };
+    const mug = { id: "m", item: "mug", gx: 3, gy: 1.5 };
+    const on = surfaceFor(mug, [low, desk, mug]);
+    expect(on.height).toBe(ISO_ITEMS.desk.surface);
+  });
+
+  it("never rests an item on itself", () => {
+    // Both flags on one item would otherwise make it its own table.
+    const both = { id: "x", item: "computer", gx: 2, gy: 1 };
+    expect(surfaceFor(both, [both])).toBeNull();
+  });
+
+  it("every surface height is below the item's own hit height", () => {
+    // A surface taller than the sprite would float whatever lands on it.
+    for (const key of ISO_ITEM_KEYS) {
+      const item = ISO_ITEMS[key];
+      if (!item.surface) continue;
+      expect(item.surface, `${key} surface above its hitH`).toBeLessThanOrEqual(item.hitH);
+    }
+  });
+
+  it("seatFor reports `lie` so beds get the lying pose", () => {
+    const bed = { id: "b", item: "bed", gx: 0, gy: 0 };
+    const who = { id: "p", item: "resident", gx: 0.6, gy: 1.2 };
+    expect(seatFor(who, [bed, who])?.lie).toBe(true);
+    const stool = { id: "s", item: "stool", gx: 0, gy: 0 };
+    const sitter = { id: "q", item: "resident", gx: 0.1, gy: 0.1 };
+    expect(seatFor(sitter, [stool, sitter])?.lie).toBe(false);
   });
 });

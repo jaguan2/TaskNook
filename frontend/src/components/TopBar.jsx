@@ -6,6 +6,7 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
+  Leaf,
   Music2,
 } from "lucide-react";
 import { useStore } from "../store";
@@ -21,6 +22,9 @@ export const WEATHER_OPTIONS = [
   { key: "off", label: "Clear", Icon: CloudSun },
   { key: "cloudy", label: "Cloudy", Icon: Cloud },
   { key: "rain", label: "Rain", Icon: CloudRain },
+  // A season rather than a forecast: no WMO code maps to it, so auto-match
+  // never picks it — it's yours to set when you want autumn.
+  { key: "leaves", label: "Falling leaves", Icon: Leaf },
   { key: "snow", label: "Snow", Icon: CloudSnow },
   { key: "storm", label: "Storm", Icon: CloudLightning },
 ];
@@ -109,13 +113,16 @@ export default function TopBar() {
         )}
       </div>
 
-      <div className="glass pill flex items-center gap-2 px-4 py-2 text-cream shadow-soft">
+      {/* h-11, not py-2: the two round toggles are 44px and these were 40px,
+          so the cluster had two different pill heights sitting side by side.
+          Same px-4 on both for an even rhythm across the row. */}
+      <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
         <Clock3 size={16} className="text-petal/70" />
         <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
       </div>
 
-      <div className="glass pill flex items-center gap-2 px-3 py-2 text-cream shadow-soft">
-        <span className="text-base">{user?.avatar || "🌙"}</span>
+      <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
+        <span className="text-base leading-none">{user?.avatar || "🌙"}</span>
         <span className="hidden sm:block text-sm font-semibold">
           {user?.displayName}
         </span>

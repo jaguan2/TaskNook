@@ -39,7 +39,9 @@ function Slider({ label, min, max, value, onChange, track }) {
 function VariantPicker({ placement, item, onTint }) {
   const active = placement.tint || null;
   return (
-    <div className="glass absolute bottom-0 left-1/2 z-20 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
+    // bottom-6: the transport bar's spot on the shared bottom rail, which is
+    // exactly what this popover replaces while decorating
+    <div className="glass absolute bottom-6 left-1/2 z-20 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
         <button
@@ -122,7 +124,7 @@ function FullTintPicker({ placement, item, onTint }) {
     // Bottom-centre: guaranteed clear while decorating — the focus timer that
     // normally lives there steps aside in edit mode, and the dock (viewport
     // left) stays untouched.
-    <div className="glass absolute bottom-0 left-1/2 z-20 w-60 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
+    <div className="glass absolute bottom-6 left-1/2 z-20 w-60 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
         <button

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
+import { formatPopulation } from "../lib/weather";
 import { WEATHER_OPTIONS } from "./TopBar";
 
 const TIME_OPTIONS = [
@@ -16,6 +17,8 @@ export default function WeatherPanel() {
     weatherStatus,
     weatherError,
     weatherLocationLabel,
+    weatherPlaces,
+    chooseWeatherPlace,
     refreshRealWeather,
     searchWeatherCity,
     autoMatchWeather,
@@ -103,6 +106,38 @@ export default function WeatherPanel() {
             Go
           </button>
         </form>
+
+        {/* Shown only when the name is genuinely shared. Population is the
+            deciding detail — Gainesville, Florida is 140k and Gainesville,
+            Alabama is a couple of hundred. */}
+        {weatherPlaces.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+              More than one “{city.trim()}” — which?
+            </p>
+            {weatherPlaces.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => chooseWeatherPlace(p)}
+                className="flex w-full items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-left transition hover:bg-white/15"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold text-cream">
+                    {p.name}
+                  </span>
+                  <span className="block truncate text-[10px] text-petal/60">
+                    {p.region}
+                  </span>
+                </span>
+                {p.population > 0 && (
+                  <span className="shrink-0 text-[10px] tabular-nums text-petal/40">
+                    {formatPopulation(p.population)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <hr className="border-white/10" />

@@ -11,6 +11,25 @@
       rel="stylesheet"
     />
     <title>TaskNook · a cozy place to get things done</title>
+    <script>
+      // Set BEFORE first paint, or reduced-motion users see a flash of the
+      // very movement they asked not to see. Storage is wrapped separately so
+      // that if it throws (disabled/partitioned), the OS preference still
+      // applies — failing closed is the safe direction for this one.
+      (function () {
+        var mode = "auto";
+        try {
+          mode = localStorage.getItem("tasknook.motion") || "auto";
+        } catch (e) {
+          /* storage unavailable — fall through to the system preference */
+        }
+        var reduce =
+          mode === "reduced" ||
+          (mode !== "full" &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        if (reduce) document.documentElement.setAttribute("data-motion", "reduced");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

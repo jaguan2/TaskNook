@@ -68,7 +68,9 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
     []
   );
 
-  const hasClouds = ["cloudy", "rain", "storm", "snow"].includes(weatherMode);
+  // Leaves get cloud too — autumn is breezy and overcast, and snow already
+  // works this way — but they're never the STORM-dark kind below.
+  const hasClouds = ["cloudy", "rain", "storm", "snow", "leaves"].includes(weatherMode);
   const darkClouds = weatherMode === "rain" || weatherMode === "storm";
   const night = timeOfDay === "night";
   const sunset = timeOfDay === "sunset";

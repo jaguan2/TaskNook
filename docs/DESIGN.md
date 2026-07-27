@@ -25,6 +25,25 @@ The screen has an ownership map — respect it:
 | Bottom-left | Signature; decorating chip while editing |
 | Center | The room. Never crowd it. |
 
+- **The bottom rail is one line, and everything on it shares two numbers:
+  `bottom-6` (24px) and `h-11` (44px).** Three zones sit on it — signature /
+  decorating chip on the left, transport bar (or tint picker) in the middle,
+  clock cluster on the right — and because they're three separate absolutely
+  positioned components it is very easy for them to drift apart. They did:
+  four different insets (`bottom-3`/`5`/`6`/`0`) and three different heights,
+  which is what "the bottom looks misaligned" actually means. Give a new
+  bottom-rail element `h-11` and let `items-center` place its contents —
+  never `py-*`, which makes the height depend on the font metrics inside.
+  A rail element must also keep a **fixed** height across its own states; the
+  transport bar pads its title column to exactly 32px so a loading track, a
+  live badge and a seek bar all leave it 44px tall.
+- **Controls that sit next to each other must share a baseline by
+  construction, not by tuning.** Two sliders an inch apart on different rows
+  read as broken however carefully you pad them — put them on the same line
+  instead. (This is why the volume slider lives inside the transport bar's
+  seek row rather than beside the column.) Give paired numeric labels a fixed
+  `w-*` with `tabular-nums` so the control between them doesn't resize as the
+  digits change.
 - **Rule of thirds for focal accents.** The sun/moon sits at the upper-right
   third intersection, not centered above the room (centered reads stuck-on
   and crowds the subject). Sunset is the deliberate exception: low-left,
@@ -153,6 +172,16 @@ chair, because a preview that lies is worse than no preview.
   `:focus-visible` glow outline at zero specificity (`:where(...)`), so
   pointer users never see it and keyboard users always do. Don't add
   `outline-none` without putting a replacement ring back.
+- **Motion has an in-app setting, not just an OS one.** Settings → Motion is
+  Auto / Full / Reduced; Auto follows the system. Everything is silenced by
+  ONE condition — `data-motion="reduced"` on `<html>`, set before first paint
+  by an inline script in `index.html` so nobody sees a flash of the movement
+  they asked not to see. **A new animation is not finished until its class is
+  in that list** (`index.css`), and anything driven by JS or a CSS
+  *transition* — which the list can't reach — takes the `reduceMotion` boolean
+  as a prop instead. The lightning flash is the standing example: a
+  full-screen white pulse is a photosensitivity concern, not just a motion
+  one.
 
 ## Chrome vocabulary
 
@@ -195,5 +224,6 @@ chair, because a preview that lies is worse than no preview.
 - [ ] Does it work in every theme (test darkest + lightest) and both scenes?
 - [ ] Tint/shade via the overlay system? Legible on any tint?
 - [ ] Icon-only controls labelled, and reachable/visible by keyboard?
+- [ ] Any new animation added to the `data-motion="reduced"` list?
 - [ ] Does every way it can refuse say so (toast), rather than doing nothing?
 - [ ] Screenshot-reviewed at 1440×900 AND a short window (~1150×720)?

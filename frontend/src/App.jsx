@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
+import { useReducedMotionPref } from "./lib/motion";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -50,6 +51,7 @@ export default function App() {
     brightness,
     colorScheme,
     customColor,
+    motionMode,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -73,7 +75,9 @@ export default function App() {
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
   const [frontKey, setFrontKey] = useState(null);
-  const reduceMotion = useReducedMotion();
+  // Resolved once here and threaded down: the setting wins over the OS
+  // preference, and framer-motion's own hook only knows about the latter.
+  const reduceMotion = useReducedMotionPref(motionMode);
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
@@ -182,7 +186,7 @@ export default function App() {
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
-      <WeatherOverlay mode={weatherMode} />
+      <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
 
       {/* Centerpiece cottage. On first open we start zoomed right into the
           window and pull back to reveal the room — like stepping back from
@@ -246,6 +250,7 @@ export default function App() {
               onMoveItem={moveRoomItem}
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
+              reduceMotion={reduceMotion}
             />
           )}
         </ErrorBoundary>
@@ -260,7 +265,7 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={() => setRoomEditMode(false)}
-            className="pill glass absolute bottom-6 left-6 z-30 flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
             {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
                 ⌫ only works in the iso scene (the flat one has per-item ✕). */}
@@ -343,9 +348,12 @@ export default function App() {
             gets the bottom-centre spot. */}
         <MusicDock onOpenPanel={() => toggleDockPanel("music")} />
 
-        {/* rkive. — the maker's signature, same wordmark as the portfolio */}
+        {/* rkive. — the maker's signature, same wordmark as the portfolio.
+            Sits ON the bottom rail: same bottom-6, same 44px height, so its
+            optical centre lines up with the transport bar and the clock
+            cluster instead of floating a few px below them. */}
         <div
-          className="intro-chrome absolute bottom-5 left-6 z-10 select-none"
+          className="intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center"
           title="A space where I archive and share my journey, wherever it takes me."
         >
           <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
