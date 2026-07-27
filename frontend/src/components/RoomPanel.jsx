@@ -14,9 +14,8 @@ import {
   ISO_SIZE_MAX,
   cutsToMask,
   envHasWalls,
-  footOf,
-  isoDepth,
   seatFor,
+  seatedPlacement,
   sortIso,
   tileOn,
 } from "../lib/isoRoom";
@@ -83,15 +82,7 @@ function IsoPresetPreview({ preset }) {
       if (!ISO_ITEMS[p.item]?.persona) return p;
       const seat = seatFor(p, placed);
       if (!seat) return p;
-      const sf = footOf(seat.placement.item, seat.placement.rot);
-      const pf = footOf(p.item, p.rot);
-      return {
-        ...p,
-        gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
-        gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
-        _seat: seat.height,
-        _depth: isoDepth(seat.placement) + 0.01, // in front of the backrest
-      };
+      return { ...p, ...seatedPlacement(p, seat) };
     })
   );
   const L = project(0, d);

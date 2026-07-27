@@ -23,6 +23,7 @@ import {
   rotationsFor,
   normalizeMask,
   seatFor,
+  seatedPlacement,
   snapHalf,
   sortIso,
   surfaceFor,
@@ -417,6 +418,54 @@ describe("floor masks (drawn shapes)", () => {
   });
 });
 
+describe("a sitter is placed by which way the seat faces", () => {
+  const sit = (rot) => {
+    const sofa = { id: "s", item: "sofa", gx: 2, gy: 2, rot };
+    const person = { id: "p", item: "resident", gx: 2.5, gy: 2 };
+    return { sofa, out: seatedPlacement(person, { placement: sofa, height: 22, lie: false }) };
+  };
+
+  it("towards-facing seats put the sitter in FRONT of the backrest", () => {
+    for (const rot of [0, 1]) {
+      const { sofa, out } = sit(rot);
+      expect(out._depth, `rot ${rot}`).toBeGreaterThan(isoDepth(sofa));
+      expect(sortIso([{ ...sofa }, { ...out, id: "p", item: "resident" }]).map((x) => x.id)).toEqual(
+        ["s", "p"]
+      );
+    }
+  });
+
+  it("away-facing seats put them BEHIND it — the backrest is nearest now", () => {
+    // Drawn in front, a sitter on a turned-around sofa straddles the backrest.
+    for (const rot of [2, 3]) {
+      const { sofa, out } = sit(rot);
+      expect(out._depth, `rot ${rot}`).toBeLessThan(isoDepth(sofa));
+      expect(sortIso([{ ...out, id: "p", item: "resident" }, { ...sofa }]).map((x) => x.id)).toEqual(
+        ["p", "s"]
+      );
+    }
+  });
+
+  it("shifts along the axis the seat actually faces", () => {
+    // Odd rotations are the grid transpose, so their facing runs along gx.
+    const base = sit(0).out;
+    expect(sit(2).out.gy).toBeLessThan(base.gy); // same axis, other way
+    expect(sit(0).out.gx).toBe(sit(2).out.gx); // …and gx untouched
+    expect(sit(1).out.gy).toBe(sit(3).out.gy); // odd turns leave gy alone
+    expect(sit(3).out.gx).toBeLessThan(sit(1).out.gx);
+  });
+
+  it("carries the seat's height and lie-flag through", () => {
+    const bed = { id: "b", item: "bed", gx: 1, gy: 1 };
+    const out = seatedPlacement(
+      { id: "p", item: "resident", gx: 1, gy: 1 },
+      { placement: bed, height: 18, lie: true }
+    );
+    expect(out._seat).toBe(18);
+    expect(out._lie).toBe(true);
+  });
+});
+
 describe("things riding on other things sort in front of them", () => {
   it("a big seat would otherwise bury its occupant", () => {
     // Depth is the FRONT corner, so a 0.8x0.8 person centred on a 2x0.85 sofa
@@ -511,6 +560,57 @@ describe("presets", () => {
     const b = isoPresetLayout("classic");
     const ids = new Set([...a.placements, ...b.placements].map((p) => p.id));
     expect(ids.size).toBe(a.placements.length * 2);
+  });
+
+  describe("preset furniture doesn't collide", () => {
+    const boxOf = (p) => {
+      const f = footOf(p.item, p.rot || 0);
+      return { x0: p.gx, y0: p.gy, x1: p.gx + f[0], y1: p.gy + f[1] };
+    };
+
+    it("no two stackables share a spot", () => {
+      // Two `stacks` items at identical coordinates both centre on the SAME
+      // surface, so the second is drawn entirely inside the first and is
+      // simply invisible. The terrace had a mug and a jar of lights doing
+      // exactly this on one side table.
+      for (const key of ISO_PRESET_KEYS) {
+        const seen = new Map();
+        for (const p of ISO_PRESETS[key].items) {
+          if (!ISO_ITEMS[p.item].stacks) continue;
+          const at = `${p.gx},${p.gy}`;
+          expect(seen.has(at), `${key}: ${p.item} sits on ${seen.get(at)} at ${at}`).toBe(false);
+          seen.set(at, p.item);
+        }
+      }
+    });
+
+    it("nothing spawns inside anything else", () => {
+      // 0.25 tiles² is the bar: a library ladder leaning on its bookshelf
+      // overlaps by 0.18 and is meant to, while a cat standing in a chair
+      // (0.49) is a mistake. Flat rugs, wall decor, people on seats and small
+      // things on surfaces are all supposed to overlap.
+      const collisions = [];
+      for (const key of ISO_PRESET_KEYS) {
+        const items = ISO_PRESETS[key].items;
+        for (let i = 0; i < items.length; i++) {
+          for (let j = i + 1; j < items.length; j++) {
+            const A = ISO_ITEMS[items[i].item];
+            const B = ISO_ITEMS[items[j].item];
+            if (A.layer === -1 || B.layer === -1 || A.wall || B.wall) continue;
+            if (A.persona || B.persona) continue;
+            if ((A.surface && B.stacks) || (B.surface && A.stacks)) continue;
+            const a = boxOf(items[i]);
+            const b = boxOf(items[j]);
+            const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+            const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+            if (ox > 0 && oy > 0 && ox * oy > 0.25) {
+              collisions.push(`${key}: ${items[i].item} × ${items[j].item} (${(ox * oy).toFixed(2)})`);
+            }
+          }
+        }
+      }
+      expect(collisions).toEqual([]);
+    });
   });
 
   it("EVERY preset survives validation with all its furniture", () => {
