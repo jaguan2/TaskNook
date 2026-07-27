@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { motion, useDragControls } from "framer-motion";
+import {
+  Check,
+  ChevronUp,
+  Flame,
+  Hourglass,
+  Pause,
+  Play,
+  Settings2,
+  Target,
+  Timer,
+} from "lucide-react";
 import { useStore } from "../store";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { useArmed } from "../lib/useArmed";
@@ -184,17 +195,17 @@ export default function HudFocusCard() {
               <button
                 onClick={startTimer}
                 title={stopwatch ? "Start tracking" : "Start focusing"}
-                className="pill grid h-9 w-12 place-items-center bg-glow text-sm font-bold text-plum shadow-soft hover:bg-amber"
+                className="pill grid h-9 w-12 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
               >
-                ▶
+                <Play size={16} />
               </button>
             ) : (
               <button
                 onClick={pauseTimer}
                 title="Pause"
-                className="pill grid h-9 w-12 place-items-center bg-blush text-sm font-bold text-plum shadow-soft hover:bg-rose"
+                className="pill grid h-9 w-12 place-items-center bg-blush text-plum shadow-soft hover:bg-rose"
               >
-                ❚❚
+                <Pause size={16} />
               </button>
             )}
             {stopwatch && (
@@ -202,19 +213,19 @@ export default function HudFocusCard() {
                 onClick={finishStopwatch}
                 disabled={elapsed === 0}
                 title="Finish and log the tracked time"
-                className="pill grid h-8 w-8 place-items-center bg-sage/80 text-sm font-bold text-plum hover:bg-sage disabled:opacity-40"
+                className="pill grid h-8 w-8 place-items-center bg-sage/80 text-plum hover:bg-sage disabled:opacity-40"
               >
-                ✓
+                <Check size={15} />
               </button>
             )}
             <button
               onClick={() => setExpanded((e) => !e)}
               title="Timer options"
-              className={`pill grid h-8 w-8 place-items-center text-sm transition ${
+              className={`pill grid h-8 w-8 place-items-center transition ${
                 expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
               }`}
             >
-              {expanded ? "▴" : "⚙"}
+              {expanded ? <ChevronUp size={15} /> : <Settings2 size={14} />}
             </button>
           </div>
 
@@ -223,20 +234,20 @@ export default function HudFocusCard() {
             <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
               <div className="flex justify-center gap-1">
                 {[
-                  { key: "timer", label: "⏳ Timer" },
-                  { key: "stopwatch", label: "⏱ Stopwatch" },
+                  { key: "timer", label: "Timer", Icon: Hourglass },
+                  { key: "stopwatch", label: "Stopwatch", Icon: Timer },
                 ].map((m) => (
                   <button
                     key={m.key}
                     onClick={() => setTimerMode(m.key)}
                     disabled={running}
-                    className={`pill px-2.5 py-0.5 text-[10px] font-semibold transition disabled:opacity-50 ${
+                    className={`pill flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold transition disabled:opacity-50 ${
                       timerMode === m.key
                         ? "bg-glow text-plum"
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
-                    {m.label}
+                    <m.Icon size={10} /> {m.label}
                   </button>
                 ))}
               </div>
@@ -323,12 +334,18 @@ export default function HudFocusCard() {
             keeps this on the main screen, not buried in a stats dialog). */}
         <p
           title="Today's focus vs your daily goal (set in Progress) and your streak of goal-met days"
-          className={`mt-1.5 text-center text-[11px] font-semibold drop-shadow ${
+          className={`mt-1.5 flex items-center justify-center gap-1 text-center text-[11px] font-semibold drop-shadow ${
             goalMet ? "text-sage" : "text-petal/60"
           }`}
         >
-          🎯 {focusMinutesLive}/{dailyGoal}m{goalMet ? " ✓" : ""}
-          {streak > 0 && <span className="ml-1.5">🔥 {streak}d</span>}
+          <Target size={11} className="shrink-0" />
+          {focusMinutesLive}/{dailyGoal}m{goalMet ? " ✓" : ""}
+          {streak > 0 && (
+            <span className="ml-1 flex items-center gap-0.5">
+              <Flame size={11} className="shrink-0 text-amber" />
+              {streak}d
+            </span>
+          )}
         </p>
       </motion.div>
     </div>

@@ -75,7 +75,6 @@ function Cottage({
   onMoveItem,
   onRemoveItem,
   onTintItem,
-  onDragEnd,
 }) {
   const [flash, setFlash] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -90,18 +89,24 @@ function Cottage({
   const time = TIME_PRESETS[timeOfDay] || TIME_PRESETS.night;
 
   useEffect(() => {
-    if (weather !== "storm") return undefined;
+    // Gated for reduced motion too — the flash is a photosensitivity
+    // concern, and as a transition it escapes the CSS animation block.
+    if (weather !== "storm" || reduceMotion) return undefined;
     let timer;
+    let flashTimer;
     const scheduleFlash = () => {
       timer = setTimeout(() => {
         setFlash(true);
-        setTimeout(() => setFlash(false), 150);
+        flashTimer = setTimeout(() => setFlash(false), 150);
         scheduleFlash();
       }, 4500 + Math.random() * 9000);
     };
     scheduleFlash();
-    return () => clearTimeout(timer);
-  }, [weather]);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(flashTimer);
+    };
+  }, [weather, reduceMotion]);
 
   // Leaving edit mode drops any selection so no ghost outline lingers.
   useEffect(() => {
@@ -162,7 +167,6 @@ function Cottage({
     if (!dragRef.current) return;
     dragRef.current = null;
     setDraggingId(null);
-    onDragEnd?.();
   };
 
   const ordered = sortForRender(room);

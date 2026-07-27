@@ -1,8 +1,32 @@
 import { useState } from "react";
+import {
+  AudioLines,
+  BookOpen,
+  CloudLightning,
+  CloudRain,
+  Coffee,
+  Flame,
+  Music2,
+  Play,
+  Snowflake,
+  Wind,
+} from "lucide-react";
 import { useStore } from "../store";
 import { stationKey } from "../lib/musicLink";
 import { SOUND_CHANNELS } from "../lib/audio";
 import { useArmed } from "../lib/useArmed";
+
+// lib/audio.js stays UI-free (pure Web Audio), so the channel icons live
+// here at the display layer.
+const CHANNEL_ICONS = {
+  rain: CloudRain,
+  storm: CloudLightning,
+  snow: Snowflake,
+  wind: Wind,
+  fireplace: Flame,
+  cafe: Coffee,
+  paper: BookOpen,
+};
 
 export default function MusicPanel() {
   const {
@@ -42,7 +66,9 @@ export default function MusicPanel() {
       {/* Music */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🎵 Music</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Music2 size={15} className="text-petal/70" /> Music
+          </p>
           <button
             onClick={toggleMusic}
             className={`pill px-3 py-1 text-xs font-semibold ${
@@ -64,13 +90,19 @@ export default function MusicPanel() {
             <div key={stationKey(s)} className="flex items-center">
               <button
                 onClick={() => selectStation(s)}
-                className={`pill px-3 py-1 text-xs ${s.custom ? "rounded-r-none" : ""} ${
+                className={`pill flex items-center gap-1.5 px-3 py-1 text-xs ${s.custom ? "rounded-r-none" : ""} ${
                   musicOn && activeStationKey === stationKey(s)
                     ? "bg-glow font-semibold text-plum"
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >
-                {s.provider === "spotify" ? "🟢" : "▶️"} {s.label}
+                {/* provider mark: Spotify's green dot, or a play glyph */}
+                {s.provider === "spotify" ? (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[#1db954]" />
+                ) : (
+                  <Play size={10} className="shrink-0" />
+                )}
+                {s.label}
               </button>
               {s.custom && (
                 <button
@@ -121,7 +153,9 @@ export default function MusicPanel() {
       {/* Ambient sound mixer */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-cream">🎚️ Ambient sounds</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <AudioLines size={15} className="text-petal/70" /> Ambient sounds
+          </p>
           {anySound && (
             <button
               onClick={stopAllSounds}
@@ -136,10 +170,12 @@ export default function MusicPanel() {
           generated — no downloads, plays even offline.
         </p>
         <div className="space-y-2">
-          {SOUND_CHANNELS.map(({ key, label: name, icon }) => (
+          {SOUND_CHANNELS.map(({ key, label: name }) => {
+            const ChannelIcon = CHANNEL_ICONS[key] || AudioLines;
+            return (
             <div key={key} className="flex items-center gap-2.5">
-              <span className="w-24 shrink-0 text-xs text-petal">
-                {icon} {name}
+              <span className="flex w-24 shrink-0 items-center gap-1.5 text-xs text-petal">
+                <ChannelIcon size={13} className="shrink-0 text-petal/70" /> {name}
               </span>
               <input
                 type="range"
@@ -151,7 +187,8 @@ export default function MusicPanel() {
                 className="flex-1 accent-glow"
               />
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>

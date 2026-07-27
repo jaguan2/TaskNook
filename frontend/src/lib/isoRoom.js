@@ -37,13 +37,23 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 export const ISO_ITEMS = {
   rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
-  desk: { label: "Workstation", icon: "🖥️", foot: [2.5, 1.05], hitH: 84, tintable: false },
+  desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 58, tintable: false, noMirror: true },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
   // noMirror: rendered PNG sprites (Kenney Furniture Kit, CC0) with a real
   // second render per rotation — the scene passes `rot` in instead of
-  // mirroring, and PNGs can't take the tint variable.
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 42, seat: 24, tintable: false, noMirror: true },
-  armchair: { label: "Armchair", icon: "💺", foot: [1, 1], hitH: 40, seat: 22, tintable: false, noMirror: true },
+  // mirroring, and PNGs can't take the tint variable. Fabric pieces offer
+  // `variants` instead of free tinting: a map of tint-hex → render suffix.
+  // The hex doubles as the swatch colour AND the stored placement tint, so
+  // persistence/validation need nothing new; unknown hexes (old saves) just
+  // fall back to the default render.
+  sofa: {
+    label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 42, seat: 24, tintable: false, noMirror: true,
+    variants: { "#f2e9dd": "cream", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
+  },
+  armchair: {
+    label: "Armchair", icon: "💺", foot: [1, 1], hitH: 40, seat: 22, tintable: false, noMirror: true,
+    variants: { "#f2e9dd": "cream", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
+  },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, tintable: false, noMirror: true },
   chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 44, seat: 18, tintable: false, noMirror: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60, tintable: false, noMirror: true },
@@ -55,14 +65,17 @@ export const ISO_ITEMS = {
   counter: { label: "Counter", icon: "🥐", foot: [1, 0.5], hitH: 32, tintable: false, noMirror: true },
   coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 44, tintable: false, noMirror: true },
   tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 60, tintable: false, noMirror: true },
-  coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30 },
-  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 50, seat: 30, tintable: false, noMirror: true },
+  coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30, tintable: false, noMirror: true },
+  bed: {
+    label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 50, seat: 30, tintable: false, noMirror: true,
+    variants: { "#e0774a": "orange", "#d98a93": "rose", "#7f9ec9": "blue", "#7faf8f": "sage" },
+  },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
   aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46 },
-  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 116, foot: [0.8, 0.8] },
+  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 82, foot: [0.8, 0.8], tintable: false, noMirror: true },
   // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
   cat: { label: "Cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34, roamer: true },
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
@@ -407,7 +420,8 @@ export const ISO_PRESETS = {
     size: { w: 9, d: 8 },
     items: [
       // sleeping corner: bed flush to the right wall, nightstand beside it
-      { item: "bed", gx: 6.5, gy: 0 },
+      // (tint = the orange colourway — variants, not free tint)
+      { item: "bed", gx: 6.5, gy: 0, tint: "#e0774a" },
       { item: "nightstand", gx: 5.5, gy: 0 },
       // hearth wall, now with an actual hearth: bookshelf, then the
       // fireplace mid-wall, the shelf re-hung over the bed's headboard
@@ -436,8 +450,9 @@ export const ISO_PRESETS = {
     // L-shaped attic: the front-right corner is cut away.
     size: { w: 10, d: 8, cuts: [{ corner: "front", cw: 4, cd: 3 }] },
     items: [
-      // bed tucked into the far right corner, nightstand beside it
-      { item: "bed", gx: 8, gy: 0 },
+      // bed tucked into the far right corner, nightstand beside it — the
+      // cool colourways keep the loft moody
+      { item: "bed", gx: 8, gy: 0, tint: "#7f9ec9" },
       { item: "nightstand", gx: 7, gy: 0 },
       // back wall: TV corner, record console under the shelf, aquarium
       { item: "tvunit", gx: 0.5, gy: 0 },
@@ -447,12 +462,12 @@ export const ISO_PRESETS = {
       { item: "frame", gx: 5.5, gy: 0, tint: "#3a3142" },
       // lounge against the left wall: sofa + table on one centreline, on a rug
       { item: "squarerug", gx: 0.5, gy: 2.5, tint: "#8a7ac2" },
-      { item: "sofa", gx: 0, gy: 2.5, rot: 1 },
-      { item: "coffeetable", gx: 1.5, gy: 3, rot: 1, tint: "#4a3a5b" },
-      { item: "armchair", gx: 3, gy: 4.5, rot: 1 },
+      { item: "sofa", gx: 0, gy: 2.5, rot: 1, tint: "#7f9ec9" },
+      { item: "coffeetable", gx: 1.5, gy: 3, rot: 1 },
+      { item: "armchair", gx: 3, gy: 4.5, rot: 1, tint: "#f2e9dd" },
       { item: "mirror", gx: 0, gy: 5.5, rot: 1, tint: "#cbd5e8" },
       // the open nook the cut leaves behind
-      { item: "floorlamp", gx: 5, gy: 4, tint: "#cbd5e8" },
+      { item: "floorlamp", gx: 5, gy: 4 },
       { item: "cushion", gx: 4, gy: 5.5, tint: "#8a7ac2" },
       { item: "cat", gx: 2, gy: 5.5, tint: "#2c2438" },
       { item: "monstera", gx: 0.5, gy: 7 },
@@ -484,7 +499,7 @@ export const ISO_PRESETS = {
       { item: "chair", gx: 5, gy: 4 },
       { item: "chair", gx: 7.5, gy: 4 },
       // life
-      { item: "floorlamp", gx: 9, gy: 2.5, tint: "#c98a4b" },
+      { item: "floorlamp", gx: 9, gy: 2.5 },
       { item: "cat", gx: 6, gy: 5.5 },
       { item: "cushion", gx: 8.5, gy: 5.5, tint: "#d98a93" },
       { item: "monstera", gx: 9, gy: 6 },

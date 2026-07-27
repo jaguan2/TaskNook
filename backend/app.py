@@ -3,7 +3,6 @@
 Run:  python app.py    (serves the REST API on http://localhost:5000)
 """
 import json
-import math
 import os
 import secrets
 import traceback
@@ -11,9 +10,8 @@ from datetime import datetime, timezone, date
 from functools import wraps
 
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
 from flask_migrate import Migrate
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Task, FocusSession, Token, utcnow
@@ -34,7 +32,11 @@ def create_app():
     db_path = os.environ.get("TASKNOOK_DB") or os.path.join(BASE_DIR, "tasknook.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    CORS(app)
+    # No CORS on purpose. Every legitimate client is same-origin (the packaged
+    # app serves the SPA itself; the Vite dev server PROXIES /api), and a
+    # wildcard Access-Control-Allow-Origin would let any web page in any
+    # browser log into this localhost API with the well-known local-account
+    # credentials and read the token cross-origin.
     db.init_app(app)
     # render_as_batch is required for SQLite: it can't ALTER/DROP columns in
     # place, so Alembic rebuilds the table instead.
@@ -54,7 +56,24 @@ def create_app():
 
     register_routes(app)
     register_frontend(app)
+    register_error_handlers(app)
     return app
+
+
+def register_error_handlers(app):
+    """API errors must be JSON. Without this, any unhandled exception returns
+    Werkzeug's HTML page — api.js then surfaces the generic 'Request failed
+    (500)' instead of a message, and the session may be left dirty."""
+
+    @app.errorhandler(Exception)
+    def handle_uncaught(exc):  # noqa: ARG001
+        from werkzeug.exceptions import HTTPException
+
+        if isinstance(exc, HTTPException):
+            return exc  # 404s, method-not-allowed etc. keep their semantics
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({"error": "Something went wrong on TaskNook's side"}), 500
 
 
 def _prepare_database(db_path):
@@ -128,15 +147,32 @@ def today_str():
     return date.today().isoformat()
 
 
+def json_body():
+    """The request's JSON body, guaranteed to be a dict.
+
+    `silent=True` alone only guards MALFORMED JSON — a well-formed non-object
+    body (`[1,2]`, `"hi"`, `5`) is truthy and would reach `.get(...)` and 500.
+    """
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def clean_str(v, limit):
+    """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
+    return ("" if v is None else str(v)).strip()[:limit]
+
+
 def _finite_number(v):
     """A real, storable coordinate.
 
-    Two traps this closes: `isinstance(True, int)` is True in Python, so a bare
-    bool would sail through a naive numeric check; and NaN/Infinity are floats
-    that `json.dumps` writes as bare `NaN`/`Infinity` — invalid JSON that a
-    browser's JSON.parse rejects, which would corrupt the saved room for good.
+    Three traps this closes: `isinstance(True, int)` is True in Python, so a
+    bare bool would sail through a naive numeric check; NaN/Infinity are
+    floats that `json.dumps` writes as bare `NaN`/`Infinity` — invalid JSON
+    that a browser's JSON.parse rejects, which would corrupt the saved room
+    for good; and `math.isfinite` raises OverflowError on a huge int, so a
+    bounded comparison (exact for big ints) stands in for it.
     """
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and -1e7 < v < 1e7
 
 
 def _hex_color(v):
@@ -160,11 +196,13 @@ def register_routes(app):
     # ----- Auth ----------------------------------------------------------- #
     @app.post("/api/auth/register")
     def register():
-        data = request.get_json(silent=True) or {}
-        username = (data.get("username") or "").strip().lower()
-        password = data.get("password") or ""
-        display_name = (data.get("displayName") or username).strip()
-        avatar = (data.get("avatar") or "🌙")[:8]
+        data = json_body()
+        # clean_str throughout: non-string JSON values (numbers, lists) used
+        # to reach .strip()/slicing and 500.
+        username = clean_str(data.get("username"), 80).lower()
+        password = data.get("password") if isinstance(data.get("password"), str) else ""
+        display_name = clean_str(data.get("displayName"), 80) or username
+        avatar = clean_str(data.get("avatar"), 8) or "🌙"
 
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
@@ -175,12 +213,19 @@ def register_routes(app):
 
         user = User(
             username=username,
-            display_name=display_name or username,
+            display_name=display_name,
             password_hash=generate_password_hash(password),
             avatar=avatar,
         )
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # The pre-check above isn't atomic with the commit — concurrent
+            # registers (StrictMode's double bootstrap does this in dev) race
+            # into the unique constraint. Same answer as losing the pre-check.
+            db.session.rollback()
+            return jsonify({"error": "That username is taken"}), 409
 
         # New users are auto-friended with the demo cottage-dwellers so the
         # social panel is never empty.
@@ -191,9 +236,9 @@ def register_routes(app):
 
     @app.post("/api/auth/login")
     def login():
-        data = request.get_json(silent=True) or {}
-        username = (data.get("username") or "").strip().lower()
-        password = data.get("password") or ""
+        data = json_body()
+        username = clean_str(data.get("username"), 80).lower()
+        password = data.get("password") if isinstance(data.get("password"), str) else ""
         user = User.query.filter_by(username=username).first()
         if not user or not check_password_hash(user.password_hash, password):
             return jsonify({"error": "Invalid username or password"}), 401
@@ -244,8 +289,8 @@ def register_routes(app):
     @app.post("/api/tasks")
     @require_auth
     def create_task(user):
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
+        data = json_body()
+        name = clean_str(data.get("name"), 200)
         if not name:
             return jsonify({"error": "Task name is required"}), 400
         try:
@@ -261,14 +306,18 @@ def register_routes(app):
             .filter_by(user_id=user.id)
             .scalar()
         )
-        group = str(data.get("group") or "").strip()[:60] or None
+        group = clean_str(data.get("group"), 60) or None
+        sched = data.get("scheduledDate")
         task = Task(
             user_id=user.id,
             name=name,
             duration=duration,
             priority=priority,
             position=(max_pos or 0) + 1,
-            scheduled_date=data.get("scheduledDate"),
+            # Only a plausible date string reaches the String(10) column — a
+            # non-string would raise at bind time (500), and SQLite doesn't
+            # enforce the length itself.
+            scheduled_date=sched[:10] if isinstance(sched, str) and sched else None,
             group_name=group,
             is_routine=bool(data.get("routine")),
         )
@@ -282,26 +331,29 @@ def register_routes(app):
         task = Task.query.filter_by(id=task_id, user_id=user.id).first()
         if not task:
             return jsonify({"error": "Task not found"}), 404
-        data = request.get_json(silent=True) or {}
+        data = json_body()
 
-        if "name" in data and data["name"].strip():
-            task.name = data["name"].strip()
+        if "name" in data and clean_str(data["name"], 200):
+            task.name = clean_str(data["name"], 200)
         if "duration" in data:
             try:
                 task.duration = max(1, int(data["duration"]))
             except (TypeError, ValueError):
-                pass
+                # 400 instead of a silent pass — a client bug shouldn't look
+                # like a successful save (create_task and save_room both 400).
+                return jsonify({"error": "duration must be a number"}), 400
         if "priority" in data and data["priority"] in ("low", "medium", "high"):
             task.priority = data["priority"]
         if "position" in data:
             try:
                 task.position = int(data["position"])
             except (TypeError, ValueError):
-                pass
+                return jsonify({"error": "position must be a number"}), 400
         if "scheduledDate" in data:
-            task.scheduled_date = data["scheduledDate"] or None
+            sched = data["scheduledDate"]
+            task.scheduled_date = sched[:10] if isinstance(sched, str) and sched else None
         if "group" in data:
-            task.group_name = (str(data["group"] or "")).strip()[:60] or None
+            task.group_name = clean_str(data["group"], 60) or None
         if "routine" in data:
             task.is_routine = bool(data["routine"])
         if "completed" in data:
@@ -325,10 +377,19 @@ def register_routes(app):
     @require_auth
     def reorder_tasks(user):
         """Persist a new ordering. Body: {"order": [taskId, taskId, ...]}."""
-        data = request.get_json(silent=True) or {}
+        data = json_body()
         order = data.get("order", [])
-        for index, task_id in enumerate(order):
-            task = Task.query.filter_by(id=task_id, user_id=user.id).first()
+        if not isinstance(order, list):
+            return jsonify({"error": "order must be a list"}), 400
+        # One query for the lot, not one per id (the old loop was an N+1
+        # write for every drag-reorder).
+        ids = [t for t in order if isinstance(t, int) and not isinstance(t, bool)]
+        tasks = {
+            t.id: t
+            for t in Task.query.filter(Task.user_id == user.id, Task.id.in_(ids)).all()
+        }
+        for index, task_id in enumerate(ids):
+            task = tasks.get(task_id)
             if task:
                 task.position = index
         db.session.commit()
@@ -338,15 +399,16 @@ def register_routes(app):
     @app.post("/api/sessions")
     @require_auth
     def log_session(user):
-        data = request.get_json(silent=True) or {}
+        data = json_body()
         try:
-            minutes = max(0, int(data.get("minutes", 0)))
+            # Bounded above too: one logged session can't exceed a day.
+            minutes = min(24 * 60, max(0, int(data.get("minutes", 0))))
         except (TypeError, ValueError):
             minutes = 0
         session = FocusSession(
             user_id=user.id,
             minutes=minutes,
-            task_name=data.get("taskName"),
+            task_name=clean_str(data.get("taskName"), 200) or None,
             day=today_str(),
         )
         db.session.add(session)
@@ -429,7 +491,7 @@ def register_routes(app):
     @app.put("/api/room")
     @require_auth
     def save_room(user):
-        data = request.get_json(silent=True) or {}
+        data = json_body()
         clean, ok = _clean_layout(data.get("placements"), "x", "y")
         if not ok:
             return jsonify({"error": "Invalid room layout"}), 400
@@ -506,8 +568,8 @@ def register_routes(app):
     @app.post("/api/friends")
     @require_auth
     def add_friend(user):
-        data = request.get_json(silent=True) or {}
-        username = (data.get("username") or "").strip().lower()
+        data = json_body()
+        username = clean_str(data.get("username"), 80).lower()
         friend = User.query.filter_by(username=username).first()
         if not friend:
             return jsonify({"error": "No cottage-dweller with that name"}), 404
@@ -534,11 +596,20 @@ def register_routes(app):
 
 
 def build_stats(user):
-    """Aggregate today's productivity for a user."""
+    """Aggregate today's productivity for a user.
+
+    COUNT queries, not `.all()` — this runs once per friend per friends-panel
+    refresh, and hydrating every task row just to count them was the app's
+    one real N+1.
+    """
     today = today_str()
-    tasks = Task.query.filter_by(user_id=user.id).all()
-    total = len(tasks)
-    done = sum(1 for t in tasks if t.completed)
+    total = db.session.query(db.func.count(Task.id)).filter_by(user_id=user.id).scalar() or 0
+    done = (
+        db.session.query(db.func.count(Task.id))
+        .filter_by(user_id=user.id, completed=True)
+        .scalar()
+        or 0
+    )
 
     focus_minutes = (
         db.session.query(db.func.coalesce(db.func.sum(FocusSession.minutes), 0))
@@ -561,6 +632,11 @@ def register_frontend(app):
     @app.get("/")
     @app.get("/<path:path>")
     def serve_frontend(path=""):
+        # An unknown /api path must 404 as JSON, not fall through to
+        # index.html with a 200 — api.js would hand HTML to a caller
+        # expecting an array.
+        if path.startswith("api/"):
+            return jsonify({"error": "Not found"}), 404
         if not os.path.isdir(FRONTEND_DIST):
             return (
                 "<h1>TaskNook API is running 🌙</h1>"

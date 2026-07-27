@@ -1,14 +1,29 @@
 import { useState } from "react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ClipboardList,
+  CloudSun,
+  Headphones,
+  Menu,
+  Settings,
+  Sofa,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
+// Lucide stroke icons, not emoji: they inherit the theme's text colour and
+// render identically on every OS (Windows emoji looked out of place — user
+// feedback).
 const ITEMS = [
-  { key: "tasks", icon: "📋", label: "Tasks" },
-  { key: "calendar", icon: "🗓️", label: "Calendar" },
-  { key: "progress", icon: "📈", label: "Progress" },
-  { key: "friends", icon: "🫶", label: "Friends" },
-  { key: "music", icon: "🎧", label: "Sounds" },
-  { key: "weather", icon: "☁️", label: "Weather" },
-  { key: "room", icon: "🛋️", label: "Room" },
-  { key: "settings", icon: "⚙️", label: "Settings" },
+  { key: "tasks", Icon: ClipboardList, label: "Tasks" },
+  { key: "calendar", Icon: CalendarDays, label: "Calendar" },
+  { key: "progress", Icon: TrendingUp, label: "Progress" },
+  { key: "friends", Icon: Users, label: "Friends" },
+  { key: "music", Icon: Headphones, label: "Sounds" },
+  { key: "weather", Icon: CloudSun, label: "Weather" },
+  { key: "room", Icon: Sofa, label: "Room" },
+  { key: "settings", Icon: Settings, label: "Settings" },
 ];
 
 export default function Dock({ active, onSelect }) {
@@ -37,34 +52,34 @@ export default function Dock({ active, onSelect }) {
           <button
             title="Open menu"
             onClick={toggle}
-            className="pill grid h-10 w-10 place-items-center text-lg text-cream transition hover:bg-white/10"
+            className="pill grid h-10 w-10 place-items-center text-cream transition hover:bg-white/10"
           >
-            ☰
+            <Menu size={18} />
           </button>
         ) : (
           <>
             <button
               title="Collapse menu"
               onClick={toggle}
-              className="pill grid h-5 w-10 place-items-center text-xs text-petal/50 transition hover:bg-white/10 hover:text-cream"
+              className="pill grid h-5 w-10 place-items-center text-petal/50 transition hover:bg-white/10 hover:text-cream"
             >
-              ◂
+              <ChevronLeft size={13} />
             </button>
             {ITEMS.map((item) => (
-              // No `title` here — the custom hover tooltip below already
-              // shows the label (a title would double it up with the OS
-              // tooltip) and, being inside the button, it also provides the
-              // accessible name.
+              // No `title` — the custom hover tooltip below already shows
+              // the label (a title would double it up with the OS tooltip)
+              // and, being inside the button, it provides the accessible
+              // name.
               <button
                 key={item.key}
                 onClick={() => onSelect(item.key)}
-                className={`pill group relative grid h-10 w-10 place-items-center text-lg transition ${
+                className={`pill group relative grid h-10 w-10 place-items-center transition ${
                   active.includes(item.key)
                     ? "bg-glow text-plum"
                     : "text-cream hover:bg-white/10"
                 }`}
               >
-                {item.icon}
+                <item.Icon size={17} />
                 <span className="pointer-events-none absolute left-12 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream opacity-0 transition group-hover:opacity-100">
                   {item.label}
                 </span>

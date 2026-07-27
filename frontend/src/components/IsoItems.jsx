@@ -34,77 +34,6 @@ function Rug() {
   );
 }
 
-function Desk() {
-  const b = { top: "#caa07f", left: "#a87f5f", right: "#8f5d49" };
-  const box = isoBox(0, 0, 2.5, 1.05, 40);
-  return (
-    <g>
-      <polygon points={box.left} fill={b.left} />
-      <polygon points={box.right} fill={b.right} />
-      <polygon points={box.top} fill={b.top} />
-      <g transform="translate(0,-40)">
-        <ellipse cx={project(1.3, 0.55).x} cy={project(1.3, 0.55).y} rx="42" ry="11" fill="url(#lampPool)" opacity="0.4" />
-        {(() => {
-          const m = isoBox(0.7, 0.18, 1.2, 0.28, 30);
-          return (
-            <g transform="translate(0,-4)">
-              <polygon points={m.left} fill="#2c2438" />
-              <polygon points={m.right} fill="#241d33" />
-              <polygon points={m.top} fill="#201a30" />
-              <g transform={`translate(${project(0.7, 0.46).x}, ${project(0.7, 0.46).y - 34}) skewY(${SKEW})`}>
-                <rect x="2" y="0" width="52" height="26" rx="2" fill="url(#isoScreen)" />
-                <circle cx="7" cy="6" r="1.8" fill="#7faf8f" />
-                <rect x="11" y="4.5" width="24" height="2.6" rx="1.3" fill="#f3c6c0" opacity="0.75" />
-                <circle cx="7" cy="12" r="1.8" fill="none" stroke="#f3c6c0" strokeWidth="0.8" opacity="0.5" />
-                <rect x="11" y="10.5" width="30" height="2.6" rx="1.3" fill="#f3c6c0" opacity="0.45" />
-                <rect x="6" y="19" width="26" height="2.6" rx="1.3" fill="#7faf8f" opacity="0.9" />
-              </g>
-            </g>
-          );
-        })()}
-        {(() => {
-          const mug = isoBox(2.15, 0.35, 0.24, 0.24, 10);
-          const m = project(2.27, 0.47);
-          return (
-            <g>
-              <polygon points={mug.left} fill="#d98a93" />
-              <polygon points={mug.right} fill="#c47882" />
-              <polygon points={mug.top} fill="#e8a3a8" />
-              {/* steam curling off the coffee */}
-              {[0, 1, 2].map((i) => (
-                <circle
-                  key={i}
-                  className="steam-puff"
-                  cx={m.x - 2 + i * 2.5}
-                  cy={m.y - 12}
-                  r={1.6 + (i % 2) * 0.6}
-                  fill="#f7e9e2"
-                  style={{ animationDelay: `${i * 1.1}s` }}
-                />
-              ))}
-            </g>
-          );
-        })()}
-        {(() => {
-          const b1 = isoBox(0.15, 0.3, 0.55, 0.4, 5);
-          const b2 = isoBox(0.2, 0.33, 0.45, 0.34, 4);
-          return (
-            <g>
-              <polygon points={b1.left} fill="#8a7ac2" />
-              <polygon points={b1.right} fill="#7568ad" />
-              <polygon points={b1.top} fill="#9b8bd6" />
-              <g transform="translate(0,-5)">
-                <polygon points={b2.left} fill="#d98a93" />
-                <polygon points={b2.right} fill="#c47882" />
-                <polygon points={b2.top} fill="#e8a3a8" />
-              </g>
-            </g>
-          );
-        })()}
-      </g>
-    </g>
-  );
-}
 
 function Stool() {
   const c = project(0.4, 0.4);
@@ -191,15 +120,23 @@ function Plant() {
   );
 }
 
-function FloorLamp() {
+// Hybrid: the kit's lamp geometry, OUR light — the breathing pool and warm
+// bulb glow are what make a lamp read as lit, and the PNG can't carry them.
+function FloorLamp({ rot = 0 }) {
   const c = project(0.4, 0.4);
+  const s = 22 / 19;
+  const h = 76 * s;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="14" rx="32" ry="11" fill="url(#lampPool)" className="room-breathe" opacity="0.5" />
-      <ellipse cx="0" cy="0" rx="11" ry="4.5" fill="#3a3142" />
-      <line x1="0" y1="-2" x2="0" y2="-82" stroke="#3a3142" strokeWidth="3.5" />
-      <polygon points="-14,-82 14,-82 9,-104 -9,-104" style={tinted("#e8b04b")} stroke="rgba(0,0,0,0.28)" />
-      <circle cx="0" cy="-78" r="4.5" fill="#ffe9b0" opacity="0.6" />
+      <ellipse cx="0" cy="4" rx="32" ry="11" fill="url(#lampPool)" className="room-breathe" opacity="0.5" />
+      <image
+        href={ken(rot ? "lampRoundFloor_SW" : "lampRoundFloor_SE")}
+        x={-11}
+        y={4 - h}
+        width={22}
+        height={h}
+      />
+      <circle cx="0" cy={4 - h + 13} r="7" fill="#ffe9b0" opacity="0.5" className="room-breathe" />
     </g>
   );
 }
@@ -323,16 +260,44 @@ function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18 }) {
 // height: its scaled render height minus its base diamond, width×0.5774 at
 // the kit's camera angle).
 function kenneySprite(layers) {
-  return function KenneySprite({ rot = 0 }) {
+  // `variant` is a render-name suffix ("rose", "blue"…) resolved by the
+  // scene from the placement's tint hex via the catalog's `variants` map —
+  // fixed pre-shaded recolours generated offline, since live tinting can't
+  // reach inside a PNG. Only layers flagged `v` respond (a composite's
+  // counter shouldn't recolour with its coffee machine).
+  return function KenneySprite({ rot = 0, variant = null }) {
     return (
       <g>
         {layers.map((L, i) => {
-          const [name, iw, ih] = rot ? L.r1 : L.r0;
+          let [name, iw, ih] = rot ? L.r1 : L.r0;
+          if (variant && L.v) name = name.replace(/_(SE|SW)$/, `_${variant}_$1`);
           const f = rot ? [L.foot[1], L.foot[0]] : L.foot;
           const at = L.at ? (rot ? [L.at[1], L.at[0]] : L.at) : [0, 0];
+          const o = project(at[0], at[1]);
+          // Skinny objects (a lamp pole) don't FILL their footprint, so the
+          // width-maps-to-diamond rule would fatten them: `w` gives an
+          // explicit screen width instead, bottom-centred on `anchor`.
+          if (L.w) {
+            const s = L.w / iw;
+            const anchor = L.anchor
+              ? rot
+                ? [L.anchor[1], L.anchor[0]]
+                : L.anchor
+              : [f[0] / 2, f[1] / 2];
+            const a = project(anchor[0], anchor[1]);
+            return (
+              <image
+                key={i}
+                href={ken(name)}
+                x={o.x + a.x - L.w / 2}
+                y={o.y + a.y - ih * s - (L.lift || 0)}
+                width={L.w}
+                height={ih * s}
+              />
+            );
+          }
           const width = ((f[0] + f[1]) * TILE_W) / 2;
           const s = width / iw;
-          const o = project(at[0], at[1]);
           return (
             <image
               key={i}
@@ -350,16 +315,24 @@ function kenneySprite(layers) {
 }
 
 const Bed = kenneySprite([
-  { r0: ["bedDouble_SW", 157, 138], r1: ["bedDouble_SE", 157, 138], foot: [2, 2.8] },
+  { r0: ["bedDouble_SW", 157, 138], r1: ["bedDouble_SE", 157, 138], foot: [2, 2.8], v: true },
 ]);
 const Sofa = kenneySprite([
-  { r0: ["loungeSofa_SE", 104, 103], r1: ["loungeSofa_SW", 103, 103], foot: [2, 1] },
+  { r0: ["loungeSofa_SE", 104, 103], r1: ["loungeSofa_SW", 103, 103], foot: [2, 1], v: true },
 ]);
 const Armchair = kenneySprite([
-  { r0: ["loungeChair_SE", 67, 77], r1: ["loungeChair_SW", 66, 77], foot: [1, 1] },
+  { r0: ["loungeChair_SE", 67, 77], r1: ["loungeChair_SW", 66, 77], foot: [1, 1], v: true },
 ]);
 const Nightstand = kenneySprite([
   { r0: ["cabinetBed_SW", 36, 42], r1: ["cabinetBed_SE", 37, 42], foot: [0.7, 0.7] },
+]);
+const Desk = kenneySprite([
+  { r0: ["desk_SE", 85, 88], r1: ["desk_SW", 85, 88], foot: [2.2, 1.2] },
+  // a laptop working away on top, screen toward the chair
+  { r0: ["laptop_SW", 37, 38], r1: ["laptop_SE", 38, 38], foot: [0.8, 0.75], at: [0.7, 0.15], lift: 37 },
+]);
+const CoffeeTable = kenneySprite([
+  { r0: ["tableCoffee_SE", 80, 74], r1: ["tableCoffee_SW", 80, 74], foot: [1.4, 0.9] },
 ]);
 const Chair = kenneySprite([
   { r0: ["chairRounded_SE", 31, 52], r1: ["chairRounded_SW", 31, 52], foot: [0.7, 0.7] },
@@ -407,31 +380,6 @@ const TvUnit = kenneySprite([
   },
 ]);
 
-function CoffeeTable() {
-  const A = project(0, 0);
-  const B = project(1.4, 0);
-  const C = project(1.4, 0.9);
-  const D = project(0, 0.9);
-  const up = (p, h) => `${p.x},${p.y - h}`;
-  const legs = [project(0.18, 0.16), project(1.22, 0.16), project(1.22, 0.74), project(0.18, 0.74)];
-  return (
-    <g>
-      {legs.map((p, i) => (
-        <line key={i} x1={p.x} y1={p.y} x2={p.x} y2={p.y - 20} stroke="#6b4a39" strokeWidth="3" />
-      ))}
-      {/* slab top with a thin skirt, not a solid crate */}
-      <polygon points={`${up(D, 26)} ${up(C, 26)} ${up(C, 19)} ${up(D, 19)}`} style={tinted("#a87f5f")} />
-      <polygon points={`${up(D, 26)} ${up(C, 26)} ${up(C, 19)} ${up(D, 19)}`} fill="#000" opacity="0.2" />
-      <polygon points={`${up(B, 26)} ${up(C, 26)} ${up(C, 19)} ${up(B, 19)}`} style={tinted("#a87f5f")} />
-      <polygon points={`${up(B, 26)} ${up(C, 26)} ${up(C, 19)} ${up(B, 19)}`} fill="#000" opacity="0.32" />
-      <polygon points={`${up(A, 26)} ${up(B, 26)} ${up(C, 26)} ${up(D, 26)}`} style={tinted("#a87f5f")} />
-      {/* a small book resting on top */}
-      <g transform="translate(0,-26)">
-        <polygon points={floorPatch(0.5, 0.3, 0.42, 0.3)} fill="#7faf8f" />
-      </g>
-    </g>
-  );
-}
 
 
 function Cushion() {

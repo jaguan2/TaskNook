@@ -30,8 +30,53 @@ function Slider({ label, min, max, value, onChange, track }) {
   );
 }
 
+// Modelled (PNG) furniture comes in a fixed set of pre-shaded colourways
+// instead of free tinting — a swatch is a whole recoloured render, so the
+// shading always stays right. The hex IS the stored tint. A separate
+// component (not an early return above the full picker's hooks): the two
+// pickers have different hook counts, and swapping modes inside ONE mounted
+// component would change hook order between renders — a React crash.
+function VariantPicker({ placement, item, onTint }) {
+  const active = placement.tint || null;
+  return (
+    <div className="glass absolute bottom-0 left-1/2 z-20 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
+        <button
+          onClick={() => onTint(placement.id, null)}
+          disabled={!active}
+          className="text-[10px] font-semibold text-petal/60 hover:text-glow disabled:opacity-40"
+        >
+          Classic ↺
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {Object.keys(item.variants).map((hex) => (
+          <button
+            key={hex}
+            onClick={() => onTint(placement.id, hex)}
+            title={item.variants[hex]}
+            className={`h-6 w-6 rounded-full border-2 transition hover:scale-110 ${
+              active === hex ? "border-white" : "border-black/30"
+            }`}
+            style={{ backgroundColor: hex }}
+          />
+        ))}
+      </div>
+      <p className="text-[10px] text-petal/50">This piece comes in set colours.</p>
+    </div>
+  );
+}
+
 export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
   const item = itemProp || ITEMS[placement.item];
+  if (item.variants) {
+    return <VariantPicker placement={placement} item={item} onTint={onTint} />;
+  }
+  return <FullTintPicker placement={placement} item={item} onTint={onTint} />;
+}
+
+function FullTintPicker({ placement, item, onTint }) {
   const active = placement.tint || null;
   // Sliders mirror the current tint; untinted items start from the first
   // swatch so there's something sensible to move away from.
@@ -43,8 +88,10 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
 
   const commitHex = (value) => {
     setHexDraft(value);
-    const hex = normalizeHex(value);
-    if (hex) onTint(placement.id, hex);
+    // Only commit a COMPLETE 6-digit colour — normalizeHex would expand a
+    // 3-digit prefix mid-typing and hijack the field (same as SettingsPanel).
+    const raw = value.trim().replace(/^#/, "");
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) onTint(placement.id, `#${raw.toLowerCase()}`);
   };
   const fromSliders = (nh, ns, nl) => onTint(placement.id, hslToHex(nh, ns, nl));
 

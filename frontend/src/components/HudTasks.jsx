@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { GripVertical, Plus, Repeat, SlidersHorizontal } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 
@@ -39,11 +40,11 @@ function Row({
       }`}
     >
       <span
-        className={`hover-reveal w-3 shrink-0 text-xs text-petal/40 transition ${
+        className={`hover-reveal w-3 shrink-0 text-petal/40 transition ${
           draggableRow ? "cursor-grab" : "invisible"
         }`}
       >
-        ⠿
+        <GripVertical size={12} />
       </span>
       <button
         onClick={() => toggleTask(task)}
@@ -71,8 +72,8 @@ function Row({
           }`}
         >
           {task.routine && (
-            <span className="mr-1 text-xs text-sage" title="Daily routine">
-              ↻
+            <span title="Daily routine" className="mr-1 inline-block align-middle text-sage">
+              <Repeat size={10} />
             </span>
           )}
           {task.name}
@@ -81,11 +82,11 @@ function Row({
       <button
         onClick={() => toggleRoutine(task)}
         title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
-        className={`hover-reveal shrink-0 px-0.5 text-xs transition ${
+        className={`hover-reveal shrink-0 px-0.5 transition ${
           task.routine ? "text-sage" : "text-petal/30 hover:text-sage"
         }`}
       >
-        ↻
+        <Repeat size={12} />
       </button>
       <button
         onClick={() => requestDelete(task.id)}
@@ -200,9 +201,9 @@ export default function HudTasks({ onOpenTasks }) {
             <button
               onClick={() => setGroupDraft("")}
               title="New group"
-              className="pill px-2 py-0.5 text-xs text-petal/60 hover:bg-white/10 hover:text-petal"
+              className="pill flex items-center gap-0.5 px-2 py-0.5 text-xs text-petal/60 hover:bg-white/10 hover:text-petal"
             >
-              ＋ Group
+              <Plus size={11} /> Group
             </button>
           ) : (
             <form onSubmit={submitGroup}>
@@ -219,9 +220,9 @@ export default function HudTasks({ onOpenTasks }) {
           <button
             onClick={onOpenTasks}
             title="Open the full task manager (priorities, ordering, durations)"
-            className="pill px-2 py-0.5 text-sm text-petal/60 hover:bg-white/10 hover:text-petal"
+            className="pill px-2 py-1 text-petal/60 hover:bg-white/10 hover:text-petal"
           >
-            ⚙
+            <SlidersHorizontal size={13} />
           </button>
         </div>
       </header>
@@ -236,8 +237,10 @@ export default function HudTasks({ onOpenTasks }) {
               <Row key={task.id} task={task} section="" index={i} draggableRow {...rowProps} />
             ))
           ) : (
-            <div key={section.key} className="group/header mt-1">
-              <div className="flex items-center gap-1.5 px-1 pb-0.5">
+            <div key={section.key} className="mt-1">
+              {/* the header row is its own hover group — a section-wide group
+                  revealed EVERY row's controls when hovering any of them */}
+              <div className="group flex items-center gap-1.5 px-1 pb-0.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
                   {section.key}
                 </span>

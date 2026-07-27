@@ -1,4 +1,5 @@
 import { motion, useDragControls } from "framer-motion";
+import { Pin, X } from "lucide-react";
 
 export default function Drawer({
   title,
@@ -52,18 +53,18 @@ export default function Drawer({
           <button
             onClick={onTogglePin}
             title={pinned ? "Unpin" : "Pin in place"}
-            className={`pill grid h-8 w-8 place-items-center text-sm transition ${
+            className={`pill grid h-8 w-8 place-items-center transition ${
               pinned ? "bg-glow text-plum" : "text-cream hover:bg-white/10"
             }`}
           >
-            📌
+            <Pin size={15} />
           </button>
           <button
             onClick={onClose}
             title="Close (Esc)"
             className="pill grid h-8 w-8 place-items-center text-cream hover:bg-white/10"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       </header>

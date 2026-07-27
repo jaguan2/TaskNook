@@ -1,4 +1,5 @@
-﻿import { useStore } from "../store";
+﻿import { Flame, Sparkles, Target } from "lucide-react";
+import { useStore } from "../store";
 import { focusStreak, localTodayISO } from "../lib/stats";
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
@@ -58,7 +59,9 @@ export default function ProgressPanel() {
       <div className="flex items-center gap-4 rounded-2xl bg-white/5 p-3">
         <div className="relative grid place-items-center">
           <GoalRing minutes={focusMinutesLive} goal={dailyGoal} />
-          <span className="absolute text-lg">{goalMet ? "🌟" : "🎯"}</span>
+          <span className={`absolute ${goalMet ? "text-sage" : "text-glow"}`}>
+            {goalMet ? <Sparkles size={20} /> : <Target size={20} />}
+          </span>
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-semibold text-cream">
@@ -67,8 +70,9 @@ export default function ProgressPanel() {
               {focusMinutesLive} / {dailyGoal} min
             </span>
           </p>
-          <p className="text-xs text-petal/60">
-            🔥 <span className="font-semibold text-cream">{streak}</span> day
+          <p className="flex items-center gap-1 text-xs text-petal/60">
+            <Flame size={12} className="shrink-0 text-amber" />{" "}
+            <span className="font-semibold text-cream">{streak}</span> day
             {streak === 1 ? "" : "s"} streak
             {goalMet ? " — today's in the bag." : streak > 0 ? " — keep it alive!" : ""}
           </p>

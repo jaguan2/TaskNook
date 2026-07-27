@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Headphones, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { useStore } from "../store";
 import { stationKey } from "../lib/musicLink";
 
@@ -21,7 +22,13 @@ function loadYouTubeApi() {
       };
       const script = document.createElement("script");
       script.src = "https://www.youtube.com/iframe_api";
-      script.onerror = () => resolve(null); // offline — no YouTube either way
+      script.onerror = () => {
+        // Offline NOW isn't offline forever: clear the cached promise so the
+        // next station change / toggle retries instead of pinning the bar to
+        // "needs internet" until an app restart.
+        ytApiPromise = null;
+        resolve(null);
+      };
       document.head.appendChild(script);
     });
   }
@@ -67,6 +74,9 @@ export default function MusicDock({ onOpenPanel }) {
 
   useEffect(() => {
     if (!musicOn || !station || station.provider !== "youtube") return undefined;
+    // Captured once: the cleanup must clear the SAME node the player mounted
+    // into, not whatever the ref points at by teardown time.
+    const holder = holderRef.current;
     let cancelled = false;
     let player = null;
     let poll = null;
@@ -82,7 +92,7 @@ export default function MusicDock({ onOpenPanel }) {
         return;
       }
       const el = document.createElement("div");
-      holderRef.current.appendChild(el);
+      holder.appendChild(el);
       // A real 320×180 player parked off-screen — YouTube is unreliable with
       // sub-minimum (1×1) embeds, and we only want the audio anyway.
       player = new YT.Player(el, {
@@ -149,7 +159,7 @@ export default function MusicDock({ onOpenPanel }) {
       } catch {
         /* already gone */
       }
-      if (holderRef.current) holderRef.current.innerHTML = "";
+      if (holder) holder.innerHTML = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [musicOn, key]);
@@ -206,32 +216,32 @@ export default function MusicDock({ onOpenPanel }) {
         <button
           onClick={onOpenPanel}
           title="Open the Sounds panel (stations & ambience)"
-          className="pill grid h-7 w-7 place-items-center text-xs text-petal/60 hover:bg-white/10 hover:text-cream"
+          className="pill grid h-7 w-7 place-items-center text-petal/60 hover:bg-white/10 hover:text-cream"
         >
-          🎧
+          <Headphones size={13} />
         </button>
         <button
           onClick={stepBack}
           title={isPlaylist ? "Previous track" : "Previous station"}
-          className="pill grid h-7 w-7 place-items-center text-xs text-petal/70 hover:bg-white/10 hover:text-cream"
+          className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
         >
-          ⏮
+          <SkipBack size={13} />
         </button>
         {isYouTube && !unavailable && !streamError && (
           <button
             onClick={togglePlay}
             title={playing ? "Pause" : "Play"}
-            className="pill grid h-8 w-9 place-items-center bg-glow text-xs font-bold text-plum shadow-soft hover:bg-amber"
+            className="pill grid h-8 w-9 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
           >
-            {playing ? "❚❚" : "▶"}
+            {playing ? <Pause size={14} /> : <Play size={14} />}
           </button>
         )}
         <button
           onClick={stepForward}
           title={isPlaylist ? "Next track" : "Next station"}
-          className="pill grid h-7 w-7 place-items-center text-xs text-petal/70 hover:bg-white/10 hover:text-cream"
+          className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
         >
-          ⏭
+          <SkipForward size={13} />
         </button>
 
         {station.provider === "spotify" ? (
@@ -294,9 +304,9 @@ export default function MusicDock({ onOpenPanel }) {
         <button
           onClick={toggleMusic}
           title="Stop the music"
-          className="pill grid h-7 w-7 place-items-center text-xs text-petal/50 hover:bg-white/10 hover:text-danger"
+          className="pill grid h-7 w-7 place-items-center text-petal/50 hover:bg-white/10 hover:text-danger"
         >
-          ✕
+          <X size={14} />
         </button>
       </div>
     </div>

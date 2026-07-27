@@ -141,8 +141,15 @@ learned the hard way):
   cluster) keep their theme.
 - Button labels are Sentence case ("Save current", "Unschedule", "Skip ▸");
   "sure?" is the one deliberate lowercase (it's a whisper, not a command).
-- Labels: tiny uppercase tracking-wide `text-petal/50`; emoji are the icon
-  set — no icon library.
+- Labels: tiny uppercase tracking-wide `text-petal/50`.
+- **Icons: Lucide for chrome, emoji for content.** Chrome (dock, toggles,
+  transport, section headers, pickers, row controls) uses lucide-react
+  stroke icons — they inherit `currentColor` so they re-tint with every
+  theme, and render identically on every OS (native emoji don't; they
+  looked out of place on Windows — user feedback). Sizes 10–18px,
+  `text-petal/70` beside header text. Emoji stay where they're CONTENT:
+  furniture/preset catalogs, station names, warm copy ("All clear 🌿"),
+  the avatar, toasts — colour earns its place there.
 - Empty states are one warm sentence, not filler UI ("All clear 🌿"). Idle
   chrome shows nothing rather than placeholder text. Zero-data readouts get
   the sentence too — never a raw "0 of 0".

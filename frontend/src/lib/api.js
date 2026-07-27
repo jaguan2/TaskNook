@@ -14,11 +14,24 @@ async function request(method, path, body) {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Without a deadline, a wedged backend (locked SQLite, slow first-run
+      // migration) hangs every caller forever — including boot, which would
+      // otherwise sit on the splash with the retry screen unreachable.
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (cause) {
+    const err = new Error(
+      cause?.name === "TimeoutError" ? "Request timed out" : "Couldn't reach the backend"
+    );
+    err.status = 0;
+    throw err;
+  }
 
   let data = null;
   const text = await res.text();

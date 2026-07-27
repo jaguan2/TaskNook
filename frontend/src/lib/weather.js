@@ -42,19 +42,46 @@ export function locateBrowser(timeout = 8000) {
       reject(new Error("Geolocation isn't available in this browser"));
       return;
     }
+    // The API's own `timeout` only starts counting once permission is
+    // granted — a dismissed/ignored permission prompt settles NEITHER
+    // callback, which left the panel stuck on "loading" forever. Our own
+    // deadline guarantees the promise settles.
+    const deadline = setTimeout(
+      () => reject(new Error("Timed out waiting for a location")),
+      timeout + 4000
+    );
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => reject(new Error("Location access was denied or unavailable")),
+      (pos) => {
+        clearTimeout(deadline);
+        resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      },
+      (err) => {
+        clearTimeout(deadline);
+        const msg =
+          err?.code === 1
+            ? "Location access was denied — try searching for your city instead"
+            : err?.code === 3
+            ? "Timed out waiting for a location"
+            : "Couldn't work out where you are";
+        reject(new Error(msg));
+      },
       { timeout, maximumAge: 10 * 60 * 1000 }
     );
   });
+}
+
+// Open-Meteo returns HTTP 400 with {error, reason} for bad params — surface
+// the reason instead of blaming the network.
+async function reasonOf(res, fallback) {
+  const body = await res.json().catch(() => null);
+  return new Error(body?.reason || fallback);
 }
 
 export async function geocodeCity(name) {
   const res = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`
   );
-  if (!res.ok) throw new Error("Couldn't reach the location service");
+  if (!res.ok) throw await reasonOf(res, "Couldn't reach the location service");
   const data = await res.json();
   const hit = data.results?.[0];
   if (!hit) throw new Error(`No place found named "${name}"`);
@@ -70,19 +97,22 @@ export async function geocodeCity(name) {
 const TWILIGHT_WINDOW_MS = 45 * 60 * 1000;
 
 export async function fetchCurrentWeather(lat, lon) {
+  // timeformat=unixtime matters: the default is a LOCAL-time ISO string with
+  // no offset, which JS parses in the BROWSER's zone — wrong whenever the
+  // queried city (manual search) isn't in the browser's timezone.
   const res = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset` +
-      `&temperature_unit=fahrenheit&timezone=auto`
+      `&temperature_unit=fahrenheit&timezone=auto&timeformat=unixtime`
   );
-  if (!res.ok) throw new Error("Couldn't reach the weather service");
+  if (!res.ok) throw await reasonOf(res, "Couldn't reach the weather service");
   const data = await res.json();
   const current = data.current;
   const info = describeCode(current.weather_code, current.is_day === 1);
 
   const now = Date.now();
-  const sunrise = new Date(data.daily.sunrise[0]).getTime();
-  const sunset = new Date(data.daily.sunset[0]).getTime();
+  const sunrise = data.daily.sunrise[0] * 1000;
+  const sunset = data.daily.sunset[0] * 1000;
   const nearTwilight =
     Math.abs(now - sunrise) < TWILIGHT_WINDOW_MS || Math.abs(now - sunset) < TWILIGHT_WINDOW_MS;
   const timeOfDay = nearTwilight ? "sunset" : current.is_day === 1 ? "day" : "night";

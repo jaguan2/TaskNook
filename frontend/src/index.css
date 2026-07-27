@@ -105,7 +105,6 @@ body {
     opacity: 0;
   }
   .group:hover .hover-reveal,
-  .group\/header:hover .hover-reveal,
   .hover-reveal:focus-visible,
   .hover-reveal.confirming {
     opacity: 1;
@@ -612,5 +611,22 @@ body {
   100% {
     transform: translate(-6px, 190px);
     opacity: 0;
+  }
+}
+
+/* LAST RULE ON PURPOSE: reduced-motion for every animation class declared
+   AFTER the first prefers-reduced-motion block (weather particles, window
+   streaks, Tailwind's animate-*). At equal specificity the later declaration
+   wins, so a reduced-motion rule only silences classes declared ABOVE it —
+   keep this block at the end of the file. (The storm's lightning flash is a
+   transition, gated in WeatherOverlay/Cottage via useReducedMotion.) */
+@media (prefers-reduced-motion: reduce) {
+  .rain-drop,
+  .snow-flake,
+  .window-rain,
+  .window-snow,
+  .animate-float,
+  .animate-flicker {
+    animation: none;
   }
 }
