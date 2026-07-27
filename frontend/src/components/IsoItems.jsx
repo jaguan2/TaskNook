@@ -1,4 +1,12 @@
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
+import bedSW from "../assets/kenney/bedDouble_SW.png";
+import bedSE from "../assets/kenney/bedDouble_SE.png";
+import sofaSE from "../assets/kenney/loungeSofa_SE.png";
+import sofaSW from "../assets/kenney/loungeSofa_SW.png";
+import chairSE from "../assets/kenney/loungeChair_SE.png";
+import chairSW from "../assets/kenney/loungeChair_SW.png";
+import standSW from "../assets/kenney/cabinetBed_SW.png";
+import standSE from "../assets/kenney/cabinetBed_SE.png";
 
 // Sprites for the isometric room. Each is drawn for its footprint anchored at
 // grid (0,0) — the scene places it with translate(project(gx,gy)), which
@@ -96,12 +104,18 @@ function Desk() {
 }
 
 function Stool() {
-  const box = isoBox(0, 0, 0.8, 0.8, 20);
+  const c = project(0.4, 0.4);
+  // A round pouf, not a crate: cheap cylinder (bottom ellipse, straight side
+  // band, cushion top) with a stitch ring and a soft sheen.
   return (
-    <g>
-      <polygon points={box.left} fill="#a87f5f" />
-      <polygon points={box.right} fill="#8f5d49" />
-      <polygon points={box.top} style={tinted("#d98a93")} />
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-3" rx="16" ry="8" style={tinted("#d98a93")} />
+      <ellipse cx="0" cy="-3" rx="16" ry="8" fill="#000" opacity="0.35" />
+      <rect x="-16" y="-20" width="32" height="17" style={tinted("#d98a93")} />
+      <rect x="-16" y="-20" width="32" height="17" fill="#000" opacity="0.22" />
+      <ellipse cx="0" cy="-20" rx="16" ry="8" style={tinted("#d98a93")} />
+      <ellipse cx="0" cy="-20" rx="12.5" ry="6" fill="none" stroke="#000" opacity="0.14" strokeWidth="1" strokeDasharray="2.5 2.5" />
+      <ellipse cx="-3" cy="-22" rx="7" ry="3" fill="#fff" opacity="0.14" />
     </g>
   );
 }
@@ -189,19 +203,26 @@ function FloorLamp() {
 
 function Cat({ awake = false }) {
   const c = project(0.6, 0.4);
+  // Ground shadows come from the scene now (one soft ellipse per item), so
+  // the poses draw only the cat.
   if (awake) {
-    // On the prowl: body up on legs, head high, tail curled skyward.
+    // On the prowl: body up on legs, head high, tail curled skyward. The
+    // legs step in counter-phase and the body trots — walking, not sliding.
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
-        <ellipse cx="0" cy="2" rx="22" ry="8" fill="#000" opacity="0.2" />
-        <rect x="-14" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
-        <rect x="8" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
-        <ellipse cx="-1" cy="-18" rx="18" ry="9.5" style={tinted("#3a3142")} />
-        <circle cx="-15" cy="-27" r="7.5" style={tinted("#3a3142")} />
-        <polygon points="-21,-31 -19,-39 -14,-32" style={tinted("#3a3142")} />
-        <polygon points="-12,-33 -8,-40 -5,-32" style={tinted("#3a3142")} />
-        <circle cx="-17" cy="-27" r="0.9" fill="#ffe9b0" />
-        <circle cx="-12" cy="-28" r="0.9" fill="#ffe9b0" />
+        <rect className="leg-step-a" x="-14" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
+        <rect className="leg-step-b" x="8" y="-14" width="5" height="15" rx="2.4" style={tinted("#3a3142")} />
+        <g className="resident-type">
+          <ellipse cx="-1" cy="-18" rx="18" ry="9.5" style={tinted("#3a3142")} />
+          <ellipse cx="-4" cy="-21" rx="10" ry="4" fill="#fff" opacity="0.08" />
+          <circle cx="-15" cy="-27" r="7.5" style={tinted("#3a3142")} />
+          {/* both ear bases sit ON the head circle (the inner ear used to
+              float off the far side of the skull) */}
+          <polygon points="-21,-31 -19,-39 -14,-32" style={tinted("#3a3142")} />
+          <polygon points="-12.4,-34 -6.1,-36.5 -8.2,-30.2" style={tinted("#3a3142")} />
+          <circle cx="-17" cy="-27" r="0.9" fill="#ffe9b0" />
+          <circle cx="-12" cy="-28" r="0.9" fill="#ffe9b0" />
+        </g>
         <path
           d="M15 -20 q10 -4 8 -18"
           fill="none"
@@ -212,14 +233,27 @@ function Cat({ awake = false }) {
       </g>
     );
   }
+  // Curled up asleep: the body breathes slowly from the belly, and once in a
+  // long while the tail flicks (rarity is charm).
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
-      <ellipse cx="0" cy="2" rx="26" ry="9" fill="#000" opacity="0.2" />
-      <ellipse cx="0" cy="-6" rx="24" ry="12" style={tinted("#3a3142")} />
-      <circle cx="-16" cy="-13" r="8" style={tinted("#3a3142")} />
-      <polygon points="-22,-18 -19,-26 -15,-19" style={tinted("#3a3142")} />
-      <polygon points="-12,-20 -8,-27 -5,-19" style={tinted("#3a3142")} />
-      <path d="M22 -8 q11 -2 9 -12" fill="none" style={{ stroke: "var(--tint, #3a3142)" }} strokeWidth="4.5" strokeLinecap="round" />
+      <g className="cat-breathe">
+        <ellipse cx="0" cy="-6" rx="24" ry="12" style={tinted("#3a3142")} />
+        <ellipse cx="-3" cy="-10" rx="13" ry="5" fill="#fff" opacity="0.07" />
+        <circle cx="-16" cy="-13" r="8" style={tinted("#3a3142")} />
+        <polygon points="-22,-18 -19,-26 -15,-19" style={tinted("#3a3142")} />
+        <polygon points="-13.3,-20.5 -6.8,-23 -8.8,-16.4" style={tinted("#3a3142")} />
+        {/* closed eye — a tiny sleeping arc */}
+        <path d="M-19 -13 q2 1.6 4 0" fill="none" stroke="#0d0a12" strokeWidth="1" strokeLinecap="round" opacity="0.7" />
+      </g>
+      <path
+        className="tail-flick"
+        d="M22 -8 q11 -2 9 -12"
+        fill="none"
+        style={{ stroke: "var(--tint, #3a3142)" }}
+        strokeWidth="4.5"
+        strokeLinecap="round"
+      />
     </g>
   );
 }
@@ -240,9 +274,13 @@ function SquareRug() {
 }
 
 // Shaded box helper: every face gets the tint, with translucent black
-// overlays for depth so ANY chosen colour reads correctly.
+// overlays for depth so ANY chosen colour reads correctly. A thin light
+// catch runs along the top-front edges — the cheap bevel that stops a
+// flat-shaded box reading as cardboard (user feedback: "too blocky").
 function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18 }) {
   const box = isoBox(gx, gy, dx, dy, h);
+  const { B, C, D } = box.corners;
+  const up = (p) => `${p.x},${p.y - h}`;
   return (
     <g>
       <polygon points={box.left} style={tinted(fallback)} />
@@ -250,28 +288,72 @@ function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18 }) {
       <polygon points={box.right} style={tinted(fallback)} />
       <polygon points={box.right} fill="#000" opacity={dark} />
       <polygon points={box.top} style={tinted(fallback)} />
+      <polyline
+        points={`${up(D)} ${up(C)} ${up(B)}`}
+        fill="none"
+        stroke="#fff"
+        opacity="0.13"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
     </g>
   );
 }
 
-function Sofa() {
-  const f = "#b0687a";
-  return (
-    <g>
-      {/* one low base, back INSET between the arms, cushions in front — the
-          old stacked-slab version read as random boxes (user feedback) */}
-      <TintedBox gx={0} gy={0} dx={2} dy={1} h={14} fallback={f} dark={0.4} mid={0.26} />
-      <TintedBox gx={0.22} gy={0} dx={1.56} dy={0.3} h={44} fallback={f} />
-      <TintedBox gx={0} gy={0} dx={0.26} dy={1} h={32} fallback={f} dark={0.36} mid={0.2} />
-      <TintedBox gx={1.74} gy={0} dx={0.26} dy={1} h={32} fallback={f} dark={0.36} mid={0.2} />
-      <TintedBox gx={0.24} gy={0.28} dx={0.74} dy={0.68} h={24} fallback={f} dark={0.26} mid={0.14} />
-      <TintedBox gx={1.02} gy={0.28} dx={0.74} dy={0.68} h={24} fallback={f} dark={0.26} mid={0.14} />
-      {/* soft top highlights so the cushions read plush */}
-      <polygon points={floorPatch(0.3, 0.34, 0.6, 0.5)} transform="translate(0,-24)" fill="#fff" opacity="0.08" />
-      <polygon points={floorPatch(1.08, 0.34, 0.6, 0.5)} transform="translate(0,-24)" fill="#fff" opacity="0.08" />
-    </g>
-  );
+// ---- Kenney Furniture Kit pieces (CC0, kenney.nl) ----------------------- //
+// The bed and sofa never stopped reading as stacked boxes in hand-drawn SVG
+// (user feedback, twice) — so these four items are pre-rendered isometric
+// views of real modelled furniture from a single CC0 pack (consistent theme;
+// see src/assets/kenney/LICENSE.txt), whose flat-shaded look sits well next
+// to the SVG pieces. Each PNG is tightly cropped: its width maps onto the
+// footprint diamond's screen width and its bottom edge lands on the
+// footprint's front corner. `rot` swaps to a REAL second render instead of
+// the mirror trick (lighting stays consistent) — the catalog marks these
+// `noMirror` so the scene skips scale(-1,1) and passes rot in. PNGs can't
+// take `--tint`, so they're `tintable: false`.
+function kenneySprite({ r0, r1, w0, h0, w1, h1, foot }) {
+  return function KenneySprite({ rot = 0 }) {
+    const src = rot ? r1 : r0;
+    const iw = rot ? w1 : w0;
+    const ih = rot ? h1 : h0;
+    const f = rot ? [foot[1], foot[0]] : foot;
+    const width = ((f[0] + f[1]) * TILE_W) / 2;
+    const s = width / iw;
+    return (
+      <image
+        href={src}
+        x={project(0, f[1]).x}
+        y={project(f[0], f[1]).y - ih * s}
+        width={width}
+        height={ih * s}
+      />
+    );
+  };
 }
+
+const Sofa = kenneySprite({
+  r0: sofaSE, w0: 104, h0: 103,
+  r1: sofaSW, w1: 103, h1: 103,
+  foot: [2, 1],
+});
+
+const Bed = kenneySprite({
+  r0: bedSW, w0: 157, h0: 138,
+  r1: bedSE, w1: 157, h1: 138,
+  foot: [2, 2.8],
+});
+
+const Armchair = kenneySprite({
+  r0: chairSE, w0: 67, h0: 77,
+  r1: chairSW, w1: 66, h1: 77,
+  foot: [1, 1],
+});
+
+const Nightstand = kenneySprite({
+  r0: standSW, w0: 36, h0: 42,
+  r1: standSE, w1: 37, h1: 42,
+  foot: [0.7, 0.7],
+});
 
 function CoffeeTable() {
   const A = project(0, 0);
@@ -299,28 +381,6 @@ function CoffeeTable() {
   );
 }
 
-function Bed() {
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={2} dy={0.14} h={46} fallback="#8f5d49" dark={0.4} mid={0.24} />
-      <TintedBox gx={0} gy={0.1} dx={2} dy={2.7} h={16} fallback="#8f5d49" dark={0.4} mid={0.24} />
-      {/* blanket (the tintable material) */}
-      <TintedBox gx={0.04} gy={0.6} dx={1.92} dy={2.14} h={26} fallback="#7f9ec9" />
-      {/* fold line across the blanket */}
-      <line
-        x1={project(0.04, 1.3).x}
-        y1={project(0.04, 1.3).y - 26}
-        x2={project(1.96, 1.3).x}
-        y2={project(1.96, 1.3).y - 26}
-        stroke="#000"
-        strokeWidth="1.6"
-        opacity="0.18"
-      />
-      {/* pillow */}
-      <TintedBox gx={0.35} gy={0.16} dx={1.3} dy={0.42} h={10} fallback="#f7e9e2" dark={0.14} mid={0.08} />
-    </g>
-  );
-}
 
 function Cushion() {
   const c = project(0.45, 0.45);
@@ -333,16 +393,21 @@ function Cushion() {
 }
 
 function Aquarium() {
-  const glass = isoBox(0.06, 0.06, 1.28, 0.58, 32);
+  // A glass box of WATER, not a glowing plate: solid water faces inside a
+  // barely-there glass shell, the top just a thin bright rim with a small
+  // shimmer — the old filled top + big breathing oval read as a weird
+  // floating disc (user feedback).
+  const glass = isoBox(0.06, 0.06, 1.28, 0.58, 34);
+  const water = isoBox(0.12, 0.12, 1.16, 0.46, 27);
   const c = project(0.7, 0.35);
   return (
     <g>
       <TintedBox gx={0} gy={0} dx={1.4} dy={0.7} h={24} fallback="#3a3142" dark={0.35} mid={0.2} />
       <g transform="translate(0,-24)">
-        <ellipse cx={c.x} cy={c.y - 16} rx="26" ry="12" fill="#6fb8cf" opacity="0.18" className="room-breathe" />
-        <polygon points={glass.left} fill="#6fb8cf" opacity="0.22" />
-        <polygon points={glass.right} fill="#6fb8cf" opacity="0.32" />
-        {/* seaweed + fish inside */}
+        {/* the water volume */}
+        <polygon points={water.left} fill="#3d7c9e" opacity="0.85" />
+        <polygon points={water.right} fill="#346a88" opacity="0.9" />
+        {/* seaweed + fish live inside it */}
         <path
           d={`M ${c.x - 14} ${c.y} q -3 -12 2 -22 q 4 8 1 22 z`}
           fill="#3f7f63"
@@ -366,7 +431,22 @@ function Aquarium() {
             style={{ animationDelay: `${i * 1.6}s` }}
           />
         ))}
-        <polygon points={glass.top} fill="#cbe8ef" opacity="0.4" />
+        {/* water surface + a soft shimmer drifting on it */}
+        <polygon points={water.top} fill="#7fc4d8" opacity="0.5" />
+        <ellipse cx={c.x + 3} cy={c.y - 26} rx="8" ry="3" fill="#fff" opacity="0.16" className="room-breathe" />
+        {/* the glass shell: faint faces, a bright rim, a corner glint */}
+        <polygon points={glass.left} fill="#cbe8ef" opacity="0.07" />
+        <polygon points={glass.right} fill="#cbe8ef" opacity="0.12" />
+        <polygon points={glass.top} fill="none" stroke="#cbe8ef" strokeWidth="1.3" opacity="0.55" />
+        <line
+          x1={glass.corners.C.x}
+          y1={glass.corners.C.y}
+          x2={glass.corners.C.x}
+          y2={glass.corners.C.y - 34}
+          stroke="#fff"
+          strokeWidth="1"
+          opacity="0.25"
+        />
       </g>
     </g>
   );
@@ -419,7 +499,6 @@ function Tree() {
   const c = project(0.75, 0.75);
   return (
     <g>
-      <ellipse cx={c.x} cy={c.y} rx="30" ry="11" fill="#000" opacity="0.2" />
       <path
         d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 46} L${c.x + 3} ${c.y - 46} L${c.x + 5} ${c.y} Z`}
         fill="#6b4a39"
@@ -439,7 +518,6 @@ function Bush() {
   const c = project(0.5, 0.5);
   return (
     <g>
-      <ellipse cx={c.x} cy={c.y + 2} rx="20" ry="8" fill="#000" opacity="0.18" />
       <ellipse cx={c.x - 8} cy={c.y - 10} rx="14" ry="11" style={tinted("#3f7f63")} />
       <ellipse cx={c.x + 8} cy={c.y - 9} rx="13" ry="10" style={tinted("#3f7f63")} />
       <ellipse cx={c.x + 8} cy={c.y - 9} rx="13" ry="10" fill="#000" opacity="0.12" />
@@ -543,14 +621,14 @@ function Flowerbed() {
 }
 
 // The resident: a little person. `seated` swaps the pose — the scene decides
-// by checking whether they were dropped onto something with a seat.
-function Resident({ seated = false, working = false }) {
+// by checking whether they were dropped onto something with a seat. `moving`
+// is true mid-glide: the legs step in counter-phase so they walk, not skate.
+function Resident({ seated = false, working = false, moving = false }) {
   const c = project(0.4, 0.4);
   const torsoY = seated ? -28 : -34;
   const headY = seated ? -35 : -41;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      {!seated && <ellipse cx="0" cy="2" rx="13" ry="5.5" fill="#000" opacity="0.22" />}
       {seated ? (
         <>
           <rect x="-8" y="-10" width="6.5" height="13" rx="3" fill="#4a3a5b" />
@@ -558,8 +636,8 @@ function Resident({ seated = false, working = false }) {
         </>
       ) : (
         <>
-          <rect x="-6.8" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
-          <rect x="1.2" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
+          <rect className={moving ? "leg-step-a" : undefined} x="-6.8" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
+          <rect className={moving ? "leg-step-b" : undefined} x="1.2" y="-15" width="5.6" height="16" rx="2.6" fill="#4a3a5b" />
         </>
       )}
       <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
@@ -575,6 +653,110 @@ function Resident({ seated = false, working = false }) {
         <circle cx="-3" cy={headY + 2} r="0.9" fill="#3a3142" />
         <circle cx="3" cy={headY + 2} r="0.9" fill="#3a3142" />
       </g>
+    </g>
+  );
+}
+
+// ---- newer decorations -------------------------------------------------- //
+
+function Fireplace() {
+  // Stone body with a wooden mantel slab; the firebox opening sits on the
+  // front-left face (same skew trick as the bookshelf's books). Flames are
+  // CSS one-shots; the warm pool on the floor breathes with them.
+  const up = (p, h) => `${p.x},${p.y - h}`;
+  const A = project(-0.05, -0.05);
+  const B = project(1.65, -0.05);
+  const C = project(1.65, 0.75);
+  const D = project(-0.05, 0.75);
+  const glow = project(0.85, 1.15);
+  return (
+    <g>
+      <ellipse cx={glow.x} cy={glow.y} rx="36" ry="14" fill="url(#lampPool)" className="room-breathe" opacity="0.4" />
+      <TintedBox gx={0} gy={0} dx={1.6} dy={0.7} h={56} fallback="#8d8178" dark={0.36} mid={0.2} />
+      {/* mantel slab, slightly proud of the body */}
+      <polygon points={`${up(D, 64)} ${up(C, 64)} ${up(C, 58)} ${up(D, 58)}`} style={tinted("#6b4a39")} />
+      <polygon points={`${up(D, 64)} ${up(C, 64)} ${up(C, 58)} ${up(D, 58)}`} fill="#000" opacity="0.18" />
+      <polygon points={`${up(B, 64)} ${up(C, 64)} ${up(C, 58)} ${up(B, 58)}`} style={tinted("#6b4a39")} />
+      <polygon points={`${up(B, 64)} ${up(C, 64)} ${up(C, 58)} ${up(B, 58)}`} fill="#000" opacity="0.3" />
+      <polygon points={`${up(A, 64)} ${up(B, 64)} ${up(C, 64)} ${up(D, 64)}`} style={tinted("#6b4a39")} />
+      {/* front face: stones + the arched firebox */}
+      <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
+        <rect x="3" y="-52" width="10" height="5" rx="2" fill="#000" opacity="0.1" />
+        <rect x="24" y="-50" width="11" height="5" rx="2" fill="#000" opacity="0.1" />
+        <rect x="14" y="-45" width="10" height="5" rx="2" fill="#000" opacity="0.08" />
+        <path d="M8 -6 v-22 a11 11 0 0 1 22 0 v22 z" fill="#1c1210" />
+        <path d="M8 -6 v-22 a11 11 0 0 1 22 0 v22 z" fill="none" stroke="#000" strokeWidth="1.5" opacity="0.3" />
+        {/* embers + logs */}
+        <rect x="12" y="-10" width="15" height="3.5" rx="1.7" fill="#4a3226" />
+        <rect x="14" y="-13" width="11" height="3.5" rx="1.7" fill="#5a3d2c" />
+        <ellipse cx="19" cy="-12" rx="9" ry="6" fill="#ff9c5a" opacity="0.28" />
+        {/* the flames dance out of phase */}
+        <path className="flame-dance" d="M19 -13 q-6 -9 0 -20 q6 11 0 20 z" fill="#ffb45e" />
+        <path className="flame-dance" style={{ animationDelay: "0.5s" }} d="M14.5 -13 q-4 -5 -1.5 -12 q4.5 7 1.5 12 z" fill="#e8874b" />
+        <path className="flame-dance" style={{ animationDelay: "0.9s" }} d="M23.5 -13 q4 -6 1.5 -13 q-4.5 7 -1.5 13 z" fill="#ffd76a" />
+      </g>
+    </g>
+  );
+}
+
+function WallClock() {
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <circle cx="10" cy="-86" r="11" style={tinted("#8a5346")} />
+      <circle cx="10" cy="-86" r="11" fill="#000" opacity="0.12" />
+      <circle cx="10" cy="-86" r="8.6" fill="#f7e9e2" />
+      {[
+        [10, -93.4],
+        [17.4, -86],
+        [10, -78.6],
+        [2.6, -86],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="0.7" fill="#3a3142" />
+      ))}
+      {/* ten past ten — the friendliest time a clock can show */}
+      <line x1="10" y1="-86" x2="6.2" y2="-90" stroke="#3a3142" strokeWidth="1.7" strokeLinecap="round" />
+      <line x1="10" y1="-86" x2="14.4" y2="-90.8" stroke="#3a3142" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="10" cy="-86" r="1.1" fill="#3a3142" />
+    </g>
+  );
+}
+
+function RecordPlayer() {
+  const c = project(0.55, 0.32);
+  return (
+    <g>
+      <TintedBox gx={0} gy={0} dx={1.2} dy={0.7} h={22} fallback="#6b4a39" />
+      {/* the disc spins lazily in the iso plane (rotation inside a squashed
+          group) — the label's highlight dot is what makes the spin visible */}
+      <g transform={`translate(${c.x}, ${c.y - 22}) scale(1, 0.5)`}>
+        <g className="disc-spin">
+          <circle cx="0" cy="0" r="15" fill="#241d33" />
+          <circle cx="0" cy="0" r="12.5" fill="none" stroke="#3a3142" strokeWidth="0.9" opacity="0.8" />
+          <circle cx="0" cy="0" r="9.5" fill="none" stroke="#3a3142" strokeWidth="0.9" opacity="0.8" />
+          <circle cx="0" cy="0" r="4.6" fill="#d98a93" />
+          <circle cx="3.1" cy="-1.2" r="1" fill="#f7e9e2" opacity="0.85" />
+        </g>
+      </g>
+      {/* tonearm resting over the edge of the disc */}
+      <circle cx={c.x + 17} cy={c.y - 26} r="2.4" fill="#3a3142" />
+      <line x1={c.x + 17} y1={c.y - 26} x2={c.x + 5} y2={c.y - 24} stroke="#3a3142" strokeWidth="1.7" strokeLinecap="round" />
+    </g>
+  );
+}
+
+function Candle() {
+  const c = project(0.2, 0.2);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-19" rx="9" ry="11" fill="#ffe9b0" opacity="0.14" />
+      <ellipse cx="0" cy="-1" rx="5" ry="2.6" style={tinted("#f2e0c8")} />
+      <ellipse cx="0" cy="-1" rx="5" ry="2.6" fill="#000" opacity="0.3" />
+      <rect x="-5" y="-13" width="10" height="12" style={tinted("#f2e0c8")} />
+      <rect x="-5" y="-13" width="10" height="12" fill="#000" opacity="0.12" />
+      <ellipse cx="0" cy="-13" rx="5" ry="2.6" style={tinted("#f2e0c8")} />
+      {/* a wax drip down the front */}
+      <path d="M-2.5 -12 q-0.8 3.5 0 5.5 q1.4 -0.5 1.2 -3 z" fill="#fff" opacity="0.35" />
+      <path className="flame-dance" d="M0 -15 q-2.6 -4.5 0 -9 q2.6 4.5 0 9 z" fill="#ffd76a" />
     </g>
   );
 }
@@ -604,4 +786,10 @@ export const ISO_SPRITES = {
   frame: Frame,
   wallshelf: WallShelf,
   mirror: Mirror,
+  fireplace: Fireplace,
+  wallclock: WallClock,
+  recordplayer: RecordPlayer,
+  candle: Candle,
+  armchair: Armchair,
+  nightstand: Nightstand,
 };

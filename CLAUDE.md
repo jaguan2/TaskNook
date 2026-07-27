@@ -241,14 +241,19 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   route through the channel's master gain so its slider scales them.
   **Rain schedules droplet plinks on top of a dark noise bed** — the
   transients are what make it read as rain instead of radio static (user
-  feedback). Keep noise beds dark; brightness comes from one-shots. (A
+  feedback, twice: re-tuned 2026-07-26 to a quieter, darker bed with drops
+  varied in pitch, loudness (squared random — most far, few near) and
+  stereo pan). Keep noise beds dark; brightness comes from one-shots. (A
   separate "soft rain" channel existed briefly and was cut — didn't earn its
   slot; iterate on the main rain instead of adding variants.)
   The mix lives in `soundMix` (`tasknook.soundMix`); since Web Audio needs a
   user gesture, a saved mix resumes on the first `pointerdown` after boot.
-  `weatherMode` (`off`/`rain`/`snow`/`storm`) is **VISUAL-ONLY** — its only
-  control is the TopBar cluster's weather popover (the Sounds panel
-  deliberately has no weather buttons), and neither it nor "Match my real
+  `weatherMode` (`off`/`rain`/`snow`/`storm`) is **VISUAL-ONLY** — its
+  controls are the TopBar cluster's weather popover and the Weather panel's
+  "Weather conditions" matrix (5 weather rows × 3 time pills; one tap sets
+  BOTH weatherMode and timeOfDay, so "cloudy night" is a single choice —
+  SkyOverlay tones clouds per time of day). The Sounds panel deliberately
+  has no weather buttons, and neither weatherMode nor "Match my real
   weather" ever touches the sound mix (explicit user decision: a rainy scene
   without rain audio is a legitimate mood). The
   one exception: applying a saved ambience preset restores its snapshot of
@@ -442,11 +447,21 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
   drag engine in `IsoRoom.jsx`.
+  **Rendered-PNG sprites**: bed/sofa/armchair/nightstand are pre-rendered
+  isometric views from Kenney's Furniture Kit (CC0 — the hand-drawn SVG
+  versions never stopped reading as stacked boxes; see
+  `frontend/src/assets/kenney/LICENSE.txt`). They're `tintable: false` (no
+  CSS var reaches a PNG) and `noMirror: true`; the `kenneySprite` factory
+  maps each cropped render's width onto the footprint diamond and its
+  bottom edge onto the front corner. New Kenney items should come from the
+  SAME kit so the modelled style stays consistent.
   **Rotation** (`rot: 0|1`, the ⟳ button when selected): a screen-mirror
   `scale(-1,1)` about the sprite origin IS a grid transpose, so one drawn
   facing per item gives both orientations — `footOf(item, rot)` swaps the
   footprint and everything (clamp, depth, highlight) flows from it. `rot` is
-  stored only when 1.
+  stored only when 1. `noMirror` items skip the flip and get `rot` as a prop
+  instead — they ship a REAL second render per orientation, so lighting
+  never flips.
   **Wall items** (`wall: true` — frame, wallshelf, mirror): sprites are drawn
   for the RIGHT wall inside a `skewY(+26.565°)` group (that angle is
   `atan(TILE_H / TILE_W)`); `rot` picks the wall (0 = right, pinned `gy: 0`;

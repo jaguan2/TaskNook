@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
+import { WEATHER_OPTIONS } from "./TopBar";
 
 const TIME_OPTIONS = [
   { key: "night", label: "Night", icon: "🌙" },
@@ -20,6 +21,8 @@ export default function WeatherPanel() {
     toggleAutoMatchWeather,
     timeOfDay,
     setTimeOfDay,
+    weatherMode,
+    setWeather,
     weatherPresets,
     saveWeatherPreset,
     applyWeatherPreset,
@@ -120,22 +123,43 @@ export default function WeatherPanel() {
 
       <hr className="border-white/10" />
 
-      {/* Time of day */}
+      {/* Weather conditions: the full weather × time matrix — "Cloudy ·
+          Night" is ONE tap, not two coordinated ones. Each pill sets both
+          weatherMode and timeOfDay. Visual only (same rule as the corner
+          popover); the sound mix stays the Sounds panel's business. */}
       <section className="space-y-2">
-        <p className="text-sm font-semibold text-cream">🕰️ Time of day</p>
-        <div className="flex flex-wrap gap-1.5">
-          {TIME_OPTIONS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTimeOfDay(t.key)}
-              className={`pill px-3 py-1.5 text-xs font-semibold ${
-                timeOfDay === t.key
-                  ? "bg-glow text-plum"
-                  : "bg-white/10 text-petal hover:bg-white/20"
-              }`}
-            >
-              {t.icon} {t.label}
-            </button>
+        <p className="text-sm font-semibold text-cream">🌆 Weather conditions</p>
+        <p className="text-xs text-petal/60">
+          One tap sets the whole scene — clear night, cloudy day, rainy
+          sunset… Visual only: sounds stay yours in the Sounds panel.
+        </p>
+        <div className="space-y-1">
+          {WEATHER_OPTIONS.map((w) => (
+            <div key={w.key} className="flex items-center gap-1.5">
+              <span className="w-[4.5rem] shrink-0 text-xs text-petal">
+                {w.icon} {w.label}
+              </span>
+              {TIME_OPTIONS.map((t) => {
+                const active = weatherMode === w.key && timeOfDay === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => {
+                      setWeather(w.key);
+                      setTimeOfDay(t.key);
+                    }}
+                    title={`${w.label} ${t.label.toLowerCase()}`}
+                    className={`pill flex-1 px-2 py-1 text-[11px] font-semibold ${
+                      active
+                        ? "bg-glow text-plum"
+                        : "bg-white/10 text-petal hover:bg-white/20"
+                    }`}
+                  >
+                    {t.icon} {t.label}
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </div>
       </section>

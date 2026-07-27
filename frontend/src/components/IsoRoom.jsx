@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
+import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
   clampIsoPlacement,
@@ -358,7 +358,9 @@ function IsoRoom({
       };
     }
     const off = !editMode && roamRef.current[p.id];
-    return off ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy } : p;
+    // Mid-wander = walking: the sprite swaps to a stepping gait.
+    const moving = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
+    return off ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _moving: moving } : p;
   });
   const ordered = sortIso(effective);
   const selectedPlacement =
@@ -416,6 +418,13 @@ function IsoRoom({
           <radialGradient id="lampPool">
             <stop offset="0" stopColor="#ffe9b0" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
+          </radialGradient>
+          {/* soft contact shadow under every grounded item — one gradient,
+              no filters (a 48×48 lot can hold dozens of these) */}
+          <radialGradient id="isoShadow">
+            <stop offset="0" stopColor="#000" stopOpacity="0.32" />
+            <stop offset="0.7" stopColor="#000" stopOpacity="0.12" />
+            <stop offset="1" stopColor="#000" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="lampCone" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#ffe9b0" stopOpacity="0.8" />
@@ -578,7 +587,8 @@ function IsoRoom({
                 ? {
                     style: {
                       transform: `translate(${at.x}px, ${at.y}px)`,
-                      transition: "transform 2.6s ease-in-out",
+                      // A soft start and settle — creatures amble, not slide.
+                      transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
                       ...(p.tint && { "--tint": p.tint }),
                     },
                   }
@@ -600,19 +610,35 @@ function IsoRoom({
                 {editMode && (
                   <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
                 )}
+                {/* Contact shadow: one soft ellipse sized to the footprint,
+                    under every grounded item. This is most of what makes the
+                    sprites read as sitting IN the room instead of pasted on
+                    (flat rugs/ponds and wall decor obviously except). */}
+                {!item.wall && (item.layer || 0) >= 0 && !p._seat && (
+                  <ellipse
+                    cx={project(foot[0] / 2, foot[1] / 2).x}
+                    cy={project(foot[0] / 2, foot[1] / 2).y}
+                    rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3}
+                    ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
+                    fill="url(#isoShadow)"
+                  />
+                )}
                 {/* Mirroring about the origin is a grid TRANSPOSE — the item
-                    faces the other wall and its footprint swaps to match. */}
+                    faces the other wall and its footprint swaps to match.
+                    noMirror items (rendered PNGs) ship a real second render
+                    per orientation instead: pass rot through, skip the flip. */}
                 {(() => {
                   const sprite = persona ? (
                     <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-                      <Sprite seated={!!p._seat} working={working} />
+                      <Sprite seated={!!p._seat} working={working} moving={!!p._moving} />
                     </g>
                   ) : item.roamer ? (
                     <Sprite awake={!!p._awake} />
                   ) : (
-                    <Sprite />
+                    <Sprite rot={p.rot ? 1 : 0} />
                   );
-                  return p.rot ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
+                  if (!p.rot) return sprite;
+                  return item.noMirror ? sprite : <g transform="scale(-1,1)">{sprite}</g>;
                 })()}
               </g>
             );

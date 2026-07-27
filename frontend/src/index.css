@@ -310,6 +310,98 @@ body {
   animation: resident-type 0.5s ease-in-out infinite;
 }
 
+/* Little steps while a resident (or prowling cat) is mid-glide: the two legs
+   bob in counter-phase. On plain rects (no SVG transform attribute), so the
+   CSS transform is safe. */
+@keyframes leg-step {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.2px);
+  }
+}
+.leg-step-a {
+  animation: leg-step 0.5s ease-in-out infinite;
+}
+.leg-step-b {
+  animation: leg-step 0.5s ease-in-out infinite;
+  animation-delay: 0.25s;
+}
+
+/* A sleeping cat breathes — slow, from the belly (origin bottom). */
+@keyframes cat-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.045);
+  }
+}
+.cat-breathe {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: cat-breathe 3.4s ease-in-out infinite;
+}
+
+/* …and flicks its tail once in a while (rarity-is-charm: a long cycle whose
+   visible part is a sliver). */
+@keyframes tail-flick {
+  0%,
+  88%,
+  100% {
+    transform: rotate(0deg);
+  }
+  91% {
+    transform: rotate(14deg);
+  }
+  95% {
+    transform: rotate(-3deg);
+  }
+}
+.tail-flick {
+  transform-box: fill-box;
+  transform-origin: left bottom;
+  animation: tail-flick 9s ease-in-out infinite;
+}
+
+/* Fireplace / candle flames: a quick soft dance, stretched from the base. */
+@keyframes flame-dance {
+  0%,
+  100% {
+    transform: scaleY(1) skewX(0deg);
+    opacity: 0.9;
+  }
+  30% {
+    transform: scaleY(1.12) skewX(-2.5deg);
+    opacity: 1;
+  }
+  65% {
+    transform: scaleY(0.9) skewX(2deg);
+    opacity: 0.8;
+  }
+}
+.flame-dance {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: flame-dance 1.5s ease-in-out infinite;
+}
+
+/* The record player's disc, spinning lazily (inside a scale(1,0.5) parent so
+   the rotation stays in the iso plane). */
+@keyframes disc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.disc-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: disc-spin 5s linear infinite;
+}
+
 @keyframes shooting-star {
   0% {
     transform: translate(0, 0) rotate(24deg);
@@ -368,6 +460,12 @@ body {
   .bubble-rise,
   .pond-ripple,
   .resident-type,
+  .leg-step-a,
+  .leg-step-b,
+  .cat-breathe,
+  .tail-flick,
+  .flame-dance,
+  .disc-spin,
   .shooting-star,
   .bird-fly {
     animation: none;

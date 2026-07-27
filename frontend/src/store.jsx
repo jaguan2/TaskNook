@@ -131,7 +131,8 @@ export function StoreProvider({ children }) {
   // ---- Ambient ----
   const [weatherMode, setWeatherModeState] = useState("off");
   const [weatherVolume, setWeatherVol] = useState(0.5);
-  // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, birds).
+  // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, cafe,
+  // paper).
   // Slider positions persist; actual audio only starts from a user gesture.
   const [soundMix, setSoundMixState] = useState(() => {
     try {
