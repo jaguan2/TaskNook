@@ -125,7 +125,11 @@ function IsoPresetPreview({ preset }) {
             <Sprite seated={!!p._seat} seatH={p._seat || 0} />
           </g>
         ) : (
-          <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
+          <Sprite
+            rot={(p.rot || 0) % 2}
+            back={(p.rot || 0) >= 2}
+            variant={item.variants?.[p.tint]}
+          />
         );
         return (
           <g
@@ -133,7 +137,7 @@ function IsoPresetPreview({ preset }) {
             transform={`translate(${at.x},${at.y})`}
             style={p.tint ? { "--tint": p.tint } : undefined}
           >
-            {p.rot && !item.noMirror ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+            {(p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
           </g>
         );
       })}

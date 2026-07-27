@@ -362,7 +362,16 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   while "Match my real weather" is on turns auto-match OFF (the user's pick
   wins; auto-match's internal appliers bypass this). The iso room takes
   `timeOfDay` too (`ISO_TIME`: window sky/orb + string-light brightness) —
-  don't let a new scene hardcode night again.
+  don't let a new scene hardcode night again. **Time of day has to reach the
+  BACKDROP and the room's own surfaces**, not just the window: `SkyOverlay`'s
+  `DAY_LIFT` brightens the sky behind everything and `ISO_TIME.lift` washes the
+  walls and floor (never the furniture — that would flatten every colour the
+  user picked). Both were once so timid that day and night looked identical.
+  `DAY_LIFT` is a **measured ceiling, not a taste knob**: the to-do list is
+  drawn straight onto the backdrop in cream with no card behind it, so
+  `SkyOverlay.test.js` composites the wash over every theme's darkest stop and
+  fails if contrast drops below WCAG AA — and also fails if the value creeps
+  back down to invisible.
 - **Real-world weather**: `WeatherPanel.jsx` + `lib/weather.js` hit Open-Meteo
   (free, no API key) for current conditions — browser geolocation first, falling
   back to manual city search via Open-Meteo's geocoding endpoint. This is the one
@@ -519,17 +528,16 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   marks it, so move the star if you move the default) and a test asserts it
   survives validation with every item intact — a starter room that quietly
   loses furniture on first paint is the worst possible first impression.
-  **Chairs only have two facings**, and preset seating has to be laid out
-  around that: a chair's backrest is drawn at its low-gy edge, so `rot: 0`
-  looks toward +gy and `rot: 1` (the mirror, which is a grid transpose)
-  toward +gx. A chair can therefore only ever look at something at HIGHER
-  gx/gy than itself, which is why the café's pairs sit back-left and
-  back-right of their table with their sight lines crossing over it rather
-  than flanking it — flanking gave two chairs the same facing, both turned
-  away. Genuine face-to-face needs four-way `rot`, which needs real back-view
-  artwork per item (a 180° grid turn is `scale(-1,-1)` on screen, i.e. upside
-  down) plus a backend change (`_clean_layout` validates `rot` as exactly
-  0/1). **The scene is full-bleed, not a card**: the SVG fills the
+  **Two of the four facings are free; the other two are drawn.** Rot 0 and 1
+  are one sprite (a screen mirror IS a grid transpose), but the half turn to 2
+  is `scale(-1,-1)` on screen — the sprite upside down — so the away-facing
+  pair needs REAL back-view artwork. Seating that has it is marked
+  `backView: true` (sofa, armchair, chair, deskchair, bench) and gets all
+  four; everything else stays two-way, and `rotationsFor` / `normalizeRot` are
+  what guarantee a rot an item can't be *drawn* in never reaches the renderer.
+  Wall decor is always two-way — there `rot` picks the wall, not a facing.
+  This is why the café's chairs can finally sit ACROSS a table from each other
+  (`rot: 2` on the near one) instead of both being tucked behind it. **The scene is full-bleed, not a card**: the SVG fills the
   viewport and a camera flies over it — wheel zoom anchored at the cursor,
   drag-on-empty-space pans, double-click recenters, all plain viewBox math
   (`tasknook.isoView`, clamped so the room's centre can't leave the view).
@@ -598,13 +606,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   (a composite's counter doesn't recolour with its machine). New Kenney
   items should come from the SAME kit so the modelled style stays
   consistent.
-  **Rotation** (`rot: 0|1`, the ⟳ button when selected): a screen-mirror
-  `scale(-1,1)` about the sprite origin IS a grid transpose, so one drawn
-  facing per item gives both orientations — `footOf(item, rot)` swaps the
-  footprint and everything (clamp, depth, highlight) flows from it. `rot` is
-  stored only when 1. `noMirror` items skip the flip and get `rot` as a prop
-  instead — they ship a REAL second render per orientation, so lighting
-  never flips.
+  **Rotation** (`rot: 0-3`, quarter turns anticlockwise; the ⟳ button cycles
+  through however many the item has). ODD turns are a screen-mirror
+  `scale(-1,1)` about the origin, which IS a grid transpose, so `footOf`
+  transposes the footprint on 1 and 3 and everything (clamp, depth, highlight)
+  flows from that; a half turn covers the SAME tiles and only changes which
+  way the thing looks. The sprite gets `back` for rot ≥ 2 and draws its real
+  back view — the near-edge parts are painted LAST there, since a backrest
+  that was behind the seat is now in front of it. `rot` is stored only when
+  non-zero. The backend bounds it to 0-3 and nothing more: which items have
+  four facings is artwork knowledge, so `normalizeRot` on the client is what
+  folds an unsupported turn back to a drawable one.
   **Wall items** (`wall: true` — frame, wallshelf, mirror): sprites are drawn
   for the RIGHT wall inside a `skewY(+26.565°)` group (that angle is
   `atan(TILE_H / TILE_W)`); `rot` picks the wall (0 = right, pinned `gy: 0`;

@@ -18,6 +18,9 @@ import {
   isoPresetLayout,
   lipRuns,
   newIsoPlacement,
+  nextRot,
+  normalizeRot,
+  rotationsFor,
   normalizeMask,
   seatFor,
   snapHalf,
@@ -122,6 +125,71 @@ describe("grid maths", () => {
   });
 });
 
+describe("four-way rotation", () => {
+  const twoWay = ISO_ITEM_KEYS.find((k) => !ISO_ITEMS[k].backView && !ISO_ITEMS[k].wall);
+
+  it("gives four facings only to items that ship back-view artwork", () => {
+    // A half turn on the grid is scale(-1,-1) on screen — the sprite upside
+    // down. Anything without a real back view must stay a two-way item.
+    for (const key of ISO_ITEM_KEYS) {
+      const expected = ISO_ITEMS[key].wall ? 2 : ISO_ITEMS[key].backView ? 4 : 2;
+      expect(rotationsFor(key), key).toBe(expected);
+    }
+    expect(ISO_ITEM_KEYS.some((k) => ISO_ITEMS[k].backView)).toBe(true);
+  });
+
+  it("wall decor stays two-way — there rot picks the wall, not a facing", () => {
+    for (const key of ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].wall)) {
+      expect(rotationsFor(key)).toBe(2);
+      expect(normalizeRot(key, 2)).toBe(0);
+      expect(normalizeRot(key, 3)).toBe(1);
+    }
+  });
+
+  it("folds an unsupported turn back to one the item can be drawn in", () => {
+    expect(normalizeRot(twoWay, 2)).toBe(0);
+    expect(normalizeRot(twoWay, 3)).toBe(1);
+    expect(normalizeRot("chair", 2)).toBe(2);
+    expect(normalizeRot("chair", 3)).toBe(3);
+  });
+
+  it("survives junk, negatives and the legacy `true`", () => {
+    for (const junk of [undefined, null, "1", 1.5, NaN, {}]) {
+      expect(normalizeRot("chair", junk)).toBe(0);
+    }
+    expect(normalizeRot("chair", -1)).toBe(3);
+    expect(normalizeRot("chair", 7)).toBe(3);
+  });
+
+  it("⟳ cycles through exactly the facings an item has", () => {
+    expect([0, 1, 2, 3].map((r) => nextRot("chair", r))).toEqual([1, 2, 3, 0]);
+    expect([0, 1].map((r) => nextRot(twoWay, r))).toEqual([1, 0]);
+  });
+
+  it("only odd turns transpose the footprint", () => {
+    const [fx, fy] = ISO_ITEMS.sofa.foot;
+    expect(footOf("sofa", 0)).toEqual([fx, fy]);
+    expect(footOf("sofa", 1)).toEqual([fy, fx]);
+    expect(footOf("sofa", 2)).toEqual([fx, fy]); // half turn covers the same tiles
+    expect(footOf("sofa", 3)).toEqual([fy, fx]);
+  });
+
+  it("validation keeps a legal half turn and drops an illegal one", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "a", item: "chair", gx: 2, gy: 2, rot: 2 },
+        { id: "b", item: twoWay, gx: 4, gy: 2, rot: 2 },
+        { id: "c", item: "chair", gx: 6, gy: 2, rot: true },
+      ],
+    });
+    expect(out.placements[0].rot).toBe(2);
+    expect(out.placements[1].rot).toBeUndefined(); // folded to 0, so not stored
+    expect(out.placements[2].rot).toBe(1);
+  });
+});
+
 describe("render ordering", () => {
   it("flat rugs paint first regardless of depth", () => {
     const out = sortIso([
@@ -197,7 +265,9 @@ describe("validateIsoLayout", () => {
     expect(out.placements[1].tint).toBeUndefined();
   });
 
-  it("keeps rot 1, normalises everything else to unrotated", () => {
+  it("wraps an out-of-range rot into the item's real facings", () => {
+    // A sofa has four (it ships a back view), so 7 wraps to 3 rather than
+    // being thrown away. A picture frame has two whatever you write.
     const out = validateIsoLayout({
       w: 9,
       d: 7,
@@ -205,11 +275,13 @@ describe("validateIsoLayout", () => {
         { id: "a", item: "sofa", gx: 2, gy: 2, rot: 1 },
         { id: "b", item: "sofa", gx: 2, gy: 2, rot: 7 },
         { id: "c", item: "frame", gx: 3, gy: 6, rot: 1 }, // wall item re-glued
+        { id: "d", item: "frame", gx: 3, gy: 6, rot: 2 }, // …and never four-way
       ],
     });
     expect(out.placements[0].rot).toBe(1);
-    expect(out.placements[1].rot).toBeUndefined();
+    expect(out.placements[1].rot).toBe(3);
     expect(out.placements[2]).toMatchObject({ gx: 0, gy: 7 - 1.4, rot: 1 });
+    expect(out.placements[3].rot).toBeUndefined();
   });
 
   it("caps runaway layouts", () => {

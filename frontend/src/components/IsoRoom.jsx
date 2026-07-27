@@ -38,6 +38,22 @@ import RoomTintPicker from "./RoomTintPicker";
 // enough that you still read it as outdoors.
 const LOW_WALL_H = 30;
 
+/**
+ * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
+ *
+ * Both the wander interval ("has the cat found somewhere to nap?") and the
+ * render pass ("draw it asleep, then") need this, and it was written out twice,
+ * byte for byte. Two copies of one rule is one edit away from a cat that stops
+ * moving but never curls up.
+ */
+function overSoftSpot(placements, gx, gy, f) {
+  return placements.some((o) => {
+    if (ISO_ITEMS[o.item]?.layer !== -1) return false;
+    const of = footOf(o.item, o.rot);
+    return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
+  });
+}
+
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;
 const VIEW_MAX_W = 1600;
@@ -73,9 +89,19 @@ function clampView(v) {
 // What the window (and the frame's little painting, which shares the
 // gradient) sees at each time of day, plus how bright the string lights read.
 const ISO_TIME = {
-  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1 },
-  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75 },
-  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3 },
+  // `wash` tints the pool of light the room sits in. Without it the scene was
+  // identically dark at every hour — only the window and the string lights
+  // changed, so "day" and "night" were near-indistinguishable. It sits BEHIND
+  // the room and under no text, so it can be warmer and stronger than the
+  // backdrop wash the to-do list has to stay readable against.
+  // `lift` is daylight falling on the room's own surfaces — walls and floor,
+  // never the furniture (that's drawn after, and tinting it would flatten
+  // every colour the user picked). Without it the backdrop brightened but the
+  // room stayed pitch dark inside it, which read as a night room cut out and
+  // pasted onto a day sky.
+  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0 },
+  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19 },
 };
 
 // memo: App re-renders every second (the focus timer ticks) and a big floor
@@ -300,13 +326,6 @@ function IsoRoom({
       roamRef.current = {};
       return undefined;
     }
-    // Does a wanderer's current spot overlap a rug/blanket? (Cats nap there.)
-    const onSoftSpot = (gx, gy, f) =>
-      placements.some((o) => {
-        if (ISO_ITEMS[o.item]?.layer !== -1) return false;
-        const of = footOf(o.item, o.rot);
-        return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
-      });
     const id = setInterval(() => {
       const wanderers = placements.filter((p) => {
         const it = ISO_ITEMS[p.item];
@@ -320,7 +339,7 @@ function IsoRoom({
       // Cat rule: once curled up on a rug, mostly stay there.
       if (
         ISO_ITEMS[p.item].roamer &&
-        onSoftSpot(p.gx + cur.dx, p.gy + cur.dy, f) &&
+        overSoftSpot(placements, p.gx + cur.dx, p.gy + cur.dy, f) &&
         Math.random() < 0.8
       ) {
         return;
@@ -346,12 +365,6 @@ function IsoRoom({
     return () => clearInterval(id);
   }, [editMode, placements, size]);
 
-  const softSpotAt = (gx, gy, f) =>
-    placements.some((o) => {
-      if (ISO_ITEMS[o.item]?.layer !== -1) return false;
-      const of = footOf(o.item, o.rot);
-      return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
-    });
   const effective = placements.map((p) => {
     const item = ISO_ITEMS[p.item];
     if (item?.roamer) {
@@ -360,7 +373,7 @@ function IsoRoom({
       const gy = off ? p.gy + off.dy : p.gy;
       // Awake while out wandering; asleep at home or curled on a rug.
       const moved = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
-      const awake = moved && !softSpotAt(gx, gy, footOf(p.item, p.rot));
+      const awake = moved && !overSoftSpot(placements, gx, gy, footOf(p.item, p.rot));
       return { ...p, gx, gy, _awake: awake };
     }
     // Small objects rest on whatever surface they're over — same trick as
@@ -425,8 +438,8 @@ function IsoRoom({
         <defs>
           {/* soft pool of light the room sits in — replaces the old card */}
           <radialGradient id="isoAmbient" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} stopOpacity="0.85" />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-wine))" }} stopOpacity="0" />
+            <stop offset="0" style={{ stopColor: tod.wash }} stopOpacity={tod.washOpacity} />
+            <stop offset="1" style={{ stopColor: tod.wash }} stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
@@ -507,6 +520,13 @@ function IsoRoom({
                     fill: `rgb(var(--color-petal) / ${run.plane === "gy" ? 0.22 : 0.35})`,
                   }}
                 />
+                {tod.lift && (
+                  <polygon
+                    points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
+                    fill={tod.lift}
+                    opacity={tod.liftOpacity * (run.plane === "gy" ? 0.75 : 1)}
+                  />
+                )}
               </g>
             );
           })}
@@ -597,6 +617,9 @@ function IsoRoom({
           <g clipPath="url(#isoFloorClip)">
             {/* one big gradient sheet so tiles shade as ONE surface */}
             <polygon points={floorPoints(w, d)} fill={`url(#${env.floor})`} />
+            {tod.lift && (
+              <polygon points={floorPoints(w, d)} fill={tod.lift} opacity={tod.liftOpacity} />
+            )}
           </g>
           <g clipPath="url(#isoFloorClip)">
             {Array.from({ length: d - 1 }, (_, i) => i + 1).map((gy) => (
@@ -695,11 +718,20 @@ function IsoRoom({
                     <Sprite awake={!!p._awake} />
                   ) : (
                     <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
-                      <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
+                      {/* rot 2/3 are the AWAY-facing pair, and they're a
+                          different drawing — a half turn on the grid is
+                          scale(-1,-1) on screen, i.e. upside down, so it can
+                          never be faked. `back` picks the real back view;
+                          only items with one are ever given a rot ≥ 2. */}
+                      <Sprite
+                        rot={(p.rot || 0) % 2}
+                        back={(p.rot || 0) >= 2}
+                        variant={item.variants?.[p.tint]}
+                      />
                     </g>
                   );
-                  if (!p.rot) return sprite;
-                  return item.noMirror ? sprite : <g transform="scale(-1,1)">{sprite}</g>;
+                  // The odd turns are the mirror; the even ones are drawn as-is.
+                  return (p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
                 })()}
               </g>
             );

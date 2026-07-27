@@ -539,12 +539,18 @@ def register_routes(app):
                 if not _hex_color(tint):
                     return None, False
                 entry["tint"] = tint
+            # Quarter turns, 0-3. It used to accept only 0/1, because only two
+            # facings could be DRAWN (a screen mirror is a grid transpose; a
+            # half turn is the sprite upside down). Seating that ships real
+            # back-view artwork now has all four, and the frontend's
+            # normalizeRot folds an unsupported turn back to a drawable one —
+            # so this only has to bound the range, not know which items have it.
             rot = p.get("rot")
             if rot is not None:
-                if not (isinstance(rot, int) and not isinstance(rot, bool) and rot in (0, 1)):
+                if not (isinstance(rot, int) and not isinstance(rot, bool) and 0 <= rot <= 3):
                     return None, False
                 if rot:
-                    entry["rot"] = 1
+                    entry["rot"] = rot
             clean.append(entry)
         return clean, True
 

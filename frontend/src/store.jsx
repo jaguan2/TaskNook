@@ -26,6 +26,7 @@ import {
   defaultIsoLayout,
   isoPresetLayout,
   newIsoPlacement,
+  nextRot,
   validateIsoLayout,
 } from "./lib/isoRoom";
 
@@ -376,7 +377,9 @@ export function StoreProvider({ children }) {
       ...prev,
       placements: prev.placements.map((p) => {
         if (p.id !== id) return p;
-        const rot = p.rot ? 0 : 1;
+        // Four facings for seating that ships a back view, two for everything
+        // else (and for wall decor, where rot picks the wall, not a facing).
+        const rot = nextRot(p.item, p.rot);
         const { rot: _dropped, ...rest } = p;
         return {
           ...rest,
