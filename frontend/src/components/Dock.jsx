@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { readStored, writeStored } from "../lib/storage";
 
 // Lucide stroke icons, not emoji: they inherit the theme's text colour and
 // render identically on every OS (Windows emoji looked out of place — user
@@ -30,13 +31,14 @@ export default function Dock({ active, onSelect }) {
   // Collapsible so the scene can breathe (VC2 keeps its chrome ghosted and
   // minimal). Persisted per device — it's a display preference.
   const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem("tasknook.dockCollapsed") === "1"
+    () => readStored("tasknook.dockCollapsed") === "1"
   );
   const toggle = () => {
-    setCollapsed((c) => {
-      localStorage.setItem("tasknook.dockCollapsed", c ? "0" : "1");
-      return !c;
-    });
+    // Persist OUTSIDE the updater — updaters must stay pure (StrictMode
+    // double-invokes them), and `collapsed` is already in scope.
+    const next = !collapsed;
+    writeStored("tasknook.dockCollapsed", next ? "1" : "0");
+    setCollapsed(next);
   };
 
   return (
@@ -51,6 +53,7 @@ export default function Dock({ active, onSelect }) {
         {collapsed ? (
           <button
             title="Open menu"
+            aria-label="Open menu"
             onClick={toggle}
             className="pill grid h-10 w-10 place-items-center text-cream transition hover:bg-white/10"
           >
@@ -60,6 +63,7 @@ export default function Dock({ active, onSelect }) {
           <>
             <button
               title="Collapse menu"
+              aria-label="Collapse menu"
               onClick={toggle}
               className="pill grid h-5 w-10 place-items-center text-petal/50 transition hover:bg-white/10 hover:text-cream"
             >

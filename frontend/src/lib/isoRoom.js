@@ -13,7 +13,6 @@ export const ISO_MAX_ITEMS = 60;
 // shape gets correct geometry. A missing mask means a full rectangle (and
 // an all-"1" mask normalises back to missing). Legacy corner-cut saves are
 // converted to masks on validation.
-export const ISO_CUT_MAX = 6;
 export const CUT_CORNERS = ["back", "right", "left", "front"];
 // Environments: what the scene AROUND the tiles is. "room" = the cutaway
 // interior (walls, window, string lights); "garden" = outdoors (grass floor,
@@ -309,7 +308,11 @@ export function sortIso(placements) {
     return p.gx + f[0] + p.gy + f[1];
   };
   const layer = (p) => {
+    // Unknown items are skipped by the renderer — but the SORT runs first, so
+    // an unguarded lookup here threw before that guard ever got a chance, and
+    // took the whole scene down with it.
     const item = ISO_ITEMS[p.item];
+    if (!item) return 0;
     return item.wall ? -2 : item.layer || 0;
   };
   return [...placements].sort(
@@ -332,14 +335,25 @@ export function newIsoPlacement(itemKey, existing = [], size = DEFAULT_ISO_SIZE)
   const n = existing.length;
   // Wall items spawn on the right wall, fanned along it; floor items spawn
   // near the room centre, fanning repeated adds so copies don't stack.
-  // clampIsoPlacement pushes the spawn off any corner cut.
   const want = item.wall
     ? { gx: size.w / 2 - item.foot[0] / 2 + ((n % 4) - 1.5), gy: 0 }
     : {
         gx: size.w / 2 - item.foot[0] / 2 + ((n % 4) - 1.5),
         gy: size.d / 2 - item.foot[1] / 2 + ((Math.floor(n / 4) % 3) - 1),
       };
-  const { gx, gy } = clampIsoPlacement(itemKey, snapHalf(want.gx), snapHalf(want.gy), size);
+  let { gx, gy } = clampIsoPlacement(itemKey, snapHalf(want.gx), snapHalf(want.gy), size);
+  // clampIsoPlacement is bounds-only by design — it never consults the floor
+  // mask. In a courtyard/donut shape the room CENTRE is the hole, so the
+  // preferred spawn lands on void: the item renders floating and every drag
+  // is refused (IsoRoom won't move a footprint onto void), which reads as
+  // "stuck" until a reload, where validation quietly relocates it. Land it
+  // on real floor in the first place. Wall items are glued to a wall run by
+  // the clamp and have no floor footprint to check.
+  if (!item.wall && !footprintFree(gx, gy, footOf(itemKey, 0), size)) {
+    const spot = findFreeSpot(itemKey, 0, size, gx, gy);
+    if (!spot) return null; // the drawn shape has no room for this piece
+    ({ gx, gy } = spot);
+  }
   return { id: makeId(), item: itemKey, gx: snapHalf(gx), gy: snapHalf(gy) };
 }
 
@@ -553,7 +567,11 @@ export function isoPresetLayout(key) {
   };
 }
 
-/** The starter arrangement (the original mock scene). */
+/** The starter arrangement (the original mock scene).
+ *  Run through the validator like every other layout: it was the one layout in
+ *  the app that skipped it, so the layout nobody saved obeyed slightly
+ *  different invariants (half-snapping, clamping, mask normalisation, the
+ *  `cuts`→`mask` conversion) from every layout people do save. */
 export function defaultIsoLayout() {
-  return isoPresetLayout("classic");
+  return validateIsoLayout(isoPresetLayout("classic"));
 }

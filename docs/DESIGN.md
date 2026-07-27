@@ -94,6 +94,17 @@ learned the hard way):
    preset test enforces clamp-stability.
 7. Use tints for mood coherence (a cabin is woods; a loft is cool slate).
 
+**Catalogs show the thing, not a stand-in.** Every browser that offers
+something placeable renders the REAL sprite at postage-stamp size — preset
+buttons are miniatures of the room they apply, and furniture rows draw the
+sprite you'll get. Emoji told you nothing about what you'd be placing (user
+feedback), and the iso picker showing 🛏️ for a modelled bed was the single
+place in the app where the new artwork was invisible. Previews measure
+themselves (`getBBox`) rather than sharing a hand-written viewBox: sprite
+extents run from a flat rug to a 128px tree. They also apply the same
+placement rules the scene does — a preset thumbnail seats its resident on the
+chair, because a preview that lies is worse than no preview.
+
 ## Interaction
 
 - **Gesture-first**: wheel = zoom (cursor-anchored), drag empty space = pan,
@@ -123,7 +134,25 @@ learned the hard way):
 - **Failures are never silent.** Any write that fails surfaces the shared
   toast (`showToast` in the store, rendered top-centre); `console.error` is
   for detail, not the only signal. A skipped save that looks like a success
-  is the worst outcome this app can produce.
+  is the worst outcome this app can produce. **This includes refusals**, not
+  just errors: hitting the item cap or asking for a piece the floor has no
+  room for both toast. A button that silently does nothing reads as broken.
+- **Nothing renders "stuck".** If an action can't apply, refuse it at the
+  source rather than letting the UI show an impossible state. Spawning a new
+  item picks a spot that's actually on the floor (`findFreeSpot`), because an
+  item dropped onto a void tile then refuses every drag and looks frozen.
+
+### Reachable by keyboard, named for screen readers
+
+- **Every icon-only control needs an `aria-label`.** Lucide icons are bare
+  `<svg>` — they carry no text node the way the emoji they replaced did, and
+  `title` is only a last-resort accessible name (fragile, and invisible on
+  touch). Keep the `title` for the hover tooltip and add the label. A control
+  with visible words needs no label — one would override the words.
+- **Focus must be visible.** `index.css` gives every focusable control a
+  `:focus-visible` glow outline at zero specificity (`:where(...)`), so
+  pointer users never see it and keyboard users always do. Don't add
+  `outline-none` without putting a replacement ring back.
 
 ## Chrome vocabulary
 
@@ -165,4 +194,6 @@ learned the hard way):
 - [ ] Are its animations CSS, slow, reduced-motion-safe, off the HUD?
 - [ ] Does it work in every theme (test darkest + lightest) and both scenes?
 - [ ] Tint/shade via the overlay system? Legible on any tint?
+- [ ] Icon-only controls labelled, and reachable/visible by keyboard?
+- [ ] Does every way it can refuse say so (toast), rather than doing nothing?
 - [ ] Screenshot-reviewed at 1440×900 AND a short window (~1150×720)?

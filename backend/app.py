@@ -6,7 +6,7 @@ import json
 import os
 import secrets
 import traceback
-from datetime import datetime, timezone, date
+from datetime import datetime, time, timezone, date
 from functools import wraps
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -116,11 +116,39 @@ def _log_startup_failure(exc, db_path):
 # --------------------------------------------------------------------------- #
 # Auth helpers
 # --------------------------------------------------------------------------- #
+# Enough for a few devices/windows at once; anything older is a leftover.
+MAX_TOKENS_PER_USER = 5
+
+
 def issue_token(user):
     token = Token(value=secrets.token_hex(24), user_id=user.id)
     db.session.add(token)
     db.session.commit()
+    _prune_tokens(user)
     return token.value
+
+
+def _prune_tokens(user):
+    """Keep only the newest few tokens per user.
+
+    Nothing ever deleted them: every login added a row, and the frontend has no
+    logout UI, so the table grew by one on every boot that started from cleared
+    browser storage (and, in dev, on every StrictMode double-bootstrap). The
+    size never mattered, but CLAUDE.md's own desktop-persistence check is
+    literally "the Token table must not grow across a close+relaunch" — so give
+    that check something it can actually assert.
+    """
+    stale = (
+        Token.query.filter_by(user_id=user.id)
+        .order_by(Token.created_at.desc(), Token.id.desc())
+        .offset(MAX_TOKENS_PER_USER)
+        .all()
+    )
+    if not stale:
+        return
+    for old in stale:
+        db.session.delete(old)
+    db.session.commit()
 
 
 def current_user():
@@ -145,6 +173,21 @@ def require_auth(fn):
 
 def today_str():
     return date.today().isoformat()
+
+
+def local_day_start_utc():
+    """Local midnight, expressed as the NAIVE UTC datetime the DB stores.
+
+    `completed_at` is written by `utcnow()` (aware UTC) but SQLite's DateTime
+    column drops the offset, so rows come back naive-UTC. To bucket them by the
+    user's LOCAL day — the same convention `today_str()` and the frontend use —
+    the boundary has to make the same round trip: local midnight → UTC → naive.
+    """
+    return (
+        datetime.combine(date.today(), time.min)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
 
 
 def json_body():
@@ -401,10 +444,17 @@ def register_routes(app):
     def log_session(user):
         data = json_body()
         try:
-            # Bounded above too: one logged session can't exceed a day.
-            minutes = min(24 * 60, max(0, int(data.get("minutes", 0))))
+            minutes = int(data.get("minutes", 0))
         except (TypeError, ValueError):
-            minutes = 0
+            return jsonify({"error": "minutes must be a number"}), 400
+        # A zero-minute session isn't a session. Both loggers in the app already
+        # refuse to send one, but the endpoint accepted it and created a row —
+        # which made /api/sessions/days answer {"2026-07-27": 0}, and the
+        # calendar marks a day active from the key merely being present.
+        if minutes < 1:
+            return jsonify({"error": "minutes must be at least 1"}), 400
+        # Bounded above too: one logged session can't exceed a day.
+        minutes = min(24 * 60, minutes)
         session = FocusSession(
             user_id=user.id,
             minutes=minutes,
@@ -596,7 +646,14 @@ def register_routes(app):
 
 
 def build_stats(user):
-    """Aggregate today's productivity for a user.
+    """Aggregate a user's productivity.
+
+    Two DIFFERENT time windows live here, and mixing them up is exactly the bug
+    this shape exists to prevent: `tasksTotal`/`tasksDone`/`completion` describe
+    the CURRENT LIST (which is ongoing — a standing to-do list isn't created
+    fresh each morning), while `tasksDoneToday`/`focusMinutesToday` are bucketed
+    by the local day. Label them accordingly in the UI; "Today's completion" over
+    a lifetime count read as today's progress and never moved.
 
     COUNT queries, not `.all()` — this runs once per friend per friends-panel
     refresh, and hydrating every task row just to count them was the app's
@@ -610,6 +667,17 @@ def build_stats(user):
         .scalar()
         or 0
     )
+    done_today = (
+        db.session.query(db.func.count(Task.id))
+        .filter(
+            Task.user_id == user.id,
+            Task.completed.is_(True),
+            Task.completed_at.isnot(None),
+            Task.completed_at >= local_day_start_utc(),
+        )
+        .scalar()
+        or 0
+    )
 
     focus_minutes = (
         db.session.query(db.func.coalesce(db.func.sum(FocusSession.minutes), 0))
@@ -620,6 +688,7 @@ def build_stats(user):
     return {
         "tasksTotal": total,
         "tasksDone": done,
+        "tasksDoneToday": int(done_today),
         "completion": round(done / total * 100) if total else 0,
         "focusMinutesToday": int(focus_minutes),
     }

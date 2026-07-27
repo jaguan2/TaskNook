@@ -91,9 +91,14 @@ export const ALGORITHMS = {
     // instead of only when asked.
     sort: (tasks, { randomOrder = [] } = {}) => {
       const { active, done } = splitDone(tasks);
+      // MAX_SAFE_INTEGER, not Infinity, for ids missing from the shuffle
+      // (added since the last click): two of them would compare
+      // `Infinity - Infinity` → NaN, an inconsistent comparator. V8 happens
+      // to treat NaN as "equal" and leave them put, but that's luck, not a
+      // guarantee — a finite sentinel makes "unranked sinks, stably" real.
       const rank = (t) => {
         const i = randomOrder.indexOf(t.id);
-        return i === -1 ? Infinity : i;
+        return i === -1 ? Number.MAX_SAFE_INTEGER : i;
       };
       return [...active.sort((a, b) => rank(a) - rank(b)), ...done];
     },

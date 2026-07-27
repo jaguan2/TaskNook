@@ -35,7 +35,13 @@ export default function CalendarPanel() {
 
   // A day is "active" if you focused (sessionDays) or completed a task on it —
   // completedAt is a UTC timestamp, so route it through toISO for the local day.
-  const activeDays = new Set(Object.keys(sessionDays));
+  // Filter on the MINUTES, not just the key: a day with a zero-minute session
+  // row is not a day you focused, and tinting it says you did.
+  const activeDays = new Set(
+    Object.entries(sessionDays)
+      .filter(([, minutes]) => minutes > 0)
+      .map(([day]) => day)
+  );
   tasks.forEach((t) => {
     if (t.completedAt) activeDays.add(toISO(new Date(t.completedAt)));
   });
@@ -54,11 +60,13 @@ export default function CalendarPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={() => shift(-1)} title="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+        <button onClick={() => shift(-1)} title="Previous month"
+        aria-label="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronLeft size={15} />
         </button>
         <p className="text-sm font-semibold text-cream">{monthName}</p>
-        <button onClick={() => shift(1)} title="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+        <button onClick={() => shift(1)} title="Next month"
+        aria-label="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronRight size={15} />
         </button>
       </div>

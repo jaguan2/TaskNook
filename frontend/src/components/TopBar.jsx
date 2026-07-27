@@ -70,6 +70,7 @@ export default function TopBar() {
       <div className="relative">
         <button
           title="Weather ambience"
+          aria-label="Weather ambience"
           onClick={() => setWeatherMenuOpen((o) => !o)}
           className={`pill grid h-11 w-11 place-items-center shadow-soft transition ${
             weatherMode !== "off"

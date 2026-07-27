@@ -12,6 +12,7 @@ import {
   Timer,
 } from "lucide-react";
 import { useStore } from "../store";
+import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { useArmed } from "../lib/useArmed";
 
@@ -32,6 +33,8 @@ function fmt(seconds) {
 // else (mode, presets, pomodoro plan) tucked behind the ⚙ expander. The task
 // name appears centred above only when there IS one; no idle filler text.
 export default function HudFocusCard() {
+  // This card IS the clock, so it's the one component that should re-render
+  // every second — it reads the full timer context on purpose.
   const {
     remaining,
     running,
@@ -41,7 +44,6 @@ export default function HudFocusCard() {
     focusMinutes,
     setFocus,
     focusPresets,
-    activeTask,
     pomodoro,
     setPomodoro,
     phase,
@@ -54,9 +56,8 @@ export default function HudFocusCard() {
     nudgeSeconds,
     nudgeTimer,
     focusMinutesLive,
-    sessionDays,
-    dailyGoal,
-  } = useStore();
+  } = useTimer();
+  const { activeTask, sessionDays, dailyGoal } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
 
@@ -183,6 +184,7 @@ export default function HudFocusCard() {
             <button
               onClick={requestReset}
               title="Reset (discards this block — nothing is logged)"
+              aria-label="Reset (discards this block — nothing is logged)"
               className={`pill grid h-8 place-items-center transition ${
                 confirmReset
                   ? "px-2 text-[10px] font-bold text-danger hover:bg-white/10"
@@ -203,6 +205,7 @@ export default function HudFocusCard() {
               <button
                 onClick={pauseTimer}
                 title="Pause"
+                aria-label="Pause"
                 className="pill grid h-9 w-12 place-items-center bg-blush text-plum shadow-soft hover:bg-rose"
               >
                 <Pause size={16} />
@@ -213,6 +216,7 @@ export default function HudFocusCard() {
                 onClick={finishStopwatch}
                 disabled={elapsed === 0}
                 title="Finish and log the tracked time"
+                aria-label="Finish and log the tracked time"
                 className="pill grid h-8 w-8 place-items-center bg-sage/80 text-plum hover:bg-sage disabled:opacity-40"
               >
                 <Check size={15} />

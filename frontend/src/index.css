@@ -111,6 +111,22 @@ body {
   }
 }
 
+/* Keyboard focus has to be VISIBLE. Nothing here defined a focus ring, and
+   several controls lost their last visual cue when emoji text nodes became
+   bare <svg> icons — tabbing through the app landed you nowhere visible.
+   :focus-visible only, so mouse and touch stay quiet; :where() keeps the
+   specificity at zero so any component can still override it. The glow is the
+   fixed accent (never re-tinted), so it reads on every theme. */
+:where(button, [role="button"], a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgba(255, 233, 176, 0.9);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Round controls get a round ring (outline follows border-radius). */
+:where(.pill):focus-visible {
+  border-radius: 9999px;
+}
+
 /* Thin cozy scrollbars inside panels */
 .cozy-scroll::-webkit-scrollbar {
   width: 8px;

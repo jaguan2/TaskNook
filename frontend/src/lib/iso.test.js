@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TILE_W, TILE_H, project, unproject, depthOf, isoBox } from "./iso";
+import { TILE_W, TILE_H, project, unproject, isoBox } from "./iso";
 
 describe("isometric projection", () => {
   it("projects the origin to the origin", () => {
@@ -28,9 +28,12 @@ describe("isometric projection", () => {
     }
   });
 
-  it("depth increases toward the viewer on both axes", () => {
-    expect(depthOf(2, 3)).toBeGreaterThan(depthOf(1, 3));
-    expect(depthOf(2, 3)).toBeGreaterThan(depthOf(2, 2));
+  it("screen depth increases toward the viewer on both axes", () => {
+    // The painter's-order RULE lives in sortIso (a placement's front corner).
+    // What this module guarantees is the property that rule rests on: moving
+    // along either axis moves you down the screen.
+    expect(project(2, 3).y).toBeGreaterThan(project(1, 3).y);
+    expect(project(2, 3).y).toBeGreaterThan(project(2, 2).y);
   });
 
   it("isoBox's front corner is the lowest point on screen", () => {

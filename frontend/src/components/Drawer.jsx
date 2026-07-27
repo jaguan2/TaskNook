@@ -62,6 +62,7 @@ export default function Drawer({
           <button
             onClick={onClose}
             title="Close (Esc)"
+            aria-label="Close (Esc)"
             className="pill grid h-8 w-8 place-items-center text-cream hover:bg-white/10"
           >
             <X size={16} />

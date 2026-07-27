@@ -7,9 +7,10 @@ import {
   useCallback,
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
+import { readStored, writeStored } from "./lib/storage";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
-import { SOUND_CHANNELS, applyMix, playChime, setChannel } from "./lib/audio";
+import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
 import { locateBrowser, geocodeCity, fetchCurrentWeather } from "./lib/weather";
 import {
@@ -30,7 +31,10 @@ import {
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
 
-const FOCUS_PRESETS = [15, 25, 45, 60];
+// The two ambience axes, whitelisted because both are restored from
+// localStorage and both index into lookup tables in the scene components.
+const WEATHER_MODES = ["off", "cloudy", "rain", "snow", "storm"];
+const TIMES_OF_DAY = ["night", "sunset", "day"];
 
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 
@@ -77,6 +81,9 @@ export function StoreProvider({ children }) {
   const [stats, setStats] = useState({
     tasksTotal: 0,
     tasksDone: 0,
+    // List-wide (tasksTotal/tasksDone/completion) vs today-only
+    // (tasksDoneToday/focusMinutesToday) — see build_stats in app.py.
+    tasksDoneToday: 0,
     completion: 0,
     focusMinutesToday: 0,
   });
@@ -84,63 +91,32 @@ export function StoreProvider({ children }) {
   const [algorithm, setAlgorithm] = useState(() => {
     // Whitelist: TaskPanel indexes ALGORITHMS[algorithm] directly, so an
     // unknown stored key would crash the panel.
-    const saved = localStorage.getItem("tasknook.algo");
+    const saved = readStored("tasknook.algo");
     return ALGORITHM_KEYS.includes(saved) ? saved : "custom";
   });
 
-  // ---- Focus timer ----
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [remaining, setRemaining] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
+  // Which task the focus timer is pointed at. The TIMER ITSELF lives in
+  // timer.jsx, its own provider — its 1Hz tick used to rebuild this context
+  // every second and re-render every consumer in the app, whether or not it
+  // showed a clock. Which task is active is task-domain state though, and
+  // removeTask has to be able to clear it, so it stays here.
   const [activeTaskId, setActiveTaskId] = useState(null);
-  const tickRef = useRef(null);
-  // "timer" counts down to a target; "stopwatch" counts up open-ended and
-  // logs whatever it measured when finished. Pomodoro belongs to timer mode.
-  const [timerMode, setTimerModeState] = useState(() =>
-    localStorage.getItem("tasknook.timerMode") === "stopwatch" ? "stopwatch" : "timer"
-  );
-  const [elapsed, setElapsed] = useState(0);
-
-  // Pomodoro mode: focus → break → focus … for a set number of rounds.
-  const [pomodoro, setPomodoroState] = useState(() => {
-    const defaults = { enabled: false, breakMinutes: 5, rounds: 4 };
-    try {
-      return { ...defaults, ...JSON.parse(localStorage.getItem("tasknook.pomodoro") || "{}") };
-    } catch {
-      return defaults;
-    }
-  });
-  const [phase, setPhase] = useState("focus"); // "focus" | "break"
-  const [round, setRound] = useState(1);
-
-  const setPomodoro = (patch) => {
-    // Persist OUTSIDE the updater (updaters must stay pure — StrictMode
-    // double-invokes them); `pomodoro` is in scope, so compute next here.
-    const next = { ...pomodoro, ...patch };
-    localStorage.setItem("tasknook.pomodoro", JSON.stringify(next));
-    setPomodoroState(next);
-    // Changing the plan restarts the cycle from round 1 — but only when idle.
-    // While a session runs, only the settings change: resetting phase/round
-    // mid-run silently wiped round progress, and doing it during a BREAK
-    // relabelled the remaining break time as a focus phase (which then got
-    // logged as a session).
-    if (!running) {
-      setPhase("focus");
-      setRound(1);
-      setRemaining(focusMinutes * 60);
-      setNudgeSeconds(0);
-    }
-  };
 
   // ---- Ambient ----
-  const [weatherMode, setWeatherModeState] = useState("off");
-  const [weatherVolume, setWeatherVol] = useState(0.5);
+  // Persisted (and whitelisted) exactly like timeOfDay. It wasn't, and that
+  // quietly broke the Weather-conditions matrix, whose whole point is that ONE
+  // tap sets BOTH axes: pick "cloudy night", relaunch, and only the night came
+  // back.
+  const [weatherMode, setWeatherModeState] = useState(() => {
+    const saved = readStored("tasknook.weatherMode");
+    return WEATHER_MODES.includes(saved) ? saved : "off";
+  });
   // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, cafe,
   // paper).
   // Slider positions persist; actual audio only starts from a user gesture.
   const [soundMix, setSoundMixState] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("tasknook.soundMix") || "{}");
+      const saved = JSON.parse(readStored("tasknook.soundMix") || "{}");
       return saved && typeof saved === "object" ? saved : {};
     } catch {
       return {};
@@ -167,7 +143,7 @@ export function StoreProvider({ children }) {
     }
     soundMixRef.current = next;
     setSoundMixState(next);
-    localStorage.setItem("tasknook.soundMix", JSON.stringify(next));
+    writeStored("tasknook.soundMix", JSON.stringify(next));
     for (const name of Object.keys(patch)) setChannel(name, next[name]);
   }, []);
   const setSoundLevel = useCallback(
@@ -179,9 +155,10 @@ export function StoreProvider({ children }) {
     for (const { key } of SOUND_CHANNELS) silence[key] = 0;
     applySoundPatch(silence);
   }, [applySoundPatch]);
-  const [timeOfDay, setTimeOfDayState] = useState(
-    () => localStorage.getItem("tasknook.timeOfDay") || "night"
-  );
+  const [timeOfDay, setTimeOfDayState] = useState(() => {
+    const saved = readStored("tasknook.timeOfDay");
+    return TIMES_OF_DAY.includes(saved) ? saved : "night";
+  });
   const [musicOn, setMusicOn] = useState(false);
 
   // ---- Real-world weather ----
@@ -189,15 +166,15 @@ export function StoreProvider({ children }) {
   const [weatherStatus, setWeatherStatus] = useState("idle"); // idle | loading | ready | error
   const [weatherError, setWeatherError] = useState("");
   const [weatherLocationLabel, setWeatherLocationLabel] = useState(
-    () => localStorage.getItem("tasknook.weather.location") || ""
+    () => readStored("tasknook.weather.location") || ""
   );
   const [autoMatchWeather, setAutoMatchWeather] = useState(
-    () => localStorage.getItem("tasknook.weather.automatch") === "1"
+    () => readStored("tasknook.weather.automatch") === "1"
   );
   const weatherCoordsRef = useRef(
     (() => {
       try {
-        const c = JSON.parse(localStorage.getItem("tasknook.weather.coords") || "null");
+        const c = JSON.parse(readStored("tasknook.weather.coords") || "null");
         // Shape-check: a corrupt cache would build latitude=undefined URLs
         // and error forever with no recovery path.
         return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) ? c : null;
@@ -209,7 +186,7 @@ export function StoreProvider({ children }) {
   const autoMatchRef = useRef(autoMatchWeather);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("tasknook.weather.presets") || "[]");
+      const saved = JSON.parse(readStored("tasknook.weather.presets") || "[]");
       return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
@@ -219,42 +196,49 @@ export function StoreProvider({ children }) {
   // ---- Daily goal ----
   // Target focus minutes per day; drives the goal ring + streak in Progress.
   const [dailyGoal, setDailyGoalState] = useState(() => {
-    const saved = Number(localStorage.getItem("tasknook.dailyGoal"));
+    const saved = Number(readStored("tasknook.dailyGoal"));
     return saved >= 15 && saved <= 960 ? saved : 120;
   });
   const setDailyGoal = (minutes) => {
     const clamped = Math.min(960, Math.max(15, Math.round(Number(minutes) || 120)));
     setDailyGoalState(clamped);
-    localStorage.setItem("tasknook.dailyGoal", String(clamped));
+    writeStored("tasknook.dailyGoal", String(clamped));
   };
 
   // ---- Settings ----
   const [brightness, setBrightnessState] = useState(
-    () => Number(localStorage.getItem("tasknook.brightness")) || 1
+    () => Number(readStored("tasknook.brightness")) || 1
   );
   const [colorScheme, setColorSchemeState] = useState(
-    () => localStorage.getItem("tasknook.colorScheme") || "plum"
+    () => readStored("tasknook.colorScheme") || "plum"
   );
   // Base colour for the "custom" scheme; the full ramp is derived from its
   // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
   // normalizeHex on load: a corrupt value would derive "NaN NaN NaN" for
   // every theme variable and unstyle the whole app with no way back.
   const [customColor, setCustomColorState] = useState(
-    () => normalizeHex(localStorage.getItem("tasknook.customColor")) || "#d98a93"
+    () => normalizeHex(readStored("tasknook.customColor")) || "#d98a93"
   );
 
   const [customStations, setCustomStations] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("tasknook.music.custom") || "[]");
+      const saved = JSON.parse(readStored("tasknook.music.custom") || "[]");
       return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
     }
   });
   const [activeStationKey, setActiveStationKey] = useState(
-    () => localStorage.getItem("tasknook.music.station") || stationKey(BUILT_IN_STATIONS[0])
+    () => readStored("tasknook.music.station") || stationKey(BUILT_IN_STATIONS[0])
   );
   const musicStations = [...BUILT_IN_STATIONS, ...customStations];
+  // A saved key that no longer resolves — a built-in was retired (two lofi
+  // streams were), or a custom station removed — used to leave the transport
+  // bar rendering NOTHING: no controls, and no ✕ to stop the music. Always
+  // resolve to a station that actually exists.
+  const activeStation =
+    musicStations.find((s) => stationKey(s) === activeStationKey) || musicStations[0];
+  const resolvedStationKey = stationKey(activeStation);
 
   // ---------- Room (freeform decoration) ----------
   // The layout lives in the DB (rides the migration/backup system) with a
@@ -262,7 +246,7 @@ export function StoreProvider({ children }) {
   const [roomPlacements, setRoomPlacements] = useState(() => {
     try {
       const saved = validatePlacements(
-        JSON.parse(localStorage.getItem("tasknook.room") || "null")
+        JSON.parse(readStored("tasknook.room") || "null")
       );
       if (saved) return saved;
     } catch {
@@ -276,7 +260,7 @@ export function StoreProvider({ children }) {
   const [isoRoom, setIsoRoom] = useState(() => {
     try {
       const saved = validateIsoLayout(
-        JSON.parse(localStorage.getItem("tasknook.isoRoom") || "null")
+        JSON.parse(readStored("tasknook.isoRoom") || "null")
       );
       if (saved) return saved;
     } catch {
@@ -289,13 +273,13 @@ export function StoreProvider({ children }) {
   // responsive base size. A display preference, so it stays device-local
   // (localStorage) rather than in the DB.
   const [roomScale, setRoomScaleState] = useState(() => {
-    const saved = Number(localStorage.getItem("tasknook.roomScale"));
+    const saved = Number(readStored("tasknook.roomScale"));
     return saved >= 0.6 && saved <= 1.2 ? saved : 1;
   });
   const setRoomScale = useCallback((value) => {
     const clamped = Math.min(1.2, Math.max(0.6, Number(value) || 1));
     setRoomScaleState(clamped);
-    localStorage.setItem("tasknook.roomScale", String(clamped));
+    writeStored("tasknook.roomScale", String(clamped));
   }, []);
   // Experimental: swap the flat scene for the static isometric mock (the
   // first look at the future Sims-style room). Decorating is disabled while
@@ -303,11 +287,11 @@ export function StoreProvider({ children }) {
   // The isometric room is the DEFAULT scene (user decision — the flat 2D
   // cottage is the opt-in throwback now).
   const [isoPreview, setIsoPreviewState] = useState(
-    () => localStorage.getItem("tasknook.isoPreview") !== "0"
+    () => readStored("tasknook.isoPreview") !== "0"
   );
   const setIsoPreview = useCallback((on) => {
     setIsoPreviewState(!!on);
-    localStorage.setItem("tasknook.isoPreview", on ? "1" : "0");
+    writeStored("tasknook.isoPreview", on ? "1" : "0");
   }, []);
 
   // ---------- Isometric room actions ----------
@@ -320,15 +304,26 @@ export function StoreProvider({ children }) {
   // The id of the most recently added iso item — the scene auto-selects it
   // so the user can see what just appeared.
   const [lastIsoAddedId, setLastIsoAddedId] = useState(null);
-  const addIsoItem = useCallback((key) => {
-    const prev = isoRef.current;
-    if (prev.placements.length >= ISO_MAX_ITEMS) return;
-    const placement = newIsoPlacement(key, prev.placements, prev);
-    if (!placement) return;
-    setIsoRoom({ ...prev, placements: [...prev.placements, placement] });
-    setLastIsoAddedId(placement.id);
-    setRoomEditMode(true);
-  }, []);
+  const addIsoItem = useCallback(
+    (key) => {
+      const prev = isoRef.current;
+      // Both refusals used to be a bare `return` — the only actions in the app
+      // that failed without saying anything, so the button just looked dead.
+      if (prev.placements.length >= ISO_MAX_ITEMS) {
+        showToast(`That's all ${ISO_MAX_ITEMS} pieces — put something away first 🪴`);
+        return;
+      }
+      const placement = newIsoPlacement(key, prev.placements, prev);
+      if (!placement) {
+        showToast("No floor free for that one — paint more tiles or try something smaller 🧩");
+        return;
+      }
+      setIsoRoom({ ...prev, placements: [...prev.placements, placement] });
+      setLastIsoAddedId(placement.id);
+      setRoomEditMode(true);
+    },
+    [showToast]
+  );
   const removeIsoItem = useCallback((id) => {
     setIsoRoom((prev) => ({
       ...prev,
@@ -415,8 +410,8 @@ export function StoreProvider({ children }) {
     // 600ms of a drag lost the edit from the mirror AND the server (the
     // skipped save that looks like a success). Only the network PUT waits
     // for the dust to settle. Flat and iso layouts travel in one PUT.
-    localStorage.setItem("tasknook.room", JSON.stringify(roomPlacements));
-    localStorage.setItem("tasknook.isoRoom", JSON.stringify(isoRoom));
+    writeStored("tasknook.room", JSON.stringify(roomPlacements));
+    writeStored("tasknook.isoRoom", JSON.stringify(isoRoom));
     clearTimeout(roomSaveTimer.current);
     roomSaveTimer.current = setTimeout(() => {
       api
@@ -475,8 +470,14 @@ export function StoreProvider({ children }) {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    const [t, s, f, d] = await Promise.all([
-      api.listTasks(),
+    // listTasks goes FIRST, on its own — not in the Promise.all. GET /api/tasks
+    // is what lazily resets daily routines, so a stats query racing alongside it
+    // could be answered from the pre-reset rows: on the first refresh of a new
+    // day the panel showed yesterday's completion (100%, "1 done") beside a list
+    // that had already reset. It self-corrected on the next refresh, which is
+    // exactly what makes it easy to miss.
+    const t = await api.listTasks();
+    const [s, f, d] = await Promise.all([
       api.stats(),
       api.listFriends(),
       api.sessionDays(),
@@ -512,11 +513,11 @@ export function StoreProvider({ children }) {
           roomSkipSave.current = true;
           if (server) {
             setRoomPlacements(server);
-            localStorage.setItem("tasknook.room", JSON.stringify(server));
+            writeStored("tasknook.room", JSON.stringify(server));
           }
           if (serverIso) {
             setIsoRoom(serverIso);
-            localStorage.setItem("tasknook.isoRoom", JSON.stringify(serverIso));
+            writeStored("tasknook.isoRoom", JSON.stringify(serverIso));
           }
         }
         if (!server || !serverIso) {
@@ -578,7 +579,7 @@ export function StoreProvider({ children }) {
       return [...reordered, ...rest];
     });
     setAlgorithm("custom");
-    localStorage.setItem("tasknook.algo", "custom");
+    writeStored("tasknook.algo", "custom");
     try {
       await api.reorderTasks(orderedActive.map((t) => t.id));
       await refreshAll();
@@ -594,7 +595,7 @@ export function StoreProvider({ children }) {
   // until its first task arrives.
   const [emptyGroups, setEmptyGroups] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("tasknook.taskGroups") || "[]");
+      const saved = JSON.parse(readStored("tasknook.taskGroups") || "[]");
       return Array.isArray(saved) ? saved.filter((g) => typeof g === "string") : [];
     } catch {
       return [];
@@ -602,7 +603,7 @@ export function StoreProvider({ children }) {
   });
   const persistEmptyGroups = (next) => {
     setEmptyGroups(next);
-    localStorage.setItem("tasknook.taskGroups", JSON.stringify(next));
+    writeStored("tasknook.taskGroups", JSON.stringify(next));
   };
   const taskGroups = [
     ...new Set([...tasks.map((t) => t.group).filter(Boolean), ...emptyGroups]),
@@ -628,10 +629,19 @@ export function StoreProvider({ children }) {
   const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
 
   const [randomOrder, setRandomOrder] = useState([]);
+  // The CHOICE of "random" is persisted, but the shuffle itself never was —
+  // so relaunching with Random selected left randomOrder empty and every task
+  // ranked equal, silently falling back to plain position order until the
+  // button was clicked again. Seed a shuffle as soon as there's anything to
+  // shuffle. (Re-clicking Random still reshuffles; that's its whole job.)
+  useEffect(() => {
+    if (algorithm !== "random" || randomOrder.length || !tasks.length) return;
+    setRandomOrder(shuffledIds(tasks));
+  }, [algorithm, tasks, randomOrder.length]);
 
   const chooseAlgorithm = (key) => {
     setAlgorithm(key);
-    localStorage.setItem("tasknook.algo", key);
+    writeStored("tasknook.algo", key);
     // Re-shuffle every time Random is picked, including clicking it again
     // while it's already active — that's the whole point of the button.
     if (key === "random") setRandomOrder(shuffledIds(tasks));
@@ -640,189 +650,8 @@ export function StoreProvider({ children }) {
   const orderedTasks = applyAlgorithm(algorithm, tasks, { randomOrder });
   const activeTask = tasks.find((t) => t.id === activeTaskId) || null;
 
-  // ---------- Focus timer engine ----------
-  // Mid-session ±time nudges (VC2-style). Tracked separately so the progress
-  // bar's total stretches with the block and the logged session reflects the
-  // time actually planned, not the preset.
-  const [nudgeSeconds, setNudgeSeconds] = useState(0);
-  const nudgeTimer = (deltaSec) => {
-    if (timerMode !== "timer" || phase === "break") return;
-    // Only count what actually applied: −1:00 with 30s left clamps to 1s, and
-    // crediting the full minute would shrink the logged session and the
-    // progress total by time that never existed.
-    const applied = Math.max(1, remaining + deltaSec) - remaining;
-    if (applied === 0) return;
-    setRemaining((r) => Math.max(1, r + deltaSec));
-    setNudgeSeconds((n) => n + applied);
-  };
-
-  const setFocus = (minutes) => {
-    setFocusMinutes(minutes);
-    if (!running) {
-      setRemaining(minutes * 60);
-      setPhase("focus");
-      setRound(1);
-      setNudgeSeconds(0);
-    }
-  };
-
-  const startTimer = () => {
-    if (timerMode === "timer" && remaining <= 0) setRemaining(focusMinutes * 60);
-    // First start is the natural moment to ask — completion/break alerts are
-    // exactly what was just signed up for. Without this request the notify()
-    // calls below are permanently dead (permission starts as "default").
-    try {
-      if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-      }
-    } catch {
-      /* older webviews may not implement it */
-    }
-    setRunning(true);
-  };
-  const pauseTimer = () => setRunning(false);
-  const resetTimer = () => {
-    setRunning(false);
-    if (timerMode === "stopwatch") {
-      setElapsed(0);
-      return;
-    }
-    setPhase("focus");
-    setRound(1);
-    setRemaining(focusMinutes * 60);
-    setNudgeSeconds(0);
-  };
-
-  // Switching between countdown and stopwatch resets both clocks; blocked
-  // while running so a mid-session flip can't eat tracked time.
-  const setTimerMode = (mode) => {
-    if (running || (mode !== "timer" && mode !== "stopwatch")) return;
-    setTimerModeState(mode);
-    localStorage.setItem("tasknook.timerMode", mode);
-    setElapsed(0);
-    setPhase("focus");
-    setRound(1);
-    setRemaining(focusMinutes * 60);
-    setNudgeSeconds(0);
-  };
-
-  const notify = (title, body) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body });
-    }
-  };
-
-  // Runs when a countdown reaches zero. In pomodoro mode this advances the
-  // focus/break cycle (the interval keeps ticking through transitions);
-  // otherwise it just ends the block. Completed FOCUS phases are logged as
-  // sessions — breaks never are.
-  const handlePhaseComplete = useCallback(async () => {
-    // A soft in-app chime marks every phase edge for someone at the screen;
-    // the system notification covers whoever stepped away.
-    playChime();
-    if (phase === "break") {
-      setPhase("focus");
-      setRound((r) => r + 1);
-      setRemaining(focusMinutes * 60);
-      notify("🌱 Back to it", `Round ${round + 1} of ${pomodoro.rounds} — ${focusMinutes} focused minutes.`);
-      return;
-    }
-    try {
-      await api.logSession({
-        minutes: Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60)),
-        taskName: activeTask ? activeTask.name : "Focus",
-      });
-      await refreshAll();
-    } catch (err) {
-      // Not ignorable: a silently-unlogged block reads as a frozen streak.
-      console.error("Failed to log the focus session:", err);
-      showToast("Couldn't log that session — it may be missing from today 🌧️");
-    }
-    setNudgeSeconds(0);
-    if (pomodoro.enabled && round < pomodoro.rounds) {
-      setPhase("break");
-      setRemaining(pomodoro.breakMinutes * 60);
-      notify("☕ Break time", `${pomodoro.breakMinutes} minutes — stretch, hydrate, breathe.`);
-    } else {
-      setRunning(false);
-      setPhase("focus");
-      setRound(1);
-      if (pomodoro.enabled) {
-        notify("🎉 Pomodoro complete", `All ${pomodoro.rounds} rounds done — ${pomodoro.rounds * focusMinutes} minutes logged.`);
-      } else {
-        notify("🌙 Focus block complete", `${focusMinutes} cozy minutes logged. Time to stretch.`);
-      }
-    }
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshAll, showToast]);
-
-  // Ends a break early and moves straight into the next focus round — before
-  // this, the only way out of a break was ✕, which discards the whole cycle.
-  const skipBreak = () => {
-    if (phase !== "break") return;
-    setPhase("focus");
-    setRound((r) => r + 1);
-    setRemaining(focusMinutes * 60);
-  };
-
-  // Keep the latest handler in a ref so the ticking interval depends only on
-  // `running` — selecting a different task mid-focus won't restart the timer.
-  const handlePhaseCompleteRef = useRef(null);
-  useEffect(() => {
-    handlePhaseCompleteRef.current = handlePhaseComplete;
-  }, [handlePhaseComplete]);
-
-  // timerMode can't change while running (setTimerMode blocks it), so adding
-  // it to the deps never restarts a live interval.
-  useEffect(() => {
-    if (!running) return;
-    tickRef.current = setInterval(
-      timerMode === "stopwatch"
-        ? () => setElapsed((e) => e + 1)
-        : () => setRemaining((r) => Math.max(0, r - 1)),
-      1000
-    );
-    return () => clearInterval(tickRef.current);
-  }, [running, timerMode]);
-
-  // Fire the phase handler from an effect (not inside the setState updater) so
-  // it can safely set more state / await API calls. Countdown mode only — a
-  // stopwatch has no "zero" to reach.
-  useEffect(() => {
-    if (!running || remaining > 0 || timerMode !== "timer") return;
-    handlePhaseCompleteRef.current?.();
-  }, [remaining, running, timerMode]);
-
-  // Ending a stopwatch logs whatever it measured (rounded to minutes) as a
-  // focus session, exactly like a completed countdown block.
-  const finishStopwatch = async () => {
-    setRunning(false);
-    const minutes = Math.round(elapsed / 60);
-    setElapsed(0);
-    if (minutes < 1) return; // nothing meaningful to log
-    playChime();
-    try {
-      await api.logSession({
-        minutes,
-        taskName: activeTask ? activeTask.name : "Stopwatch",
-      });
-      await refreshAll();
-    } catch (err) {
-      console.error("Failed to log the stopwatch session:", err);
-      showToast("Couldn't log that session — it may be missing from today 🌧️");
-    }
-    notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
-  };
-
-  // "Focus today" including the CURRENT running block — the DB only knows
-  // about completed sessions, which read as "the app isn't tracking me".
-  const inSessionMinutes = !running
-    ? 0
-    : timerMode === "stopwatch"
-    ? Math.floor(elapsed / 60)
-    : phase === "focus"
-    ? Math.max(0, Math.floor((focusMinutes * 60 + nudgeSeconds - remaining) / 60))
-    : 0;
-  const focusMinutesLive = (stats.focusMinutesToday || 0) + inSessionMinutes;
+  // The focus-timer engine (countdown/stopwatch, pomodoro cycle, session
+  // logging) moved to timer.jsx — see the note on activeTaskId above.
 
   // ---------- Ambient ----------
   // Weather quick-picks drive ONLY the visual (overlay + cottage window).
@@ -832,10 +661,13 @@ export function StoreProvider({ children }) {
   // what the UI calls, and a manual pick switches auto-match OFF — otherwise
   // the 15-minute refresh silently overwrites the user's choice and the two
   // settings fight each other.
-  const applyWeatherVisual = (nextMode) => setWeatherModeState(nextMode);
+  const applyWeatherVisual = (nextMode) => {
+    setWeatherModeState(nextMode);
+    writeStored("tasknook.weatherMode", nextMode);
+  };
   const applyTimeOfDay = (mode) => {
     setTimeOfDayState(mode);
-    localStorage.setItem("tasknook.timeOfDay", mode);
+    writeStored("tasknook.timeOfDay", mode);
   };
   const setWeather = (nextMode) => {
     if (autoMatchRef.current) setAutoMatchWeather(false);
@@ -852,16 +684,17 @@ export function StoreProvider({ children }) {
   const saveWeatherPreset = (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const preset = { name: trimmed, weatherMode, timeOfDay, weatherVolume, soundMix };
+    const preset = { name: trimmed, weatherMode, timeOfDay, soundMix };
     // Persist outside the updater (purity — StrictMode double-invokes them).
     const next = [...weatherPresets.filter((p) => p.name !== trimmed), preset];
-    localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+    writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
   };
   const applyWeatherPreset = (name) => {
     const preset = weatherPresets.find((p) => p.name === name);
     if (!preset) return;
-    setWeatherVol(preset.weatherVolume);
+    // (Presets saved before the mixer also carry a `weatherVolume` — it drove
+    // a slider that no longer exists and is simply ignored now.)
     // Recalling a scene is a manual pick: use the internal appliers for both
     // axes and disable auto-match EXPLICITLY — the old mix of one internal
     // and one public setter got the same net result only by accident.
@@ -879,30 +712,30 @@ export function StoreProvider({ children }) {
   };
   const deleteWeatherPreset = (name) => {
     const next = weatherPresets.filter((p) => p.name !== name);
-    localStorage.setItem("tasknook.weather.presets", JSON.stringify(next));
+    writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
   };
 
   // ---------- Settings ----------
   const setBrightness = (v) => {
     setBrightnessState(v);
-    localStorage.setItem("tasknook.brightness", String(v));
+    writeStored("tasknook.brightness", String(v));
   };
   const setColorScheme = (scheme) => {
     setColorSchemeState(scheme);
-    localStorage.setItem("tasknook.colorScheme", scheme);
+    writeStored("tasknook.colorScheme", scheme);
   };
   // Picking a colour implies you want the custom scheme.
   const setCustomColor = (hex) => {
     setCustomColorState(hex);
-    localStorage.setItem("tasknook.customColor", hex);
+    writeStored("tasknook.customColor", hex);
     setColorScheme("custom");
   };
 
   // ---------- Real-world weather ----------
   useEffect(() => {
     autoMatchRef.current = autoMatchWeather;
-    localStorage.setItem("tasknook.weather.automatch", autoMatchWeather ? "1" : "0");
+    writeStored("tasknook.weather.automatch", autoMatchWeather ? "1" : "0");
   }, [autoMatchWeather]);
 
   const refreshRealWeather = useCallback(async (coordsOverride) => {
@@ -911,15 +744,16 @@ export function StoreProvider({ children }) {
     try {
       const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
       weatherCoordsRef.current = coords;
-      localStorage.setItem("tasknook.weather.coords", JSON.stringify(coords));
+      writeStored("tasknook.weather.coords", JSON.stringify(coords));
       const data = await fetchCurrentWeather(coords.lat, coords.lon);
       setRealWeather(data);
       setWeatherStatus("ready");
       if (autoMatchRef.current) {
         // Internal appliers — the public setters would disable auto-match.
         setWeatherModeState(data.mode);
+        writeStored("tasknook.weatherMode", data.mode);
         setTimeOfDayState(data.timeOfDay);
-        localStorage.setItem("tasknook.timeOfDay", data.timeOfDay);
+        writeStored("tasknook.timeOfDay", data.timeOfDay);
       }
     } catch (err) {
       setWeatherStatus("error");
@@ -933,7 +767,7 @@ export function StoreProvider({ children }) {
     try {
       const place = await geocodeCity(name);
       setWeatherLocationLabel(place.label);
-      localStorage.setItem("tasknook.weather.location", place.label);
+      writeStored("tasknook.weather.location", place.label);
       await refreshRealWeather({ lat: place.lat, lon: place.lon });
     } catch (err) {
       setWeatherStatus("error");
@@ -963,7 +797,7 @@ export function StoreProvider({ children }) {
 
   const setStation = (key) => {
     setActiveStationKey(key);
-    localStorage.setItem("tasknook.music.station", key);
+    writeStored("tasknook.music.station", key);
   };
   const selectStation = (station) => {
     setStation(stationKey(station));
@@ -980,7 +814,7 @@ export function StoreProvider({ children }) {
     if (!musicStations.some((s) => stationKey(s) === key)) {
       const next = [...customStations, station];
       setCustomStations(next);
-      localStorage.setItem("tasknook.music.custom", JSON.stringify(next));
+      writeStored("tasknook.music.custom", JSON.stringify(next));
     }
     selectStation(station);
     return true;
@@ -990,7 +824,7 @@ export function StoreProvider({ children }) {
     const key = stationKey(station);
     const next = customStations.filter((s) => stationKey(s) !== key);
     setCustomStations(next);
-    localStorage.setItem("tasknook.music.custom", JSON.stringify(next));
+    writeStored("tasknook.music.custom", JSON.stringify(next));
     if (activeStationKey === key) setStation(stationKey(BUILT_IN_STATIONS[0]));
   };
 
@@ -1001,14 +835,24 @@ export function StoreProvider({ children }) {
   const moveRoomItem = useCallback((id, x, y) => {
     setRoomPlacements((prev) => prev.map((p) => (p.id === id ? { ...p, x, y } : p)));
   }, []);
-  const addRoomItem = useCallback((key) => {
-    setRoomPlacements((prev) => {
-      if (prev.length >= MAX_ITEMS) return prev;
+  const addRoomItem = useCallback(
+    (key) => {
+      // Logic outside the updater: updaters must stay pure (StrictMode
+      // double-invokes them) and this one now needs to report failure.
+      const prev = roomRef.current;
+      if (prev.length >= MAX_ITEMS) {
+        showToast(`That's all ${MAX_ITEMS} pieces — put something away first 🪴`);
+        return;
+      }
+      // A null placement here means a `fixed` singleton is already up, which
+      // the panel already shows as a disabled "up ✓" button — no toast needed.
       const placement = newPlacement(key, prev);
-      return placement ? [...prev, placement] : prev;
-    });
-    setRoomEditMode(true); // they'll want to drag the new arrival into place
-  }, []);
+      if (!placement) return;
+      setRoomPlacements([...prev, placement]);
+      setRoomEditMode(true); // they'll want to drag the new arrival into place
+    },
+    [showToast]
+  );
   const removeRoomItem = useCallback((id) => {
     setRoomPlacements((prev) => prev.filter((p) => p.id !== id));
   }, []);
@@ -1054,7 +898,6 @@ export function StoreProvider({ children }) {
 
     friends,
     stats,
-    focusMinutesLive,
     sessionDays,
     refreshAll,
     dailyGoal,
@@ -1087,29 +930,10 @@ export function StoreProvider({ children }) {
     setIsoEnv,
     applyIsoPreset,
 
-    // timer
-    focusMinutes,
-    setFocus,
-    focusPresets: FOCUS_PRESETS,
-    remaining,
-    running,
-    startTimer,
-    pauseTimer,
-    resetTimer,
-    timerMode,
-    setTimerMode,
-    elapsed,
-    finishStopwatch,
-    skipBreak,
-    nudgeSeconds,
-    nudgeTimer,
+    // the timer's target task (the timer itself is in timer.jsx)
     activeTask,
     activeTaskId,
     setActiveTaskId,
-    pomodoro,
-    setPomodoro,
-    phase,
-    round,
 
     // ambient
     weatherMode,
@@ -1122,7 +946,7 @@ export function StoreProvider({ children }) {
     musicOn,
     toggleMusic,
     musicStations,
-    activeStationKey,
+    activeStationKey: resolvedStationKey,
     selectStation,
     addCustomStation,
     removeCustomStation,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Boxes, Check, Eraser, Scaling, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
@@ -13,11 +13,56 @@ import {
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
   cutsToMask,
+  footOf,
+  seatFor,
   sortIso,
   tileOn,
 } from "../lib/isoRoom";
 import { ITEM_SPRITES } from "./RoomItems";
 import { ISO_SPRITES } from "./IsoItems";
+
+// One catalog entry, drawn at postage-stamp size — the SAME sprite the scene
+// will place. The iso picker used to show the catalog's emoji (🛏️ for a bed),
+// which is exactly the piece of the app where you most want to see what you're
+// about to get, and the only browser that didn't show it (the flat room's
+// picker has drawn real sprites all along).
+function IsoItemPreview({ itemKey }) {
+  const item = ISO_ITEMS[itemKey];
+  const Sprite = ISO_SPRITES[itemKey];
+  const gRef = useRef(null);
+  const [box, setBox] = useState(null);
+
+  // Measure, don't guess. Every sprite is drawn around its own origin with
+  // wildly different extents — a wall clock hangs ~100px above the floor line,
+  // a rug is flat around it, a tree is 128 tall — so no single hand-written
+  // viewBox frames them all. getBBox is exact and runs once per item.
+  useLayoutEffect(() => {
+    const measured = gRef.current?.getBBox?.();
+    if (measured && measured.width > 0 && measured.height > 0) setBox(measured);
+  }, [itemKey]);
+
+  if (!item || !Sprite) return null;
+  const pad = 4;
+  const viewBox = box
+    ? `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`
+    : "-40 -100 80 110"; // one frame's worth, before the measurement lands
+
+  return (
+    // No local <defs>: url(#lampPool) / url(#isoSky) / url(#isoShadow) resolve
+    // document-wide to IsoRoom's, which is mounted behind this panel whenever
+    // this section is visible (same trick as the flat room's ItemPreview).
+    <svg
+      viewBox={viewBox}
+      preserveAspectRatio="xMidYMid meet"
+      className="h-9 w-9 shrink-0"
+      aria-hidden="true"
+    >
+      <g ref={gRef}>
+        <Sprite />
+      </g>
+    </svg>
+  );
+}
 
 // A preset button IS the room in miniature: the same sprites the scene
 // renders, drawn over the preset's floor at postage-stamp size — emoji pills
@@ -27,7 +72,25 @@ function IsoPresetPreview({ preset }) {
   const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
   const size = { w, d, ...(mask && { mask }) };
   const grass = preset.size.env === "garden";
-  const items = sortIso(preset.items.map((p, i) => ({ ...p, id: `pv${i}` })));
+  // Seat personas before sorting, exactly as the scene does — otherwise the
+  // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
+  // the depth sort orders them from the wrong spot.
+  const placed = preset.items.map((p, i) => ({ ...p, id: `pv${i}` }));
+  const items = sortIso(
+    placed.map((p) => {
+      if (!ISO_ITEMS[p.item]?.persona) return p;
+      const seat = seatFor(p, placed);
+      if (!seat) return p;
+      const sf = footOf(seat.placement.item, seat.placement.rot);
+      const pf = footOf(p.item, p.rot);
+      return {
+        ...p,
+        gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2,
+        gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.15,
+        _seat: seat.height,
+      };
+    })
+  );
   const L = project(0, d);
   const R = project(w, 0);
   const F = project(w, d);
@@ -54,7 +117,13 @@ function IsoPresetPreview({ preset }) {
         const Sprite = ISO_SPRITES[p.item];
         if (!item || !Sprite) return null;
         const at = project(p.gx, p.gy);
-        const sprite = <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />;
+        const sprite = item.persona ? (
+          <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
+            <Sprite seated={!!p._seat} />
+          </g>
+        ) : (
+          <Sprite rot={p.rot ? 1 : 0} variant={item.variants?.[p.tint]} />
+        );
         return (
           <g
             key={p.id}
@@ -378,9 +447,7 @@ export default function RoomPanel() {
                 title={`Add ${ISO_ITEMS[key].label.toLowerCase()}`}
                 className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center text-xl">
-                  {ISO_ITEMS[key].icon}
-                </span>
+                <IsoItemPreview itemKey={key} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-medium text-cream">
                     {ISO_ITEMS[key].label}

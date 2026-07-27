@@ -68,7 +68,9 @@ export default function WeatherPanel() {
           <div className="flex items-center gap-4 rounded-2xl bg-white/5 px-4 py-3">
             <span className="text-4xl leading-none">{realWeather.icon}</span>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-cream">{realWeather.tempF}°F</p>
+              <p className="text-2xl font-bold text-cream">
+                {realWeather.tempF ?? "—"}°F
+              </p>
               <p className="truncate text-xs text-petal/70">{realWeather.label}</p>
               {weatherLocationLabel && (
                 <p className="truncate text-[10px] text-petal/50">{weatherLocationLabel}</p>
@@ -197,6 +199,7 @@ export default function WeatherPanel() {
                 <button
                   onClick={() => arm(p.name, () => deleteWeatherPreset(p.name))}
                   title="Delete preset"
+                  aria-label="Delete preset"
                   className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
                     armedName === p.name
                       ? "font-bold text-danger"

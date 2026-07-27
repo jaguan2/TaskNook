@@ -31,9 +31,19 @@ const WMO = {
   99: { label: "Thunderstorm w/ hail", icon: "⛈️", mode: "storm" },
 };
 
+// The fair-weather icons are literally suns, so after dark they need twins.
+// (Rain, snow and storms look the same at any hour.) Only code 0 used to get
+// this treatment, so "Mostly clear" showed ☀️ at 2am.
+const NIGHT_ICONS = { 0: "🌙", 1: "🌙", 2: "☁️" };
+
 function describeCode(code, isDay) {
-  if (code === 0) return { label: isDay ? "Clear sky" : "Clear night", icon: isDay ? "☀️" : "🌙", mode: "off" };
-  return WMO[code] || { label: "Unknown", icon: "🌡️", mode: "off" };
+  const base = WMO[code] || { label: "Unknown", icon: "🌡️", mode: "off" };
+  if (isDay) return base;
+  return {
+    ...base,
+    label: code === 0 ? "Clear night" : base.label,
+    icon: NIGHT_ICONS[code] || base.icon,
+  };
 }
 
 export function locateBrowser(timeout = 8000) {
@@ -70,19 +80,38 @@ export function locateBrowser(timeout = 8000) {
   });
 }
 
-// Open-Meteo returns HTTP 400 with {error, reason} for bad params — surface
-// the reason instead of blaming the network.
-async function reasonOf(res, fallback) {
-  const body = await res.json().catch(() => null);
-  return new Error(body?.reason || fallback);
+// Open-Meteo is the one part of TaskNook that needs the internet, so it's also
+// the one part that can hang. `fetch` has no deadline of its own: a connection
+// that opens and then stalls never settles, which pinned the Weather panel on
+// "loading" with no retry path — and auto-match's 15-minute refresh just piled
+// more stalled requests on top.
+const REQUEST_TIMEOUT = 12000;
+
+async function getJSON(url, fallback) {
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) });
+  } catch (cause) {
+    throw new Error(
+      cause?.name === "TimeoutError" ? "The weather service took too long" : fallback
+    );
+  }
+  // Open-Meteo returns HTTP 400 with {error, reason} for bad params — surface
+  // the reason instead of blaming the network.
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.reason || fallback);
+  }
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== "object") throw new Error(fallback);
+  return data;
 }
 
 export async function geocodeCity(name) {
-  const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`
+  const data = await getJSON(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`,
+    "Couldn't reach the location service"
   );
-  if (!res.ok) throw await reasonOf(res, "Couldn't reach the location service");
-  const data = await res.json();
   const hit = data.results?.[0];
   if (!hit) throw new Error(`No place found named "${name}"`);
   return {
@@ -100,25 +129,35 @@ export async function fetchCurrentWeather(lat, lon) {
   // timeformat=unixtime matters: the default is a LOCAL-time ISO string with
   // no offset, which JS parses in the BROWSER's zone — wrong whenever the
   // queried city (manual search) isn't in the browser's timezone.
-  const res = await fetch(
+  const data = await getJSON(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset` +
-      `&temperature_unit=fahrenheit&timezone=auto&timeformat=unixtime`
+      `&temperature_unit=fahrenheit&timezone=auto&timeformat=unixtime`,
+    "Couldn't reach the weather service"
   );
-  if (!res.ok) throw await reasonOf(res, "Couldn't reach the weather service");
-  const data = await res.json();
+  // Shape guard: without it a changed/blocked response surfaced as a raw
+  // "Cannot read properties of undefined" in the panel's error line.
   const current = data.current;
+  if (!current || typeof current !== "object") {
+    throw new Error("The weather service sent something unexpected");
+  }
   const info = describeCode(current.weather_code, current.is_day === 1);
 
+  // Sunrise/sunset are genuinely UTC epoch seconds here (timeformat=unixtime),
+  // so they're directly comparable to Date.now(). Treat them as optional
+  // anyway — the daily block can come back empty for some coordinates.
   const now = Date.now();
-  const sunrise = data.daily.sunrise[0] * 1000;
-  const sunset = data.daily.sunset[0] * 1000;
-  const nearTwilight =
-    Math.abs(now - sunrise) < TWILIGHT_WINDOW_MS || Math.abs(now - sunset) < TWILIGHT_WINDOW_MS;
+  const near = (seconds) => {
+    const ms = Number(seconds) * 1000;
+    return Number.isFinite(ms) && Math.abs(now - ms) < TWILIGHT_WINDOW_MS;
+  };
+  const nearTwilight = near(data.daily?.sunrise?.[0]) || near(data.daily?.sunset?.[0]);
   const timeOfDay = nearTwilight ? "sunset" : current.is_day === 1 ? "day" : "night";
 
   return {
-    tempF: Math.round(current.temperature_2m),
+    tempF: Number.isFinite(current.temperature_2m)
+      ? Math.round(current.temperature_2m)
+      : null,
     isDay: current.is_day === 1,
     label: info.label,
     icon: info.icon,

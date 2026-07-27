@@ -14,6 +14,7 @@ import {
   wallSegment,
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
+import { readStored, writeStored } from "../lib/storage";
 import { ISO_SPRITES } from "./IsoItems";
 import RoomTintPicker from "./RoomTintPicker";
 
@@ -36,7 +37,7 @@ const VIEW_MAX_W = 1600;
 
 function loadView() {
   try {
-    const v = JSON.parse(localStorage.getItem("tasknook.isoView") || "null");
+    const v = JSON.parse(readStored("tasknook.isoView") || "null");
     if (
       v &&
       [v.x, v.y, v.w, v.h].every(Number.isFinite) &&
@@ -107,7 +108,7 @@ function IsoRoom({
     // immediate.
     clearTimeout(persistViewTimer.current);
     persistViewTimer.current = setTimeout(() => {
-      localStorage.setItem("tasknook.isoView", JSON.stringify(clamped));
+      writeStored("tasknook.isoView", JSON.stringify(clamped));
     }, 300);
   };
 
@@ -466,7 +467,11 @@ function IsoRoom({
               </g>
             );
           })}
-          {!outdoors && !size.cuts?.some((c) => c.corner === "back") && (
+          {/* The seam where the two walls meet. It only exists if the back
+              corner is actually floor — this used to test `size.cuts`, which
+              validation converts to a `mask` long before the scene sees it, so
+              the branch was dead and the seam drew over painted-away corners. */}
+          {!outdoors && tileOn(size, 0, 0) && (
             <line x1="0" y1={-WALL_H} x2="0" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
           )}
 

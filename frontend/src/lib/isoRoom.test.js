@@ -313,3 +313,58 @@ describe("presets", () => {
     expect(isoPresetLayout("empty").w).toBe(DEFAULT_ISO_SIZE.w);
   });
 });
+
+describe("newIsoPlacement lands items on real floor", () => {
+  // A donut: the 9x7 floor with its whole middle painted away, so the room's
+  // CENTRE — where spawning aims — is void.
+  const donut = {
+    w: 9,
+    d: 7,
+    mask: [
+      "111111111",
+      "111111111",
+      "110000011",
+      "110000011",
+      "110000011",
+      "111111111",
+      "111111111",
+    ],
+  };
+
+  const floorKeys = ISO_ITEM_KEYS.filter((k) => !ISO_ITEMS[k].wall);
+
+  it.each(floorKeys)("%s never spawns over a hole", (key) => {
+    // Regression: spawning clamped with clampIsoPlacement, which is bounds-only
+    // and never consults the mask. Items appeared floating over the courtyard
+    // and then refused every drag (the drag engine won't move a footprint onto
+    // void), so they read as stuck until a reload quietly relocated them.
+    const placement = newIsoPlacement(key, [], donut);
+    if (!placement) return; // legitimately too big for this shape
+    expect(
+      footprintFree(placement.gx, placement.gy, footOf(key, placement.rot), donut),
+      `${key} spawned at ${placement.gx},${placement.gy}`
+    ).toBe(true);
+  });
+
+  it("keeps spawning on floor as the room fills up", () => {
+    const placements = [];
+    for (let i = 0; i < 12; i++) {
+      const p = newIsoPlacement("stool", placements, donut);
+      expect(p).toBeTruthy();
+      expect(footprintFree(p.gx, p.gy, footOf("stool", 0), donut)).toBe(true);
+      placements.push(p);
+    }
+  });
+
+  it("returns null when the shape genuinely has no room", () => {
+    // One tile of floor cannot hold a 2x2.8 bed.
+    const pinhole = { w: 4, d: 4, mask: ["1000", "0000", "0000", "0000"] };
+    expect(newIsoPlacement("bed", [], pinhole)).toBeNull();
+  });
+
+  it("still spawns on a plain rectangle", () => {
+    const p = newIsoPlacement("sofa", [], DEFAULT_ISO_SIZE);
+    expect(p).toBeTruthy();
+    expect(footprintFree(p.gx, p.gy, footOf("sofa", 0), DEFAULT_ISO_SIZE)).toBe(true);
+  });
+});
