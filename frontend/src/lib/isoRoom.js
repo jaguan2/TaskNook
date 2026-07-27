@@ -106,10 +106,10 @@ export const ISO_ITEMS = {
   // `surface: <px>` is a top things can be PUT ON, and `stacks: true` marks an
   // item small enough to be put there — see surfaceFor(). Every value is a
   // real sprite height, so a mug lands on a table top and not in mid-air.
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 37, seat: 22 },
-  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 37, seat: 22 },
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 37, seat: 22, backView: true },
+  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 37, seat: 22, backView: true },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, surface: 24 },
-  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19 },
+  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19, backView: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
   bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
   sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 32, surface: 28 },
@@ -132,7 +132,7 @@ export const ISO_ITEMS = {
   // ---- storage & seating ----
   wardrobe: { label: "Wardrobe", icon: "🚪", foot: [1.4, 0.7], hitH: 92 },
   dresser: { label: "Dresser", icon: "🧦", foot: [1.6, 0.6], hitH: 42, surface: 34 },
-  deskchair: { label: "Desk chair", icon: "💺", foot: [0.8, 0.8], hitH: 50, seat: 24 },
+  deskchair: { label: "Desk chair", icon: "💺", foot: [0.8, 0.8], hitH: 50, seat: 24, backView: true },
   beanbag: { label: "Beanbag", icon: "🫘", foot: [1.1, 1.1], hitH: 26, seat: 15 },
   standmirror: { label: "Standing mirror", icon: "🪞", foot: [0.6, 0.4], hitH: 70 },
   // ---- the small stuff that makes a room look lived in ----
@@ -191,7 +191,7 @@ export const ISO_ITEMS = {
   bush: { label: "Bush", icon: "🌲", foot: [1, 1], hitH: 40 },
   pond: { label: "Pond", icon: "🪷", foot: [3.5, 2.5], layer: -1, hitH: 12, tintable: false },
   picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10 },
-  bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16 },
+  bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16, backView: true },
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
   // the resident — a little person you drop anywhere: onto a seat (they sit)
   // or the open floor (they idle-wander). Tint = their sweater.
@@ -334,9 +334,44 @@ export function surfaceFor(placement, placements) {
 export const ISO_ITEM_KEYS = Object.keys(ISO_ITEMS);
 
 /** The placement's effective footprint: rot transposes it. */
+/**
+ * Rotation is 0–3, quarter turns anticlockwise on the grid:
+ *
+ *   0 faces +gy (front-left)   1 faces +gx (front-right)
+ *   2 faces −gy (back-right)   3 faces −gx (back-left)
+ *
+ * Only 0 and 1 come free. A screen mirror `scale(-1,1)` about the origin IS a
+ * grid transpose, which is what turns 0 into 1 — but the half-turn to 2 is
+ * `scale(-1,-1)`, i.e. the sprite upside down, so the away-facing pair needs
+ * REAL back-view artwork. Items that ship it are marked `backView`; everything
+ * else stays a two-way item and `rotationsFor` says so, which is what stops a
+ * chair ever being drawn on its head.
+ */
+export const ROTATIONS = [0, 1, 2, 3];
+
+/** How many quarter turns this item actually has: 4 with a back view, else 2.
+ *  Wall decor is always 2 — there rot picks WHICH WALL, not a facing. */
+export function rotationsFor(itemKey) {
+  const item = ISO_ITEMS[itemKey];
+  if (!item || item.wall) return 2;
+  return item.backView ? 4 : 2;
+}
+
+/** Coerce any stored rot into one this item can actually be drawn in. */
+export function normalizeRot(itemKey, rot) {
+  const n = Number.isInteger(rot) ? ((rot % 4) + 4) % 4 : 0;
+  return n < rotationsFor(itemKey) ? n : n % 2;
+}
+
+/** The next rotation the ⟳ button should step to. */
+export const nextRot = (itemKey, rot = 0) =>
+  (normalizeRot(itemKey, rot) + 1) % rotationsFor(itemKey);
+
+/** Footprint for a rotation. Odd turns transpose it; a half turn doesn't
+ *  change which tiles are covered, only which way the thing looks. */
 export const footOf = (itemKey, rot = 0) => {
   const f = ISO_ITEMS[itemKey]?.foot || [1, 1];
-  return rot ? [f[1], f[0]] : f;
+  return rot % 2 ? [f[1], f[0]] : f;
 };
 
 /** Half-tile snapping: fine enough to feel free, aligned enough to feel tidy. */
@@ -479,7 +514,10 @@ export function clampIsoPlacement(itemKey, gx, gy, size, rot = 0) {
   if (!item) return { gx, gy };
   const f = footOf(itemKey, rot);
   if (item.wall) {
-    if (rot) {
+    // Wall decor is two-way by definition — rot picks the wall, and an odd
+    // value is the left one. (rotationsFor keeps 2/3 off wall items, but this
+    // stays parity-based so a hand-edited save can't glue a frame to nothing.)
+    if (rot % 2) {
       const seg = wallSegment("left", size);
       return { gx: 0, gy: clampNum(gy, seg.from, Math.max(seg.from, seg.to - f[1])) };
     }
@@ -639,7 +677,10 @@ export function validateIsoLayout(raw) {
     while (seen.has(id)) id = makeId();
     seen.add(id);
     const tint = typeof p.tint === "string" && TINT_RE.test(p.tint) ? p.tint : undefined;
-    const rot = p.rot === 1 || p.rot === true ? 1 : 0;
+    // normalizeRot folds a half turn back to a facing this item can actually
+    // be DRAWN in — a saved rot 2 on something with no back view would
+    // otherwise render upside down. `true` is a legacy shape for rot 1.
+    const rot = normalizeRot(p.item, p.rot === true ? 1 : p.rot);
     // Wall decor needs a full-height wall to hang on — outdoors and on a
     // low-walled terrace there isn't one.
     if (ISO_ITEMS[p.item].wall && env && !envHasWalls(env)) continue;
@@ -813,22 +854,19 @@ export const ISO_PRESETS = {
       { item: "wallclock", gx: 3, gy: 0, tint: "#6b4a39" },
       { item: "wallshelf", gx: 6.5, gy: 0, tint: "#9a6a45" },
       { item: "aquarium", gx: 8.5, gy: 0 },
-      // Seating set A: both chairs turned INTO the table rather than both
-      // staring off down the room. A chair's backrest is drawn at its low-gy
-      // edge, so rot 0 faces +gy and rot 1 (the mirror, which is a grid
-      // transpose) faces +gx — the two facings available. A chair therefore
-      // only ever looks at something placed at HIGHER gx/gy than itself, which
-      // is why each pair sits back-left and back-right of its table: their
-      // sight lines cross over it. Moving one to the near side would turn its
-      // back on the table, which is what this used to look like.
+      // Seating set A: two chairs across a table, genuinely facing each other.
+      // rot 0 looks toward +gy, rot 2 back toward −gy — the away-facing pair
+      // exists now that chairs ship real back-view artwork, so the far chair
+      // can sit BEYOND the table and turn round to it instead of every chair
+      // having to be tucked behind its own table.
       { item: "rug", gx: 0.5, gy: 2, tint: "#c98a4b" },
       { item: "cafetable", gx: 2, gy: 3 },
       { item: "chair", gx: 2.5, gy: 2 },
-      { item: "chair", gx: 1, gy: 3.5, rot: 1 },
+      { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
       // seating set B, same geometry, shifted right and forward
       { item: "cafetable", gx: 6, gy: 4 },
       { item: "chair", gx: 6.5, gy: 3 },
-      { item: "chair", gx: 5, gy: 4.5, rot: 1 },
+      { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
       // life
       { item: "floorlamp", gx: 9, gy: 2.5 },
       { item: "cat", gx: 6, gy: 5.5 },

@@ -21,13 +21,17 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(orphans).toEqual([]);
   });
 
-  it.each(ISO_ITEM_KEYS)("%s renders in both orientations without throwing", (key) => {
+  it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is
     // still a bug). Cheap to assert, and it covers the whole catalog.
     const Sprite = ISO_SPRITES[key];
     expect(() => draw(<Sprite rot={0} />)).not.toThrow();
     expect(() => draw(<Sprite rot={1} />)).not.toThrow();
+    // The away-facing pair is a different drawing, not a transform — every
+    // sprite has to tolerate the prop even if it ignores it.
+    expect(() => draw(<Sprite rot={0} back />)).not.toThrow();
+    expect(() => draw(<Sprite rot={1} back />)).not.toThrow();
   });
 
   it("renders every colourway of every item that has them", () => {

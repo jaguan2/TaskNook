@@ -378,7 +378,7 @@ function Bed() {
  * Draw order is depth order: back (farthest), left arm, plinth, cushions,
  * right arm (nearest).
  */
-function Upholstered({ w, seats }) {
+function Upholstered({ w, seats, back = false }) {
   // Slimmer than a full tile front-to-back, with thin arms and a thin back:
   // at 1.0 deep with 0.28 arms the frame ate the seat and the whole thing read
   // bulky. `d` must match the catalog's foot[1] or the sprite won't fill its
@@ -414,35 +414,66 @@ function Upholstered({ w, seats }) {
       {foot(0.06, 0.63)}
       {foot(w - 0.2, 0.63)}
       <g transform="translate(0,-4)">
-        <TintedBox gx={0} gy={0} dx={w} dy={BACK} h={29} fallback="#d98a93" dark={0.36} mid={0.2} />
-        <TintedBox gx={0} gy={BACK} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
-        <TintedBox gx={ARM} gy={BACK} dx={inner} dy={D - BACK} h={PLINTH} fallback="#d98a93" dark={0.3} mid={0.16} />
-        {/* Cushions are the same fabric read LIGHTER (weaker black overlays),
-            so they separate from the frame under any tint. With the back row
-            gone they run the full depth of the seat. */}
-        <g transform={`translate(0,${-PLINTH})`}>
-          {Array.from({ length: seats }, (_, i) => (
-            <TintedBox
-              key={`seat-${i}`}
-              gx={at(i) + 0.02}
-              gy={BACK + 0.05}
-              dx={cw - 0.04}
-              dy={D - BACK - 0.12}
-              h={7}
-              fallback="#e8a3a8"
-              dark={0.2}
-              mid={0.1}
-            />
-          ))}
-        </g>
-        <TintedBox gx={w - ARM} gy={BACK} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
+        {/* Seen from BEHIND, the order flips: the seat is at the far edge and
+            the backrest stands at the near one, hiding the cushions almost
+            entirely. That occlusion is the whole read — it's what stops a
+            turned-around sofa looking like a sofa you can see into. */}
+        {back ? (
+          <>
+            <TintedBox gx={0} gy={0} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
+            <TintedBox gx={ARM} gy={0} dx={inner} dy={D - BACK} h={PLINTH} fallback="#d98a93" dark={0.3} mid={0.16} />
+            <g transform={`translate(0,${-PLINTH})`}>
+              {Array.from({ length: seats }, (_, i) => (
+                <TintedBox
+                  key={`seat-${i}`}
+                  gx={at(i) + 0.02}
+                  gy={0.05}
+                  dx={cw - 0.04}
+                  dy={D - BACK - 0.12}
+                  h={7}
+                  fallback="#e8a3a8"
+                  dark={0.2}
+                  mid={0.1}
+                />
+              ))}
+            </g>
+            <TintedBox gx={w - ARM} gy={0} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
+            {/* the backrest, now nearest the camera: one clean unbroken slab */}
+            <TintedBox gx={0} gy={D - BACK} dx={w} dy={BACK} h={29} fallback="#d98a93" dark={0.36} mid={0.2} />
+          </>
+        ) : (
+          <>
+            <TintedBox gx={0} gy={0} dx={w} dy={BACK} h={29} fallback="#d98a93" dark={0.36} mid={0.2} />
+            <TintedBox gx={0} gy={BACK} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
+            <TintedBox gx={ARM} gy={BACK} dx={inner} dy={D - BACK} h={PLINTH} fallback="#d98a93" dark={0.3} mid={0.16} />
+            {/* Cushions are the same fabric read LIGHTER (weaker black overlays),
+                so they separate from the frame under any tint. With the back row
+                gone they run the full depth of the seat. */}
+            <g transform={`translate(0,${-PLINTH})`}>
+              {Array.from({ length: seats }, (_, i) => (
+                <TintedBox
+                  key={`seat-${i}`}
+                  gx={at(i) + 0.02}
+                  gy={BACK + 0.05}
+                  dx={cw - 0.04}
+                  dy={D - BACK - 0.12}
+                  h={7}
+                  fallback="#e8a3a8"
+                  dark={0.2}
+                  mid={0.1}
+                />
+              ))}
+            </g>
+            <TintedBox gx={w - ARM} gy={BACK} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
+          </>
+        )}
       </g>
     </g>
   );
 }
 
-const Sofa = () => <Upholstered w={2} seats={2} />;
-const Armchair = () => <Upholstered w={1} seats={1} />;
+const Sofa = ({ back }) => <Upholstered w={2} seats={2} back={back} />;
+const Armchair = ({ back }) => <Upholstered w={1} seats={1} back={back} />;
 /** Drawer fronts on a carcass's front-left face. The skew is what turns a
  *  flat rect into something lying on that plane — same trick as the books. */
 function Drawers({ gx, gy, dy, width, rows, top, height, gap = 2 }) {
@@ -555,10 +586,30 @@ function CoffeeTable() {
     </g>
   );
 }
-function Chair() {
+function Chair({ back = false }) {
   const W = 0.7;
   const D = 0.7;
   const SEAT = 17;
+  // Turned around, the backrest moves to the NEAR edge and is drawn last, so
+  // it stands in front of the seat instead of behind it.
+  if (back) {
+    return (
+      <g>
+        {[
+          [0.07, 0.09],
+          [0.53, 0.09],
+          [0.07, 0.53],
+          [0.53, 0.53],
+        ].map(([gx, gy]) => (
+          <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.1} dy={0.1} h={SEAT} fallback="#8f5d49" dark={0.42} mid={0.26} />
+        ))}
+        <g transform={`translate(0,${-SEAT})`}>
+          <TintedBox gx={0.04} gy={0.04} dx={W - 0.08} dy={D - 0.08} h={3.5} fallback="#b58c6a" dark={0.28} mid={0.15} />
+        </g>
+        <TintedBox gx={0.07} gy={D - 0.15} dx={W - 0.14} dy={0.09} h={42} fallback="#a87f5f" dark={0.36} mid={0.22} />
+      </g>
+    );
+  }
   return (
     <g>
       {/* backrest first: it stands at the far edge, so everything else is in
@@ -1055,11 +1106,21 @@ function Picnic() {
   );
 }
 
-function Bench() {
-  return (
+function Bench({ back = false }) {
+  const slat = <TintedBox gx={0} gy={back ? 0 : 0.12} dx={1.6} dy={0.45} h={16} fallback="#a87f5f" />;
+  const rest = (
+    <TintedBox gx={0} gy={back ? 0.45 : 0} dx={1.6} dy={0.12} h={30} fallback="#8f5d49" dark={0.38} mid={0.22} />
+  );
+  // Whichever of the two is NEARER the camera has to be painted last.
+  return back ? (
     <g>
-      <TintedBox gx={0} gy={0} dx={1.6} dy={0.12} h={30} fallback="#8f5d49" dark={0.38} mid={0.22} />
-      <TintedBox gx={0} gy={0.12} dx={1.6} dy={0.45} h={16} fallback="#a87f5f" />
+      {slat}
+      {rest}
+    </g>
+  ) : (
+    <g>
+      {rest}
+      {slat}
     </g>
   );
 }
@@ -1421,9 +1482,11 @@ function Dresser() {
 
 /** Swivel chair: a star base on castors, which is the silhouette that
  *  separates it from the wooden one at a glance. */
-function DeskChair() {
+function DeskChair({ back = false }) {
   const c = project(0.4, 0.4);
   const SEAT = 19;
+  // The pedestal and star base are symmetric, so only the backrest moves.
+  const restGy = back ? 0.57 : 0.1;
   return (
     <g>
       <g transform={`translate(${c.x}, ${c.y})`}>
@@ -1447,7 +1510,7 @@ function DeskChair() {
       <g transform={`translate(0,${-SEAT})`}>
         <TintedBox gx={0.1} gy={0.12} dx={0.6} dy={0.56} h={5} fallback="#5b6b9b" dark={0.28} mid={0.15} />
         <g transform="translate(0,-5)">
-          <TintedBox gx={0.12} gy={0.1} dx={0.56} dy={0.11} h={22} fallback="#5b6b9b" dark={0.3} mid={0.16} />
+          <TintedBox gx={0.12} gy={restGy} dx={0.56} dy={0.11} h={22} fallback="#5b6b9b" dark={0.3} mid={0.16} />
         </g>
       </g>
     </g>

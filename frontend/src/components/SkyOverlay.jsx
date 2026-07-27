@@ -10,6 +10,20 @@ import { memo, useMemo } from "react";
 // and everything is pointer-transparent and behind the HUD corners.
 const STAR_COUNT = 44;
 
+/**
+ * How far daylight lifts the backdrop.
+ *
+ * This is a HARD ceiling, not a taste knob. The to-do list is drawn straight
+ * onto the backdrop with no card behind it, in `cream` (#f7e9e2), so lifting
+ * the sky lifts the surface that text has to stay legible against. 0.34 is the
+ * measured limit: composited over the lightest theme's darkest stop it still
+ * leaves ~5.3:1, comfortably past WCAG AA. It used to be 0.14, which was
+ * perfectly safe and completely invisible — day looked exactly like night.
+ * `SkyOverlay.test.jsx` re-measures both of these against every theme.
+ */
+export const DAY_LIFT = 0.34;
+export const SUNSET_BAND = 0.3;
+
 const CLOUDS = [
   { top: "6%", scale: 1.15, duration: 150, delay: -40, opacity: 0.5 },
   { top: "16%", scale: 0.8, duration: 110, delay: -90, opacity: 0.4 },
@@ -86,13 +100,27 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
           from above by day, an ember band rising from the horizon at
           sunset, nothing at night (the stars carry it). */}
       {!night && !sunset && (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(142, 201, 234, 0.14), rgba(142, 201, 234, 0) 55%)",
-          }}
-        />
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                `linear-gradient(to bottom, rgba(142, 201, 234, ${DAY_LIFT}), rgba(142, 201, 234, ${
+                  DAY_LIFT * 0.35
+                }) 52%, rgba(142, 201, 234, 0) 88%)`,
+            }}
+          />
+          {/* warm haze off the ground, so the sky has a top and a bottom
+              rather than being one flat tint */}
+          <div
+            className="absolute inset-x-0 bottom-0"
+            style={{
+              height: "40%",
+              background:
+                "linear-gradient(to top, rgba(255, 226, 176, 0.10), rgba(255, 226, 176, 0))",
+            }}
+          />
+        </>
       )}
       {sunset && (
         <>
@@ -100,15 +128,17 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(to bottom, rgba(109, 68, 112, 0.10), rgba(226, 130, 94, 0) 45%)",
+                `linear-gradient(to bottom, rgba(126, 83, 130, ${DAY_LIFT * 0.7}), rgba(226, 130, 94, 0) 50%)`,
             }}
           />
           <div
             className="absolute inset-x-0 bottom-0"
             style={{
-              height: "46%",
+              height: "52%",
               background:
-                "linear-gradient(to top, rgba(255, 138, 80, 0.20), rgba(255, 170, 110, 0.07) 55%, rgba(255, 170, 110, 0))",
+                `linear-gradient(to top, rgba(255, 138, 80, ${SUNSET_BAND}), rgba(255, 170, 110, ${
+                  SUNSET_BAND * 0.4
+                }) 55%, rgba(255, 170, 110, 0))`,
             }}
           />
         </>

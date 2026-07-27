@@ -315,8 +315,10 @@ def test_iso_roundtrips_a_rotation(client, auth):
     assert "rot" not in saved["placements"][0]
 
 
-@pytest.mark.parametrize("bad_rot", [2, -1, True, "1", 1.0])
+@pytest.mark.parametrize("bad_rot", [4, -1, True, "1", 1.0])
 def test_iso_rejects_malformed_rotations(client, auth, bad_rot):
+    """Rotation is quarter turns 0-3. `True` is excluded deliberately: it's an
+    int in Python, so a naive range check would let a bool through."""
     iso = {
         "w": 9,
         "d": 7,
@@ -324,6 +326,24 @@ def test_iso_rejects_malformed_rotations(client, auth, bad_rot):
     }
     res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
     assert res.status_code == 400
+
+
+@pytest.mark.parametrize("rot", [1, 2, 3])
+def test_iso_round_trips_every_quarter_turn(client, auth, rot):
+    """Seating that ships back-view artwork has all four facings. The backend
+    only bounds the range — the frontend's normalizeRot is what folds a turn an
+    item can't be DRAWN in back to one it can."""
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [{"id": "i1", "item": "sofa", "gx": 2, "gy": 3, "rot": rot}],
+    }
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]
+    assert saved["placements"][0]["rot"] == rot
 
 
 def test_legacy_list_config_still_readable(app, client, auth):
