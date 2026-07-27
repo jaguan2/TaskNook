@@ -5,7 +5,8 @@ import { useStore } from "../store";
 // ambient toggles, account), Virtual Cottage-style. The top corners belong to
 // the focus card (left) and the to-do list (right); see HudFocusCard/HudTasks.
 
-const WEATHER_OPTIONS = [
+// Shared with WeatherPanel's Sky section — one source for the sky vocabulary.
+export const WEATHER_OPTIONS = [
   { key: "off", label: "Clear", icon: "🌤️" },
   { key: "cloudy", label: "Cloudy", icon: "☁️" },
   { key: "rain", label: "Rain", icon: "🌧️" },

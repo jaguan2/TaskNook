@@ -1,0 +1,11 @@
+The PNG renders in this folder come from Kenney's "Furniture Kit"
+(https://kenney.nl/assets/furniture-kit), licensed CC0 1.0 Universal
+(public domain — https://creativecommons.org/publicdomain/zero/1.0/).
+
+Credit is not required, but appreciated: assets by Kenney (kenney.nl).
+
+They are the pre-rendered isometric views shipped with the kit, used as-is:
+  bedDouble_*   -> the "bed" item        (SW = rot 0, SE = rot 1)
+  loungeSofa_*  -> the "sofa" item       (SE = rot 0, SW = rot 1)
+  loungeChair_* -> the "armchair" item   (SE = rot 0, SW = rot 1)
+  cabinetBed_*  -> the "nightstand" item (SW = rot 0, SE = rot 1)

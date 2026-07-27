@@ -39,9 +39,14 @@ export const ISO_ITEMS = {
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.5, 1.05], hitH: 84, tintable: false },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 62, seat: 24 },
+  // noMirror: rendered PNG sprites (Kenney Furniture Kit, CC0) with a real
+  // second render per rotation — the scene passes `rot` in instead of
+  // mirroring, and PNGs can't take the tint variable.
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 1], hitH: 42, seat: 24, tintable: false, noMirror: true },
+  armchair: { label: "Armchair", icon: "💺", foot: [1, 1], hitH: 40, seat: 22, tintable: false, noMirror: true },
+  nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, tintable: false, noMirror: true },
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 30 },
-  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 58, seat: 30 },
+  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 50, seat: 30, tintable: false, noMirror: true },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
   aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
@@ -53,6 +58,10 @@ export const ISO_ITEMS = {
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
   wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
   mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },
+  wallclock: { label: "Wall clock", icon: "🕰️", foot: [0.8, 0.3], wall: true, hitH: 100 },
+  fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78 },
+  recordplayer: { label: "Record player", icon: "📀", foot: [1.2, 0.7], hitH: 42 },
+  candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28 },
   // outdoor set (at home in the garden, allowed anywhere)
   tree: { label: "Tree", icon: "🌳", foot: [1.5, 1.5], hitH: 128 },
   bush: { label: "Bush", icon: "🌲", foot: [1, 1], hitH: 40 },
@@ -367,6 +376,7 @@ export const ISO_PRESETS = {
       { item: "stool", gx: 4, gy: 1.5 },
       { item: "resident", gx: 4, gy: 1.5 },
       { item: "frame", gx: 1, gy: 0 },
+      { item: "wallclock", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 6, gy: 0 },
       { item: "floorlamp", gx: 8, gy: 0.5 },
       // left wall: bookshelf faces into the room, clear of the window
@@ -374,6 +384,8 @@ export const ISO_PRESETS = {
       // centre: rug + cat
       { item: "rug", gx: 3, gy: 2.5 },
       { item: "cat", gx: 4, gy: 3.5 },
+      // a candle in the window light
+      { item: "candle", gx: 1, gy: 2.5 },
       // green corners
       { item: "monstera", gx: 0.5, gy: 5.5 },
       { item: "plant", gx: 8, gy: 5.5 },
@@ -384,17 +396,20 @@ export const ISO_PRESETS = {
     icon: "🪵",
     size: { w: 9, d: 8 },
     items: [
-      // sleeping corner: bed flush to the right wall, stool as a nightstand
-      { item: "bed", gx: 6.5, gy: 0, tint: "#c98a4b" },
-      { item: "stool", gx: 5.5, gy: 0, tint: "#9a6a45" },
-      // hearth wall: bookshelf flush, shelf + frame hung over it
+      // sleeping corner: bed flush to the right wall, nightstand beside it
+      { item: "bed", gx: 6.5, gy: 0 },
+      { item: "nightstand", gx: 5.5, gy: 0 },
+      // hearth wall, now with an actual hearth: bookshelf, then the
+      // fireplace mid-wall, the shelf re-hung over the bed's headboard
       { item: "bookshelf", gx: 1.5, gy: 0 },
-      { item: "wallshelf", gx: 3.5, gy: 0, tint: "#8a5a3b" },
+      { item: "fireplace", gx: 3.5, gy: 0 },
+      { item: "wallshelf", gx: 6.5, gy: 0, tint: "#8a5a3b" },
+      { item: "candle", gx: 3, gy: 5, tint: "#e0c9a0" },
       // frame hangs over the sofa (the window owns gy 1–2.5 of this wall)
       { item: "frame", gx: 0, gy: 4, rot: 1, tint: "#6b4a39" },
       // sitting nook on the left wall: sofa faces its table across the rug
       { item: "squarerug", gx: 0.5, gy: 3.5, tint: "#9a6a45" },
-      { item: "sofa", gx: 0, gy: 3.5, rot: 1, tint: "#8a5a3b" },
+      { item: "sofa", gx: 0, gy: 3.5, rot: 1 },
       { item: "coffeetable", gx: 1.5, gy: 4, rot: 1 },
       { item: "cat", gx: 2, gy: 5.5, tint: "#8a5a3b" },
       { item: "floorlamp", gx: 0.5, gy: 6.5 },
@@ -411,16 +426,18 @@ export const ISO_PRESETS = {
     size: { w: 10, d: 8, cuts: [{ corner: "front", cw: 4, cd: 3 }] },
     items: [
       // bed tucked into the far right corner, nightstand beside it
-      { item: "bed", gx: 8, gy: 0, tint: "#5b6b9b" },
-      { item: "stool", gx: 7, gy: 0, tint: "#3a3142" },
-      // back wall: aquarium + shelf
+      { item: "bed", gx: 8, gy: 0 },
+      { item: "nightstand", gx: 7, gy: 0 },
+      // back wall: record console under the shelf, aquarium beside it
+      { item: "recordplayer", gx: 3, gy: 0, tint: "#4a3a5b" },
       { item: "aquarium", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 2, gy: 0, tint: "#3a3142" },
       { item: "frame", gx: 5.5, gy: 0, tint: "#3a3142" },
       // lounge against the left wall: sofa + table on one centreline, on a rug
       { item: "squarerug", gx: 0.5, gy: 2.5, tint: "#8a7ac2" },
-      { item: "sofa", gx: 0, gy: 2.5, rot: 1, tint: "#7568ad" },
+      { item: "sofa", gx: 0, gy: 2.5, rot: 1 },
       { item: "coffeetable", gx: 1.5, gy: 3, rot: 1, tint: "#4a3a5b" },
+      { item: "armchair", gx: 3, gy: 4.5, rot: 1 },
       { item: "mirror", gx: 0, gy: 5.5, rot: 1, tint: "#cbd5e8" },
       // the open nook the cut leaves behind
       { item: "floorlamp", gx: 5, gy: 4, tint: "#cbd5e8" },
@@ -438,6 +455,7 @@ export const ISO_PRESETS = {
       { item: "bookshelf", gx: 0, gy: 0.5, rot: 1 },
       { item: "desk", gx: 3.5, gy: 0 },
       { item: "frame", gx: 1.5, gy: 0, tint: "#9a6a45" },
+      { item: "wallclock", gx: 3, gy: 0, tint: "#6b4a39" },
       { item: "wallshelf", gx: 6.5, gy: 0, tint: "#9a6a45" },
       { item: "aquarium", gx: 8.5, gy: 0 },
       // seating set A on the big rug: stools flank the table's centreline

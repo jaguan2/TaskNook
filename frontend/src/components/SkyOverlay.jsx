@@ -2,8 +2,10 @@ import { memo, useMemo } from "react";
 
 // Ambient sky BEHIND the scene (the room floats in front of it): twinkling
 // stars + a moon at night, a glowing sun by day (low and warm at sunset),
-// and drifting clouds whenever the weather calls for them — soft grey when
-// merely cloudy/snowy, storm-dark for rain and thunder. All movement is CSS
+// and drifting clouds whenever the weather calls for them. Weather and time
+// of day COMPOSE — cloudy nights, rainy sunsets — so every element takes a
+// time-aware tone: clouds are pale by day, ember-lit at sunset, dark
+// silhouettes at night, storm-heavy in rain/storm. All movement is CSS
 // keyframes (the app re-renders every second; CSS animations don't care),
 // and everything is pointer-transparent and behind the HUD corners.
 const STAR_COUNT = 44;
@@ -16,8 +18,22 @@ const CLOUDS = [
   { top: "34%", scale: 0.9, duration: 165, delay: -110, opacity: 0.3 },
 ];
 
-function Cloud({ top, scale, duration, delay, opacity, dark }) {
-  const tone = dark ? "rgba(14, 9, 20, 0.95)" : "rgba(210, 200, 220, 0.5)";
+// One tone per (weather-darkness × time): storm clouds read HEAVY whatever
+// the hour; fair-weather clouds read pale by day, warm at sunset, and as
+// darker-than-the-sky silhouettes at night.
+function cloudTone({ dark, night, sunset }) {
+  if (dark) return "rgba(14, 9, 20, 0.95)";
+  if (night) return "rgba(38, 32, 58, 0.85)";
+  if (sunset) return "rgba(235, 165, 130, 0.42)";
+  return "rgba(210, 200, 220, 0.5)";
+}
+
+function Cloud({ top, scale, duration, delay, opacity, dark, night, sunset }) {
+  const tone = cloudTone({ dark, night, sunset });
+  // Sunset clouds catch the light on their undersides — a soft inner warm
+  // rim, which is what makes a sunset sky read golden instead of grey.
+  const lit = sunset && !dark ? "inset 0 -5px 10px rgba(255, 190, 130, 0.45)" : undefined;
+  const puff = { background: tone, boxShadow: lit };
   return (
     <div
       className="sky-cloud absolute"
@@ -30,15 +46,9 @@ function Cloud({ top, scale, duration, delay, opacity, dark }) {
       }}
     >
       <div className="relative" style={{ transform: `scale(${scale})` }}>
-        <div className="h-10 w-40 rounded-full" style={{ background: tone }} />
-        <div
-          className="absolute -top-5 left-7 h-11 w-20 rounded-full"
-          style={{ background: tone }}
-        />
-        <div
-          className="absolute -top-3 left-20 h-9 w-16 rounded-full"
-          style={{ background: tone }}
-        />
+        <div className="h-10 w-40 rounded-full" style={puff} />
+        <div className="absolute -top-5 left-7 h-11 w-20 rounded-full" style={puff} />
+        <div className="absolute -top-3 left-20 h-9 w-16 rounded-full" style={puff} />
       </div>
     </div>
   );
@@ -64,11 +74,46 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
   const sunset = timeOfDay === "sunset";
   // An overcast sky mutes the sun/moon rather than hiding it outright.
   const orbOpacity = hasClouds ? 0.3 : 0.9;
+  // Under clouds most stars vanish; a handful still peek through gaps.
+  const visibleStars = hasClouds ? stars.slice(0, 14) : stars;
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Time-of-day washes: the page background stays the cozy dark theme
+          gradient, so time is painted as light ON it — a cool morning haze
+          from above by day, an ember band rising from the horizon at
+          sunset, nothing at night (the stars carry it). */}
+      {!night && !sunset && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(142, 201, 234, 0.14), rgba(142, 201, 234, 0) 55%)",
+          }}
+        />
+      )}
+      {sunset && (
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(109, 68, 112, 0.10), rgba(226, 130, 94, 0) 45%)",
+            }}
+          />
+          <div
+            className="absolute inset-x-0 bottom-0"
+            style={{
+              height: "46%",
+              background:
+                "linear-gradient(to top, rgba(255, 138, 80, 0.20), rgba(255, 170, 110, 0.07) 55%, rgba(255, 170, 110, 0))",
+            }}
+          />
+        </>
+      )}
+
       {night &&
-        stars.map((s, i) => (
+        visibleStars.map((s, i) => (
           <span
             key={i}
             className="room-twinkle absolute rounded-full"
@@ -78,6 +123,7 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
               width: s.size,
               height: s.size,
               background: "#f3e9ff",
+              opacity: hasClouds ? 0.5 : 1,
               animationDelay: s.delay,
             }}
           />
@@ -108,32 +154,48 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
           <div className="absolute left-6 top-6 h-1.5 w-1.5 rounded-full bg-black/10" />
         </div>
       ) : (
+        // The sun is layered, not flat: a wide soft halo, then a core with
+        // an off-centre hotspot so it reads as a glowing ball, not a coin.
         <div
-          className="absolute rounded-full"
+          className="absolute"
           style={{
-            left: sunset ? "13%" : "63%",
-            top: sunset ? "34%" : "12%",
-            width: sunset ? 64 : 52,
-            height: sunset ? 64 : 52,
-            background: sunset ? "#ffb45e" : "#ffd76a",
+            left: sunset ? "12%" : "63%",
+            top: sunset ? "40%" : "12%",
+            width: sunset ? 74 : 54,
+            height: sunset ? 74 : 54,
             opacity: orbOpacity,
-            boxShadow: sunset
-              ? "0 0 90px 34px rgba(255, 150, 80, 0.35)"
-              : "0 0 60px 22px rgba(255, 215, 106, 0.28)",
           }}
-        />
+        >
+          <div
+            className="absolute rounded-full"
+            style={{
+              inset: sunset ? -56 : -40,
+              background: sunset
+                ? "radial-gradient(circle, rgba(255, 150, 80, 0.38), rgba(255, 150, 80, 0) 68%)"
+                : "radial-gradient(circle, rgba(255, 224, 130, 0.32), rgba(255, 224, 130, 0) 68%)",
+            }}
+          />
+          <div
+            className="room-breathe absolute inset-0 rounded-full"
+            style={{
+              background: sunset
+                ? "radial-gradient(circle at 38% 32%, #ffe2b0, #ffab5e 58%, #e87c4a)"
+                : "radial-gradient(circle at 38% 32%, #fff6d8, #ffd76a 62%, #f2b955)",
+            }}
+          />
+        </div>
       )}
 
       {/* rare delights: a shooting star at night, a bird passing by day.
           Both are pure CSS — the "rarity" is a long animation cycle where
-          the visible part is only a sliver of it. */}
+          the visible part is only a sliver of it. No bird braves a storm. */}
       {night && !hasClouds && (
         <span
           className="shooting-star absolute"
           style={{ left: "18%", top: "12%" }}
         />
       )}
-      {!night && (
+      {!night && !darkClouds && (
         <svg
           className="bird-fly absolute"
           style={{ top: sunset ? "20%" : "14%" }}
@@ -152,7 +214,9 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
       )}
 
       {hasClouds &&
-        CLOUDS.map((c, i) => <Cloud key={i} {...c} dark={darkClouds} />)}
+        CLOUDS.map((c, i) => (
+          <Cloud key={i} {...c} dark={darkClouds} night={night} sunset={sunset} />
+        ))}
     </div>
   );
 }
