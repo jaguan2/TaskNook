@@ -69,6 +69,8 @@ export const api = {
   // room decoration (flat layout + isometric layout travel together)
   getRoom: () => request("GET", "/room"),
   saveRoom: (placements, iso) => request("PUT", "/room", { placements, iso }),
+  getUnlocks: () => request("GET", "/unlocks"),
+  saveUnlocks: (unlocked) => request("PUT", "/unlocks", { unlocked }),
 
   // sessions + stats
   logSession: (payload) => request("POST", "/sessions", payload),

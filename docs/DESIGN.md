@@ -44,6 +44,32 @@ The screen has an ownership map — respect it:
   seek row rather than beside the column.) Give paired numeric labels a fixed
   `w-*` with `tabular-nums` so the control between them doesn't resize as the
   digits change.
+- **Big surfaces need grain, not just colour.** The floor is the largest
+  thing on screen; a flat gradient reads as a coloured plane and it was the
+  clearest difference between TaskNook and the isometric-room art it's chasing.
+  Every environment names a `floorStyle`, and walls carry a skirting, a picture
+  rail and one panel seam per tile. Keep it SUBTLE — wall decor hangs on that
+  surface, so it wants texture, not pattern.
+- **Derive texture from position, never randomness.** The scene re-renders on
+  a timer tick; a floor seeded from `Math.random` would crawl. Flagstone jitter
+  and plank stagger both come from the tile index.
+- **Detail belongs in the shared helper before the individual sprite.** Ninety
+  pieces are built from a handful of primitives, so one edit there raises the
+  whole catalog and keeps it consistent — an over-detailed bookshelf beside
+  ninety flat boxes looks worse than uniform. `TintedBox`'s contact shading
+  (a short dark band where a box meets what it stands on) is the clearest
+  case: without it every object looks pasted onto the floor rather than
+  resting on it, and it cost one function to fix everywhere.
+- **A border has to be an area, not a line.** The five base rugs were a solid
+  diamond with a hairline stroke inside and read as flat shapes with no
+  pattern at all; the fix is an inset lighter field, so the border is the rim
+  left showing. The same applies to plank seams on a tabletop — a bare slab
+  reads as flat-pack, and a rail between the legs is what makes four legs and
+  a top into a piece of furniture.
+- **Judge artwork on a contact sheet, not one room at a time.** Rendering
+  every sprite into one labelled grid is how the untextured rugs were spotted
+  sitting next to two properly woven ones. In a room you see what you went
+  looking for.
 - **Rule of thirds for focal accents.** The sun/moon sits at the upper-right
   third intersection, not centered above the room (centered reads stuck-on
   and crowds the subject). Sunset is the deliberate exception: low-left,
@@ -112,6 +138,39 @@ learned the hard way):
 6. Preset coordinates must be half-snapped and in-bounds **as written** — the
    preset test enforces clamp-stability.
 7. Use tints for mood coherence (a cabin is woods; a loft is cool slate).
+8. **A wall that's already full has no room for architecture.** An arch or a
+   window placed behind an unbroken run of shelving is simply invisible —
+   open a bay for it rather than squeezing it in.
+9. **Nothing is placed by eye.** Dump the floor occupancy first and place into
+   tiles you have confirmed are free. Every placement bug this room has had —
+   a jar stacked invisibly on a mug, a cat spawned inside a chair, a door
+   behind a bookcase — came from guessing coordinates.
+
+**Every piece in the catalog appears in at least one preset**, and a test says
+so. The presets are the shop window: sixteen items once existed only in the
+picker, so unless you went hunting through ninety-odd entries the room never
+showed them. Adding a piece isn't finished until somewhere shows it off.
+
+**But coverage means one good home, not a sprinkle.** The rule above is the
+easiest one in this file to over-apply, and doing so cost a round of feedback:
+a preset stuffed to show pieces off is a worse room than a calm one. So —
+
+- **A room gets one rug.** Two side by side is not a thing anyone does. A
+  patterned rug earns its place by BEING the room's rug, so it replaces the
+  plain one rather than joining it. (Separate rugs in genuinely separate
+  zones — a runner by the bed, a fleece at the hearth — are fine; adjacent
+  ones are not.)
+- **Empty seats and open floor are the content.** The study hall sat eleven
+  people at sixteen chairs and read as a crowd; at five, with one table left
+  completely free, it reads as somewhere you could go and work. Leave a table
+  empty on purpose.
+- **Prefer fewer, better-placed accents.** Six plants and three lamps in one
+  room is set dressing you stop seeing. Cut until removing the next one would
+  be a loss.
+
+When a piece has nowhere left to go without crowding, swap it in for something
+plainer rather than adding it — and check the item you displaced still has a
+home of its own, or the coverage test will (correctly) fail.
 
 **Catalogs show the thing, not a stand-in.** Every browser that offers
 something placeable renders the REAL sprite at postage-stamp size — preset

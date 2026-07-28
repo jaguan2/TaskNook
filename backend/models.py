@@ -44,6 +44,11 @@ class User(db.Model):
     # [{id, item, x, y}] placements. The frontend owns the catalog; the
     # backend just keeps the layout safe alongside the rest of the user's data.
     room_config = db.Column(db.Text, nullable=True)
+    # Furniture bought with focus minutes, as a JSON string of item keys.
+    # Like room_config, the frontend owns the catalog and the prices; this just
+    # keeps the list safe. Nullable rather than defaulted so an existing row
+    # doesn't need backfilling — an absent value means "only the free pieces".
+    unlocked = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     tasks = db.relationship(

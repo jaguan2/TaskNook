@@ -519,7 +519,9 @@ def register_routes(app):
     def _clean_layout(placements, xkey, ykey):
         """Validate one placement list. Returns (cleaned, ok) — shared by the
         flat layout (x/y) and the isometric layout (gx/gy)."""
-        if not isinstance(placements, list) or len(placements) > 80:
+        # Headroom above the frontend's ISO_MAX_ITEMS (150), same as it
+        # has always sat above it — this only stops a bug ballooning the blob.
+        if not isinstance(placements, list) or len(placements) > 200:
             return None, False
         clean = []
         for p in placements:
@@ -617,6 +619,44 @@ def register_routes(app):
                 stored["iso"]["cuts"] = clean_cuts
 
         user.room_config = json.dumps(stored)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    # ----- Unlocked furniture ---------------------------------------------- #
+    # Same division of labour as the room layout: the frontend owns the catalog
+    # AND the prices, so this only keeps the list of keys safe. Pricing here too
+    # would duplicate catalog knowledge across two languages, which is exactly
+    # how the environment list drifted and 400'd three presets. There's nothing
+    # to cheat anyway — TaskNook is a single-user app on your own machine.
+    @app.get("/api/unlocks")
+    @require_auth
+    def get_unlocks(user):
+        if not user.unlocked:
+            return jsonify({"unlocked": []})
+        try:
+            saved = json.loads(user.unlocked)
+        except ValueError:
+            return jsonify({"unlocked": []})
+        if not isinstance(saved, list):
+            return jsonify({"unlocked": []})
+        return jsonify({"unlocked": [k for k in saved if isinstance(k, str)]})
+
+    @app.put("/api/unlocks")
+    @require_auth
+    def save_unlocks(user):
+        data = json_body()
+        keys = data.get("unlocked")
+        if not isinstance(keys, list) or len(keys) > 300:
+            return jsonify({"error": "Invalid unlock list"}), 400
+        clean = []
+        seen = set()
+        for key in keys:
+            if not (isinstance(key, str) and 0 < len(key) <= 32):
+                return jsonify({"error": "Invalid unlock list"}), 400
+            if key not in seen:
+                seen.add(key)
+                clean.append(key)
+        user.unlocked = json.dumps(clean)
         db.session.commit()
         return jsonify({"ok": True})
 
