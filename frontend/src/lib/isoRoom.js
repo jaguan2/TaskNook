@@ -6,7 +6,12 @@
 export const ISO_SIZE_MIN = 3;
 export const ISO_SIZE_MAX = 48;
 export const DEFAULT_ISO_SIZE = { w: 9, d: 7 };
-export const ISO_MAX_ITEMS = 60;
+// Raised from 60 for group rooms: a study hall with four tables, sixteen
+// chairs, people in them and shelving along two walls lands around 75, and 60
+// silently truncated it. Room SIZE was never the constraint — the floor has
+// gone to 48x48 all along. The scene is memo'd and each placement is a handful
+// of SVG nodes, so the ceiling here is legibility, not frame rate.
+export const ISO_MAX_ITEMS = 150;
 // Irregular floors, the full Sims way: a TILE MASK. `mask` is d row-strings
 // of w chars ("1" = floor, "0" = void) painted in the panel's floor-plan
 // grid; walls and the front lip are computed per tile edge, so ANY drawn
@@ -19,6 +24,9 @@ export const CUT_CORNERS = ["back", "right", "left", "front"];
 //
 //   walls   "full" cutaway interior · "low" waist-height balustrade · "none"
 //   floor   the gradient id IsoRoom fills the tile sheet with
+//   floorStyle  the MATERIAL drawn over it: boards / tiles / stone / grass.
+//           A flat gradient reads as a coloured plane; grain is what makes
+//           the biggest surface in the scene look like a floor.
 //   lip     [gx-facing, gy-facing] colours for the floor's front rim
 //   window  the built-in window on the left wall
 //   lights  the built-in string lights along the right wall
@@ -31,6 +39,7 @@ export const ISO_ENVS = {
     icon: "🏠",
     walls: "full",
     floor: "isoFloor",
+    floorStyle: "boards",
     lip: ["#1d0f1f", "#170c19"],
     window: true,
     lights: true,
@@ -40,6 +49,7 @@ export const ISO_ENVS = {
     icon: "☕",
     walls: "full",
     floor: "isoTile",
+    floorStyle: "tiles",
     lip: ["#2e211c", "#261b17"],
     window: true,
     lights: true,
@@ -49,6 +59,7 @@ export const ISO_ENVS = {
     icon: "📚",
     walls: "full",
     floor: "isoWood",
+    floorStyle: "boards",
     lip: ["#2a1a12", "#221410"],
     window: true,
   },
@@ -57,6 +68,7 @@ export const ISO_ENVS = {
     icon: "🪴",
     walls: "low",
     floor: "isoStone",
+    floorStyle: "stone",
     lip: ["#3a3630", "#2e2b26"],
     lights: true,
   },
@@ -65,6 +77,7 @@ export const ISO_ENVS = {
     icon: "🌿",
     walls: "none",
     floor: "isoGrass",
+    floorStyle: "grass",
     lip: ["#2c2018", "#241a12"],
   },
 };
@@ -122,8 +135,8 @@ export const ISO_ITEMS = {
   barcounter: { label: "Café bar", icon: "🍹", foot: [1, 0.6], hitH: 42, surface: 36.5 },
   till: { label: "Till", icon: "🧾", foot: [0.5, 0.4], hitH: 18, stacks: true },
   pastrycase: { label: "Pastry case", icon: "🍰", foot: [0.8, 0.5], hitH: 20, stacks: true },
-  coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 50 },
-  tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 50 },
+  coffeecounter: { label: "Coffee counter", icon: "🫖", foot: [1, 0.5], hitH: 50, glow: [18, 0.25] },
+  tvunit: { label: "TV cabinet", icon: "📺", foot: [2, 0.6], hitH: 50, glow: [26, 0.3] },
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 24, surface: 19 },
   // The tint paints the DUVET (mattress and pillows stay linen-white).
   // seat = the duvet's top edge, hitH = clear of the headboard.
@@ -136,7 +149,7 @@ export const ISO_ITEMS = {
   beanbag: { label: "Beanbag", icon: "🫘", foot: [1.1, 1.1], hitH: 26, seat: 15 },
   standmirror: { label: "Standing mirror", icon: "🪞", foot: [0.6, 0.4], hitH: 70 },
   // ---- the small stuff that makes a room look lived in ----
-  desklamp: { label: "Desk lamp", icon: "🔆", foot: [0.4, 0.4], hitH: 34, stacks: true },
+  desklamp: { label: "Desk lamp", icon: "🔆", foot: [0.4, 0.4], hitH: 34, stacks: true, glow: [20, 0.52] },
   guitar: { label: "Guitar", icon: "🎸", foot: [0.5, 0.4], hitH: 62 },
   // multi-coloured by nature: one flat tint would turn it into a brick
   bookstack: { label: "Stack of books", icon: "📗", foot: [0.5, 0.4], hitH: 16, tintable: false, stacks: true },
@@ -147,7 +160,7 @@ export const ISO_ITEMS = {
   crates: { label: "Stacked crates", icon: "📦", foot: [0.8, 0.7], hitH: 36 },
   cactus: { label: "Cactus", icon: "🌵", foot: [0.5, 0.5], hitH: 46 },
   terrarium: { label: "Terrarium", icon: "🫙", foot: [0.6, 0.6], hitH: 28, stacks: true },
-  lightjar: { label: "Jar of lights", icon: "✨", foot: [0.4, 0.4], hitH: 24, stacks: true },
+  lightjar: { label: "Jar of lights", icon: "✨", foot: [0.4, 0.4], hitH: 24, stacks: true, glow: [15, 0.3] },
   mug: { label: "Mug", icon: "☕", foot: [0.3, 0.3], hitH: 16, stacks: true },
   // The cat treats every layer:-1 item as a soft spot, so it will eventually
   // curl up in this one — which is the entire point of a pet bed.
@@ -156,16 +169,20 @@ export const ISO_ITEMS = {
   ovalrug: { label: "Oval rug", icon: "⭕", foot: [2.2, 1.7], layer: -1, hitH: 10 },
   matrug: { label: "Door mat", icon: "▫️", foot: [1.4, 0.9], layer: -1, hitH: 10 },
   // ---- more of what the room already had ----
-  computer: { label: "Computer", icon: "🖳", foot: [1.4, 0.9], hitH: 42, stacks: true },
+  computer: { label: "Computer", icon: "🖳", foot: [1.4, 0.9], hitH: 42, stacks: true, glow: [22, 0.3] },
   diningtable: { label: "Dining table", icon: "🍽️", foot: [1.8, 1.1], hitH: 30, surface: 26.5 },
   woodstool: { label: "Wooden stool", icon: "🪑", foot: [0.7, 0.7], hitH: 26, seat: 19 },
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
-  aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false },
+  aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false, glow: [26, 0.35] },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46, stacks: true },
-  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 84, foot: [0.8, 0.8] },
+  floorlamp: { label: "Floor lamp", icon: "💡", hitH: 84, foot: [0.8, 0.8], glow: [34, 0.72] },
   // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
   cat: { label: "Cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34, roamer: true },
+  // Architecture: openings that give a wall somewhere to look through.
+  archway: { label: "Archway", icon: "🏛️", foot: [2, 0.3], wall: true, hitH: 104 },
+  doorway: { label: "Door", icon: "🚪", foot: [1.2, 0.3], wall: true, hitH: 96 },
+  bigwindow: { label: "Tall window", icon: "🪟", foot: [1.8, 0.3], wall: true, hitH: 104 },
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
   wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
   mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },
@@ -174,12 +191,12 @@ export const ISO_ITEMS = {
   menuboard: { label: "Menu board", icon: "📋", foot: [1.8, 0.3], wall: true, hitH: 100 },
   curtain: { label: "Curtains", icon: "🪟", foot: [1.6, 0.3], wall: true, hitH: 110 },
   hangplant: { label: "Hanging plant", icon: "🌿", foot: [0.7, 0.3], wall: true, hitH: 110 },
-  neon: { label: "Neon sign", icon: "💡", foot: [1.4, 0.3], wall: true, hitH: 94 },
+  neon: { label: "Neon sign", icon: "💡", foot: [1.4, 0.3], wall: true, hitH: 94, glow: [30, 0.4] },
   corkboard: { label: "Corkboard", icon: "📌", foot: [1.2, 0.3], wall: true, hitH: 100 },
   pennant: { label: "Pennant", icon: "🚩", foot: [0.9, 0.3], wall: true, hitH: 100 },
-  fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78 },
+  fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78, glow: [44, 0.7] },
   recordplayer: { label: "Record player", icon: "📀", foot: [1.2, 0.7], hitH: 42 },
-  candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28, stacks: true },
+  candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28, stacks: true, glow: [16, 0.35] },
   // outdoor set (at home in the garden, allowed anywhere)
   tree: { label: "Tree", icon: "🌳", foot: [1.5, 1.5], hitH: 128 },
   pine: { label: "Pine tree", icon: "🌲", foot: [1.2, 1.2], hitH: 92 },
@@ -206,14 +223,14 @@ export const ISO_ITEMS = {
   // ---- more decoration ----
   piano: { label: "Upright piano", icon: "🎹", foot: [2, 0.8], hitH: 66, surface: 62 },
   easel: { label: "Easel", icon: "🎨", foot: [0.9, 0.8], hitH: 62 },
-  birdcage: { label: "Birdcage", icon: "🐦", foot: [0.6, 0.6], hitH: 60 },
+  birdcage: { label: "Birdcage", icon: "🐦", foot: [0.6, 0.6], hitH: 60, glow: [16, 0.25] },
   screen: { label: "Folding screen", icon: "🎏", foot: [1.6, 0.4], hitH: 62 },
   globe: { label: "Globe", icon: "🌍", foot: [0.45, 0.45], hitH: 28, stacks: true },
   // a checkered board is two colours by definition — one flat tint erases it
   chess: { label: "Chess set", icon: "♟️", foot: [0.6, 0.5], hitH: 14, stacks: true, tintable: false },
   // ---- more outdoors ----
   hammock: { label: "Hammock", icon: "🏝️", foot: [2.2, 0.9], hitH: 44, seat: 22, lie: true },
-  lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58 },
+  lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58, glow: [26, 0.45] },
 };
 
 /**
@@ -264,7 +281,7 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "On the wall",
-    keys: ["frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
+    keys: ["archway", "doorway", "bigwindow", "frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
       "pennant", "neon", "curtain", "hangplant"],
   },
   {
@@ -332,6 +349,38 @@ export function seatedPlacement(persona, seat) {
     _seat: seat.height,
     _lie: seat.lie,
     _depth: isoDepth(seat.placement) + (away ? -0.01 : 0.01),
+  };
+}
+
+/**
+ * Where a stacked item is drawn once it's resting on `surface`.
+ *
+ * It KEEPS the spot it was put down on, clamped so its footprint stays fully
+ * on the surface. It used to be snapped to the surface's dead centre, which
+ * meant one table could only ever display one thing: a mug and a bookstack on
+ * the same table drew at exactly the same point, so the second was invisible
+ * however far apart they were written. Eight items across the shipped presets
+ * were hidden this way — a mug inside a computer, four hall tables each with a
+ * mug inside a bookstack.
+ *
+ * Centring is still the fallback for something too big for what it's on,
+ * where there is no offset left to preserve.
+ */
+export function stackedPlacement(placement, on) {
+  const sf = footOf(on.placement.item, on.placement.rot);
+  const pf = footOf(placement.item, placement.rot);
+  const keep = (v, lo, span) =>
+    span <= 0 ? lo + span / 2 : Math.min(Math.max(v, lo), lo + span);
+  const gx = keep(placement.gx, on.placement.gx, sf[0] - pf[0]);
+  const gy = keep(placement.gy, on.placement.gy, sf[1] - pf[1]);
+  return {
+    gx,
+    // A hair nearer than the surface so the depth sort draws it ON it.
+    gy: gy + 0.1,
+    _rest: on.height,
+    // Nudged by how far back it sits, so two things on one table sort
+    // front-to-back against each other rather than by array order.
+    _depth: isoDepth(on.placement) + 0.01 + (gy - on.placement.gy) * 0.001,
   };
 }
 
@@ -787,6 +836,9 @@ export const ISO_PRESETS = {
       { item: "frame", gx: 3.5, gy: 0, tint: "#3a3142" },
       { item: "neon", gx: 5.5, gy: 0, tint: "#8a7ac2" },
       { item: "mirror", gx: 0, gy: 6.5, rot: 1, tint: "#cbd5e8" },
+      // The window the attic deserves, and a screen to curtain off the bed.
+      { item: "bigwindow", gx: 7.5, gy: 0 },
+      { item: "screen", gx: 6.5, gy: 3 },
     ],
   },
   classic: {
@@ -812,7 +864,7 @@ export const ISO_PRESETS = {
       { item: "bookshelf", gx: 0, gy: 3, rot: 1 },
       { item: "corkboard", gx: 2.5, gy: 0 },
       // centre: rug + cat, with the cat's own bed just off it
-      { item: "rug", gx: 3, gy: 2.5 },
+      { item: "stripedrug", gx: 3, gy: 2.5 },
       { item: "cat", gx: 4, gy: 3.5 },
       { item: "petbed", gx: 6.5, gy: 4, tint: "#8a7ac2" },
       // a candle in the window light
@@ -823,6 +875,11 @@ export const ISO_PRESETS = {
       { item: "shelf", gx: 6.5, gy: 5.5 },
       { item: "terrarium", gx: 5.5, gy: 5.5 },
       { item: "coatrack", gx: 8, gy: 2.5 },
+      // A door, and the two things a studious room collects: something
+      // half-painted, and a globe to spin while thinking.
+      { item: "doorway", gx: 7.5, gy: 0 },
+      { item: "easel", gx: 1, gy: 3 },
+      { item: "globe", gx: 2, gy: 5 },
     ],
   },
   cabin: {
@@ -867,6 +924,10 @@ export const ISO_PRESETS = {
       { item: "crates", gx: 8, gy: 4.5 },
       { item: "ladder", gx: 6, gy: 6.5 },
       { item: "lightjar", gx: 5, gy: 5.5 },
+      // Fleece by the hearth with the dog asleep on it, and a lantern.
+      { item: "sheepskin", gx: 3, gy: 1 },
+      { item: "dog", gx: 3.5, gy: 1.5 },
+      { item: "lantern", gx: 5, gy: 2 },
     ],
   },
   cafe: {
@@ -915,6 +976,9 @@ export const ISO_PRESETS = {
       // 8.5, not 8.3: preset coordinates must be half-snapped as written, and
       // the wall shelf runs to 8.1, so this is the next legal slot clear of it
       { item: "hangplant", gx: 8.5, gy: 0 },
+      // A way in, and a birdcage — the sort of thing old cafés keep.
+      { item: "doorway", gx: 4.5, gy: 0 },
+      { item: "birdcage", gx: 4, gy: 1 },
     ],
   },
   garden: {
@@ -952,6 +1016,9 @@ export const ISO_PRESETS = {
       { item: "log", gx: 8, gy: 3 },
       { item: "flowers", gx: 5.5, gy: 6.5 },
       { item: "matrug", gx: 5, gy: 4.5, tint: "#c98a4b" },
+      // A hammock strung between the trees, and a rabbit in the grass.
+      { item: "hammock", gx: 3, gy: 8 },
+      { item: "bunny", gx: 6, gy: 8 },
     ],
   },
   // A REAL café: a working counter run along the back wall, two seating
@@ -994,7 +1061,7 @@ export const ISO_PRESETS = {
       { item: "menuboard", gx: 7, gy: 0 },
       { item: "neon", gx: 9.5, gy: 0, tint: "#e0a374" },
       // ---- SEATING, kept on its own side of the room ----------------------
-      { item: "rug", gx: 0.5, gy: 3, tint: "#c98a4b" },
+      { item: "persianrug", gx: 0.5, gy: 3, tint: "#7a4034" },
       { item: "cafetable", gx: 1, gy: 3.5 },
       { item: "mug", gx: 1, gy: 3.5 },
       { item: "chair", gx: 0, gy: 4 },
@@ -1023,6 +1090,9 @@ export const ISO_PRESETS = {
       { item: "corkboard", gx: 2, gy: 0 },
       { item: "poster", gx: 4, gy: 0, tint: "#9a6a45" },
       { item: "hangplant", gx: 5.5, gy: 0 },
+      // A game left set up on the corner table, at the other end of it
+      // from the books.
+      { item: "chess", gx: 4.5, gy: 6.5 },
     ],
   },
   // A READING room: bookcases wall to wall, one long table down the middle,
@@ -1038,11 +1108,8 @@ export const ISO_PRESETS = {
       // right-hand rim that you look over rather than at.
       { item: "bookshelf", gx: 0, gy: 0, tint: "#5c3a2c" },
       { item: "bookshelf", gx: 1.5, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 3, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 4.5, gy: 0, tint: "#5c3a2c" },
       { item: "bookshelf", gx: 6, gy: 0, tint: "#5c3a2c" },
       { item: "bookshelf", gx: 7.5, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 9, gy: 0, tint: "#5c3a2c" },
       // left wall, stopping short of the window bay (gy 1–2.5) — books over
       // a window would be a dark rectangle exactly where the light is
       { item: "bookshelf", gx: 0, gy: 3, rot: 1, tint: "#5c3a2c" },
@@ -1054,7 +1121,7 @@ export const ISO_PRESETS = {
       { item: "bookcase", gx: 10, gy: 4, rot: 1, tint: "#6b4a39" },
       { item: "bookcase", gx: 10, gy: 6, rot: 1, tint: "#6b4a39" },
       // two ladders, leaning — they clip the shelves on purpose
-      { item: "ladder", gx: 5, gy: 0.5, tint: "#8f5d49" },
+      { item: "ladder", gx: 6.5, gy: 0.5, tint: "#8f5d49" },
       { item: "ladder", gx: 0.5, gy: 5, rot: 1, tint: "#8f5d49" },
       { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#4a3a5b" },
       // ---- the reading table, centred on its rug ---------------------------
@@ -1080,10 +1147,99 @@ export const ISO_PRESETS = {
       { item: "crates", gx: 6, gy: 8, tint: "#5c3a2c" },
       { item: "cat", gx: 5, gy: 7, tint: "#3a2a24" },
       { item: "monstera", gx: 9.5, gy: 8 },
+      // Arched entrance, a tall window, and a game waiting on the big table.
+      { item: "archway", gx: 3.5, gy: 0 },
+      { item: "bigwindow", gx: 9, gy: 0 },
+      { item: "chess", gx: 4, gy: 4.5 },
     ],
   },
   // Half outdoors: a low balustrade instead of walls, stone underfoot, and
   // string lights overhead.
+  hall: {
+    label: "Study hall",
+    icon: "🧑‍🤝‍🧑",
+    // The big one: a 16x12 room built for company. Four tables of four with
+    // people sitting ACROSS from each other — only possible since seating got
+    // real back-view artwork, so the far row can turn round (rot 2) instead of
+    // everyone facing the same way.
+    size: { w: 16, d: 12, env: "library" },
+    items: [
+      // ---- shelving along the two walls -------------------------------
+      { item: "bookshelf", gx: 2.0, gy: 0 },
+      { item: "bookshelf", gx: 3.5, gy: 0 },
+      { item: "bookshelf", gx: 9.5, gy: 0 },
+      { item: "bookshelf", gx: 11.0, gy: 0 },
+      { item: "bookshelf", gx: 12.5, gy: 0 },
+      { item: "bookcase", gx: 0, gy: 2, rot: 1 },
+      { item: "bookcase", gx: 0, gy: 4, rot: 1 },
+      { item: "bookcase", gx: 0, gy: 6, rot: 1 },
+      { item: "bookcase", gx: 0, gy: 8, rot: 1 },
+      // ---- four study tables, people facing each other across them ----
+      { item: "diningtable", gx: 4, gy: 3 },
+      { item: "chair", gx: 4, gy: 2 },
+      { item: "resident", gx: 4, gy: 2, tint: "#6fb8cf" },
+      { item: "chair", gx: 5, gy: 2 },
+      { item: "chair", gx: 4, gy: 4.5, rot: 2 },
+      { item: "chair", gx: 5, gy: 4.5, rot: 2 },
+      { item: "diningtable", gx: 9, gy: 3 },
+      { item: "chair", gx: 9, gy: 2 },
+      { item: "chair", gx: 10, gy: 2 },
+      { item: "chair", gx: 9, gy: 4.5, rot: 2 },
+      { item: "resident", gx: 9, gy: 4.5, tint: "#e0774a" },
+      { item: "chair", gx: 10, gy: 4.5, rot: 2 },
+      { item: "diningtable", gx: 4, gy: 7.5 },
+      { item: "chair", gx: 4, gy: 6.5 },
+      { item: "resident", gx: 4, gy: 6.5, tint: "#6fb8cf" },
+      { item: "chair", gx: 5, gy: 6.5 },
+      { item: "chair", gx: 4, gy: 9, rot: 2 },
+      { item: "chair", gx: 5, gy: 9, rot: 2 },
+      { item: "resident", gx: 5, gy: 9, tint: "#7faf8f" },
+      { item: "diningtable", gx: 9, gy: 7.5 },
+      { item: "chair", gx: 9, gy: 6.5 },
+      { item: "chair", gx: 10, gy: 6.5 },
+      { item: "chair", gx: 9, gy: 9, rot: 2 },
+      { item: "chair", gx: 10, gy: 9, rot: 2 },
+      // ---- something on every table ------------------------------------
+      { item: "mug", gx: 4.5, gy: 3.5 },
+      { item: "bookstack", gx: 5, gy: 3.5 },
+      { item: "mug", gx: 9.5, gy: 3.5 },
+      { item: "bookstack", gx: 10, gy: 3.5 },
+      { item: "mug", gx: 4.5, gy: 8.0 },
+      { item: "bookstack", gx: 5, gy: 8.0 },
+      // ---- corners, greenery and light ----------------------------------
+      { item: "ladder", gx: 14.5, gy: 0 },
+      { item: "monstera", gx: 14.5, gy: 2 },
+      { item: "monstera", gx: 1, gy: 10.5 },
+      { item: "plant", gx: 2.5, gy: 5.5 },
+      { item: "floorlamp", gx: 7.5, gy: 5.5 },
+      { item: "floorlamp", gx: 15, gy: 8 },
+      { item: "coatrack", gx: 12, gy: 11 },
+      { item: "runner", gx: 6.5, gy: 10.5, tint: "#8f4a3c" },
+      { item: "cat", gx: 3.5, gy: 11 },
+      { item: "frame", gx: 0.5, gy: 0, tint: "#9a6a45" },
+      { item: "wallclock", gx: 13.5, gy: 0 },
+      { item: "hangplant", gx: 0, gy: 6.5, rot: 1 },
+      { item: "poster", gx: 0, gy: 10, rot: 1 },
+      // ---- a lounge corner at the front, so the room isn't four identical
+      // ---- tables and a lot of empty floorboards -------------------------
+      { item: "squarerug", gx: 12.5, gy: 9, tint: "#8f4a3c" },
+      { item: "coffeetable", gx: 13, gy: 9.5 },
+      { item: "mug", gx: 13.5, gy: 9.5 },
+      { item: "armchair", gx: 13, gy: 8.5, tint: "#7faf8f" },
+      { item: "armchair", gx: 13, gy: 10.5, rot: 2, tint: "#cf8f93" },
+      { item: "resident", gx: 13, gy: 8.5, tint: "#6fb8cf" },
+      { item: "beanbag", gx: 1.5, gy: 7.5, tint: "#8a7ac2" },
+      { item: "plant", gx: 2.5, gy: 9.5 },
+      // The hall gets its architecture: an arch to come in by, a window
+      // down the long wall, and a piano in the corner. The piano sits at the
+      // near end of the left wall on purpose — in the far corner a monstera
+      // stood in front of it and hid the keyboard, which is the only part of
+      // an upright that isn't a dark box.
+      { item: "archway", gx: 5.5, gy: 0 },
+      { item: "bigwindow", gx: 7.5, gy: 0 },
+      { item: "piano", gx: 0, gy: 1, tint: "#43302b" },
+    ],
+  },
   terrace: {
     label: "Terrace",
     icon: "🪴",
@@ -1110,6 +1266,8 @@ export const ISO_PRESETS = {
       // was ALSO on the side table at 5,5 — two `stacks` items at one spot
       // both centre on the same surface and the second is invisible
       { item: "lightjar", gx: 7.5, gy: 6 },
+      // A lantern for when the string lights are not enough.
+      { item: "lantern", gx: 5, gy: 2 },
     ],
   },
   empty: {

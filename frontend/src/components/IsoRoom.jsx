@@ -6,12 +6,12 @@ import {
   envOf,
   footOf,
   footprintFree,
-  isoDepth,
   lipRuns,
   seatFor,
   seatedPlacement,
   snapHalf,
   sortIso,
+  stackedPlacement,
   surfaceFor,
   tileOn,
   wallRuns,
@@ -53,6 +53,101 @@ function overSoftSpot(placements, gx, gy, f) {
     const of = footOf(o.item, o.rot);
     return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
   });
+}
+
+/**
+ * The floor's MATERIAL, drawn over its colour gradient and clipped to the
+ * painted tiles.
+ *
+ * A flat gradient reads as a coloured plane, not a floor — it's the largest
+ * surface on screen and it was the thing most obviously missing next to the
+ * references. Grain is cheap: every line here is one `<line>` in grid space,
+ * and `project()` puts it on the right plane for free.
+ *
+ * Everything is derived from the tile index, never Math.random — the scene
+ * re-renders and a reshuffling floor would crawl.
+ */
+function FloorSurface({ w, d, style }) {
+  const line = (key, x1, y1, x2, y2, stroke, width, opacity) => {
+    const a = project(x1, y1);
+    const b = project(x2, y2);
+    return (
+      <line
+        key={key}
+        x1={a.x}
+        y1={a.y}
+        x2={b.x}
+        y2={b.y}
+        stroke={stroke}
+        strokeWidth={width}
+        opacity={opacity}
+      />
+    );
+  };
+
+  if (style === "grass") {
+    // Mown stripes: the only thing a lawn needs to stop reading as felt.
+    const out = [];
+    for (let t = 0; t < d; t += 2) {
+      out.push(
+        <polygon
+          key={`mow-${t}`}
+          points={floorPatch(0, t, w, 1)}
+          fill="#ffffff"
+          opacity="0.045"
+        />
+      );
+    }
+    return <g>{out}</g>;
+  }
+
+  if (style === "stone") {
+    // Flagstones: one inset slab per tile, its size nudged by the tile index
+    // so the joints wander instead of forming a grid.
+    const out = [];
+    for (let ty = 0; ty < d; ty++) {
+      for (let tx = 0; tx < w; tx++) {
+        const j = ((tx * 7 + ty * 13) % 5) / 100; // 0 … 0.04
+        out.push(
+          <polygon
+            key={`slab-${tx}-${ty}`}
+            points={floorPatch(tx + 0.06 + j, ty + 0.06 - j, 0.88 - j, 0.88 + j)}
+            fill="#ffffff"
+            opacity={0.05 + (((tx * 3 + ty * 5) % 4) / 100)}
+          />
+        );
+      }
+    }
+    return <g>{out}</g>;
+  }
+
+  if (style === "tiles") {
+    const out = [];
+    for (let t = 0.5; t < d; t += 0.5) {
+      out.push(line(`h${t}`, 0, t, w, t, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
+    }
+    for (let t = 0.5; t < w; t += 0.5) {
+      out.push(line(`v${t}`, t, 0, t, d, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
+    }
+    return <g>{out}</g>;
+  }
+
+  // boards: planks running along +gx, half a tile wide, with staggered end
+  // joints in a brick bond — a plain set of parallel lines reads as corduroy.
+  const out = [];
+  let row = 0;
+  for (let t = 0.5; t < d; t += 0.5, row++) {
+    out.push(line(`seam${t}`, 0, t, w, t, "#000", 0.9, 0.2));
+  }
+  row = 0;
+  for (let t = 0; t < d; t += 0.5, row++) {
+    const stagger = (row % 2) * 1.25;
+    for (let gx = stagger; gx < w; gx += 2.5) {
+      if (gx <= 0) continue;
+      out.push(line(`j${t}-${gx}`, gx, t, gx, Math.min(d, t + 0.5), "#000", 0.7, 0.16));
+    }
+  }
+  return <g>{out}</g>;
 }
 
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
@@ -100,9 +195,9 @@ const ISO_TIME = {
   // every colour the user picked). Without it the backdrop brightened but the
   // room stayed pitch dark inside it, which read as a night room cut out and
   // pasted onto a day sky.
-  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0 },
-  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14 },
-  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19 },
+  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1 },
+  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19, glow: 0.25 },
 };
 
 // memo: App re-renders every second (the focus timer ticks) and a big floor
@@ -382,16 +477,7 @@ function IsoRoom({
     // nearer than the surface so the depth sort draws them ON it.
     if (item?.stacks) {
       const on = surfaceFor(p, placements);
-      if (!on) return p;
-      const sf = footOf(on.placement.item, on.placement.rot);
-      const pf = footOf(p.item, p.rot);
-      return {
-        ...p,
-        gx: on.placement.gx + sf[0] / 2 - pf[0] / 2,
-        gy: on.placement.gy + sf[1] / 2 - pf[1] / 2 + 0.1,
-        _rest: on.height,
-        _depth: isoDepth(on.placement) + 0.01,
-      };
+      return on ? { ...p, ...stackedPlacement(p, on) } : p;
     }
     if (!item?.persona) return p;
     const seat = seatFor(p, placements);
@@ -509,6 +595,40 @@ function IsoRoom({
                     fill: `rgb(var(--color-petal) / ${run.plane === "gy" ? 0.22 : 0.35})`,
                   }}
                 />
+                {/* Panelling: one seam per tile along the run. Subtle on
+                    purpose — wall decor hangs on this surface, so it wants
+                    texture, not pattern. */}
+                {Array.from({ length: Math.max(0, Math.ceil(run.to - run.from) - 1) }, (_, k) => {
+                  const at = run.from + k + 1;
+                  const q = run.plane === "gy" ? project(at, run.at) : project(run.at, at);
+                  return (
+                    <line
+                      key={`panel-${k}`}
+                      x1={q.x}
+                      y1={q.y - wallH}
+                      x2={q.x}
+                      y2={q.y}
+                      stroke="#000"
+                      strokeWidth="1"
+                      opacity="0.09"
+                    />
+                  );
+                })}
+                {/* Skirting and a picture rail. Two bands is all it takes for
+                    a wall to stop being a coloured plane — the references have
+                    them and it was the cheapest gap to close. */}
+                <polygon
+                  points={`${a.x},${a.y - 9} ${b.x},${b.y - 9} ${b.x},${b.y} ${a.x},${a.y}`}
+                  fill="#fff"
+                  opacity={run.plane === "gy" ? 0.06 : 0.09}
+                />
+                <polygon
+                  points={`${a.x},${a.y - wallH * 0.62} ${b.x},${b.y - wallH * 0.62} ${b.x},${
+                    b.y - wallH * 0.62 + 3
+                  } ${a.x},${a.y - wallH * 0.62 + 3}`}
+                  fill="#000"
+                  opacity="0.14"
+                />
                 {tod.lift && (
                   <polygon
                     points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
@@ -606,10 +726,15 @@ function IsoRoom({
           <g clipPath="url(#isoFloorClip)">
             {/* one big gradient sheet so tiles shade as ONE surface */}
             <polygon points={floorPoints(w, d)} fill={`url(#${env.floor})`} />
+            <FloorSurface w={w} d={d} style={env.floorStyle} />
             {tod.lift && (
               <polygon points={floorPoints(w, d)} fill={tod.lift} opacity={tod.liftOpacity} />
             )}
           </g>
+          {/* The tile grid is a placement aid: it belongs while you're
+              decorating and nowhere else, now that the floor has a grain of
+              its own to read. */}
+          {editMode && (
           <g clipPath="url(#isoFloorClip)">
             {Array.from({ length: d - 1 }, (_, i) => i + 1).map((gy) => (
               <line
@@ -636,6 +761,35 @@ function IsoRoom({
               />
             ))}
           </g>
+          )}
+          {/* ---------- what the room's own lights throw on the floor ------
+              A light source that doesn't light anything is just a drawing.
+              These pools are cast by the SCENE rather than by each sprite, so
+              one `glow: [radius, strength]` in the catalog is all a new lamp
+              needs, and they all dim together as the day comes up — lamplight
+              at noon is what made the old hand-drawn pools read as stickers.
+              Clipped to the floor and drawn under the furniture. */}
+          <g clipPath="url(#isoFloorClip)">
+            {effective.map((p) => {
+              const glow = ISO_ITEMS[p.item]?.glow;
+              if (!glow || tod.glow <= 0) return null;
+              const f = footOf(p.item, p.rot);
+              const at = project(p.gx + f[0] / 2, p.gy + f[1] / 2);
+              const [r, strength] = glow;
+              return (
+                <ellipse
+                  key={`glow-${p.id}`}
+                  cx={at.x}
+                  cy={at.y}
+                  rx={r}
+                  ry={r * 0.5}
+                  fill="url(#lampPool)"
+                  opacity={strength * tod.glow}
+                />
+              );
+            })}
+          </g>
+
           {/* ---------- placed items ---------- */}
           {ordered.map((p) => {
             const item = ISO_ITEMS[p.item];

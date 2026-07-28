@@ -401,6 +401,24 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees
   text stays legible for any colour.
+- **The furniture store** (`lib/unlocks.js`): **nothing costs anything today,
+  and that's deliberate.** The first cut priced most of the catalog and gated
+  it behind focus minutes; the call was that you don't take away decorations
+  people already have. So the rule inverted — everything is free unless listed
+  in `PREMIUM`, and `PREMIUM` is empty. With it empty the feature is INERT:
+  `owns()` is true for everything, the picker shows no locks, and the balance
+  chip doesn't render (`storeIsOpen()` gates it — a balance you can't spend is
+  a confusing number). What survives is the machinery, because it's the fiddly
+  part and it's already migrated into the DB: ownership, persistence,
+  validation, and a balance that is **derived, never stored** — focus minutes
+  earned minus the cost of what's owned, so it can't drift out of step with
+  the sessions it came from, clamped at zero so a re-price can't put an owner
+  in debt. Adding a premium piece later is one line in `PREMIUM`. The tests
+  price something temporarily to exercise the arithmetic, or it would sit
+  untested until the day it first matters. Backend (`user.unlocked`) stores the
+  key list and nothing else — pricing there would duplicate catalog knowledge
+  across two languages, exactly how `ISO_ENVS` drifted. **If a store never
+  happens, this file and the column are what to delete.**
 - **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
   layout of `{id, item, x, y, tint?}` placements the user arranges by dragging
   in edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the
@@ -511,6 +529,19 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `roamer: true` (the cat) share the wander engine with cat rules: awake
   walking pose while out roaming; once its spot overlaps any `layer:-1`
   item (rug/blanket) it curls up asleep and mostly stays (80% per tick).
+  **Things on tables**: an item marked `stacks` whose centre lands on one with
+  a `surface` height renders lifted onto it (`surfaceFor` →
+  `stackedPlacement`) — render-time only, same as seating, so persistence and
+  the drag engine know nothing about it. It **keeps the spot it was put down
+  on**, clamped so its footprint stays on the surface; it used to snap to the
+  surface's dead centre, which meant one table could only ever show ONE thing
+  — a second item drew at exactly the same point and was invisible however far
+  apart the two were written. Eight items across the shipped presets were
+  hidden this way (a mug inside a computer; four hall tables each with a mug
+  inside a bookstack). The test that guards this compares RESOLVED positions,
+  not written coordinates, because the clamp can bring two different ones
+  together. RoomPanel's preset thumbnails resolve stacking too, or they show
+  the mug on the floor beside the desk.
   Micro-ambience is CSS one-shots: mug steam, aquarium bubbles, pond
   ripple, plus SkyOverlay's rare shooting star (night, clear sky) and
   passing bird (day) — rarity = a long animation cycle where the visible
@@ -518,13 +549,40 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   block, and motion stays OUT of reading zones (HUD corners) by design.
   `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
   Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
-  Terrace 🪴 / Empty room 🫙) are whole-layout
+  Study hall 🧑‍🤝‍🧑 / Terrace 🪴 / Empty room 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);
   preset coordinates must be
   half-snapped and in-bounds AS WRITTEN — the
   preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
-  the user. `DEFAULT_ISO_PRESET` is what a fresh install opens on (the ⭐
+  the user.
+  **Every catalog key appears in at least one preset**, and a test says so.
+  Sixteen didn't: all three architecture pieces and every cosmetic added in
+  one batch (dog, rabbit, three rugs, piano, easel, birdcage, screen, globe,
+  chess, hammock, lantern) existed only in the picker, so unless you went
+  hunting the room never showed them. The presets ARE the shop window — a
+  piece nobody sees placed is a piece nobody knows exists. **Coverage means
+  one good home, not a sprinkle** — this rule is the easy one to over-apply,
+  and doing so cost a round of feedback (user: "more minimal is better than
+  crowded"). A room gets ONE rug; a patterned one replaces the plain one
+  rather than sitting next to it. The Study hall seats five, not eleven, with
+  a table deliberately left free — at eleven it read as a crowd rather than
+  as somewhere you could go and work. When a piece has nowhere to go without
+  crowding, swap it in for something plainer and check the displaced item
+  still has a home, or the coverage test correctly fails.
+  Placing into a preset is not eyeballing: dump the floor occupancy first
+  (tile map of what's taken), because the two bugs this produced — a jar
+  stacked invisibly on a mug, a cat spawned inside a chair — both came from
+  guessing coordinates. Wall decor needs its own check: the Reading room and
+  Study hall had bookshelves along the ENTIRE back wall, so an arch and a
+  window placed there were drawn behind the shelving and invisible. Opening a
+  bay (dropping three shelves) is the fix; a wall that's already full has no
+  room for architecture.
+  `ISO_MAX_ITEMS` is **150** (backend bounds a payload at 200). It was 60,
+  which silently truncated the Study hall — a 16×12 room with four tables,
+  sixteen chairs, people in them and shelving along two walls is ~75 pieces.
+  Room SIZE was never the constraint: the floor has gone to 48×48 all along,
+  and a full hall renders in ~2,500 SVG nodes. `DEFAULT_ISO_PRESET` is what a fresh install opens on (the ⭐
   marks it, so move the star if you move the default) and a test asserts it
   survives validation with every item intact — a starter room that quietly
   loses furniture on first paint is the worst possible first impression.
@@ -550,6 +608,18 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
   drag engine in `IsoRoom.jsx`.
+  **Detail lives in the shared helpers first.** Nearly every piece is built
+  from `TintedBox`, so its contact shading — a short dark band where each box
+  meets whatever it stands on — gives the WHOLE catalog weight from one edit;
+  without it a box looks pasted onto the floor rather than resting on it. Same
+  reasoning for `RugGround` (ground + inset lighter field, so the border is an
+  AREA and not a hairline), `Fringe` (strands expressed in grid space, so they
+  land at the right screen angle for free) and `Planks` (seams across a
+  tabletop — a bare slab reads as flat-pack). Reach for a per-sprite fix only
+  when the shared one can't say it. To judge the catalog, render every sprite
+  into one labelled contact sheet rather than hunting item by item through
+  rooms: that is how five rugs were found to be untextured solid diamonds
+  while the two newest ones were properly woven.
   **`clampIsoPlacement` is bounds-only and never consults the mask** — that's
   by design (drags stop at the shape's edge; validation relocates on load),
   but it means anything CREATING a placement has to check the floor itself.
@@ -576,6 +646,35 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   the localStorage mirror, toasting "couldn't save" on every change. Adding an
   environment means editing BOTH; `test_room.py` parses this file's `ISO_ENVS`
   block and fails if the backend doesn't accept every key it finds.
+  **Architecture: openings are RECESSES, not holes.** `archway`, `doorway` and
+  `bigwindow` are ordinary wall items (`wall: true`, so `rot` picks the wall
+  and clamping glues them to it) drawn in the same `skewY(SKEW)` space as a
+  picture frame. They are deliberately NOT punched through the wall geometry:
+  a real hole would show the sky behind an interior wall, which is wrong,
+  whereas a dark reveal with a sliver of lit floor beyond reads as another room
+  and costs one sprite. A room of nothing but flat walls reads as a box — the
+  reference art always gives the eye somewhere to look through.
+  **Light is cast by the SCENE, not by each sprite.** A catalog entry declares
+  `glow: [radius, strength]` and IsoRoom draws one warm pool per light source
+  on the floor, clipped to it, under the furniture — so a new lamp needs one
+  field, not artwork, and every source dims together via `ISO_TIME.glow` (1 at
+  night, 0.7 at sunset, 0.25 by day). Five sprites used to draw their own pool:
+  they doubled up with this pass and, worse, stayed at full brightness at noon,
+  which is what made them read as stickers rather than light. Don't add a
+  `lampPool` ellipse to a sprite — add the field.
+  **Surfaces carry a MATERIAL, not just a colour.** Each env names a
+  `floorStyle` (`boards` / `tiles` / `stone` / `grass`) that `FloorSurface`
+  draws over the colour gradient, inside the same floor clip: planks with
+  staggered brick-bond end joints, half-tile tiling, per-tile flagstones whose
+  joints wander by tile index, mown stripes. Walls get one panel seam per tile
+  plus a skirting band and a picture rail. It is all `<line>`/`<polygon>` in
+  GRID space — `project()` puts it on the right plane for free — and every
+  value is derived from the tile index, never `Math.random`, because the scene
+  re-renders and a reshuffling floor would crawl. This was the biggest gap
+  against the reference art: the floor is the largest surface on screen and a
+  flat gradient reads as a coloured plane. **The tile grid is now an edit-mode
+  aid only** — out of edit mode the grain speaks for itself and the grid just
+  muddied it.
   **Reshaping deletes, and deletion must be announced**: `setIsoSize`,
   `setIsoEnv` and `setIsoTile` all re-run `validateIsoLayout`, which drops wall
   decor where there's no wall and anything it can't find floor for. That's

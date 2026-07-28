@@ -26,6 +26,7 @@ import {
   seatedPlacement,
   snapHalf,
   sortIso,
+  stackedPlacement,
   surfaceFor,
   validateIsoLayout,
   wallRuns,
@@ -568,20 +569,29 @@ describe("presets", () => {
       return { x0: p.gx, y0: p.gy, x1: p.gx + f[0], y1: p.gy + f[1] };
     };
 
-    it("no two stackables share a spot", () => {
-      // Two `stacks` items at identical coordinates both centre on the SAME
-      // surface, so the second is drawn entirely inside the first and is
+    it("no two stackables resolve to the same spot", () => {
+      // A stacked item is drawn where it was put down, clamped onto its
+      // surface — so sharing a table is fine, landing on the same POINT is
+      // not: the second one is then drawn entirely inside the first and is
       // simply invisible. The terrace had a mug and a jar of lights doing
-      // exactly this on one side table.
+      // exactly this on one side table. Comparing the written coordinates
+      // isn't enough, since the clamp can bring two different ones together.
+      const clashes = [];
       for (const key of ISO_PRESET_KEYS) {
+        const items = ISO_PRESETS[key].items.map((p, i) => ({ ...p, id: `p${i}` }));
         const seen = new Map();
-        for (const p of ISO_PRESETS[key].items) {
-          if (!ISO_ITEMS[p.item].stacks) continue;
-          const at = `${p.gx},${p.gy}`;
-          expect(seen.has(at), `${key}: ${p.item} sits on ${seen.get(at)} at ${at}`).toBe(false);
+        for (const p of items) {
+          const on = surfaceFor(p, items);
+          if (!on) continue;
+          const r = stackedPlacement(p, on);
+          const at = `${on.placement.id}@${r.gx.toFixed(2)},${r.gy.toFixed(2)}`;
+          if (seen.has(at)) {
+            clashes.push(`${key}: ${p.item} inside ${seen.get(at)} on ${on.placement.item}`);
+          }
           seen.set(at, p.item);
         }
       }
+      expect(clashes).toEqual([]);
     });
 
     it("nothing spawns inside anything else", () => {
@@ -611,6 +621,19 @@ describe("presets", () => {
       }
       expect(collisions).toEqual([]);
     });
+  });
+
+  it("every catalog item appears in at least one preset", () => {
+    // The presets are the shop window. Sixteen items — all three architecture
+    // pieces and every cosmetic from one batch — existed only in the picker,
+    // so unless you went hunting through 90+ entries the room never showed
+    // them and you had no idea they were there. A piece nobody sees placed is
+    // a piece nobody knows exists.
+    const used = new Set();
+    for (const key of ISO_PRESET_KEYS) {
+      for (const p of ISO_PRESETS[key].items) used.add(p.item);
+    }
+    expect(ISO_ITEM_KEYS.filter((k) => !used.has(k))).toEqual([]);
   });
 
   it("EVERY preset survives validation with all its furniture", () => {

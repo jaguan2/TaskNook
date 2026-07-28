@@ -10,6 +10,7 @@ import { api, getToken, setToken } from "./lib/api";
 import { readStored, writeStored } from "./lib/storage";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
+import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
@@ -90,6 +91,17 @@ export function StoreProvider({ children }) {
     focusMinutesToday: 0,
   });
   const [sessionDays, setSessionDays] = useState({});
+  const sessionDaysRef = useRef(sessionDays);
+  sessionDaysRef.current = sessionDays;
+  // Furniture bought with focus minutes. Mirrored to localStorage for an
+  // instant paint, same as the room layout; the server copy wins on boot.
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      return validateUnlocked(JSON.parse(readStored("tasknook.unlocked") || "[]"));
+    } catch {
+      return [];
+    }
+  });
   const [algorithm, setAlgorithm] = useState(() => {
     // Whitelist: TaskPanel indexes ALGORITHMS[algorithm] directly, so an
     // unknown stored key would crash the panel.
@@ -344,6 +356,31 @@ export function StoreProvider({ children }) {
   // The id of the most recently added iso item — the scene auto-selects it
   // so the user can see what just appeared.
   const [lastIsoAddedId, setLastIsoAddedId] = useState(null);
+  // Buying a piece. The balance is derived (focus minutes earned minus the
+  // cost of what's owned) rather than stored, so it can never drift out of
+  // step with the sessions it came from.
+  const unlockedRef = useRef(unlocked);
+  unlockedRef.current = unlocked;
+  const unlockItem = useCallback(
+    (key) => {
+      const have = unlockedRef.current;
+      if (owns(have, key)) return;
+      if (!canAfford(sessionDaysRef.current, have, key)) {
+        showToast(`${costOf(key)} focused minutes unlocks that one ✨`);
+        return;
+      }
+      const next = [...have, key];
+      unlockedRef.current = next;
+      setUnlocked(next);
+      writeStored("tasknook.unlocked", JSON.stringify(next));
+      api.saveUnlocks(next).catch((err) => {
+        console.error("Failed to save unlocks:", err);
+        showToast("Couldn't save that unlock — it's still yours on this device 🌧️");
+      });
+    },
+    [showToast]
+  );
+
   const addIsoItem = useCallback(
     (key) => {
       const prev = isoRef.current;
@@ -351,6 +388,12 @@ export function StoreProvider({ children }) {
       // that failed without saying anything, so the button just looked dead.
       if (prev.placements.length >= ISO_MAX_ITEMS) {
         showToast(`That's all ${ISO_MAX_ITEMS} pieces — put something away first 🪴`);
+        return;
+      }
+      // Inert while the store is empty (owns() is true for every free piece);
+      // it's the guard that stops a premium item being placed without buying.
+      if (!owns(unlockedRef.current, key)) {
+        showToast(`${costOf(key)} focused minutes unlocks that one ✨`);
         return;
       }
       const placement = newIsoPlacement(key, prev.placements, prev);
@@ -609,6 +652,28 @@ export function StoreProvider({ children }) {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Unlocked furniture: the server copy wins on boot, and a first-run account
+  // with none gets whatever the local mirror had (same rule as the room).
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { unlocked: server } = await api.getUnlocks();
+        const clean = validateUnlocked(server);
+        if (clean.length) {
+          unlockedRef.current = clean;
+          setUnlocked(clean);
+          writeStored("tasknook.unlocked", JSON.stringify(clean));
+        } else if (unlockedRef.current.length) {
+          await api.saveUnlocks(unlockedRef.current);
+        }
+      } catch (err) {
+        // Read-only failure: the mirror still has them, so don't shout.
+        console.error("Failed to load unlocks:", err);
+      }
+    })();
   }, [user]);
 
   // ---------- Task actions ----------
@@ -1016,6 +1081,9 @@ export function StoreProvider({ children }) {
     addIsoItem,
     removeIsoItem,
     rotateIsoItem,
+    unlocked,
+    unlockItem,
+    unlockBalance: unlockBalance(sessionDays, unlocked),
     setIsoItemTint,
     setIsoSize,
     setIsoTile,

@@ -19,17 +19,75 @@ import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
 const SKEW = (Math.atan(TILE_H / TILE_W) * 180) / Math.PI;
 const tinted = (fallback) => ({ fill: `var(--tint, ${fallback})` });
 
+/**
+ * Fringe strands along one edge of a rug. `axis` is the grid axis the edge
+ * runs along; `out` is how far the strands stick out on the OTHER axis, in
+ * tiles — expressing it in grid space means the strands land at the correct
+ * screen angle for free, instead of being hand-fudged per rug.
+ */
+function Fringe({ gx, gy, len, axis, out, n = 7, opacity = 0.26 }) {
+  return Array.from({ length: n }, (_, i) => {
+    const t = ((i + 0.5) / n) * len;
+    const a = axis === "gy" ? project(gx, gy + t) : project(gx + t, gy);
+    const b = axis === "gy" ? project(gx + out, gy + t) : project(gx + t, gy + out);
+    return (
+      <line
+        key={i}
+        x1={a.x}
+        y1={a.y}
+        x2={b.x}
+        y2={b.y}
+        stroke="#f7e9e2"
+        strokeWidth="1.1"
+        opacity={opacity}
+      />
+    );
+  });
+}
+
+/**
+ * The shared bones of a rectangular rug: a tinted ground, then a lighter
+ * field inset from it so the BORDER is the rim left showing. Every base rug
+ * used to be one flat polygon with a hairline stroke inside, which at room
+ * scale read as a solid shape with no pattern at all — the border has to be
+ * an area, not a line, to survive being seen from across the room.
+ */
+function RugGround({ w, d, m, fallback, ground = 0.46, field = 0.1 }) {
+  return (
+    <>
+      <polygon points={floorPatch(0, 0, w, d)} style={tinted(fallback)} opacity={ground} />
+      <polygon points={floorPatch(m, m, w - 2 * m, d - 2 * m)} fill="#f7e9e2" opacity={field} />
+      <polygon
+        points={floorPatch(m, m, w - 2 * m, d - 2 * m)}
+        fill="none"
+        stroke="#000"
+        strokeWidth="1.2"
+        opacity="0.15"
+      />
+    </>
+  );
+}
+
 function Rug() {
+  const W = 3.5;
+  const D = 2.5;
   return (
     <g>
-      <polygon points={floorPatch(0, 0, 3.5, 2.5)} style={tinted("rgb(var(--color-rose))")} opacity="0.4" />
-      <polygon
-        points={floorPatch(0.25, 0.2, 3, 2.1)}
-        fill="none"
-        style={{ stroke: "rgb(var(--color-petal))" }}
-        strokeWidth="2"
-        opacity="0.3"
-      />
+      <RugGround w={W} d={D} m={0.3} fallback="rgb(var(--color-rose))" />
+      {/* Lattice of small diamonds, offset row to row. A diamond in plan is a
+          diamond on screen, so the motif needs no special projection. */}
+      {[0.62, 1.24, 1.86, 2.48].flatMap((gx, i) =>
+        [0.72, 1.32].map((gy) => (
+          <polygon
+            key={`${gx}-${gy}`}
+            points={floorPatch(gx - 0.15, gy - 0.15 + (i % 2 ? 0.22 : 0), 0.3, 0.3)}
+            fill="#f7e9e2"
+            opacity="0.15"
+          />
+        ))
+      )}
+      <Fringe gx={0} gy={0.3} len={D - 0.6} axis="gy" out={-0.14} />
+      <Fringe gx={W} gy={0.3} len={D - 0.6} axis="gy" out={0.14} />
     </g>
   );
 }
@@ -60,9 +118,26 @@ function Bookshelf() {
       <polygon points={box.right} fill="#8f5d49" />
       <polygon points={box.top} fill="#b58c6a" />
       <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
-        {[[4, -78, "#7faf8f"], [11, -80, "#e8a3a8"], [18, -76, "#9b8bd6"], [27, -79, "#e8b04b"], [4, -46, "#cf8f93"], [12, -44, "#5b6b9b"], [20, -47, "#e8b04b"]].map(([x, y, c], i) => (
-          <rect key={i} x={x} y={y} width="6" height={y < -60 ? -60 - y : -28 - y} rx="1" fill={c} />
+        {/* A row of identical rectangles reads as a barcode. Real shelves have
+            books of different widths, one leaning into the gap, a stack lying
+            flat and something that isn't a book at all — that variety is most
+            of what "detailed" means at this size. */}
+        {[
+          [3, -79, 5, "#7faf8f"], [8.5, -82, 4, "#e8a3a8"], [13, -77, 6, "#9b8bd6"],
+          [19.5, -81, 3.5, "#cf8f93"], [23.5, -78, 5, "#e8b04b"],
+          [3, -46, 4, "#cf8f93"], [7.5, -49, 5.5, "#5b6b9b"], [13.5, -45, 3.5, "#e8b04b"],
+          [17.5, -48, 5, "#7faf8f"],
+        ].map(([x, y, wd, c], i) => (
+          <rect key={i} x={x} y={y} width={wd} height={y < -60 ? -60 - y : -28 - y} rx="1" fill={c} />
         ))}
+        {/* one leaning against the end of each row */}
+        <rect x="29" y="-73" width="4" height="13" rx="1" fill="#e8a3a8" transform="rotate(14 31 -60)" />
+        <rect x="23.5" y="-41" width="4" height="13" rx="1" fill="#9b8bd6" transform="rotate(-11 25.5 -28)" />
+        {/* a stack lying flat, and a little pot on the top shelf */}
+        <rect x="28" y="-33" width="7" height="2.4" rx="0.8" fill="#7faf8f" />
+        <rect x="28.5" y="-30.6" width="6" height="2.4" rx="0.8" fill="#e8b04b" />
+        <rect x="18" y="-66" width="4.5" height="6" rx="1" fill="#a8563c" />
+        <path d="M18.6 -66 q1.6 -5 3.4 0 z" fill="#4f8f6a" />
         <rect x="0" y="-60" width="34" height="3" fill="#8f5d49" />
         <rect x="0" y="-28" width="34" height="3" fill="#8f5d49" />
       </g>
@@ -128,7 +203,6 @@ function FloorLamp() {
   const H = 76;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="4" rx="32" ry="11" fill="url(#lampPool)" className="room-breathe" opacity="0.5" />
       {/* weighted base + pole */}
       <ellipse cx="0" cy="0" rx="9" ry="4.5" fill="#6b4a39" />
       <ellipse cx="0" cy="0" rx="9" ry="4.5" fill="#000" opacity="0.3" />
@@ -266,14 +340,13 @@ function Cat({ awake = false }) {
 function SquareRug() {
   return (
     <g>
-      <polygon points={floorPatch(0, 0, 2.5, 2)} style={tinted("#8a7ac2")} opacity="0.38" />
-      <polygon
-        points={floorPatch(0.2, 0.18, 2.1, 1.64)}
-        fill="none"
-        style={{ stroke: "rgb(var(--color-petal))" }}
-        strokeWidth="1.6"
-        opacity="0.3"
-      />
+      <RugGround w={2.5} d={2} m={0.24} fallback="#8a7ac2" ground={0.42} />
+      {/* Concentric bands — the simplest weave that still reads as woven. */}
+      <polygon points={floorPatch(0.46, 0.4, 1.58, 1.2)} fill="#000" opacity="0.1" />
+      <polygon points={floorPatch(0.68, 0.58, 1.14, 0.84)} fill="#f7e9e2" opacity="0.13" />
+      <polygon points={floorPatch(0.95, 0.8, 0.6, 0.4)} fill="#f7e9e2" opacity="0.16" />
+      <Fringe gx={0} gy={0.24} len={1.52} axis="gy" out={-0.12} n={6} />
+      <Fringe gx={2.5} gy={0.24} len={1.52} axis="gy" out={0.12} n={6} />
     </g>
   );
 }
@@ -296,6 +369,9 @@ function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18, tint 
   const { B, C, D } = box.corners;
   const up = (p) => `${p.x},${p.y - h}`;
   const paint = { fill: tint ? `var(--tint, ${fallback})` : fallback };
+  // How deep the contact shading runs, scaled to the box — a 3px chair seat
+  // must not get the same 7px band as a wardrobe.
+  const foot = Math.min(7, Math.max(1.5, h * 0.34));
   return (
     <g>
       <polygon points={box.left} style={paint} />
@@ -303,6 +379,20 @@ function TintedBox({ gx, gy, dx, dy, h, fallback, dark = 0.32, mid = 0.18, tint 
       <polygon points={box.right} style={paint} />
       <polygon points={box.right} fill="#000" opacity={dark} />
       <polygon points={box.top} style={paint} />
+      {/* Contact shading where the box meets whatever it stands on. Nearly
+          every piece in the catalog is built from these, so one band here
+          gives the whole room weight at once — without it a box looks pasted
+          onto the floor rather than resting on it. */}
+      <polygon
+        points={`${D.x},${D.y} ${C.x},${C.y} ${C.x},${C.y - foot} ${D.x},${D.y - foot}`}
+        fill="#000"
+        opacity="0.15"
+      />
+      <polygon
+        points={`${B.x},${B.y} ${C.x},${C.y} ${C.x},${C.y - foot} ${B.x},${B.y - foot}`}
+        fill="#000"
+        opacity="0.15"
+      />
       <polyline
         points={`${up(D)} ${up(C)} ${up(B)}`}
         fill="none"
@@ -580,8 +670,15 @@ function CoffeeTable() {
           mid={0.24}
         />
       ))}
+      {/* Lower shelf — the thing that makes a coffee table a coffee table. */}
+      <g transform={`translate(0,${-5})`}>
+        <TintedBox gx={0.14} gy={0.14} dx={W - 0.28} dy={D - 0.28} h={2.5} fallback="#8f5d49" dark={0.48} mid={0.32} />
+      </g>
       <g transform={`translate(0,${-H})`}>
         <TintedBox gx={0} gy={0} dx={W} dy={D} h={4} fallback="#a87f5f" dark={0.3} mid={0.16} />
+        <g transform="translate(0,-4)">
+          <Planks w={W} d={D} n={2} />
+        </g>
       </g>
     </g>
   );
@@ -606,7 +703,13 @@ function Chair({ back = false }) {
         <g transform={`translate(0,${-SEAT})`}>
           <TintedBox gx={0.04} gy={0.04} dx={W - 0.08} dy={D - 0.08} h={3.5} fallback="#b58c6a" dark={0.28} mid={0.15} />
         </g>
-        <TintedBox gx={0.07} gy={D - 0.15} dx={W - 0.14} dy={0.09} h={42} fallback="#a87f5f" dark={0.36} mid={0.22} />
+        {/* The backrest STARTS at the seat rather than the floor. Drawn from
+            the floor it was one unbroken 42px slab that hid the seat and both
+            front legs, and a row of them read as fence panels rather than
+            chairs — you need to see under it for the shape to say "chair". */}
+        <g transform={`translate(0,${-SEAT})`}>
+          <TintedBox gx={0.07} gy={D - 0.15} dx={W - 0.14} dy={0.09} h={26} fallback="#a87f5f" dark={0.36} mid={0.22} />
+        </g>
       </g>
     );
   }
@@ -792,13 +895,20 @@ function CafeTable() {
   const H = 21;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" style={tinted("#8f5d49")} />
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" fill="#000" opacity="0.3" />
+      {/* Base: two flares, not one disc — a single ellipse under a pole reads
+          as a plate balanced on a stick. */}
+      <ellipse cx="0" cy="-1" rx="13" ry="6.5" style={tinted("#8f5d49")} />
+      <ellipse cx="0" cy="-1" rx="13" ry="6.5" fill="#000" opacity="0.36" />
+      <ellipse cx="0" cy="-4" rx="9.5" ry="4.8" style={tinted("#8f5d49")} />
+      <ellipse cx="0" cy="-4" rx="9.5" ry="4.8" fill="#000" opacity="0.24" />
       <rect x="-3" y={-H + 2} width="6" height={H - 4} style={tinted("#8f5d49")} />
       <rect x="-3" y={-H + 2} width="6" height={H - 4} fill="#000" opacity="0.22" />
       <ellipse cx="0" cy={-H + 3.5} rx="25" ry="12.5" style={tinted("#a87f5f")} />
       <ellipse cx="0" cy={-H + 3.5} rx="25" ry="12.5" fill="#000" opacity="0.3" />
       <ellipse cx="0" cy={-H} rx="25" ry="12.5" style={tinted("#b58c6a")} />
+      {/* turned rings on the top, then the light catch */}
+      <ellipse cx="0" cy={-H} rx="21" ry="10.5" fill="none" stroke="#000" strokeWidth="0.8" opacity="0.12" />
+      <ellipse cx="0" cy={-H} rx="8" ry="4" fill="none" stroke="#000" strokeWidth="0.8" opacity="0.1" />
       <ellipse cx="-6" cy={-H - 2} rx="10" ry="4" fill="#fff" opacity="0.08" />
     </g>
   );
@@ -903,7 +1013,19 @@ function Cushion() {
   return (
     <g>
       <TintedBox gx={0.05} gy={0.05} dx={0.8} dy={0.8} h={13} fallback="#e8b04b" />
-      <circle cx={c.x} cy={c.y - 13} r="2.4" fill="#000" opacity="0.25" />
+      <g transform="translate(0,-13)">
+        {/* Piping round the top edge and a tufted centre — a floor cushion is
+            sewn, and the seam is the only thing separating it from a crate. */}
+        <polygon
+          points={floorPatch(0.14, 0.14, 0.62, 0.62)}
+          fill="none"
+          stroke="#000"
+          strokeWidth="0.9"
+          opacity="0.16"
+        />
+      </g>
+      <circle cx={c.x} cy={c.y - 13} r="2.6" fill="#000" opacity="0.22" />
+      <circle cx={c.x} cy={c.y - 14} r="1.3" fill="#fff" opacity="0.12" />
     </g>
   );
 }
@@ -1005,6 +1127,73 @@ function Mirror() {
       <circle cx="11" cy="-80" r="13" style={tinted("#e8b04b")} />
       <circle cx="11" cy="-80" r="10" fill="#cbe8ef" opacity="0.85" />
       <path d="M6 -86 q4 -3 8 -1" stroke="#fff" strokeWidth="1.6" fill="none" opacity="0.7" />
+    </g>
+  );
+}
+
+// ---- architecture ------------------------------------------------------ //
+// Openings, not decoration. A room made only of flat walls reads as a box;
+// the reference art always has an arch or a door giving the eye somewhere
+// else to go. These are drawn as RECESSES rather than holes punched through
+// the wall geometry: a real hole would show the sky behind an interior wall,
+// which is wrong, whereas a dark reveal with a sliver of floor beyond reads
+// as another room and costs one sprite.
+
+/** The shape of an opening with a rounded top, in wall space. */
+function archPath(x, w, h) {
+  const r = w / 2;
+  return `M${x} 0 L${x} ${-(h - r)} A ${r} ${r} 0 0 1 ${x + w} ${-(h - r)} L${x + w} 0 Z`;
+}
+
+function Archway() {
+  const W = 48;
+  const H = 96;
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      {/* moulding first, then the reveal on top of it — the ring is just the
+          difference between the two */}
+      <path d={archPath(0, W, H)} style={tinted("#a87f5f")} />
+      <path d={archPath(0, W, H)} fill="#000" opacity="0.18" />
+      <path d={archPath(4, W - 8, H - 5)} fill="#100a17" opacity="0.92" />
+      {/* space beyond: a lit floor strip and a far wall catching some of it */}
+      <rect x={7} y={-40} width={W - 14} height={40} fill="#ffe9b0" opacity="0.13" />
+      <rect x={7} y={-14} width={W - 14} height={14} fill="#ffe9b0" opacity="0.2" />
+      <rect x={W / 2 - 4} y={-H + 14} width={8} height={H - 24} fill="#fff" opacity="0.05" />
+    </g>
+  );
+}
+
+function Doorway() {
+  const W = 29;
+  const H = 88;
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="0" y={-H} width={W} height={H} rx="1.5" style={tinted("#8f5d49")} />
+      <rect x="0" y={-H} width={W} height={H} rx="1.5" fill="#000" opacity="0.2" />
+      {/* the door itself, set into its frame */}
+      <rect x="3.5" y={-H + 4} width={W - 7} height={H - 4} style={tinted("#a87f5f")} />
+      {/* two sunk panels are what stop a door reading as a plank */}
+      <rect x="7" y={-H + 10} width={W - 14} height={30} rx="1" fill="#000" opacity="0.16" />
+      <rect x="7" y={-H + 46} width={W - 14} height={32} rx="1" fill="#000" opacity="0.16" />
+      <circle cx={W - 8} cy={-40} r="2" fill="#e8b04b" />
+    </g>
+  );
+}
+
+function BigWindow() {
+  const W = 43;
+  const H = 78;
+  const top = -H - 12;
+  return (
+    <g transform={`skewY(${SKEW})`}>
+      <rect x="0" y={top} width={W} height={H} rx="1" style={tinted("#46396f")} />
+      <rect x="3" y={top + 3} width={W - 6} height={H - 6} fill="url(#isoSky)" />
+      {/* glazing bars: two lights over two, like the built-in window */}
+      <rect x={W / 2 - 1.5} y={top + 3} width="3" height={H - 6} style={tinted("#46396f")} />
+      <rect x="3" y={top + H / 2 - 1.5} width={W - 6} height="3" style={tinted("#46396f")} />
+      <rect x="-2" y={top + H} width={W + 4} height="5" rx="1.5" fill="#8a5346" />
+      {/* the light it throws down the wall below the sill */}
+      <rect x="2" y={top + H + 5} width={W - 4} height="16" fill="#ffe9b0" opacity="0.06" />
     </g>
   );
 }
@@ -1313,10 +1502,8 @@ function Fireplace() {
   const B = project(1.65, -0.05);
   const C = project(1.65, 0.75);
   const D = project(-0.05, 0.75);
-  const glow = project(0.85, 1.15);
   return (
     <g>
-      <ellipse cx={glow.x} cy={glow.y} rx="36" ry="14" fill="url(#lampPool)" className="room-breathe" opacity="0.4" />
       <TintedBox gx={0} gy={0} dx={1.6} dy={0.7} h={56} fallback="#8d8178" dark={0.36} mid={0.2} />
       {/* mantel slab, slightly proud of the body */}
       <polygon points={`${up(D, 64)} ${up(C, 64)} ${up(C, 58)} ${up(D, 58)}`} style={tinted("#6b4a39")} />
@@ -1619,7 +1806,6 @@ function DeskLamp() {
   const H = 23;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="4" cy="5" rx="15" ry="6.5" fill="url(#lampPool)" className="room-breathe" opacity="0.45" />
       <ellipse cx="0" cy="0" rx="6" ry="3" style={tinted("#3a3142")} />
       <ellipse cx="0" cy="0" rx="6" ry="3" fill="#000" opacity="0.3" />
       <path
@@ -1792,17 +1978,16 @@ function PetBed() {
 function Runner() {
   return (
     <g>
-      <polygon points={floorPatch(0, 0, 3, 1)} style={tinted("rgb(var(--color-blush))")} opacity="0.45" />
-      <polygon
-        points={floorPatch(0.18, 0.14, 2.64, 0.72)}
-        fill="none"
-        style={{ stroke: "rgb(var(--color-petal))" }}
-        strokeWidth="2"
-        opacity="0.3"
-      />
-      {[0.6, 1.2, 1.8, 2.4].map((gx) => (
-        <polygon key={gx} points={floorPatch(gx, 0.14, 0.08, 0.72)} fill="#000" opacity="0.1" />
+      <RugGround w={3} d={1} m={0.16} fallback="rgb(var(--color-blush))" ground={0.48} />
+      {/* A hall runner's motif repeats along its length. */}
+      {[0.45, 1.05, 1.65, 2.25].map((gx) => (
+        <g key={gx}>
+          <polygon points={floorPatch(gx - 0.16, 0.34, 0.32, 0.32)} fill="#f7e9e2" opacity="0.16" />
+          <polygon points={floorPatch(gx - 0.07, 0.43, 0.14, 0.14)} fill="#000" opacity="0.12" />
+        </g>
       ))}
+      <Fringe gx={0} gy={0.16} len={0.68} axis="gy" out={-0.12} n={4} />
+      <Fringe gx={3} gy={0.16} len={0.68} axis="gy" out={0.12} n={4} />
     </g>
   );
 }
@@ -1847,7 +2032,6 @@ function LightJar() {
   const c = project(0.2, 0.2);
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="2" rx="14" ry="6" fill="url(#lampPool)" className="room-breathe" opacity="0.45" />
       <ellipse cx="0" cy="-1" rx="6" ry="3" fill="#cbe8ef" opacity="0.3" />
       <path d="M-6 -2 l0 -10 a6 3 0 0 1 12 0 l0 10 a6 3 0 0 1 -12 0 z" fill="#cbe8ef" opacity="0.22" />
       {[
@@ -2121,6 +2305,22 @@ function Flowers() {
 
 // ---- more of what the room already had ---------------------------------- //
 
+/**
+ * Plank seams across a tabletop. A bare slab reads as flat-pack; two or three
+ * seams running the length of the top are what say "boards". Drawn in the
+ * floor plane and lifted by the caller, so the perspective is free.
+ */
+function Planks({ w, d, n = 3, opacity = 0.13 }) {
+  return Array.from({ length: n }, (_, i) => (
+    <polygon
+      key={i}
+      points={floorPatch(0.06, (d * (i + 1)) / (n + 1), w - 0.12, 0.02)}
+      fill="#000"
+      opacity={opacity}
+    />
+  ));
+}
+
 function DiningTable() {
   const W = 1.8;
   const D = 1.1;
@@ -2135,8 +2335,16 @@ function DiningTable() {
       ].map(([gx, gy]) => (
         <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.14} dy={0.14} h={H} fallback="#8f5d49" dark={0.42} mid={0.26} />
       ))}
+      {/* Apron rail. Four legs under a floating slab is the flat-pack look —
+          the rail is what ties them into a piece of furniture. */}
+      <g transform={`translate(0,${-(H - 7)})`}>
+        <TintedBox gx={0.1} gy={0.1} dx={W - 0.2} dy={D - 0.2} h={4.5} fallback="#8f5d49" dark={0.46} mid={0.3} />
+      </g>
       <g transform={`translate(0,${-H})`}>
         <TintedBox gx={0} gy={0} dx={W} dy={D} h={4.5} fallback="#a87f5f" dark={0.3} mid={0.16} />
+        <g transform="translate(0,-4.5)">
+          <Planks w={W} d={D} />
+        </g>
       </g>
     </g>
   );
@@ -2169,9 +2377,26 @@ function OvalRug() {
   const c = project(1.1, 0.85);
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="0" rx="47" ry="23" style={tinted("rgb(var(--color-rose))")} opacity="0.45" />
-      <ellipse cx="0" cy="0" rx="39" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="2" opacity="0.3" />
-      <ellipse cx="0" cy="0" rx="30" ry="13" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="1.4" opacity="0.2" />
+      <ellipse cx="0" cy="0" rx="47" ry="23" style={tinted("rgb(var(--color-rose))")} opacity="0.46" />
+      {/* A braided oval is rings of alternating tone, not hairlines on a
+          solid disc — filled bands are what make the braid visible. */}
+      <ellipse cx="0" cy="0" rx="40" ry="19.5" fill="#f7e9e2" opacity="0.11" />
+      <ellipse cx="0" cy="0" rx="33" ry="16" fill="#000" opacity="0.09" />
+      <ellipse cx="0" cy="0" rx="24" ry="11.5" fill="#f7e9e2" opacity="0.12" />
+      <ellipse cx="0" cy="0" rx="13" ry="6" fill="#000" opacity="0.08" />
+      {[47, 33, 13].map((rx) => (
+        <ellipse
+          key={rx}
+          cx="0"
+          cy="0"
+          rx={rx}
+          ry={rx * 0.49}
+          fill="none"
+          stroke="#000"
+          strokeWidth="0.9"
+          opacity="0.14"
+        />
+      ))}
     </g>
   );
 }
@@ -2179,10 +2404,19 @@ function OvalRug() {
 function MatRug() {
   return (
     <g>
-      <polygon points={floorPatch(0, 0, 1.4, 0.9)} style={tinted("rgb(var(--color-blush))")} opacity="0.5" />
-      {[0.16, 0.38, 0.6].map((t) => (
-        <polygon key={t} points={floorPatch(0.1, t, 1.2, 0.08)} fill="#000" opacity="0.09" />
-      ))}
+      <RugGround w={1.4} d={0.9} m={0.12} fallback="rgb(var(--color-blush))" ground={0.52} field={0.08} />
+      {/* Coir bristle: short strokes across the weave, dense enough to read as
+          texture rather than as three painted stripes. */}
+      {[0.16, 0.3, 0.44, 0.58, 0.72].map((t) =>
+        [0.24, 0.52, 0.8, 1.08].map((gx) => (
+          <polygon
+            key={`${t}-${gx}`}
+            points={floorPatch(gx - 0.09, t, 0.18, 0.05)}
+            fill="#000"
+            opacity="0.11"
+          />
+        ))
+      )}
     </g>
   );
 }
@@ -2678,7 +2912,6 @@ function GardenLantern() {
   const c = project(0.25, 0.25);
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-2" rx="20" ry="10" fill="url(#lampPool)" opacity="0.3" />
       <ellipse cx="0" cy="-1" rx="6.5" ry="3.2" fill="#2f2540" />
       <rect x="-1.8" y="-34" width="3.6" height="33" style={tinted("#2f2540")} />
       <rect x="-1.8" y="-34" width="3.6" height="33" fill="#000" opacity="0.2" />
@@ -2805,6 +3038,9 @@ export const ISO_SPRITES = {
   diningtable: DiningTable,
   woodstool: WoodStool,
   ovalrug: OvalRug,
+  archway: Archway,
+  doorway: Doorway,
+  bigwindow: BigWindow,
   matrug: MatRug,
   persianrug: PersianRug,
   stripedrug: StripedRug,

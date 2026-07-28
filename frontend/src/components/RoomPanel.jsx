@@ -16,9 +16,12 @@ import {
   envHasWalls,
   seatFor,
   seatedPlacement,
+  stackedPlacement,
+  surfaceFor,
   sortIso,
   tileOn,
 } from "../lib/isoRoom";
+import { costOf, owns } from "../lib/unlocks";
 import { ITEM_SPRITES } from "./RoomItems";
 import { ISO_SPRITES } from "./IsoItems";
 
@@ -79,6 +82,12 @@ function IsoPresetPreview({ preset }) {
   const placed = preset.items.map((p, i) => ({ ...p, id: `pv${i}` }));
   const items = sortIso(
     placed.map((p) => {
+      if (ISO_ITEMS[p.item]?.stacks) {
+        // Same for things on tables, or the thumbnail shows the mug on the
+        // floor beside the desk it's meant to be standing on.
+        const on = surfaceFor(p, placed);
+        return on ? { ...p, ...stackedPlacement(p, on) } : p;
+      }
       if (!ISO_ITEMS[p.item]?.persona) return p;
       const seat = seatFor(p, placed);
       if (!seat) return p;
@@ -184,6 +193,9 @@ export default function RoomPanel() {
     resetIsoShape,
     setIsoEnv,
     applyIsoPreset,
+    unlocked,
+    unlockItem,
+    unlockBalance,
   } = useStore();
   const isoEnv = isoRoom.env || "room";
   // Floor-plan painting: pointerdown picks add/remove from the first tile,
@@ -452,27 +464,59 @@ export default function RoomPanel() {
                     {group.label}
                   </p>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {keys.map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => addIsoItem(key)}
-                        title={`Add ${ISO_ITEMS[key].label.toLowerCase()}`}
-                        className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
-                      >
-                        <IsoItemPreview itemKey={key} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-medium text-cream">
-                            {ISO_ITEMS[key].label}
+                    {keys.map((key) => {
+                      // Locked pieces stay VISIBLE, greyed with their price on
+                      // them — hiding them would mean nobody knows there's
+                      // anything to earn, which is the whole point of the
+                      // currency. Affordable ones light up.
+                      const locked = !owns(unlocked, key);
+                      const affordable = locked && unlockBalance >= costOf(key);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => (locked ? unlockItem(key) : addIsoItem(key))}
+                          title={
+                            locked
+                              ? `${costOf(key)} focused minutes unlocks the ${ISO_ITEMS[key].label.toLowerCase()}`
+                              : `Add ${ISO_ITEMS[key].label.toLowerCase()}`
+                          }
+                          className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
+                            affordable
+                              ? "bg-glow/15 hover:bg-glow/25"
+                              : "bg-white/5 hover:bg-white/15"
+                          }`}
+                        >
+                          <span className={locked && !affordable ? "opacity-40 grayscale" : ""}>
+                            <IsoItemPreview itemKey={key} />
                           </span>
-                          <span className="text-[10px] text-petal/50">
-                            {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
-                            <span className="hover-reveal text-glow/80 transition">
-                              + add
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={`block truncate text-xs font-medium ${
+                                locked ? "text-petal/70" : "text-cream"
+                              }`}
+                            >
+                              {ISO_ITEMS[key].label}
                             </span>
+                            {locked ? (
+                              <span
+                                className={`text-[10px] ${
+                                  affordable ? "font-semibold text-glow" : "text-petal/50"
+                                }`}
+                              >
+                                {affordable ? `🔓 unlock · ${costOf(key)}m` : `🔒 ${costOf(key)}m`}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-petal/50">
+                                {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
+                                <span className="hover-reveal text-glow/80 transition">
+                                  + add
+                                </span>
+                              </span>
+                            )}
                           </span>
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );

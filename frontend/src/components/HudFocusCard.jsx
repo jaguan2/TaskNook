@@ -1,19 +1,10 @@
 import { useState } from "react";
 import { motion, useDragControls } from "framer-motion";
-import {
-  Check,
-  ChevronUp,
-  Flame,
-  Hourglass,
-  Pause,
-  Play,
-  Settings2,
-  Target,
-  Timer,
-} from "lucide-react";
+import { Check, ChevronUp, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
+import { storeIsOpen } from "../lib/unlocks";
 import { useArmed } from "../lib/useArmed";
 
 const BREAK_PRESETS = [3, 5, 10];
@@ -57,7 +48,7 @@ export default function HudFocusCard() {
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
-  const { activeTask, sessionDays, dailyGoal } = useStore();
+  const { activeTask, sessionDays, dailyGoal, unlockBalance } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
 
@@ -348,6 +339,18 @@ export default function HudFocusCard() {
             <span className="ml-1 flex items-center gap-0.5">
               <Flame size={11} className="shrink-0 text-amber" />
               {streak}d
+            </span>
+          )}
+          {/* Unspent focus minutes, right where they're earned. It belongs on
+              this card rather than in the Room panel: the point is to notice
+              the reward accruing while you work, not to discover it later. */}
+          {storeIsOpen() && unlockBalance > 0 && (
+            <span
+              className="ml-1 flex items-center gap-0.5 text-glow"
+              title={`${unlockBalance} focused minutes to spend on furniture (Room panel)`}
+            >
+              <Sparkles size={11} className="shrink-0" />
+              {unlockBalance}
             </span>
           )}
         </p>
