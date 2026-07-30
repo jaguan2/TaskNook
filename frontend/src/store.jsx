@@ -71,12 +71,20 @@ export function StoreProvider({ children }) {
   // One transient toast at a time (latest wins) — the shared "something went
   // wrong" channel. Failures must never be console-only: the UI otherwise
   // keeps looking like the action worked.
+  // `ms` is how long it stays: 4s suits a failure you've just caused and are
+  // looking at, but the break nudge arrives unprompted while your eyes are on
+  // the work, so it asks for longer. Every toast is dismissible either way —
+  // clicking it is faster than waiting.
   const [toast, setToast] = useState(null); // { id, message }
   const toastTimer = useRef(null);
-  const showToast = useCallback((message) => {
+  const showToast = useCallback((message, ms = 4000) => {
     setToast({ id: Date.now(), message });
     clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
+    toastTimer.current = setTimeout(() => setToast(null), ms);
+  }, []);
+  const dismissToast = useCallback(() => {
+    clearTimeout(toastTimer.current);
+    setToast(null);
   }, []);
 
   const [tasks, setTasks] = useState([]);
@@ -1037,6 +1045,7 @@ export function StoreProvider({ children }) {
     bootError,
     toast,
     showToast,
+    dismissToast,
 
     tasks,
     orderedTasks,

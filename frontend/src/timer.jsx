@@ -10,6 +10,12 @@ import {
 import { api } from "./lib/api";
 import { playChime } from "./lib/audio";
 import { readStored, writeStored } from "./lib/storage";
+import {
+  BREAK_NUDGE_MINUTES,
+  PRESENCE_TICK_SECONDS,
+  isPresent,
+  tickPresence,
+} from "./lib/breaks";
 import { useStore } from "./store";
 
 // The focus timer lives in its OWN provider, nested inside StoreProvider.
@@ -37,6 +43,10 @@ import { useStore } from "./store";
 
 const FOCUS_PRESETS = [15, 25, 45, 60];
 
+// Long enough to read without hurrying, since this one arrives unprompted
+// while your eyes are on the work rather than on the app.
+const NUDGE_TOAST_MS = 60_000;
+
 const TimerContext = createContext(null);
 const TimerStatusContext = createContext({
   running: false,
@@ -60,6 +70,20 @@ export function TimerProvider({ children }) {
     readStored("tasknook.timerMode") === "stopwatch" ? "stopwatch" : "timer"
   );
   const [elapsed, setElapsed] = useState(0);
+
+  // The break nudge's running total, in seconds. Refs, not state: they move on
+  // a timer and nothing renders from them, so state would rebuild this
+  // provider's context for no visible gain.
+  const breakRunRef = useRef({ focus: 0, away: 0 });
+  const lastActivityRef = useRef(Date.now());
+  const [breakNudge, setBreakNudgeState] = useState(
+    () => readStored("tasknook.breakNudge") !== "off"
+  );
+  const setBreakNudge = (on) => {
+    setBreakNudgeState(on);
+    writeStored("tasknook.breakNudge", on ? "on" : "off");
+    breakRunRef.current = { focus: 0, away: 0 };
+  };
 
   // Pomodoro mode: focus → break → focus … for a set number of rounds.
   const [pomodoro, setPomodoroState] = useState(() => {
@@ -223,16 +247,59 @@ export function TimerProvider({ children }) {
     handlePhaseCompleteRef.current = handlePhaseComplete;
   }, [handlePhaseComplete]);
 
+  // The break nudge samples PRESENCE on its own clock, independent of whether
+  // a focus block is running — someone studying from a textbook never presses
+  // play, and used to be invisible to this. Read through a ref so the sampler
+  // below can be a mount-once effect.
+  const samplePresenceRef = useRef(null);
+  samplePresenceRef.current = () => {
+    const r = tickPresence(breakRunRef.current, {
+      enabled: breakNudge,
+      // Only while a pomodoro is actually RUNNING: that already stands you up
+      // on a schedule, and a second reminder would land mid-break. Merely
+      // having the setting switched on shouldn't silence the nudge for someone
+      // studying without it.
+      suppressed: pomodoro.enabled && running,
+      present: isPresent({
+        visible: document.visibilityState === "visible",
+        idleMs: Date.now() - lastActivityRef.current,
+        timerRunning: running && phase === "focus",
+      }),
+    });
+    breakRunRef.current = { focus: r.focus, away: r.away };
+    if (r.nudge) {
+      showToast(
+        `${BREAK_NUDGE_MINUTES} minutes without a break — stretch your legs? 🌿`,
+        NUDGE_TOAST_MS
+      );
+    }
+  };
+
+  // Always on, unlike the timer's own interval: the whole point is to notice
+  // time that no focus block is measuring. Cheap — one ref write every
+  // PRESENCE_TICK_SECONDS, and the listeners only stamp a timestamp.
+  useEffect(() => {
+    const seen = () => {
+      lastActivityRef.current = Date.now();
+    };
+    const events = ["pointerdown", "pointermove", "keydown", "wheel", "visibilitychange"];
+    for (const e of events) window.addEventListener(e, seen, { passive: true });
+    const id = setInterval(() => samplePresenceRef.current?.(), PRESENCE_TICK_SECONDS * 1000);
+    return () => {
+      for (const e of events) window.removeEventListener(e, seen);
+      clearInterval(id);
+    };
+  }, []);
+
   // timerMode can't change while running (setTimerMode blocks it), so adding
   // it to the deps never restarts a live interval.
   useEffect(() => {
     if (!running) return undefined;
-    tickRef.current = setInterval(
+    const advance =
       timerMode === "stopwatch"
         ? () => setElapsed((e) => e + 1)
-        : () => setRemaining((r) => Math.max(0, r - 1)),
-      1000
-    );
+        : () => setRemaining((r) => Math.max(0, r - 1));
+    tickRef.current = setInterval(advance, 1000);
     return () => clearInterval(tickRef.current);
   }, [running, timerMode]);
 
@@ -296,6 +363,9 @@ export function TimerProvider({ children }) {
     elapsed,
     finishStopwatch,
     skipBreak,
+    breakNudge,
+    setBreakNudge,
+    breakNudgeMinutes: BREAK_NUDGE_MINUTES,
     nudgeSeconds,
     nudgeTimer,
     pomodoro,
