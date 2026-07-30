@@ -40,7 +40,7 @@ function Stat({ label, value, sub }) {
 export default function ProgressPanel() {
   const { stats, tasks, sessionDays, dailyGoal, setDailyGoal } = useStore();
   // Live minutes tick with the running block, so they come from the timer.
-  const { focusMinutesLive } = useTimer();
+  const { focusMinutesLive, breakNudge, setBreakNudge, breakNudgeMinutes } = useTimer();
   const completion = stats.completion || 0;
   const hours = Math.floor(focusMinutesLive / 60);
   const mins = focusMinutesLive % 60;
@@ -96,6 +96,24 @@ export default function ProgressPanel() {
           </div>
         </div>
       </div>
+
+      {/* Break nudge. It sits next to the goal because it's the other half of
+          the same idea — the goal pushes, this one says when to stop. An
+          unprompted reminder you can't switch off is a nag, so the toggle
+          isn't optional. Always shown, including with Pomodoro on: the nudge
+          only stands down while a pomodoro is actually RUNNING, so it still
+          covers studying without one. */}
+      <label className="flex cursor-pointer items-center justify-between gap-3">
+        <span className="text-xs text-petal/70">
+          Nudge me to stretch after {breakNudgeMinutes} minutes without a break
+        </span>
+        <input
+          type="checkbox"
+          checked={breakNudge}
+          onChange={(e) => setBreakNudge(e.target.checked)}
+          className="h-4 w-4 shrink-0 accent-glow"
+        />
+      </label>
 
       {/* Completion bar — this one is LIST-wide, not today's. `tasksDone`/
           `tasksTotal` count the whole standing list (a to-do list isn't

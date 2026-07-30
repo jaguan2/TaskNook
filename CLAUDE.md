@@ -153,8 +153,14 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 ## Conventions & key facts
 
 - **Failure feedback**: failed API writes are never console-only — every
-  catch also calls the store's `showToast(message)` (one transient glass
-  pill, top-centre, auto-dismisses; rendered in `App.jsx`). Refusals toast
+  catch also calls the store's `showToast(message, ms = 4000)` (one transient
+  glass pill, top-centre; rendered in `App.jsx`). It auto-dismisses after
+  `ms` and is also a `<button>` that closes on click — 4s suits a failure you
+  just caused and are looking at, while the break nudge arrives unprompted
+  and asks for 60s. Only the PILL takes pointer events; its full-width
+  wrapper stays `pointer-events-none` (it spans the window and would eat
+  clicks on the scene) and carries `aria-live` so each toast is announced.
+  Refusals toast
   too, not just errors: hitting the item cap, or asking for a piece the drawn
   floor has no room for. A hard bootstrap
   failure sets `bootError` → App shows a retry screen instead of an empty
@@ -270,6 +276,34 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   The chip and ProgressPanel show `focusMinutesLive` = the DB's completed
   sessions + the CURRENT running block's minutes — without the live part the
   app reads as "not tracking me" (user feedback).
+  **Break nudge** (`lib/breaks.js`, toggle in ProgressPanel,
+  `tasknook.breakNudge`): after `BREAK_NUDGE_MINUTES` (90) of unbroken
+  PRESENCE, a 60s toast suggests standing up. The trigger is neither of the
+  two obvious things, and both were tried:
+  **focus-timer seconds is too narrow** — plenty of studying happens with a
+  textbook and no timer running, and those people got nothing (user
+  feedback); **app-open time is too broad** — TaskNook is half ambient
+  furniture, people leave it running all day for the room and the rain, so it
+  would scold someone out cooking dinner and make a cozy app feel like it was
+  watching them. `isPresent()` splits the difference: the window is visible
+  AND there's a sign of a human — an interaction within
+  `IDLE_GRACE_MINUTES` (2), or a focus block running (deliberate study away
+  from the keyboard is exactly what the timer marks). Being away does NOT
+  reset the run immediately (a twenty-second alt-tab is not a break); it
+  resets after `REST_MINUTES` (5) gone straight.
+  It **stands down only while a pomodoro is actually RUNNING** — that already
+  stands you up on a schedule and a second reminder would land mid-break, but
+  merely having the setting enabled mustn't silence the nudge for someone
+  studying without it.
+  The sampler is its OWN always-on interval (`PRESENCE_TICK_SECONDS`, 15) and
+  not the timer's 1Hz tick, because the whole point is to notice time no
+  focus block is measuring; the counters are REFS, since they move on a timer
+  and nothing renders from them (state would rebuild this provider's context
+  for nothing). Deliberately in-memory — a reload starts the run over, a fine
+  approximation of having got up. The rules are pure functions in
+  `lib/breaks.js` precisely because they otherwise sit inside a
+  `setInterval` that only runs in a live app; `breaks.test.js` covers them,
+  including that an unattended app stays quiet.
   The active-task name is the heading above it **only when one
   exists** — when idle there is NO heading and NO filler text; don't add any
   back. The card is `z-30` so the expanded options overlay the dock like a

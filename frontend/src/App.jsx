@@ -46,6 +46,7 @@ export default function App() {
     booting,
     bootError,
     toast,
+    dismissToast,
     weatherMode,
     timeOfDay,
     brightness,
@@ -284,18 +285,28 @@ export default function App() {
           Outside the decorating visibility wrapper: failures matter in every
           mode. The wrapper div centres it because framer-motion owns the
           motion.div's transform (a -translate-x-1/2 there would be lost). */}
-      <div className="pointer-events-none absolute inset-x-0 top-5 z-50 flex justify-center">
+      <div
+        // The wrapper is always mounted, so aria-live here announces each new
+        // toast as it appears. Only the pill itself takes pointer events —
+        // this strip spans the window and would otherwise eat clicks on the
+        // scene behind it.
+        aria-live="polite"
+        className="pointer-events-none absolute inset-x-0 top-5 z-50 flex justify-center"
+      >
         <AnimatePresence>
           {toast && (
-            <motion.div
+            <motion.button
               key={toast.id}
+              type="button"
+              onClick={dismissToast}
+              title="Dismiss"
               initial={{ y: -16, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -16, opacity: 0 }}
-              className="glass rounded-full px-4 py-2 text-xs font-semibold text-cream shadow-soft"
+              className="glass pointer-events-auto rounded-full px-4 py-2 text-xs font-semibold text-cream shadow-soft transition hover:bg-white/15"
             >
               {toast.message}
-            </motion.div>
+            </motion.button>
           )}
         </AnimatePresence>
       </div>
