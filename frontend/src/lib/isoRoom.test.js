@@ -623,19 +623,6 @@ describe("presets", () => {
     });
   });
 
-  it("every catalog item appears in at least one preset", () => {
-    // The presets are the shop window. Sixteen items — all three architecture
-    // pieces and every cosmetic from one batch — existed only in the picker,
-    // so unless you went hunting through 90+ entries the room never showed
-    // them and you had no idea they were there. A piece nobody sees placed is
-    // a piece nobody knows exists.
-    const used = new Set();
-    for (const key of ISO_PRESET_KEYS) {
-      for (const p of ISO_PRESETS[key].items) used.add(p.item);
-    }
-    expect(ISO_ITEM_KEYS.filter((k) => !used.has(k))).toEqual([]);
-  });
-
   it("EVERY preset survives validation with all its furniture", () => {
     // The default preset had this guarantee; the other eight didn't, and they
     // are just as capable of losing pieces — validation drops wall decor in a

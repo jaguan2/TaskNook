@@ -2,6 +2,7 @@
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
+import { formatSpan } from "../lib/breaks";
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
 function GoalRing({ minutes, goal }) {
@@ -105,7 +106,7 @@ export default function ProgressPanel() {
           covers studying without one. */}
       <label className="flex cursor-pointer items-center justify-between gap-3">
         <span className="text-xs text-petal/70">
-          Nudge me to stretch after {breakNudgeMinutes} minutes without a break
+          Nudge me to stretch after {formatSpan(breakNudgeMinutes)} without a break
         </span>
         <input
           type="checkbox"

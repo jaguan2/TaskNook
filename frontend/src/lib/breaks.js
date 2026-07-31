@@ -17,14 +17,14 @@
 // open in a background tab.
 
 /** Unbroken presence before the nudge fires. */
-export const BREAK_NUDGE_MINUTES = 90;
+export const BREAK_NUDGE_MINUTES = 120;
 /** Continuously away for this long and you've taken the break. */
 export const REST_MINUTES = 5;
 /** Still "at the desk" this long after the last click or keypress. */
 export const IDLE_GRACE_MINUTES = 2;
 /**
  * Seconds between presence samples. Deliberately coarse: this drives a
- * 90-minute threshold, so a 1Hz timer running the whole time the app is open
+ * multi-hour threshold, so a 1Hz timer running the whole time the app is open
  * would buy nothing.
  */
 export const PRESENCE_TICK_SECONDS = 15;
@@ -65,4 +65,19 @@ export function tickPresence(state, { enabled, suppressed, present, step = PRESE
   return focus >= BREAK_NUDGE_MINUTES * 60
     ? { focus: 0, away: 0, nudge: true }
     : { focus, away: 0, nudge: false };
+}
+
+/**
+ * The threshold in words, for the toast and the toggle that controls it.
+ *
+ * Both read it from the constant rather than spelling it out, so changing
+ * BREAK_NUDGE_MINUTES can't leave one of them lying. Interpolating the raw
+ * number gave "120 minutes without a break", which nobody says.
+ */
+export function formatSpan(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m} minutes`;
+  const hours = `${h} hour${h === 1 ? "" : "s"}`;
+  return m ? `${hours} ${m} min` : hours;
 }

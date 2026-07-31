@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BREAK_NUDGE_MINUTES,
+  formatSpan,
   IDLE_GRACE_MINUTES,
   PRESENCE_TICK_SECONDS,
   REST_MINUTES,
@@ -90,5 +91,24 @@ describe("the break nudge", () => {
     expect(gone.focus).toBe(0);
     // and the clock genuinely starts over
     expect(run(10, ON, gone).nudges).toBe(0);
+  });
+});
+
+describe("the threshold in words", () => {
+  it("says hours when it divides evenly", () => {
+    // "120 minutes without a break" is not how anyone says it.
+    expect(formatSpan(120)).toBe("2 hours");
+    expect(formatSpan(60)).toBe("1 hour");
+  });
+
+  it("keeps minutes below the hour, and mixes above it", () => {
+    expect(formatSpan(45)).toBe("45 minutes");
+    expect(formatSpan(90)).toBe("1 hour 30 min");
+  });
+
+  it("describes whatever the threshold is set to", () => {
+    // The toast and the toggle both read this, so retuning the constant can
+    // never leave one of them claiming the old number.
+    expect(formatSpan(BREAK_NUDGE_MINUTES)).toBe("2 hours");
   });
 });

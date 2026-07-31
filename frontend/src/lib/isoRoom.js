@@ -126,6 +126,36 @@ export const ISO_ITEMS = {
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
   bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
   sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 32, surface: 28 },
+  // The set and the laptop are separate placeables as well as parts of the
+  // TV unit and the desk: what sits ON furniture should be movable.
+  tv: { label: "Television", icon: "📺", foot: [1.3, 0.5], hitH: 42, stacks: true, tintable: false, glow: [24, 0.3] },
+  laptop: { label: "Laptop", icon: "💻", foot: [0.7, 0.55], hitH: 20, stacks: true, tintable: false, glow: [13, 0.22] },
+  // ---- autumn ----------------------------------------------------------
+  // A seasonal set, grouped together in the picker so it reads as a set
+  // rather than as seven unrelated things scattered through the catalog.
+  mapletree: { label: "Maple", icon: "🍁", foot: [1.5, 1.5], hitH: 124 },
+  leafpile: { label: "Leaf pile", icon: "🍂", foot: [1, 0.8], hitH: 16 },
+  haybale: { label: "Hay bale", icon: "🌾", foot: [0.9, 0.7], hitH: 26, seat: 26 },
+  pumpkin: { label: "Pumpkin", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true },
+  jackolantern: { label: "Jack-o'-lantern", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true, glow: [15, 0.34] },
+  rake: { label: "Rake", icon: "🧹", foot: [0.4, 0.4], hitH: 62 },
+  wreath: { label: "Wreath", icon: "🌿", foot: [0.9, 0.3], wall: true, hitH: 96 },
+  // ---- kitchen ---------------------------------------------------------
+  oven: { label: "Oven", icon: "🍳", foot: [0.9, 0.7], hitH: 42, surface: 40 },
+  sink: { label: "Sink", icon: "🚰", foot: [0.9, 0.65], hitH: 36 },
+  microwave: { label: "Microwave", icon: "📦", foot: [0.65, 0.45], hitH: 18, stacks: true },
+  toaster: { label: "Toaster", icon: "🍞", foot: [0.4, 0.35], hitH: 14, stacks: true },
+  kettle: { label: "Kettle", icon: "🍵", foot: [0.35, 0.35], hitH: 15, stacks: true },
+  pot: { label: "Stockpot", icon: "🍲", foot: [0.4, 0.4], hitH: 14, stacks: true },
+  // ---- food ------------------------------------------------------------
+  // Every one of these `stacks`: food belongs on a table, and on open floor it
+  // just sits there, which is what the mechanic already does.
+  teapot: { label: "Teapot", icon: "🫖", foot: [0.4, 0.35], hitH: 14, stacks: true },
+  fruitbowl: { label: "Fruit bowl", icon: "🍎", foot: [0.4, 0.4], hitH: 10, stacks: true },
+  bread: { label: "Bread", icon: "🥖", foot: [0.4, 0.3], hitH: 10, stacks: true },
+  cake: { label: "Cake", icon: "🍰", foot: [0.4, 0.4], hitH: 14, stacks: true },
+  pie: { label: "Pie", icon: "🥧", foot: [0.4, 0.4], hitH: 9, stacks: true },
+  ramen: { label: "Ramen", icon: "🍜", foot: [0.35, 0.35], hitH: 10, stacks: true },
   radio: { label: "Radio", icon: "📻", foot: [0.7, 0.25], hitH: 30, stacks: true },
   fridge: { label: "Little fridge", icon: "🧊", foot: [1, 0.7], hitH: 48 },
   cafetable: { label: "Café table", icon: "🍰", foot: [1.2, 1.2], hitH: 30, surface: 21 },
@@ -175,6 +205,14 @@ export const ISO_ITEMS = {
   bookshelf: { label: "Bookshelf", icon: "📖", foot: [1.5, 0.7], hitH: 96 },
   aquarium: { label: "Aquarium", icon: "🐠", foot: [1.4, 0.7], hitH: 66, tintable: false, glow: [26, 0.35] },
   monstera: { label: "Monstera", icon: "🌱", foot: [0.8, 0.8], hitH: 78 },
+  fern: { label: "Fern", icon: "🌿", foot: [0.7, 0.7], hitH: 52 },
+  palm: { label: "Parlour palm", icon: "🌴", foot: [0.9, 0.9], hitH: 104 },
+  snakeplant: { label: "Snake plant", icon: "🪴", foot: [0.6, 0.6], hitH: 72 },
+  // The three small ones stack: a plant belongs on a windowsill or a desk at
+  // least as often as on the floor.
+  bonsai: { label: "Bonsai", icon: "🌳", foot: [0.5, 0.45], hitH: 30, stacks: true },
+  succulent: { label: "Succulent", icon: "🌵", foot: [0.35, 0.35], hitH: 16, stacks: true },
+  orchid: { label: "Orchid", icon: "🌸", foot: [0.4, 0.4], hitH: 36, stacks: true },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46, stacks: true },
   floorlamp: { label: "Floor lamp", icon: "💡", hitH: 84, foot: [0.8, 0.8], glow: [34, 0.72] },
   // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
@@ -183,6 +221,13 @@ export const ISO_ITEMS = {
   archway: { label: "Archway", icon: "🏛️", foot: [2, 0.3], wall: true, hitH: 104 },
   doorway: { label: "Door", icon: "🚪", foot: [1.2, 0.3], wall: true, hitH: 96 },
   bigwindow: { label: "Tall window", icon: "🪟", foot: [1.8, 0.3], wall: true, hitH: 104 },
+  // Structure that stands ON the floor rather than hanging on a wall. The
+  // stair climbs into a dark landing for the same reason the arch is a recess
+  // and not a hole: a flight that plainly goes somewhere costs one sprite,
+  // where a real upper storey would be a change to the whole model.
+  stairs: { label: "Staircase", icon: "🪜", foot: [1, 2.5], hitH: 72, backView: true },
+  railing: { label: "Railing", icon: "🚧", foot: [2, 0.25], hitH: 38 },
+  pillar: { label: "Pillar", icon: "🏛️", foot: [0.6, 0.6], hitH: 118 },
   frame: { label: "Picture frame", icon: "🖼️", foot: [1.4, 0.3], wall: true, hitH: 100 },
   wallshelf: { label: "Wall shelf", icon: "📚", foot: [1.6, 0.3], wall: true, hitH: 96 },
   mirror: { label: "Round mirror", icon: "🪞", foot: [1.1, 0.3], wall: true, hitH: 96 },
@@ -192,11 +237,16 @@ export const ISO_ITEMS = {
   curtain: { label: "Curtains", icon: "🪟", foot: [1.6, 0.3], wall: true, hitH: 110 },
   hangplant: { label: "Hanging plant", icon: "🌿", foot: [0.7, 0.3], wall: true, hitH: 110 },
   neon: { label: "Neon sign", icon: "💡", foot: [1.4, 0.3], wall: true, hitH: 94, glow: [30, 0.4] },
+  sconce: { label: "Wall sconce", icon: "🕯️", foot: [0.6, 0.3], wall: true, hitH: 96, glow: [17, 0.34] },
+  pendant: { label: "Pendant light", icon: "💡", foot: [0.8, 0.3], wall: true, hitH: 118, glow: [27, 0.5] },
   corkboard: { label: "Corkboard", icon: "📌", foot: [1.2, 0.3], wall: true, hitH: 100 },
   pennant: { label: "Pennant", icon: "🚩", foot: [0.9, 0.3], wall: true, hitH: 100 },
   fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78, glow: [44, 0.7] },
   recordplayer: { label: "Record player", icon: "📀", foot: [1.2, 0.7], hitH: 42 },
   candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28, stacks: true, glow: [16, 0.35] },
+  tablelamp: { label: "Table lamp", icon: "🛋️", foot: [0.45, 0.45], hitH: 30, stacks: true, glow: [18, 0.45] },
+  candelabra: { label: "Candelabra", icon: "🕯️", foot: [0.5, 0.5], hitH: 46, stacks: true, glow: [20, 0.4] },
+  paperlantern: { label: "Paper lamp", icon: "🏮", foot: [0.7, 0.7], hitH: 78, glow: [26, 0.5] },
   // outdoor set (at home in the garden, allowed anywhere)
   tree: { label: "Tree", icon: "🌳", foot: [1.5, 1.5], hitH: 128 },
   pine: { label: "Pine tree", icon: "🌲", foot: [1.2, 1.2], hitH: 92 },
@@ -257,7 +307,7 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Storage",
-    keys: ["bookshelf", "bookcase", "shelf", "wardrobe", "dresser", "tvunit", "fridge",
+    keys: ["bookshelf", "bookcase", "shelf", "wardrobe", "dresser", "tvunit",
       "pastrycase", "crates", "basket", "vinylcrate", "ladder", "coatrack"],
   },
   {
@@ -267,22 +317,43 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Light & warmth",
-    keys: ["floorlamp", "desklamp", "lantern", "candle", "lightjar", "fireplace"],
+    keys: ["floorlamp", "desklamp", "tablelamp", "paperlantern", "lantern", "candle",
+      "candelabra", "lightjar", "fireplace"],
+  },
+  {
+    label: "Plants & greenery",
+    keys: ["monstera", "palm", "fern", "snakeplant", "plant", "cactus", "succulent",
+      "orchid", "bonsai", "flowers", "flowerbed", "terrarium"],
   },
   {
     label: "Decoration",
-    keys: ["piano", "easel", "screen", "birdcage", "standmirror", "aquarium", "terrarium",
-      "monstera", "plant", "cactus", "flowers", "flowerbed", "globe", "chess", "guitar",
-      "bookstack", "mug", "till"],
+    keys: ["piano", "easel", "screen", "birdcage", "standmirror", "aquarium",
+      "globe", "chess", "guitar", "bookstack", "till"],
   },
   {
     label: "Tech & music",
-    keys: ["computer", "radio", "recordplayer"],
+    keys: ["computer", "laptop", "tv", "radio", "recordplayer"],
+  },
+  {
+    label: "Architecture",
+    keys: ["archway", "doorway", "bigwindow", "stairs", "railing", "pillar"],
   },
   {
     label: "On the wall",
-    keys: ["archway", "doorway", "bigwindow", "frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
-      "pennant", "neon", "curtain", "hangplant"],
+    keys: ["frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
+      "pennant", "neon", "sconce", "pendant", "curtain", "hangplant"],
+  },
+  {
+    label: "Kitchen",
+    keys: ["oven", "sink", "fridge", "microwave", "toaster", "kettle", "pot"],
+  },
+  {
+    label: "Food & drink",
+    keys: ["teapot", "mug", "fruitbowl", "bread", "cake", "pie", "ramen"],
+  },
+  {
+    label: "Autumn",
+    keys: ["mapletree", "leafpile", "haybale", "pumpkin", "jackolantern", "rake", "wreath"],
   },
   {
     label: "Outdoors",
@@ -887,47 +958,25 @@ export const ISO_PRESETS = {
     icon: "🪵",
     size: { w: 9, d: 8 },
     items: [
-      // sleeping corner: bed flush to the right wall, nightstand beside it
-      // (tint = the orange colourway — variants, not free tint)
-      { item: "bed", gx: 6.5, gy: 0, tint: "#e0774a" },
-      { item: "nightstand", gx: 5.5, gy: 0 },
-      // hearth wall, now with an actual hearth: bookshelf, then the
-      // fireplace mid-wall, the shelf re-hung over the bed's headboard
-      { item: "bookshelf", gx: 1.5, gy: 0 },
+      // The hearth end: fire, the fleece in front of it, the dog asleep on it.
       { item: "fireplace", gx: 3.5, gy: 0 },
-      { item: "wallshelf", gx: 6.5, gy: 0, tint: "#8a5a3b" },
-      { item: "candle", gx: 3, gy: 5, tint: "#e0c9a0" },
-      // frame hangs over the sofa (the window owns gy 1–2.5 of this wall)
-      { item: "frame", gx: 0, gy: 4, rot: 1, tint: "#6b4a39" },
-      // sitting nook on the left wall: sofa faces its table across the rug
-      { item: "squarerug", gx: 0.5, gy: 3.5, tint: "#9a6a45" },
-      { item: "sofa", gx: 0, gy: 3.5, rot: 1 },
-      { item: "coffeetable", gx: 1.5, gy: 4, rot: 1 },
-      { item: "cat", gx: 2, gy: 5.5, tint: "#8a5a3b" },
-      { item: "floorlamp", gx: 0.5, gy: 6.5 },
-      // loose warmth
-      { item: "radio", gx: 3.5, gy: 6.5 },
-      { item: "cushion", gx: 4, gy: 4.5, tint: "#c98a4b" },
-      // wardrobe takes the free stretch of back wall in the corner (the
-      // window and its curtains own gy 1–2.5 of the LEFT wall, so it isn't
-      // standing in front of them)
-      { item: "wardrobe", gx: 0, gy: 0 },
-      { item: "plant", gx: 4.5, gy: 7 },
-      { item: "monstera", gx: 8, gy: 7 },
-      // curtains hang over the window (left wall, gy 1–2.5)
-      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#9a6a45" },
-      { item: "basket", gx: 7.5, gy: 3 },
-      // a runner down the middle (layer −1, so furniture sits ON it),
-      // storage along the far side, and a jar of lights by the sofa
-      { item: "runner", gx: 5, gy: 4, tint: "#9a6a45" },
-      { item: "sidetable", gx: 2, gy: 2.5, rot: 1 },
-      { item: "crates", gx: 8, gy: 4.5 },
-      { item: "ladder", gx: 6, gy: 6.5 },
-      { item: "lightjar", gx: 5, gy: 5.5 },
-      // Fleece by the hearth with the dog asleep on it, and a lantern.
       { item: "sheepskin", gx: 3, gy: 1 },
       { item: "dog", gx: 3.5, gy: 1.5 },
-      { item: "lantern", gx: 5, gy: 2 },
+      // sleeping end
+      { item: "bed", gx: 6.5, gy: 0 },
+      { item: "nightstand", gx: 5.5, gy: 0 },
+      { item: "wardrobe", gx: 0, gy: 0 },
+      { item: "bookshelf", gx: 1.5, gy: 0 },
+      // sitting end, on its own rug
+      { item: "squarerug", gx: 0.5, gy: 3.5 },
+      { item: "sofa", gx: 0, gy: 3.5, rot: 1 },
+      { item: "coffeetable", gx: 1.5, gy: 4, rot: 1 },
+      { item: "floorlamp", gx: 0.5, gy: 6.5 },
+      { item: "cat", gx: 2, gy: 5.5 },
+      // and just enough on the walls
+      { item: "wallshelf", gx: 6.5, gy: 0 },
+      { item: "frame", gx: 0, gy: 4, rot: 1 },
+      { item: "curtain", gx: 0, gy: 1, rot: 1 },
     ],
   },
   cafe: {
@@ -984,41 +1033,32 @@ export const ISO_PRESETS = {
   garden: {
     label: "Secret garden",
     icon: "🌿",
-    size: { w: 11, d: 9, env: "garden" },
+    size: { w: 10, d: 8, env: "garden" },
     items: [
-      // tree line along the back, pond nestled between them
-      { item: "tree", gx: 0.5, gy: 0.5 },
-      { item: "bush", gx: 2.5, gy: 0.5 },
-      { item: "pond", gx: 5.5, gy: 0.5 },
-      { item: "tree", gx: 9, gy: 0.5 },
-      { item: "bench", gx: 6, gy: 3.5 },
-      { item: "resident", gx: 6.5, gy: 3.5, tint: "#c98a4b" },
-      // study spot: desk + stool on the open lawn, like VC2's picnic table
-      { item: "desk", gx: 2.5, gy: 2.5 },
-      { item: "stool", gx: 3.5, gy: 4 },
-      // picnic corner with the cat
-      { item: "picnic", gx: 1.5, gy: 5.5, tint: "#d98a93" },
-      { item: "cat", gx: 2, gy: 6, tint: "#8a5a3b" },
-      // greenery + colour
-      { item: "bush", gx: 10, gy: 3.5 },
-      { item: "flowerbed", gx: 0.5, gy: 8, tint: "#e8b04b" },
-      { item: "flowerbed", gx: 9.5, gy: 8, tint: "#d98a93" },
-      { item: "plant", gx: 0.5, gy: 3.5 },
-      { item: "monstera", gx: 8, gy: 6.5 },
-      { item: "cactus", gx: 4.5, gy: 7 },
-      { item: "lightjar", gx: 7, gy: 7.5 },
-      { item: "crates", gx: 9.5, gy: 5.5, tint: "#9a6a45" },
-      // a proper tree line: three silhouettes, not three copies of one
-      { item: "pine", gx: 3.5, gy: 0 },
-      { item: "birch", gx: 7.5, gy: 0 },
-      { item: "hedge", gx: 0.5, gy: 2 },
-      { item: "rock", gx: 4.5, gy: 1.5 },
-      { item: "log", gx: 8, gy: 3 },
-      { item: "flowers", gx: 5.5, gy: 6.5 },
-      { item: "matrug", gx: 5, gy: 4.5, tint: "#c98a4b" },
-      // A hammock strung between the trees, and a rabbit in the grass.
-      { item: "hammock", gx: 3, gy: 8 },
-      { item: "bunny", gx: 6, gy: 8 },
+      // An OFFICE DESK and a laptop were sitting on the grass, with a stool
+      // and stacked crates beside them — the single most out-of-place thing
+      // in any preset. Gone, along with the scatter of pot plants.
+      //
+      // Three zones with open lawn between: the tree line, the pond you sit
+      // by, and the corner you lie down in.
+      { item: "tree", gx: 0.5, gy: 0 },
+      { item: "pine", gx: 2.5, gy: 0 },
+      { item: "birch", gx: 4, gy: 0.5 },
+      { item: "rock", gx: 2.5, gy: 2.5 },
+      // the pond, with somewhere to sit facing it
+      { item: "pond", gx: 6, gy: 0.5 },
+      { item: "bench", gx: 6, gy: 4 },
+      { item: "resident", gx: 6.5, gy: 4, tint: "#7faf8f" },
+      { item: "log", gx: 8, gy: 3.5 },
+      { item: "bush", gx: 8.5, gy: 5.5 },
+      // and the lying-down corner — the blanket well clear of the hammock,
+      // which previously overlapped it and left the cat apparently floating
+      { item: "hammock", gx: 1, gy: 4 },
+      { item: "lightjar", gx: 5.5, gy: 5 },
+      { item: "picnic", gx: 1, gy: 6 },
+      { item: "cat", gx: 1.5, gy: 6.5 },
+      { item: "flowerbed", gx: 3.5, gy: 6.5 },
+      { item: "bunny", gx: 5, gy: 7 },
     ],
   },
   // A REAL café: a working counter run along the back wall, two seating
@@ -1029,70 +1069,30 @@ export const ISO_PRESETS = {
   cafeteria: {
     label: "Corner café",
     icon: "🥐",
-    size: { w: 12, d: 9, env: "cafe" },
+    size: { w: 9, d: 7, env: "cafe" },
     items: [
-      // ---- THE BAR, as a zone with DEPTH ----------------------------------
-      // The first attempt put everything on the gy 0 line, so the bar was a
-      // thin strip against the wall and the props on it hid each other. A
-      // real bar is three bands: back-bar shelving against the wall, a metre
-      // of barista space, then the counter customers stand at.
+      // the bar along the back, four pieces reading as one run
+      { item: "barcounter", gx: 4, gy: 1 },
+      { item: "barcounter", gx: 5, gy: 1 },
+      { item: "barcounter", gx: 6, gy: 1 },
+      { item: "coffeecounter", gx: 7, gy: 1 },
+      { item: "pastrycase", gx: 4, gy: 1 },
+      { item: "till", gx: 6, gy: 1 },
+      // behind it — the shelves stop short of the menu board so it isn't
+      // drawn behind them
+      { item: "shelf", gx: 5, gy: 0 },
       { item: "shelf", gx: 6, gy: 0 },
-      { item: "shelf", gx: 7, gy: 0 },
-      { item: "shelf", gx: 8, gy: 0 },
-      { item: "shelf", gx: 9, gy: 0 },
-      { item: "shelf", gx: 10, gy: 0 },
-      { item: "fridge", gx: 11, gy: 0 },
-      // the counter itself, a step forward — the gap is where staff stand
-      { item: "barcounter", gx: 6, gy: 1.5 },
-      { item: "barcounter", gx: 7, gy: 1.5 },
-      { item: "barcounter", gx: 8, gy: 1.5 },
-      { item: "barcounter", gx: 9, gy: 1.5 },
-      { item: "coffeecounter", gx: 10, gy: 1.5 },
-      // …and what's ON it, spread out so nothing hides anything
-      { item: "pastrycase", gx: 6, gy: 1.5 },
-      { item: "mug", gx: 8, gy: 1.5 },
-      { item: "till", gx: 9, gy: 1.5 },
-      // stools at the customer side, clear of the counter's overhang
-      { item: "woodstool", gx: 6.5, gy: 2.5 },
-      { item: "woodstool", gx: 8, gy: 2.5 },
-      { item: "woodstool", gx: 9.5, gy: 2.5 },
-      { item: "resident", gx: 8, gy: 2.5, tint: "#e0a374" },
-      // menu hangs over the back-bar; the neon sits further along
-      { item: "menuboard", gx: 7, gy: 0 },
-      { item: "neon", gx: 9.5, gy: 0, tint: "#e0a374" },
-      // ---- SEATING, kept on its own side of the room ----------------------
-      { item: "persianrug", gx: 0.5, gy: 3, tint: "#7a4034" },
-      { item: "cafetable", gx: 1, gy: 3.5 },
-      { item: "mug", gx: 1, gy: 3.5 },
-      { item: "chair", gx: 0, gy: 4 },
-      { item: "chair", gx: 2.5, gy: 4 },
-      { item: "resident", gx: 0, gy: 4, tint: "#5b6b9b" },
-      { item: "cafetable", gx: 4, gy: 6 },
-      { item: "bookstack", gx: 4, gy: 6 },
-      { item: "chair", gx: 3, gy: 6.5 },
-      { item: "chair", gx: 5.5, gy: 6.5 },
-      { item: "resident", gx: 3, gy: 6.5, tint: "#7faf8f" },
-      // a planter divides the two zones, the way a real café does it
-      { item: "hedge", gx: 5.5, gy: 5, tint: "#3f7f63" },
-      // ---- edges: nothing tall or wide in the middle of the floor ---------
-      { item: "bookcase", gx: 0, gy: 5.5, rot: 1, tint: "#6b4a39" },
-      { item: "coatrack", gx: 0.5, gy: 7.5 },
-      { item: "floorlamp", gx: 11, gy: 4 },
-      { item: "petbed", gx: 8.5, gy: 6.5, tint: "#c98a4b" },
-      { item: "cat", gx: 8.5, gy: 6.5 },
-      { item: "monstera", gx: 11, gy: 7.5 },
-      { item: "cactus", gx: 2, gy: 8 },
-      { item: "plant", gx: 5.5, gy: 8 },
-      // left wall: window with curtains, and art between it and the door
-      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#c98a4b" },
-      { item: "frame", gx: 0, gy: 3.5, rot: 1, tint: "#6b4a39" },
-      { item: "wallclock", gx: 0.5, gy: 0, tint: "#6b4a39" },
-      { item: "corkboard", gx: 2, gy: 0 },
-      { item: "poster", gx: 4, gy: 0, tint: "#9a6a45" },
-      { item: "hangplant", gx: 5.5, gy: 0 },
-      // A game left set up on the corner table, at the other end of it
-      // from the books.
-      { item: "chess", gx: 4.5, gy: 6.5 },
+      { item: "fridge", gx: 8, gy: 0 },
+      { item: "menuboard", gx: 2, gy: 0 },
+      // someone at the bar
+      { item: "woodstool", gx: 5, gy: 2 },
+      { item: "resident", gx: 5, gy: 2 },
+      // and one table in, across the open floor
+      { item: "persianrug", gx: 0.5, gy: 4, tint: "#7a4034" },
+      { item: "cafetable", gx: 1, gy: 4.5 },
+      { item: "mug", gx: 1, gy: 4.5 },
+      { item: "chair", gx: 0, gy: 5 },
+      { item: "resident", gx: 0, gy: 5, tint: "#7faf8f" },
     ],
   },
   // A READING room: bookcases wall to wall, one long table down the middle,
@@ -1268,6 +1268,41 @@ export const ISO_PRESETS = {
       { item: "lightjar", gx: 7.5, gy: 6 },
       // A lantern for when the string lights are not enough.
       { item: "lantern", gx: 5, gy: 2 },
+    ],
+  },
+  // A seasonal room, and the reason the autumn set exists as a set. Open air
+  // (garden env: grass, no walls), so it holds the outdoor half of the
+  // collection — the wreath has nowhere to hang here and is deliberately left
+  // out rather than forced in.
+  //
+  // FIFTEEN pieces exactly. Preset rooms are meant to be clean and functional,
+  // and three trees, a bench and a raked pile of leaves is a whole scene; the
+  // temptation with a themed room is to use every piece in the theme.
+  fall: {
+    label: "Autumn yard",
+    icon: "\u{1F342}",
+    size: { w: 10, d: 8, env: "garden" },
+    items: [
+      // A copse at the back-left and one tree opposite, rather than three
+      // spaced evenly across the skyline.
+      { item: "mapletree", gx: 0.5, gy: 0 },
+      { item: "mapletree", gx: 2.5, gy: 0.5, tint: "#c9762f" },
+      { item: "birch", gx: 7.5, gy: 0, tint: "#c9a24b" },
+      { item: "bush", gx: 0.5, gy: 3, tint: "#a8863a" },
+      { item: "rock", gx: 9, gy: 2.5 },
+      // the job someone is halfway through, under the trees that shed it
+      { item: "leafpile", gx: 3, gy: 2.5 },
+      { item: "rake", gx: 4, gy: 2.5 },
+      // the corner you actually sit in
+      { item: "bench", gx: 1, gy: 5.5 },
+      { item: "resident", gx: 1.5, gy: 5.5, tint: "#c9a24b" },
+      { item: "cat", gx: 1, gy: 6.5 },
+      { item: "lantern", gx: 3, gy: 5.5 },
+      // and the harvest, spread a full tile apart so they don't stack up
+      { item: "haybale", gx: 7.5, gy: 4 },
+      { item: "pumpkin", gx: 6.5, gy: 5.5 },
+      { item: "pumpkin", gx: 8, gy: 6 },
+      { item: "jackolantern", gx: 7, gy: 7 },
     ],
   },
   empty: {
