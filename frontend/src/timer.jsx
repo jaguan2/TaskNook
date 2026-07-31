@@ -13,6 +13,7 @@ import { readStored, writeStored } from "./lib/storage";
 import {
   BREAK_NUDGE_MINUTES,
   PRESENCE_TICK_SECONDS,
+  formatSpan,
   isPresent,
   tickPresence,
 } from "./lib/breaks";
@@ -269,7 +270,7 @@ export function TimerProvider({ children }) {
     breakRunRef.current = { focus: r.focus, away: r.away };
     if (r.nudge) {
       showToast(
-        `${BREAK_NUDGE_MINUTES} minutes without a break — stretch your legs? 🌿`,
+        `${formatSpan(BREAK_NUDGE_MINUTES)} without a break — stretch your legs? 🌿`,
         NUDGE_TOAST_MS
       );
     }

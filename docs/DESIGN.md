@@ -5,6 +5,10 @@ are not aspirations — they're rules distilled from decisions already made,
 several of them learned from real mistakes. When a new feature bends one,
 say so explicitly in review.
 
+**Models have their own spec.** How isometric furniture is drawn — silhouette
+rules, geometry, height reference, shared helpers, colour opacities, the
+review loop — is `docs/MODELS.md`. This file covers everything else.
+
 ## North star
 
 **Virtual Cottage 2.** Chromeless elements drawn straight on the scene beat
@@ -146,31 +150,26 @@ learned the hard way):
    a jar stacked invisibly on a mug, a cat spawned inside a chair, a door
    behind a bookcase — came from guessing coordinates.
 
-**Every piece in the catalog appears in at least one preset**, and a test says
-so. The presets are the shop window: sixteen items once existed only in the
-picker, so unless you went hunting through ninety-odd entries the room never
-showed them. Adding a piece isn't finished until somewhere shows it off.
+**Preset rooms are clean and functional — aim for about fifteen pieces.**
+They are not a shop window. A new piece belongs in the picker; it
+does not need a home in a built-in room, and the built-in rooms are left
+alone by default (user decision, after two rounds of feedback: "more minimal
+is better than crowded", then "we do not need to touch our preset rooms").
+There was briefly a test demanding every catalog key appear in some preset —
+following it is what produced the crowding, so it's gone.
 
-**But coverage means one good home, not a sprinkle.** The rule above is the
-easiest one in this file to over-apply, and doing so cost a round of feedback:
-a preset stuffed to show pieces off is a worse room than a calm one. So —
+When a preset IS being edited, the restraint rules still hold:
 
 - **A room gets one rug.** Two side by side is not a thing anyone does. A
-  patterned rug earns its place by BEING the room's rug, so it replaces the
-  plain one rather than joining it. (Separate rugs in genuinely separate
-  zones — a runner by the bed, a fleece at the hearth — are fine; adjacent
-  ones are not.)
+  patterned rug replaces the plain one rather than joining it. (Separate rugs
+  in genuinely separate zones — a runner by the bed, a fleece at the hearth —
+  are fine; adjacent ones are not.)
 - **Empty seats and open floor are the content.** The study hall sat eleven
   people at sixteen chairs and read as a crowd; at five, with one table left
-  completely free, it reads as somewhere you could go and work. Leave a table
-  empty on purpose.
+  completely free, it reads as somewhere you could go and work.
 - **Prefer fewer, better-placed accents.** Six plants and three lamps in one
   room is set dressing you stop seeing. Cut until removing the next one would
   be a loss.
-
-When a piece has nowhere left to go without crowding, swap it in for something
-plainer rather than adding it — and check the item you displaced still has a
-home of its own, or the coverage test will (correctly) fail.
 
 **Catalogs show the thing, not a stand-in.** Every browser that offers
 something placeable renders the REAL sprite at postage-stamp size — preset

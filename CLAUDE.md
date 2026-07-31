@@ -277,7 +277,7 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   sessions + the CURRENT running block's minutes — without the live part the
   app reads as "not tracking me" (user feedback).
   **Break nudge** (`lib/breaks.js`, toggle in ProgressPanel,
-  `tasknook.breakNudge`): after `BREAK_NUDGE_MINUTES` (90) of unbroken
+  `tasknook.breakNudge`): after `BREAK_NUDGE_MINUTES` (120) of unbroken
   PRESENCE, a 60s toast suggests standing up. The trigger is neither of the
   two obvious things, and both were tried:
   **focus-timer seconds is too narrow** — plenty of studying happens with a
@@ -303,7 +303,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   approximation of having got up. The rules are pure functions in
   `lib/breaks.js` precisely because they otherwise sit inside a
   `setInterval` that only runs in a live app; `breaks.test.js` covers them,
-  including that an unattended app stays quiet.
+  including that an unattended app stays quiet. The toast and the toggle both
+  word the threshold through `formatSpan`, so retuning the constant can't
+  leave one of them claiming the old number ("120 minutes without a break" is
+  not how anyone says it).
   The active-task name is the heading above it **only when one
   exists** — when idle there is NO heading and NO filler text; don't add any
   back. The card is `z-30` so the expanded options overlay the dock like a
@@ -320,6 +323,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   **Design north star (user preference)**: VC2's UI — prefer chromeless
   on-scene elements (HUD text, small pills, bottom bars, popovers) over new
   drawers/dialogs; panels are for infrequent configuration.
+  **Before drawing or changing an iso model, read `docs/MODELS.md`** — the
+  declared spec for sprites: the five silhouette rules, the geometry and
+  height reference, the shared helpers, the colour/opacity table, and the
+  review loop. It is the authority on models.
   **Before touching any UI, read `docs/DESIGN.md`** — the full design-rules
   sheet (zone ownership map, motion rules, composition, tinting, the
   new-feature checklist). It is the authority on visual decisions.
@@ -583,27 +590,59 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   block, and motion stays OUT of reading zones (HUD corners) by design.
   `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
   Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
-  Study hall 🧑‍🤝‍🧑 / Terrace 🪴 / Empty room 🫙) are whole-layout
+  Study hall 🧑‍🤝‍🧑 / Terrace 🪴 / Autumn yard 🍂 / Empty room 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);
   preset coordinates must be
   half-snapped and in-bounds AS WRITTEN — the
   preset test asserts clamp-stability, so a sloppy coordinate fails CI, not
   the user.
-  **Every catalog key appears in at least one preset**, and a test says so.
-  Sixteen didn't: all three architecture pieces and every cosmetic added in
-  one batch (dog, rabbit, three rugs, piano, easel, birdcage, screen, globe,
-  chess, hammock, lantern) existed only in the picker, so unless you went
-  hunting the room never showed them. The presets ARE the shop window — a
-  piece nobody sees placed is a piece nobody knows exists. **Coverage means
-  one good home, not a sprinkle** — this rule is the easy one to over-apply,
-  and doing so cost a round of feedback (user: "more minimal is better than
-  crowded"). A room gets ONE rug; a patterned one replaces the plain one
-  rather than sitting next to it. The Study hall seats five, not eleven, with
-  a table deliberately left free — at eleven it read as a crowd rather than
-  as somewhere you could go and work. When a piece has nowhere to go without
-  crowding, swap it in for something plainer and check the displaced item
-  still has a home, or the coverage test correctly fails.
+  **A room can pass every footprint check and still read wrong**, because
+  the collision test works in GRID space and the eye works in SCREEN
+  space: anything taller and further back lands visually ON what's in
+  front of it. In the Secret garden a flowerbed two rows behind the
+  hammock sat inside its sling, and a rock behind the bench grew out of
+  the resident's head — both legal, both wrong. Look at the room.
+  **Four rooms were decluttered after being photographed** (user feedback,
+  "a little too cluttered"): Cozy cabin 27 → 15 (its back quadrant was a
+  storage pile — crates, ladder, basket, radio and two oversized monsteras in
+  one corner, plus three rugs and four light sources), Corner café 47 → 17,
+  the Autumn yard recomposed, and Secret garden 27 → 15 (it had an
+  office DESK and laptop standing on the grass, with a stool and stacked
+  crates beside them). Two lessons worth keeping:
+  **cutting alone can overcorrect** — at 17 pieces the café rattled around a
+  12×9 floor and read as empty, so the ROOM shrank to 9×7 rather than the
+  furniture growing back; and **a preset can be the right size and still read
+  as random** — the Autumn yard was always 15 pieces, but evenly distributed.
+  Grouping them into three clusters (the sitting corner, the job half-done,
+  the harvest) with open ground between is what made it a place. Count is
+  necessary, composition is not optional.
+  **Autumn yard** is the seasonal preset and the reason the autumn set exists
+  as a set. Open air (garden env), FIFTEEN pieces exactly — the temptation
+  with a themed room is to use every piece in the theme, and the wreath is
+  deliberately left out because there is no wall to hang it on. Two things
+  needed fixing after looking at it: three pumpkins half a tile apart read as
+  one STACKED on another (they're 16px tall and the grid is 24px, so anything
+  short wants a full tile between it and its neighbour), and a summer-green
+  birch and bush beside two maples made the season read as ambiguous — both
+  now carry autumn tints.
+  **Preset rooms are meant to be clean and functional — a target of about
+  FIFTEEN pieces, not a showcase** (user decision). The presets are NOT a
+  shop window. A new piece belongs
+  in the picker; it does not have to be placed in a built-in room, and the
+  built-in rooms are deliberately left alone. There WAS a test asserting every
+  catalog key appeared in some preset, and following it produced exactly what
+  the user then rejected twice — crowded rooms ("more minimal is better than
+  crowded", then "we do not need to touch our preset rooms"). The test is
+  gone; don't reintroduce it. A room gets ONE rug, and when a piece has
+  nowhere to go without crowding, the answer is to leave it in the picker.
+  Placing into a preset at all is not eyeballing: dump the floor occupancy
+  first (tile map of what's taken), because the two bugs this produced — a jar
+  stacked invisibly on a mug, a cat spawned inside a chair — both came from
+  guessing coordinates. Wall decor needs its own check: the Reading room and
+  Study hall had bookshelves along the ENTIRE back wall, so an arch and a
+  window placed there were drawn behind the shelving and invisible. A wall
+  that's already full has no room for architecture.
   Placing into a preset is not eyeballing: dump the floor occupancy first
   (tile map of what's taken), because the two bugs this produced — a jar
   stacked invisibly on a mug, a cat spawned inside a chair — both came from
@@ -642,6 +681,23 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
   grid (0,0); linear projection makes them relocatable by translate), scene +
   drag engine in `IsoRoom.jsx`.
+  Screens share one helper: `ScreenFace` draws the glass inset into its
+  bezel plus a hint of a picture, and the television, the TV unit's set and
+  the monitor all call it — the unit's set was visibly plainer than the
+  standalone TV the moment that existed. `tv` and `laptop` are placeable
+  and `stacks`, as well as being parts of `tvunit` and `desk`: what sits ON
+  furniture should be movable. A desk therefore still draws its own laptop,
+  so putting a second one on it doubles up — splitting that out would
+  change how three shipped presets look, which is why it hasn't been done.
+  **Thematic sets get their OWN picker section** (kitchen, food & drink,
+  autumn). Seven seasonal pieces scattered alphabetically through a 130-item
+  catalog are seven unrelated things; under one heading they read as a set and
+  give someone a reason to redecorate. A section is also where `fridge` and
+  `mug` finally landed — both had been sitting in "Storage" and "Decoration"
+  because nothing better existed.
+  **What "clean" means for a model** — the five silhouette rules, the height
+  reference, the shared helpers and the standard face opacities all live in
+  `docs/MODELS.md` now rather than being restated here.
   **Detail lives in the shared helpers first.** Nearly every piece is built
   from `TintedBox`, so its contact shading — a short dark band where each box
   meets whatever it stands on — gives the WHOLE catalog weight from one edit;
@@ -666,9 +722,12 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   (`IsoItemPreview` / `IsoPresetPreview`), sizing themselves via `getBBox`
   rather than a shared viewBox, and the preset thumbnails apply `seatFor` so
   residents sit where they'll actually sit. The list is **sectioned by
-  `ISO_ITEM_GROUPS`** (seating / tables / storage / rugs / light / decoration /
-  tech / wall / outdoors / living things) — at 90+ entries a flat grid stopped
-  being browsable. Grouping lives beside the catalog rather than as a `group:`
+  `ISO_ITEM_GROUPS`** (seating / tables / storage / rugs / light / plants /
+  decoration / tech / architecture / wall / kitchen / food & drink / autumn /
+  outdoors / living things) — at 100+ entries a flat grid stopped being
+  browsable. Plants earned their own section
+  once there were a dozen of them; before that they were swamping "Decoration",
+  which is where anything unclassified had been landing. Grouping lives beside the catalog rather than as a `group:`
   field per entry, and a test asserts every key appears in exactly ONE section:
   the picker is the only way to add an item, so a key missing from the sections
   is furniture that exists and can never be placed. A section whose every item
@@ -688,6 +747,25 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   whereas a dark reveal with a sliver of lit floor beyond reads as another room
   and costs one sprite. A room of nothing but flat walls reads as a box — the
   reference art always gives the eye somewhere to look through.
+  **Depth in an opening comes from TWO rings, not one.** Each of the three
+  draws an outer moulding and a second frame stepped in from it, so the glass
+  or the dark reveal sits INSIDE the wall; with a single ring they read as a
+  shape cut out with scissors. The same pass gave the arch a keystone and a
+  threshold, the door an architrave standing proud of the wall plus panels
+  with a light top edge and a dark bottom one (a flat dark rectangle is a
+  sticker; the two edges make it a recess), and the window a sill with a
+  return and a transom.
+  `stairs`, `railing` and `pillar` are architecture that stands ON the floor
+  rather than hanging on a wall, so they're ordinary placements. The stair is
+  a **solid stepped mass** — every tread is a box running from the floor up to
+  its own height, so each nearer step overlaps the base of the one behind it;
+  built as slabs floating at their tread height you see daylight under the
+  flight. It climbs AWAY from the camera (the first version ascended toward
+  the viewer, which left the head of the flight hanging in mid-room), and it
+  is six steps rather than a full storey's eight, because at wall height it
+  swallowed whatever stood behind it. Where it goes at the top is deliberately
+  not modelled: a real upper floor means giving every placement a level, and
+  the depth sort and drag engine would both have to learn about height.
   **Light is cast by the SCENE, not by each sprite.** A catalog entry declares
   `glow: [radius, strength]` and IsoRoom draws one warm pool per light source
   on the floor, clipped to it, under the furniture — so a new lamp needs one
