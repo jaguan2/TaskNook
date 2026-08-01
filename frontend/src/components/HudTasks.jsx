@@ -191,9 +191,9 @@ export default function HudTasks({ onOpenTasks }) {
   return (
     <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col">
       <header className="flex items-center justify-between px-1 pb-1.5">
-        <p className="text-base font-bold tracking-wide text-cream drop-shadow">
+        <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
           To-Do List{" "}
-          <span className="text-sm font-semibold text-petal/60">
+          <span className="font-cozy text-sm font-semibold text-petal/60">
             ({done.length}/{orderedTasks.length})
           </span>
         </p>
