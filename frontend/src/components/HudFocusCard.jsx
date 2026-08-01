@@ -95,7 +95,7 @@ export default function HudFocusCard() {
         className="pointer-events-auto flex w-[13.5rem] flex-col items-center"
       >
         {heading && (
-          <h1 className="mb-1.5 max-w-full truncate text-center text-xl font-bold tracking-wide text-cream drop-shadow">
+          <h1 className="font-display mb-1.5 max-w-full truncate text-center text-xl font-bold tracking-wide text-cream drop-shadow">
             {heading}
           </h1>
         )}

@@ -28,6 +28,9 @@ export default {
         cozy: ['"Quicksand"', "ui-rounded", "system-ui", "sans-serif"],
         // The "rkive." signature mark, same face as the personal portfolio.
         mark: ['"Fredoka"', '"Quicksand"', "ui-rounded", "system-ui", "sans-serif"],
+        // Headings/titles only (panel titles, HUD headings) — self-hosted,
+        // see index.css's @font-face. Body/UI text stays font-cozy.
+        display: ['"Zyzol"', '"Fredoka"', "ui-rounded", "system-ui", "sans-serif"],
       },
       boxShadow: {
         soft: "0 10px 40px -10px rgba(0,0,0,0.5)",

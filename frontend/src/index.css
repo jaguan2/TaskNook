@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Zyzol (OFL, Szymon Furjan — furjandesign.com) — self-hosted, not on Google
+   Fonts. Display face for headings/titles only; body/UI text stays Quicksand.
+   See assets/fonts/zyzol/OFL.txt for the license. */
+@font-face {
+  font-family: "Zyzol";
+  src: url("./assets/fonts/zyzol/Zyzol.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zyzol";
+  src: url("./assets/fonts/zyzol/Zyzol-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
 

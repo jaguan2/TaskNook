@@ -46,7 +46,7 @@ export default function Drawer({
         className="flex cursor-grab items-start justify-between border-b border-white/10 px-5 py-4 active:cursor-grabbing"
       >
         <div>
-          <h2 className="text-lg font-bold text-cream">{title}</h2>
+          <h2 className="font-display text-lg font-bold text-cream">{title}</h2>
           {subtitle && <p className="text-xs text-petal/70">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-1">
