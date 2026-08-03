@@ -210,6 +210,7 @@ function IsoRoom({
   timeOfDay = "night",
   highlightId = null,
   working = false,
+  character,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -855,6 +856,7 @@ function IsoRoom({
                         seatH={p._seat || 0}
                         working={working}
                         moving={!!p._moving}
+                        character={character}
                       />
                     </g>
                   ) : item.roamer ? (

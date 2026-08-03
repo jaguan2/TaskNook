@@ -49,6 +49,15 @@ class User(db.Model):
     # keeps the list safe. Nullable rather than defaulted so an existing row
     # doesn't need backfilling — an absent value means "only the free pieces".
     unlocked = db.Column(db.Text, nullable=True)
+    # Who you are (JSON string): mbti, birthDate, pronouns, bio… A blob rather
+    # than a column per field on purpose — same bargain as room_config, and the
+    # whole point of a profile is that fields get added later. A new question
+    # is then a frontend change, not a migration.
+    profile = db.Column(db.Text, nullable=True)
+    # How your resident LOOKS (JSON string): body, skin, hair, outfit + their
+    # colours. Kept apart from `profile` because a different consumer reads it —
+    # the iso room draws this every frame, panels read the other one.
+    character = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     tasks = db.relationship(

@@ -29,6 +29,7 @@ const MusicPanel = lazy(() => import("./components/MusicPanel"));
 const WeatherPanel = lazy(() => import("./components/WeatherPanel"));
 const RoomPanel = lazy(() => import("./components/RoomPanel"));
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
+const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
 
 const PANELS = {
   tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
@@ -38,6 +39,7 @@ const PANELS = {
   music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
   weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },
   room: { title: "Room", subtitle: "Make the space yours — drag to arrange", Comp: RoomPanel },
+  profile: { title: "Profile", subtitle: "Who you are, and who lives here", Comp: ProfilePanel },
   settings: { title: "Settings", subtitle: "Brightness & colours", Comp: SettingsPanel },
 };
 
@@ -67,6 +69,7 @@ export default function App() {
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
+    character,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -236,6 +239,7 @@ export default function App() {
               timeOfDay={timeOfDay}
               highlightId={lastIsoAddedId}
               working={running && phase === "focus"}
+              character={character}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}

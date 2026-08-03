@@ -9,6 +9,7 @@ import {
   Settings,
   Sofa,
   TrendingUp,
+  UserRound,
   Users,
 } from "lucide-react";
 import { readStored, writeStored } from "../lib/storage";
@@ -24,6 +25,7 @@ const ITEMS = [
   { key: "music", Icon: Headphones, label: "Sounds" },
   { key: "weather", Icon: CloudSun, label: "Weather" },
   { key: "room", Icon: Sofa, label: "Room" },
+  { key: "profile", Icon: UserRound, label: "Profile" },
   { key: "settings", Icon: Settings, label: "Settings" },
 ];
 

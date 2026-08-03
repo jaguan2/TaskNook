@@ -87,11 +87,17 @@ run it); rebuild it with `build-exe.bat`, which builds the frontend, installs
 `--onefile --windowed --distpath . --workpath build` (hence `build/` and
 `*.spec` are gitignored but the `.exe` is not). **Deliberate choice**: TaskNook
 is a personal project, so it keeps updating that one committed build rather
-than publishing GitHub Releases — the download link never moves. The tradeoff
-is that every rebuild adds another ~42 MB to git history permanently, so
-rebuild + commit the exe when shipping something worth downloading, not on
-every code change. `TaskNook.command` remains the macOS/Linux one-click
-launcher (build + install + launch from source).
+than publishing GitHub Releases — the download link never moves.
+**Rebuild the exe on EVERY change that reaches it** (owner's decision,
+2026-08-01), so the committed binary is never behind the source. Anything
+that touches `frontend/`, `backend/`, `desktop.py` or `build-exe.bat`
+reaches it; a docs- or test-only commit does not. The cost is real and
+accepted: each rebuild adds ~42 MB to git history **permanently** (the repo
+was already 470 MB across 24 builds when this rule was adopted), so `.git`
+grows by roughly the size of the exe per shipped commit and clones get
+slower forever. Git LFS is the escape hatch if that ever bites — it keeps
+both this rule and the stable link. `TaskNook.command` remains the
+macOS/Linux one-click launcher (build + install + launch from source).
 `desktop.py` is frozen-aware (`sys._MEIPASS`, writable-DB fallback under
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
 loose `--add-data` (not analyzed as source), so **nothing the backend imports

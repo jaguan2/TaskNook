@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
+import { DEFAULT_CHARACTER } from "../lib/profile";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
 // renders that used to live here are gone: the kit is TRUE isometric (base
@@ -2505,6 +2506,10 @@ function Flowerbed() {
 // is true mid-glide: the legs step in counter-phase so they walk, not skate.
 const SKIN = "#edc39e";
 const HAIR = "#3a3142";
+// Eyes and mouth are drawn in a fixed dark ink, NOT in the hair colour. They
+// used to share it, which was invisible while hair was always near-black —
+// but pick honey or mint in the profile and a face drawn in it disappears.
+const INK = "#3a3142";
 const TROUSER = "#4a3a5b";
 // the far leg, so the two read as depth rather than one wide blob
 const TROUSER_FAR = "#3c2f4a";
@@ -2560,8 +2565,145 @@ function SeatedLeg({ side, ankle, far = false }) {
  * standing in a hole), a neck, shoulders wider than the waist, hands on the
  * ends of the arms, and a face that actually has an expression.
  */
-function Resident({ seated = false, lying = false, seatH = 0, working = false, moving = false }) {
+/**
+ * Hair that falls BEHIND the head — drawn before the face so the head circle
+ * paints over it. Only the styles with mass behind the skull have one; the
+ * rest return null rather than an empty <g>, so the common case costs nothing.
+ */
+function HairBack({ style, headY, color }) {
+  // Long hair is VOLUME behind the skull plus strands at the sides (see
+  // HairFront), never one slab down to the shoulders — drawn that way it
+  // enveloped the head and read as a hood rather than hair.
+  if (style === "long")
+    return <ellipse cx="0" cy={headY + 2.2} rx="8.9" ry="10.6" fill={color} />;
+  // Sits high enough to break the skull's silhouette — tucked behind the head
+  // it was a nub you couldn't tell from short hair.
+  if (style === "bun") return <circle cx="0" cy={headY - 9.2} r="4.6" fill={color} />;
+  if (style === "curly")
+    return <ellipse cx="0" cy={headY - 1.5} rx="9.4" ry="8.6" fill={color} />;
+  return null;
+}
+
+/** The hairline itself, over the face. */
+function HairFront({ style, headY, color }) {
+  // The classic cap: a dome across the crown with a parting swept into it.
+  const cap = `M-7.8 ${headY} a7.8 7.8 0 0 1 15.6 0 q-2.2 -2.8 -5.4 -2.3 q-4.6 -3.4 -9.2 0.7 q-0.7 0.6 -1 1.6 z`;
+  const sideburn = `M-7.7 ${headY - 0.6} q-1.6 5.6 0.3 9.4 q-3.4 -3.2 -3 -9 z`;
+  switch (style) {
+    case "buzz":
+      // Close-cropped: the dome hugs the skull and there's no parting to sweep.
+      return (
+        <path
+          d={`M-7.6 ${headY} a7.6 7.6 0 0 1 15.2 0 q-3 -3.6 -7.6 -3.6 q-4.6 0 -7.6 3.6 z`}
+          fill={color}
+        />
+      );
+    case "bob":
+      return (
+        <>
+          <path d={cap} fill={color} />
+          <path d={`M-8.4 ${headY - 1} q-1.2 6.6 0.5 10.2 l3.5 0 q-1.9 -4.8 -1.1 -10.2 z`} fill={color} />
+          <path d={`M8.4 ${headY - 1} q1.2 6.6 -0.5 10.2 l-3.5 0 q1.9 -4.8 1.1 -10.2 z`} fill={color} />
+        </>
+      );
+    case "curly":
+      // Overlapping circles read as volume at this size; a single lumpy path
+      // just reads as a badly drawn cap.
+      return (
+        <>
+          {[
+            [-6.2, -3.2, 3.4],
+            [-2.4, -5.6, 3.5],
+            [1.8, -5.8, 3.5],
+            [5.6, -3.4, 3.4],
+            [7.2, 0.4, 2.9],
+            [-7.4, 0.4, 2.9],
+          ].map(([cx, dy, r]) => (
+            <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+          ))}
+        </>
+      );
+    case "long":
+      // Strands fall in FRONT of the shoulders on both sides; the mass behind
+      // the head is HairBack's ellipse.
+      return (
+        <>
+          <path d={cap} fill={color} />
+          <path d={`M-7.9 ${headY - 1} q-2.3 8.4 -1.1 13.6 l3.7 0.5 q-1.5 -6.9 -0.7 -13.6 z`} fill={color} />
+          <path d={`M7.9 ${headY - 1} q2.3 8.4 1.1 13.6 l-3.7 0.5 q1.5 -6.9 0.7 -13.6 z`} fill={color} />
+        </>
+      );
+    case "bun":
+    case "short":
+    default:
+      return (
+        <>
+          <path d={cap} fill={color} />
+          <path d={sideburn} fill={color} />
+        </>
+      );
+  }
+}
+
+/** Eyes and mouth. Expression is the cheapest personality per pixel here. */
+function Face({ expression, headY }) {
+  const stroke = {
+    fill: "none",
+    stroke: INK,
+    strokeWidth: 0.9,
+    strokeLinecap: "round",
+  };
+  if (expression === "happy")
+    return (
+      <>
+        {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
+        <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
+        <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
+        <path d={`M-2.4 ${headY + 4.6} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
+      </>
+    );
+  if (expression === "sleepy")
+    return (
+      <>
+        <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
+        <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
+        <ellipse cx="0" cy={headY + 5} rx="1" ry="1.3" fill={INK} opacity="0.7" />
+      </>
+    );
+  return (
+    <>
+      <circle cx="-2.9" cy={headY + 2} r="0.95" fill={INK} />
+      <circle cx="2.9" cy={headY + 2} r="0.95" fill={INK} />
+      <path d={`M-1.9 ${headY + 4.7} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
+    </>
+  );
+}
+
+// How wide the torso is per build. Everything hung off the body — shoulders,
+// arms, hands — is derived from this half-width rather than hard-coded, so a
+// build change can't leave the arms floating beside the chest.
+const BUILD_HALF_W = { slim: 8, average: 9, sturdy: 10 };
+
+function Resident({
+  seated = false,
+  lying = false,
+  seatH = 0,
+  working = false,
+  moving = false,
+  character,
+}) {
   const c = project(0.4, 0.4);
+  // The character is validated at the store boundary, but this sprite is also
+  // rendered by panel previews and tests, so it stands alone with the classic
+  // resident as its default.
+  const ch = character || DEFAULT_CHARACTER;
+  const skin = ch.skin || SKIN;
+  const hairColor = ch.hairColor || HAIR;
+  // The sweater stays the placement's --tint when one is set, falling back to
+  // the profile's outfit colour. That ordering is deliberate: your profile
+  // dresses every resident, and tinting ONE of them still overrides it.
+  const outfit = tinted(ch.outfit || "#7faf8f");
+  const halfW = BUILD_HALF_W[ch.build] ?? BUILD_HALF_W.average;
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
   if (lying) {
@@ -2569,17 +2711,17 @@ function Resident({ seated = false, lying = false, seatH = 0, working = false, m
       <g transform={`translate(${c.x}, ${c.y})`}>
         <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
           {/* body along the bed, knees slightly raised */}
-          <rect x="-20" y="-11" width="34" height="12" rx="6" style={tinted("#7faf8f")} />
+          <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
           <rect x="-20" y="-5" width="34" height="6" rx="3" fill="#000" opacity="0.12" />
-          <ellipse cx="12" cy="-9" rx="8" ry="6" style={tinted("#7faf8f")} />
+          <ellipse cx="12" cy="-9" rx="8" ry="6" style={outfit} />
           {/* arm resting on top of the covers */}
-          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={tinted("#7faf8f")} />
-          <circle cx="1" cy="-11.7" r="2.4" fill={SKIN} />
-          {/* head on the pillow, eyes closed */}
-          <circle cx="-23" cy="-13" r="7.4" fill={SKIN} />
-          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={HAIR} />
-          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={HAIR} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={HAIR} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
+          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={outfit} />
+          <circle cx="1" cy="-11.7" r="2.4" fill={skin} />
+          {/* head on the pillow, eyes closed whatever the waking expression */}
+          <circle cx="-23" cy="-13" r="7.4" fill={skin} />
+          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={hairColor} />
+          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
+          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
           <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
         </g>
       </g>
@@ -2614,41 +2756,28 @@ function Resident({ seated = false, lying = false, seatH = 0, working = false, m
         </>
       )}
       <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
-        <rect x="-9" y={torsoY} width="18" height="22" rx="6.5" style={tinted("#7faf8f")} />
+        <rect x={-halfW} y={torsoY} width={halfW * 2} height="22" rx="6.5" style={outfit} />
         {/* shoulders proud of the waist, and a soft shadow where they meet */}
-        <ellipse cx="0" cy={torsoY + 4} rx="10" ry="5.4" style={tinted("#7faf8f")} />
-        <rect x="-9" y={torsoY + 14} width="18" height="8" rx="4" fill="#000" opacity="0.1" />
+        <ellipse cx="0" cy={torsoY + 4} rx={halfW + 1} ry="5.4" style={outfit} />
+        <rect x={-halfW} y={torsoY + 14} width={halfW * 2} height="8" rx="4" fill="#000" opacity="0.1" />
         {/* arms — they type when a focus block is running and they're seated */}
         <g className={working && seated ? "resident-type" : undefined}>
           <g>
-            <rect x="-13.4" y={torsoY + 5} width="5" height="12" rx="2.5" style={tinted("#7faf8f")} />
-            <rect x="-13.4" y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
-            <circle cx="-10.9" cy={torsoY + 17.5} r="2.5" fill={SKIN} />
+            <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+            <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
+            <circle cx={-halfW - 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
           </g>
           <g>
-            <rect x="8.4" y={torsoY + 5} width="5" height="12" rx="2.5" style={tinted("#7faf8f")} />
-            <circle cx="10.9" cy={torsoY + 17.5} r="2.5" fill={SKIN} />
+            <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+            <circle cx={halfW + 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
           </g>
         </g>
-        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill={SKIN} />
+        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill={skin} />
         <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill="#000" opacity="0.14" />
-        <circle cx="0" cy={headY} r="7.8" fill={SKIN} />
-        {/* hair with a parting and a sideburn, rather than a flat cap */}
-        <path
-          d={`M-7.8 ${headY} a7.8 7.8 0 0 1 15.6 0 q-2.2 -2.8 -5.4 -2.3 q-4.6 -3.4 -9.2 0.7 q-0.7 0.6 -1 1.6 z`}
-          fill={HAIR}
-        />
-        <path d={`M-7.7 ${headY - 0.6} q-1.6 5.6 0.3 9.4 q-3.4 -3.2 -3 -9 z`} fill={HAIR} />
-        <circle cx="-2.9" cy={headY + 2} r="0.95" fill={HAIR} />
-        <circle cx="2.9" cy={headY + 2} r="0.95" fill={HAIR} />
-        <path
-          d={`M-1.9 ${headY + 4.7} q1.9 1.5 3.8 0`}
-          fill="none"
-          stroke={HAIR}
-          strokeWidth="0.9"
-          strokeLinecap="round"
-          opacity="0.75"
-        />
+        <HairBack style={ch.hair} headY={headY} color={hairColor} />
+        <circle cx="0" cy={headY} r="7.8" fill={skin} />
+        <HairFront style={ch.hair} headY={headY} color={hairColor} />
+        <Face expression={ch.expression} headY={headY} />
         <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
         <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
       </g>
