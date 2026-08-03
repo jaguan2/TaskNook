@@ -622,6 +622,113 @@ def register_routes(app):
         db.session.commit()
         return jsonify({"ok": True})
 
+    # ----- Profile & character --------------------------------------------- #
+    # Third instance of the same division of labour as the room layout and the
+    # unlock list: the frontend owns the vocabulary (which MBTI types exist,
+    # which hairstyles are drawable), this only keeps a bounded blob safe. A new
+    # profile question or a new hairstyle is then a frontend change with no
+    # migration — which is the whole reason these are JSON and not columns.
+    PROFILE_MAX_KEYS = 24
+    PROFILE_MAX_VALUE = 280  # a bio, not an essay
+
+    def _clean_json_map(value, max_keys, max_len):
+        """A bounded {str: str|number|bool} map, or None if it isn't one.
+
+        Deliberately flat: nesting is what turns a settings blob into somewhere
+        arbitrary payloads can hide, and nothing here needs it.
+        """
+        if not isinstance(value, dict) or len(value) > max_keys:
+            return None
+        clean = {}
+        for key, val in value.items():
+            if not (isinstance(key, str) and 0 < len(key) <= 32):
+                return None
+            if val is None or val == "":
+                continue  # clearing a field just drops it
+            if isinstance(val, bool):
+                clean[key] = val
+            elif isinstance(val, (int, float)):
+                # Reuse the room's guard: NaN/Infinity are floats that
+                # json.dumps writes as bare NaN/Infinity — invalid JSON that
+                # the browser then refuses to parse, corrupting the profile.
+                if not _finite_number(val):
+                    return None
+                clean[key] = val
+            elif isinstance(val, str):
+                if len(val) > max_len:
+                    return None
+                clean[key] = val.strip()
+            else:
+                return None
+        return clean
+
+    def _read_json_map(raw):
+        if not raw:
+            return {}
+        try:
+            saved = json.loads(raw)
+        except ValueError:
+            return {}
+        return saved if isinstance(saved, dict) else {}
+
+    @app.get("/api/profile")
+    @require_auth
+    def get_profile(user):
+        return jsonify(
+            {
+                "username": user.username,
+                "displayName": user.display_name,
+                "avatar": user.avatar,
+                "profile": _read_json_map(user.profile),
+                "character": _read_json_map(user.character),
+            }
+        )
+
+    @app.put("/api/profile")
+    @require_auth
+    def save_profile(user):
+        data = json_body()
+
+        # Each field is optional — the panel saves the section you edited, so a
+        # partial body must leave the rest of the profile alone.
+        if "displayName" in data:
+            name = clean_str(data.get("displayName"), 60)
+            if not name:
+                return jsonify({"error": "A name can't be empty"}), 400
+            user.display_name = name
+
+        if "avatar" in data:
+            # The column is String(8): one emoji can be several code points
+            # (skin-tone and ZWJ sequences), so this is a byte-ish budget, not
+            # "8 characters" as a person would count them.
+            user.avatar = clean_str(data.get("avatar"), 8)
+
+        if "profile" in data:
+            cleaned = _clean_json_map(
+                data.get("profile"), PROFILE_MAX_KEYS, PROFILE_MAX_VALUE
+            )
+            if cleaned is None:
+                return jsonify({"error": "Invalid profile"}), 400
+            user.profile = json.dumps(cleaned)
+
+        if "character" in data:
+            # Appearance values are keys and hex colours, never prose.
+            cleaned = _clean_json_map(data.get("character"), PROFILE_MAX_KEYS, 32)
+            if cleaned is None:
+                return jsonify({"error": "Invalid character"}), 400
+            user.character = json.dumps(cleaned)
+
+        db.session.commit()
+        return jsonify(
+            {
+                "username": user.username,
+                "displayName": user.display_name,
+                "avatar": user.avatar,
+                "profile": _read_json_map(user.profile),
+                "character": _read_json_map(user.character),
+            }
+        )
+
     # ----- Unlocked furniture ---------------------------------------------- #
     # Same division of labour as the room layout: the frontend owns the catalog
     # AND the prices, so this only keeps the list of keys safe. Pricing here too

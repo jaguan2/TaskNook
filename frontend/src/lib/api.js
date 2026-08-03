@@ -71,6 +71,10 @@ export const api = {
   saveRoom: (placements, iso) => request("PUT", "/room", { placements, iso }),
   getUnlocks: () => request("GET", "/unlocks"),
   saveUnlocks: (unlocked) => request("PUT", "/unlocks", { unlocked }),
+  getProfile: () => request("GET", "/profile"),
+  // Every field optional — send only the section that changed, or the server
+  // will keep the rest untouched anyway. See test_profile.py.
+  saveProfile: (patch) => request("PUT", "/profile", patch),
 
   // sessions + stats
   logSession: (payload) => request("POST", "/sessions", payload),

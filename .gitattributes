@@ -4,3 +4,24 @@
 *.png binary
 *.ico binary
 *.db binary
+*.otf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Line endings are NOT cosmetic for these two launchers — they decide whether
+# the file runs at all, so pin them instead of trusting each clone's
+# core.autocrlf.
+#
+# build-exe.bat was committed LF-only and cmd.exe cannot parse that: it eats
+# the first characters of every line (`REM` -> `M`, `echo` -> `cho`) and the
+# build dies immediately. It survived only on GitHub's Windows runners, which
+# default core.autocrlf=true and convert on checkout — so the build was broken
+# on any machine that didn't, while CI stayed green.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+# The mirror image: TaskNook.command is run by a macOS/Linux shell, which
+# treats a trailing CR as part of the command and fails with '\r: command not
+# found'. It must stay LF even on a Windows checkout.
+*.command text eol=lf
+*.sh text eol=lf

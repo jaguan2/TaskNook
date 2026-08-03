@@ -10,6 +10,7 @@ import { api, getToken, setToken } from "./lib/api";
 import { readStored, writeStored } from "./lib/storage";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
+import { validateCharacter, validateProfile } from "./lib/profile";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
@@ -300,6 +301,19 @@ export function StoreProvider({ children }) {
     musicStations.find((s) => stationKey(s) === activeStationKey) || musicStations[0];
   const resolvedStationKey = stationKey(activeStation);
 
+  // ---------- Profile & character ----------
+  // The profile is DB-only (it's typed once and it's small). The character has
+  // a mirror because the iso room draws it on the very first frame, and a
+  // resident that appears with default hair and then changes reads as a glitch.
+  const [profile, setProfile] = useState({});
+  const [character, setCharacter] = useState(() => {
+    try {
+      return validateCharacter(JSON.parse(readStored("tasknook.character") || "null"));
+    } catch {
+      return validateCharacter(null); // corrupted mirror — the classic resident
+    }
+  });
+
   // ---------- Room (freeform decoration) ----------
   // The layout lives in the DB (rides the migration/backup system) with a
   // localStorage mirror so the room paints instantly on boot.
@@ -521,6 +535,17 @@ export function StoreProvider({ children }) {
     []
   );
   const roomRef = useRef(roomPlacements);
+  // Read inside the save actions so a rapid second edit merges onto the latest
+  // value rather than the one captured when the callback was created. The save
+  // actions also advance these synchronously; this effect is the backstop that
+  // catches the OTHER writer — the server-load effect, which calls the setters
+  // directly.
+  const profileRef = useRef(profile);
+  const characterRef = useRef(character);
+  useEffect(() => {
+    profileRef.current = profile;
+    characterRef.current = character;
+  }, [profile, character]);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
@@ -683,6 +708,69 @@ export function StoreProvider({ children }) {
       }
     })();
   }, [user]);
+
+  // Profile & character: unlike the room there's no local-first mirror to
+  // reconcile — a profile is typed once and lives in the DB. The mirror exists
+  // only so the resident draws with YOUR face on the very first paint instead
+  // of flashing the default and swapping a moment later.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const data = await api.getProfile();
+        setProfile(validateProfile({ ...data?.profile, displayName: data?.displayName }));
+        const chr = validateCharacter(data?.character);
+        setCharacter(chr);
+        writeStored("tasknook.character", JSON.stringify(chr));
+      } catch (err) {
+        // Read-only failure: the mirror already painted a resident, so this is
+        // not worth a toast.
+        console.error("Failed to load profile:", err);
+      }
+    })();
+  }, [user]);
+
+  /** Save part of the profile. Sections save independently — see test_profile.py. */
+  const saveProfile = useCallback(
+    async (patch) => {
+      const next = validateProfile({ ...profileRef.current, ...patch });
+      // Advance the ref SYNCHRONOUSLY, not just via the effect below. The
+      // effect runs after render, so a burst of edits in one tick would every
+      // one of them read the same pre-burst value and overwrite each other —
+      // six picks in a row kept only the last.
+      profileRef.current = next;
+      setProfile(next); // optimistic: the form must not lag a keystroke behind
+      try {
+        const { displayName, ...rest } = next;
+        await api.saveProfile({
+          ...(displayName ? { displayName } : {}),
+          profile: rest,
+        });
+      } catch (err) {
+        console.error("Failed to save profile:", err);
+        showToast("Couldn't save your profile 🌧️");
+      }
+    },
+    [showToast]
+  );
+
+  const saveCharacter = useCallback(
+    async (patch) => {
+      const next = validateCharacter({ ...characterRef.current, ...patch });
+      characterRef.current = next; // synchronous — see saveProfile
+      setCharacter(next);
+      // Mirror first: the room redraws from this immediately, and a failed
+      // request shouldn't undo a choice the user can see on screen.
+      writeStored("tasknook.character", JSON.stringify(next));
+      try {
+        await api.saveProfile({ character: next });
+      } catch (err) {
+        console.error("Failed to save character:", err);
+        showToast("Couldn't save your character — it's still saved on this device 🌧️");
+      }
+    },
+    [showToast]
+  );
 
   // ---------- Task actions ----------
   const addTask = async (payload) => {
@@ -1062,6 +1150,11 @@ export function StoreProvider({ children }) {
 
     algorithm,
     chooseAlgorithm,
+
+    profile,
+    character,
+    saveProfile,
+    saveCharacter,
 
     friends,
     stats,
