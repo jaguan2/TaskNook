@@ -211,6 +211,7 @@ function IsoRoom({
   highlightId = null,
   working = false,
   character,
+  mood = null,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -856,7 +857,16 @@ function IsoRoom({
                         seatH={p._seat || 0}
                         working={working}
                         moving={!!p._moving}
-                        character={character}
+                        // Only YOU wear the profile's character and think
+                        // thoughts. Passing them to every persona turned a
+                        // table of four into four copies of the same person.
+                        character={item.self ? character : undefined}
+                        mood={item.self ? mood : undefined}
+                        // The odd turns wrap this whole sprite in
+                        // scale(-1,1), which would draw the thought bubble's
+                        // book and mug back-to-front. Tell it, so it can undo
+                        // the flip for that one piece of artwork.
+                        mirrored={(p.rot || 0) % 2 === 1}
                       />
                     </g>
                   ) : item.roamer ? (

@@ -770,3 +770,67 @@ describe("surfaceFor — small things rest on tables", () => {
     expect(seatFor(sitter, [stool, sitter])?.lie).toBe(false);
   });
 });
+
+describe("you, in the room", () => {
+  const SIZE9 = { w: 9, d: 7 };
+
+  it("is a singleton — a layout can never hold two", () => {
+    // Two can only arrive from OUTSIDE the app: a hand-edited mirror, a
+    // server blob, a save from an older build. (The live add path refuses
+    // them up front — applying a preset can't produce one, since it replaces
+    // the layout wholesale and re-adds at most a single `you`.)
+    const out = validateIsoLayout({
+      ...SIZE9,
+      placements: [
+        { item: "you", gx: 1, gy: 1 },
+        { item: "you", gx: 4, gy: 4 },
+        { item: "you", gx: 6, gy: 2 },
+      ],
+    });
+    expect(out.placements.filter((p) => p.item === "you")).toHaveLength(1);
+  });
+
+  it("doesn't limit the generic residents", () => {
+    // Only `you` is unique; a study hall still seats as many people as it likes.
+    const out = validateIsoLayout({
+      ...SIZE9,
+      placements: [
+        { item: "resident", gx: 1, gy: 1 },
+        { item: "resident", gx: 3, gy: 1 },
+        { item: "resident", gx: 5, gy: 1 },
+      ],
+    });
+    expect(out.placements).toHaveLength(3);
+  });
+
+  it("is the only unique item, and the flag reaches the catalog", () => {
+    // `addIsoItem` refuses a second copy of any `unique` piece up front.
+    // Before that guard the picker added one, saved it, and validation ate it
+    // on the next boot — a piece vanishing with no word.
+    const uniques = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].unique);
+    expect(uniques).toEqual(["you"]);
+  });
+
+  it("parks its selection chrome clear of the thought cloud", () => {
+    // hitH is only ever where the ⟳/✕ buttons sit. The cloud's top edge is
+    // ~69px above the origin, and the buttons hang r=9 below their centre at
+    // -(hitH + 2) — so anything under ~76 draws them on top of it.
+    expect(ISO_ITEMS.you.hitH).toBeGreaterThanOrEqual(76);
+  });
+
+  it("is a persona, so it seats and wanders like one", () => {
+    expect(ISO_ITEMS.you.persona).toBe(true);
+    const items = [
+      { id: "c", item: "chair", gx: 2, gy: 2 },
+      { id: "me", item: "you", gx: 2, gy: 2 },
+    ];
+    expect(seatFor(items[1], items)?.placement.item).toBe("chair");
+  });
+
+  it("is the only item flagged as self", () => {
+    // IsoRoom keys the character and the thought bubble off this flag, so a
+    // second self would put your face on someone else too.
+    const selves = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].self);
+    expect(selves).toEqual(["you"]);
+  });
+});

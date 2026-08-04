@@ -10,6 +10,8 @@ import {
   ageFor,
   validateCharacter,
   validateProfile,
+  MOODS,
+  moodFor,
   profileSummary,
 } from "./profile";
 
@@ -188,5 +190,32 @@ describe("profileSummary", () => {
     expect(s.zodiac).toBeNull();
     expect(s.mbtiLabel).toBeNull();
     expect(s.age).toBeNull();
+  });
+});
+
+describe("what the character is thinking", () => {
+  it("says nothing when the timer isn't running", () => {
+    // An idle character shows no bubble, not an empty one.
+    expect(moodFor({ running: false, phase: "focus" })).toBe(null);
+    expect(moodFor(null)).toBe(null);
+    expect(moodFor(undefined)).toBe(null);
+  });
+
+  it("studies during a focus block", () => {
+    expect(moodFor({ running: true, phase: "focus" })).toBe("studying");
+  });
+
+  it("rests during a pomodoro break", () => {
+    expect(moodFor({ running: true, phase: "break" })).toBe("resting");
+  });
+
+  it("only ever returns a mood the vocabulary knows", () => {
+    // The sprite indexes MOODS with this, so an unknown key is a blank bubble.
+    for (const running of [true, false]) {
+      for (const phase of ["focus", "break", "nonsense", undefined]) {
+        const mood = moodFor({ running, phase });
+        expect(mood === null || mood in MOODS).toBe(true);
+      }
+    }
   });
 });

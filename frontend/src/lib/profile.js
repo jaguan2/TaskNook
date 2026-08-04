@@ -258,3 +258,32 @@ export function profileSummary(profile, today = new Date()) {
       : null,
   };
 }
+
+// --------------------------------------------------------------------------- //
+// Mood
+// --------------------------------------------------------------------------- //
+/**
+ * What your character is thinking about, Sims-style — the little cloud over
+ * their head.
+ *
+ * A pure function of the timer's STATUS, deliberately: `running` and `phase`
+ * change a handful of times an hour, so the memo'd scene re-renders on a real
+ * transition and never on a tick. Deriving it from `remaining` instead would
+ * put the whole room back on a 1Hz redraw, which is exactly what splitting the
+ * timer into its own provider avoided.
+ *
+ * Returns null when there's nothing to say — an idle character shows no
+ * bubble at all rather than an empty one.
+ */
+// mood → the icon the thought cloud draws. The value is load-bearing (the
+// sprite switches on it) and the key set doubles as the whitelist: a mood
+// that isn't in here draws no bubble at all rather than an empty one.
+export const MOODS = {
+  studying: "book",
+  resting: "mug",
+};
+
+export function moodFor(status) {
+  if (!status || !status.running) return null;
+  return status.phase === "break" ? "resting" : "studying";
+}

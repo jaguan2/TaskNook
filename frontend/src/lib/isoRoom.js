@@ -262,6 +262,15 @@ export const ISO_ITEMS = {
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
   // the resident — a little person you drop anywhere: onto a seat (they sit)
   // or the open floor (they idle-wander). Tint = their sweater.
+  // YOU. A persona like the resident, but the only one drawn with the
+  // character from your profile — and `unique` so a saved layout can never
+  // contain two of you, however it got there. The generic residents stay
+  // generic: with the character on every one of them, dropping four people in
+  // the study hall gave you four identical copies of yourself.
+  // hitH is only ever the parking spot for the ⟳/✕ chrome, and YOU are the
+  // one persona who can be taller than their own head: at 46 the buttons sat
+  // squarely on top of the thought cloud whenever a block was running.
+  you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 78, persona: true, self: true, unique: true },
   resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 56, persona: true },
   // ---- more pets: same roamer engine as the cat, different silhouettes ----
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
@@ -361,7 +370,7 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Living things",
-    keys: ["resident", "cat", "dog", "bunny"],
+    keys: ["you", "resident", "cat", "dog", "bunny"],
   },
 ];
 
@@ -819,6 +828,7 @@ export function validateIsoLayout(raw) {
   const env = ISO_ENV_KEYS.includes(raw.env) && raw.env !== "room" ? raw.env : undefined;
   const size = { w, d, ...(env && { env }), ...(mask && { mask }) };
   const seen = new Set();
+  const unique = new Set();
   const clean = [];
   for (const p of Array.isArray(raw.placements) ? raw.placements : []) {
     if (!p || typeof p !== "object") continue;
@@ -842,6 +852,16 @@ export function validateIsoLayout(raw) {
       const spot = findFreeSpot(p.item, rot, size, gx, gy);
       if (!spot) continue;
       ({ gx, gy } = spot);
+    }
+    // `unique` items are singletons — you can only be in the room once, so a
+    // second one is dropped rather than drawn on top of itself. This is the
+    // last line of defence for layouts arriving from OUTSIDE the app (a
+    // hand-edited mirror, a server blob, a save written by an older build);
+    // the live add path refuses duplicates up front in `addIsoItem`, because
+    // dropping one here silently is exactly what made it feel like a bug.
+    if (ISO_ITEMS[p.item].unique) {
+      if (unique.has(p.item)) continue;
+      unique.add(p.item);
     }
     clean.push({ id, item: p.item, gx, gy, ...(rot && { rot }), ...(tint && { tint }) });
     if (clean.length >= ISO_MAX_ITEMS) break;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
-import { DEFAULT_CHARACTER } from "../lib/profile";
+import { DEFAULT_CHARACTER, MOODS } from "../lib/profile";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
 // renders that used to live here are gone: the kit is TRUE isometric (base
@@ -2785,6 +2785,92 @@ function Resident({
   );
 }
 
+/**
+ * The little cloud over your character's head, the way The Sims does it: a
+ * puff of thought with one readable icon in it.
+ *
+ * Drawn ABOVE the resident's head and inside the same group, so when they're
+ * seated (and the whole sprite is lifted by the seat height) the bubble rides
+ * up with them instead of hanging in the air where they used to stand.
+ *
+ * One icon, no text — at room scale a word would be unreadable, and the whole
+ * point is that you can tell at a glance from across the room.
+ */
+function ThoughtBubble({ mood, x = 10, y = -58, mirrored = false }) {
+  const icon = MOODS[mood];
+  if (!icon) return null;
+  return (
+    // The attribute transform goes on a WRAPPER and the animation on the
+    // child: a CSS animation's `transform` property overrides an SVG
+    // `transform` attribute outright, so with both on one element the offset
+    // was thrown away and the cloud rendered on the character's chest.
+    // (docs/MODELS.md §6 — third time this has bitten.)
+    //
+    // On an odd rotation the scene mirrors the whole persona, which would
+    // hand you a backwards book and a mug with the handle on the wrong side —
+    // lit from the left while the rest of the room is lit from the right.
+    // Flipping again here cancels it, and the negated offset keeps the cloud
+    // on the same side of the head on SCREEN.
+    <g
+      transform={mirrored ? `translate(${-x},${y}) scale(-1,1)` : `translate(${x},${y})`}
+      aria-hidden="true"
+    >
+      {/* keyed by mood so switching book → mug REMOUNTS this group and the
+          pop plays again; without it React swapped the icon in place and the
+          transition passed by unannounced */}
+      <g key={mood} className="thought-pop">
+      {/* the two trailing puffs, smallest nearest the head */}
+      <circle cx="-9" cy="12" r="1.5" fill="#f7f2ea" opacity="0.85" />
+      <circle cx="-6" cy="7.5" r="2.3" fill="#f7f2ea" opacity="0.92" />
+      {/* the cloud: four overlapping ellipses rather than one, so the outline
+          is lumpy the way a thought bubble should be */}
+      <ellipse cx="0" cy="-1" rx="11" ry="7.5" fill="#f7f2ea" />
+      <ellipse cx="-7.5" cy="1" rx="5.5" ry="4.5" fill="#f7f2ea" />
+      <ellipse cx="7.5" cy="1" rx="5.5" ry="4.5" fill="#f7f2ea" />
+      <ellipse cx="-1" cy="-6" rx="7" ry="5" fill="#f7f2ea" />
+      {icon === "book" ? (
+        // an open book: two leaves either side of a spine
+        <g>
+          <path d="M-6 -1.5 q3 -2.2 5.4 0 l0 5 q-2.4 -1.8 -5.4 0 z" fill="#5b6b9b" />
+          <path d="M6 -1.5 q-3 -2.2 -5.4 0 l0 5 q2.4 -1.8 5.4 0 z" fill="#7f8fc0" />
+          <rect x="-0.5" y="-2.4" width="1" height="6.4" rx="0.5" fill="#3a3142" opacity="0.55" />
+        </g>
+      ) : (
+        // a mug, with steam — the same read as the `mug` catalog item
+        <g>
+          <rect x="-4" y="-2.5" width="7.5" height="6" rx="1.2" fill="#c9847e" />
+          <path d="M3.5 -1 q3 1 0 3.4" fill="none" stroke="#c9847e" strokeWidth="1.4" />
+          <ellipse cx="-0.25" cy="-2.5" rx="3.75" ry="1.3" fill="#f2e2cf" />
+          <path d="M-1.5 -5.5 q1.5 -1.6 0 -3.2" fill="none" stroke="#cbb6a0" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+        </g>
+      )}
+      </g>
+    </g>
+  );
+}
+
+/**
+ * You — the resident drawn with the character from your profile, and the only
+ * one that thinks. Everyone else in the room stays generic on purpose.
+ */
+function You({ mood, mirrored = false, ...rest }) {
+  // The cloud hangs just above the head — and the head is somewhere different
+  // in each pose. One fixed offset left it a whole head-height clear of a
+  // SEATED character, which is the pose this feature exists for (you only
+  // type while sitting), and stranded over the headboard when lying down.
+  const spot = rest.lying
+    ? { x: -14, y: -30 }
+    : rest.seated
+    ? { x: 10, y: -46 }
+    : { x: 10, y: -58 };
+  return (
+    <g>
+      <Resident {...rest} />
+      <ThoughtBubble mood={mood} x={spot.x} y={spot.y} mirrored={mirrored} />
+    </g>
+  );
+}
+
 // ---- newer decorations -------------------------------------------------- //
 
 function Fireplace() {
@@ -4351,6 +4437,7 @@ function PastryCase() {
 }
 
 export const ISO_SPRITES = {
+  you: You,
   mapletree: MapleTree,
   leafpile: LeafPile,
   haybale: HayBale,
