@@ -308,6 +308,29 @@ body {
   animation: steam-rise 3.4s ease-out infinite;
 }
 
+/* The thought cloud over your character: one pop as it arrives, then still.
+   A looping animation over someone's head would pull the eye forever, and the
+   room is meant to be furniture you can work beside. */
+@keyframes thought-pop {
+  0% {
+    transform: scale(0.5) translateY(5px);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+.thought-pop {
+  animation: thought-pop 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  transform-box: fill-box;
+  transform-origin: bottom left;
+}
+
 @keyframes bubble-up {
   0% {
     transform: translateY(0);
@@ -507,6 +530,7 @@ body {
     .room-twinkle,
     .room-breathe,
     .sky-cloud,
+    .thought-pop,
     .steam-puff,
     .bubble-rise,
     .pond-ripple,

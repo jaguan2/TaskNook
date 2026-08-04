@@ -4,6 +4,7 @@ import { Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
+import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -75,6 +76,10 @@ export default function App() {
   // would re-render App — and with it the dock, the HUD and every open panel —
   // once a second, which is exactly what splitting the timer out avoided.
   const { running, phase } = useTimerStatus();
+  // What your character is thinking. Derived from the STATUS hook, so it
+  // changes on a real transition and never on a tick — the scene is memo'd and
+  // a per-second prop change would redraw the whole room.
+  const mood = moodFor({ running, phase });
   // Each entry is { key, pinned }. Pinned panels stay open when another dock
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
@@ -240,6 +245,7 @@ export default function App() {
               highlightId={lastIsoAddedId}
               working={running && phase === "focus"}
               character={character}
+              mood={mood}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}

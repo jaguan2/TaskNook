@@ -126,7 +126,7 @@ function Choices({ options, value, onPick, label }) {
 }
 
 export default function ProfilePanel() {
-  const { profile, character, saveProfile, saveCharacter } = useStore();
+  const { selfInRoom, setSelfInRoom, profile, character, saveProfile, saveCharacter } = useStore();
   const summary = profileSummary(profile);
 
   // Text inputs are local until blur: saveProfile round-trips to the server,
@@ -238,11 +238,29 @@ export default function ProfilePanel() {
       <Section
         icon={Shirt}
         title="Your character"
-        hint="This is the resident in your room — drop one from the Room panel to see them."
+        hint="Only this one looks like you — the other residents stay themselves."
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 py-2">
           <CharacterPreview character={character} />
         </div>
+
+        {/* The switch that actually puts you in the scene. Without it the whole
+            section edits someone who lives nowhere: a fresh room contains no
+            residents at all, so nothing on screen changed as you picked. */}
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2.5">
+          <span className="text-xs text-petal/80">
+            Put me in the room
+            <span className="mt-0.5 block text-[11px] text-petal/50">
+              You&apos;ll appear once, and think about what you&apos;re doing.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={selfInRoom}
+            onChange={(e) => setSelfInRoom(e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-glow"
+          />
+        </label>
 
         <Field label="Skin">
           <Swatches

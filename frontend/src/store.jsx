@@ -23,6 +23,7 @@ import {
   validatePlacements,
 } from "./lib/room";
 import {
+  ISO_ITEMS,
   ISO_MAX_ITEMS,
   clampIsoPlacement,
   defaultIsoLayout,
@@ -418,6 +419,15 @@ export function StoreProvider({ children }) {
         showToast(`${costOf(key)} focused minutes unlocks that one ✨`);
         return;
       }
+      // `unique` pieces are singletons — there is only one of you. Without
+      // this the picker happily added a second: it drew, it saved, and then
+      // `validateIsoLayout` silently dropped it on the next boot, which is
+      // the "furniture vanished with no word" failure this codebase already
+      // learned to avoid once.
+      if (ISO_ITEMS[key]?.unique && prev.placements.some((p) => p.item === key)) {
+        showToast("There's only one of you 🙋");
+        return;
+      }
       const placement = newIsoPlacement(key, prev.placements, prev);
       if (!placement) {
         showToast("No floor free for that one — paint more tiles or try something smaller 🧩");
@@ -530,9 +540,56 @@ export function StoreProvider({ children }) {
   );
   // Presets replace the whole iso layout, floor size included (validated so
   // preset `cuts` shorthand becomes a mask immediately).
+  // "Put me in the room" — one `you` placement.
+  //
+  // DERIVED from the layout, never stored beside it. A separate persisted
+  // flag was the obvious design and it drifted immediately: delete your
+  // character with the ✕ in decorate mode and the flag still said "on", so
+  // the toggle claimed you were in a room you weren't in, the next preset
+  // resurrected someone you'd deliberately removed, and un-checking the box
+  // did nothing visible (it only cleared the flag). The placement is also
+  // the half that's server-backed, while a flag would be device-local — on
+  // the desktop build those are two different lifetimes.
+  const selfInRoom = isoRoom.placements.some((p) => p.item === "you");
+  /** Add or remove the single `you`, leaving everything else untouched. */
+  const withSelf = useCallback((layout, wanted) => {
+    const has = layout.placements.some((p) => p.item === "you");
+    if (wanted === has) return layout;
+    if (!wanted) {
+      return { ...layout, placements: layout.placements.filter((p) => p.item !== "you") };
+    }
+    // The cap applies here too: appended past it, `you` is the LAST placement
+    // and therefore exactly the one validation truncates on the next load.
+    if (layout.placements.length >= ISO_MAX_ITEMS) return null;
+    const placement = newIsoPlacement("you", layout.placements, layout);
+    if (!placement) return null; // genuinely nowhere to stand
+    return { ...layout, placements: [...layout.placements, placement] };
+  }, []);
+  const setSelfInRoom = useCallback(
+    (on) => {
+      const prev = isoRef.current;
+      const next = withSelf(prev, on);
+      // null means we WANTED to add one and couldn't. An unchanged layout is
+      // a different thing entirely — you're already where you asked to be.
+      if (next === null) {
+        showToast("No room for you right now — free up a piece or paint more tiles 🧩");
+        return;
+      }
+      if (next !== prev) setIsoRoom(next);
+    },
+    [withSelf, showToast]
+  );
+
   const applyIsoPreset = useCallback(
-    (key) => setIsoRoom(validateIsoLayout(isoPresetLayout(key))),
-    []
+    // A preset replaces the layout wholesale, so carry `you` across —
+    // otherwise trying a room silently evicts you from it. Read the PREVIOUS
+    // layout for that intent; it's the same truth the toggle reads.
+    (key) => {
+      const wanted = isoRef.current.placements.some((p) => p.item === "you");
+      const base = validateIsoLayout(isoPresetLayout(key));
+      setIsoRoom(withSelf(base, wanted) ?? base);
+    },
+    [withSelf]
   );
   const roomRef = useRef(roomPlacements);
   // Read inside the save actions so a rapid second edit merges onto the latest
@@ -1192,6 +1249,8 @@ export function StoreProvider({ children }) {
     resetIsoShape,
     setIsoEnv,
     applyIsoPreset,
+    selfInRoom,
+    setSelfInRoom,
 
     // the timer's target task (the timer itself is in timer.jsx)
     activeTask,
