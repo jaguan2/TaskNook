@@ -62,6 +62,11 @@ export const ISO_ENVS = {
     floorStyle: "boards",
     lip: ["#2a1a12", "#221410"],
     window: true,
+    // The only indoor env without them, which is why the Reading room and the
+    // Study hall had NOTHING above eye level — both have walls shelved end to
+    // end, so there's no free run to hang a pendant in, and the env is the
+    // only place the ceiling zone can be filled without displacing furniture.
+    lights: true,
   },
   terrace: {
     label: "Terrace",
@@ -269,8 +274,10 @@ export const ISO_ITEMS = {
   // the study hall gave you four identical copies of yourself.
   // hitH is only ever the parking spot for the ⟳/✕ chrome, and YOU are the
   // one persona who can be taller than their own head: at 46 the buttons sat
-  // squarely on top of the thought cloud whenever a block was running.
-  you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 78, persona: true, self: true, unique: true },
+  // squarely on top of the thought cloud whenever a block was running. It rose
+  // again when the figure got its proper proportions and the cloud went with
+  // the taller head.
+  you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 84, persona: true, self: true, unique: true },
   resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 56, persona: true },
   // ---- more pets: same roamer engine as the cat, different silhouettes ----
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
@@ -691,7 +698,37 @@ export function clampIsoPlacement(itemKey, gx, gy, size, rot = 0) {
 }
 
 /** Nearest half-snapped spot whose footprint is fully on floor, or null. */
-export function findFreeSpot(itemKey, rot, size, nearGx, nearGy) {
+/** Do two placements' footprints overlap on the floor? */
+export function footprintsOverlap(a, b) {
+  const af = footOf(a.item, a.rot);
+  const bf = footOf(b.item, b.rot);
+  return (
+    a.gx < b.gx + bf[0] &&
+    b.gx < a.gx + af[0] &&
+    a.gy < b.gy + bf[1] &&
+    b.gy < a.gy + af[1]
+  );
+}
+
+/** Is this a piece a new arrival shouldn't be dropped on top of? Flat things
+ *  (rugs, ponds, blankets) are MADE to go under furniture and wall decor isn't
+ *  on the floor at all, so neither blocks. Everything else does — people
+ *  included: two figures on one tile read as a single merged body. */
+export function blocksSpawn(itemKey) {
+  const item = ISO_ITEMS[itemKey];
+  return !!item && !item.wall && (item.layer || 0) >= 0;
+}
+
+/** On floor AND clear of what's already standing there. */
+export function spotIsClear(gx, gy, itemKey, rot, size, placements) {
+  if (!footprintFree(gx, gy, footOf(itemKey, rot), size)) return false;
+  const me = { item: itemKey, rot, gx, gy };
+  return !placements.some((p) => blocksSpawn(p.item) && footprintsOverlap(me, p));
+}
+
+/** Nearest half-snapped spot to (nearGx, nearGy) this piece fits in. Pass
+ *  `placements` to also require it be clear of the furniture already there. */
+export function findFreeSpot(itemKey, rot, size, nearGx, nearGy, placements = null) {
   const f = footOf(itemKey, rot);
   let best = null;
   let bestDist = Infinity;
@@ -699,7 +736,10 @@ export function findFreeSpot(itemKey, rot, size, nearGx, nearGy) {
     for (let y = 0; y <= (size.d - f[1]) * 2; y++) {
       const gx = x / 2;
       const gy = y / 2;
-      if (!footprintFree(gx, gy, f, size)) continue;
+      const ok = placements
+        ? spotIsClear(gx, gy, itemKey, rot, size, placements)
+        : footprintFree(gx, gy, f, size);
+      if (!ok) continue;
       const dist = (gx - nearGx) ** 2 + (gy - nearGy) ** 2;
       if (dist < bestDist) {
         bestDist = dist;
@@ -809,8 +849,17 @@ export function newIsoPlacement(itemKey, existing = [], size = DEFAULT_ISO_SIZE)
   // "stuck" until a reload, where validation quietly relocates it. Land it
   // on real floor in the first place. Wall items are glued to a wall run by
   // the clamp and have no floor footprint to check.
-  if (!item.wall && !footprintFree(gx, gy, footOf(itemKey, 0), size)) {
-    const spot = findFreeSpot(itemKey, 0, size, gx, gy);
+  //
+  // It also knows nothing about the furniture already in the room, which is
+  // how adding a second person put them standing INSIDE the one at the desk —
+  // one merged body, and the new arrival is auto-selected so it looks like the
+  // click went wrong. Prefer a spot nothing is standing on; a packed room
+  // still gets its piece, because floor-only is the fallback rather than a
+  // refusal.
+  if (!item.wall && !spotIsClear(gx, gy, itemKey, 0, size, existing)) {
+    const spot =
+      findFreeSpot(itemKey, 0, size, gx, gy, existing) ||
+      findFreeSpot(itemKey, 0, size, gx, gy);
     if (!spot) return null; // the drawn shape has no room for this piece
     ({ gx, gy } = spot);
   }
@@ -927,6 +976,9 @@ export const ISO_PRESETS = {
       { item: "frame", gx: 3.5, gy: 0, tint: "#3a3142" },
       { item: "neon", gx: 5.5, gy: 0, tint: "#8a7ac2" },
       { item: "mirror", gx: 0, gy: 6.5, rot: 1, tint: "#cbd5e8" },
+      // Overhead, above the lounge group — the left wall's one free run,
+      // between the built-in window and the mirror.
+      { item: "pendant", gx: 0, gy: 4.5, rot: 1, tint: "#3a3142" },
       // The window the attic deserves, and a screen to curtain off the bed.
       { item: "bigwindow", gx: 7.5, gy: 0 },
       { item: "screen", gx: 6.5, gy: 3 },
@@ -954,6 +1006,11 @@ export const ISO_PRESETS = {
       // left wall: bookshelf faces into the room, clear of the window
       { item: "bookshelf", gx: 0, gy: 3, rot: 1 },
       { item: "corkboard", gx: 2.5, gy: 0 },
+      // The ceiling layer. No preset used a pendant at all, so the top third
+      // of every room was empty air above a busy floor — the walls were
+      // decorated, the volume wasn't. It hangs on the left wall clear of the
+      // built-in window (gy 1.1–3.5) and above the corner plant.
+      { item: "pendant", gx: 0, gy: 5, rot: 1 },
       // centre: rug + cat, with the cat's own bed just off it
       { item: "stripedrug", gx: 3, gy: 2.5 },
       { item: "cat", gx: 4, gy: 3.5 },

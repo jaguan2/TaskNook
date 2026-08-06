@@ -563,6 +563,15 @@ function IsoRoom({
           </radialGradient>
           {/* soft contact shadow under every grounded item — one gradient,
               no filters (a 48×48 lot can hold dozens of these) */}
+          {/* Floor vignette: clear in the middle, darker toward the rim. A big
+              floor lit dead flat reads as a coloured plane — this is the cheap
+              way to give it a centre, and it scales with the room because the
+              ellipse is sized from the floor's own extents. */}
+          <radialGradient id="isoVignette">
+            <stop offset="0.45" stopColor="#000" stopOpacity="0" />
+            <stop offset="0.8" stopColor="#000" stopOpacity="0.07" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.18" />
+          </radialGradient>
           <radialGradient id="isoShadow">
             <stop offset="0" stopColor="#000" stopOpacity="0.32" />
             <stop offset="0.7" stopColor="#000" stopOpacity="0.12" />
@@ -732,6 +741,15 @@ function IsoRoom({
             {tod.lift && (
               <polygon points={floorPoints(w, d)} fill={tod.lift} opacity={tod.liftOpacity} />
             )}
+            {/* sized from the floor's own diamond, so a 48×48 lot gets the
+                same falloff shape a 5×4 one does */}
+            <ellipse
+              cx={(farL.x + farR.x) / 2}
+              cy={front.y / 2}
+              rx={(farR.x - farL.x) / 2}
+              ry={front.y / 2}
+              fill="url(#isoVignette)"
+            />
           </g>
           {/* The tile grid is a placement aid: it belongs while you're
               decorating and nowhere else, now that the floor has a grain of
@@ -764,6 +782,32 @@ function IsoRoom({
             ))}
           </g>
           )}
+          {/* ---------- ambient occlusion where the walls meet the floor ----
+              The junction was a hard line, so the floor read as a flat plane
+              that the walls happened to stand on. Two stepped bands (flat
+              tones, per MODELS.md — not a ramp) put air back in the corner,
+              and because they're derived from the same per-edge wall runs they
+              follow any drawn floor shape for free. */}
+          {wallH > 0 && (
+            <g clipPath="url(#isoFloorClip)">
+              {wallRuns(size).map((run, i) => {
+                const strip = (depth, opacity, key) => {
+                  const pts =
+                    run.plane === "gy"
+                      ? floorPatch(run.from, run.at, run.to - run.from, depth)
+                      : floorPatch(run.at, run.from, depth, run.to - run.from);
+                  return <polygon key={key} points={pts} fill="#000" opacity={opacity} />;
+                };
+                return (
+                  <g key={`ao-${i}`}>
+                    {strip(0.75, 0.09, "far")}
+                    {strip(0.3, 0.1, "near")}
+                  </g>
+                );
+              })}
+            </g>
+          )}
+
           {/* ---------- what the room's own lights throw on the floor ------
               A light source that doesn't light anything is just a drawing.
               These pools are cast by the SCENE rather than by each sprite, so
@@ -835,15 +879,25 @@ function IsoRoom({
                     under every grounded item. This is most of what makes the
                     sprites read as sitting IN the room instead of pasted on
                     (flat rugs/ponds and wall decor obviously except). */}
-                {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (
-                  <ellipse
-                    cx={project(foot[0] / 2, foot[1] / 2).x}
-                    cy={project(foot[0] / 2, foot[1] / 2).y}
-                    rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3}
-                    ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
-                    fill="url(#isoShadow)"
-                  />
-                )}
+                {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (() => {
+                  // A shadow centred under the object is a shadow from a lamp
+                  // directly overhead — it reads as a symmetric smudge and
+                  // gives nothing away about the light. The scene's light
+                  // comes from the upper RIGHT (string lights, the orb at the
+                  // third intersection), so the shadow leans down-left, away
+                  // from it, and stretches with the object's height.
+                  const mid = project(foot[0] / 2, foot[1] / 2);
+                  const lean = Math.min(9, 2 + (item.hitH || 20) * 0.06);
+                  return (
+                    <ellipse
+                      cx={mid.x - lean}
+                      cy={mid.y + lean * 0.5}
+                      rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3 + lean * 0.4}
+                      ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
+                      fill="url(#isoShadow)"
+                    />
+                  );
+                })()}
                 {/* Mirroring about the origin is a grid TRANSPOSE — the item
                     faces the other wall and its footprint swaps to match.
                     noMirror items (rendered PNGs) ship a real second render

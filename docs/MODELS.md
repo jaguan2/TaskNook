@@ -69,6 +69,30 @@ piece so a new item sits correctly beside the existing ones.
 
 \* these are `surface` values (where things stacked on it rest), not `hitH`.
 
+### Persona proportions
+
+The people are not furniture and get their own numbers, in `IsoItems.jsx`:
+`HEAD_R` 7.3, `LEG_H` 22, standing torso at −40 and head at −48.5 — about
+56px tall with the head a quarter of it.
+
+**Learned from:** the first figure was a 15.6px head over a 15px leg — a third
+of its height was skull, which is toddler proportion, and no amount of shading
+fixed it ("blocky and lifeless", user). Three things carried the redraw, in
+order of effect: **legs to 22px** (the single biggest change), a **neck and a
+collar** so the head stops sitting directly on the shoulders, and a **tapered
+torso** — shoulders proud, waist drawn in — because a constant-width rect
+reads as a pill whatever colour it is.
+
+Two rules that come out of it:
+
+- **The figure obeys the light like everything else.** It was the one object
+  in the room with a single flat tone while every `TintedBox` neighbour had
+  three: light catch across the shoulders, flat shade on the lower body.
+- **Depth colours, not overlays, separate near from far.** `TROUSER_FAR` /
+  `SHOE_FAR` exist for exactly this; two limbs in one colour read as one
+  block. The near arm gets a white catch so it doesn't vanish into a torso it
+  shares a colour with.
+
 **`seat` and `surface` are contracts, not decoration.** `seat` makes personas
 sit on it; `surface` makes `stacks` items rest on it. Both resolve at RENDER
 time only — the stored gx/gy never changes.
