@@ -2684,6 +2684,16 @@ function Face({ expression, headY }) {
 // build change can't leave the arms floating beside the chest.
 const BUILD_HALF_W = { slim: 8, average: 9, sturdy: 10 };
 
+// Proportions. The figure used to be head 15.6px against a 15px leg — a
+// third of its height was skull, which is toddler proportion however nicely
+// it's shaded. Cozy isometric characters (Unpacking, Cozy Grove) sit nearer a
+// quarter, so the head came down and the legs went up. `HEAD_R` is shared by
+// every pose; `LEG_H` and the standing torso/head offsets move together.
+const HEAD_R = 7.3;
+const LEG_H = 22;
+const STAND_TORSO_Y = -40;
+const STAND_HEAD_Y = -48.5;
+
 function Resident({
   seated = false,
   lying = false,
@@ -2712,13 +2722,22 @@ function Resident({
         <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
           {/* body along the bed, knees slightly raised */}
           <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
+          {/* Lit along the top, falling away underneath — the same two-tone
+              treatment the standing figure got. Without it this pose stayed
+              the one flat-green shape it always was while the other two
+              picked up volume. */}
+          <rect x="-19" y="-10.4" width="32" height="4" rx="2" fill="#fff" opacity="0.12" />
           <rect x="-20" y="-5" width="34" height="6" rx="3" fill="#000" opacity="0.12" />
           <ellipse cx="12" cy="-9" rx="8" ry="6" style={outfit} />
           {/* arm resting on top of the covers */}
           <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={outfit} />
+          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" fill="#fff" opacity="0.1" />
           <circle cx="1" cy="-11.7" r="2.4" fill={skin} />
-          {/* head on the pillow, eyes closed whatever the waking expression */}
-          <circle cx="-23" cy="-13" r="7.4" fill={skin} />
+          {/* head on the pillow, eyes closed whatever the waking expression.
+              A collar at the neck end so the head doesn't read as set down
+              beside the body. */}
+          <ellipse cx="-16.5" cy="-11.5" rx="3.2" ry="4.4" style={outfit} />
+          <circle cx="-23" cy="-13" r={HEAD_R} fill={skin} />
           <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={hairColor} />
           <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
           <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
@@ -2730,8 +2749,8 @@ function Resident({
   // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
   // the seat line (sinking a px into the cushion), not hovering above it —
   // and low enough that the thighs emerge from under it rather than behind it.
-  const torsoY = seated ? -21 : -33;
-  const headY = seated ? -29 : -41;
+  const torsoY = seated ? -21 : STAND_TORSO_Y;
+  const headY = seated ? -29 : STAND_HEAD_Y;
   // The floor is at +seatH (the scene lifts a seated resident by exactly
   // that), less a couple of px so the sole meets it instead of sinking
   // through. The floor keeps a low cushion from reducing the shin to a stub.
@@ -2745,21 +2764,56 @@ function Resident({
         </>
       ) : (
         <>
+          {/* Legs run the full LEG_H — at 15px they were stubs under a long
+              torso, which is most of what made the figure read as a toddler.
+              The far one uses the depth colours the seated pose already had
+              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block. */}
           <g className={moving ? "leg-step-a" : undefined}>
-            <rect x="-6.8" y="-15" width="5.6" height="15" rx="2.6" fill={TROUSER} />
-            <ellipse cx="-4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE} />
+            <rect x="-6.8" y={-LEG_H} width="5.6" height={LEG_H} rx="2.6" fill={TROUSER_FAR} />
+            <ellipse cx="-4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE_FAR} />
           </g>
           <g className={moving ? "leg-step-b" : undefined}>
-            <rect x="1.2" y="-15" width="5.6" height="15" rx="2.6" fill={TROUSER} />
+            <rect x="1.2" y={-LEG_H} width="5.6" height={LEG_H} rx="2.6" fill={TROUSER} />
             <ellipse cx="4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE} />
           </g>
         </>
       )}
       <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
-        <rect x={-halfW} y={torsoY} width={halfW * 2} height="22" rx="6.5" style={outfit} />
-        {/* shoulders proud of the waist, and a soft shadow where they meet */}
-        <ellipse cx="0" cy={torsoY + 4} rx={halfW + 1} ry="5.4" style={outfit} />
-        <rect x={-halfW} y={torsoY + 14} width={halfW * 2} height="8" rx="4" fill="#000" opacity="0.1" />
+        {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
+            it was the same width top to bottom, which is what made the body
+            read as a pill with a head on it rather than a person. */}
+        {(() => {
+          const sh = halfW + 1; // shoulder half-width
+          const wa = halfW - 1.7; // waist half-width
+          const top = torsoY;
+          const bot = torsoY + 22;
+          const body = `M ${-sh} ${top + 7}
+            Q ${-sh} ${top + 0.5} ${-sh + 3.5} ${top}
+            L ${sh - 3.5} ${top} Q ${sh} ${top + 0.5} ${sh} ${top + 7}
+            L ${wa} ${bot - 3} Q ${wa} ${bot} ${wa - 3} ${bot}
+            L ${-wa + 3} ${bot} Q ${-wa} ${bot} ${-wa} ${bot - 3} Z`;
+          // The lower band is its own tapered path rather than a rect or a
+          // gradient: it has to follow the taper to stay inside the
+          // silhouette, and MODELS.md wants flat tones, not a ramp.
+          const bandY = torsoY + 14;
+          const t = (bandY - (top + 7)) / (bot - 3 - (top + 7));
+          const bx = sh + (wa - sh) * t;
+          const band = `M ${-bx} ${bandY} L ${bx} ${bandY}
+            L ${wa} ${bot - 3} Q ${wa} ${bot} ${wa - 3} ${bot}
+            L ${-wa + 3} ${bot} Q ${-wa} ${bot} ${-wa} ${bot - 3} Z`;
+          return (
+            <>
+              <path d={body} style={outfit} />
+              {/* Volume the same way every box in the catalog gets it: the top
+                  faces the light, the lower body falls away. The character was
+                  the one object in the room with a single flat tone, which is
+                  most of why it looked lifeless beside furniture that has
+                  three. */}
+              <ellipse cx="0" cy={top + 3.5} rx={sh - 1.5} ry="4.6" fill="#fff" opacity="0.13" />
+              <path d={band} fill="#000" opacity="0.14" />
+            </>
+          );
+        })()}
         {/* arms — they type when a focus block is running and they're seated */}
         <g className={working && seated ? "resident-type" : undefined}>
           <g>
@@ -2769,14 +2823,44 @@ function Resident({
           </g>
           <g>
             <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+            {/* the near arm catches the light instead of vanishing into the
+                torso it shares a colour with */}
+            <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
             <circle cx={halfW + 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
           </g>
         </g>
-        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill={skin} />
-        <rect x="-2.3" y={headY + 4} width="4.6" height="5" fill="#000" opacity="0.14" />
+        {/* Neck, then a collar sitting on the shoulders. The head used to
+            meet the torso directly, which is a large part of why the figure
+            read as a bundle rather than a body — the neck is short, but the
+            collar is what actually sells it. It reaches from under the chin to
+            just inside the torso top so no pose can leave a gap. */}
+        <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill={skin} />
+        <rect
+          x="-2.6"
+          y={headY + HEAD_R - 1}
+          width="5.2"
+          height={torsoY - headY - HEAD_R + 4}
+          fill="#000"
+          opacity="0.16"
+        />
+        <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" style={outfit} />
+        <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" fill="#fff" opacity="0.1" />
         <HairBack style={ch.hair} headY={headY} color={hairColor} />
-        <circle cx="0" cy={headY} r="7.8" fill={skin} />
+        <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
         <HairFront style={ch.hair} headY={headY} color={hairColor} />
+        {/* A sheen on the crown. The hair is the biggest single shape on the
+            figure and it was one flat colour, so it read as a helmet — this is
+            the same white light-catch the shoulders and the boxes get, aimed
+            up-right at the light. */}
+        <ellipse
+          cx="2.4"
+          cy={headY - 4.1}
+          rx="3.1"
+          ry="1.6"
+          fill="#fff"
+          opacity="0.16"
+          transform={`rotate(-22 2.4 ${headY - 4.1})`}
+        />
         <Face expression={ch.expression} headY={headY} />
         <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
         <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
@@ -2862,7 +2946,7 @@ function You({ mood, mirrored = false, ...rest }) {
     ? { x: -14, y: -30 }
     : rest.seated
     ? { x: 10, y: -46 }
-    : { x: 10, y: -58 };
+    : { x: 10, y: -64 }; // standing head rose with the new proportions
   return (
     <g>
       <Resident {...rest} />

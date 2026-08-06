@@ -189,7 +189,16 @@ export default function HudTasks({ onOpenTasks }) {
   };
 
   return (
-    <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col">
+    // Below 600px this 288px list and the 216px timer card can't both have the
+    // top of the window: they overlapped, and the result was unreadable — two
+    // stacks of text on top of each other (measured: the collision starts at
+    // 588px and grows as you narrow). The list steps aside instead; the full
+    // Tasks panel is still one dock click away.
+    //
+    // `invisible`, never `hidden`: this carries .intro-chrome, and
+    // display:none would replay its 1.5s boot animation every time the window
+    // crossed the threshold (docs/DESIGN.md).
+    <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col max-[599px]:invisible">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
           To-Do List{" "}

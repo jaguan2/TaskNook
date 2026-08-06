@@ -57,6 +57,18 @@ The screen has an ownership map — respect it:
 - **Derive texture from position, never randomness.** The scene re-renders on
   a timer tick; a floor seeded from `Math.random` would crawl. Flagstone jitter
   and plank stagger both come from the tile index.
+- **A big floor needs a centre.** Grain alone still reads as a uniform plane at
+  20×16 and up, so the floor carries a vignette — clear in the middle, 0.18
+  black at the rim — sized from the floor's own diamond so every room gets the
+  same falloff shape rather than a fixed blob. It stacks with the wall-base
+  occlusion: together they say "this is a room with air in it", which no amount
+  of per-sprite detail can.
+- **When the presets have no room, put it in the ENV.** The Reading room and
+  Study hall had nothing above eye level, but both are shelved wall to wall —
+  there is no free run to hang a pendant in without evicting furniture. The
+  fix was one line: `library` was the only indoor env without `lights`. An env
+  flag dresses every room built on it, present and future, and can't collide
+  with a placement. Reach for the env before editing a preset.
 - **Detail belongs in the shared helper before the individual sprite.** Ninety
   pieces are built from a handful of primitives, so one edit there raises the
   whole catalog and keeps it consistent — an over-detailed bookshelf beside
@@ -80,9 +92,29 @@ The screen has an ownership map — respect it:
   half-sinking behind the room = horizon.
 - **Light source consistency**: ambient light reads from the right (string
   lights on the right wall, orb upper-right). Don't introduce elements lit
-  from elsewhere.
+  from elsewhere. **Cast shadows lean away from it** — down-left, and further
+  the taller the object (`IsoRoom` derives the offset from `hitH`). Centred
+  shadows read as a lamp directly overhead and tell you nothing; the lean is
+  what makes a room feel lit from somewhere.
+- **Use the volume, not just the walls.** Wall decor was already well spread
+  across the presets, but not one of them hung a `pendant` — so the top third
+  of every room was empty air above a busy floor. An overhead light is the
+  cheapest way to occupy it. Placing one is not eyeballing: a pendant fills
+  the wall band −116…−62, so it collides with anything tall (a 96px bookshelf,
+  a 92px wardrobe) and with other wall decor. Check the wall run is clear
+  first — the same discipline the arch-behind-a-bookshelf bug bought.
 - **Negative space is content.** The de-carded scenes exist so the backdrop
   breathes; don't fill it.
+- **600px wide is the supported floor, and the top corners are why.** The
+  zone map assumes both top corners are usable at once, but the timer card
+  (216px) and the to-do list (288px) plus their insets need ~588px before
+  they collide — so below 600px the to-do list steps aside (`invisible`, not
+  `hidden`: it carries `.intro-chrome`) and the Tasks panel covers for it.
+  HEIGHT is not a constraint: measured clean down to 420px tall, because the
+  dock's top is clamped (`max(172px, 50% - 220px)`) so a centred column can
+  never climb into the timer's corner. Any new top-corner chrome has to fit
+  the same budget or step aside the same way; a full narrow-screen layout is
+  a separate feature, not something to half-build here.
 
 ## Motion
 
@@ -157,6 +189,13 @@ alone by default (user decision, after two rounds of feedback: "more minimal
 is better than crowded", then "we do not need to touch our preset rooms").
 There was briefly a test demanding every catalog key appear in some preset —
 following it is what produced the crowding, so it's gone.
+
+**One deliberate exception: the overhead light.** A `pendant` was added to
+Cozy study and Loft, knowingly against the count, because the complaint it
+answers isn't density — it's that the room had nothing above eye level, and
+that reads as an unfinished space rather than a restrained one. Height is not
+clutter. It is one piece per room, in a wall run checked clear first, and it
+is not a licence to top the presets up generally.
 
 When a preset IS being edited, the restraint rules still hold:
 

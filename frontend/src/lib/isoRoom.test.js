@@ -10,8 +10,10 @@ import {
   ISO_PRESETS,
   clampIsoPlacement,
   clampIsoSize,
+  blocksSpawn,
   cutsToMask,
   defaultIsoLayout,
+  footprintsOverlap,
   footOf,
   footprintFree,
   isoDepth,
@@ -230,6 +232,40 @@ describe("newIsoPlacement", () => {
 
   it("returns null for unknown items", () => {
     expect(newIsoPlacement("hot-tub", [], SIZE)).toBeNull();
+  });
+
+  it("doesn't drop a new piece inside the furniture already there", () => {
+    // A desk parked over the room centre — which is exactly where spawns aim,
+    // so this is the case that put a second person inside the first one.
+    const existing = [{ id: "d", item: "desk", gx: 3, gy: 2.5 }];
+    const p = newIsoPlacement("resident", existing, SIZE);
+    expect(p).toBeTruthy();
+    expect(footprintsOverlap(p, existing[0])).toBe(false);
+  });
+
+  it("still places a piece in a packed room rather than refusing", () => {
+    // Nowhere is clear, but "no clean spot" must not become "no piece".
+    const existing = [];
+    for (let x = 0; x < SIZE.w; x++) {
+      for (let y = 0; y < SIZE.d; y++) {
+        existing.push({ id: `f${x}-${y}`, item: "stool", gx: x, gy: y });
+      }
+    }
+    expect(newIsoPlacement("stool", existing, SIZE)).toBeTruthy();
+  });
+
+  it("flat pieces and wall decor don't block a spawn; people do", () => {
+    // A rug is MADE to go under things, and a frame isn't on the floor at all.
+    expect(blocksSpawn("rug")).toBe(false);
+    expect(blocksSpawn("frame")).toBe(false);
+    expect(blocksSpawn("chair")).toBe(true);
+    expect(blocksSpawn("resident")).toBe(true);
+  });
+
+  it("spawns happily on top of a rug", () => {
+    const rug = [{ id: "r", item: "rug", gx: 2, gy: 2 }];
+    const p = newIsoPlacement("chair", rug, SIZE);
+    expect(p).toBeTruthy();
   });
 });
 
@@ -812,10 +848,11 @@ describe("you, in the room", () => {
   });
 
   it("parks its selection chrome clear of the thought cloud", () => {
-    // hitH is only ever where the ⟳/✕ buttons sit. The cloud's top edge is
-    // ~69px above the origin, and the buttons hang r=9 below their centre at
-    // -(hitH + 2) — so anything under ~76 draws them on top of it.
-    expect(ISO_ITEMS.you.hitH).toBeGreaterThanOrEqual(76);
+    // hitH is only ever where the ⟳/✕ buttons sit. Standing, the cloud's top
+    // edge is 75px above the origin (spot y -64, cloud reaching -11 above
+    // that), and the buttons hang r=9 below their centre at -(hitH + 2) — so
+    // anything under 82 draws them on top of it.
+    expect(ISO_ITEMS.you.hitH).toBeGreaterThanOrEqual(82);
   });
 
   it("is a persona, so it seats and wanders like one", () => {
