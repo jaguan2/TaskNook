@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
+import { Clock, Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { formatPopulation } from "../lib/weather";
@@ -31,6 +31,8 @@ export default function WeatherPanel() {
     saveWeatherPreset,
     applyWeatherPreset,
     deleteWeatherPreset,
+    autoTimeOfDay,
+    setAutoTimeOfDay,
   } = useStore();
 
   const [city, setCity] = useState("");
@@ -160,6 +162,33 @@ export default function WeatherPanel() {
         <p className="text-xs text-petal/60">
           Automatically sets the cottage's weather ambience and time of day to
           match what's actually happening outside, refreshing every 15 minutes.
+        </p>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Follow the clock. The offline half of the pair above: same "the room
+          knows what time it is" result with no location, no network, and no
+          opinion about the weather. Mutually exclusive with auto-match, which
+          owns the time of day too and does it better when it's available. */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Clock size={15} className="text-petal/70" /> Follow my clock
+          </p>
+          <button
+            onClick={() => setAutoTimeOfDay(!autoTimeOfDay)}
+            className={`pill px-3 py-1 text-xs font-semibold ${
+              autoTimeOfDay ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
+            }`}
+          >
+            {autoTimeOfDay ? "On" : "Off"}
+          </button>
+        </div>
+        <p className="text-xs text-petal/60">
+          Sets the time of day from your device's clock — dark in the evening,
+          bright at midday — without needing your location or the internet.
+          Picking an hour below turns this back off.
         </p>
       </section>
 

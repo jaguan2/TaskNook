@@ -132,8 +132,23 @@ The screen has an ownership map — respect it:
   animation cycle where the visible part is a sliver. Catching one should
   feel lucky.
 - **Motion means something when it can**: the resident types only while a
-  focus block runs; the cat naps on soft things. Prefer motion that reflects
-  app state over pure decoration.
+  focus block runs; on a break they put the keyboard down and hold a mug; the cat
+  naps on soft things. Prefer motion that reflects app state over pure decoration.
+  - **A state the room ignores is a state the room denies.** A break used to look
+    exactly like sitting idle — the phase reached the app and stopped at a thought
+    bubble. If the app knows something about what you're doing, the scene is where
+    it should show.
+  - **A cue is not ambience.** Anything that ANSWERS something the user did plays
+    once, immediately, and takes no `--phase` — the random idle stretch would have
+    arrived somewhere in the next 89 seconds, which is no use as a "your break
+    started". Put it on its own wrapper so it composes with the ambient loops
+    inside rather than fighting them for the same transform.
+  - **Props that carry a state should be one value, not one boolean each.**
+    `activity` is `"focus" | "break" | null`; two booleans can both be true, and
+    the memo'd scene wants something that changes on an edge, not per tick.
+  - **Check the poses a new state makes possible.** Holding a mug meant the
+    eye-rub had to stand down: at 186° the arm swings the cup over the face
+    upside down. A prop is only half of a pose.
 - **No motion in reading zones** (HUD corners). Ever.
 - **Every animation class goes in the reduced-motion block.** No exceptions.
 - **A CSS *transition* is invisible to that block.** `animation: none` cannot
@@ -149,6 +164,13 @@ The screen has an ownership map — respect it:
   and stopping the timer retires a re-render as well. It is also the room's
   only timer-driven motion — the CSS animations cost nothing to leave in
   place, which is why they're silenced by stylesheet and not unmounted.
+- **A wanderer's phase comes from its stored square, not the one it walked to.**
+  `effective` overwrites gx/gy with the wander offset, so reading the resolved
+  position handed the sprite a value that changed every few seconds: each step
+  gave it a new phase and restarted its walk cycle, its breathing and its gesture
+  clocks mid-motion. Wanderers were the one kind of item that couldn't hold a
+  phase, and the comment above the call already said they must — which is why it
+  is pinned by a test now rather than left to the comment.
 - **Instances must disagree — synchrony is the screensaver tell.** Every ambient
   loop reads two inherited custom properties that `IsoRoom` sets per placement
   from its tile: `--phase` (a NEGATIVE `animation-delay`) and, for the long
@@ -250,6 +272,24 @@ The screen has an ownership map — respect it:
 - Big scenes are memo'd (`IsoRoom`); nothing may reintroduce a per-second
   re-render of thousands of SVG nodes. Props crossing into memo'd scenes must
   be stable (useCallback) or change rarely (booleans like `working`).
+
+## Drawing new furniture
+
+- **Wall decor runs UP the wall.** Wall sprites are drawn inside
+  `skewY(SKEW)` in NEGATIVE y from the floor origin and positive x rightward
+  (a picture frame spans y −98…−56 against a 118px wall). Drawn from y=0
+  downward — the natural thing to write for icicles or bunting, which visually
+  hang — they end up in a puddle at the skirting board. Both did, first time.
+- **A sprite is not verified by a thumbnail.** Place a new piece in a real room
+  at real scale and look at it. Wall items additionally have to be placed ON a
+  wall (`rot` 0 pins to `gy: 0`, 1 to `gx: 0`); writing a layout through the API
+  skips the clamp that does that, so they float mid-floor and look broken for a
+  reason that has nothing to do with the artwork.
+- **Seasonal sets are the reason to redecorate.** One season only works for three
+  months, so autumn/winter/spring each get a picker section of ~6 pieces with the
+  same shape: a hero tree, something to sit on, something low and wide, one light,
+  one wall piece. New pieces belong in the PICKER — the built-in preset rooms are
+  deliberately left alone (see "Decorating & room presets").
 
 ## Color & theming
 

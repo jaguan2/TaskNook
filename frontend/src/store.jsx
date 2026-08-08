@@ -8,6 +8,7 @@ import {
 } from "react";
 import { api, getToken, setToken } from "./lib/api";
 import { readStored, writeStored } from "./lib/storage";
+import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
@@ -183,6 +184,14 @@ export function StoreProvider({ children }) {
     const saved = readStored("tasknook.timeOfDay");
     return TIMES_OF_DAY.includes(saved) ? saved : "night";
   });
+  // Follow the wall clock, with no location and no network. Separate from
+  // "Match my real weather" on purpose: that one needs geolocation, a fetch, and
+  // your acceptance of the real weather visual — three things to want in order to
+  // get the one thing most people are after, which is that the room is dark when
+  // it's dark out.
+  const [autoTimeOfDay, setAutoTimeOfDayState] = useState(
+    () => readStored("tasknook.timeOfDay.auto") === "1"
+  );
   const [musicOn, setMusicOn] = useState(false);
 
   // ---- Real-world weather ----
@@ -969,7 +978,23 @@ export function StoreProvider({ children }) {
   };
   const setTimeOfDay = (mode) => {
     if (autoMatchRef.current) setAutoMatchWeather(false);
+    // A hand-picked hour has to switch the clock off too, or the next tick
+    // silently overwrites it — the same fight auto-match already had.
+    setAutoTimeOfDay(false);
     applyTimeOfDay(mode);
+  };
+
+  // Mutually exclusive with auto-match, which also owns the time of day and does
+  // it better when it's available (real sunrise/sunset knows your latitude and
+  // the season; these are fixed bands). Layering them would just mean two
+  // writers racing over one value.
+  const setAutoTimeOfDay = (on) => {
+    setAutoTimeOfDayState(on);
+    writeStored("tasknook.timeOfDay.auto", on ? "1" : "0");
+    if (on) {
+      if (autoMatchRef.current) setAutoMatchWeather(false);
+      applyTimeOfDay(timeOfDayNow());
+    }
   };
   const toggleMusic = () => setMusicOn((m) => !m);
 
@@ -1094,8 +1119,27 @@ export function StoreProvider({ children }) {
       applyWeatherVisual(realWeather.mode);
       applyTimeOfDay(realWeather.timeOfDay);
     }
+    // Auto-match owns the time of day too, so the two can't both be on —
+    // otherwise its 15-minute refresh and the clock tick take turns overwriting
+    // each other's value.
+    if (next) setAutoTimeOfDay(false);
     setAutoMatchWeather(next);
   };
+
+  // While the clock is driving the scene, re-check it. A minute is far finer
+  // than the bands need (they turn over on the hour), but it's one cheap
+  // comparison and it means a room left open through dusk actually gets dark
+  // instead of waiting for a reload. `applyTimeOfDay` is the internal applier,
+  // so this doesn't switch itself off the way a manual pick does.
+  useEffect(() => {
+    if (!autoTimeOfDay) return undefined;
+    applyTimeOfDay(timeOfDayNow());
+    const id = setInterval(() => applyTimeOfDay(timeOfDayNow()), 60 * 1000);
+    return () => clearInterval(id);
+    // No exhaustive-deps suppression needed: `applyTimeOfDay` only calls a
+    // setState and a storage write, so a stale closure of it behaves identically
+    // and re-subscribing on every render would tear the interval down for nothing.
+  }, [autoTimeOfDay]);
 
   // While auto-match is on, keep real conditions from drifting stale.
   useEffect(() => {
@@ -1281,6 +1325,8 @@ export function StoreProvider({ children }) {
     weatherPlaces,
     chooseWeatherPlace,
     autoMatchWeather,
+    autoTimeOfDay,
+    setAutoTimeOfDay,
     toggleAutoMatchWeather,
     refreshRealWeather,
     searchWeatherCity,

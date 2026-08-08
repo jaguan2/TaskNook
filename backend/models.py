@@ -98,6 +98,14 @@ class Task(db.Model):
     position = db.Column(db.Integer, nullable=False, default=0)
     # Optional ISO date (YYYY-MM-DD) the task is scheduled on the calendar.
     scheduled_date = db.Column(db.String(10), nullable=True)
+    # Free text under the task — the bit of context that stops a one-line title
+    # from being a riddle a week later ("call back" — about what?).
+    notes = db.Column(db.Text, nullable=True)
+    # A DEADLINE, which `scheduled_date` deliberately is not: that one is where
+    # you chose to put the task on the calendar, and nothing sorts by it or warns
+    # on it. Same YYYY-MM-DD convention, and the same local-day rule as the rest
+    # of the app — the client sends a local date string, never a UTC timestamp.
+    due_date = db.Column(db.String(10), nullable=True)
     # Optional to-do group header the task lives under (VC2-style).
     group_name = db.Column(db.String(60), nullable=True)
     # Routine tasks reset to not-done at the start of each (local) day.
@@ -114,6 +122,8 @@ class Task(db.Model):
             "completed": self.completed,
             "position": self.position,
             "scheduledDate": self.scheduled_date,
+            "notes": self.notes,
+            "dueDate": self.due_date,
             "group": self.group_name,
             "routine": self.is_routine,
             "createdAt": _utc_iso(self.created_at),

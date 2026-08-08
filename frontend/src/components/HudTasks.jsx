@@ -1,7 +1,16 @@
 import { useRef, useState } from "react";
-import { GripVertical, Plus, Repeat, SlidersHorizontal } from "lucide-react";
+import {
+  CalendarClock,
+  GripVertical,
+  Pencil,
+  Plus,
+  Repeat,
+  SlidersHorizontal,
+  StickyNote,
+} from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
+import { toISO } from "../lib/dates";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
@@ -14,6 +23,85 @@ import { useArmed } from "../lib/useArmed";
 // new function identity every render, so React remounts every row — and the
 // store re-renders this HUD once per second while a focus session runs, which
 // killed in-flight drag-reorders (learned the hard way).
+/**
+ * The expanded half of a task row: a note, a deadline, and the two fields that
+ * previously had no editor anywhere in the app.
+ *
+ * On the row rather than in a dialog, per the design north star — VC2 keeps
+ * everything on the scene and saves panels for infrequent configuration, and a
+ * note you write while looking at your list is not configuration.
+ *
+ * Saves on BLUR, not per keystroke: every write goes through the store and
+ * refetches, so typing a sentence would be a sentence's worth of round trips.
+ * A local draft holds the text until focus leaves.
+ *
+ * At module scope for the same reason `Row` is, and here it matters twice over:
+ * an inner component gets a fresh identity every render, and this HUD re-renders
+ * once a second while a focus block runs — so the remount would wipe the half
+ * written note out from under you, once per second.
+ */
+function TaskDetails({ task, editTask, onClose }) {
+  const [notes, setNotes] = useState(task.notes || "");
+  const [name, setName] = useState(task.name);
+  const [due, setDue] = useState(task.dueDate || "");
+
+  // Only send what changed — a PUT carrying every field would re-stamp things the
+  // user never touched, and the backend treats a present key as an instruction.
+  const commit = (patch) => {
+    const [[key, value]] = Object.entries(patch);
+    const before = { name: task.name, notes: task.notes || "", dueDate: task.dueDate || "" }[key];
+    if (value === before) return;
+    editTask(task.id, patch);
+  };
+
+  return (
+    <div className="mb-1 ml-[38px] mr-1 space-y-1.5 rounded-lg bg-white/5 p-2">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => commit({ name: name.trim() || task.name })}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        aria-label="Task name"
+        className="w-full rounded-md bg-white/10 px-2 py-1 text-sm text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
+      />
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        onBlur={() => commit({ notes })}
+        rows={2}
+        placeholder="Notes…"
+        aria-label="Notes"
+        className="cozy-scroll w-full resize-none rounded-md bg-white/10 px-2 py-1 text-xs text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
+      />
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
+          <CalendarClock size={12} /> Due
+          <input
+            type="date"
+            value={due}
+            onChange={(e) => {
+              setDue(e.target.value);
+              // A date picker commits on change, not on blur — there is no
+              // half-typed date to protect and waiting feels broken.
+              if (e.target.value !== (task.dueDate || "")) {
+                editTask(task.id, { dueDate: e.target.value || null });
+              }
+            }}
+            aria-label="Due date"
+            className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
+          />
+        </label>
+        <button
+          onClick={onClose}
+          className="ml-auto px-1 text-[11px] text-petal/50 transition hover:text-cream"
+        >
+          done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Row({
   task,
   section,
@@ -27,9 +115,19 @@ function Row({
   requestDelete,
   onDragStartRow,
   onDropRow,
+  expandedId,
+  onToggleExpand,
+  editTask,
 }) {
+  const expanded = expandedId === task.id;
   const confirming = confirmId === task.id;
+  // A deadline that has passed (or lands today) is the only thing in the list
+  // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
+  // the same rule the calendar follows, and both are plain YYYY-MM-DD so a
+  // string compare is a date compare.
+  const overdue = task.dueDate && !task.completed && task.dueDate <= toISO(new Date());
   return (
+    <>
     <div
       draggable={draggableRow}
       onDragStart={() => onDragStartRow(section, index)}
@@ -79,6 +177,32 @@ function Row({
           {task.name}
         </span>
       </button>
+      {task.notes && (
+        <span title={task.notes} aria-label="Has notes" className="shrink-0 text-petal/40">
+          <StickyNote size={11} />
+        </span>
+      )}
+      {task.dueDate && (
+        <span
+          title={`Due ${task.dueDate}`}
+          className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${
+            overdue ? "text-danger" : "text-petal/50"
+          }`}
+        >
+          {task.dueDate.slice(5)}
+        </span>
+      )}
+      <button
+        onClick={() => onToggleExpand(task.id)}
+        title={expanded ? "Hide details" : "Notes and due date"}
+        aria-label="Notes and due date"
+        aria-expanded={expanded}
+        className={`hover-reveal shrink-0 px-0.5 transition ${
+          expanded ? "text-glow" : "text-petal/30 hover:text-cream"
+        }`}
+      >
+        <Pencil size={11} />
+      </button>
       <button
         onClick={() => toggleRoutine(task)}
         title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
@@ -101,6 +225,10 @@ function Row({
         {confirming ? "sure?" : "✕"}
       </button>
     </div>
+    {expanded && (
+      <TaskDetails task={task} editTask={editTask} onClose={() => onToggleExpand(task.id)} />
+    )}
+    </>
   );
 }
 
@@ -117,6 +245,7 @@ export default function HudTasks({ onOpenTasks }) {
     addTaskGroup,
     removeTaskGroup,
     toggleRoutine,
+    editTask,
     showToast,
   } = useStore();
   const [draft, setDraft] = useState("");
@@ -125,6 +254,11 @@ export default function HudTasks({ onOpenTasks }) {
   const dragFrom = useRef(null); // { section, index }
 
   // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
+  // One row open at a time: two open note editors on a 288px list is a wall of
+  // form, and the point of putting this on the row was to keep the list a list.
+  const [expandedId, setExpandedId] = useState(null);
+  const toggleExpand = (id) => setExpandedId((cur) => (cur === id ? null : id));
+
   const [confirmId, arm] = useArmed();
   const requestDelete = (id) => arm(id, () => removeTask(id));
 
@@ -186,6 +320,9 @@ export default function HudTasks({ onOpenTasks }) {
     requestDelete,
     onDragStartRow,
     onDropRow,
+    expandedId,
+    onToggleExpand: toggleExpand,
+    editTask,
   };
 
   return (

@@ -200,6 +200,25 @@ def json_body():
     return data if isinstance(data, dict) else {}
 
 
+def clean_date(value):
+    """A YYYY-MM-DD string, or None.
+
+    Stricter than the bare `[:10]` slice this replaces: that let any
+    ten-character string into a date column, so "not a date" round-tripped
+    happily and then failed to compare against anything. Returns None for
+    junk rather than 400ing, because both callers treat "no date" as a
+    legitimate value and a bad one carries no intent worth preserving.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    head = value[:10]
+    try:
+        date.fromisoformat(head)
+    except ValueError:
+        return None
+    return head
+
+
 def clean_str(v, limit):
     """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
     return ("" if v is None else str(v)).strip()[:limit]
@@ -370,7 +389,9 @@ def register_routes(app):
             # Only a plausible date string reaches the String(10) column — a
             # non-string would raise at bind time (500), and SQLite doesn't
             # enforce the length itself.
-            scheduled_date=sched[:10] if isinstance(sched, str) and sched else None,
+            scheduled_date=clean_date(sched),
+            notes=clean_str(data.get("notes"), 2000) or None,
+            due_date=clean_date(data.get("dueDate")),
             group_name=group,
             is_routine=bool(data.get("routine")),
         )
@@ -403,8 +424,12 @@ def register_routes(app):
             except (TypeError, ValueError):
                 return jsonify({"error": "position must be a number"}), 400
         if "scheduledDate" in data:
-            sched = data["scheduledDate"]
-            task.scheduled_date = sched[:10] if isinstance(sched, str) and sched else None
+            task.scheduled_date = clean_date(data["scheduledDate"])
+        if "notes" in data:
+            # Empty string clears it, so the field behaves like the textarea does.
+            task.notes = clean_str(data["notes"], 2000) or None
+        if "dueDate" in data:
+            task.due_date = clean_date(data["dueDate"])
         if "group" in data:
             task.group_name = clean_str(data["group"], 60) or None
         if "routine" in data:
