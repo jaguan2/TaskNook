@@ -14,10 +14,11 @@ import {
   cutsToMask,
   defaultIsoLayout,
   footprintsOverlap,
+  findFreeSpot,
   footOf,
+  isoPresetLayout,
   footprintFree,
   isoDepth,
-  isoPresetLayout,
   lipRuns,
   newIsoPlacement,
   nextRot,
@@ -869,5 +870,58 @@ describe("you, in the room", () => {
     // second self would put your face on someone else too.
     const selves = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].self);
     expect(selves).toEqual(["you"]);
+  });
+});
+
+// A turn changes which TILES a piece covers, so on a drawn (non-rectangular)
+// floor it can strand the piece over void while staying perfectly in bounds.
+// `clampIsoPlacement` is bounds-only by design, so the caller has to check —
+// which `newIsoPlacement` does and `rotateIsoItem` didn't.
+describe("rotating on a drawn floor", () => {
+  // The shipped default room is L-shaped, which is why this was reachable
+  // without anyone painting a custom floor.
+  const loft = validateIsoLayout(isoPresetLayout(DEFAULT_ISO_PRESET));
+
+  it("the default room really is non-rectangular", () => {
+    expect(loft.mask.join("")).toMatch(/0/);
+  });
+
+  it("a clamp alone can leave a turned footprint over void", () => {
+    // The premise, stated as a test: if this ever stops being true the guard in
+    // rotateIsoItem is dead code and should go.
+    const strandable = [];
+    for (const item of ["bed", "sofa", "desk", "bookcase", "stairs"]) {
+      for (let gx = 0; gx <= loft.w * 2; gx += 1) {
+        for (let gy = 0; gy <= loft.d * 2; gy += 1) {
+          const at = { gx: gx / 2, gy: gy / 2 };
+          if (!footprintFree(at.gx, at.gy, footOf(item, 0), loft)) continue;
+          const rot = 1;
+          const turned = clampIsoPlacement(item, at.gx, at.gy, loft, rot);
+          if (!footprintFree(turned.gx, turned.gy, footOf(item, rot), loft)) {
+            strandable.push(`${item}@${at.gx},${at.gy}`);
+          }
+        }
+      }
+    }
+    expect(strandable.length).toBeGreaterThan(0);
+  });
+
+  it("findFreeSpot can rehome every strandable case, so a turn need not be refused", () => {
+    // What the fix relies on: prefer keeping the turn and moving the piece, since
+    // the turn is what the user asked for.
+    for (const item of ["bed", "sofa", "desk", "bookcase", "stairs"]) {
+      const spot = findFreeSpot(item, 1, loft, 0, 0, []);
+      expect(spot, `${item} has nowhere to go turned`).toBeTruthy();
+      expect(footprintFree(spot.gx, spot.gy, footOf(item, 1), loft)).toBe(true);
+    }
+  });
+
+  it("a floor with no room for the turned footprint yields nothing to rehome to", () => {
+    // The other branch: rotateIsoItem must refuse rather than strand. A 1-wide
+    // strip can hold `stairs` (foot 1x2.5) upright but never transposed.
+    const strip = { w: 1, d: 6, mask: ["1", "1", "1", "1", "1", "1"] };
+    expect(footprintFree(0, 0, footOf("stairs", 0), strip)).toBe(true);
+    expect(footprintFree(0, 0, footOf("stairs", 1), strip)).toBe(false);
+    expect(findFreeSpot("stairs", 1, strip, 0, 0, [])).toBe(null);
   });
 });

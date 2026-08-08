@@ -254,3 +254,32 @@ def test_scheduled_date_now_gets_the_same_validation():
         "/api/tasks", json={"name": "t", "scheduledDate": "garbage__"}, headers=headers
     ).get_json()
     assert body["scheduledDate"] is None
+
+
+def test_completing_an_already_completed_task_does_not_move_the_timestamp():
+    """`completed_at` must only move on a real state transition.
+
+    Re-stamping inflates "done today", re-tints today on the calendar, and can
+    cancel a routine's pending lazy reset by making yesterday's completion look
+    like today's.
+    """
+    client, headers = _client()
+    tid = client.post("/api/tasks", json={"name": "t"}, headers=headers).get_json()["id"]
+
+    first = client.put(f"/api/tasks/{tid}", json={"completed": True}, headers=headers).get_json()
+    assert first["completedAt"] is not None
+    again = client.put(f"/api/tasks/{tid}", json={"completed": True}, headers=headers).get_json()
+    assert again["completedAt"] == first["completedAt"]
+
+
+def test_uncompleting_then_recompleting_does_stamp_a_new_time():
+    # The transition guard must not freeze a legitimate re-completion — which is
+    # exactly what a daily routine does every morning.
+    client, headers = _client()
+    tid = client.post("/api/tasks", json={"name": "t"}, headers=headers).get_json()["id"]
+    first = client.put(f"/api/tasks/{tid}", json={"completed": True}, headers=headers).get_json()
+    cleared = client.put(f"/api/tasks/{tid}", json={"completed": False}, headers=headers).get_json()
+    assert cleared["completedAt"] is None
+    again = client.put(f"/api/tasks/{tid}", json={"completed": True}, headers=headers).get_json()
+    assert again["completedAt"] is not None
+    assert again["completedAt"] >= first["completedAt"]

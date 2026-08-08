@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { formatClock } from "../lib/time";
 import { motion, useDragControls } from "framer-motion";
 import { Check, ChevronUp, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
@@ -10,14 +11,9 @@ import { useArmed } from "../lib/useArmed";
 const BREAK_PRESETS = [3, 5, 10];
 const ROUND_PRESETS = [2, 3, 4, 6];
 
-function fmt(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (seconds % 60).toString().padStart(2, "0");
-  return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
-}
+// Padded minutes: the countdown's digits shouldn't shift as it crosses ten
+// minutes. Shared with the music bar (which doesn't pad) via lib/time.js.
+const fmt = (seconds) => formatClock(seconds, { padMinutes: true });
 
 // The top-left focus HUD, Virtual Cottage-style: a SMALL transport card —
 // round pips, the time, a thin progress bar, and ✕ ▶/⏸ ✓ — with everything
@@ -58,10 +54,13 @@ export default function HudFocusCard() {
   const confirmReset = armedId === "reset";
 
   const today = localTodayISO();
-  const streak = focusStreak(
-    { ...sessionDays, [today]: focusMinutesLive },
-    dailyGoal,
-    today
+  // Memoised: this card re-renders every second (it shows the clock), and the
+  // spread cloned the whole sessionDays map — 300+ keys after a year of use —
+  // and re-walked the streak each time, for a value that can only change when
+  // today's minutes tick over or the goal is edited.
+  const streak = useMemo(
+    () => focusStreak({ ...sessionDays, [today]: focusMinutesLive }, dailyGoal, today),
+    [sessionDays, focusMinutesLive, dailyGoal, today]
   );
   const goalMet = focusMinutesLive >= dailyGoal;
 
@@ -250,15 +249,21 @@ export default function HudFocusCard() {
               {!stopwatch && (
                 <>
                   <div className="flex items-center justify-center gap-1">
+                    {/* Disabled while running, matching the mode toggle above.
+                        `setFocus` refuses anyway — this is so the control doesn't
+                        LOOK live: a pill that highlights on tap and changes
+                        nothing is worse than one that's plainly unavailable. */}
                     {focusPresets.map((m) => (
                       <button
                         key={m}
                         onClick={() => setFocus(m)}
+                        disabled={running}
+                        title={running ? "Finish or reset the block to change its length" : undefined}
                         className={`pill px-2 py-0.5 text-[11px] font-semibold transition ${
                           focusMinutes === m
                             ? "bg-glow text-plum"
                             : "bg-white/10 text-petal hover:bg-white/20"
-                        }`}
+                        } ${running ? "cursor-not-allowed opacity-40" : ""}`}
                       >
                         {m}m
                       </button>

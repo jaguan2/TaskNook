@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
@@ -20,6 +20,7 @@ import {
 import { unproject } from "../lib/iso";
 import { ambienceVars } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
+import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import RoomTintPicker from "./RoomTintPicker";
 
@@ -58,6 +59,32 @@ function overSoftSpot(placements, gx, gy, f) {
 }
 
 /**
+ * The painted floor as horizontal RUNS: `[gx, gy, length]` per unbroken stretch.
+ *
+ * Only the clip path wants this. It needs the same AREA, not the individual
+ * tiles, and emitting one polygon per tile made it 2,304 nodes on a 48×48 lot —
+ * for a shape that is usually a plain rectangle — with FOUR groups referencing
+ * it, so the browser resolved that region four times over. Merging by row is the
+ * same trick `lipRuns` uses, and it takes a rectangle to one polygon per row.
+ */
+function floorClipRuns(size) {
+  const runs = [];
+  for (let ty = 0; ty < size.d; ty++) {
+    let start = -1;
+    // One past the end so a run reaching the far edge is still closed.
+    for (let tx = 0; tx <= size.w; tx++) {
+      const on = tx < size.w && tileOn(size, tx, ty);
+      if (on && start < 0) start = tx;
+      if (!on && start >= 0) {
+        runs.push([start, ty, tx - start]);
+        start = -1;
+      }
+    }
+  }
+  return runs;
+}
+
+/**
  * The floor's MATERIAL, drawn over its colour gradient and clipped to the
  * painted tiles.
  *
@@ -68,8 +95,12 @@ function overSoftSpot(placements, gx, gy, f) {
  *
  * Everything is derived from the tile index, never Math.random — the scene
  * re-renders and a reshuffling floor would crawl.
+ *
+ * memo'd because `stone` is a w·d nested loop (2,304 polygons on a big terrace)
+ * and `boards`/`tiles` are hundreds of lines. All three props are scalars, so the
+ * comparison is exact and free.
  */
-function FloorSurface({ w, d, style }) {
+function FloorSurfaceInner({ w, d, style }) {
   const line = (key, x1, y1, x2, y2, stroke, width, opacity) => {
     const a = project(x1, y1);
     const b = project(x2, y2);
@@ -151,6 +182,8 @@ function FloorSurface({ w, d, style }) {
   }
   return <g>{out}</g>;
 }
+
+const FloorSurface = memo(FloorSurfaceInner);
 
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;
@@ -236,16 +269,30 @@ function IsoRoom({
   sizeRef.current = size;
 
   const persistViewTimer = useRef(null);
-  useEffect(() => () => clearTimeout(persistViewTimer.current), []);
+  // What the debounce is holding, so unmount can FLUSH it rather than drop it.
+  const pendingViewRef = useRef(null);
+  const flushView = () => {
+    clearTimeout(persistViewTimer.current);
+    if (pendingViewRef.current) {
+      writeStored("tasknook.isoView", JSON.stringify(pendingViewRef.current));
+      pendingViewRef.current = null;
+    }
+  };
+  // Cleanup used to only CLEAR the timer, so a pan or zoom followed within 300ms
+  // by toggling to the flat scene (or closing the app) silently lost the camera
+  // position — the one thing you'd notice next launch.
+  useEffect(() => flushView, []);
   const applyView = (next) => {
     const clamped = clampView(next);
     setView(clamped);
     // Persisting on every pointermove meant a synchronous JSON+disk write at
     // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
     // immediate.
+    pendingViewRef.current = clamped;
     clearTimeout(persistViewTimer.current);
     persistViewTimer.current = setTimeout(() => {
       writeStored("tasknook.isoView", JSON.stringify(clamped));
+      pendingViewRef.current = null;
     }, 300);
   };
 
@@ -264,8 +311,10 @@ function IsoRoom({
     if (!editMode) return undefined;
     const onKey = (e) => {
       if (e.key !== "Backspace" && e.key !== "Delete") return;
-      const tag = e.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Shared with App's Escape handler. This one used to check only
+      // INPUT/TEXTAREA, so Backspace deleted the selected furniture while you
+      // were typing in a `<select>` or a contenteditable.
+      if (isTypingTarget(e.target)) return;
       if (!selectedId) return;
       e.preventDefault();
       onRemoveItem?.(selectedId);
@@ -326,15 +375,23 @@ function IsoRoom({
   const cx = 320 - (farL.x + farR.x) / 2;
   const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
 
-  // Mask-aware geometry: which tiles exist, and the walls/lip per tile edge.
-  const floorTiles = [];
-  for (let ty = 0; ty < d; ty++) {
-    for (let tx = 0; tx < w; tx++) {
-      if (tileOn(size, tx, ty)) floorTiles.push([tx, ty]);
-    }
-  }
-  const leftSeg = wallSegment("left", size);
-  const rightSeg = wallSegment("right", size);
+  // Mask-aware geometry: the floor's shape, and the walls and lip per tile edge.
+  //
+  // All of it depends ONLY on `size`, and all of it used to be recomputed on
+  // every render — several O(w·d) sweeps plus the run-merging, at pointer rate
+  // through a drag or a pan and again on every roam tick. On a 48×48 lot that is
+  // thousands of tiles walked repeatedly for a value that hasn't changed since
+  // the room was last resized. `wallRuns` alone was being called four times.
+  const { floorClip, wallRunList, lipRunList, leftSeg, rightSeg } = useMemo(
+    () => ({
+      floorClip: floorClipRuns(size),
+      wallRunList: wallRuns(size),
+      lipRunList: lipRuns(size),
+      leftSeg: wallSegment("left", size),
+      rightSeg: wallSegment("right", size),
+    }),
+    [size]
+  );
   // Environment: everything the scene draws AROUND the tiles. `wallH` is 0
   // when there are none, so every wall-dependent bit of geometry falls away
   // from one number instead of from a scatter of `outdoors` checks.
@@ -392,6 +449,14 @@ function IsoRoom({
       ) {
         return;
       }
+      // Belt as well as braces: remember the last position SENT so a no-op
+      // never even reaches the store. The store bails out too (see
+      // moveIsoItem), but stopping here also skips the clamp/collision work's
+      // downstream call entirely and keeps the drag ref honest about what the
+      // store believes.
+      if (drag.sentGx === gx && drag.sentGy === gy) return;
+      drag.sentGx = gx;
+      drag.sentGy = gy;
       onMoveItem?.(drag.id, gx, gy);
       return;
     }
@@ -605,7 +670,7 @@ function IsoRoom({
           {/* ---------- walls (cut-aware: main walls plus the inner planes
               that step around a cut corner) ---------- */}
           {wallH > 0 &&
-            wallRuns(size).map((run, i) => {
+            wallRunList.map((run, i) => {
             const a =
               run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
             const b =
@@ -730,7 +795,7 @@ function IsoRoom({
               tile every time a floor plan stepped. Any floor pixel the skirt
               reaches belongs to a nearer tile, which is exactly what should
               occlude it, so letting the floor paint over it IS the fix. */}
-          {lipRuns(size).map((run, i) => {
+          {lipRunList.map((run, i) => {
             const A =
               run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
             const B =
@@ -746,8 +811,8 @@ function IsoRoom({
 
           {/* ---------- floor + grid (clipped to the painted tiles) ---------- */}
           <clipPath id="isoFloorClip">
-            {floorTiles.map(([tx, ty]) => (
-              <polygon key={`t-${tx}-${ty}`} points={floorPatch(tx, ty, 1, 1)} />
+            {floorClip.map(([tx, ty, len]) => (
+              <polygon key={`t-${tx}-${ty}`} points={floorPatch(tx, ty, len, 1)} />
             ))}
           </clipPath>
           <g clipPath="url(#isoFloorClip)">
@@ -769,7 +834,11 @@ function IsoRoom({
           </g>
           {/* The tile grid is a placement aid: it belongs while you're
               decorating and nowhere else, now that the floor has a grain of
-              its own to read. */}
+              its own to read.
+              The lines used to carry `editMode ? … : …` for stroke, width and
+              opacity — left over from when the grid was always drawn. Inside
+              this `editMode &&` the false arms are unreachable, so they were
+              three ways to describe a state that can't happen. */}
           {editMode && (
           <g clipPath="url(#isoFloorClip)">
             {Array.from({ length: d - 1 }, (_, i) => i + 1).map((gy) => (
@@ -779,9 +848,9 @@ function IsoRoom({
                 y1={project(0, gy).y}
                 x2={project(w, gy).x}
                 y2={project(w, gy).y}
-                stroke={editMode ? "#f3c6c0" : "#26122a"}
-                strokeWidth={editMode ? 0.7 : 1.2}
-                opacity={editMode ? 0.18 : 0.35}
+                stroke="#f3c6c0"
+                strokeWidth="0.7"
+                opacity="0.18"
               />
             ))}
             {Array.from({ length: w - 1 }, (_, i) => i + 1).map((gx) => (
@@ -793,7 +862,7 @@ function IsoRoom({
                 y2={project(gx, d).y}
                 stroke="#f3c6c0"
                 strokeWidth="0.7"
-                opacity={editMode ? 0.18 : 0.07}
+                opacity="0.18"
               />
             ))}
           </g>
@@ -806,7 +875,7 @@ function IsoRoom({
               follow any drawn floor shape for free. */}
           {wallH > 0 && (
             <g clipPath="url(#isoFloorClip)">
-              {wallRuns(size).map((run, i) => {
+              {wallRunList.map((run, i) => {
                 const strip = (depth, opacity, key) => {
                   const pts =
                     run.plane === "gy"

@@ -34,12 +34,25 @@ friendships = db.Table(
 )
 
 
+# Column widths that the API also has to respect. Here rather than in app.py so
+# the bound and the column are declared in one place: register was clamping both
+# of these to 80 while `save_profile` clamped display_name to 60, so two writers
+# disagreed about the same column and neither matched the schema. SQLite forgives
+# an over-long string, which is exactly why it went unnoticed.
+USERNAME_MAX = 40
+DISPLAY_NAME_MAX = 60
+AVATAR_MAX = 8
+TASK_NAME_MAX = 200
+TASK_NOTES_MAX = 2000
+GROUP_NAME_MAX = 60
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(40), unique=True, nullable=False, index=True)
-    display_name = db.Column(db.String(60), nullable=False)
+    username = db.Column(db.String(USERNAME_MAX), unique=True, nullable=False, index=True)
+    display_name = db.Column(db.String(DISPLAY_NAME_MAX), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    avatar = db.Column(db.String(8), default="🌙")  # emoji avatar
+    avatar = db.Column(db.String(AVATAR_MAX), default="🌙")  # emoji avatar
     # Freeform room-decoration layout, stored as a JSON string of
     # [{id, item, x, y}] placements. The frontend owns the catalog; the
     # backend just keeps the layout safe alongside the rest of the user's data.
@@ -90,7 +103,7 @@ class User(db.Model):
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    name = db.Column(db.String(200), nullable=False)
+    name = db.Column(db.String(TASK_NAME_MAX), nullable=False)
     duration = db.Column(db.Integer, nullable=False, default=25)  # minutes
     priority = db.Column(db.String(10), nullable=False, default="medium")
     completed = db.Column(db.Boolean, nullable=False, default=False)
@@ -107,7 +120,7 @@ class Task(db.Model):
     # of the app — the client sends a local date string, never a UTC timestamp.
     due_date = db.Column(db.String(10), nullable=True)
     # Optional to-do group header the task lives under (VC2-style).
-    group_name = db.Column(db.String(60), nullable=True)
+    group_name = db.Column(db.String(GROUP_NAME_MAX), nullable=True)
     # Routine tasks reset to not-done at the start of each (local) day.
     is_routine = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)

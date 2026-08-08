@@ -11,7 +11,39 @@ export function setToken(token) {
   else removeStored(TOKEN_KEY);
 }
 
-async function request(method, path, body) {
+/**
+ * How to get a fresh token, registered by the store.
+ *
+ * There is no login screen — the app signs itself into one fixed local account at
+ * boot — so a token that stops working mid-session had no recovery at all: every
+ * call failed with a toast until the user thought to reload. And it does stop
+ * working, by design: `issue_token` prunes to the newest MAX_TOKENS_PER_USER per
+ * user, so opening the app in a few windows retires the oldest tab's token while
+ * that tab is still sitting there.
+ *
+ * A callback rather than importing the credentials here, because the store owns
+ * them and owns the login-or-register dance.
+ */
+let reauthorize = null;
+export function setReauthorizer(fn) {
+  reauthorize = fn;
+}
+
+// One shared attempt, so a burst of parallel 401s (refreshAll fires four calls
+// at once) produces a single login rather than four racing ones.
+let reauthInFlight = null;
+function reauthorizeOnce() {
+  if (!reauthInFlight) {
+    reauthInFlight = Promise.resolve()
+      .then(() => reauthorize?.())
+      .finally(() => {
+        reauthInFlight = null;
+      });
+  }
+  return reauthInFlight;
+}
+
+async function request(method, path, body, { retrying = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -45,6 +77,23 @@ async function request(method, path, body) {
     }
   }
   if (!res.ok) {
+    // A 401 mid-session means this tab's token was pruned, not that the user did
+    // anything wrong. Re-authenticate once and replay the call, so the failure is
+    // invisible instead of a wall of toasts until a manual reload.
+    //
+    // Never for /auth/* (that would recurse through the very call being retried),
+    // never twice for one request, and only when we actually had a token to lose.
+    if (
+      res.status === 401 &&
+      !retrying &&
+      token &&
+      reauthorize &&
+      !path.startsWith("/auth/")
+    ) {
+      setToken(null);
+      const fresh = await reauthorizeOnce();
+      if (fresh) return request(method, path, body, { retrying: true });
+    }
     const message = (data && data.error) || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;

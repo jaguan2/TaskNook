@@ -4,6 +4,7 @@ import { Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
+import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import Cottage from "./components/Cottage";
@@ -126,17 +127,10 @@ export default function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      // Never yank a panel out from under someone mid-typing (same guard the
-      // iso room's Delete shortcut uses).
-      const t = e.target;
-      if (
-        t &&
-        (t.tagName === "INPUT" ||
-          t.tagName === "TEXTAREA" ||
-          t.tagName === "SELECT" ||
-          t.isContentEditable)
-      )
-        return;
+      // Never yank a panel out from under someone mid-typing. Genuinely the same
+      // guard as the iso room's Delete shortcut now — the two were separate
+      // copies that disagreed, and the shorter one was the dangerous one.
+      if (isTypingTarget(e.target)) return;
       if (roomEditMode) {
         setRoomEditMode(false);
         return;

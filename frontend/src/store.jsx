@@ -5,9 +5,10 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
-import { api, getToken, setToken } from "./lib/api";
-import { readStored, writeStored } from "./lib/storage";
+import { api, getToken, setReauthorizer, setToken } from "./lib/api";
+import { readJSON, readStored, writeStored } from "./lib/storage";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
@@ -28,6 +29,9 @@ import {
   ISO_MAX_ITEMS,
   clampIsoPlacement,
   defaultIsoLayout,
+  findFreeSpot,
+  footOf,
+  footprintFree,
   isoPresetLayout,
   newIsoPlacement,
   nextRot,
@@ -108,7 +112,7 @@ export function StoreProvider({ children }) {
   // instant paint, same as the room layout; the server copy wins on boot.
   const [unlocked, setUnlocked] = useState(() => {
     try {
-      return validateUnlocked(JSON.parse(readStored("tasknook.unlocked") || "[]"));
+      return validateUnlocked(readJSON("tasknook.unlocked", []));
     } catch {
       return [];
     }
@@ -141,7 +145,7 @@ export function StoreProvider({ children }) {
   // Slider positions persist; actual audio only starts from a user gesture.
   const [soundMix, setSoundMixState] = useState(() => {
     try {
-      const saved = JSON.parse(readStored("tasknook.soundMix") || "{}");
+      const saved = readJSON("tasknook.soundMix", {});
       return saved && typeof saved === "object" ? saved : {};
     } catch {
       return {};
@@ -161,6 +165,12 @@ export function StoreProvider({ children }) {
   // OUTSIDE the setState updater — updaters must be pure, and StrictMode's
   // double-invoke would otherwise fire them twice. The ref carries the
   // freshest mix so back-to-back calls in one tick compose correctly.
+  // The mix write is debounced, the AUDIO is not. A drag fires one of these per
+  // pointer event, and `writeStored` is a synchronous serialise-and-write; the
+  // only thing that needs to survive is the final value, whereas the gain change
+  // and the state update have to be immediate or you can hear the lag.
+  const mixSaveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(mixSaveTimer.current), []);
   const applySoundPatch = useCallback((patch) => {
     const next = { ...soundMixRef.current };
     for (const [name, v] of Object.entries(patch)) {
@@ -168,7 +178,11 @@ export function StoreProvider({ children }) {
     }
     soundMixRef.current = next;
     setSoundMixState(next);
-    writeStored("tasknook.soundMix", JSON.stringify(next));
+    clearTimeout(mixSaveTimer.current);
+    mixSaveTimer.current = setTimeout(() => {
+      // From the ref, so the last write always carries the latest mix.
+      writeStored("tasknook.soundMix", JSON.stringify(soundMixRef.current));
+    }, 250);
     for (const name of Object.keys(patch)) setChannel(name, next[name]);
   }, []);
   const setSoundLevel = useCallback(
@@ -210,7 +224,7 @@ export function StoreProvider({ children }) {
   const weatherCoordsRef = useRef(
     (() => {
       try {
-        const c = JSON.parse(readStored("tasknook.weather.coords") || "null");
+        const c = readJSON("tasknook.weather.coords", null);
         // Shape-check: a corrupt cache would build latitude=undefined URLs
         // and error forever with no recovery path.
         return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) ? c : null;
@@ -222,7 +236,7 @@ export function StoreProvider({ children }) {
   const autoMatchRef = useRef(autoMatchWeather);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
-      const saved = JSON.parse(readStored("tasknook.weather.presets") || "[]");
+      const saved = readJSON("tasknook.weather.presets", []);
       return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
@@ -293,7 +307,7 @@ export function StoreProvider({ children }) {
 
   const [customStations, setCustomStations] = useState(() => {
     try {
-      const saved = JSON.parse(readStored("tasknook.music.custom") || "[]");
+      const saved = readJSON("tasknook.music.custom", []);
       return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
@@ -302,7 +316,12 @@ export function StoreProvider({ children }) {
   const [activeStationKey, setActiveStationKey] = useState(
     () => readStored("tasknook.music.station") || stationKey(BUILT_IN_STATIONS[0])
   );
-  const musicStations = [...BUILT_IN_STATIONS, ...customStations];
+  // Memoised so its identity is stable: a fresh array every render made every
+  // consumer's effect deps change on any store update at all.
+  const musicStations = useMemo(
+    () => [...BUILT_IN_STATIONS, ...customStations],
+    [customStations]
+  );
   // A saved key that no longer resolves — a built-in was retired (two lofi
   // streams were), or a custom station removed — used to leave the transport
   // bar rendering NOTHING: no controls, and no ✕ to stop the music. Always
@@ -318,7 +337,7 @@ export function StoreProvider({ children }) {
   const [profile, setProfile] = useState({});
   const [character, setCharacter] = useState(() => {
     try {
-      return validateCharacter(JSON.parse(readStored("tasknook.character") || "null"));
+      return validateCharacter(readJSON("tasknook.character", null));
     } catch {
       return validateCharacter(null); // corrupted mirror — the classic resident
     }
@@ -330,7 +349,7 @@ export function StoreProvider({ children }) {
   const [roomPlacements, setRoomPlacements] = useState(() => {
     try {
       const saved = validatePlacements(
-        JSON.parse(readStored("tasknook.room") || "null")
+        readJSON("tasknook.room", null)
       );
       if (saved) return saved;
     } catch {
@@ -344,7 +363,7 @@ export function StoreProvider({ children }) {
   const [isoRoom, setIsoRoom] = useState(() => {
     try {
       const saved = validateIsoLayout(
-        JSON.parse(readStored("tasknook.isoRoom") || "null")
+        readJSON("tasknook.isoRoom", null)
       );
       if (saved) return saved;
     } catch {
@@ -380,10 +399,24 @@ export function StoreProvider({ children }) {
 
   // ---------- Isometric room actions ----------
   const moveIsoItem = useCallback((id, gx, gy) => {
-    setIsoRoom((prev) => ({
-      ...prev,
-      placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
-    }));
+    setIsoRoom((prev) => {
+      // Bail out when nothing moved. Positions snap to HALF TILES — about 25-30
+      // screen pixels — so the large majority of the 60-120 pointermoves in a
+      // drag resolve to the coordinates the item already has. Building a new
+      // layout for those rebuilt the whole store context (re-rendering every
+      // useStore consumer: the dock, the to-do list, the music bar, every open
+      // panel, and RoomPanel's ~132 catalog sprites, which is necessarily on
+      // screen while you drag) and re-ran the save effect: two whole-layout
+      // JSON.stringify calls plus two SYNCHRONOUS localStorage writes, per
+      // pointer event. Returning `prev` unchanged means React bails on the
+      // identical reference and none of that happens.
+      const cur = prev.placements.find((p) => p.id === id);
+      if (!cur || (cur.gx === gx && cur.gy === gy)) return prev;
+      return {
+        ...prev,
+        placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+      };
+    });
   }, []);
   // The id of the most recently added iso item — the scene auto-selects it
   // so the user can see what just appeared.
@@ -456,23 +489,52 @@ export function StoreProvider({ children }) {
   }, []);
   // Mirror-rotation: the footprint transposes, so re-clamp in the new
   // orientation (and wall items hop to the other wall).
-  const rotateIsoItem = useCallback((id) => {
-    setIsoRoom((prev) => ({
-      ...prev,
-      placements: prev.placements.map((p) => {
-        if (p.id !== id) return p;
-        // Four facings for seating that ships a back view, two for everything
-        // else (and for wall decor, where rot picks the wall, not a facing).
-        const rot = nextRot(p.item, p.rot);
-        const { rot: _dropped, ...rest } = p;
-        return {
-          ...rest,
-          ...(rot && { rot }),
-          ...clampIsoPlacement(p.item, p.gx, p.gy, prev, rot),
-        };
-      }),
-    }));
-  }, []);
+  //
+  // Clamping alone is NOT enough. `clampIsoPlacement` is bounds-only by design
+  // ("mask validity is the caller's job"), and a transposed footprint can be
+  // perfectly in bounds while lying across void tiles — so a turn near a painted
+  // away region left the piece hanging over the hole. The drag engine then
+  // refuses any target that isn't fully on floor, so every small nudge was
+  // silently ignored and the item read as stuck; the invalid layout was saved,
+  // and the next reload teleported it somewhere else without a word. That is the
+  // failure `newIsoPlacement` was already fixed for, and it is reachable in the
+  // shipped default room — the Loft is L-shaped, and ~5% of legal positions for
+  // a bed, sofa, desk, bookcase or stairs strand on one turn.
+  const rotateIsoItem = useCallback(
+    (id) => {
+      setIsoRoom((prev) => {
+        let refused = false;
+        const placements = prev.placements.map((p) => {
+          if (p.id !== id) return p;
+          // Four facings for seating that ships a back view, two for everything
+          // else (and for wall decor, where rot picks the wall, not a facing).
+          const rot = nextRot(p.item, p.rot);
+          const { rot: _dropped, ...rest } = p;
+          const at = clampIsoPlacement(p.item, p.gx, p.gy, prev, rot);
+          const turned = { ...rest, ...(rot && { rot }), ...at };
+          // Wall decor is glued to a wall by the clamp and never covers floor,
+          // so the mask doesn't apply to it.
+          if (ISO_ITEMS[p.item]?.wall) return turned;
+          if (footprintFree(at.gx, at.gy, footOf(p.item, rot), prev)) return turned;
+          // Prefer to keep the turn and move the piece, since the turn is what
+          // was asked for. Only if the drawn floor has nowhere to put it does
+          // the rotation get refused outright.
+          const spot = findFreeSpot(p.item, rot, prev, at.gx, at.gy, prev.placements);
+          if (spot) return { ...turned, ...spot };
+          refused = true;
+          return p;
+        });
+        if (refused) {
+          // Same rule as the item cap and the reshape drops: a refusal the user
+          // can see beats a control that silently does nothing.
+          showToast("No room to turn that piece — the floor's too tight 🌿");
+          return prev;
+        }
+        return { ...prev, placements };
+      });
+    },
+    [showToast]
+  );
   const setIsoItemTint = useCallback((id, tint) => {
     setIsoRoom((prev) => ({
       ...prev,
@@ -616,28 +678,48 @@ export function StoreProvider({ children }) {
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
 
+  // Refs first, and unconditionally: the mirrors must track the layouts even on
+  // the boot pass that skips saving.
   useEffect(() => {
     roomRef.current = roomPlacements;
+  }, [roomPlacements]);
+  useEffect(() => {
     isoRef.current = isoRoom;
+  }, [isoRoom]);
+
+  // The two mirrors are written by SEPARATE effects, each depending on its own
+  // layout. Together in one effect, a flat-cottage drag re-stringified the
+  // (up to 150-placement) iso layout on every pointer event and vice versa —
+  // one of the two serializations was always wasted.
+  //
+  // The mirror is written SYNCHRONOUSLY — inside the debounce it sat behind a
+  // cleanup-cancellable timer, so closing the window within 600ms of a drag lost
+  // the edit from the mirror AND the server (the skipped save that looks like a
+  // success). Don't re-debounce it.
+  useEffect(() => {
+    if (roomSkipSave.current) return;
+    writeStored("tasknook.room", JSON.stringify(roomPlacements));
+  }, [roomPlacements]);
+  useEffect(() => {
+    if (roomSkipSave.current) return;
+    writeStored("tasknook.isoRoom", JSON.stringify(isoRoom));
+  }, [isoRoom]);
+
+  // ONE debounced PUT for both, since they travel together on the wire. It reads
+  // the refs rather than the closure so it always sends the latest of each, and
+  // clears the boot-skip flag once (it guards the mirrors above too, so it can
+  // only be cleared after they've had their chance to run).
+  useEffect(() => {
     if (roomSkipSave.current) {
       roomSkipSave.current = false;
       return undefined;
     }
-    // The localStorage mirror is written SYNCHRONOUSLY — inside the debounce
-    // it sat behind a cleanup-cancellable timer, so closing the window within
-    // 600ms of a drag lost the edit from the mirror AND the server (the
-    // skipped save that looks like a success). Only the network PUT waits
-    // for the dust to settle. Flat and iso layouts travel in one PUT.
-    writeStored("tasknook.room", JSON.stringify(roomPlacements));
-    writeStored("tasknook.isoRoom", JSON.stringify(isoRoom));
     clearTimeout(roomSaveTimer.current);
     roomSaveTimer.current = setTimeout(() => {
-      api
-        .saveRoom(roomPlacements, isoRoom)
-        .catch((err) => {
-          console.error("Failed to save room layout:", err);
-          showToast("Couldn't save the room — it's still safe on this device 🌧️");
-        });
+      api.saveRoom(roomRef.current, isoRef.current).catch((err) => {
+        console.error("Failed to save room layout:", err);
+        showToast("Couldn't save the room — it's still safe on this device 🌧️");
+      });
     }, 600);
     return () => clearTimeout(roomSaveTimer.current);
   }, [roomPlacements, isoRoom, showToast]);
@@ -687,6 +769,34 @@ export function StoreProvider({ children }) {
     })();
   }, []);
 
+  // Teach api.js how to get a fresh token when one is pruned mid-session. Same
+  // login-or-register as boot; registered once, and it returns the token so the
+  // interrupted call can be replayed.
+  useEffect(() => {
+    setReauthorizer(async () => {
+      try {
+        const { token, user } = await api.login(LOCAL_ACCOUNT);
+        setToken(token);
+        setUser(user);
+        return token;
+      } catch {
+        try {
+          const { token, user } = await api.register({
+            ...LOCAL_ACCOUNT,
+            displayName: "You",
+          });
+          setToken(token);
+          setUser(user);
+          return token;
+        } catch (err) {
+          console.error("Couldn't re-authenticate the local account:", err);
+          return null;
+        }
+      }
+    });
+    return () => setReauthorizer(null);
+  }, []);
+
   const refreshAll = useCallback(async () => {
     // listTasks goes FIRST, on its own — not in the Promise.all. GET /api/tasks
     // is what lazily resets daily routines, so a stats query racing alongside it
@@ -703,6 +813,34 @@ export function StoreProvider({ children }) {
     setTasks(t);
     setStats(s);
     setFriends(f);
+    setSessionDays(d);
+  }, []);
+
+  /**
+   * Refresh only what a TASK write can have changed.
+   *
+   * A checkbox tick used to cost five round trips: the PUT, then `refreshAll`'s
+   * four GETs — including the friends aggregation, which a task of yours cannot
+   * possibly affect, and the per-day session map, which only a logged focus
+   * block changes.
+   *
+   * The listTasks-first ordering is preserved deliberately, for the same reason
+   * `refreshAll` documents above: GET /api/tasks is what lazily resets daily
+   * routines, so a stats query racing alongside it can be answered from
+   * pre-reset rows and show yesterday's completion for a moment on the first
+   * refresh of a new day.
+   */
+  const refreshTasks = useCallback(async () => {
+    const t = await api.listTasks();
+    const s = await api.stats();
+    setTasks(t);
+    setStats(s);
+  }, []);
+
+  /** A logged focus block also moves the per-day map the streak and heatmap read. */
+  const refreshFocus = useCallback(async () => {
+    const [s, d] = await Promise.all([api.stats(), api.sessionDays()]);
+    setStats(s);
     setSessionDays(d);
   }, []);
 
@@ -841,14 +979,14 @@ export function StoreProvider({ children }) {
   // ---------- Task actions ----------
   const addTask = async (payload) => {
     await api.createTask(payload);
-    await refreshAll();
+    await refreshTasks();
   };
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
   // as an unhandled promise rejection from an onClick handler.
   const toggleTask = async (task) => {
     try {
       await api.updateTask(task.id, { completed: !task.completed });
-      await refreshAll();
+      await refreshTasks();
     } catch (err) {
       console.error("Failed to toggle task:", err);
       showToast("Couldn't save that change 🌧️");
@@ -857,7 +995,7 @@ export function StoreProvider({ children }) {
   const editTask = async (id, payload) => {
     try {
       await api.updateTask(id, payload);
-      await refreshAll();
+      await refreshTasks();
     } catch (err) {
       console.error("Failed to update task:", err);
       showToast("Couldn't save that change 🌧️");
@@ -867,7 +1005,7 @@ export function StoreProvider({ children }) {
     try {
       if (activeTaskId === id) setActiveTaskId(null);
       await api.deleteTask(id);
-      await refreshAll();
+      await refreshTasks();
     } catch (err) {
       console.error("Failed to delete task:", err);
       showToast("Couldn't delete the task 🌧️");
@@ -885,7 +1023,7 @@ export function StoreProvider({ children }) {
     writeStored("tasknook.algo", "custom");
     try {
       await api.reorderTasks(orderedActive.map((t) => t.id));
-      await refreshAll();
+      await refreshTasks();
     } catch (err) {
       console.error("Failed to save the task order:", err);
       showToast("Couldn't save the new order 🌧️");
@@ -898,7 +1036,7 @@ export function StoreProvider({ children }) {
   // until its first task arrives.
   const [emptyGroups, setEmptyGroups] = useState(() => {
     try {
-      const saved = JSON.parse(readStored("tasknook.taskGroups") || "[]");
+      const saved = readJSON("tasknook.taskGroups", []);
       return Array.isArray(saved) ? saved.filter((g) => typeof g === "string") : [];
     } catch {
       return [];
@@ -908,9 +1046,13 @@ export function StoreProvider({ children }) {
     setEmptyGroups(next);
     writeStored("tasknook.taskGroups", JSON.stringify(next));
   };
-  const taskGroups = [
-    ...new Set([...tasks.map((t) => t.group).filter(Boolean), ...emptyGroups]),
-  ];
+  // Walks every recorded day, on a map that grows for as long as the app is
+  // used — and it was recomputed on every provider render.
+  const balance = useMemo(() => unlockBalance(sessionDays, unlocked), [sessionDays, unlocked]);
+  const taskGroups = useMemo(
+    () => [...new Set([...tasks.map((t) => t.group).filter(Boolean), ...emptyGroups])],
+    [tasks, emptyGroups]
+  );
   const addTaskGroup = (name) => {
     const trimmed = name.trim().slice(0, 60);
     if (!trimmed || taskGroups.includes(trimmed)) return false;
@@ -950,8 +1092,18 @@ export function StoreProvider({ children }) {
     if (key === "random") setRandomOrder(shuffledIds(tasks));
   };
 
-  const orderedTasks = applyAlgorithm(algorithm, tasks, { randomOrder });
-  const activeTask = tasks.find((t) => t.id === activeTaskId) || null;
+  // `applyAlgorithm` sorts the whole list. Unmemoised it re-sorted on every
+  // provider render — which includes every store change anywhere in the app —
+  // and handed consumers a new array each time, so nothing downstream could
+  // memo on it either.
+  const orderedTasks = useMemo(
+    () => applyAlgorithm(algorithm, tasks, { randomOrder }),
+    [algorithm, tasks, randomOrder]
+  );
+  const activeTask = useMemo(
+    () => tasks.find((t) => t.id === activeTaskId) || null,
+    [tasks, activeTaskId]
+  );
 
   // The focus-timer engine (countdown/stopwatch, pomodoro cycle, session
   // logging) moved to timer.jsx — see the note on activeTaskId above.
@@ -1017,8 +1169,17 @@ export function StoreProvider({ children }) {
     // Recalling a scene is a manual pick: use the internal appliers for both
     // axes and disable auto-match EXPLICITLY — the old mix of one internal
     // and one public setter got the same net result only by accident.
-    applyWeatherVisual(preset.weatherMode);
-    applyTimeOfDay(preset.timeOfDay);
+    // Through the same whitelists the storage READS use. Presets are only
+    // written from already-valid live state, so this isn't reachable today — but
+    // the appliers write straight back into the whitelist-guarded
+    // `tasknook.weatherMode` / `tasknook.timeOfDay` keys, so one hand-edited or
+    // legacy preset could put a value in there that the scene's lookup tables
+    // don't know. Cheap to close, and it makes the guarantee "these two keys only
+    // ever hold known values" true on every path rather than by luck.
+    applyWeatherVisual(
+      WEATHER_MODES.includes(preset.weatherMode) ? preset.weatherMode : weatherMode
+    );
+    applyTimeOfDay(TIMES_OF_DAY.includes(preset.timeOfDay) ? preset.timeOfDay : timeOfDay);
     setAutoMatchWeather(false);
     // A saved scene is an explicit user snapshot, so restoring its sounds IS
     // what applying it means (unlike the weather quick-picks, which are
@@ -1058,9 +1219,20 @@ export function StoreProvider({ children }) {
     writeStored("tasknook.weather.automatch", autoMatchWeather ? "1" : "0");
   }, [autoMatchWeather]);
 
-  const refreshRealWeather = useCallback(async (coordsOverride) => {
-    setWeatherStatus("loading");
-    setWeatherError("");
+  /**
+   * Fetch real conditions. `background: true` for the silent 15-minute poll.
+   *
+   * A background refresh must never touch the visible status: a transient blip
+   * while the panel happened to be open flipped it to "error" with an alarming
+   * message, for something the user didn't ask for and can't act on — and the
+   * previous good reading is still perfectly serviceable. Only a refresh the user
+   * triggered gets to report failure.
+   */
+  const refreshRealWeather = useCallback(async (coordsOverride, { background = false } = {}) => {
+    if (!background) {
+      setWeatherStatus("loading");
+      setWeatherError("");
+    }
     try {
       const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
       weatherCoordsRef.current = coords;
@@ -1076,6 +1248,7 @@ export function StoreProvider({ children }) {
         writeStored("tasknook.timeOfDay", data.timeOfDay);
       }
     } catch (err) {
+      if (background) return; // keep the last good reading and stay quiet
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't get the weather");
     }
@@ -1145,7 +1318,10 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (!autoMatchWeather) return undefined;
     refreshRealWeather();
-    const id = setInterval(() => refreshRealWeather(), 15 * 60 * 1000);
+    const id = setInterval(
+      () => refreshRealWeather(undefined, { background: true }),
+      15 * 60 * 1000
+    );
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoMatchWeather]);
@@ -1188,7 +1364,13 @@ export function StoreProvider({ children }) {
   // it can skip the per-second focus-timer re-render. New function identities
   // every tick would defeat that entirely.
   const moveRoomItem = useCallback((id, x, y) => {
-    setRoomPlacements((prev) => prev.map((p) => (p.id === id ? { ...p, x, y } : p)));
+    // Same bail-out as moveIsoItem: the flat scene snaps to GRID, so most
+    // pointermoves during a drag ask for the position the item is already at.
+    setRoomPlacements((prev) => {
+      const cur = prev.find((p) => p.id === id);
+      if (!cur || (cur.x === x && cur.y === y)) return prev;
+      return prev.map((p) => (p.id === id ? { ...p, x, y } : p));
+    });
   }, []);
   const addRoomItem = useCallback(
     (key) => {
@@ -1261,6 +1443,8 @@ export function StoreProvider({ children }) {
     stats,
     sessionDays,
     refreshAll,
+    refreshTasks,
+    refreshFocus,
     dailyGoal,
     setDailyGoal,
 
@@ -1286,7 +1470,7 @@ export function StoreProvider({ children }) {
     rotateIsoItem,
     unlocked,
     unlockItem,
-    unlockBalance: unlockBalance(sessionDays, unlocked),
+    unlockBalance: balance,
     setIsoItemTint,
     setIsoSize,
     setIsoTile,

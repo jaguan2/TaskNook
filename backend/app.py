@@ -14,7 +14,20 @@ from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError, OperationalError
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Task, FocusSession, Token, utcnow
+from models import (
+    AVATAR_MAX,
+    DISPLAY_NAME_MAX,
+    FocusSession,
+    GROUP_NAME_MAX,
+    TASK_NAME_MAX,
+    TASK_NOTES_MAX,
+    Task,
+    Token,
+    USERNAME_MAX,
+    User,
+    db,
+    utcnow,
+)
 from schema import init_schema, SchemaError
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -123,8 +136,12 @@ MAX_TOKENS_PER_USER = 5
 def issue_token(user):
     token = Token(value=secrets.token_hex(24), user_id=user.id)
     db.session.add(token)
-    db.session.commit()
+    # Flush rather than commit, so the insert and the prune land in ONE
+    # transaction: the row (and its id) exist for the prune's ordering, but there
+    # is no window in which the new token is committed and the stale ones aren't.
+    db.session.flush()
     _prune_tokens(user)
+    db.session.commit()
     return token.value
 
 
@@ -144,20 +161,38 @@ def _prune_tokens(user):
         .offset(MAX_TOKENS_PER_USER)
         .all()
     )
-    if not stale:
-        return
-    for old in stale:
-        db.session.delete(old)
-    db.session.commit()
+    for row in stale:
+        db.session.delete(row)
+    # No commit here: `issue_token` owns the transaction so the insert and this
+    # prune are atomic. (Shadowing the builtin-ish name `old` in the loop was also
+    # asking for trouble the day this function grows.)
 
 
-def current_user():
+def _bearer_value():
+    """The token from the Authorization header, or None.
+
+    Shared because `logout` re-parsed the same header by hand — two copies of one
+    small piece of protocol knowledge.
+    """
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return None
-    value = auth[7:].strip()
-    tok = Token.query.filter_by(value=value).first()
-    return tok.user if tok else None
+    return auth[7:].strip() or None
+
+
+def current_user():
+    value = _bearer_value()
+    if not value:
+        return None
+    # ONE query. `Token.query...first()` followed by `tok.user` is two round trips
+    # per authenticated request — the token row, then a lazy load for its user —
+    # and every endpoint pays it.
+    return (
+        db.session.query(User)
+        .join(Token, Token.user_id == User.id)
+        .filter(Token.value == value)
+        .first()
+    )
 
 
 def require_auth(fn):
@@ -219,6 +254,41 @@ def clean_date(value):
     return head
 
 
+def clean_int(value, lo, hi, default=None):
+    """A storable integer inside [lo, hi], or `default` for anything else.
+
+    Two traps, both of which reached a 500 before this existed:
+
+    * `int()` happily returns a Python int of any size, and SQLite raises
+      OverflowError at BIND time for anything outside signed 64-bit. That escaped
+      every `except (TypeError, ValueError)` in the file and broke the app's own
+      tested "junk never 500s" contract — whose cases all use wrong TYPES or small
+      values, so magnitude slipped straight through. `log_session` already clamped
+      its minutes for this reason and `_finite_number` documents the identical
+      trap for room coordinates; it was simply never applied to the four integer
+      paths (duration on create and update, position, and the reorder list).
+    * `isinstance(True, int)` is True in Python, so a naive numeric check lets a
+      bool through as 0/1 while the rest of this file carefully excludes them.
+
+    Bounds are compared rather than checked with `math.isfinite`, because isfinite
+    RAISES on a huge int. Integer comparison is exact at any size, so the order
+    here matters: reject the un-numeric first, then clamp.
+    """
+    if isinstance(value, bool) or value is None:
+        return default
+    if isinstance(value, float):
+        # NaN fails every comparison, and infinities aren't storable.
+        if value != value or value in (float("inf"), float("-inf")):
+            return default
+        value = int(value)
+    if not isinstance(value, int):
+        try:
+            value = int(str(value).strip())
+        except (TypeError, ValueError):
+            return default
+    return lo if value < lo else hi if value > hi else value
+
+
 def clean_str(v, limit):
     """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
     return ("" if v is None else str(v)).strip()[:limit]
@@ -271,10 +341,16 @@ def register_routes(app):
         data = json_body()
         # clean_str throughout: non-string JSON values (numbers, lists) used
         # to reach .strip()/slicing and 500.
-        username = clean_str(data.get("username"), 80).lower()
+        username = clean_str(data.get("username"), USERNAME_MAX).lower()
         password = data.get("password") if isinstance(data.get("password"), str) else ""
-        display_name = clean_str(data.get("displayName"), 80) or username
-        avatar = clean_str(data.get("avatar"), 8) or "🌙"
+        # Clamped to the COLUMN widths (models.py), not to a round number. The
+        # migrations are the stated source of truth for the schema, and register
+        # was letting 80 characters into String(40)/String(60) while save_profile
+        # clamped the same column to 60 — two writers disagreeing about one column.
+        # SQLite forgives an over-long string, which is why it went unnoticed; a
+        # real database or a CHECK constraint would not.
+        display_name = clean_str(data.get("displayName"), DISPLAY_NAME_MAX) or username
+        avatar = clean_str(data.get("avatar"), AVATAR_MAX) or "🌙"
 
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
@@ -309,7 +385,7 @@ def register_routes(app):
     @app.post("/api/auth/login")
     def login():
         data = json_body()
-        username = clean_str(data.get("username"), 80).lower()
+        username = clean_str(data.get("username"), USERNAME_MAX).lower()
         password = data.get("password") if isinstance(data.get("password"), str) else ""
         user = User.query.filter_by(username=username).first()
         if not user or not check_password_hash(user.password_hash, password):
@@ -324,11 +400,13 @@ def register_routes(app):
 
     @app.post("/api/auth/logout")
     @require_auth
-    def logout(user):
-        auth = request.headers.get("Authorization", "")
-        value = auth[7:].strip()
-        Token.query.filter_by(value=value).delete()
-        db.session.commit()
+    def logout(user):  # noqa: ARG001 — @require_auth supplies it
+        # Through the shared parser, rather than a second hand-rolled copy of the
+        # same header slicing.
+        value = _bearer_value()
+        if value:
+            Token.query.filter_by(value=value).delete()
+            db.session.commit()
         return jsonify({"ok": True})
 
     # ----- Tasks ---------------------------------------------------------- #
@@ -362,13 +440,12 @@ def register_routes(app):
     @require_auth
     def create_task(user):
         data = json_body()
-        name = clean_str(data.get("name"), 200)
+        name = clean_str(data.get("name"), TASK_NAME_MAX)
         if not name:
             return jsonify({"error": "Task name is required"}), 400
-        try:
-            duration = max(1, int(data.get("duration", 25)))
-        except (TypeError, ValueError):
-            duration = 25
+        # A day is the longest a single task can plausibly claim — the same
+        # ceiling `log_session` puts on one session.
+        duration = clean_int(data.get("duration"), 1, 24 * 60, 25)
         priority = data.get("priority", "medium")
         if priority not in ("low", "medium", "high"):
             priority = "medium"
@@ -378,7 +455,7 @@ def register_routes(app):
             .filter_by(user_id=user.id)
             .scalar()
         )
-        group = clean_str(data.get("group"), 60) or None
+        group = clean_str(data.get("group"), GROUP_NAME_MAX) or None
         sched = data.get("scheduledDate")
         task = Task(
             user_id=user.id,
@@ -390,7 +467,7 @@ def register_routes(app):
             # non-string would raise at bind time (500), and SQLite doesn't
             # enforce the length itself.
             scheduled_date=clean_date(sched),
-            notes=clean_str(data.get("notes"), 2000) or None,
+            notes=clean_str(data.get("notes"), TASK_NOTES_MAX) or None,
             due_date=clean_date(data.get("dueDate")),
             group_name=group,
             is_routine=bool(data.get("routine")),
@@ -410,33 +487,49 @@ def register_routes(app):
         if "name" in data and clean_str(data["name"], 200):
             task.name = clean_str(data["name"], 200)
         if "duration" in data:
-            try:
-                task.duration = max(1, int(data["duration"]))
-            except (TypeError, ValueError):
+            duration = clean_int(data["duration"], 1, 24 * 60)
+            if duration is None:
                 # 400 instead of a silent pass — a client bug shouldn't look
                 # like a successful save (create_task and save_room both 400).
+                # A huge but genuinely numeric value CLAMPS instead: it carries a
+                # clear intent, and it used to 500.
                 return jsonify({"error": "duration must be a number"}), 400
+            task.duration = duration
         if "priority" in data and data["priority"] in ("low", "medium", "high"):
             task.priority = data["priority"]
         if "position" in data:
-            try:
-                task.position = int(data["position"])
-            except (TypeError, ValueError):
+            # Positions are only ever compared with each other, so the bound only
+            # has to be sane and bindable.
+            position = clean_int(data["position"], 0, 1_000_000)
+            if position is None:
                 return jsonify({"error": "position must be a number"}), 400
+            task.position = position
         if "scheduledDate" in data:
             task.scheduled_date = clean_date(data["scheduledDate"])
         if "notes" in data:
             # Empty string clears it, so the field behaves like the textarea does.
-            task.notes = clean_str(data["notes"], 2000) or None
+            task.notes = clean_str(data["notes"], TASK_NOTES_MAX) or None
         if "dueDate" in data:
             task.due_date = clean_date(data["dueDate"])
         if "group" in data:
-            task.group_name = clean_str(data["group"], 60) or None
+            task.group_name = clean_str(data["group"], GROUP_NAME_MAX) or None
         if "routine" in data:
             task.is_routine = bool(data["routine"])
         if "completed" in data:
-            task.completed = bool(data["completed"])
-            task.completed_at = utcnow() if task.completed else None
+            # Stamp only on an actual TRANSITION. A repeated `completed: true` for
+            # an already-done task used to move `completed_at` to now, which
+            # inflates "done today", re-tints today on the calendar, and — worst —
+            # cancels a routine's pending lazy reset by making yesterday's
+            # completion look like today's.
+            #
+            # No current caller sends one (every PUT is a partial patch), so this
+            # is a contract hole rather than a live bug — but it is one
+            # "send the whole task object" refactor away from being real, and
+            # nothing about it would fail loudly.
+            done = bool(data["completed"])
+            if done != task.completed:
+                task.completed = done
+                task.completed_at = utcnow() if done else None
 
         db.session.commit()
         return jsonify(task.to_dict())
@@ -461,7 +554,18 @@ def register_routes(app):
             return jsonify({"error": "order must be a list"}), 400
         # One query for the lot, not one per id (the old loop was an N+1
         # write for every drag-reorder).
-        ids = [t for t in order if isinstance(t, int) and not isinstance(t, bool)]
+        # Bounded, not merely type-checked: a huge int passes `isinstance(t, int)`
+        # and then raises OverflowError inside `Task.id.in_(ids)`. This is the
+        # fourth site of the same bug and the one with no test covering it.
+        ids = [
+            v
+            for v in (
+                clean_int(t, 1, 2**53)
+                for t in order
+                if isinstance(t, int) and not isinstance(t, bool)
+            )
+            if v is not None
+        ]
         tasks = {
             t.id: t
             for t in Task.query.filter(Task.user_id == user.id, Task.id.in_(ids)).all()
@@ -696,17 +800,23 @@ def register_routes(app):
             return {}
         return saved if isinstance(saved, dict) else {}
 
+    def _profile_payload(user):
+        """The profile response. Built in one place because GET and PUT both
+        return it, and two verbatim copies is one edit away from a PUT whose
+        response omits a field the GET has."""
+        return {
+            "username": user.username,
+            "displayName": user.display_name,
+            "avatar": user.avatar,
+            "profile": _read_json_map(user.profile),
+            "character": _read_json_map(user.character),
+        }
+
     @app.get("/api/profile")
     @require_auth
     def get_profile(user):
         return jsonify(
-            {
-                "username": user.username,
-                "displayName": user.display_name,
-                "avatar": user.avatar,
-                "profile": _read_json_map(user.profile),
-                "character": _read_json_map(user.character),
-            }
+            _profile_payload(user)
         )
 
     @app.put("/api/profile")
@@ -717,7 +827,7 @@ def register_routes(app):
         # Each field is optional — the panel saves the section you edited, so a
         # partial body must leave the rest of the profile alone.
         if "displayName" in data:
-            name = clean_str(data.get("displayName"), 60)
+            name = clean_str(data.get("displayName"), DISPLAY_NAME_MAX)
             if not name:
                 return jsonify({"error": "A name can't be empty"}), 400
             user.display_name = name
@@ -726,7 +836,7 @@ def register_routes(app):
             # The column is String(8): one emoji can be several code points
             # (skin-tone and ZWJ sequences), so this is a byte-ish budget, not
             # "8 characters" as a person would count them.
-            user.avatar = clean_str(data.get("avatar"), 8)
+            user.avatar = clean_str(data.get("avatar"), AVATAR_MAX)
 
         if "profile" in data:
             cleaned = _clean_json_map(
@@ -745,13 +855,7 @@ def register_routes(app):
 
         db.session.commit()
         return jsonify(
-            {
-                "username": user.username,
-                "displayName": user.display_name,
-                "avatar": user.avatar,
-                "profile": _read_json_map(user.profile),
-                "character": _read_json_map(user.character),
-            }
+            _profile_payload(user)
         )
 
     # ----- Unlocked furniture ---------------------------------------------- #
@@ -796,9 +900,10 @@ def register_routes(app):
     @app.get("/api/friends")
     @require_auth
     def list_friends(user):
-        result = []
-        for friend in user.friends:
-            result.append({**friend.public_dict(), **build_stats(friend)})
+        friends = list(user.friends)
+        # Two grouped queries for everyone, instead of four per friend.
+        stats = build_stats_for(f.id for f in friends)
+        result = [{**f.public_dict(), **stats[f.id]} for f in friends]
         # Most productive today first.
         result.sort(key=lambda f: f["focusMinutesToday"], reverse=True)
         return jsonify(result)
@@ -807,7 +912,7 @@ def register_routes(app):
     @require_auth
     def add_friend(user):
         data = json_body()
-        username = clean_str(data.get("username"), 80).lower()
+        username = clean_str(data.get("username"), USERNAME_MAX).lower()
         friend = User.query.filter_by(username=username).first()
         if not friend:
             return jsonify({"error": "No cottage-dweller with that name"}), 404
@@ -831,6 +936,74 @@ def register_routes(app):
                 friend.friends.remove(user)
             db.session.commit()
         return jsonify({"ok": True})
+
+
+def build_stats_for(user_ids):
+    """`build_stats` for MANY users, in a fixed number of queries.
+
+    The friends panel asked for four aggregates per friend plus one for the
+    viewer — seventeen round trips for the four seeded demo friends, growing
+    linearly. Two GROUPED queries answer all of it regardless of how many friends
+    there are, and the result is less code than the loop it replaces, not more.
+
+    Conditional aggregates rather than four separate scans: `sum(case(...))` lets
+    one pass over a user's tasks produce the total, the completed count and the
+    completed-today count at once. The two time windows stay exactly as
+    `build_stats` documents them — the list-wide counts and the local-day ones are
+    computed side by side here, not merged.
+    """
+    ids = list(user_ids)
+    if not ids:
+        return {}
+    day_start = local_day_start_utc()
+    task_rows = (
+        db.session.query(
+            Task.user_id,
+            db.func.count(Task.id),
+            db.func.coalesce(db.func.sum(db.case((Task.completed.is_(True), 1), else_=0)), 0),
+            db.func.coalesce(
+                db.func.sum(
+                    db.case(
+                        (
+                            db.and_(
+                                Task.completed.is_(True),
+                                Task.completed_at.isnot(None),
+                                Task.completed_at >= day_start,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ),
+        )
+        .filter(Task.user_id.in_(ids))
+        .group_by(Task.user_id)
+        .all()
+    )
+    focus_rows = (
+        db.session.query(
+            FocusSession.user_id,
+            db.func.coalesce(db.func.sum(FocusSession.minutes), 0),
+        )
+        .filter(FocusSession.user_id.in_(ids), FocusSession.day == today_str())
+        .group_by(FocusSession.user_id)
+        .all()
+    )
+    tasks = {row[0]: (int(row[1]), int(row[2]), int(row[3])) for row in task_rows}
+    focus = {row[0]: int(row[1]) for row in focus_rows}
+    out = {}
+    for uid in ids:
+        total, done, done_today = tasks.get(uid, (0, 0, 0))
+        out[uid] = {
+            "tasksTotal": total,
+            "tasksDone": done,
+            "tasksDoneToday": done_today,
+            "completion": round(done / total * 100) if total else 0,
+            "focusMinutesToday": focus.get(uid, 0),
+        }
+    return out
 
 
 def build_stats(user):

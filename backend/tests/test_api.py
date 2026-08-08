@@ -378,3 +378,129 @@ def test_unhandled_errors_come_back_as_json(app):
 
 def test_health_needs_no_auth(client):
     assert client.get("/api/health").get_json()["status"] == "ok"
+
+
+# --------------------------------------------------------------------------- #
+# magnitude, not just type: the gap in the "junk never 500s" contract
+# --------------------------------------------------------------------------- #
+_BIGINT_ACCOUNTS = iter(range(1, 999))
+
+
+def _huge_client():
+    """A client on its own account.
+
+    These tests share one database, so a fixed username registers for the first
+    test and then returns "username taken" — with no token — for every one after
+    it, failing as a KeyError far from the cause while each test passes alone.
+    """
+    app = create_app()
+    client = app.test_client()
+    token = client.post(
+        "/api/auth/register",
+        json={"username": f"bigint{next(_BIGINT_ACCOUNTS)}", "password": "test1234"},
+    ).get_json()["token"]
+    return client, {"Authorization": f"Bearer {token}"}
+
+
+HUGE = 2**70  # past signed 64-bit, so SQLite raises OverflowError at bind time
+
+
+def test_huge_integers_never_500():
+    """Every existing junk test uses a wrong TYPE or a small value.
+
+    `int()` accepts a Python int of any size and the failure happens later, at the
+    SQLite bind, as an OverflowError — which no `except (TypeError, ValueError)`
+    catches. That produced a bare 500 on four separate endpoints.
+    """
+    client, headers = _huge_client()
+    created = client.post("/api/tasks", json={"name": "t", "duration": HUGE}, headers=headers)
+    assert created.status_code == 201
+    # Clamped rather than rejected: a huge number has a clear intent, and the
+    # ceiling is the same one a single logged session gets.
+    assert created.get_json()["duration"] == 24 * 60
+    tid = created.get_json()["id"]
+
+    assert client.put(f"/api/tasks/{tid}", json={"duration": HUGE}, headers=headers).status_code == 200
+    assert client.put(f"/api/tasks/{tid}", json={"position": HUGE}, headers=headers).status_code == 200
+    # The fourth site, which had no coverage at all.
+    reorder = client.put("/api/tasks/reorder", json={"order": [HUGE, tid]}, headers=headers)
+    assert reorder.status_code == 200
+    assert client.post("/api/sessions", json={"minutes": HUGE}, headers=headers).status_code == 201
+
+
+def test_huge_negative_and_float_infinities_never_500():
+    client, headers = _huge_client()
+    for bad in [-HUGE, float("inf"), float("-inf"), float("nan"), 1e30]:
+        res = client.post("/api/tasks", json={"name": "t", "duration": bad}, headers=headers)
+        assert res.status_code == 201, f"{bad!r} broke create"
+        assert 1 <= res.get_json()["duration"] <= 24 * 60
+
+
+def test_booleans_are_not_accepted_as_numbers():
+    """`isinstance(True, int)` is True in Python, so a naive check stores 1."""
+    client, headers = _huge_client()
+    body = client.post("/api/tasks", json={"name": "t", "duration": True}, headers=headers).get_json()
+    assert body["duration"] == 25, "a bool was taken as a duration of 1"
+
+
+def test_a_reasonable_duration_still_survives_untouched():
+    client, headers = _huge_client()
+    body = client.post("/api/tasks", json={"name": "t", "duration": 90}, headers=headers).get_json()
+    assert body["duration"] == 90
+
+
+def test_string_fields_are_clamped_to_their_column_widths():
+    """Register used to allow 80 characters into String(40)/String(60), and
+    save_profile clamped the same column to 60 — two writers, two answers."""
+    from models import DISPLAY_NAME_MAX, USERNAME_MAX
+
+    app = create_app()
+    client = app.test_client()
+    body = client.post(
+        "/api/auth/register",
+        json={"username": "u" * 90, "password": "test1234", "displayName": "d" * 90},
+    ).get_json()
+    assert len(body["user"]["username"]) <= USERNAME_MAX
+    assert len(body["user"]["displayName"]) <= DISPLAY_NAME_MAX
+
+
+def test_grouped_friend_stats_agree_with_the_per_user_version():
+    """`build_stats_for` replaced four queries PER FRIEND with two grouped ones.
+
+    The risk in that rewrite is a conditional aggregate that quietly disagrees with
+    the original — especially around the two different time windows (list-wide
+    counts vs the local day). So compare them directly, on users with real data:
+    the seeded demo friends own tasks and sessions.
+    """
+    from app import build_stats, build_stats_for
+
+    app = create_app()
+    with app.app_context():
+        users = User.query.limit(6).all()
+        assert users, "no users to compare"
+        grouped = build_stats_for(u.id for u in users)
+        for u in users:
+            assert grouped[u.id] == build_stats(u), f"disagreement for {u.username}"
+
+
+def test_grouped_friend_stats_handles_a_user_with_nothing():
+    from app import build_stats, build_stats_for
+
+    app = create_app()
+    client = app.test_client()
+    client.post("/api/auth/register", json={"username": "emptyfriend", "password": "test1234"})
+    with app.app_context():
+        fresh = User.query.filter_by(username="emptyfriend").first()
+        grouped = build_stats_for([fresh.id])
+        # A user with no tasks has no row in the grouped result, so the zero-fill
+        # is the part that has to be right — a KeyError here would 500 the panel.
+        assert grouped[fresh.id] == build_stats(fresh)
+        assert grouped[fresh.id]["completion"] == 0
+
+
+def test_grouped_friend_stats_with_no_ids_is_empty():
+    from app import build_stats_for
+
+    app = create_app()
+    with app.app_context():
+        assert build_stats_for([]) == {}

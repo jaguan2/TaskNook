@@ -9,7 +9,8 @@ import {
 } from "react";
 import { api } from "./lib/api";
 import { playChime } from "./lib/audio";
-import { readStored, writeStored } from "./lib/storage";
+import { readJSON, readStored, writeStored } from "./lib/storage";
+import { elapsedFrom, remainingFrom } from "./lib/time";
 import {
   BREAK_NUDGE_MINUTES,
   PRESENCE_TICK_SECONDS,
@@ -59,7 +60,7 @@ export const useTimer = () => useContext(TimerContext);
 export const useTimerStatus = () => useContext(TimerStatusContext);
 
 export function TimerProvider({ children }) {
-  const { activeTask, stats, refreshAll, showToast } = useStore();
+  const { activeTask, stats, refreshFocus, showToast } = useStore();
 
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [remaining, setRemaining] = useState(25 * 60);
@@ -71,6 +72,53 @@ export function TimerProvider({ children }) {
     readStored("tasknook.timerMode") === "stopwatch" ? "stopwatch" : "timer"
   );
   const [elapsed, setElapsed] = useState(0);
+
+  /**
+   * The clock's anchor: when we last knew the truth, and what it was.
+   *
+   * `remaining`/`elapsed` used to be ACCUMULATED — one `-1` per interval tick —
+   * which quietly made the timer a count of callbacks rather than a measure of
+   * time. Browsers throttle timers in a hidden page (Chromium clamps to 1s, then
+   * to roughly once a MINUTE after ~5 minutes hidden), so a 25-minute block
+   * became a 20-hour one whenever the window was minimised. That is the normal
+   * way to put a desktop app away, and the completion notification — which
+   * exists precisely for someone who stepped away — never arrived for exactly
+   * that person.
+   *
+   * Now the anchor is the source of truth and the displayed value is derived
+   * from `Date.now()`. The interval survives only as a repaint trigger, so a
+   * throttled tab gives a correct clock that merely updates coarsely.
+   *
+   * A ref, not state: it changes in the same breath as the value it describes,
+   * and nothing renders from it.
+   */
+  const clockRef = useRef({ at: Date.now(), base: 25 * 60 });
+
+  /**
+   * Set the countdown AND re-anchor it. Every write to `remaining` goes through
+   * here, because a bare `setRemaining` would leave the anchor describing a
+   * value that no longer exists and the next tick would undo the write.
+   */
+  const setClock = useCallback((seconds) => {
+    clockRef.current = { at: Date.now(), base: seconds };
+    setRemaining(seconds);
+  }, []);
+
+  /** The same, for the stopwatch's count-up. */
+  const setStopwatch = useCallback((seconds) => {
+    clockRef.current = { at: Date.now(), base: seconds };
+    setElapsed(seconds);
+  }, []);
+
+  /**
+   * What the clock reads RIGHT NOW, straight from the anchor.
+   *
+   * Anything that has to act on the live value — a nudge, logging a stopwatch —
+   * reads it here rather than from its render closure, which lags by up to a
+   * tick and by a whole throttled minute in a hidden tab.
+   */
+  const currentRemaining = useCallback(() => remainingFrom(clockRef.current), []);
+  const currentElapsed = useCallback(() => elapsedFrom(clockRef.current), []);
 
   // The break nudge's running total, in seconds. Refs, not state: they move on
   // a timer and nothing renders from them, so state would rebuild this
@@ -87,14 +135,14 @@ export function TimerProvider({ children }) {
   };
 
   // Pomodoro mode: focus → break → focus … for a set number of rounds.
-  const [pomodoro, setPomodoroState] = useState(() => {
-    const defaults = { enabled: false, breakMinutes: 5, rounds: 4 };
-    try {
-      return { ...defaults, ...JSON.parse(readStored("tasknook.pomodoro") || "{}") };
-    } catch {
-      return defaults;
-    }
-  });
+  const [pomodoro, setPomodoroState] = useState(() => ({
+    enabled: false,
+    breakMinutes: 5,
+    rounds: 4,
+    // readJSON already returns the fallback for missing OR corrupt storage, so
+    // the try/catch this used to carry was dead weight.
+    ...readJSON("tasknook.pomodoro", {}),
+  }));
   const [phase, setPhase] = useState("focus"); // "focus" | "break"
   const [round, setRound] = useState(1);
 
@@ -117,34 +165,58 @@ export function TimerProvider({ children }) {
     if (!running) {
       setPhase("focus");
       setRound(1);
-      setRemaining(focusMinutes * 60);
+      setClock(focusMinutes * 60);
       setNudgeSeconds(0);
     }
   };
 
   const nudgeTimer = (deltaSec) => {
     if (timerMode !== "timer" || phase === "break") return;
+    // Read the live value off the CLOCK, not out of the render closure. The
+    // closure's `remaining` lags by up to a tick, which made `applied`
+    // disagree with the value actually stored — so `nudgeSeconds` (and with it
+    // the logged minutes and the progress total) could drift.
+    const now = running ? currentRemaining() : remaining;
     // Only count what actually applied: −1:00 with 30s left clamps to 1s, and
     // crediting the full minute would shrink the logged session and the
     // progress total by time that never existed.
-    const applied = Math.max(1, remaining + deltaSec) - remaining;
+    const next = Math.max(1, now + deltaSec);
+    const applied = next - now;
     if (applied === 0) return;
-    setRemaining((r) => Math.max(1, r + deltaSec));
+    setClock(next);
     setNudgeSeconds((n) => n + applied);
   };
 
   const setFocus = (minutes) => {
+    // A NO-OP while running. Only the `remaining` reset used to be guarded, so
+    // `focusMinutes` changed anyway — and that is the number the completion path
+    // logs (`focusMinutes * 60 + nudgeSeconds`). Tapping "15m" five minutes into
+    // an hour-long block therefore logged 15 minutes for an hour of focus, and
+    // fed that into the streak, the daily goal, sessionDays and the calendar.
+    // Two visible tells came with it: the progress total shrank below `remaining`
+    // so the bar snapped to empty for the rest of the block, and the 🎯 chip
+    // clamped to 0 and stopped counting the running session.
+    //
+    // Guarded here rather than only on the button because the value, not the
+    // control, is what's unsafe — the Pomodoro settings take the same care
+    // (see setPomodoro) and any future caller inherits it.
+    if (running) return;
     setFocusMinutes(minutes);
-    if (!running) {
-      setRemaining(minutes * 60);
-      setPhase("focus");
-      setRound(1);
-      setNudgeSeconds(0);
-    }
+    setClock(minutes * 60);
+    setPhase("focus");
+    setRound(1);
+    setNudgeSeconds(0);
   };
 
   const startTimer = () => {
-    if (timerMode === "timer" && remaining <= 0) setRemaining(focusMinutes * 60);
+    // Re-anchor on every start: a paused clock has been standing still, and
+    // without this the time spent paused would be deducted the moment it
+    // resumed. Also covers restarting a finished block.
+    if (timerMode === "timer") {
+      setClock(remaining <= 0 ? focusMinutes * 60 : remaining);
+    } else {
+      setStopwatch(elapsed);
+    }
     // First start is the natural moment to ask — completion/break alerts are
     // exactly what was just signed up for. Without this request the notify()
     // calls below are permanently dead (permission starts as "default").
@@ -161,12 +233,12 @@ export function TimerProvider({ children }) {
   const resetTimer = () => {
     setRunning(false);
     if (timerMode === "stopwatch") {
-      setElapsed(0);
+      setStopwatch(0);
       return;
     }
     setPhase("focus");
     setRound(1);
-    setRemaining(focusMinutes * 60);
+    setClock(focusMinutes * 60);
     setNudgeSeconds(0);
   };
 
@@ -176,10 +248,12 @@ export function TimerProvider({ children }) {
     if (running || (mode !== "timer" && mode !== "stopwatch")) return;
     setTimerModeState(mode);
     writeStored("tasknook.timerMode", mode);
-    setElapsed(0);
     setPhase("focus");
     setRound(1);
-    setRemaining(focusMinutes * 60);
+    // Both clocks, in the order that leaves the anchor describing the one the
+    // new mode will actually read.
+    setElapsed(0);
+    setClock(focusMinutes * 60);
     setNudgeSeconds(0);
   };
 
@@ -200,7 +274,7 @@ export function TimerProvider({ children }) {
     if (phase === "break") {
       setPhase("focus");
       setRound((r) => r + 1);
-      setRemaining(focusMinutes * 60);
+      setClock(focusMinutes * 60);
       notify("🌱 Back to it", `Round ${round + 1} of ${pomodoro.rounds} — ${focusMinutes} focused minutes.`);
       return;
     }
@@ -209,7 +283,7 @@ export function TimerProvider({ children }) {
         minutes: Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60)),
         taskName: activeTask ? activeTask.name : "Focus",
       });
-      await refreshAll();
+      await refreshFocus();
     } catch (err) {
       // Not ignorable: a silently-unlogged block reads as a frozen streak.
       console.error("Failed to log the focus session:", err);
@@ -218,7 +292,7 @@ export function TimerProvider({ children }) {
     setNudgeSeconds(0);
     if (pomodoro.enabled && round < pomodoro.rounds) {
       setPhase("break");
-      setRemaining(pomodoro.breakMinutes * 60);
+      setClock(pomodoro.breakMinutes * 60);
       notify("☕ Break time", `${pomodoro.breakMinutes} minutes — stretch, hydrate, breathe.`);
     } else {
       setRunning(false);
@@ -230,7 +304,9 @@ export function TimerProvider({ children }) {
         notify("🌙 Focus block complete", `${focusMinutes} cozy minutes logged. Time to stretch.`);
       }
     }
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshAll, showToast]);
+    // `setClock` is a stable useCallback with no deps of its own, so listing it
+    // costs nothing and keeps the rule satisfied honestly rather than suppressed.
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock]);
 
   // Ends a break early and moves straight into the next focus round — before
   // this, the only way out of a break was ✕, which discards the whole cycle.
@@ -238,7 +314,7 @@ export function TimerProvider({ children }) {
     if (phase !== "break") return;
     setPhase("focus");
     setRound((r) => r + 1);
-    setRemaining(focusMinutes * 60);
+    setClock(focusMinutes * 60);
   };
 
   // Keep the latest handler in a ref so the ticking interval depends only on
@@ -294,14 +370,30 @@ export function TimerProvider({ children }) {
 
   // timerMode can't change while running (setTimerMode blocks it), so adding
   // it to the deps never restarts a live interval.
+  //
+  // The interval is a REPAINT trigger, nothing more: the value comes from the
+  // wall clock via the anchor, so a browser that throttles this to once a minute
+  // produces a correct clock that updates coarsely rather than a block that
+  // takes twenty hours.
   useEffect(() => {
     if (!running) return undefined;
-    const advance =
-      timerMode === "stopwatch"
-        ? () => setElapsed((e) => e + 1)
-        : () => setRemaining((r) => Math.max(0, r - 1));
-    tickRef.current = setInterval(advance, 1000);
-    return () => clearInterval(tickRef.current);
+    const sync = () => {
+      if (timerMode === "stopwatch") setElapsed(elapsedFrom(clockRef.current));
+      else setRemaining(remainingFrom(clockRef.current));
+    };
+    sync();
+    tickRef.current = setInterval(sync, 1000);
+    // Returning to a hidden window has to snap to the truth at once. Waiting out
+    // a throttled interval is exactly the moment someone sees a wrong number and
+    // stops trusting the timer.
+    const onVisibility = () => {
+      if (!document.hidden) sync();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(tickRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [running, timerMode]);
 
   // Fire the phase handler from an effect (not inside the setState updater) so
@@ -316,8 +408,8 @@ export function TimerProvider({ children }) {
   // focus session, exactly like a completed countdown block.
   const finishStopwatch = async () => {
     setRunning(false);
-    const minutes = Math.round(elapsed / 60);
-    setElapsed(0);
+    const minutes = Math.round(currentElapsed() / 60);
+    setStopwatch(0);
     if (minutes < 1) return; // nothing meaningful to log
     playChime();
     try {
@@ -325,7 +417,7 @@ export function TimerProvider({ children }) {
         minutes,
         taskName: activeTask ? activeTask.name : "Stopwatch",
       });
-      await refreshAll();
+      await refreshFocus();
     } catch (err) {
       console.error("Failed to log the stopwatch session:", err);
       showToast("Couldn't log that session — it may be missing from today 🌧️");
