@@ -2965,8 +2965,27 @@ function HairBehind({ style, headY, color }) {
     case "messy":
       return <ellipse cx="0" cy={headY - 1.4} rx="8.6" ry="7.8" fill={color} />;
     case "ponytail":
+      // The gathering knot lives HERE, not in HairLength: it sits on the
+      // skull, and this layer rides the gesture wrappers, so it moves with a
+      // glance or a yawn. In the static layer it stayed pinned while the head
+      // shifted 2-3px around it — hair visibly sliding off the crown.
+      return (
+        <>
+          <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
+          <circle cx="-1" cy={headY - 6.8} r="3.1" fill={color} />
+        </>
+      );
     case "braids":
-      return <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />;
+      // Same rule as the ponytail knot: the gathered roots at the skull's
+      // sides belong to the head and turn with it; only the plaits hang back.
+      return (
+        <>
+          <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
+          {[-1, 1].map((s) => (
+            <circle key={s} cx={s * 6.6} cy={headY + 1} r="2.3" fill={color} />
+          ))}
+        </>
+      );
     case "bun":
       // High enough to break the skull's silhouette; tucked behind it was a
       // nub you couldn't tell from short hair.
@@ -3012,22 +3031,25 @@ function HairLength({ style, headY, color }) {
       // The tail hangs to ONE SIDE. Centred it was drawn before both the head
       // (r 7.3) and the torso and disappeared entirely behind them — the style
       // rendered as short hair with a small nub above the crown.
+      // Only the TAIL. Its gathering knot is HairBehind's (it sits on the
+      // skull and must move with it); the path starts inside the knot's
+      // radius so a turned head never opens a gap at the join.
       return (
-        <>
-          <circle cx="-1" cy={headY - 6.8} r="3.1" fill={color} />
-          <path
-            d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
-            fill={color}
-          />
-        </>
+        <path
+          d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
+          fill={color}
+        />
       );
     case "braids":
+      // Only the hanging plaits — the gathered roots are HairBehind's. The
+      // strands start a touch below them, still under their cover, so the
+      // moving anchor always overlaps the static plait top.
       return (
         <>
           {[-1, 1].map((s) => (
             <g key={s}>
               <path
-                d={`M${s * 6.6} ${headY + 1} q${s * 3} 8 ${s * 1.4} 14`}
+                d={`M${s * 6.6} ${headY + 2.5} q${s * 3} 6.5 ${s * 1.4} 12.5`}
                 stroke={color}
                 strokeWidth="3.6"
                 strokeLinecap="round"
@@ -4119,14 +4141,26 @@ function LightJar() {
     <g transform={`translate(${c.x}, ${c.y})`}>
       <ellipse cx="0" cy="-1" rx="6" ry="3" fill="#cbe8ef" opacity="0.3" />
       <path d="M-6 -2 l0 -10 a6 3 0 0 1 12 0 l0 10 a6 3 0 0 1 -12 0 z" fill="#cbe8ef" opacity="0.22" />
+      {/* Each bulb ADDS its own offset to the jar's phase (same trick as the
+          string lights and the garland) — bare, all five shared one --phase
+          and blinked as a single body, in the one item whose whole point is
+          scattered twinkle. */}
       {[
         [-2.5, -5],
         [2, -7],
         [-1, -9],
         [3, -11],
         [-3, -12],
-      ].map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="#ffe9b0" className="room-twinkle" />
+      ].map(([x, y], i) => (
+        <circle
+          key={`${x}-${y}`}
+          cx={x}
+          cy={y}
+          r="1.5"
+          fill="#ffe9b0"
+          className="room-twinkle"
+          style={{ animationDelay: `calc(var(--phase, 0s) - ${((i * 13) % 37) / 10}s)` }}
+        />
       ))}
       <ellipse cx="0" cy="-12" rx="6" ry="3" fill="none" stroke="#fff" strokeWidth="1" opacity="0.35" />
       <rect x="-4.5" y="-15" width="9" height="3" rx="1.2" style={tinted("#c98a4b")} />
@@ -4652,8 +4686,14 @@ function DogHead({ x, y, r, asleep }) {
       {/* folded ears hang beside the skull rather than standing up */}
       <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} style={tinted("#c98a4b")} />
       <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} fill="#000" opacity="0.22" />
-      <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} style={tinted("#c98a4b")} />
-      <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} fill="#000" opacity="0.12" />
+      {/* The near ear flicks while awake — same "alive and listening" signal
+          as the cat's, but a folded ear HANGS, so it takes the top-hinged
+          variant: bottom-origin would swing the attachment point, not the tip.
+          Ear + its shade in one group, or the shading stays behind. */}
+      <g className={asleep ? undefined : "ear-twitch-hanging"}>
+        <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} style={tinted("#c98a4b")} />
+        <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} fill="#000" opacity="0.12" />
+      </g>
       {/* cream muzzle + black nose: the two marks that say "dog" fastest */}
       <ellipse cx={x - r * 0.1} cy={y + r * 0.5} rx={r * 0.62} ry={r * 0.42} fill="#f2e7dc" opacity="0.85" />
       <ellipse cx={x - r * 0.28} cy={y + r * 0.34} rx={r * 0.18} ry={r * 0.13} fill="#2b2350" />
@@ -4726,11 +4766,18 @@ function Dog({ awake = false }) {
 
 function Bunny({ awake = false }) {
   const c = project(0.35, 0.3);
-  const ear = (x, tilt, dark) => (
+  // `twitch` puts the flick on an INNER group: the outer <g> carries the
+  // rotate attribute, and an animation sharing that element would override it
+  // (the standard SVG trap). An upright ear pivots at its base, so the stock
+  // ear-twitch's bottom origin is right here — only the dog's folded ears
+  // need the hanging variant.
+  const ear = (x, tilt, dark, twitch) => (
     <g transform={`rotate(${tilt} ${x} ${awake ? -20 : -9})`}>
-      <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={tinted("#d9d2e4")} />
-      <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : 0.5} />
-      {dark && <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} fill="#000" opacity="0.18" />}
+      <g className={twitch ? "ear-twitch" : undefined}>
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={tinted("#d9d2e4")} />
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : 0.5} />
+        {dark && <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} fill="#000" opacity="0.18" />}
+      </g>
     </g>
   );
   if (awake) {
@@ -4738,7 +4785,7 @@ function Bunny({ awake = false }) {
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
         {ear(-4.5, -14, true)}
-        {ear(3.5, 12, false)}
+        {ear(3.5, 12, false, true)}
         <g className="resident-type">
           <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={tinted("#d9d2e4")} />
           <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={tinted("#d9d2e4")} />

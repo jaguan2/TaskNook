@@ -37,6 +37,7 @@ TaskNook/
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   ├── room.js       # freeform decoration model: catalog, zones, presets
+│       │   ├── profile.js    # who you are + how your resident is drawn (pure)
 │       │   └── iso.js        # isometric projection math (Sims-style room seed)
 │       └── components/   # Cottage (SVG scene + drag engine), RoomItems
 │                         #   (item sprites), HudFocusCard (top-left timer/
@@ -208,7 +209,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   any web page in any browser drive the localhost API with the well-known
   local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
-  association table. `Task.notes` is free text and `Task.due_date` is a
+  association table. `User.profile` and `User.character` are JSON blobs, not
+  columns per field — same bargain as `room_config`/`unlocked`, and the whole
+  point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
   put the task on the calendar, and nothing sorts or warns on it. Both go
   through `clean_date`, which replaced a bare `value[:10]` slice that let any
@@ -260,6 +263,30 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   elsewhere) to tint "active" days — filtering on `minutes > 0`, not on the
   key existing. `POST /api/sessions` refuses anything under a minute for the
   same reason (a zero-minute row is not a day you focused).
+- **The focus journal**: `GET /api/sessions/day?day=YYYY-MM-DD` groups that
+  day's sessions by `task_name` (summed, longest first) so the calendar can say
+  what a day went ON, not just how long. Its own endpoint rather than folded
+  into `/sessions/days`, which is fetched wholesale on every `refreshAll()` and
+  paints a whole month — names are wanted one day at a time. `CalendarPanel`
+  fetches it per selected day, keyed on `sessionDays[selected]` so finishing a
+  block updates the breakdown without an unrelated task tick refetching it.
+  A block run with **no active task sends `taskName: null`** and prints as
+  "Untitled block": `timer.jsx` used to substitute the literals `"Focus"` and
+  `"Stopwatch"`, which made untitled time split across two rows that looked
+  like tasks you had named. Rows logged before that fix still carry them.
+- **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
+  `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
+  derived by a pure function, bio) and how your resident is DRAWN (model, skin,
+  hair + colour, outfit, expression, build). Same division of labour as the
+  room and the unlock list — the backend guarantees only a bounded flat map of
+  scalars, this file owns the vocabulary, so a new question or hairstyle is a
+  frontend change with no migration. The character drives the `resident` sprite
+  in the iso room; a placement's own `tint` still overrides the profile outfit,
+  so one differently-dressed resident stays possible. Birth dates are parsed
+  from LOCAL parts, never `new Date(str)` — that reads a bare date as UTC and
+  hands anyone west of Greenwich the previous day, and therefore the wrong star
+  sign on a cusp. **Drawing rules for the two bodies and the three hair layers
+  live in `docs/MODELS.md`.**
 - **Focus timer** lives in **`timer.jsx`**, its own provider nested inside
   `StoreProvider` (it reads the active task and logs sessions through the
   store). It used to be part of the store, which rebuilt that context every
@@ -461,6 +488,14 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **Styling**: Tailwind with a custom cozy palette in `tailwind.config.js`
   (`night`, `plum`, `wine`, `rose`, `blush`, `glow`, etc.). Reusable classes
   `.glass`, `.pill`, `.cozy-scroll` are defined in `src/index.css`.
+  `.cozy-scroll` paints a plum scroll-shadow at both edges, which only works
+  INSIDE a glass card — on the backdrop it has nothing to blend into and reads
+  as a dark slab laid over the room. Chrome drawn straight on the scene (the
+  HUD to-do list) adds `.cozy-scroll--bare`, which keeps the scrollbar styling
+  and drops the wash. The fade isn't reproduced with a mask: the list is
+  auto-height under a cap, so with two or three tasks nothing scrolls and the
+  first and last rows would be washed out permanently to hint at a state that
+  rarely happens.
 - **Theming**: `night`/`plum`/`wine`/`rose`/`blush`/`petal` map to
   `rgb(var(--color-x) / <alpha-value>)` — the vars are **space-separated RGB
   channels, not hex**, so Tailwind's opacity modifiers (`bg-rose/40`) keep
@@ -626,7 +661,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   **Ambient loops are desynchronised per item by two inherited custom
   properties** that IsoRoom's `ambienceVars(gx, gy)` sets on each placement
   group: `--phase` (a negative `animation-delay`) and `--dur-scale` (period
-  ×0.90–1.12, spent only by the sway family). CSS variables inherit, so those
+  ×0.90–1.12, spent by the long loops — sways, gestures, ear flicks, the light
+  pools, and the flame/pool pair, whose periods must MATCH so a flame and the
+  light it casts stay on one clock). CSS variables inherit, so those
   two properties reach every animation inside the sprite — a new sprite is
   desynchronised for free, but a new ambient *class* must declare
   `animation-delay: var(--phase, 0s)` AFTER its `animation` shorthand (which

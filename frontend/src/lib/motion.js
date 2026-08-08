@@ -26,8 +26,10 @@ const QUERY = "(prefers-reduced-motion: reduce)";
  *
  * `--dur-scale` stretches the period a little (0.90–1.12). Offset alone holds
  * every pair of plants at a FIXED relative phase forever; different periods let
- * them drift, which is the difference between staggered and independent. Only
- * the long loops spend it — a 1.5s candle flame gains nothing.
+ * them drift, which is the difference between staggered and independent. The
+ * long loops spend it, and so does the flame/pool pair — those two share one
+ * base period so a flame and the light it casts stay on one clock, which means
+ * both must spend the scale identically.
  *
  * Both derive from the tile, never `Math.random`: the scene re-renders on a
  * timer, and a value that changed would restart every animation from the top —

@@ -225,14 +225,23 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
         </div>
       )}
 
-      {/* rare delights: a shooting star at night, a bird passing by day.
-          Both are pure CSS — the "rarity" is a long animation cycle where
-          the visible part is only a sliver of it. No bird braves a storm. */}
+      {/* rare delights: shooting stars at night, a bird passing by day.
+          All pure CSS — the "rarity" is a long animation cycle where the
+          visible part is only a sliver of it. Two stars on different lines
+          and coprime-ish cycles (150s/170s), so where and when the next one
+          falls stays unguessable without a single Math.random. No bird
+          braves a storm. */}
       {night && !hasClouds && (
-        <span
-          className="shooting-star absolute"
-          style={{ left: "18%", top: "12%" }}
-        />
+        <>
+          <span
+            className="shooting-star absolute"
+            style={{ left: "18%", top: "12%" }}
+          />
+          <span
+            className="shooting-star shooting-star-b absolute"
+            style={{ left: "64%", top: "8%" }}
+          />
+        </>
       )}
       {!night && !darkClouds && (
         <svg
@@ -242,7 +251,10 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
           height="12"
           viewBox="0 0 26 12"
         >
+          {/* the flap is on the path INSIDE the sliding svg: separate
+              elements, so the two transforms compose instead of fighting */}
           <path
+            className="wing-flap"
             d="M1 8 Q7 1 13 7 Q19 1 25 8"
             fill="none"
             stroke={sunset ? "#5a3a50" : "#3a3142"}

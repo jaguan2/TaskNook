@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
+import { DEFAULT_CHARACTER, HAIR_STYLES, MODELS } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -109,6 +110,54 @@ describe("the isometric catalog and its artwork agree", () => {
 
     it("stands with straight legs — the bend belongs to sitting only", () => {
       expect(limbs(<Resident />)).toHaveLength(0);
+    });
+  });
+
+  describe("the character vocabulary and the sprite agree", () => {
+    // The profile panel offers whatever profile.js lists; the sprite draws
+    // whatever it has branches for. Nothing else ties the two together, and a
+    // HAIR_STYLES key with no drawing branch falls through to the default cap
+    // SILENTLY — the exact catalog-vs-artwork drift this file exists to catch,
+    // one axis over.
+    const Resident = ISO_SPRITES.resident;
+
+    it.each(
+      MODELS.flatMap((m) => HAIR_STYLES.map((h) => [m.key, h.key]))
+    )("%s × %s renders standing and seated without throwing", (model, hair) => {
+      const character = { ...DEFAULT_CHARACTER, model, hair };
+      expect(() => draw(<Resident character={character} />)).not.toThrow();
+      expect(() => draw(<Resident character={character} seated seatH={19} />)).not.toThrow();
+    });
+
+    it("every hair style draws its own geometry", () => {
+      // Rendering without throwing isn't enough: an unhandled key doesn't
+      // throw, it just draws the default. Distinct markup per style is what
+      // proves each key actually has a branch.
+      const seen = new Map();
+      for (const { key } of HAIR_STYLES) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, hair: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}" — missing its branch?`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
+    });
+
+    it("the two models cut different silhouettes", () => {
+      const htmlFor = (model) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, model }} />
+        );
+        const html = container.innerHTML;
+        cleanup();
+        return html;
+      };
+      expect(htmlFor("masc")).not.toBe(htmlFor("fem"));
     });
   });
 

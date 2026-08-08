@@ -700,7 +700,7 @@ and a handful of design-grammar drifts in newer UI.
 
 ### Bugs
 
-- [ ] **1.1 Reduced motion leaves one-shot particles frozen VISIBLE** —
+- [x] **1.1 Reduced motion leaves one-shot particles frozen VISIBLE** —
   `index.css:837-841` (`.shooting-star`), `:863-866` (`.bird-fly`),
   `:334-337` (`.steam-puff`), `:375-378` (`.bubble-rise`), plus `.pond-ripple`
   and Cottage's `.window-rain`/`.window-snow`.
@@ -720,7 +720,12 @@ and a handful of design-grammar drifts in newer UI.
   animation rides the wrapper `<g>`. Then extend the motion test's rest-state
   pin beyond the mouth so the next one-shot can't regress this.
 
-- [ ] **1.2 Cottage window snow/leaves use POSITIVE delays — visible flakes
+  **DONE.** All seven classes carry base `opacity: 0`, with a comment block at
+  the top of the one-shots section stating the rule. A new motion test pins
+  the list, so the next keyframe-hidden one-shot fails CI instead of parking
+  a star in a reduced-motion sky.
+
+- [x] **1.2 Cottage window snow/leaves use POSITIVE delays — visible flakes
   park, then pop** — `Cottage.jsx:327-328` (snow, up to 2.5s delay against
   4-8s durations), `:348-349` (leaves, up to 3.2s against 6-9s).
   With a positive delay and no `fill-mode: backwards`, each flake renders its
@@ -732,9 +737,13 @@ and a handful of design-grammar drifts in newer UI.
   sub-second. **Fix**: negative delays scaled to each duration, same as
   WeatherOverlay — and it makes the window "already snowing" on frame one.
 
+  **DONE.** Rain, snow and leaves all use the overlay's negative-delay
+  formula scaled to each element's own duration; with 1.1's base opacity the
+  parked state can't render even for a frame.
+
 ### Rule violations (the system exists; these opted out)
 
-- [ ] **1.3 The flat Cottage scene never sets `--phase`/`--dur-scale` — every
+- [x] **1.3 The flat Cottage scene never sets `--phase`/`--dur-scale` — every
   ambient loop runs in lockstep** — `Cottage.jsx:437-441` (placement groups set
   only `--tint`), vs `IsoRoom`'s `ambienceVars`.
   Place three plants in the flat scene and they sway as one body — the exact
@@ -746,7 +755,13 @@ and a handful of design-grammar drifts in newer UI.
   `ambienceVars(...)` (exported from `lib/motion.js`) into each placement
   group's style, fed from the placement's x/y.
 
-- [ ] **1.4 LightJar's five fairy lights blink in perfect lockstep** —
+  **DONE.** Each placement group spreads `ambienceVars(p.x / GRID, p.y / GRID)`
+  alongside `--tint`; the values are derived from the stored position, so the
+  per-second re-render can't restart anything. This also makes the garland's
+  existing per-bulb stagger real — it was offsetting against a phase that was
+  always zero. Pinned by a motion test.
+
+- [x] **1.4 LightJar's five fairy lights blink in perfect lockstep** —
   `IsoItems.jsx:4122-4130`. All five bulbs are bare `className="room-twinkle"`
   circles sharing the placement's single inherited `--phase` — the
   "screensaver tell", inside the one item whose entire point is scattered
@@ -756,7 +771,11 @@ and a handful of design-grammar drifts in newer UI.
   can't see a missing stagger. **Fix**: the same additive per-bulb delay,
   derived from the bulb index.
 
-- [ ] **1.5 WIP: ponytail/braid crowns sit outside the gesture wrappers and
+  **DONE.** The same `calc(var(--phase, 0s) - ((i*13)%37)/10 s)` stagger the
+  string lights and garland use, per bulb — which the motion test's inline-
+  delay scan now checks, since it rejects any bare inline delay.
+
+- [x] **1.5 WIP: ponytail/braid crowns sit outside the gesture wrappers and
   detach from the head** — `IsoItems.jsx:~3326` (`HairLength` static) vs
   `:3447-3452` (head + `HairBehind` inside `gesture-yawn`→`rub-head`→`look`).
   The static-hair comment is right for the long/bob *curtain*, but the new
@@ -769,7 +788,13 @@ and a handful of design-grammar drifts in newer UI.
   tail/plaits in `HairLength`. (Being outside `body-breathe` is sub-pixel and
   fine — leave that.)
 
-- [ ] **1.6 WIP: no test renders the new hair styles or the `fem` model** —
+  **DONE.** The ponytail's knot and the braids' gathered roots now live in
+  `HairBehind` (inside the gesture wrappers, so they move with the head); the
+  plaits start a touch lower, still under the moving anchors' cover, so a
+  turned head can't open a gap at the join. Only the hanging masses stay in
+  the static layer — which is the layer's actual rule.
+
+- [x] **1.6 WIP: no test renders the new hair styles or the `fem` model** —
   `IsoItems.test.jsx` draws the Resident only with the default character; none
   of `messy`/`ponytail`/`braids` nor `model: "fem"` is ever rendered. This is
   precisely the "sprites and catalog drifting apart" class the file exists
@@ -777,21 +802,38 @@ and a handful of design-grammar drifts in newer UI.
   default cap silently. **Fix**: loop `MODELS × HAIR_STYLES` rendering
   `<Resident>`; blocked on 0.1 actually letting it run.
 
+  **DONE, with the 0.1 caveat.** `IsoItems.test.jsx` now renders every
+  model × hair combination standing and seated, asserts each style draws
+  DISTINCT markup (rendering without throwing can't catch a key falling
+  through to the default cap — identical output can), and that the two models
+  cut different silhouettes. The suite parses (lint + build) but cannot
+  EXECUTE on this machine until the Node upgrade in 0.1 — it will run in CI.
+
 ### Animation cleanups
 
-- [ ] **1.7 Doc drift: CLAUDE.md says `--dur-scale` is "spent only by the sway
+- [x] **1.7 Doc drift: CLAUDE.md says `--dur-scale` is "spent only by the sway
   family"** — in reality all six gesture classes, `ear-twitch`, `pool-breathe`
   and `pool-flicker` multiply by it (`index.css:486-928`, nine sites). Not a
   bug (both halves of each two-part gesture scale identically, and the test
   confirms the shared clock) — but the sentence will mislead the next reader
   into "fixing" a gesture that uses it. Update CLAUDE.md.
 
-- [ ] **1.8 The `.pill` hover lift is a third transform transition, undocumented
+  **DONE.** CLAUDE.md, DESIGN.md and the `ambienceVars` doc comment all now
+  say the long loops spend it — and name the flame/pool pair's matched-period
+  rule (see 3.2), which is the new reason the old sentence was wrong twice.
+
+- [x] **1.8 The `.pill` hover lift is a third transform transition, undocumented
   and ungated** — `index.css:999-1008`. DESIGN.md claims exactly two
   transitions exist (lightning flash, wander glide). A 1px response to the
   user's own pointer is defensibly exempt from reduced-motion — but then the
   doc should name it as a deliberate exemption, or the transition should
   collapse under `data-motion="reduced"` like `.clock-tick` does. Pick one.
+
+  **DONE — gated, both halves.** Under `data-motion="reduced"` the pill's
+  transition drops its transform member AND the hover/active transforms go to
+  `none`; colour/shadow feedback stays (the request is less motion, not less
+  response). DESIGN.md's "two exist" is now "three exist" with the CSS-vs-JS
+  gating distinction explained, and a motion test pins the rule.
 
 ---
 
@@ -889,22 +931,42 @@ combos.
 
 Small, each fits the existing system:
 
-- [ ] **3.1 Ear-twitch for the dog and bunny** — CLAUDE.md's "ear-twitch on the
+- [x] **3.1 Ear-twitch for the dog and bunny** — CLAUDE.md's "ear-twitch on the
   near ear" only exists on the cat. The bunny especially: alert ears are its
   entire awake silhouette, and its ear wrappers already have their own
   transform (so the class goes on an inner group, per the wrapper rule).
-- [ ] **3.2 Sync a flame to its own pool** — `flame-dance` runs 1.5s,
+
+  **DONE.** The awake bunny's near ear takes the stock `ear-twitch` on an
+  inner group (the outer `<g>` keeps its rotate attribute, per the SVG trap
+  rule). The dog needed a variant: a folded ear HANGS, so `ear-twitch-hanging`
+  hinges at the top (`transform-origin: center top`) on its own prime period
+  (29s vs the cat's 31s) — bottom-origin would have swung the attachment
+  point. Sleeping poses stay still; a sleeping ear doesn't listen.
+- [x] **3.2 Sync a flame to its own pool** — `flame-dance` runs 1.5s,
   `pool-flicker` 2.6s, so a candle's cast light guts out of step with the
   flame casting it. Same base period (they already share `--phase`) makes the
   pool answer the flame.
-- [ ] **3.3 Wing-flap for the passing bird** — the sky bird is a rigid glyph
+
+  **DONE.** `flame-dance` now runs `calc(2.6s * var(--dur-scale, 1))` —
+  identical period AND identical scale spend, or they'd drift apart again.
+  A motion test pins the two periods equal.
+- [x] **3.3 Wing-flap for the passing bird** — the sky bird is a rigid glyph
   sliding on a line; a 0.4s `scaleY` oscillation on the path *inside* the
   already-animated svg (separate element — no conflict) sells the flight for
   one keyframe block.
-- [ ] **3.4 Vary the shooting star** — it fires from the identical point on the
+
+  **DONE.** `.wing-flap` on the path, `scaleY(1 → 0.55)` at 0.4s, silenced in
+  the reduced-motion block (the auto-derived silence test would have failed
+  the build otherwise — the system works).
+- [x] **3.4 Vary the shooting star** — it fires from the identical point on the
   identical 24° line every 150s, so catching one is learnable rather than
   lucky. Two spans with different fixed positions and offset negative delays
   keeps it deterministic (no Math.random) and un-memorizable.
+
+  **DONE.** A second span (`shooting-star-b`) falls down-LEFT on a 147° line
+  from the sky's other side, on a 170s cycle offset −80s from the first's
+  150s — coprime-ish periods, so which star fires next drifts for hours.
+  Still zero `Math.random`.
 - [ ] **3.5 Day-cell journal popover** — hovering/long-pressing a tinted
   calendar day shows its top 2 "focused on" entries in a small glass popover
   (TopBar's weather-popover pattern) — the story without opening the section.
@@ -935,3 +997,16 @@ activation (4.11), compact desktop mode (4.12), and the deferred perf items
    before the WIP commits, so they never ship.
 4. **2.1** (danger, not rose, for high priority) and **2.4/2.5** (one duration
    formatter) — small, self-contained design-grammar fixes.
+
+## Status — animation batch worked 2026-08-08
+
+The whole of section 1 (animation) and ideas 3.1–3.4 are DONE; each item
+above carries its note. Section 2 (design) and ideas 3.5–3.7 are untouched —
+they're a separate, non-animation batch. **0.1 is still open**: the Node on
+this machine can't boot the jsdom suites, so the new tests (hair×model grid,
+rest-state pin, flame/pool clock, cottage desync, pill gate) are verified by
+lint + build + a standalone Node replay of every CSS-side assertion (all
+passing), and will execute for real in CI or after the Node upgrade.
+Validation run: ESLint clean, `npm run build` clean, 502/502 node-env tests
+pass. Reminder: these frontend changes reach `TaskNook.exe`, so the commit
+that ships them must rebuild it (`build-exe.bat`) per the repo rule.

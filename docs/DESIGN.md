@@ -152,10 +152,13 @@ The screen has an ownership map — respect it:
 - **No motion in reading zones** (HUD corners). Ever.
 - **Every animation class goes in the reduced-motion block.** No exceptions.
 - **A CSS *transition* is invisible to that block.** `animation: none` cannot
-  touch one, so anything that moves via a transition has to be switched off in
-  JS. Two exist — the lightning flash and the persona/pet wander glide — and
-  both have been caught running under reduced motion. The way to find them is
-  to count live animations in a real browser
+  touch one, so a transition that moves something needs its own gate. Three
+  exist: the lightning flash and the persona/pet wander glide are driven by
+  state, so they're switched off in JS (both have been caught running under
+  reduced motion); the `.pill` hover lift answers a selector, so it's silenced
+  by its own `[data-motion="reduced"]` rule in the CSS (colour/shadow feedback
+  stays — the request is less motion, not less response). The way to find a
+  stray one is to count live animations in a real browser
   (`document.getAnimations().filter(a => a.playState === "running")`) with the
   setting on; the answer must be zero. `motion.test.js` guards both gates.
 - **Prefer switching the SOURCE of motion off, not just its easing.** Reduced
@@ -188,7 +191,10 @@ The screen has an ownership map — respect it:
   - **Offset is not enough on the slowest, most numerous loops.** Identical
     periods hold every pair of plants at a fixed relative phase forever;
     `--dur-scale` lets them drift, which is the difference between staggered and
-    independent. Not worth it on a 1.5s flame.
+    independent. The flame is the exception that spends it for a different
+    reason: `flame-dance` and `pool-flicker` share one base period ON PURPOSE,
+    so a flame and the light it casts move together — both must spend (or not
+    spend) `--dur-scale` identically or they drift apart again.
   - **A phase is only worth what it is MODULO the loop it delays.** At tenth-
     second steps the 0.5s loops (`leg-step`, `resident-type`) had just five
     reachable positions, so a study hall's eight residents typed on four beats;

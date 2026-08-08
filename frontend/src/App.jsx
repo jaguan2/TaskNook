@@ -18,7 +18,7 @@ import HudTasks from "./components/HudTasks";
 import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
 import SkyOverlay from "./components/SkyOverlay";
-// Panels are lazy: all eight shipped in the first chunk even though most
+// Panels are lazy: all of them shipped in the first chunk even though most
 // sessions open one or two, and several are heavy (the calendar, the room
 // browser). They live behind a dock click, so a chunk fetch is invisible.
 // The room panel's sprites are NOT duplicated into its chunk — IsoItems is

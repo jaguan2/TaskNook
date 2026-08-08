@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
+import { GRID, ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
+import { ambienceVars } from "../lib/motion";
 import { ITEM_SPRITES } from "./RoomItems";
 import RoomTintPicker from "./RoomTintPicker";
 
@@ -291,12 +292,16 @@ function Cottage({
             <rect key={`lit-${i}`} x={x} y={y} width="4" height="5" fill={time.litWindow} opacity={time.litOpacity} />
           ))}
 
-          {/* rain streaks */}
+          {/* rain streaks. Delays are NEGATIVE, scaled to each drop's own
+              duration (the overlay's lesson): a positive delay parks a
+              visible streak at its start position until its turn comes, then
+              pops it to the 0% keyframe — negative, it's already raining on
+              the first frame. */}
           {isRainy &&
             Array.from({ length: weather === "storm" ? 22 : 16 }).map((_, i) => {
               const x = 102 + ((i * 53) % 300);
-              const delay = (i % 8) * 0.18;
               const dur = (weather === "storm" ? 0.4 : 0.7) + ((i * 11) % 6) / 10;
+              const delay = (-(((i * 13) % 17) / 17) * dur).toFixed(2);
               return (
                 <line
                   key={`rain-${i}`}
@@ -313,43 +318,49 @@ function Cottage({
               );
             })}
 
-          {/* snow flakes */}
+          {/* snow flakes — same negative-delay rule as the rain above */}
           {weather === "snow" &&
-            SNOWFLAKES.map(([x, r], i) => (
-              <circle
-                key={`snow-${i}`}
-                className="window-snow"
-                cx={x}
-                cy="46"
-                r={r}
-                fill="rgba(255,255,255,0.85)"
-                style={{
-                  animationDuration: `${4 + (i % 5)}s`,
-                  animationDelay: `${(i % 6) * 0.5}s`,
-                }}
-              />
-            ))}
+            SNOWFLAKES.map(([x, r], i) => {
+              const dur = 4 + (i % 5);
+              return (
+                <circle
+                  key={`snow-${i}`}
+                  className="window-snow"
+                  cx={x}
+                  cy="46"
+                  r={r}
+                  fill="rgba(255,255,255,0.85)"
+                  style={{
+                    animationDuration: `${dur}s`,
+                    animationDelay: `${(-(((i * 13) % 17) / 17) * dur).toFixed(2)}s`,
+                  }}
+                />
+              );
+            })}
 
           {/* leaves past the window — the same seasonal cue as the overlay,
               since the window is meant to agree with the sky outside it */}
           {weather === "leaves" &&
-            SNOWFLAKES.slice(0, 8).map(([x], i) => (
-              <rect
-                key={`leaf-${i}`}
-                className="window-snow"
-                x={x}
-                y="46"
-                width={5 + (i % 3)}
-                height={3.5 + (i % 3) * 0.7}
-                rx="2"
-                fill={["#c9622f", "#d98a3c", "#a8452c"][i % 3]}
-                opacity="0.85"
-                style={{
-                  animationDuration: `${6 + (i % 4)}s`,
-                  animationDelay: `${(i % 5) * 0.8}s`,
-                }}
-              />
-            ))}
+            SNOWFLAKES.slice(0, 8).map(([x], i) => {
+              const dur = 6 + (i % 4);
+              return (
+                <rect
+                  key={`leaf-${i}`}
+                  className="window-snow"
+                  x={x}
+                  y="46"
+                  width={5 + (i % 3)}
+                  height={3.5 + (i % 3) * 0.7}
+                  rx="2"
+                  fill={["#c9622f", "#d98a3c", "#a8452c"][i % 3]}
+                  opacity="0.85"
+                  style={{
+                    animationDuration: `${dur}s`,
+                    animationDelay: `${(-(((i * 13) % 17) / 17) * dur).toFixed(2)}s`,
+                  }}
+                />
+              );
+            })}
 
           {weather === "storm" && (
             <rect
@@ -437,7 +448,14 @@ function Cottage({
                 transform={`translate(${p.x},${p.y})`}
                 // The user's colour choice rides a CSS variable; sprites paint
                 // their main material with var(--tint, <classic colour>).
-                style={p.tint ? { "--tint": p.tint } : undefined}
+                // ambienceVars rides along the same way (fed from the GRID
+                // square, stable across renders): without it every placed
+                // plant fell back to --phase: 0s and the flat scene swayed as
+                // one body — the exact lockstep the iso room fixed.
+                style={{
+                  ...ambienceVars(p.x / GRID, p.y / GRID),
+                  ...(p.tint ? { "--tint": p.tint } : null),
+                }}
                 className={editMode ? (item.fixed ? "room-item-fixed" : "room-item") : undefined}
                 onPointerDown={startDrag(p)}
               >

@@ -317,7 +317,13 @@ body {
 }
 
 /* Micro-ambience one-shots. The rare ones (shooting star, bird) hide their
-   rarity inside a long cycle: visible for a sliver, dormant the rest. */
+   rarity inside a long cycle: visible for a sliver, dormant the rest.
+
+   Every class here carries `opacity: 0` as a BASE style, not only inside its
+   keyframes: keyframes outrank it while the animation runs, but under reduced
+   motion `animation: none` drops the element to its base style — and a rest
+   state that lives only in a keyframe leaves a star parked in the sky and
+   steam frozen over every mug. Same rule as the yawning mouth's attribute. */
 @keyframes steam-rise {
   0% {
     transform: translateY(0);
@@ -332,6 +338,7 @@ body {
   }
 }
 .steam-puff {
+  opacity: 0;
   animation: steam-rise 3.4s ease-out infinite;
   animation-delay: var(--phase, 0s);
 }
@@ -373,6 +380,7 @@ body {
   }
 }
 .bubble-rise {
+  opacity: 0;
   animation: bubble-up 4.2s ease-in infinite;
   animation-delay: var(--phase, 0s);
 }
@@ -391,6 +399,7 @@ body {
   }
 }
 .pond-ripple {
+  opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
   animation: pond-ripple 6s ease-out infinite;
@@ -721,6 +730,17 @@ body {
   animation-delay: calc(var(--phase, 0s) * 4.3);
 }
 
+/* The dog's folded ears HANG from the skull, so they hinge at the top —
+   bottom-origin (right for an upright ear) would swing the attachment point
+   instead of the tip. Its own period (29 vs 31, both prime) so a cat and a
+   dog in one room don't flick on a shared clock. */
+.ear-twitch-hanging {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: ear-twitch calc(29s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 4.1);
+}
+
 /* A sleeping cat breathes — slow, from the belly (origin bottom). */
 @keyframes cat-breathe {
   0%,
@@ -780,7 +800,12 @@ body {
   animation-delay: var(--phase, 0s);
 }
 
-/* Fireplace / candle flames: a quick soft dance, stretched from the base. */
+/* Fireplace / candle flames: a soft dance, stretched from the base. The
+   period matches pool-flicker EXACTLY (same base, same --dur-scale spend):
+   the pool is the light this flame casts, and on separate clocks a candle
+   guttered while its own light sat steady — the mismatch is what made the
+   pools read as painted-on. Same phase + same period = the floor answers
+   the flame. */
 @keyframes flame-dance {
   0%,
   100% {
@@ -799,7 +824,7 @@ body {
 .flame-dance {
   transform-box: fill-box;
   transform-origin: center bottom;
-  animation: flame-dance 1.5s ease-in-out infinite;
+  animation: flame-dance calc(2.6s * var(--dur-scale, 1)) ease-in-out infinite;
   animation-delay: var(--phase, 0s);
 }
 
@@ -839,7 +864,35 @@ body {
   height: 2px;
   border-radius: 9999px;
   background: linear-gradient(90deg, rgba(247, 233, 226, 0), #f7e9e2);
+  opacity: 0;
   animation: shooting-star 150s linear infinite;
+}
+
+/* A second star on its own line and its own clock. One star fired from the
+   identical point on the identical 24° line every 150s, so catching one was
+   learnable rather than lucky; two fixed trajectories on coprime-ish cycles
+   drift against each other for hours. Still deterministic — no Math.random. */
+@keyframes shooting-star-b {
+  0% {
+    transform: translate(0, 0) rotate(147deg);
+    opacity: 0;
+  }
+  0.4% {
+    opacity: 0.85;
+  }
+  2% {
+    transform: translate(-260px, 170px) rotate(147deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-260px, 170px) rotate(147deg);
+    opacity: 0;
+  }
+}
+.shooting-star-b {
+  width: 38px;
+  animation: shooting-star-b 170s linear infinite;
+  animation-delay: -80s;
 }
 
 @keyframes bird-fly {
@@ -861,8 +914,27 @@ body {
   }
 }
 .bird-fly {
+  opacity: 0;
   animation: bird-fly 110s linear infinite;
   animation-delay: -18s;
+}
+
+/* The wings, on the path INSIDE the sliding svg — separate element, so the
+   flap composes with the flight instead of fighting it. A rigid glyph on a
+   straight line read as a decal; the beat is what sells it as a bird. */
+@keyframes wing-flap {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.55);
+  }
+}
+.wing-flap {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: wing-flap 0.4s ease-in-out infinite;
 }
 
 /* What the room's lights throw on the floor, animated by the SCENE (IsoRoom
@@ -964,8 +1036,11 @@ body {
     .disc-spin,
     .clock-tick,
     .curtain-sway,
+    .ear-twitch-hanging,
     .shooting-star,
+    .shooting-star-b,
     .bird-fly,
+    .wing-flap,
     .rain-drop,
     .snow-flake,
     .leaf-fall,
@@ -1005,6 +1080,17 @@ body {
 }
 .pill:active {
   transform: translateY(0);
+}
+/* The hover lift is the one transform TRANSITION the reduced-motion block's
+   `animation: none` can't reach — but unlike the JS-gated glide it answers a
+   selector, so CSS can silence it directly. Colour and shadow feedback stay:
+   the request was less motion, not less response. */
+:root[data-motion="reduced"] .pill {
+  transition-property: background-color, box-shadow;
+}
+:root[data-motion="reduced"] .pill:hover,
+:root[data-motion="reduced"] .pill:active {
+  transform: none;
 }
 
 /* Falling rain overlay */
@@ -1114,8 +1200,11 @@ body {
   transition: opacity 0.03s ease-in;
 }
 
-/* Rain streaks inside the Cottage window illustration */
+/* Rain streaks inside the Cottage window illustration. Base opacity 0 for the
+   same reason as the micro-ambience one-shots: reduced motion drops these to
+   their base style, and the window must go quiet, not freeze mid-storm. */
 .window-rain {
+  opacity: 0;
   animation-name: window-rain-fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
@@ -1139,6 +1228,7 @@ body {
 
 /* Snow streaks inside the Cottage window illustration */
 .window-snow {
+  opacity: 0;
   animation-name: window-snow-fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;

@@ -115,6 +115,32 @@ describe("nothing animates under reduced motion", () => {
     }
   });
 
+  it("one-shots that rest invisible say so in their base style", () => {
+    // These are visible only inside their keyframes (0% and 100% are opacity
+    // 0). `animation: none` drops an element to its BASE style, so without an
+    // explicit base opacity, reduced motion parked a permanent star-streak in
+    // the night sky, froze opaque bubbles in the aquarium, and left steam
+    // standing over every mug. Same failure mode the yawning mouth's
+    // presentation attribute guards against — this is the CSS-side twin.
+    for (const cls of [
+      "steam-puff", "bubble-rise", "pond-ripple",
+      "shooting-star", "bird-fly", "window-rain", "window-snow",
+    ]) {
+      const block = css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`));
+      expect(block, `.${cls} is missing`).toBeTruthy();
+      expect(block[1], `.${cls} must rest at opacity 0`).toMatch(/\n\s*opacity: 0;/);
+    }
+  });
+
+  it("the pill's hover lift — a transition, so animation: none can't reach it — is silenced in CSS", () => {
+    // Unlike the JS-gated glide and lightning flash, the pill lift answers a
+    // SELECTOR, so the stylesheet can silence it directly. Colour and shadow
+    // feedback deliberately survive: the request is less motion, not less
+    // response.
+    expect(css).toMatch(/\[data-motion="reduced"\] \.pill \{[^}]*transition-property: background-color, box-shadow/);
+    expect(css).toMatch(/\[data-motion="reduced"\] \.pill:hover[\s\S]{0,120}transform: none/);
+  });
+
   it("the exemptions are still true", () => {
     // An allowlist rots silently, so each entry states a reason the code can be
     // checked against.
@@ -162,11 +188,12 @@ describe("the pre-paint script agrees with the app", () => {
 
 // A source scan rather than a render, deliberately: the thing being guarded is
 // that a JS gate EXISTS in the code, and the stylesheet provably can't provide
-// it. `animation: none` cannot touch a CSS transition — so every transition
-// that moves something has to be switched off in JS. Two exist, and both were
-// found running under reduced motion at some point: the lightning flash, and
-// the persona/pet wander glide (caught by counting live animations in a real
-// browser, which reported one stubborn CSSTransition on a <g>).
+// it. `animation: none` cannot touch a CSS transition — so a transition that
+// moves something is gated in JS when it's driven by state (the lightning
+// flash, the persona/pet wander glide — both once found running under reduced
+// motion, caught by counting live animations in a real browser) and by its own
+// reduced-motion CSS rule when it answers a selector (the pill hover lift,
+// pinned in the reduced-motion describe above).
 describe("transitions are gated in JS, because CSS can't reach them", () => {
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
   const overlay = readFileSync(resolve(process.cwd(), "src/components/WeatherOverlay.jsx"), "utf8");
@@ -216,6 +243,15 @@ describe("ambient loops are desynchronised per item", () => {
     expect(isoRoom).toMatch(/style=\{ambienceVars\(p\.gx, p\.gy\)\}/);
   });
 
+  it("the flat cottage desynchronises its placements too", () => {
+    // Desync was built for the iso room and the legacy scene never got it:
+    // Cottage's placement groups set only --tint, so every plant fell back to
+    // --phase: 0s and three of them swayed as one body — with the garland's
+    // own per-bulb stagger offsetting relative to a phase that was always 0.
+    const cottage = readFileSync(resolve(process.cwd(), "src/components/Cottage.jsx"), "utf8");
+    expect(cottage).toMatch(/\.\.\.ambienceVars\(p\.x \/ GRID, p\.y \/ GRID\)/);
+  });
+
   it("every loop that can appear twice in one room spends the phase", () => {
     // Checked per class, not by regex shape, because there are two legitimate
     // ways to write it. What must hold is that the block declares BOTH the
@@ -229,7 +265,7 @@ describe("ambient loops are desynchronised per item", () => {
       // MORE obvious, not less — eight people typing on one beat.
       "resident-type", "leg-step-a", "leg-step-b",
       // An animal listening, and a walking tail: same contract, same checks.
-      "ear-twitch", "tail-sway",
+      "ear-twitch", "ear-twitch-hanging", "tail-sway",
     ];
     for (const cls of mustPhase) {
       const block = css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`));
@@ -267,6 +303,19 @@ describe("ambient loops are desynchronised per item", () => {
     // Half of the shared 0.5s period, or they aren't opposed.
     const period = a.match(/animation: leg-step ([\d.]+)s/)[1];
     expect(0.25).toBe(Number(period) / 2);
+  });
+
+  it("a flame and the pool it casts share one clock", () => {
+    // flame-dance ran 1.5s while pool-flicker ran 2.6s: the candle guttered
+    // while its own cast light sat steady, which is what made the pools read
+    // as painted-on. They already share --phase by inheritance; the same base
+    // period and the same --dur-scale spend are the other half of the sync.
+    const period = (cls) =>
+      css
+        .match(new RegExp(`\\.${cls} \\{([^}]*)\\}`))[1]
+        .match(/animation: [a-z-]+ calc\(([\d.]+)s \* var\(--dur-scale, 1\)\)/)?.[1];
+    expect(period("flame-dance"), ".flame-dance must spend --dur-scale to stay with its pool").toBeTruthy();
+    expect(period("flame-dance")).toBe(period("pool-flicker"));
   });
 
   it("the long loops with many instances also vary their period", () => {

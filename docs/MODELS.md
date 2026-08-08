@@ -93,6 +93,41 @@ Two rules that come out of it:
   block. The near arm gets a white catch so it doesn't vanish into a torso it
   shares a colour with.
 
+**Hair is THREE layers, and the split is load-bearing.** `HairFront` may cover
+the crown and stop at the temples — **nothing in it descends past the eye line**
+(`headY + 2`). `HairBehind` is crown volume, drawn before the head circle but
+inside the gesture wrappers so it turns with a head turn. `HairLength` is
+everything that falls past the jaw, drawn **before the torso**.
+
+**Learned from:** every style once put its length in `HairFront`, which paints
+after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —
+past the chin — so all six hairstyles closed around the face and read as a hood
+or a headscarf rather than hair ("the hair sometimes shows up in front", user).
+Three follow-on traps, each found by rendering the set rather than one sprite:
+
+- **Length must clear the SHOULDER, not the head.** At ±11.4 against a masc
+  shoulder of up to 12.6 the torso swallowed everything below the jaw and long
+  hair rendered as a bob.
+- **Anything centred behind the head is invisible.** The first ponytail sat at
+  x ≈ −4.4…+1.0, behind both the head and the torso, and showed as a 2px nub.
+  A tail hangs to one side; braids clear the skull at ±6.6.
+- **Put length behind the body, not on it.** In the head group it lay across
+  the chest as a bib.
+
+**Two bodies, silhouette only.** `MODEL_SHAPE` gives `masc` broad shoulders
+dropping nearly straight and `fem` narrow shoulders, a drawn-in waist and a hem
+that flares back out; the sides are ONE quadratic through the waist, because a
+straight taper can only narrow. It constrains nothing else — every hairstyle,
+outfit and expression works on both.
+
+**Learned from:** the first deltas were ±1.5px, invisible at this size — both
+rows of the contact sheet were the same body twice. Then `fem` + `slim` gave
+shoulders of 14.4px against a 14.6px head, the exact top-heavy proportion this
+section exists to prevent; hence `MIN_SHOULDER`, and the narrow read now comes
+from waist-to-hem contrast rather than from shrinking the shoulders. Anything
+hung off the body — arms, hands, collar — derives from the model's shoulder, not
+the build's half-width, or it floats in a gap beside the chest.
+
 **`seat` and `surface` are contracts, not decoration.** `seat` makes personas
 sit on it; `surface` makes `stacks` items rest on it. Both resolve at RENDER
 time only — the stored gx/gy never changes.
