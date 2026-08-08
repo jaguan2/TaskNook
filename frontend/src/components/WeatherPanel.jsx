@@ -36,12 +36,19 @@ export default function WeatherPanel() {
   } = useStore();
 
   const [city, setCity] = useState("");
+  // The name that produced the list on screen. The header used to interpolate
+  // the live input, so clearing or retyping the field while the list was still
+  // showing turned it into: More than one “” — which?
+  const [searchedFor, setSearchedFor] = useState("");
   const [presetName, setPresetName] = useState("");
   const [armedName, arm] = useArmed();
 
   const submitCity = (e) => {
     e.preventDefault();
     if (!city.trim()) return;
+    // Stamped with the results, not on every keystroke — the header has to name
+    // what was searched for, even after the field is cleared or retyped.
+    setSearchedFor(city.trim());
     searchWeatherCity(city.trim());
   };
 
@@ -115,7 +122,7 @@ export default function WeatherPanel() {
         {weatherPlaces.length > 0 && (
           <div className="space-y-1">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-              More than one “{city.trim()}” — which?
+              More than one “{searchedFor}” — which?
             </p>
             {weatherPlaces.map((p) => (
               <button

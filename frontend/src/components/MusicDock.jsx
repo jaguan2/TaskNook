@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
 import { useStore } from "../store";
 import { readStored, writeStored } from "../lib/storage";
+import { formatClock } from "../lib/time";
 import { stationKey } from "../lib/musicLink";
 
 // The persistent music player + VC2-style bottom transport bar. Mounted at
@@ -45,6 +46,16 @@ function loadYouTubeApi() {
       // Reuse the tag if one is already in the document: every retry used to
       // append another <script>, and a few failed stations left a pile of them
       // in <head> all racing the same global callback.
+      //
+      // A tag that FAILED is not reusable, though, and that was the hole: a
+      // script's `error` event fires once at load time and never again, and a
+      // browser will not re-fetch an existing script element. So after one
+      // genuine offline failure every retry found the dead tag, attached a
+      // listener that could never fire, and burned the full 12s timeout before
+      // reporting "needs internet" — for ever, until an app restart. That is the
+      // opposite of what the comment above `finish` promises. Removing the
+      // corpse on error is what makes the retry real; the TIMEOUT path always
+      // self-healed, because `window.YT?.Player` short-circuits at the top.
       const existing = document.querySelector(`script[src="${YT_SCRIPT_SRC}"]`);
       if (existing) {
         existing.addEventListener("error", () => finish(null), { once: true });
@@ -52,20 +63,17 @@ function loadYouTubeApi() {
       }
       const script = document.createElement("script");
       script.src = YT_SCRIPT_SRC;
-      script.onerror = () => finish(null);
+      script.onerror = () => {
+        script.remove();
+        finish(null);
+      };
       document.head.appendChild(script);
     });
   }
   return ytApiPromise;
 }
 
-function fmtTime(s) {
-  if (!Number.isFinite(s) || s < 0) return "0:00";
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60).toString().padStart(2, "0");
-  return h > 0 ? `${h}:${m.toString().padStart(2, "0")}:${sec}` : `${m}:${sec}`;
-}
+const fmtTime = (s) => formatClock(s);
 
 // A "duration" that is missing or absurd means a live stream.
 const isLiveDuration = (d) => !Number.isFinite(d) || d <= 0 || d > 43200;
@@ -166,12 +174,23 @@ export default function MusicDock({ onOpenPanel }) {
         if (!p?.getCurrentTime) return;
         try {
           const d = p.getDuration?.() ?? 0;
-          setTrack({
+          const next = {
             title: p.getVideoData?.()?.title || "",
-            t: p.getCurrentTime() || 0,
+            // Whole seconds: the bar shows m:ss, so sub-second precision was
+            // guaranteeing a new object (and a re-render) every tick even for a
+            // paused player where nothing had changed at all.
+            t: Math.floor(p.getCurrentTime() || 0),
             d,
             live: isLiveDuration(d),
-          });
+          };
+          setTrack((prev) =>
+            prev.title === next.title &&
+            prev.t === next.t &&
+            prev.d === next.d &&
+            prev.live === next.live
+              ? prev // same reference → React bails, no re-render
+              : next
+          );
         } catch {
           /* player mid-teardown */
         }

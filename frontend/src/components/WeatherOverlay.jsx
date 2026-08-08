@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 
 // Lightweight full-screen visuals to match the weather ambience mode.
 const DROPS = Array.from({ length: 60 });
@@ -15,7 +15,7 @@ const LEAF_COLOURS = ["#c9622f", "#d98a3c", "#a8452c", "#b8863a"];
 // photosensitivity concern, not just a motion one, and being a CSS
 // *transition* it escapes the animation-silencing rules entirely, so it has
 // to be gated in JS.
-export default function WeatherOverlay({ mode, reduceMotion = false }) {
+function WeatherOverlay({ mode, reduceMotion = false }) {
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
@@ -131,3 +131,9 @@ export default function WeatherOverlay({ mode, reduceMotion = false }) {
     </div>
   );
 }
+
+// memo'd because App consumes useStore(), so it re-renders on every store
+// change — and this rebuilds 60-80 particle nodes' vDOM each time, for props
+// (weather mode, reduced-motion flag) that change only when the user picks a
+// different sky.
+export default memo(WeatherOverlay);

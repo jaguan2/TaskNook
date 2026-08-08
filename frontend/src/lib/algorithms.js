@@ -96,11 +96,12 @@ export const ALGORITHMS = {
       // `Infinity - Infinity` → NaN, an inconsistent comparator. V8 happens
       // to treat NaN as "equal" and leave them put, but that's luck, not a
       // guarantee — a finite sentinel makes "unranked sinks, stably" real.
-      const rank = (t) => {
-        const i = randomOrder.indexOf(t.id);
-        return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-      };
-      return [...active.sort((a, b) => rank(a) - rank(b)), ...done];
+      // Built ONCE, not per comparison: `indexOf` is a linear scan, and a
+      // comparator runs O(n log n) times, so this was O(n² log n) on a value
+      // recomputed on every render (including every timer tick).
+      const rank = new Map(randomOrder.map((id, i) => [id, i]));
+      const at = (t) => rank.get(t.id) ?? Number.MAX_SAFE_INTEGER;
+      return [...active.sort((a, b) => at(a) - at(b)), ...done];
     },
   },
 };

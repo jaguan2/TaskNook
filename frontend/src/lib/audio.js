@@ -302,15 +302,30 @@ function stopChannel(name) {
   if (!ch) return;
   delete channels[name];
   ch.loops.forEach((slot) => clearTimeout(slot.id));
+  // Fade FIRST, then stop the sources slightly late, so the ramp is what ends
+  // them. `node.stop()` with no argument is an immediate, hard stop: the
+  // continuous noise bed — the loudest part of rain/wind/snow/storm/fireplace/
+  // cafe — was truncated mid-waveform and clicked. The fade below only ever
+  // shaped in-flight one-shots (its comment says so), and `setChannel` retunes
+  // with a 0.2s constant, so on a quick slider drag to zero the gain was still
+  // well above silence when the source was cut — exactly when a discontinuity is
+  // most audible. This is audio that has been hand-tuned on user feedback twice;
+  // a click at the end of it is the one thing it can't have.
+  const FADE = 0.12;
+  ch.master.gain.setTargetAtTime(0, ctx.currentTime, FADE);
   ch.nodes.forEach((node) => {
     try {
-      node.stop();
+      // 4 time constants ≈ 98% of the way down, i.e. inaudible before the cut.
+      node.stop(ctx.currentTime + FADE * 4);
     } catch {
-      /* already stopped */
+      /* already stopped, or a node that can't be scheduled */
+      try {
+        node.stop();
+      } catch {
+        /* genuinely finished */
+      }
     }
   });
-  // Let any in-flight one-shots (thunder tail) fade instead of clicking off.
-  ch.master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
   setTimeout(() => {
     ch.master.disconnect();
     // With every channel silent, park the render thread — a running

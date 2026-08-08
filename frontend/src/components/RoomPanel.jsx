@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Boxes, Check, Eraser, Scaling, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
@@ -30,7 +30,15 @@ import { ISO_SPRITES } from "./IsoItems";
 // which is exactly the piece of the app where you most want to see what you're
 // about to get, and the only browser that didn't show it (the flat room's
 // picker has drawn real sprites all along).
-function IsoItemPreview({ itemKey }) {
+/**
+ * One catalog sprite in the picker.
+ *
+ * memo'd because RoomPanel calls useStore(), so every store change re-rendered
+ * all ~132 of these — and the panel is on screen whenever you're decorating,
+ * since "Decorate" is toggled from inside it. Its props are a single string, so
+ * the comparison is free and always correct.
+ */
+function IsoItemPreviewInner({ itemKey }) {
   const item = ISO_ITEMS[itemKey];
   const Sprite = ISO_SPRITES[itemKey];
   const gRef = useRef(null);
@@ -68,10 +76,19 @@ function IsoItemPreview({ itemKey }) {
   );
 }
 
+const IsoItemPreview = memo(IsoItemPreviewInner);
+
 // A preset button IS the room in miniature: the same sprites the scene
 // renders, drawn over the preset's floor at postage-stamp size — emoji pills
 // told you nothing about what you'd get (user feedback).
-function IsoPresetPreview({ preset }) {
+/**
+ * A whole-room thumbnail for one preset.
+ *
+ * Also memo'd, and it earns it more than the item previews: each of the eleven
+ * draws w×d floor polygons and resolves seating and stacking for ~15 placements.
+ * `preset` is a module-level constant object, so the identity is stable.
+ */
+function IsoPresetPreviewInner({ preset }) {
   const { w, d } = preset.size;
   const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
   const size = { w, d, ...(mask && { mask }) };
@@ -144,6 +161,8 @@ function IsoPresetPreview({ preset }) {
     </svg>
   );
 }
+
+const IsoPresetPreview = memo(IsoPresetPreviewInner);
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
 const PREVIEW_TIME = { lampGlow: 0.55, screenGlow: 0.4, bulbGlow: 0.95 };
