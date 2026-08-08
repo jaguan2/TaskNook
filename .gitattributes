@@ -1,3 +1,12 @@
+# Normalise every text file to LF **in the repository**, whatever each clone's
+# core.autocrlf happens to be. Without this, a machine with autocrlf unset (as
+# this one is) can rewrite line endings on pull and show the ENTIRE tree as
+# modified — 45 files, 22299 insertions and 22299 deletions, with `git diff -w`
+# completely empty. It looks like a huge outgoing change and is pure noise.
+# Rules below override this one; later lines win, so the binaries and the two
+# launchers keep their own treatment.
+* text=auto
+
 # Binaries must never get end-of-line conversion applied — that would corrupt
 # them. TaskNook.exe is committed on purpose, so this matters here.
 *.exe binary
