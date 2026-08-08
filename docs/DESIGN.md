@@ -135,8 +135,118 @@ The screen has an ownership map — respect it:
   focus block runs; the cat naps on soft things. Prefer motion that reflects
   app state over pure decoration.
 - **No motion in reading zones** (HUD corners). Ever.
-- **Every animation class goes in the `prefers-reduced-motion` block.** No
-  exceptions.
+- **Every animation class goes in the reduced-motion block.** No exceptions.
+- **A CSS *transition* is invisible to that block.** `animation: none` cannot
+  touch one, so anything that moves via a transition has to be switched off in
+  JS. Two exist — the lightning flash and the persona/pet wander glide — and
+  both have been caught running under reduced motion. The way to find them is
+  to count live animations in a real browser
+  (`document.getAnimations().filter(a => a.playState === "running")`) with the
+  setting on; the answer must be zero. `motion.test.js` guards both gates.
+- **Prefer switching the SOURCE of motion off, not just its easing.** Reduced
+  motion stops the wander timer entirely rather than removing the glide: a
+  figure teleporting a tile every few seconds is worse than one that walks,
+  and stopping the timer retires a re-render as well. It is also the room's
+  only timer-driven motion — the CSS animations cost nothing to leave in
+  place, which is why they're silenced by stylesheet and not unmounted.
+- **Instances must disagree — synchrony is the screensaver tell.** Every ambient
+  loop reads two inherited custom properties that `IsoRoom` sets per placement
+  from its tile: `--phase` (a NEGATIVE `animation-delay`) and, for the long
+  loops, `--dur-scale` (period ×0.90–1.12). CSS variables inherit, so those two
+  properties on the placement group desynchronise everything inside the sprite,
+  including sprites nobody has drawn yet. This was measurably broken: 45 plants
+  swayed as one body, every candle guttered on the same beat, and 44 stars
+  shared 9 delays, so they blinked in groups of five.
+  - **A new ambient loop opts in**, or it reverts to lockstep: add
+    `animation-delay: var(--phase, 0s);` **after** the `animation` shorthand
+    (the shorthand resets delay). `motion.test.js` checks each class by name.
+  - **A sprite that staggers its own parts** (two flames on one candle) must
+    write `calc(var(--phase, 0s) + 0.5s)` — a bare inline delay beats the class
+    and puts every instance in the room back on the same beat.
+  - **Offset is not enough on the slowest, most numerous loops.** Identical
+    periods hold every pair of plants at a fixed relative phase forever;
+    `--dur-scale` lets them drift, which is the difference between staggered and
+    independent. Not worth it on a 1.5s flame.
+  - **A phase is only worth what it is MODULO the loop it delays.** At tenth-
+    second steps the 0.5s loops (`leg-step`, `resident-type`) had just five
+    reachable positions, so a study hall's eight residents typed on four beats;
+    hundredths gives all eight their own. Fast loops are where unison is most
+    obvious, not least — check the shortest phased loop, not the longest.
+  - **Never `Math.random`** — the scene re-renders on a timer and every
+    animation would restart. Derive from the tile with coprime multipliers, and
+    use two different hashes so an item's speed isn't readable from its offset.
+  - The mechanism is worth testing by **mutation**, not inspection: this pass
+    found that the original test mirrored the implementation, so flipping the
+    phase's sign — the one regression its own comment named — kept it green.
+- **Opacity is not breathing.** `room-breathe` pulses opacity, which is right
+  for a lamp pool or a shimmer on water and wrong on a body — a person went
+  half-transparent every three seconds. Living things scale
+  (`body-breathe`/`cat-breathe`, origin `center bottom`).
+- **Occasional gestures: a sliver of a long cycle.** A person who only breathes
+  is a mannequin that breathes, so residents yawn, stretch, glance around and rub
+  an eye. Four cycles of PRIME length (53/79/89/101s) run at once and drift
+  against each other, so a character's sequence takes hours to repeat and now and
+  then two coincide — a stretch *with* a yawn, for free. No JS, no timer, no
+  `Math.random`: it is the shooting star's trick applied to a body.
+  - **Size the action in SECONDS, not percent.** Each gesture is 3.2–4.0s: long
+    enough to read, short enough to stay peripheral. Holding the keyframe
+    percentages fixed while shortening the cycles left a resident in motion 37%
+    of the time, which is a fidget, not an idle. ~19% is right — something every
+    ~19 seconds. `motion.test.js` pins the duty cycle, not just the percentages.
+  - **Multiply `--phase` to the cycle.** Used raw (it spans ~7s) on a 101s cycle,
+    every resident in the room yawns inside the same 7-second window and then
+    stands still together for the other 94 — synchronised *waves*, worse than no
+    offset at all. Each class scales it to cover ~90% of its own period.
+  - **Start AND end at the neutral pose.** `animation: none` drops the element to
+    its base style, so a rest state that lives only in a keyframe freezes
+    mid-gesture. Where rest can't be a transform — the yawning mouth — put it in
+    a presentation ATTRIBUTE, which keyframes outrank while running and which
+    takes over when they're switched off. Otherwise reduced motion leaves every
+    character permanently gaping.
+  - **One element per moving cycle.** Two animations on one element cancel, so the
+    head is three nested wrappers (yawn, rub-lean, glance). Nested transforms
+    compose; sibling ones fight.
+  - **Derive the pose from the geometry, and then LOOK at it.** The eye-rub was
+    wrong twice from arithmetic alone: under ~150° the hand stops at chest height,
+    and because the arm is the sweater's colour all you saw was a hand appearing
+    on the wrong side of the body; but the angles that *do* reach the face put the
+    hand inside the head's silhouette, and arms paint before the head, so it
+    vanished behind it. Only 186°+ both reaches eye level and clears the head.
+  - **A two-part gesture needs one clock.** The yawn's mouth and the rub's
+    head-lean share their partner's period, delay and stops exactly — nothing else
+    holds the halves together, and a mouth opening a beat late reads as a fault.
+- **Light moves, and not all light moves alike.** The pools IsoRoom casts from
+  each `glow:` source used to be perfectly static, so a candle's flame danced
+  over a dead circle of light — the thing that gave the lighting away as a
+  drawing. Catalog `flicker: true` picks `pool-flicker` (uneven stops, a slight
+  scale wobble, ~2.6s: a flame guts and recovers, it doesn't pulse) over
+  `pool-breathe` (~7.5s, barely there). Which one is **catalog knowledge, not
+  artwork** — same reason `glow` itself is a field.
+  - **The animation must not eat the brightness.** A pool's real opacity is
+    `strength × ISO_TIME.glow`, and keyframes animate opacity in ABSOLUTE
+    terms — put them on the same element and every lamp burns at full strength
+    at noon, the exact bug the scene-cast pools were introduced to fix. The
+    computed opacity goes on a wrapper `<g>` and the animation on the child;
+    nested opacity multiplies, so the motion stays relative to the hour.
+- **Measure before optimising motion**, and **measure unlocked**. A clean A/B
+  (same protocol per arm, two rounds, 298 frames) says:
+  - A realistic room — ~40 items, ~75 live animations — is **4.2ms median with
+    motion on, and 4.2ms with it off**. Zero dropped frames. Indistinguishable.
+  - A deliberately extreme room — 144 items, 223 live animations — costs
+    **8.4ms vs 4.2ms**. Real, measurable, and still half the 16.7ms budget, with
+    0–1 dropped frames out of 298.
+
+  The first version of this note claimed the cost was "below the noise floor"
+  on the strength of both arms reading 16.7ms. That reading was **vsync-locked**:
+  at 60Hz a frame that finishes in 4ms and one that finishes in 8ms are both
+  reported as 16.7ms, so the measurement could not have seen the cost whatever
+  it was. Check what regime you're in before concluding anything is free.
+  Every keyframe already animates only `transform`/`opacity`, and
+  the weather particles are HTML spans rather than SVG nodes. If a frame budget
+  ever does bite, the untouched lever is culling animation outside the camera's
+  viewBox — the whole room animates today regardless of what's on screen.
+  **Keep the measurement window clean**: a preset swap or a screenshot landing
+  inside it read as 10 dropped frames that weren't there.
 - Big scenes are memo'd (`IsoRoom`); nothing may reintroduce a per-second
   re-render of thousands of SVG nodes. Props crossing into memo'd scenes must
   be stable (useCallback) or change rarely (booleans like `working`).

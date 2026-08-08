@@ -594,6 +594,39 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   passing bird (day) — rarity = a long animation cycle where the visible
   part is a sliver. All motion classes are in the `prefers-reduced-motion`
   block, and motion stays OUT of reading zones (HUD corners) by design.
+  **Ambient loops are desynchronised per item by two inherited custom
+  properties** that IsoRoom's `ambienceVars(gx, gy)` sets on each placement
+  group: `--phase` (a negative `animation-delay`) and `--dur-scale` (period
+  ×0.90–1.12, spent only by the sway family). CSS variables inherit, so those
+  two properties reach every animation inside the sprite — a new sprite is
+  desynchronised for free, but a new ambient *class* must declare
+  `animation-delay: var(--phase, 0s)` AFTER its `animation` shorthand (which
+  resets delay) or it silently reverts to lockstep. Without this 45 plants
+  swayed as one body and 44 stars shared 9 delays, blinking in groups of five.
+  Derive from the tile, never `Math.random` — the scene re-renders on a timer
+  and a changed value restarts every animation. The phase is in HUNDREDTHS
+  because it's only worth what it is modulo the loop it delays: tenths gave the
+  0.5s loops (`leg-step`, `resident-type`) five positions, so eight seated
+  residents typed on four beats. `room-breathe` pulses OPACITY
+  and is for lamp pools and water, not bodies (a person went half-transparent
+  every three seconds); living things scale, via `body-breathe`/`cat-breathe` —
+  which now includes the birdcage's bird, the last living thing left fading.
+  **Residents have IDLE GESTURES** — yawn (head back + an opening mouth),
+  stretch (both arms), glance (head turn) and rub an eye (one arm up to the face
+  + the head leaning into it). Pure CSS, four cycles of PRIME length
+  (53/79/89/101s) drifting against each other so the sequence takes hours to
+  repeat; each action is 3.2–4.0s, adding up to ~19% of the time in motion (the
+  first cut held percentages instead of seconds and hit 37%, which is a fidget).
+  Three rules a new gesture must follow, each learned here: `--phase` is
+  MULTIPLIED to cover its own cycle (raw, it makes the whole room yawn in the
+  same 7s window and then freeze together); keyframes start AND end neutral, and
+  a rest state that can't be a transform goes in a presentation attribute (the
+  mouth, or reduced motion leaves everyone gaping); and one element per moving
+  cycle, so the head is three nested wrappers. Arm gestures yield to
+  `resident-type` while a focus block runs — hands on a keyboard are already the
+  animation — but the head never does, because yawning at your desk is the point.
+  `motion.test.js` pins the duty cycle and the two-part gestures' shared clock.
+  See docs/DESIGN.md's "Motion" for the full rules and the measured budget.
   `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
   Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
   Study hall 🧑‍🤝‍🧑 / Terrace 🪴 / Autumn yard 🍂 / Empty room 🫙) are whole-layout
@@ -780,6 +813,15 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   they doubled up with this pass and, worse, stayed at full brightness at noon,
   which is what made them read as stickers rather than light. Don't add a
   `lampPool` ellipse to a sprite — add the field.
+  **The pools also MOVE, and how is a second field.** `flicker: true` (flames:
+  fireplace, candle, candelabra, jack-o'-lantern, sconce, garden lantern) casts
+  `pool-flicker` — uneven keyframe stops and a slight scale wobble, so it guts
+  and recovers; everything else gets the near-invisible `pool-breathe`. They
+  were static, which left a candle's dancing flame sitting over a dead circle
+  of light. The pool's real opacity (`strength × ISO_TIME.glow`) stays on a
+  WRAPPER `<g>` with the animation on the child ellipse: keyframes animate
+  opacity absolutely, so animating the same element would override the
+  daylight dimming and put lamplight back at full strength at noon.
   **Surfaces carry a MATERIAL, not just a colour.** Each env names a
   `floorStyle` (`boards` / `tiles` / `stone` / `grass`) that `FloorSurface`
   draws over the colour gradient, inside the same floor clip: planks with

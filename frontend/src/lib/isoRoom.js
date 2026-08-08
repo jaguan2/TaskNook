@@ -142,7 +142,7 @@ export const ISO_ITEMS = {
   leafpile: { label: "Leaf pile", icon: "🍂", foot: [1, 0.8], hitH: 16 },
   haybale: { label: "Hay bale", icon: "🌾", foot: [0.9, 0.7], hitH: 26, seat: 26 },
   pumpkin: { label: "Pumpkin", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true },
-  jackolantern: { label: "Jack-o'-lantern", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true, glow: [15, 0.34] },
+  jackolantern: { label: "Jack-o'-lantern", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true, flicker: true, glow: [15, 0.34] },
   rake: { label: "Rake", icon: "🧹", foot: [0.4, 0.4], hitH: 62 },
   wreath: { label: "Wreath", icon: "🌿", foot: [0.9, 0.3], wall: true, hitH: 96 },
   // ---- kitchen ---------------------------------------------------------
@@ -242,15 +242,15 @@ export const ISO_ITEMS = {
   curtain: { label: "Curtains", icon: "🪟", foot: [1.6, 0.3], wall: true, hitH: 110 },
   hangplant: { label: "Hanging plant", icon: "🌿", foot: [0.7, 0.3], wall: true, hitH: 110 },
   neon: { label: "Neon sign", icon: "💡", foot: [1.4, 0.3], wall: true, hitH: 94, glow: [30, 0.4] },
-  sconce: { label: "Wall sconce", icon: "🕯️", foot: [0.6, 0.3], wall: true, hitH: 96, glow: [17, 0.34] },
+  sconce: { label: "Wall sconce", icon: "🕯️", foot: [0.6, 0.3], wall: true, hitH: 96, flicker: true, glow: [17, 0.34] },
   pendant: { label: "Pendant light", icon: "💡", foot: [0.8, 0.3], wall: true, hitH: 118, glow: [27, 0.5] },
   corkboard: { label: "Corkboard", icon: "📌", foot: [1.2, 0.3], wall: true, hitH: 100 },
   pennant: { label: "Pennant", icon: "🚩", foot: [0.9, 0.3], wall: true, hitH: 100 },
-  fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78, glow: [44, 0.7] },
+  fireplace: { label: "Fireplace", icon: "🔥", foot: [1.6, 0.7], hitH: 78, flicker: true, glow: [44, 0.7] },
   recordplayer: { label: "Record player", icon: "📀", foot: [1.2, 0.7], hitH: 42 },
-  candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28, stacks: true, glow: [16, 0.35] },
+  candle: { label: "Candle", icon: "🕯️", foot: [0.4, 0.4], hitH: 28, stacks: true, flicker: true, glow: [16, 0.35] },
   tablelamp: { label: "Table lamp", icon: "🛋️", foot: [0.45, 0.45], hitH: 30, stacks: true, glow: [18, 0.45] },
-  candelabra: { label: "Candelabra", icon: "🕯️", foot: [0.5, 0.5], hitH: 46, stacks: true, glow: [20, 0.4] },
+  candelabra: { label: "Candelabra", icon: "🕯️", foot: [0.5, 0.5], hitH: 46, stacks: true, flicker: true, glow: [20, 0.4] },
   paperlantern: { label: "Paper lamp", icon: "🏮", foot: [0.7, 0.7], hitH: 78, glow: [26, 0.5] },
   // outdoor set (at home in the garden, allowed anywhere)
   tree: { label: "Tree", icon: "🌳", foot: [1.5, 1.5], hitH: 128 },
@@ -296,7 +296,7 @@ export const ISO_ITEMS = {
   chess: { label: "Chess set", icon: "♟️", foot: [0.6, 0.5], hitH: 14, stacks: true, tintable: false },
   // ---- more outdoors ----
   hammock: { label: "Hammock", icon: "🏝️", foot: [2.2, 0.9], hitH: 44, seat: 22, lie: true },
-  lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58, glow: [26, 0.45] },
+  lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58, flicker: true, glow: [26, 0.45] },
 };
 
 /**

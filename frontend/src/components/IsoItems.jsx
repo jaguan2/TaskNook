@@ -2189,7 +2189,7 @@ function Aquarium() {
             cy={c.y - 4}
             r={1.3 + (i % 2) * 0.5}
             fill="#cbe8ef"
-            style={{ animationDelay: `${i * 1.6}s` }}
+            style={{ animationDelay: `calc(var(--phase, 0s) + ${i * 1.6}s)` }}
           />
         ))}
         {/* water surface + a soft shimmer drifting on it */}
@@ -2719,7 +2719,7 @@ function Resident({
   if (lying) {
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
-        <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+        <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
           {/* body along the bed, knees slightly raised */}
           <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
           {/* Lit along the top, falling away underneath — the same two-tone
@@ -2755,6 +2755,10 @@ function Resident({
   // that), less a couple of px so the sole meets it instead of sinking
   // through. The floor keeps a low cushion from reducing the shin to a stub.
   const ankle = Math.max(SEAT_KNEE_Y + 6, seatH - 2);
+  // Hands are on a keyboard, so the arms have a job and the idle gestures don't
+  // get them. The head is free either way — someone yawning at their desk is
+  // exactly the point.
+  const typing = working && seated;
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       {seated ? (
@@ -2778,7 +2782,7 @@ function Resident({
           </g>
         </>
       )}
-      <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
+      <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
@@ -2814,19 +2818,27 @@ function Resident({
             </>
           );
         })()}
-        {/* arms — they type when a focus block is running and they're seated */}
-        <g className={working && seated ? "resident-type" : undefined}>
-          <g>
-            <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
-            <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
-            <circle cx={-halfW - 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
-          </g>
-          <g>
-            <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
-            {/* the near arm catches the light instead of vanishing into the
-                torso it shares a colour with */}
-            <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
-            <circle cx={halfW + 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+        {/* arms — they type when a focus block is running and they're seated,
+            and otherwise stretch or reach up to rub an eye. The gesture
+            wrappers are OUTSIDE the typing class and the rub is INSIDE it:
+            two animations fighting over one element's transform would cancel,
+            whereas nested ones compose. Typing wins outright though — hands on
+            a keyboard are already the animation, and arms stretching mid-keystroke
+            reads as a glitch rather than as a person. */}
+        <g className={typing ? undefined : "gesture-stretch"}>
+          <g className={typing ? "resident-type" : undefined}>
+            <g>
+              <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+              <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
+              <circle cx={-halfW - 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+            </g>
+            <g className={typing ? undefined : "gesture-rub"}>
+              <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+              {/* the near arm catches the light instead of vanishing into the
+                  torso it shares a colour with */}
+              <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
+              <circle cx={halfW + 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+            </g>
           </g>
         </g>
         {/* Neck, then a collar sitting on the shoulders. The head used to
@@ -2845,25 +2857,51 @@ function Resident({
         />
         <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" style={outfit} />
         <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" fill="#fff" opacity="0.1" />
-        <HairBack style={ch.hair} headY={headY} color={hairColor} />
-        <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-        <HairFront style={ch.hair} headY={headY} color={hairColor} />
-        {/* A sheen on the crown. The hair is the biggest single shape on the
-            figure and it was one flat colour, so it read as a helmet — this is
-            the same white light-catch the shoulders and the boxes get, aimed
-            up-right at the light. */}
-        <ellipse
-          cx="2.4"
-          cy={headY - 4.1}
-          rx="3.1"
-          ry="1.6"
-          fill="#fff"
-          opacity="0.16"
-          transform={`rotate(-22 2.4 ${headY - 4.1})`}
-        />
-        <Face expression={ch.expression} headY={headY} />
-        <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-        <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+        {/* The head is one unit so it can move as one, and each cycle that moves
+            it needs its OWN element — two animations on one element would just
+            cancel. So: yawn (tilts back), rub (leans into the raised hand),
+            glance (turns). Everything inside keeps its own attribute transform
+            (the crown sheen has one) — the rule is only that an animation may
+            not share an ELEMENT with one. The neck and collar stay outside, so
+            a turning head turns against a body that doesn't. */}
+        <g className="gesture-yawn">
+          <g className={typing ? undefined : "gesture-rub-head"}>
+            <g className="gesture-look">
+              <HairBack style={ch.hair} headY={headY} color={hairColor} />
+              <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+              <HairFront style={ch.hair} headY={headY} color={hairColor} />
+              {/* A sheen on the crown. The hair is the biggest single shape on the
+                  figure and it was one flat colour, so it read as a helmet — this is
+                  the same white light-catch the shoulders and the boxes get, aimed
+                  up-right at the light. */}
+              <ellipse
+                cx="2.4"
+                cy={headY - 4.1}
+                rx="3.1"
+                ry="1.6"
+                fill="#fff"
+                opacity="0.16"
+                transform={`rotate(-22 2.4 ${headY - 4.1})`}
+              />
+              <Face expression={ch.expression} headY={headY} />
+              <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+              <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+              {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
+                  keyframes outrank while they run but which takes over the moment
+                  they don't — so under reduced motion the mouth is simply shut,
+                  rather than a character left permanently gaping. */}
+              <ellipse
+                className="gesture-yawn-mouth"
+                cx="0"
+                cy={headY + 5.1}
+                rx="1.9"
+                ry="2.5"
+                fill={INK}
+                opacity="0"
+              />
+            </g>
+          </g>
+        </g>
       </g>
     </g>
   );
@@ -2988,8 +3026,8 @@ function Fireplace() {
         <ellipse cx="19" cy="-12" rx="9" ry="6" fill="#ff9c5a" opacity="0.28" />
         {/* the flames dance out of phase */}
         <path className="flame-dance" d="M19 -13 q-6 -9 0 -20 q6 11 0 20 z" fill="#ffb45e" />
-        <path className="flame-dance" style={{ animationDelay: "0.5s" }} d="M14.5 -13 q-4 -5 -1.5 -12 q4.5 7 1.5 12 z" fill="#e8874b" />
-        <path className="flame-dance" style={{ animationDelay: "0.9s" }} d="M23.5 -13 q4 -6 1.5 -13 q-4.5 7 -1.5 13 z" fill="#ffd76a" />
+        <path className="flame-dance" style={{ animationDelay: "calc(var(--phase, 0s) + 0.5s)" }} d="M14.5 -13 q-4 -5 -1.5 -12 q4.5 7 1.5 12 z" fill="#e8874b" />
+        <path className="flame-dance" style={{ animationDelay: "calc(var(--phase, 0s) + 0.9s)" }} d="M23.5 -13 q4 -6 1.5 -13 q-4.5 7 -1.5 13 z" fill="#ffd76a" />
       </g>
     </g>
   );
@@ -3322,7 +3360,7 @@ function Curtain() {
     <g transform={`skewY(${SKEW})`}>
       <rect x="0" y="-104" width="38.4" height="2.6" rx="1.3" fill="#6b4a39" />
       {[1, 26].map((x) => (
-        <g key={x} className="curtain-sway" style={{ animationDelay: `${x * 0.09}s` }}>
+        <g key={x} className="curtain-sway" style={{ animationDelay: `calc(var(--phase, 0s) + ${x * 0.09}s)` }}>
           <path d={`M${x} -102 q-1.5 24 0.5 47 l11 0 q2 -23 0.5 -47 z`} style={tinted("#d98a93")} />
           <path d={`M${x + 3.5} -102 q-1 24 0 47 l3 0 q1 -23 0 -47 z`} fill="#000" opacity="0.13" />
           <path d={`M${x + 8} -102 q1 24 0 47 l2.5 0 q-1 -23 0 -47 z`} fill="#fff" opacity="0.08" />
@@ -4241,7 +4279,10 @@ function Birdcage() {
       <path d="M-3 -47 a3 3 0 0 1 6 0" fill="none" style={{ stroke: "var(--tint, #8a7ac2)" }} strokeWidth="1.6" />
       {/* perch + bird */}
       <line x1="-7" y1="-40" x2="7" y2="-40" stroke="#a87f5f" strokeWidth="1.4" />
-      <g className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+      {/* The bird is alive, so it SCALES — it used to pulse opacity like a lamp
+          pool, i.e. go translucent on its perch. Origin bottom keeps its feet
+          planted rather than the whole bird growing about its middle. */}
+      <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         <ellipse cx="1" cy="-43.5" rx="4" ry="3.4" fill="#e8b04b" />
         <circle cx="-2.2" cy="-46" r="2.6" fill="#e8b04b" />
         <circle cx="-3" cy="-46.6" r="0.7" fill="#2b2350" />

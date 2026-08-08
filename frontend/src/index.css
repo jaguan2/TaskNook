@@ -227,6 +227,14 @@ body {
    they keep running smoothly across re-renders at no React cost.
    SVG needs transform-box/transform-origin or these rotate about the whole
    canvas origin instead of the sprite. */
+/* Every ambient loop below reads `--phase`, a NEGATIVE per-item delay that
+   IsoRoom sets on each placement group from its grid position. Without it all
+   45 plants in a room swayed as one, every candle guttered on the same beat and
+   every chest rose together — the giveaway of a screensaver rather than a
+   room. A CSS variable is the whole trick: variables inherit, so one property
+   on the placement group desynchronises everything inside it, including sprites
+   nobody has drawn yet. Negative, so each one starts mid-cycle instead of the
+   room lurching into motion together on the first frame. */
 @keyframes room-sway {
   0%,
   100% {
@@ -239,13 +247,15 @@ body {
 .room-sway {
   transform-box: fill-box;
   transform-origin: bottom center;
-  animation: room-sway 7s ease-in-out infinite;
+  animation: room-sway calc(7s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 /* Hanging things pivot from where they're pinned, not from their base. */
 .room-sway-hanging {
   transform-box: fill-box;
   transform-origin: top center;
-  animation: room-sway 5.5s ease-in-out infinite;
+  animation: room-sway calc(5.5s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 @keyframes room-twinkle {
@@ -259,6 +269,7 @@ body {
 }
 .room-twinkle {
   animation: room-twinkle 4s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 @keyframes room-breathe {
@@ -272,6 +283,7 @@ body {
 }
 .room-breathe {
   animation: room-breathe 6s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* Sky clouds drifting across the whole viewport (SkyOverlay) */
@@ -306,6 +318,7 @@ body {
 }
 .steam-puff {
   animation: steam-rise 3.4s ease-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* The thought cloud over your character: one pop as it arrives, then still.
@@ -346,6 +359,7 @@ body {
 }
 .bubble-rise {
   animation: bubble-up 4.2s ease-in infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 @keyframes pond-ripple {
@@ -365,6 +379,7 @@ body {
   transform-box: fill-box;
   transform-origin: center;
   animation: pond-ripple 6s ease-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 @keyframes resident-type {
@@ -378,6 +393,7 @@ body {
 }
 .resident-type {
   animation: resident-type 0.5s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* Little steps while a resident (or prowling cat) is mid-glide: the two legs
@@ -394,10 +410,216 @@ body {
 }
 .leg-step-a {
   animation: leg-step 0.5s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 .leg-step-b {
   animation: leg-step 0.5s ease-in-out infinite;
-  animation-delay: 0.25s;
+  animation-delay: calc(var(--phase, 0s) + 0.25s);
+}
+
+/* ---- idle gestures: the little things that make someone look ALIVE ----
+   A person who only breathes is a mannequin that breathes. Every so often a
+   resident yawns, stretches, glances around or rubs an eye.
+
+   Pure CSS, and each gesture is a SLIVER of a long cycle — the same trick the
+   shooting star uses. That's what makes them read as occasional rather than as a
+   loop, and the sliver is sized in ABSOLUTE seconds: 3.2-4.0s, long enough to
+   read as a gesture and short enough to stay peripheral. The first cut held the
+   percentages fixed instead and left a character in motion 37% of the time,
+   which is a fidget, not an idle. It's ~19% now: something every ~19 seconds.
+
+   Four cycles of PRIME length (53/79/89/101s) run at once. They drift against
+   each other, so one character's sequence — glance, yawn, glance, stretch —
+   takes hours to repeat, and now and then two coincide, which is how you get a
+   stretch WITH a yawn for free.
+
+   Each also spends `--phase`, but MULTIPLIED. This is the part that isn't
+   obvious: a phase is only worth what it is modulo the loop it delays, and
+   --phase spans ~7s. Used raw on a 101s cycle, every resident in a room would
+   yawn inside the same 7-second window and then stand still together for the
+   next 94 — synchronised WAVES, which is worse than no offset at all. Each
+   multiplier carries the spread across ~90% of its own cycle.
+
+   Keyframes must start AND end at the neutral pose: under reduced motion
+   `animation: none` drops the element to its base style, so anything whose rest
+   state lives only in a keyframe would freeze mid-gesture. (The yawning mouth
+   can't express "closed" as a transform, so it rests at opacity 0 via a
+   presentation ATTRIBUTE, which any keyframe outranks while running.) */
+
+
+@keyframes gesture-look {
+  0%,
+  94% {
+    transform: rotate(0deg);
+  }
+  95.5% {
+    transform: rotate(-7deg);
+  }
+  97% {
+    transform: rotate(-7deg);
+  }
+  98.5% {
+    transform: rotate(5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.gesture-look {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: gesture-look calc(53s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 7);
+}
+
+/* Head goes back and up, not sideways: the figure faces the camera, so a tilt
+   alone wouldn't read as a yawn. The open mouth is what names the gesture. */
+
+@keyframes gesture-yawn {
+  0%,
+  96% {
+    transform: translateY(0) rotate(0deg);
+  }
+  97.3% {
+    transform: translateY(-1.4px) rotate(-6deg);
+  }
+  98.5% {
+    transform: translateY(-1.4px) rotate(-6deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+.gesture-yawn {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: gesture-yawn calc(101s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 13);
+}
+
+/* Same period, same delay, same stops as the tilt — two animations on two
+   elements stay in lockstep only because every one of those matches. */
+
+@keyframes gesture-yawn-mouth {
+  0%,
+  96% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  97.3% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  98.5% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+.gesture-yawn-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gesture-yawn-mouth calc(101s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 13);
+}
+
+
+@keyframes gesture-stretch {
+  0%,
+  96% {
+    transform: translateY(0);
+  }
+  97.3% {
+    transform: translateY(-6px);
+  }
+  98.5% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.gesture-stretch {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: gesture-stretch calc(89s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 11);
+}
+
+/* One arm swings up about the SHOULDER (the group's bbox top-centre is exactly
+   the joint) until the hand is beside the eye, then rubs. A single-rect arm
+   can't bend at the elbow, so the swing is the whole gesture — the standard
+   cheat at this size.
+
+   The angle is DERIVED, and 125deg (the first attempt) was wrong twice over. The
+   hand sits 12.5px from the joint, so anything under ~150deg leaves it at chest
+   height — and the arm is the same colour as the sweater, so all you saw was a
+   hand appearing on the wrong side of the body. Worse, the angles that DO reach
+   the face put the hand inside the head's silhouette, and arms are painted
+   before the head, so it vanished behind it. 186deg is the first angle that both
+   reaches eye level and clears the head. */
+
+@keyframes gesture-rub {
+  0%,
+  95% {
+    transform: rotate(0deg);
+  }
+  96.5% {
+    transform: rotate(182deg);
+  }
+  97.4% {
+    transform: rotate(191deg);
+  }
+  98.2% {
+    transform: rotate(183deg);
+  }
+  99.1% {
+    transform: rotate(190deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.gesture-rub {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: gesture-rub calc(79s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 10);
+}
+
+/* The head leans INTO the raised hand. Without it the gesture read as an arm
+   going up beside a face that ignored it; the tilt is what makes the two parts
+   one action. */
+
+@keyframes gesture-rub-head {
+  0%,
+  95% {
+    transform: rotate(0deg);
+  }
+  96.5% {
+    transform: rotate(7deg);
+  }
+  97.4% {
+    transform: rotate(8deg);
+  }
+  98.2% {
+    transform: rotate(7deg);
+  }
+  99.1% {
+    transform: rotate(8deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.gesture-rub-head {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: gesture-rub-head calc(79s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 10);
 }
 
 /* A sleeping cat breathes — slow, from the belly (origin bottom). */
@@ -410,10 +632,31 @@ body {
     transform: scaleY(1.045);
   }
 }
+@keyframes body-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.018);
+  }
+}
+
+/* A person breathing. NOT room-breathe, which pulses OPACITY — right for a lamp
+   pool or the shimmer on water, but on a body it read as the figure going
+   half-transparent every three seconds rather than as someone alive. */
+.body-breathe {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: body-breathe 4.6s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
+}
+
 .cat-breathe {
   transform-box: fill-box;
   transform-origin: center bottom;
   animation: cat-breathe 3.4s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* …and flicks its tail once in a while (rarity-is-charm: a long cycle whose
@@ -435,6 +678,7 @@ body {
   transform-box: fill-box;
   transform-origin: left bottom;
   animation: tail-flick 9s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* Fireplace / candle flames: a quick soft dance, stretched from the base. */
@@ -457,6 +701,7 @@ body {
   transform-box: fill-box;
   transform-origin: center bottom;
   animation: flame-dance 1.5s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* The record player's disc, spinning lazily (inside a scale(1,0.5) parent so
@@ -470,6 +715,7 @@ body {
   transform-box: fill-box;
   transform-origin: center;
   animation: disc-spin 5s linear infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 @keyframes shooting-star {
@@ -520,6 +766,70 @@ body {
   animation-delay: -18s;
 }
 
+/* What the room's lights throw on the floor, animated by the SCENE (IsoRoom
+   draws one pool per `glow:` source) rather than by each sprite — same
+   principle as the pools themselves. Both animate opacity only, and both are
+   nested inside a group holding the pool's real brightness, so these absolute
+   values stay relative to the hour. */
+@keyframes pool-breathe {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* A flame is not a sine wave. Uneven stops, a couple of them close together, so
+   it guts and recovers instead of pulsing; the faint scale wobble is what sells
+   it as light rather than a fading shape. */
+@keyframes pool-flicker {
+  0% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+  22% {
+    opacity: 0.8;
+    transform: scale(0.995);
+  }
+  40% {
+    opacity: 0.97;
+    transform: scale(1.015);
+  }
+  55% {
+    opacity: 0.84;
+    transform: scale(1);
+  }
+  62% {
+    opacity: 0.94;
+    transform: scale(1.01);
+  }
+  78% {
+    opacity: 0.76;
+    transform: scale(0.99);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+}
+
+.pool-breathe {
+  animation: pool-breathe calc(7.5s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
+}
+.pool-flicker {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pool-flicker calc(2.6s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
+}
+
 /* Every ambient animation, silenced together. The attribute selector outranks
    the plain class rules above at any position in the file, so unlike the old
    media query this no longer depends on being declared last. */
@@ -529,6 +839,15 @@ body {
     .room-sway-hanging,
     .room-twinkle,
     .room-breathe,
+    .gesture-look,
+    .gesture-yawn,
+    .gesture-yawn-mouth,
+    .gesture-stretch,
+    .gesture-rub,
+    .gesture-rub-head,
+    .body-breathe,
+    .pool-breathe,
+    .pool-flicker,
     .sky-cloud,
     .thought-pop,
     .steam-puff,
@@ -757,6 +1076,7 @@ body {
   transform-box: fill-box;
   transform-origin: top center;
   animation: curtain-sway 8s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 
 /* The wall clock's hands are positioned from the real time in JS, not

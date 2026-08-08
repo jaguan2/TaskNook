@@ -246,6 +246,7 @@ export default function App() {
               working={running && phase === "focus"}
               character={character}
               mood={mood}
+              reduceMotion={reduceMotion}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
