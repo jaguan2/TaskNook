@@ -211,7 +211,10 @@ function IsoRoom({
   editMode = false,
   timeOfDay = "night",
   highlightId = null,
-  working = false,
+  // "focus" | "break" | null — what the timer is doing. A string, not two
+  // booleans: the states are exclusive, and it still changes rarely enough that
+  // the memo'd scene only re-renders on a phase edge rather than per tick.
+  activity = null,
   character,
   mood = null,
   reduceMotion = false,
@@ -480,7 +483,10 @@ function IsoRoom({
       // Awake while out wandering; asleep at home or curled on a rug.
       const moved = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
       const awake = moved && !overSoftSpot(placements, gx, gy, footOf(p.item, p.rot));
-      return { ...p, gx, gy, _awake: awake };
+      // `_hx`/`_hy` carry the STORED square through, because gx/gy no longer
+      // hold it. The ambience phase has to come from something that doesn't
+      // move, or every step restarts the sprite's animations.
+      return { ...p, gx, gy, _hx: p.gx, _hy: p.gy, _awake: awake };
     }
     // Small objects rest on whatever surface they're over — same trick as
     // seating, and equally render-only. The +0.1 gy nudge puts them a hair
@@ -495,7 +501,9 @@ function IsoRoom({
     const off = !editMode && roamRef.current[p.id];
     // Mid-wander = walking: the sprite swaps to a stepping gait.
     const moving = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
-    return off ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _moving: moving } : p;
+    return off
+      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _moving: moving }
+      : p;
   });
   const ordered = sortIso(effective);
   const selectedPlacement =
@@ -876,11 +884,16 @@ function IsoRoom({
             // CSS variables inherit, so these two properties on the placement
             // group desynchronise every animation inside the sprite — leaves,
             // flames, a chest rising — including sprites nobody has drawn yet.
-            // From the item's HOME square, not `at`: they have to be stable, or
-            // a wanderer would restart its animations every time it moved. And
-            // from the position rather than a counter, so they survive
-            // reordering (`sortForRender` reshuffles these groups constantly).
-            const ambience = ambienceVars(p.gx, p.gy);
+            //
+            // From the item's STORED square (`_hx`/`_hy`), never the resolved one.
+            // `effective` overwrites gx/gy with the wander offset, so reading
+            // p.gx here fed a value that changes every few seconds: each step
+            // handed the sprite a new phase, restarting its walk cycle, its
+            // breathing and its gesture clocks mid-motion. The comment said this
+            // and the code did the opposite — a wanderer was the one kind of item
+            // that couldn't hold a phase. From the position rather than a counter,
+            // so they survive reordering (`sortIso` reshuffles these constantly).
+            const ambience = ambienceVars(p._hx ?? p.gx, p._hy ?? p.gy);
             const placeProps =
               glides && !editMode && !reduceMotion
                 ? {
@@ -944,7 +957,7 @@ function IsoRoom({
                         seated={!!p._seat && !p._lie}
                         lying={!!p._lie}
                         seatH={p._seat || 0}
-                        working={working}
+                        activity={activity}
                         moving={!!p._moving}
                         // Only YOU wear the profile's character and think
                         // thoughts. Passing them to every persona turned a

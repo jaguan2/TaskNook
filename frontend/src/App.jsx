@@ -243,7 +243,7 @@ export default function App() {
               editMode={roomEditMode}
               timeOfDay={timeOfDay}
               highlightId={lastIsoAddedId}
-              working={running && phase === "focus"}
+              activity={running ? phase : null}
               character={character}
               mood={mood}
               reduceMotion={reduceMotion}

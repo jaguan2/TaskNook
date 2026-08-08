@@ -145,6 +145,24 @@ export const ISO_ITEMS = {
   jackolantern: { label: "Jack-o'-lantern", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true, flicker: true, glow: [15, 0.34] },
   rake: { label: "Rake", icon: "🧹", foot: [0.4, 0.4], hitH: 62 },
   wreath: { label: "Wreath", icon: "🌿", foot: [0.9, 0.3], wall: true, hitH: 96 },
+  // ---- winter ----------------------------------------------------------
+  // The second seasonal set, and the reason autumn wasn't a one-off: a season
+  // is a reason to redecorate, and one season only works for three months.
+  // Same shape as autumn — a hero tree, something to sit on, something low and
+  // wide, one light, one wall piece.
+  snowpine: { label: "Snowy pine", icon: "🌲", foot: [1.3, 1.3], hitH: 118 },
+  snowman: { label: "Snowman", icon: "⛄", foot: [0.8, 0.8], hitH: 52 },
+  snowdrift: { label: "Snow drift", icon: "❄️", foot: [1.2, 0.9], hitH: 14 },
+  logstack: { label: "Firewood", icon: "🪵", foot: [0.9, 0.6], hitH: 28, seat: 28 },
+  icelantern: { label: "Ice lantern", icon: "🕯️", foot: [0.45, 0.45], hitH: 22, stacks: true, flicker: true, glow: [17, 0.36] },
+  icicles: { label: "Icicles", icon: "🧊", foot: [1, 0.3], wall: true, hitH: 104 },
+  // ---- spring ----------------------------------------------------------
+  blossomtree: { label: "Blossom tree", icon: "🌸", foot: [1.5, 1.5], hitH: 122 },
+  tulips: { label: "Tulips", icon: "🌷", foot: [0.6, 0.6], hitH: 26 },
+  wateringcan: { label: "Watering can", icon: "🪴", foot: [0.5, 0.45], hitH: 20, stacks: true },
+  birdbath: { label: "Bird bath", icon: "🐦", foot: [0.8, 0.8], hitH: 34 },
+  seedtray: { label: "Seedlings", icon: "🌱", foot: [0.7, 0.5], hitH: 12, stacks: true },
+  bunting: { label: "Bunting", icon: "🎉", foot: [1.4, 0.3], wall: true, hitH: 100 },
   // ---- kitchen ---------------------------------------------------------
   oven: { label: "Oven", icon: "🍳", foot: [0.9, 0.7], hitH: 42, surface: 40 },
   sink: { label: "Sink", icon: "🚰", foot: [0.9, 0.65], hitH: 36 },
@@ -370,6 +388,14 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Autumn",
     keys: ["mapletree", "leafpile", "haybale", "pumpkin", "jackolantern", "rake", "wreath"],
+  },
+  {
+    label: "Winter",
+    keys: ["snowpine", "snowman", "snowdrift", "logstack", "icelantern", "icicles"],
+  },
+  {
+    label: "Spring",
+    keys: ["blossomtree", "tulips", "wateringcan", "birdbath", "seedtray", "bunting"],
   },
   {
     label: "Outdoors",

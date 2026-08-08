@@ -622,6 +622,90 @@ body {
   animation-delay: calc(var(--phase, 0s) * 10);
 }
 
+/* A break is ANNOUNCED, not waited for. The random idle stretch would arrive
+   somewhere in the next 89 seconds, which is no use as a cue — so when the break
+   phase begins the class appears and this plays ONCE, front-loaded, and settles.
+   It sits on its own wrapper so it composes with the random stretch inside
+   rather than fighting it for the same transform.
+
+   Deliberately NO `--phase`: this one is a response to something you did, and it
+   should land the moment it happens. Everything else in here is ambience. */
+@keyframes break-stretch {
+  0% {
+    transform: translateY(0);
+  }
+  14% {
+    transform: translateY(-7px);
+  }
+  34% {
+    transform: translateY(-7px);
+  }
+  58% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.break-stretch {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: break-stretch 4.2s ease-in-out 1;
+}
+
+/* ---- animals ----
+   A walking tail. `tail-flick` is a RARE twitch and was only ever applied to the
+   sleeping poses, so a cat or dog out on the prowl carried a tail frozen stiff
+   over its back while its legs stepped underneath — the one part of the walk
+   cycle that wasn't moving. A real tail counterbalances every step, so this is
+   continuous rather than occasional, and roughly twice the leg period so it
+   reads as a sway across a stride rather than a wag per paw.
+
+   Origin at the BASE (left bottom of the path's own box) so the tail pivots
+   where it meets the body instead of swinging about its own middle. */
+@keyframes tail-sway {
+  0%,
+  100% {
+    transform: rotate(-3.5deg);
+  }
+  50% {
+    transform: rotate(4.5deg);
+  }
+}
+.tail-sway {
+  transform-box: fill-box;
+  transform-origin: left bottom;
+  animation: tail-sway 1.9s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
+}
+
+/* An ear flick: fast, tiny, and rare — the cheapest possible signal that an
+   animal is awake and listening rather than a statue of one. */
+@keyframes ear-twitch {
+  0%,
+  92% {
+    transform: rotate(0deg);
+  }
+  93.5% {
+    transform: rotate(-13deg);
+  }
+  95% {
+    transform: rotate(3deg);
+  }
+  96.5% {
+    transform: rotate(-9deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.ear-twitch {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: ear-twitch calc(31s * var(--dur-scale, 1)) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0s) * 4.3);
+}
+
 /* A sleeping cat breathes — slow, from the belly (origin bottom). */
 @keyframes cat-breathe {
   0%,
@@ -845,6 +929,9 @@ body {
     .gesture-stretch,
     .gesture-rub,
     .gesture-rub-head,
+    .break-stretch,
+    .tail-sway,
+    .ear-twitch,
     .body-breathe,
     .pool-breathe,
     .pool-flicker,

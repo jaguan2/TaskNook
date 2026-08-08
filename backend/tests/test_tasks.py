@@ -152,3 +152,105 @@ def test_backend_keeps_every_priority_the_frontend_can_produce():
         )
         assert res.status_code == 201
         assert res.get_json()["priority"] == level, f"backend downgraded {level!r}"
+
+
+# --------------------------------------------------------------------------- #
+# notes and due dates
+# --------------------------------------------------------------------------- #
+_ACCOUNTS = iter(range(1, 999))
+
+
+def _client():
+    """A fresh client on its OWN account.
+
+    The username has to be unique per call: these tests share one database (demo
+    seeding has already run against it), so a fixed name registers fine for the
+    first test and then returns "username taken" — with no token in the body — for
+    every test after it. That failed as a KeyError far from the cause, and each
+    test passed in isolation.
+    """
+    app = create_app()
+    client = app.test_client()
+    token = client.post(
+        "/api/auth/register",
+        json={"username": f"notetaker{next(_ACCOUNTS)}", "password": "test1234"},
+    ).get_json()["token"]
+    return client, {"Authorization": f"Bearer {token}"}
+
+
+def test_notes_and_due_date_round_trip():
+    client, headers = _client()
+    res = client.post(
+        "/api/tasks",
+        json={"name": "call the bank", "notes": "about the standing order", "dueDate": "2026-09-01"},
+        headers=headers,
+    )
+    assert res.status_code == 201
+    body = res.get_json()
+    assert body["notes"] == "about the standing order"
+    assert body["dueDate"] == "2026-09-01"
+
+    # And they survive a re-read, not just the create response.
+    listed = client.get("/api/tasks", headers=headers).get_json()
+    mine = next(t for t in listed if t["id"] == body["id"])
+    assert mine["notes"] == "about the standing order"
+    assert mine["dueDate"] == "2026-09-01"
+
+
+def test_notes_and_due_date_default_to_empty():
+    client, headers = _client()
+    body = client.post("/api/tasks", json={"name": "bare"}, headers=headers).get_json()
+    assert body["notes"] is None
+    assert body["dueDate"] is None
+
+
+def test_notes_can_be_edited_and_cleared():
+    client, headers = _client()
+    tid = client.post("/api/tasks", json={"name": "t", "notes": "first"}, headers=headers).get_json()["id"]
+
+    edited = client.put(f"/api/tasks/{tid}", json={"notes": "second"}, headers=headers).get_json()
+    assert edited["notes"] == "second"
+
+    # An empty string CLEARS it, so the field behaves the way the textarea does —
+    # deleting the text has to mean "no note", not "keep the old one".
+    cleared = client.put(f"/api/tasks/{tid}", json={"notes": ""}, headers=headers).get_json()
+    assert cleared["notes"] is None
+
+
+def test_a_due_date_that_is_not_a_date_is_dropped_not_stored():
+    # The old scheduledDate handling took a bare `value[:10]`, so any ten-character
+    # string sat in a date column and then failed to compare against anything.
+    client, headers = _client()
+    for junk in ["not-a-date", "2026-13-45", "tomorrow!!", "", "2026/09/01"]:
+        body = client.post(
+            "/api/tasks", json={"name": "j", "dueDate": junk}, headers=headers
+        ).get_json()
+        assert body["dueDate"] is None, f"{junk!r} was stored as a date"
+
+
+def test_a_longer_iso_timestamp_is_narrowed_to_its_date():
+    # Clients that send a full ISO timestamp should still land on the right day
+    # rather than being rejected outright.
+    client, headers = _client()
+    body = client.post(
+        "/api/tasks", json={"name": "t", "dueDate": "2026-09-01T13:45:00Z"}, headers=headers
+    ).get_json()
+    assert body["dueDate"] == "2026-09-01"
+
+
+def test_junk_types_in_the_new_fields_never_500():
+    # Same contract the rest of the API is held to.
+    client, headers = _client()
+    for bad in [123, [], {}, True, None]:
+        res = client.post("/api/tasks", json={"name": "t", "notes": bad, "dueDate": bad}, headers=headers)
+        assert res.status_code == 201, f"{bad!r} broke create"
+        assert res.get_json()["dueDate"] is None
+
+
+def test_scheduled_date_now_gets_the_same_validation():
+    # It shares the cleaner, so the fix applies to both fields at once.
+    client, headers = _client()
+    body = client.post(
+        "/api/tasks", json={"name": "t", "scheduledDate": "garbage__"}, headers=headers
+    ).get_json()
+    assert body["scheduledDate"] is None

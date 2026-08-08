@@ -208,7 +208,16 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   any web page in any browser drive the localhost API with the well-known
   local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
-  association table. `Task.group_name` is the VC2-style to-do group header
+  association table. `Task.notes` is free text and `Task.due_date` is a
+  DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
+  put the task on the calendar, and nothing sorts or warns on it. Both go
+  through `clean_date`, which replaced a bare `value[:10]` slice that let any
+  ten-character string sit in a date column and then fail to compare against
+  anything. Editing them is an inline expander on the to-do row (`TaskDetails`
+  in `HudTasks.jsx`), not a dialog, per the VC2 north star; it saves on BLUR
+  rather than per keystroke because every write refetches, and it lives at
+  MODULE scope for the same reason `Row` does — an inner component would
+  remount once a second while a focus block runs and wipe the half-written note. `Task.group_name` is the VC2-style to-do group header
   (nullable; a name list for still-empty groups lives client-side in
   `tasknook.taskGroups`). `Task.is_routine` marks daily routines — they reset
   to not-done **lazily in `list_tasks`** whenever their `completed_at` falls
@@ -233,6 +242,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   completion" over lifetime counts, so a task finished a year ago read as
   today's progress and the bar never moved. `local_day_start_utc()` in
   `app.py` is how the day boundary reaches a naive-UTC `completed_at` column.
+- **Focus history is SHOWN, not just collected.** `sessionDays` holds full
+  per-day minutes; the calendar used to reduce it to one flat tint, so five
+  minutes and five hours looked identical, and ProgressPanel was 100% today-only
+  — months of data behind a boolean. Both now shade by `intensityOf`/
+  `intensityScale` (`lib/stats.js`), whose scale is the TERTILES OF YOUR OWN
+  non-zero days: a fixed scale would leave a 20-minute-a-day habit on the palest
+  step forever. ProgressPanel also draws an 18-week heatmap plus best-day /
+  this-week / vs-last-week (`focusWeeks`, `focusSummary`). Days after today are
+  drawn as empty slots, never as zero-focus days — "you did nothing on Friday" is
+  a lie when it's Wednesday — and `deltaPct` is `null` rather than 0 when last
+  week was empty, because "up 0%" and "your first week" are different statements.
 - **Calendar activity marking**: `GET /api/sessions/days` aggregates focus
   minutes per day (`{day: minutes}`), fetched into `store.jsx`'s `sessionDays`
   as part of `refreshAll()`. `CalendarPanel.jsx` unions that with days derived
@@ -419,6 +439,15 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `SkyOverlay.test.js` composites the wash over every theme's darkest stop and
   fails if contrast drops below WCAG AA — and also fails if the value creeps
   back down to invisible.
+- **Time of day can follow the CLOCK** (`autoTimeOfDay`,
+  `tasknook.timeOfDay.auto`; bands in `lib/daylight.js`) — no location, no
+  network, so it works offline like everything else. Mutually exclusive with
+  "Match my real weather", which also owns the time of day and does it better
+  when available (real sunrise/sunset knows your latitude and the season); both
+  writing one value would just be two appliers racing. A manual pick switches
+  both off, same rule the weather setters already follow. "Sunset" covers dawn as
+  well as dusk — there is no separate sunrise scene and the warm low sun reads as
+  either.
 - **Real-world weather**: `WeatherPanel.jsx` + `lib/weather.js` hit Open-Meteo
   (free, no API key) for current conditions — browser geolocation first, falling
   back to manual city search via Open-Meteo's geocoding endpoint. This is the one
@@ -626,6 +655,22 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `resident-type` while a focus block runs — hands on a keyboard are already the
   animation — but the head never does, because yawning at your desk is the point.
   `motion.test.js` pins the duty cycle and the two-part gestures' shared clock.
+  **A BREAK is visible in the room.** The prop is `activity`
+  (`"focus" | "break" | null`) — one string rather than two booleans, because the
+  states are exclusive and it still changes rarely enough that the memo'd scene
+  only re-renders on a phase edge. On focus the seated resident types; on a break
+  they put the keyboard down, a steaming mug appears in the near hand, and
+  `break-stretch` plays ONCE as a cue (no `--phase`: it answers something you did,
+  so it lands when it happens rather than somewhere in the next 89 seconds). The
+  mug lives INSIDE the arm group so it tracks the hand through every gesture, and
+  both halves of the eye-rub stand down while it's held — at 186° the arm would
+  swing a cup over the face upside down. Before this, `working = running && phase
+  === "focus"` meant a break was indistinguishable from idle in the room; the only
+  break-specific visual anywhere was the `you` persona's thought bubble.
+  **Animals gesture too**: `tail-sway` on the WALKING poses (a continuous
+  counterbalance — `tail-flick` is a rare twitch and was only ever on the sleeping
+  poses, so a prowling cat's tail was frozen stiff over its back while its legs
+  stepped underneath) and `ear-twitch` on the near ear.
   See docs/DESIGN.md's "Motion" for the full rules and the measured budget.
   `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
   Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
@@ -728,8 +773,8 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   furniture should be movable. A desk therefore still draws its own laptop,
   so putting a second one on it doubles up — splitting that out would
   change how three shipped presets look, which is why it hasn't been done.
-  **Thematic sets get their OWN picker section** (kitchen, food & drink,
-  autumn). Seven seasonal pieces scattered alphabetically through a 130-item
+  **Thematic sets get their OWN picker section** (kitchen, food & drink, and one
+  per season: autumn, winter, spring). Seven seasonal pieces scattered alphabetically through a 130-item
   catalog are seven unrelated things; under one heading they read as a set and
   give someone a reason to redecorate. A section is also where `fridge` and
   `mug` finally landed — both had been sitting in "Storage" and "Decoration"

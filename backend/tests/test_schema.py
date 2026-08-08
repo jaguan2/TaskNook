@@ -64,6 +64,8 @@ def make_pre_migrations(db_path):
     sql(db_path, "ALTER TABLE user DROP COLUMN character")
     sql(db_path, "ALTER TABLE task DROP COLUMN group_name")
     sql(db_path, "ALTER TABLE task DROP COLUMN is_routine")
+    sql(db_path, "ALTER TABLE task DROP COLUMN notes")
+    sql(db_path, "ALTER TABLE task DROP COLUMN due_date")
     sql(db_path, "DROP TABLE alembic_version")
 
 

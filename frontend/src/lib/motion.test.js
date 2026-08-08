@@ -194,6 +194,18 @@ describe("ambient loops are desynchronised per item", () => {
   const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
   const roomItems = readFileSync(resolve(process.cwd(), "src/components/RoomItems.jsx"), "utf8");
 
+  it("a wanderer's phase comes from its stored square, not the one it walked to", () => {
+    // `effective` overwrites gx/gy with the wander offset, so reading p.gx at the
+    // render site handed a moving value to ambienceVars: every step gave the
+    // sprite a new phase, restarting its walk cycle, its breathing and its
+    // gesture clocks mid-motion. Wanderers were the one kind of item that
+    // couldn't hold a phase — and the comment above the call already said they
+    // must, which is why this is pinned rather than left to the comment.
+    expect(isoRoom).toContain("ambienceVars(p._hx ?? p.gx, p._hy ?? p.gy)");
+    // Both branches that move something have to carry the stored square through.
+    expect((isoRoom.match(/_hx: p\.gx, _hy: p\.gy/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
   it("the scene hands every placement both properties", () => {
     // BOTH branches: wanderers take the style-transform path, everything else
     // the attribute-transform path. Spreading into only one would leave all the
@@ -216,16 +228,19 @@ describe("ambient loops are desynchronised per item", () => {
       // Fast loops, but a study hall seats eight residents: at 0.5s, unison is
       // MORE obvious, not less — eight people typing on one beat.
       "resident-type", "leg-step-a", "leg-step-b",
+      // An animal listening, and a walking tail: same contract, same checks.
+      "ear-twitch", "tail-sway",
     ];
     for (const cls of mustPhase) {
       const block = css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`));
       expect(block, `.${cls} is gone — did it get renamed?`).toBeTruthy();
       const body = block[1];
       expect(body, `.${cls} must animate`).toMatch(/animation(-name)?:/);
-      // Either bare or wrapped in calc() — a sprite with its own internal
-      // stagger has to add to the phase rather than replace it.
+      // Three legitimate forms: bare; PLUS an offset, when a sprite staggers its
+      // own parts; or TIMES a factor, when the loop is long enough that ~7s of
+      // phase wouldn't spread across it.
       expect(body, `.${cls} must inherit --phase`).toMatch(
-        /animation-delay: (var\(--phase, 0s\);|calc\(var\(--phase, 0s\) [+-] [\d.]+s\);)/
+        /animation-delay: (var\(--phase, 0s\);|calc\(var\(--phase, 0s\) ([+-] [\d.]+s|\* [\d.]+)\);)/
       );
       expect(
         body.indexOf("animation-delay"),
@@ -507,11 +522,46 @@ describe("idle gestures read as occasional, not as a loop", () => {
     // Arm gestures and the typing bob would fight over the same transforms, and
     // a person mid-keystroke throwing their arms up reads as a glitch. The head
     // is deliberately NOT gated — yawning at your desk is the whole charm.
-    expect(items).toMatch(/const typing = working && seated;/);
+    expect(items).toMatch(/const typing = activity === "focus" && seated;/);
     expect(items).toMatch(/className=\{typing \? undefined : "gesture-stretch"\}/);
-    expect(items).toMatch(/className=\{typing \? undefined : "gesture-rub"\}/);
+    expect(items).toMatch(/className=\{typing \|\| resting \? undefined : "gesture-rub"\}/);
     expect(items).toMatch(/className="gesture-yawn"/);
     expect(items).toMatch(/className="gesture-look"/);
+  });
+
+  it("a break is visible in the room, not just in the HUD", () => {
+    // The phase reached App and stopped at the thought bubble, so a break looked
+    // exactly like sitting idle. The mug lives INSIDE the arm group so it tracks
+    // the hand through every gesture instead of hanging where the hand used to be.
+    expect(items).toMatch(/const resting = activity === "break";/);
+    expect(items).toMatch(/className=\{resting \? "break-stretch" : undefined\}/);
+    expect(items).toMatch(/\{resting && \(/);
+    // Both halves of the eye-rub have to stand down while that hand holds a mug,
+    // or the arm swings a cup over the face upside down at 186°.
+    expect(items).toMatch(/typing \|\| resting \? undefined : "gesture-rub"/);
+    expect(items).toMatch(/typing \|\| resting \? undefined : "gesture-rub-head"/);
+    // The cue must NOT take a phase: it answers something you did, so it lands
+    // when it happens rather than somewhere in the next 89 seconds.
+    const block = css.match(/\.break-stretch \{([^}]*)\}/)[1];
+    expect(block).not.toContain("--phase");
+    expect(block).toMatch(/animation: break-stretch [\d.]+s ease-in-out 1;/);
+  });
+
+  it("a walking animal's tail moves", () => {
+    // `tail-flick` is a rare twitch and was applied ONLY to the sleeping poses,
+    // so a cat or dog out on the prowl carried a tail frozen stiff over its back
+    // while its legs stepped underneath. A walking tail is continuous, not
+    // occasional, so this one has no long neutral hold.
+    const block = css.match(/\.tail-sway \{([^}]*)\}/);
+    expect(block, ".tail-sway is missing").toBeTruthy();
+    expect(block[1]).toContain("animation-delay: var(--phase, 0s);");
+    expect(block[1]).toContain("infinite");
+    // It pivots at the base, not about its own middle.
+    expect(block[1]).toContain("transform-origin: left bottom;");
+    // Both awake poses use it — the cat's curl and the dog's plume.
+    expect((items.match(/tail-sway/g) || []).length).toBeGreaterThanOrEqual(2);
+    // And the sleeping poses keep the rare flick.
+    expect((items.match(/className="tail-flick"/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
   it("the yawning mouth rests shut without an animation to hold it", () => {

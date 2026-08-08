@@ -65,7 +65,7 @@ describe("the isometric catalog and its artwork agree", () => {
     for (const key of people) {
       const Sprite = ISO_SPRITES[key];
       expect(() => draw(<Sprite seated />)).not.toThrow();
-      expect(() => draw(<Sprite seated working />)).not.toThrow();
+      expect(() => draw(<Sprite seated activity="focus" />)).not.toThrow();
       expect(() => draw(<Sprite moving />)).not.toThrow();
     }
   });

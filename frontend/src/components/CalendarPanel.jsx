@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
 import { toISO } from "../lib/dates";
+import { intensityOf, intensityScale } from "../lib/stats";
 
 function monthMatrix(year, month) {
   const first = new Date(year, month, 1);
@@ -45,6 +46,20 @@ export default function CalendarPanel() {
   tasks.forEach((t) => {
     if (t.completedAt) activeDays.add(toISO(new Date(t.completedAt)));
   });
+  // HOW MUCH, not just whether. The per-day minutes were being fetched and then
+  // thrown away — five minutes and five hours were the same flat tint, which
+  // turned a record of your work into a bare attendance mark. The scale is
+  // relative to your own history (see intensityScale), so a modest habit still
+  // shades light to dark instead of sitting on the palest step forever.
+  const scale = intensityScale(sessionDays);
+  const DEPTH = ["", "bg-sage/15 text-sage", "bg-sage/30 text-sage", "bg-sage/50 text-cream"];
+  const shadeFor = (iso) => DEPTH[Math.min(DEPTH.length - 1, intensityOf(sessionDays[iso], scale))];
+  const spanFor = (minutes) => {
+    if (!minutes) return null;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+  };
 
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);
   const unscheduled = tasks.filter((t) => !t.scheduledDate && !t.completed);
@@ -82,19 +97,29 @@ export default function CalendarPanel() {
           const isSel = iso === selected;
           const count = countByDate[iso] || 0;
           const isActive = activeDays.has(iso);
+          const minutes = sessionDays[iso] || 0;
+          const shade = shadeFor(iso);
+          // A day you completed a task on but never ran the timer has no minutes
+          // to shade, so it keeps the faintest step rather than reading as blank.
+          const tint = shade || (isActive ? DEPTH[1] : "text-petal hover:bg-white/10");
+          const span = spanFor(minutes);
           return (
             <button
               key={i}
               onClick={() => setSelected(iso)}
-              title={isActive ? "You were active this day" : undefined}
+              title={
+                span
+                  ? `${span} focused`
+                  : isActive
+                  ? "You completed a task this day"
+                  : undefined
+              }
               className={`relative grid h-9 place-items-center rounded-lg text-xs transition ${
                 isSel
                   ? "bg-glow font-bold text-plum"
                   : isToday
                   ? "bg-white/15 text-cream"
-                  : isActive
-                  ? "bg-sage/20 text-sage"
-                  : "text-petal hover:bg-white/10"
+                  : tint
               }`}
             >
               {date.getDate()}
@@ -110,9 +135,17 @@ export default function CalendarPanel() {
         })}
       </div>
 
-      <p className="flex items-center gap-1.5 text-[10px] text-petal/50">
-        <span className="h-2 w-2 rounded-full bg-sage/40" /> focused or completed a task that day
-      </p>
+      {/* The legend has to explain a SCALE now, not a single colour. */}
+      <div className="flex items-center gap-1.5 text-[10px] text-petal/50">
+        <span>less</span>
+        {DEPTH.map((d, i) => (
+          <span
+            key={i}
+            className={`h-2.5 w-2.5 rounded-sm ${i === 0 ? "bg-white/10" : d.split(" ")[0]}`}
+          />
+        ))}
+        <span>more focus</span>
+      </div>
 
       {/* Scheduled on selected day */}
       <div>

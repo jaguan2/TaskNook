@@ -1,7 +1,14 @@
 ﻿import { Flame, Sparkles, Target } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
-import { focusStreak, localTodayISO } from "../lib/stats";
+import {
+  focusStreak,
+  focusSummary,
+  focusWeeks,
+  intensityOf,
+  intensityScale,
+  localTodayISO,
+} from "../lib/stats";
 import { formatSpan } from "../lib/breaks";
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
@@ -56,6 +63,20 @@ export default function ProgressPanel() {
     localTodayISO()
   );
   const goalMet = focusMinutesLive >= dailyGoal;
+
+  // The running block counts toward today's square and the weekly totals, for
+  // the same reason the goal chip includes it: without the live part the panel
+  // reads as "not tracking me" while you are sitting there focusing.
+  const liveDays = { ...sessionDays, [localTodayISO()]: focusMinutesLive };
+  const weeks = focusWeeks(liveDays, localTodayISO(), 18);
+  const summary = focusSummary(liveDays, localTodayISO());
+  const scale = intensityScale(liveDays);
+  const DEPTH = ["", "bg-sage/20", "bg-sage/40", "bg-sage/70"];
+  const spanOf = (minutes) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+  };
 
   return (
     <div className="space-y-5">
@@ -148,6 +169,56 @@ export default function ProgressPanel() {
           sub={stats.tasksTotal ? `${stats.tasksDone} on the list` : undefined}
         />
         <Stat label="Remaining" value={`${totalPlannedMin}m`} sub="planned work" />
+      </div>
+
+      {/* Focus history. Every number in this panel used to be today's, so the
+          app collected months of per-day minutes and never showed you one of
+          them — the goal ring had nothing to build toward. Weeks run as columns
+          because that's how a season of days fits a panel: seven tall, as many
+          weeks wide as there's room for. */}
+      <div>
+        <div className="mb-2 flex items-baseline justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-petal/60">
+            Focus history
+          </p>
+          {summary.deltaPct !== null && (
+            <p className="text-[11px] text-petal/60">
+              <span className={summary.deltaPct >= 0 ? "text-sage" : "text-petal/70"}>
+                {summary.deltaPct >= 0 ? "▲" : "▼"} {Math.abs(summary.deltaPct)}%
+              </span>{" "}
+              vs last week
+            </p>
+          )}
+        </div>
+        <div className="overflow-x-auto rounded-2xl bg-white/5 p-3 cozy-scroll">
+          <div className="flex gap-[3px]">
+            {weeks.map((col, w) => (
+              <div key={w} className="flex flex-col gap-[3px]">
+                {col.map((day) => (
+                  <span
+                    key={day.iso}
+                    title={
+                      day.future
+                        ? undefined
+                        : `${day.iso} — ${day.minutes ? spanOf(day.minutes) : "nothing yet"}`
+                    }
+                    className={`h-3 w-3 rounded-sm ${
+                      day.future
+                        ? "bg-transparent"
+                        : DEPTH[Math.min(DEPTH.length - 1, intensityOf(day.minutes, scale))] ||
+                          "bg-white/10"
+                    }`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-petal/60">
+          <span>{summary.activeDays} days focused</span>
+          {summary.bestMinutes > 0 && <span>best {spanOf(summary.bestMinutes)}</span>}
+          <span>this week {spanOf(summary.last7)}</span>
+        </div>
       </div>
 
       {/* Productivity garden — one leaf per ~15 focus minutes */}
