@@ -15,6 +15,46 @@ import { useEffect, useState } from "react";
 export const MOTION_MODES = ["auto", "full", "reduced"];
 const QUERY = "(prefers-reduced-motion: reduce)";
 
+/**
+ * The two custom properties that make one item's ambience its own, inherited by
+ * every animation inside its sprite. IsoRoom sets them on each placement group.
+ *
+ * `--phase` is the delay. NEGATIVE, so each item is already part-way through
+ * its cycle on the first frame — a positive delay would leave the whole room
+ * dead still and then lurch it into motion together, which is worse than the
+ * synchrony it set out to fix.
+ *
+ * `--dur-scale` stretches the period a little (0.90–1.12). Offset alone holds
+ * every pair of plants at a FIXED relative phase forever; different periods let
+ * them drift, which is the difference between staggered and independent. Only
+ * the long loops spend it — a 1.5s candle flame gains nothing.
+ *
+ * Both derive from the tile, never `Math.random`: the scene re-renders on a
+ * timer, and a value that changed would restart every animation from the top —
+ * a room of plants twitching once a second. Coordinates arrive on half-tiles,
+ * hence the doubling; the multipliers are mixed so a row of identical plants
+ * doesn't step in an obvious 1-2-3, and the moduli are coprime with them so
+ * short runs don't repeat. Two different hashes, so an item's speed isn't
+ * readable from its offset.
+ *
+ * Lives here rather than in the component so it can be tested as itself. It was
+ * a local function, and the test could only mirror it — which meant flipping
+ * that leading minus sign left every assertion green.
+ */
+export function ambienceVars(gx, gy) {
+  const mod = (n, m) => ((n % m) + m) % m;
+  const x = Math.round(gx * 2);
+  const y = Math.round(gy * 2);
+  return {
+    // Hundredths, not tenths. What a phase is worth is measured MODULO the loop
+    // it delays, so 0.1s steps gave a 0.5s loop only five possible positions —
+    // eight residents typing landed on four beats instead of eight. Slow loops
+    // never noticed; the fast ones did. 719 is prime, so the spread stays even.
+    "--phase": `-${(mod(x * 37 + y * 61, 719) / 100).toFixed(2)}s`,
+    "--dur-scale": (0.9 + mod(x * 19 + y * 43, 23) / 100).toFixed(2),
+  };
+}
+
 /** Does the OS ask for reduced motion right now? */
 export function systemPrefersReduced() {
   try {

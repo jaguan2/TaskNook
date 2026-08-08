@@ -77,7 +77,13 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
         left: `${((i * 61 + 13) % 97) * (100 / 97)}%`,
         top: `${(((i * 37 + 5) % 53) * (56 / 53)).toFixed(1)}%`,
         size: 1.5 + ((i * 13) % 3),
-        delay: `${(i % 9) * 0.7}s`,
+        // Negative and coprime-hashed: every star gets its own phase (9 shared
+        // values used to blink them in groups of five) and starts mid-twinkle
+        // rather than waiting at full brightness for its turn.
+        delay: `-${((i * 29) % 71) / 10}s`,
+        // Stars don't all twinkle at the same RATE either, so the field never
+        // settles into a pattern the eye can follow.
+        duration: `${(3.2 + ((i * 17) % 23) / 10).toFixed(1)}s`,
       })),
     []
   );
@@ -157,6 +163,7 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
               background: "#f3e9ff",
               opacity: hasClouds ? 0.5 : 1,
               animationDelay: s.delay,
+              animationDuration: s.duration,
             }}
           />
         ))}

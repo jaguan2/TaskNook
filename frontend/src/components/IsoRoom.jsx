@@ -18,6 +18,7 @@ import {
   wallSegment,
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
+import { ambienceVars } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
 import { ISO_SPRITES } from "./IsoItems";
 import RoomTintPicker from "./RoomTintPicker";
@@ -38,6 +39,7 @@ import RoomTintPicker from "./RoomTintPicker";
 // A balustrade rather than a wall: high enough to enclose a terrace, low
 // enough that you still read it as outdoors.
 const LOW_WALL_H = 30;
+
 
 /**
  * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
@@ -212,6 +214,7 @@ function IsoRoom({
   working = false,
   character,
   mood = null,
+  reduceMotion = false,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -420,7 +423,12 @@ function IsoRoom({
   const roamRef = useRef({});
   const [, setRoamTick] = useState(0);
   useEffect(() => {
-    if (editMode) {
+    // Reduced motion stops the wander outright rather than just removing the
+    // glide: a figure that teleported a tile every few seconds would be worse
+    // than one that walks. This is also the only motion in the room driven by
+    // a TIMER, so switching it off actually retires an interval and the
+    // re-render it causes — the CSS animations cost nothing to leave in place.
+    if (editMode || reduceMotion) {
       roamRef.current = {};
       return undefined;
     }
@@ -461,7 +469,7 @@ function IsoRoom({
       setRoamTick((t) => t + 1);
     }, 3500);
     return () => clearInterval(id);
-  }, [editMode, placements, size]);
+  }, [editMode, reduceMotion, placements, size]);
 
   const effective = placements.map((p) => {
     const item = ISO_ITEMS[p.item];
@@ -694,7 +702,7 @@ function IsoRoom({
                       const sag = 32 * Math.sin(Math.PI * along);
                       const base = project(t, 0);
                       return (
-                        <g key={`bulb-${i}`} className="room-twinkle" style={{ animationDelay: `${(i % 5) * 0.8}s` }}>
+                        <g key={`bulb-${i}`} className="room-twinkle" style={{ animationDelay: `calc(var(--phase, 0s) - ${((i * 13) % 37) / 10}s)` }}>
                           <circle cx={base.x} cy={base.y - 100 + sag * 0.55 + 6} r="6" fill="#ffe9b0" opacity="0.2" />
                           <circle cx={base.x} cy={base.y - 100 + sag * 0.55 + 6} r="3" fill="#ffe9b0" opacity="0.9" />
                         </g>
@@ -822,16 +830,28 @@ function IsoRoom({
               const f = footOf(p.item, p.rot);
               const at = project(p.gx + f[0] / 2, p.gy + f[1] / 2);
               const [r, strength] = glow;
+              // The pool LIVES, and a hearth doesn't live like a desk lamp:
+              // flames get an irregular flicker, everything else a slow breathe.
+              // A candle's flame used to dance over a pool of perfectly steady
+              // light, which is what gave the lighting away as a drawing.
+              //
+              // Nested inside a <g> that carries the computed opacity on
+              // purpose: the keyframes animate opacity in ABSOLUTE terms, so
+              // putting them on this element would override
+              // `strength * tod.glow` and burn a lamp at full brightness at
+              // noon. Nested opacity multiplies, so the animation stays
+              // relative to whatever the hour and the catalog asked for.
               return (
-                <ellipse
-                  key={`glow-${p.id}`}
-                  cx={at.x}
-                  cy={at.y}
-                  rx={r}
-                  ry={r * 0.5}
-                  fill="url(#lampPool)"
-                  opacity={strength * tod.glow}
-                />
+                <g key={`glow-${p.id}`} opacity={strength * tod.glow} style={ambienceVars(p.gx, p.gy)}>
+                  <ellipse
+                    className={ISO_ITEMS[p.item].flicker ? "pool-flicker" : "pool-breathe"}
+                    cx={at.x}
+                    cy={at.y}
+                    rx={r}
+                    ry={r * 0.5}
+                    fill="url(#lampPool)"
+                  />
+                </g>
               );
             })}
           </g>
@@ -847,19 +867,34 @@ function IsoRoom({
             const glides = persona || !!item.roamer;
             // Wanderers use a CSS transform (transition = the glide);
             // everything else keeps the attribute transform (instant drags).
+            //
+            // The transition is a TRANSITION, so `animation: none` in the
+            // reduced-motion block cannot touch it — the same hole the
+            // lightning flash falls through, and it has to be closed the same
+            // way, in JS. Under reduced motion nothing wanders anyway, but the
+            // property is dropped rather than left armed.
+            // CSS variables inherit, so these two properties on the placement
+            // group desynchronise every animation inside the sprite — leaves,
+            // flames, a chest rising — including sprites nobody has drawn yet.
+            // From the item's HOME square, not `at`: they have to be stable, or
+            // a wanderer would restart its animations every time it moved. And
+            // from the position rather than a counter, so they survive
+            // reordering (`sortForRender` reshuffles these groups constantly).
+            const ambience = ambienceVars(p.gx, p.gy);
             const placeProps =
-              glides && !editMode
+              glides && !editMode && !reduceMotion
                 ? {
                     style: {
                       transform: `translate(${at.x}px, ${at.y}px)`,
                       // A soft start and settle — creatures amble, not slide.
                       transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
+                      ...ambience,
                       ...(p.tint && { "--tint": p.tint }),
                     },
                   }
                 : {
                     transform: `translate(${at.x},${at.y})`,
-                    style: p.tint ? { "--tint": p.tint } : undefined,
+                    style: { ...ambience, ...(p.tint && { "--tint": p.tint }) },
                   };
             return (
               <g

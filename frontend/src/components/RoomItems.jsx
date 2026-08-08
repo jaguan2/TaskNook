@@ -344,7 +344,7 @@ function Garland({ time }) {
           <line x1={x} y1={y} x2={x} y2={y + 5} stroke="#2b2350" strokeWidth="1.5" />
           {/* Staggered so the string shimmers along its length rather than
               pulsing as one block. */}
-          <g className="room-twinkle" style={{ animationDelay: `${(i % 5) * 0.8}s` }}>
+          <g className="room-twinkle" style={{ animationDelay: `calc(var(--phase, 0s) - ${((i * 13) % 37) / 10}s)` }}>
             <circle cx={x} cy={y + 8} r="7" style={tinted("#ffe9b0")} opacity={time.bulbGlow * 0.22} />
             <circle cx={x} cy={y + 8} r="3.5" style={tinted("#ffe9b0")} opacity={time.bulbGlow} />
           </g>
