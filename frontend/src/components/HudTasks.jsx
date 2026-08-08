@@ -375,7 +375,7 @@ export default function HudTasks({ onOpenTasks }) {
         </div>
       </header>
 
-      <div className="cozy-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="cozy-scroll cozy-scroll--bare min-h-0 flex-1 overflow-y-auto">
         {orderedTasks.length === 0 && taskGroups.length === 0 && (
           <p className="px-2 py-3 text-xs text-petal/50">All clear 🌿</p>
         )}

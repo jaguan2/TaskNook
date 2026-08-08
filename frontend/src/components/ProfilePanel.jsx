@@ -9,6 +9,7 @@ import {
   HAIR_COLORS,
   HAIR_STYLES,
   MBTI_TYPES,
+  MODELS,
   SKIN_TONES,
   ZODIAC,
   profileSummary,
@@ -261,6 +262,17 @@ export default function ProfilePanel() {
             className="h-4 w-4 shrink-0 accent-glow"
           />
         </label>
+
+        {/* First, because it's the one choice that changes the silhouette —
+            everything below is applied on top of whichever body you pick. */}
+        <Field label="Model">
+          <Choices
+            label="Model"
+            options={MODELS}
+            value={character.model}
+            onPick={(model) => saveCharacter({ model })}
+          />
+        </Field>
 
         <Field label="Skin">
           <Swatches

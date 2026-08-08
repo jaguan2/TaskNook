@@ -120,6 +120,9 @@ export const api = {
   saveRoom: (placements, iso) => request("PUT", "/room", { placements, iso }),
   getUnlocks: () => request("GET", "/unlocks"),
   saveUnlocks: (unlocked) => request("PUT", "/unlocks", { unlocked }),
+  // What you focused ON during one day. Fetched per selected day rather than
+  // wholesale like sessionDays — names are wanted one day at a time.
+  sessionDay: (day) => request("GET", `/sessions/day?day=${encodeURIComponent(day)}`),
   getProfile: () => request("GET", "/profile"),
   // Every field optional — send only the section that changed, or the server
   // will keep the rest untouched anyway. See test_profile.py.

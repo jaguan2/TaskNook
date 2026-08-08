@@ -130,10 +130,13 @@ export function ageFor(value, today = new Date()) {
 // --------------------------------------------------------------------------- //
 // Character
 // --------------------------------------------------------------------------- //
-// Only axes that visibly change a sprite roughly 40px tall are offered. That's
-// also why there is no "gender" switch: at this size it isn't a slider on a
-// model, it's hair, outfit and build — so those are the controls, and any
-// combination of them is valid.
+// Only axes that visibly change a sprite roughly 40px tall are offered.
+//
+// `model` is two hand-drawn bodies rather than a slider, because at this size a
+// blend of the two reads as neither. It is deliberately ONLY a silhouette —
+// shoulder width and whether the torso has a waist — and it constrains nothing
+// else: every hairstyle, outfit and expression is available on both, so "guy
+// with long hair" and "girl with a buzz cut" are one tap each.
 export const SKIN_TONES = [
   { key: "porcelain", hex: "#f2d3bb" },
   { key: "light", hex: "#edc39e" },
@@ -143,13 +146,21 @@ export const SKIN_TONES = [
   { key: "rich", hex: "#5c3317" },
 ];
 
+export const MODELS = [
+  { key: "masc", label: "Guy" },
+  { key: "fem", label: "Girl" },
+];
+
 export const HAIR_STYLES = [
   { key: "short", label: "Short" },
+  { key: "buzz", label: "Buzz" },
+  { key: "messy", label: "Messy" },
   { key: "bob", label: "Bob" },
   { key: "long", label: "Long" },
+  { key: "ponytail", label: "Ponytail" },
   { key: "bun", label: "Bun" },
   { key: "curly", label: "Curly" },
-  { key: "buzz", label: "Buzz" },
+  { key: "braids", label: "Braids" },
 ];
 
 export const HAIR_COLORS = [
@@ -177,6 +188,7 @@ export const BUILDS = [
 // The classic resident, unchanged — so an existing room looks identical until
 // someone actually opens the panel and picks something.
 export const DEFAULT_CHARACTER = {
+  model: "masc",
   skin: "#edc39e",
   hair: "short",
   hairColor: "#3a3142",
@@ -185,6 +197,7 @@ export const DEFAULT_CHARACTER = {
   build: "average",
 };
 
+const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
@@ -212,6 +225,7 @@ function pickKey(value, allowed, fallback) {
 export function validateCharacter(raw) {
   const c = raw && typeof raw === "object" ? raw : {};
   return {
+    model: pickKey(c.model, MODEL_KEYS, DEFAULT_CHARACTER.model),
     skin: pickHex(c.skin, DEFAULT_CHARACTER.skin),
     hair: pickKey(c.hair, HAIR_KEYS, DEFAULT_CHARACTER.hair),
     hairColor: pickHex(c.hairColor, DEFAULT_CHARACTER.hairColor),

@@ -655,3 +655,283 @@ test-coverable, and independent of the in-flight WIP.
 
 **Done** — and then the rest of sections 1 and 2, plus the cleanups that guard
 against drift. See the Status section above for what was left and why.
+
+---
+---
+
+# Fable codebase scan — 2026-08-08
+
+A second full pass, run after the 8-7 scan was worked through. Focus this time:
+**animation and design** (per request), plus a correctness review of the
+uncommitted WIP (focus journal, character models/hair, `taskName: null`).
+Three independent reviewers swept animation, design/UI, and the WIP diff; the
+top findings were then re-verified by hand against the on-disk code. Anything
+CLAUDE.md or docs/DESIGN.md documents as deliberate was excluded.
+
+**Overall verdict**: the motion system's hard rules (phase-after-shorthand,
+prime cycles, duty budget, wrapper-vs-child transforms) all hold — the tests
+pin them and the tests are right. What this pass found is the *edges* of that
+system: places the rules were written after some code shipped and never
+back-applied (the flat cottage, the cottage window, the particle one-shots),
+one tooling problem that quietly turns off the exact tests guarding the WIP,
+and a handful of design-grammar drifts in newer UI.
+
+---
+
+## 0. The red flag first: the component tests are not running on this machine
+
+- [ ] **0.1 All six jsdom test suites silently fail to execute locally** —
+  environment, not code. Local Node is v20.15.0, which lacks `require(ESM)`;
+  jsdom 29.1.1 pulls `html-encoding-sniffer@6` → `@exodus/bytes` (ESM-only
+  entry), so every `// @vitest-environment jsdom` file — `IsoItems.test.jsx`,
+  `motion.test.js`, `RoomTintPicker.test.jsx`, `WeatherOverlay.test.jsx`,
+  `ErrorBoundary.test.jsx`, `storage.test.js` — dies at environment setup and
+  is counted as an "unhandled error", NOT a failure. `npm test` prints
+  **"502 passed"** and exits 1 with 6 identical `ERR_REQUIRE_ESM` errors, which
+  is easy to read as green. Consequence: the sprite-catalog render test and the
+  motion duty-cycle pins have **never executed against the large Resident/hair
+  rewrite sitting in the WIP** — locally it is verified by lint and build parse
+  only. **Fix**: upgrade Node to ≥ 20.19 (or 22.12+); confirm what Node CI runs
+  before trusting its green as coverage. Do this before shipping the WIP.
+
+---
+
+## 1. Animation (the main concern)
+
+### Bugs
+
+- [ ] **1.1 Reduced motion leaves one-shot particles frozen VISIBLE** —
+  `index.css:837-841` (`.shooting-star`), `:863-866` (`.bird-fly`),
+  `:334-337` (`.steam-puff`), `:375-378` (`.bubble-rise`), plus `.pond-ripple`
+  and Cottage's `.window-rain`/`.window-snow`.
+  These classes rest at invisible only inside their keyframes (0% and 100% are
+  `opacity: 0`); none carries that rest state as a base style. Under
+  `data-motion="reduced"` the `:is()` block applies `animation: none` — which
+  drops each element to its base style, i.e. **fully visible**: a permanent
+  46px star-streak parked in the night sky, an opaque bird frozen at the left
+  edge, static bubbles in the aquarium *brighter* than their animated peak,
+  a frozen ripple ring on the pond, a static steam wisp on every mug, rows of
+  raindrops parked at the top of the cottage window. This is exactly the
+  failure mode the CSS's own comment block (`index.css:458-462`) warns about —
+  the yawning mouth got the presentation-attribute fix; these never did, and
+  `motion.test.js` only pins the mouth. **Fix**: give each class a base
+  `opacity: 0` in its CSS rule (keyframes outrank it while running; it takes
+  over under `animation: none`). For `.steam-puff` put it on the class — the
+  animation rides the wrapper `<g>`. Then extend the motion test's rest-state
+  pin beyond the mouth so the next one-shot can't regress this.
+
+- [ ] **1.2 Cottage window snow/leaves use POSITIVE delays — visible flakes
+  park, then pop** — `Cottage.jsx:327-328` (snow, up to 2.5s delay against
+  4-8s durations), `:348-349` (leaves, up to 3.2s against 6-9s).
+  With a positive delay and no `fill-mode: backwards`, each flake renders its
+  base style (fully opaque, parked at the top of the glass) until its animation
+  starts, then snaps to the 0% keyframe's `opacity: 0`. `WeatherOverlay.jsx`
+  documents this exact lesson for the full-screen overlay ("a positive delay
+  parks a flake at its start position") and uses negative delays; the cottage
+  window never got the fix. Rain survives only because its durations are
+  sub-second. **Fix**: negative delays scaled to each duration, same as
+  WeatherOverlay — and it makes the window "already snowing" on frame one.
+
+### Rule violations (the system exists; these opted out)
+
+- [ ] **1.3 The flat Cottage scene never sets `--phase`/`--dur-scale` — every
+  ambient loop runs in lockstep** — `Cottage.jsx:437-441` (placement groups set
+  only `--tint`), vs `IsoRoom`'s `ambienceVars`.
+  Place three plants in the flat scene and they sway as one body — the exact
+  "45 plants swayed as one" bug the iso room fixed, still live in the legacy
+  scene. RoomItems' garland stagger offsets *relative to* a `--phase` that is
+  always 0 here, so every placed garland repeats the identical pattern too.
+  The flat cottage is the opt-out throwback, so severity is moderate — but
+  DESIGN.md's "instances must disagree" is unqualified. **Fix**: spread
+  `ambienceVars(...)` (exported from `lib/motion.js`) into each placement
+  group's style, fed from the placement's x/y.
+
+- [ ] **1.4 LightJar's five fairy lights blink in perfect lockstep** —
+  `IsoItems.jsx:4122-4130`. All five bulbs are bare `className="room-twinkle"`
+  circles sharing the placement's single inherited `--phase` — the
+  "screensaver tell", inside the one item whose entire point is scattered
+  twinkle. Both sibling sprites already solve it (IsoRoom's string lights and
+  RoomItems' garland use an additive `calc(var(--phase, 0s) - …)` per-bulb
+  delay); the motion test's scan only rejects *bare* inline delays, so it
+  can't see a missing stagger. **Fix**: the same additive per-bulb delay,
+  derived from the bulb index.
+
+- [ ] **1.5 WIP: ponytail/braid crowns sit outside the gesture wrappers and
+  detach from the head** — `IsoItems.jsx:~3326` (`HairLength` static) vs
+  `:3447-3452` (head + `HairBehind` inside `gesture-yawn`→`rub-head`→`look`).
+  The static-hair comment is right for the long/bob *curtain*, but the new
+  ponytail puts its gathering knot — and the braids their top knots — on the
+  skull, in the static layer. Every glance/yawn/rub translates the head 2-3px
+  while the knot stays pinned: hair visibly slides off the skull for the
+  3-4 seconds of each gesture, and the yawn lifts `HairBehind` over the
+  ponytail bobble entirely. **Fix**: move the crown-anchored pieces (knots,
+  braid tops down to the jaw) into `HairBehind`, leaving only the hanging
+  tail/plaits in `HairLength`. (Being outside `body-breathe` is sub-pixel and
+  fine — leave that.)
+
+- [ ] **1.6 WIP: no test renders the new hair styles or the `fem` model** —
+  `IsoItems.test.jsx` draws the Resident only with the default character; none
+  of `messy`/`ponytail`/`braids` nor `model: "fem"` is ever rendered. This is
+  precisely the "sprites and catalog drifting apart" class the file exists
+  for — a future `HAIR_STYLES` key with no drawing branch falls through to the
+  default cap silently. **Fix**: loop `MODELS × HAIR_STYLES` rendering
+  `<Resident>`; blocked on 0.1 actually letting it run.
+
+### Animation cleanups
+
+- [ ] **1.7 Doc drift: CLAUDE.md says `--dur-scale` is "spent only by the sway
+  family"** — in reality all six gesture classes, `ear-twitch`, `pool-breathe`
+  and `pool-flicker` multiply by it (`index.css:486-928`, nine sites). Not a
+  bug (both halves of each two-part gesture scale identically, and the test
+  confirms the shared clock) — but the sentence will mislead the next reader
+  into "fixing" a gesture that uses it. Update CLAUDE.md.
+
+- [ ] **1.8 The `.pill` hover lift is a third transform transition, undocumented
+  and ungated** — `index.css:999-1008`. DESIGN.md claims exactly two
+  transitions exist (lightning flash, wander glide). A 1px response to the
+  user's own pointer is defensibly exempt from reduced-motion — but then the
+  doc should name it as a deliberate exemption, or the transition should
+  collapse under `data-motion="reduced"` like `.clock-tick` does. Pick one.
+
+---
+
+## 2. Design / UI
+
+- [ ] **2.1 High priority is painted `rose` — the one color that must never
+  carry meaning** — `TaskPanel.jsx:6-10`
+  (`high: "bg-rose/30 text-rose border-rose/40"`). Rose re-tints per theme:
+  grey-blue in shore, tan in linen — a "high" badge that stops reading as
+  urgent and drifts toward medium's amber in the warm themes. The documented
+  rose exception is the pomodoro cluster, not priority. **Fix**: base the high
+  badge on fixed `danger` (e.g. `bg-danger/20 text-danger border-danger/40`).
+
+- [ ] **2.2 Icon-only buttons missing `aria-label`** (DESIGN.md: `title` is a
+  last-resort accessible name) — the omissions are inconsistencies, not
+  policy, because each has a labelled sibling:
+  `HudFocusCard.jsx:187-193` (Play — its sibling Pause *has* the label),
+  `:215-223` (⚙ options), `MusicDock.jsx:272-294` (prev/play-pause/next —
+  the other three transport controls are labelled), `TopBar.jsx:134-152`
+  (`IconToggle` never renders one; give it `aria-label` defaulting to
+  `title`), `HudTasks.jsx:206-214` (routine toggle), `:147-157` (the complete
+  toggle's accessible name is the literal "✓" glyph). Related: armed deletes
+  keep `aria-label="Delete task"` while visibly showing "sure?" — swap the
+  label when armed so screen readers hear the state.
+
+- [ ] **2.3 Clicking a ProfilePanel caption activates the first option button** —
+  `ProfilePanel.jsx:67-76`. `Field` is a `<label>` wrapping the whole control;
+  for `Choices`/`Swatches` the children are `<button>`s, so clicking the word
+  "MODEL" silently picks "Guy", "SKIN" picks porcelain. Pre-existing, but the
+  new Model field extends it. **Fix**: grouped controls get a `<div>` +
+  `<span id>` caption + `aria-labelledby` on the group; keep `<label>` only
+  for single inputs (Name, Bio, Birthday).
+
+- [ ] **2.4 WIP: "1 minutes" in the focus journal** — `breaks.js:77-83`
+  pluralizes hours but not minutes (`` `${m} minutes` ``), and its docstring
+  says it exists to word the *break-nudge threshold*, where the value is never
+  1. The journal borrowed it (`CalendarPanel.jsx:191`, `:210`), so a 1-minute
+  session reads "1 minutes". Fold into 2.5.
+
+- [ ] **2.5 WIP: two duration vocabularies inside one panel** — CalendarPanel
+  already has compact `spanFor` ("2h 5m") for day-cell tooltips at `:89-94`,
+  while the new journal rows use prose `formatSpan` ("2 hours 5 min"); the
+  `tabular-nums` on the prose does nothing. **Fix**: one shared lib formatter
+  with compact (data rows) and prose (sentences) registers — the same
+  "surfaces can't disagree" reasoning `formatSpan` itself was built on —
+  used by CalendarPanel, ProgressPanel and the break nudge.
+
+- [ ] **2.6 WIP: the journal section flickers out on same-day refetch** —
+  `CalendarPanel.jsx:38-55`. The effect runs `setJournal(null)`
+  unconditionally, including when `selectedMinutes` changes — finishing a
+  block with the panel open, the exact case that dep was added for. The
+  section unmounts, "Planned for" jumps up, then everything pops back after
+  the round-trip. **Fix**: clear only when the *day* changed
+  (`setJournal(j => j && j.day === selected ? j : null)` — the endpoint
+  already returns `day`; add it to the error fallback too). Bonus: a day with
+  `selectedMinutes === 0` cannot have entries (server refuses sub-minute
+  sessions), so skip the guaranteed-empty fetch entirely.
+
+- [ ] **2.7 WIP: long task names break the day view's older rows** — the new
+  journal rows correctly truncate (`min-w-0 flex-1 truncate`), but the
+  pre-existing "Planned for" (`CalendarPanel.jsx:241`) and "Unscheduled"
+  (`:269`) rows beside them don't — a long name pushes "Unschedule"/"+ add"
+  out of the row. Give them the same classes.
+
+- [ ] **2.8 Decide: legacy `"Focus"`/`"Stopwatch"` rows now read as fake task
+  names** — `timer.jsx` correctly sends `taskName: null` now, but every
+  session already in the DB holds the old literal placeholder, so historical
+  days will show a task called "Focus" forever — the exact ambiguity the
+  change exists to remove, frozen into old data. **Fix if wanted**: one-time
+  Alembic data migration `task_name IN ('Focus','Stopwatch') → NULL` through
+  the normal migration pipeline. Small risk of catching a genuinely-named
+  task; probably acceptable for a single-user app — but it's a decision, so
+  it's flagged rather than assumed.
+
+- [ ] **2.9 Note (deliberate, but worth one line of UI)** — a failed journal
+  fetch is indistinguishable from an empty day (`CalendarPanel.jsx:46-49`
+  catches into `{entries: [], total: 0}`, console-only; the comment declares
+  the choice, and reads aren't covered by the writes-must-toast rule). Still:
+  a day tinted "3h focused" with a silently absent breakdown is a small lie.
+  A muted inline "couldn't load what you focused on" would be truthful
+  without a toast.
+
+Verified compliant this pass (no action): toast wrapper pointer-events/
+aria-live, storage.js as the only localStorage gateway, no `toISOString` day
+math outside the lib, no raw `opacity-0 group-hover`, armed-delete coverage
+across all destructive surfaces, `.intro-chrome` hidden via visibility only,
+z-order ladder coherent, the new endpoint's auth/validation/scoping and its
+8 tests, the `character.model` vocabulary end-to-end, and the Resident
+geometry arithmetic (shoulders, hems, hair clearances) for all 6 build×model
+combos.
+
+---
+
+## 3. Suggestions — animation & design polish worth adding
+
+Small, each fits the existing system:
+
+- [ ] **3.1 Ear-twitch for the dog and bunny** — CLAUDE.md's "ear-twitch on the
+  near ear" only exists on the cat. The bunny especially: alert ears are its
+  entire awake silhouette, and its ear wrappers already have their own
+  transform (so the class goes on an inner group, per the wrapper rule).
+- [ ] **3.2 Sync a flame to its own pool** — `flame-dance` runs 1.5s,
+  `pool-flicker` 2.6s, so a candle's cast light guts out of step with the
+  flame casting it. Same base period (they already share `--phase`) makes the
+  pool answer the flame.
+- [ ] **3.3 Wing-flap for the passing bird** — the sky bird is a rigid glyph
+  sliding on a line; a 0.4s `scaleY` oscillation on the path *inside* the
+  already-animated svg (separate element — no conflict) sells the flight for
+  one keyframe block.
+- [ ] **3.4 Vary the shooting star** — it fires from the identical point on the
+  identical 24° line every 150s, so catching one is learnable rather than
+  lucky. Two spans with different fixed positions and offset negative delays
+  keeps it deterministic (no Math.random) and un-memorizable.
+- [ ] **3.5 Day-cell journal popover** — hovering/long-pressing a tinted
+  calendar day shows its top 2 "focused on" entries in a small glass popover
+  (TopBar's weather-popover pattern) — the story without opening the section.
+  Chromeless, on-scene: exactly the VC2 grammar.
+- [ ] **3.6 Feed the journal to the HUD chip** — the 🎯/🔥 chip could carry
+  today's top task in its hover title ("mostly: thesis notes") — state on the
+  scene, zero new chrome.
+- [ ] **3.7 Journal rows as actions** — an entry whose `taskName` matches a
+  live task sets it active on click ("pick it back up"), reusing the
+  active-task grammar instead of being inert text.
+
+Carried over, still open from the 8-7 scan: data export/import (4.4), °C
+option (4.5), custom focus duration / long breaks / chime setting (4.6),
+catalog search (4.7), scheduled-date badge (4.8), room codes (4.10), store
+activation (4.11), compact desktop mode (4.12), and the deferred perf items
+(2.2 / 2.8) which remain measure-first.
+
+---
+
+## Suggested first batch (8-08)
+
+1. **0.1** — fix Node so the component tests actually run; then **1.6** (the
+   hair×model render loop) lands with teeth.
+2. **1.1 + 1.2** — the reduced-motion base-opacity pass and the window's
+   negative delays: small CSS-only diffs, big correctness win for the
+   accessibility mode.
+3. **1.4 + 1.5** — the two WIP sprite fixes (jar stagger, ponytail crown)
+   before the WIP commits, so they never ship.
+4. **2.1** (danger, not rose, for high priority) and **2.4/2.5** (one duration
+   formatter) — small, self-contained design-grammar fixes.

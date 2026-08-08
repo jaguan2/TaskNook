@@ -2948,76 +2948,193 @@ function SeatedLeg({ side, ankle, far = false }) {
  * paints over it. Only the styles with mass behind the skull have one; the
  * rest return null rather than an empty <g>, so the common case costs nothing.
  */
-function HairBack({ style, headY, color }) {
-  // Long hair is VOLUME behind the skull plus strands at the sides (see
-  // HairFront), never one slab down to the shoulders — drawn that way it
-  // enveloped the head and read as a hood rather than hair.
-  if (style === "long")
-    return <ellipse cx="0" cy={headY + 2.2} rx="8.9" ry="10.6" fill={color} />;
-  // Sits high enough to break the skull's silhouette — tucked behind the head
-  // it was a nub you couldn't tell from short hair.
-  if (style === "bun") return <circle cx="0" cy={headY - 9.2} r="4.6" fill={color} />;
-  if (style === "curly")
-    return <ellipse cx="0" cy={headY - 1.5} rx="9.4" ry="8.6" fill={color} />;
-  return null;
+/**
+ * Hair mass that belongs BEHIND THE WHOLE FIGURE — drawn before the torso, so
+ * length falls behind the shoulders instead of lying on them.
+ *
+ * This split is the fix for hair "showing up in front". Every style used to put
+ * its length in HairFront, which paints after the head: side pieces swept down
+ * past the jaw and closed around the face, so all six read as a hood or a
+ * headscarf rather than hair. Length now goes behind, and only a hairline and
+ * the odd deliberate strand go in front.
+ */
+function HairBehind({ style, headY, color }) {
+  switch (style) {
+    case "curly":
+      return <ellipse cx="0" cy={headY - 1} rx="9.2" ry="8.4" fill={color} />;
+    case "messy":
+      return <ellipse cx="0" cy={headY - 1.4} rx="8.6" ry="7.8" fill={color} />;
+    case "ponytail":
+    case "braids":
+      return <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />;
+    case "bun":
+      // High enough to break the skull's silhouette; tucked behind it was a
+      // nub you couldn't tell from short hair.
+      return <circle cx="0" cy={headY - 8.6} r="4.4" fill={color} />;
+    default:
+      return null;
+  }
 }
 
-/** The hairline itself, over the face. */
-function HairFront({ style, headY, color }) {
-  // The classic cap: a dome across the crown with a parting swept into it.
-  const cap = `M-7.8 ${headY} a7.8 7.8 0 0 1 15.6 0 q-2.2 -2.8 -5.4 -2.3 q-4.6 -3.4 -9.2 0.7 q-0.7 0.6 -1 1.6 z`;
-  const sideburn = `M-7.7 ${headY - 0.6} q-1.6 5.6 0.3 9.4 q-3.4 -3.2 -3 -9 z`;
+/**
+ * Hair LENGTH — drawn before the torso, so it falls behind the body.
+ *
+ * Separate from HairBehind because of where each sits in the DOM: HairBehind
+ * lives inside the head's gesture wrappers, which paint after the torso, so
+ * anything long put there lay ON the chest as a bib. A bob and a long style
+ * both drop past the jaw, and past the jaw is the body's territory.
+ *
+ * Not inside the gesture wrappers, so it doesn't swing with a head turn —
+ * which is right: hair down your back barely moves when you glance sideways.
+ */
+function HairLength({ style, headY, color }) {
   switch (style) {
-    case "buzz":
-      // Close-cropped: the dome hugs the skull and there's no parting to sweep.
+    case "long":
+      // Must clear the SHOULDER, not just the head. At ±11.4 it sat inside a
+      // masc shoulder (up to 12.6) and the torso swallowed everything below the
+      // jaw, so long hair rendered as a bob. It flares wider than any body.
       return (
         <path
-          d={`M-7.6 ${headY} a7.6 7.6 0 0 1 15.2 0 q-3 -3.6 -7.6 -3.6 q-4.6 0 -7.6 3.6 z`}
+          d={`M-9 ${headY - 3} q-6 15 -5.4 25 l28.8 0 q0.6 -10 -5.4 -25 z`}
           fill={color}
         />
       );
     case "bob":
+      // Stops at the jaw and flicks OUT, which is what makes a bob a bob — and
+      // the flick has to reach past the shoulder to be seen at all.
+      return (
+        <path
+          d={`M-8.6 ${headY - 3} q-5 9 -4.6 13.4 l26.4 0 q0.4 -4.4 -4.6 -13.4 z`}
+          fill={color}
+        />
+      );
+    case "ponytail":
+      // The tail hangs to ONE SIDE. Centred it was drawn before both the head
+      // (r 7.3) and the torso and disappeared entirely behind them — the style
+      // rendered as short hair with a small nub above the crown.
       return (
         <>
-          <path d={cap} fill={color} />
-          <path d={`M-8.4 ${headY - 1} q-1.2 6.6 0.5 10.2 l3.5 0 q-1.9 -4.8 -1.1 -10.2 z`} fill={color} />
-          <path d={`M8.4 ${headY - 1} q1.2 6.6 -0.5 10.2 l-3.5 0 q1.9 -4.8 1.1 -10.2 z`} fill={color} />
+          <circle cx="-1" cy={headY - 6.8} r="3.1" fill={color} />
+          <path
+            d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
+            fill={color}
+          />
+        </>
+      );
+    case "braids":
+      return (
+        <>
+          {[-1, 1].map((s) => (
+            <g key={s}>
+              <path
+                d={`M${s * 6.6} ${headY + 1} q${s * 3} 8 ${s * 1.4} 14`}
+                stroke={color}
+                strokeWidth="3.6"
+                strokeLinecap="round"
+                fill="none"
+              />
+              {/* the knots that separate a braid from a rope */}
+              {[5, 9.5, 13].map((dy) => (
+                <circle key={dy} cx={s * (6.8 + dy * 0.16)} cy={headY + 1 + dy} r="2.2" fill={color} />
+              ))}
+            </g>
+          ))}
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * The hairline, drawn over the skull.
+ *
+ * THE RULE, and the whole reason the hair looked like a headscarf: this may
+ * cover the CROWN and stop at the temples. Nothing here descends past the eye
+ * line (headY + 2) at the sides of the face. Length is HairBehind's job.
+ *
+ * The old cap swept from ear to ear along the head's equator and every style
+ * then added side pieces running down to headY + 9…13 — well past the chin at a
+ * 7.3px head radius — which closed the face into a hood.
+ */
+function HairFront({ style, headY, color }) {
+  const R = HEAD_R;
+  // A hairline sits ABOVE the equator and dips lower at the temples than at the
+  // centre, leaving forehead visible — that gap is what reads as a face.
+  const cap = (
+    <path
+      d={`M${-R} ${headY - 0.4} a${R} ${R} 0 0 1 ${R * 2} 0 q-1.4 -1.2 -3.4 -1.1 q-3.6 -3.4 -8.2 -0.9 q-1.6 0.8 -2.4 2 z`}
+      fill={color}
+    />
+  );
+  // Temple pieces: they STOP just below the eye line, framing rather than
+  // enclosing. Any longer and the hood is back.
+  const temples = (
+    <>
+      <path d={`M${-R + 0.2} ${headY - 1.4} q-1.5 2.6 -0.7 4.4 q-1.7 -1.6 -1.3 -4.2 z`} fill={color} />
+      <path d={`M${R - 0.2} ${headY - 1.4} q1.5 2.6 0.7 4.4 q1.7 -1.6 1.3 -4.2 z`} fill={color} />
+    </>
+  );
+
+  switch (style) {
+    case "buzz":
+      // Close-cropped: hugs the skull, hairline high, no temple pieces at all.
+      return (
+        <path
+          d={`M${-R + 0.3} ${headY - 1.2} a${R - 0.3} ${R - 0.3} 0 0 1 ${(R - 0.3) * 2} 0 q-2.8 -2.8 -${R - 0.3} -2.8 q-4.2 0 -${R - 0.3} 2.8 z`}
+          fill={color}
+        />
+      );
+    case "messy":
+      // A few tufts breaking the dome — the only style allowed above the crown.
+      return (
+        <>
+          {cap}
+          {temples}
+          {[
+            [-4.6, -1.4],
+            [-0.8, -2.6],
+            [3.4, -1.8],
+          ].map(([cx, dy]) => (
+            <path
+              key={cx}
+              d={`M${cx} ${headY - R + 1} q${dy} -3.4 ${dy * 1.6} -1.2 q-0.4 1.6 -${Math.abs(dy) * 0.5} 2.4 z`}
+              fill={color}
+            />
+          ))}
         </>
       );
     case "curly":
-      // Overlapping circles read as volume at this size; a single lumpy path
-      // just reads as a badly drawn cap.
+      // Overlapping circles read as volume; a single lumpy path reads as a
+      // badly drawn cap. All of them stay on the crown.
       return (
         <>
           {[
-            [-6.2, -3.2, 3.4],
-            [-2.4, -5.6, 3.5],
-            [1.8, -5.8, 3.5],
-            [5.6, -3.4, 3.4],
-            [7.2, 0.4, 2.9],
-            [-7.4, 0.4, 2.9],
+            [-5.6, -3.4, 3.2],
+            [-2.0, -5.4, 3.3],
+            [1.8, -5.4, 3.3],
+            [5.2, -3.4, 3.2],
+            [6.6, -0.6, 2.6],
+            [-6.8, -0.6, 2.6],
           ].map(([cx, dy, r]) => (
             <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
           ))}
         </>
       );
-    case "long":
-      // Strands fall in FRONT of the shoulders on both sides; the mass behind
-      // the head is HairBack's ellipse.
+    case "bob":
+      // A bob's fringe is its signature: a straight edge across the brow.
       return (
         <>
-          <path d={cap} fill={color} />
-          <path d={`M-7.9 ${headY - 1} q-2.3 8.4 -1.1 13.6 l3.7 0.5 q-1.5 -6.9 -0.7 -13.6 z`} fill={color} />
-          <path d={`M7.9 ${headY - 1} q2.3 8.4 1.1 13.6 l-3.7 0.5 q1.5 -6.9 0.7 -13.6 z`} fill={color} />
+          {cap}
+          <path d={`M${-R} ${headY - 1.6} q${R} 2.4 ${R * 2} 0 l0 -2 l${-R * 2} 0 z`} fill={color} />
+          {temples}
         </>
       );
-    case "bun":
-    case "short":
     default:
       return (
         <>
-          <path d={cap} fill={color} />
-          <path d={sideburn} fill={color} />
+          {cap}
+          {temples}
         </>
       );
   }
@@ -3062,6 +3179,35 @@ function Face({ expression, headY }) {
 // build change can't leave the arms floating beside the chest.
 const BUILD_HALF_W = { slim: 8, average: 9, sturdy: 10 };
 
+/**
+ * The two bodies, as offsets from the build's half-width.
+ *
+ * Silhouette only — at ~40px tall that's all that survives, and it's the whole
+ * difference: `masc` is broad-shouldered and drops nearly straight; `fem` has
+ * narrower shoulders, a drawn-in waist and a hem that flares back out, so the
+ * outline alternates in/out instead of tapering once.
+ *
+ * `build` still scales both, so the grid is 2 models × 3 builds rather than one
+ * axis pretending to be two.
+ */
+// The deltas have to be BIG. The first pass used ±1.5px between the two, which
+// is invisible on a 40px figure — both rows of the contact sheet looked like
+// the same body twice. A silhouette difference has to survive being 18px wide.
+//
+// But `fem` can't buy its narrowness from the shoulders alone: at -0.8 with the
+// `slim` build the shoulders came to 14.4px against a 14.6px head, i.e. a body
+// narrower than its own skull — exactly the top-heavy proportion docs/MODELS.md
+// exists to prevent. The narrow read comes from the WAIST-to-hem contrast
+// instead, which costs nothing structurally.
+const MODEL_SHAPE = {
+  masc: { shoulder: +2.6, waist: -0.4, hem: +0.4 },
+  fem: { shoulder: +0.6, waist: -3.0, hem: +2.6 },
+};
+
+// Every shoulder must clear the head, whatever build and model combine. Cheaper
+// to assert once here than to rediscover it on one of the six combinations.
+const MIN_SHOULDER = 8.6;
+
 // Proportions. The figure used to be head 15.6px against a 15px leg — a
 // third of its height was skull, which is toddler proportion however nicely
 // it's shaded. Cozy isometric characters (Unpacking, Cozy Grove) sit nearer a
@@ -3096,6 +3242,14 @@ function Resident({
   // dresses every resident, and tinting ONE of them still overrides it.
   const outfit = tinted(ch.outfit || "#7faf8f");
   const halfW = BUILD_HALF_W[ch.build] ?? BUILD_HALF_W.average;
+  // Hoisted out of the torso path so the ARMS and the collar hang off the same
+  // shoulder the body actually has. They used to be placed from `halfW`, which
+  // is the build only — so the narrower `fem` shoulders left both arms floating
+  // in a gap beside the chest.
+  const shape = MODEL_SHAPE[ch.model] ?? MODEL_SHAPE.masc;
+  const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder); // shoulder half-width
+  const wa = halfW + shape.waist; // waist half-width
+  const hem = halfW + shape.hem; // hem half-width
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
   if (lying) {
@@ -3168,29 +3322,48 @@ function Resident({
           </g>
         </>
       )}
+      {/* Before the torso: length falls behind the body, not onto the chest. */}
+      <HairLength style={ch.hair} headY={headY} color={hairColor} />
       <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
         {(() => {
-          const sh = halfW + 1; // shoulder half-width
-          const wa = halfW - 1.7; // waist half-width
           const top = torsoY;
           const bot = torsoY + 22;
+          const waistY = top + 13;
+          // The sides are ONE curve through the waist to the hem rather than a
+          // straight taper, so `fem` can come in and flare back out. A straight
+          // line can only narrow, which is why both bodies used to be the same
+          // wedge at different widths.
           const body = `M ${-sh} ${top + 7}
             Q ${-sh} ${top + 0.5} ${-sh + 3.5} ${top}
             L ${sh - 3.5} ${top} Q ${sh} ${top + 0.5} ${sh} ${top + 7}
-            L ${wa} ${bot - 3} Q ${wa} ${bot} ${wa - 3} ${bot}
-            L ${-wa + 3} ${bot} Q ${-wa} ${bot} ${-wa} ${bot - 3} Z`;
-          // The lower band is its own tapered path rather than a rect or a
-          // gradient: it has to follow the taper to stay inside the
-          // silhouette, and MODELS.md wants flat tones, not a ramp.
-          const bandY = torsoY + 14;
-          const t = (bandY - (top + 7)) / (bot - 3 - (top + 7));
-          const bx = sh + (wa - sh) * t;
-          const band = `M ${-bx} ${bandY} L ${bx} ${bandY}
-            L ${wa} ${bot - 3} Q ${wa} ${bot} ${wa - 3} ${bot}
-            L ${-wa + 3} ${bot} Q ${-wa} ${bot} ${-wa} ${bot - 3} Z`;
+            Q ${wa} ${waistY} ${hem} ${bot - 3}
+            Q ${hem} ${bot} ${hem - 3} ${bot}
+            L ${-hem + 3} ${bot} Q ${-hem} ${bot} ${-hem} ${bot - 3}
+            Q ${-wa} ${waistY} ${-sh} ${top + 7} Z`;
+          // The lower band is its own path rather than a rect or a gradient: it
+          // has to follow the silhouette to stay inside it, and MODELS.md wants
+          // flat tones, not a ramp.
+          //
+          // Its top corners must sit ON the body's curve, not at `wa`. `wa` is
+          // the quadratic's CONTROL point, which the curve never reaches — the
+          // actual edge at the halfway point is the Bezier midpoint below. Using
+          // `wa` left a ~2px unshaded crescent down each hip and a visible step
+          // where the band met the outline, worst exactly where fem's waist is
+          // most drawn in.
+          const mid = (a, b, c) => 0.25 * a + 0.5 * b + 0.25 * c;
+          const edgeX = mid(sh, wa, hem);
+          const edgeY = mid(top + 7, waistY, bot - 3);
+          // Second half of the same curve, so the band's sides ARE the body's.
+          const ctrlX = 0.5 * wa + 0.5 * hem;
+          const ctrlY = 0.5 * waistY + 0.5 * (bot - 3);
+          const band = `M ${-edgeX} ${edgeY} L ${edgeX} ${edgeY}
+            Q ${ctrlX} ${ctrlY} ${hem} ${bot - 3}
+            Q ${hem} ${bot} ${hem - 3} ${bot}
+            L ${-hem + 3} ${bot} Q ${-hem} ${bot} ${-hem} ${bot - 3}
+            Q ${-ctrlX} ${ctrlY} ${-edgeX} ${edgeY} Z`;
           return (
             <>
               <path d={body} style={outfit} />
@@ -3215,25 +3388,25 @@ function Resident({
           <g className={typing ? undefined : "gesture-stretch"}>
             <g className={typing ? "resident-type" : undefined}>
               <g>
-                <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
-                <rect x={-halfW - 4.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
-                <circle cx={-halfW - 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+                <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+                <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
+                <circle cx={-sh - 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
               </g>
               {/* The eye-rub is suppressed on a break because this hand is
                   holding something: at 186° the mug would come up over the face
                   upside down. */}
               <g className={typing || resting ? undefined : "gesture-rub"}>
-                <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
+                <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
                 {/* the near arm catches the light instead of vanishing into the
                     torso it shares a colour with */}
-                <rect x={halfW - 0.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
-                <circle cx={halfW + 1.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+                <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
+                <circle cx={sh + 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
                 {/* The mug lives INSIDE the arm, so it tracks the hand through
                     every gesture for free — it rises with a stretch instead of
                     hanging in the air where the hand used to be. Same palette as
                     the catalog mug so the two read as the same object. */}
                 {resting && (
-                  <g transform={`translate(${halfW + 1.9}, ${torsoY + 19.4})`}>
+                  <g transform={`translate(${sh + 0.9}, ${torsoY + 19.4})`}>
                     <rect x="-2.6" y="-3.4" width="5.2" height="4.6" rx="0.6" fill="#f2e9dd" />
                     <rect x="-2.6" y="-1.2" width="5.2" height="2.4" rx="0.6" fill="#000" opacity="0.14" />
                     <path d="M2.6 -2.6 q2 0.8 0 2.6" fill="none" stroke="#f2e9dd" strokeWidth="0.9" />
@@ -3262,8 +3435,8 @@ function Resident({
           fill="#000"
           opacity="0.16"
         />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" style={outfit} />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={halfW - 2.4} ry="2.4" fill="#fff" opacity="0.1" />
+        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" style={outfit} />
+        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" fill="#fff" opacity="0.1" />
         {/* The head is one unit so it can move as one, and each cycle that moves
             it needs its OWN element — two animations on one element would just
             cancel. So: yawn (tilts back), rub (leans into the raised hand),
@@ -3274,7 +3447,9 @@ function Resident({
         <g className="gesture-yawn">
           <g className={typing || resting ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
-              <HairBack style={ch.hair} headY={headY} color={hairColor} />
+              {/* Inside the gesture wrappers on purpose: hair turns with the
+                  head. Behind the face is what matters, not behind the body. */}
+              <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
               <HairFront style={ch.hair} headY={headY} color={hairColor} />
               {/* A sheen on the crown. The hair is the biggest single shape on the

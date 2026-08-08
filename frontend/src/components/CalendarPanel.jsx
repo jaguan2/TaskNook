@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
+import { api } from "../lib/api";
 import { toISO } from "../lib/dates";
 import { intensityOf, intensityScale } from "../lib/stats";
+import { formatSpan } from "../lib/breaks";
 
 function monthMatrix(year, month) {
   const first = new Date(year, month, 1);
@@ -21,6 +23,36 @@ export default function CalendarPanel() {
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [selected, setSelected] = useState(toISO(today));
+  // What the selected day was actually spent on. Fetched per day rather than
+  // held in the store: it's one panel's concern, and sessionDays is already
+  // refetched wholesale on every refreshAll.
+  const [journal, setJournal] = useState(null);
+  // Refetch when THIS day's total changes, not on every refreshAll. Finishing a
+  // block with the calendar open used to leave the breakdown stale until you
+  // clicked another day — the minutes above it updated and the list under them
+  // didn't, which reads as a bug even though a reload fixed it. Keying on the
+  // one day's minutes rather than the whole `sessionDays` object avoids
+  // refetching every time an unrelated task is ticked.
+  const selectedMinutes = sessionDays[selected] || 0;
+
+  useEffect(() => {
+    let live = true;
+    setJournal(null);
+    api
+      .sessionDay(selected)
+      // A failed lookup leaves the section absent rather than showing an error
+      // row: this is history you glance at, not an action you just took.
+      .then((data) => live && setJournal(data))
+      .catch((err) => {
+        console.error("Failed to load the day's focus:", err);
+        if (live) setJournal({ entries: [], total: 0 });
+      });
+    return () => {
+      // The day can change faster than the network answers; without this a
+      // slow earlier request lands last and shows the wrong day's focus.
+      live = false;
+    };
+  }, [selected, selectedMinutes]);
 
   const cells = monthMatrix(view.y, view.m);
   const monthName = new Date(view.y, view.m).toLocaleString([], {
@@ -146,6 +178,45 @@ export default function CalendarPanel() {
         ))}
         <span>more focus</span>
       </div>
+
+      {/* What the day actually went on. The calendar could always say HOW LONG
+          you focused; taskName was collected from the start and read by
+          nothing, so it could never say on what. Only rendered when there's
+          something to report — an empty "Focused on" heading over a day you
+          didn't work is just a reproach. */}
+      {journal && journal.entries.length > 0 && (
+        <div>
+          <p className="mb-2 flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-petal/60">
+            <span>Focused on</span>
+            <span className="normal-case text-glow">{formatSpan(journal.total)}</span>
+          </p>
+          <div className="space-y-1.5">
+            {journal.entries.map((e, i) => (
+              <div
+                key={e.taskName ?? `untitled-${i}`}
+                className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2"
+              >
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm ${
+                    e.taskName ? "text-cream" : "italic text-petal/60"
+                  }`}
+                >
+                  {/* A block run with no active task is common and legitimate;
+                      the server sends null so this stays distinguishable from
+                      a task someone actually named "Focus". */}
+                  {e.taskName || "Untitled block"}
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-petal/70">
+                  {formatSpan(e.minutes)}
+                  {e.sessions > 1 && (
+                    <span className="text-petal/40"> · {e.sessions}×</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Scheduled on selected day */}
       <div>

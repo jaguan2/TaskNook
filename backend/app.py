@@ -621,6 +621,52 @@ def register_routes(app):
         )
         return jsonify({day: int(minutes) for day, minutes in rows})
 
+    @app.get("/api/sessions/day")
+    @require_auth
+    def session_day(user):
+        """What you focused ON during one day — the other half of the history.
+
+        `task_name` has been written on every session since sessions existed and
+        read back by nothing, so the calendar could say "94 minutes" but never
+        "94 minutes, on what". Kept as its own endpoint rather than folded into
+        /sessions/days because that one is fetched wholesale on every refresh and
+        paints a whole month; names are wanted for exactly one day at a time.
+        """
+        day = clean_date(request.args.get("day"))
+        if not day:
+            return jsonify({"error": "day must be YYYY-MM-DD"}), 400
+        rows = (
+            db.session.query(
+                FocusSession.task_name,
+                db.func.sum(FocusSession.minutes),
+                db.func.count(FocusSession.id),
+            )
+            .filter_by(user_id=user.id, day=day)
+            .group_by(FocusSession.task_name)
+            .all()
+        )
+        entries = [
+            {
+                # A block run with no active task is a real, common case — the
+                # UI needs something to print, and inventing a name server-side
+                # would make it indistinguishable from a task actually called
+                # "Focus". Null travels; the client decides how to say it.
+                "taskName": name,
+                "minutes": int(minutes),
+                "sessions": int(count),
+            }
+            for name, minutes, count in rows
+        ]
+        # Longest first: "what did I spend the day on" is the question.
+        entries.sort(key=lambda e: e["minutes"], reverse=True)
+        return jsonify(
+            {
+                "day": day,
+                "total": sum(e["minutes"] for e in entries),
+                "entries": entries,
+            }
+        )
+
     # ----- Room decoration ------------------------------------------------- #
     # The frontend owns the item catalog and zone rules; the backend only
     # enforces shape and size so a bug can't balloon the stored blob.

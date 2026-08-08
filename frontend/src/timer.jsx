@@ -281,7 +281,13 @@ export function TimerProvider({ children }) {
     try {
       await api.logSession({
         minutes: Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60)),
-        taskName: activeTask ? activeTask.name : "Focus",
+        // No active task sends NOTHING, not a placeholder. These used to log
+        // the literals "Focus" and "Stopwatch", which the calendar's day
+        // breakdown then showed as two ordinary tasks by those names — so the
+        // same thing (time you didn't attach to a task) split across two rows
+        // and was indistinguishable from a task someone really had called
+        // "Focus". Absent means absent; the panel decides how to word it.
+        taskName: activeTask ? activeTask.name : null,
       });
       await refreshFocus();
     } catch (err) {
@@ -415,7 +421,8 @@ export function TimerProvider({ children }) {
     try {
       await api.logSession({
         minutes,
-        taskName: activeTask ? activeTask.name : "Stopwatch",
+        // Absent rather than the literal "Stopwatch" — see finishFocus above.
+        taskName: activeTask ? activeTask.name : null,
       });
       await refreshFocus();
     } catch (err) {

@@ -186,6 +186,21 @@ body {
   background-attachment: local, local, scroll, scroll;
 }
 
+/* Chrome drawn straight ON THE BACKDROP rather than inside a glass card — the
+   HUD to-do list. There the plum wash above has nothing to blend into, so it
+   reads as a dark slab laid over the room: a panel nobody asked for, in an app
+   whose north star is chromeless on-scene UI.
+
+   The scroll-fade cue is dropped rather than reproduced. A mask-image version
+   works but fades unconditionally: the wrapper is auto-height under a
+   max-h cap, so with two or three tasks nothing scrolls and the first and last
+   rows are washed out anyway — a permanent cost to hint at an occasional
+   state. The gradients can't simply be recoloured either; any colour is the
+   slab again. */
+.cozy-scroll--bare {
+  background: none;
+}
+
 /* Frosted glass panel look */
 .glass {
   background: rgb(var(--color-plum) / 0.72);

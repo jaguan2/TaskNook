@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MBTI_TYPES,
+  MODELS,
   ZODIAC,
   DEFAULT_CHARACTER,
   HAIR_STYLES,
@@ -120,6 +121,7 @@ describe("validateCharacter", () => {
 
   it("keeps valid choices", () => {
     const chosen = {
+      model: "fem",
       skin: "#8D5524",
       hair: "bun",
       hairColor: "#c68a4a",
@@ -128,6 +130,25 @@ describe("validateCharacter", () => {
       build: "slim",
     };
     expect(validateCharacter(chosen)).toEqual({ ...chosen, skin: "#8d5524" });
+  });
+
+  it("every model is accepted, and an unknown one falls back", () => {
+    for (const { key } of MODELS) {
+      expect(validateCharacter({ model: key }).model).toBe(key);
+    }
+    expect(validateCharacter({ model: "centaur" }).model).toBe(DEFAULT_CHARACTER.model);
+  });
+
+  it("model constrains nothing else — any hair on any body", () => {
+    // The point of two bodies rather than two CHARACTERS: picking one must not
+    // quietly take options away from the other.
+    for (const { key: model } of MODELS) {
+      for (const { key: hair } of HAIR_STYLES) {
+        const out = validateCharacter({ model, hair });
+        expect(out.model, `${model}/${hair}`).toBe(model);
+        expect(out.hair, `${model}/${hair}`).toBe(hair);
+      }
+    }
   });
 
   it("falls back per-field rather than discarding the whole character", () => {
