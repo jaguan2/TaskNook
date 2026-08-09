@@ -259,14 +259,46 @@ they touch.**
   vDOM at 60Hz+ during a pan. **Fix**: hoist the scene contents into a memo'd child that
   doesn't receive `view`; the outer svg keeps the viewBox.
 
-  **DEFERRED, deliberately.** The premise checks out — `view` is read only by the
-  svg's `viewBox` — so the proposed fix would work. But it only bites on the large
-  lots, it is the most invasive change in this section (hoisting the whole scene
-  into a memo'd child), and the measured frame budget has headroom: a realistic
-  room sits at 4.2ms with motion on, and a deliberately extreme 144-item room at
-  8.4ms against a 16.7ms budget. The cheaper items here (2.1, 2.3, 2.5, 2.6, 2.7)
-  remove much of the same per-frame work. Worth doing when there is a measured
-  reason, not before.
+  **NOT DONE — and the proposed fix does NOT work. Measured.** This item is right
+  that panning is slow and wrong about why, so the note is worth more than the
+  patch would have been.
+
+  Panning a 30x24 lot with 168 placements (5,460 SVG nodes): **58ms median frame,
+  31 of 36 frames dropped.** Real, and much worse than the earlier idle-scene
+  figures suggested — those measured animation cost with nothing happening, which
+  is not the same question. Taking the camera out of React state exactly as
+  proposed changed **nothing**: still 58ms, still 37 of 38 frames dropped.
+
+  Isolating the variables says why. Script time sits at 14-23ms in *every*
+  configuration, so React is not the driver:
+
+  | scene | nodes | animations | frame median | dropped |
+  |---|---|---|---|---|
+  | 30x24, 140 items | 5,460 | 255 | 50.1ms | 30/34 |
+  | 30x24, 140 items, motion reduced | 5,460 | 0 | 41.7ms | 35/39 |
+  | 30x24, **no items** | 966 | 73 | 16.7ms | 0/71 |
+  | 12x10, 140 items | 4,870 | 237 | 25.1ms | 1/52 |
+  | 12x10, 12 items | 778 | 69 | 4.2ms | 0/195 |
+
+  Removing every animation barely helps; removing the ITEMS fixes it outright. The
+  cost tracks **SVG node count**, because changing `viewBox` invalidates the raster
+  of the whole vector scene — it's rasterisation, not reconciliation. No amount of
+  memoisation (2.2, 2.8) can reach it.
+
+  **What did work**, in a prototype that was measured and then set aside: leave the
+  `viewBox` alone during a pan and translate a wrapping `<g>` instead, folding the
+  offset back into the camera on pointerup. Content that hasn't changed doesn't
+  need redrawing, only moving. **12.5ms median, 0 of 135 frames dropped** — 4.7x,
+  and every dropped frame gone.
+
+  It is NOT in the tree. Two things to finish before it would be safe: hit-testing
+  has to resolve against the scene group's matrix rather than the svg's (one line —
+  `getScreenCTM` already includes ancestor transforms, so drags then account for
+  the live offset for free), and the whole gesture needs verifying end to end. The
+  correctness probe I wrote for it was itself broken — it grabbed the first `<svg>`
+  in the document, which is a dock icon, and reported a viewBox of `0 0 26 12` that
+  no camera could ever hold. Nothing was learned from that run; don't trust a
+  repeat of it without checking which element it found.
 
 - [x] **2.3 RoomPanel previews aren't memoized — and the panel is open while you drag** —
   `frontend/src/components/RoomPanel.jsx:33` (`IsoItemPreview`), `:74` (`IsoPresetPreview`)

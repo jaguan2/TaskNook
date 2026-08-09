@@ -71,9 +71,19 @@ piece so a new item sits correctly beside the existing ones.
 
 ### Persona proportions
 
-The people are not furniture and get their own numbers, in `IsoItems.jsx`:
-`HEAD_R` 7.3, `LEG_H` 22, standing torso at −40 and head at −48.5 — about
-56px tall with the head a quarter of it.
+The people are not furniture and get their own numbers, in **`lib/body.js`**
+— the single home of the body's constants, half-widths, limb thicknesses and
+torso curve (the sprite, the panel previews and the node-env geometry tests
+all read that one copy): `HEAD_R` 7.3, `LEG_H` 29, standing torso at −42 and
+head at −50.5 — about 58px tall with the head a quarter of it, and the
+visible leg ~43% of the figure. It was 32%, and a figure that is two-thirds
+torso-and-head reads squat whatever the shading; the 2026-08 "chunky" retune
+raised the legs, shortened the torso, and drew the standing legs as
+GARMENTS — tapered trousers with a cuff band ending in deliberately chunky
+shoes (the owner's clay-toy reference kits carry nearly half the figure as
+leg, and the oversized shoe is half the toy-like read). A first pass at 37%
+leg still read as the old body: proportion deltas obey the same
+must-be-BIG rule as the model deltas.
 
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
@@ -88,10 +98,13 @@ Two rules that come out of it:
 - **The figure obeys the light like everything else.** It was the one object
   in the room with a single flat tone while every `TintedBox` neighbour had
   three: light catch across the shoulders, flat shade on the lower body.
-- **Depth colours, not overlays, separate near from far.** `TROUSER_FAR` /
-  `SHOE_FAR` exist for exactly this; two limbs in one colour read as one
-  block. The near arm gets a white catch so it doesn't vanish into a torso it
-  shares a colour with.
+- **Depth colours separate near from far.** Two limbs in one colour read as
+  one block, so the far limb is always a darker pair. FIXED materials (the
+  shoes) may keep a hand-tuned FAR constant; a USER-COLOURABLE material must
+  DERIVE its far hue (`farColor` in `lib/body.js` — the trousers pair this
+  way), because a fixed darker hue only matches the one colour it was tuned
+  against. The near arm gets a white catch so it doesn't vanish into a torso
+  it shares a colour with.
 
 **Hair is THREE layers, and the split is load-bearing.** `HairFront` may cover
 the crown and stop at the temples — **nothing in it descends past the eye line**

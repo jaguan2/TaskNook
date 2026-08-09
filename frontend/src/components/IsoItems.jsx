@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
 import { DEFAULT_CHARACTER, MOODS } from "../lib/profile";
+import {
+  HEAD_R,
+  LEG_H,
+  STAND_TORSO_Y,
+  STAND_HEAD_Y,
+  SEAT_TORSO_Y,
+  SEAT_HEAD_Y,
+  figureMetrics,
+  torsoGeom,
+  farColor,
+} from "../lib/body";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
 // renders that used to live here are gone: the kit is TRUE isometric (base
@@ -2889,8 +2900,10 @@ const HAIR = "#3a3142";
 // but pick honey or mint in the profile and a face drawn in it disappears.
 const INK = "#3a3142";
 const TROUSER = "#4a3a5b";
-// the far leg, so the two read as depth rather than one wide blob
-const TROUSER_FAR = "#3c2f4a";
+// the far leg, so the two read as depth rather than one wide blob — derived
+// rather than hand-tuned, so the pairing survives the trousers ever becoming
+// user-colourable
+const TROUSER_FAR = farColor(TROUSER);
 const SHOE = "#2b2350";
 const SHOE_FAR = "#221c40";
 
@@ -2931,7 +2944,38 @@ function SeatedLeg({ side, ankle, far = false }) {
         strokeLinecap="round"
         fill="none"
       />
-      <ellipse cx={knee} cy={ankle + 1.4} rx="4.3" ry="2.1" fill={far ? SHOE_FAR : SHOE} />
+      <ellipse cx={knee} cy={ankle + 1.4} rx="4.8" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
+    </g>
+  );
+}
+
+/**
+ * One standing trouser leg: a garment, not a stick. It tapers from the hip
+ * to a cuff just above the shoe — the cuff's shade band is what makes the
+ * hem read as a hem — and ends in a deliberately CHUNKY shoe. In the
+ * reference art the oversized rounded shoe carries half the toy-like read;
+ * drawn to scale it disappears into the trouser leg.
+ *
+ * `legW` comes from figureMetrics so the build axis thickens both trouser
+ * and shoe together when limb deltas land.
+ */
+function StandingLeg({ side, legW = 5.6, far = false }) {
+  const cx = side * 4;
+  const hipW = legW / 2 + 0.4;
+  const ankW = legW / 2 - 0.2;
+  return (
+    <g>
+      <path
+        d={`M ${cx - hipW} ${-LEG_H} L ${cx + hipW} ${-LEG_H} L ${cx + ankW} ${-2.2}
+            Q ${cx + ankW} ${-1.4} ${cx + ankW - 0.8} ${-1.4}
+            L ${cx - ankW + 0.8} ${-1.4} Q ${cx - ankW} ${-1.4} ${cx - ankW} ${-2.2} Z`}
+        fill={far ? TROUSER_FAR : TROUSER}
+      />
+      <rect x={cx - ankW} y={-4.6} width={ankW * 2} height="1.7" fill="#000" opacity="0.14" />
+      {/* nudged outward for stance; the light catch keeps the shoe reading
+          as its own shape rather than a wider ankle */}
+      <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
+      <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.08 : 0.12} />
     </g>
   );
 }
@@ -3196,49 +3240,10 @@ function Face({ expression, headY }) {
   );
 }
 
-// How wide the torso is per build. Everything hung off the body — shoulders,
-// arms, hands — is derived from this half-width rather than hard-coded, so a
-// build change can't leave the arms floating beside the chest.
-const BUILD_HALF_W = { slim: 8, average: 9, sturdy: 10 };
-
-/**
- * The two bodies, as offsets from the build's half-width.
- *
- * Silhouette only — at ~40px tall that's all that survives, and it's the whole
- * difference: `masc` is broad-shouldered and drops nearly straight; `fem` has
- * narrower shoulders, a drawn-in waist and a hem that flares back out, so the
- * outline alternates in/out instead of tapering once.
- *
- * `build` still scales both, so the grid is 2 models × 3 builds rather than one
- * axis pretending to be two.
- */
-// The deltas have to be BIG. The first pass used ±1.5px between the two, which
-// is invisible on a 40px figure — both rows of the contact sheet looked like
-// the same body twice. A silhouette difference has to survive being 18px wide.
-//
-// But `fem` can't buy its narrowness from the shoulders alone: at -0.8 with the
-// `slim` build the shoulders came to 14.4px against a 14.6px head, i.e. a body
-// narrower than its own skull — exactly the top-heavy proportion docs/MODELS.md
-// exists to prevent. The narrow read comes from the WAIST-to-hem contrast
-// instead, which costs nothing structurally.
-const MODEL_SHAPE = {
-  masc: { shoulder: +2.6, waist: -0.4, hem: +0.4 },
-  fem: { shoulder: +0.6, waist: -3.0, hem: +2.6 },
-};
-
-// Every shoulder must clear the head, whatever build and model combine. Cheaper
-// to assert once here than to rediscover it on one of the six combinations.
-const MIN_SHOULDER = 8.6;
-
-// Proportions. The figure used to be head 15.6px against a 15px leg — a
-// third of its height was skull, which is toddler proportion however nicely
-// it's shaded. Cozy isometric characters (Unpacking, Cozy Grove) sit nearer a
-// quarter, so the head came down and the legs went up. `HEAD_R` is shared by
-// every pose; `LEG_H` and the standing torso/head offsets move together.
-const HEAD_R = 7.3;
-const LEG_H = 22;
-const STAND_TORSO_Y = -40;
-const STAND_HEAD_Y = -48.5;
+// The body's numbers — half-widths, limb thicknesses, the torso curve, the
+// standing/seated anchors and their learned-from history — live in
+// lib/body.js, so the sprite, the panel previews and the node-env geometry
+// tests all read one copy.
 
 function Resident({
   seated = false,
@@ -3263,15 +3268,11 @@ function Resident({
   // the profile's outfit colour. That ordering is deliberate: your profile
   // dresses every resident, and tinting ONE of them still overrides it.
   const outfit = tinted(ch.outfit || "#7faf8f");
-  const halfW = BUILD_HALF_W[ch.build] ?? BUILD_HALF_W.average;
-  // Hoisted out of the torso path so the ARMS and the collar hang off the same
-  // shoulder the body actually has. They used to be placed from `halfW`, which
-  // is the build only — so the narrower `fem` shoulders left both arms floating
-  // in a gap beside the chest.
-  const shape = MODEL_SHAPE[ch.model] ?? MODEL_SHAPE.masc;
-  const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder); // shoulder half-width
-  const wa = halfW + shape.waist; // waist half-width
-  const hem = halfW + shape.hem; // hem half-width
+  // Shoulder/waist/hem half-widths for this model × build. The ARMS and the
+  // collar hang off the same `sh` the body actually has — placed from the
+  // build's half-width alone, the narrower `fem` shoulders left both arms
+  // floating in a gap beside the chest.
+  const { sh, wa, hem, legW } = figureMetrics(ch);
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
   if (lying) {
@@ -3307,8 +3308,8 @@ function Resident({
   // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
   // the seat line (sinking a px into the cushion), not hovering above it —
   // and low enough that the thighs emerge from under it rather than behind it.
-  const torsoY = seated ? -21 : STAND_TORSO_Y;
-  const headY = seated ? -29 : STAND_HEAD_Y;
+  const torsoY = seated ? SEAT_TORSO_Y : STAND_TORSO_Y;
+  const headY = seated ? SEAT_HEAD_Y : STAND_HEAD_Y;
   // The floor is at +seatH (the scene lifts a seated resident by exactly
   // that), less a couple of px so the sole meets it instead of sinking
   // through. The floor keeps a low cushion from reducing the shin to a stub.
@@ -3335,12 +3336,10 @@ function Resident({
               The far one uses the depth colours the seated pose already had
               (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block. */}
           <g className={moving ? "leg-step-a" : undefined}>
-            <rect x="-6.8" y={-LEG_H} width="5.6" height={LEG_H} rx="2.6" fill={TROUSER_FAR} />
-            <ellipse cx="-4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE_FAR} />
+            <StandingLeg side={-1} legW={legW} far />
           </g>
           <g className={moving ? "leg-step-b" : undefined}>
-            <rect x="1.2" y={-LEG_H} width="5.6" height={LEG_H} rx="2.6" fill={TROUSER} />
-            <ellipse cx="4" cy="0.4" rx="4.2" ry="2.1" fill={SHOE} />
+            <StandingLeg side={1} legW={legW} />
           </g>
         </>
       )}
@@ -3351,41 +3350,7 @@ function Resident({
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
         {(() => {
-          const top = torsoY;
-          const bot = torsoY + 22;
-          const waistY = top + 13;
-          // The sides are ONE curve through the waist to the hem rather than a
-          // straight taper, so `fem` can come in and flare back out. A straight
-          // line can only narrow, which is why both bodies used to be the same
-          // wedge at different widths.
-          const body = `M ${-sh} ${top + 7}
-            Q ${-sh} ${top + 0.5} ${-sh + 3.5} ${top}
-            L ${sh - 3.5} ${top} Q ${sh} ${top + 0.5} ${sh} ${top + 7}
-            Q ${wa} ${waistY} ${hem} ${bot - 3}
-            Q ${hem} ${bot} ${hem - 3} ${bot}
-            L ${-hem + 3} ${bot} Q ${-hem} ${bot} ${-hem} ${bot - 3}
-            Q ${-wa} ${waistY} ${-sh} ${top + 7} Z`;
-          // The lower band is its own path rather than a rect or a gradient: it
-          // has to follow the silhouette to stay inside it, and MODELS.md wants
-          // flat tones, not a ramp.
-          //
-          // Its top corners must sit ON the body's curve, not at `wa`. `wa` is
-          // the quadratic's CONTROL point, which the curve never reaches — the
-          // actual edge at the halfway point is the Bezier midpoint below. Using
-          // `wa` left a ~2px unshaded crescent down each hip and a visible step
-          // where the band met the outline, worst exactly where fem's waist is
-          // most drawn in.
-          const mid = (a, b, c) => 0.25 * a + 0.5 * b + 0.25 * c;
-          const edgeX = mid(sh, wa, hem);
-          const edgeY = mid(top + 7, waistY, bot - 3);
-          // Second half of the same curve, so the band's sides ARE the body's.
-          const ctrlX = 0.5 * wa + 0.5 * hem;
-          const ctrlY = 0.5 * waistY + 0.5 * (bot - 3);
-          const band = `M ${-edgeX} ${edgeY} L ${edgeX} ${edgeY}
-            Q ${ctrlX} ${ctrlY} ${hem} ${bot - 3}
-            Q ${hem} ${bot} ${hem - 3} ${bot}
-            L ${-hem + 3} ${bot} Q ${-hem} ${bot} ${-hem} ${bot - 3}
-            Q ${-ctrlX} ${ctrlY} ${-edgeX} ${edgeY} Z`;
+          const { body, band } = torsoGeom({ sh, wa, hem, top: torsoY });
           return (
             <>
               <path d={body} style={outfit} />
@@ -3394,7 +3359,7 @@ function Resident({
                   the one object in the room with a single flat tone, which is
                   most of why it looked lifeless beside furniture that has
                   three. */}
-              <ellipse cx="0" cy={top + 3.5} rx={sh - 1.5} ry="4.6" fill="#fff" opacity="0.13" />
+              <ellipse cx="0" cy={torsoY + 3.5} rx={sh - 1.5} ry="4.6" fill="#fff" opacity="0.13" />
               <path d={band} fill="#000" opacity="0.14" />
             </>
           );
@@ -3584,11 +3549,15 @@ function You({ mood, mirrored = false, ...rest }) {
   // in each pose. One fixed offset left it a whole head-height clear of a
   // SEATED character, which is the pose this feature exists for (you only
   // type while sitting), and stranded over the headboard when lying down.
+  // Anchored to the body's head positions (plus a per-pose clearance) so a
+  // proportion retune moves the cloud with the skull instead of leaving it
+  // at a height the head no longer reaches. Lying keeps its fixed spot — that
+  // pose's head is its own drawing.
   const spot = rest.lying
     ? { x: -14, y: -30 }
     : rest.seated
-    ? { x: 10, y: -46 }
-    : { x: 10, y: -64 }; // standing head rose with the new proportions
+    ? { x: 10, y: SEAT_HEAD_Y - 17 }
+    : { x: 10, y: STAND_HEAD_Y - 15.5 };
   return (
     <g>
       <Resident {...rest} />

@@ -270,11 +270,26 @@ The screen has an ownership map — respect it:
   reported as 16.7ms, so the measurement could not have seen the cost whatever
   it was. Check what regime you're in before concluding anything is free.
   Every keyframe already animates only `transform`/`opacity`, and
-  the weather particles are HTML spans rather than SVG nodes. If a frame budget
-  ever does bite, the untouched lever is culling animation outside the camera's
-  viewBox — the whole room animates today regardless of what's on screen.
+  the weather particles are HTML spans rather than SVG nodes.
   **Keep the measurement window clean**: a preset swap or a screenshot landing
   inside it read as 10 dropped frames that weren't there.
+- **Idle cost and INTERACTION cost are different questions.** The figures above
+  are for a scene sitting still. Panning a 30×24 lot with 168 placements measures
+  **58ms per frame with 31 of 36 frames dropped** — genuinely bad, and invisible
+  to any idle measurement. So "the animations are free" and "the room is smooth"
+  are separate claims and need separate evidence.
+  - **It is rasterisation, not React, and not the animations.** Script time is
+    14–23ms whichever way the scene is configured. Turning every animation off
+    barely helps (50.1 → 41.7ms); removing the ITEMS fixes it outright (16.7ms,
+    zero drops). The cost tracks SVG node count, because changing `viewBox`
+    invalidates the raster of the whole vector scene. Memoisation cannot reach it —
+    taking the camera out of React state changed the frame time by nothing at all.
+  - **The lever is to stop changing `viewBox` mid-gesture**: translate a wrapping
+    `<g>` during a pan and fold the offset back into the camera on pointerup, so
+    unchanged content is moved rather than redrawn. Prototyped and measured at
+    **12.5ms median, 0 of 135 frames dropped**. Not in the tree — see item 2.2 in
+    `docs/fable_scan_8-7.md` for what's left to finish. Culling offscreen items is
+    the other half of the same idea and is also untouched.
 - Big scenes are memo'd (`IsoRoom`); nothing may reintroduce a per-second
   re-render of thousands of SVG nodes. Props crossing into memo'd scenes must
   be stable (useCallback) or change rarely (booleans like `working`).
