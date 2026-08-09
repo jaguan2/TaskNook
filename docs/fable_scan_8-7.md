@@ -680,7 +680,7 @@ and a handful of design-grammar drifts in newer UI.
 
 ## 0. The red flag first: the component tests are not running on this machine
 
-- [ ] **0.1 All six jsdom test suites silently fail to execute locally** —
+- [x] **0.1 All six jsdom test suites silently fail to execute locally** —
   environment, not code. Local Node is v20.15.0, which lacks `require(ESM)`;
   jsdom 29.1.1 pulls `html-encoding-sniffer@6` → `@exodus/bytes` (ESM-only
   entry), so every `// @vitest-environment jsdom` file — `IsoItems.test.jsx`,
@@ -693,6 +693,12 @@ and a handful of design-grammar drifts in newer UI.
   rewrite sitting in the WIP** — locally it is verified by lint and build parse
   only. **Fix**: upgrade Node to ≥ 20.19 (or 22.12+); confirm what Node CI runs
   before trusting its green as coverage. Do this before shipping the WIP.
+
+  **DONE.** Node upgraded in place 20.15.0 → 20.20.2 (same channel via
+  winget, ≥ 20.19 so `require(ESM)` works — no major-version jump needed).
+  All 22 test files now execute: **742/742 passing**, including the six
+  previously-dead jsdom suites, the new hair×model grid and the new motion
+  pins — verified by an actual run, not a replay.
 
 ---
 
@@ -1000,13 +1006,16 @@ activation (4.11), compact desktop mode (4.12), and the deferred perf items
 
 ## Status — animation batch worked 2026-08-08
 
-The whole of section 1 (animation) and ideas 3.1–3.4 are DONE; each item
-above carries its note. Section 2 (design) and ideas 3.5–3.7 are untouched —
-they're a separate, non-animation batch. **0.1 is still open**: the Node on
-this machine can't boot the jsdom suites, so the new tests (hair×model grid,
-rest-state pin, flame/pool clock, cottage desync, pill gate) are verified by
-lint + build + a standalone Node replay of every CSS-side assertion (all
-passing), and will execute for real in CI or after the Node upgrade.
-Validation run: ESLint clean, `npm run build` clean, 502/502 node-env tests
-pass. Reminder: these frontend changes reach `TaskNook.exe`, so the commit
-that ships them must rebuild it (`build-exe.bat`) per the repo rule.
+The whole of section 0 + section 1 (animation) and ideas 3.1–3.4 are DONE;
+each item above carries its note. Section 2 (design) and ideas 3.5–3.7 are
+untouched — they're a separate, non-animation batch.
+Validation: ESLint clean, `npm run build` clean, and — after 0.1's Node
+upgrade (20.15.0 → 20.20.2) — the FULL suite executes locally: 22 files,
+**742/742 tests passing**, including the six formerly-dead jsdom suites and
+every new pin (hair×model grid, rest-state, flame/pool clock, cottage
+desync, pill gate). `TaskNook.exe` was rebuilt via `build-exe.bat` with
+these changes (per the repo rule) and passes its frozen self-test
+(`TASKNOOK_SELFTEST=1` → exit 0). CI note: ci.yml's `node-version: 20`
+resolves to a current 20.x on GitHub runners, so CI was already executing
+the jsdom suites — the dead-tests problem was local-only, and is now fixed
+locally too.
