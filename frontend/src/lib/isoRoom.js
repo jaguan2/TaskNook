@@ -33,10 +33,17 @@ export const CUT_CORNERS = ["back", "right", "left", "front"];
 //
 // Only FULL walls can hold wall decor — a balustrade is waist height, and a
 // picture frame floating over open air is worse than no picture frame.
+// The panel presents these as FLOOR choices (owner decision, 2026-08-10 —
+// "setting: Room/Café/Library" was a second room-identity concept fighting
+// the presets for the same job; a floor material is what you actually see).
+// Each floor still brings its environment along — walls, window, string
+// lights, lip colours — and the KEYS are untouchable: they are what layouts
+// store and what the backend whitelists (`ISO_ENVS` in app.py, kept in sync
+// by test_room.py parsing this block).
 export const ISO_ENVS = {
   room: {
-    label: "Room",
-    icon: "🏠",
+    label: "Boards",
+    icon: "🪵",
     walls: "full",
     floor: "isoFloor",
     floorStyle: "boards",
@@ -44,19 +51,9 @@ export const ISO_ENVS = {
     window: true,
     lights: true,
   },
-  cafe: {
-    label: "Café",
-    icon: "☕",
-    walls: "full",
-    floor: "isoTile",
-    floorStyle: "tiles",
-    lip: ["#2e211c", "#261b17"],
-    window: true,
-    lights: true,
-  },
   library: {
-    label: "Library",
-    icon: "📚",
+    label: "Dark boards",
+    icon: "🟫",
     walls: "full",
     floor: "isoWood",
     floorStyle: "boards",
@@ -68,9 +65,19 @@ export const ISO_ENVS = {
     // only place the ceiling zone can be filled without displacing furniture.
     lights: true,
   },
+  cafe: {
+    label: "Terracotta",
+    icon: "🧱",
+    walls: "full",
+    floor: "isoTile",
+    floorStyle: "tiles",
+    lip: ["#2e211c", "#261b17"],
+    window: true,
+    lights: true,
+  },
   terrace: {
-    label: "Terrace",
-    icon: "🪴",
+    label: "Stone",
+    icon: "🪨",
     walls: "low",
     floor: "isoStone",
     floorStyle: "stone",
@@ -78,7 +85,7 @@ export const ISO_ENVS = {
     lights: true,
   },
   garden: {
-    label: "Garden",
+    label: "Grass",
     icon: "🌿",
     walls: "none",
     floor: "isoGrass",
@@ -91,8 +98,16 @@ export const ISO_ENV_KEYS = Object.keys(ISO_ENVS);
 /** The env config for a layout, defaulting to the walled room. */
 export const envOf = (key) => ISO_ENVS[key] || ISO_ENVS.room;
 
-/** Can wall decor hang here? Full-height walls only. */
-export const envHasWalls = (key) => envOf(key).walls === "full";
+// A layout may carry its own `walls` ("full" | "low" | "none"), overriding
+// the floor's default — grass with full walls is a courtyard, boards with
+// none is a stage, and neither needed a new env to exist. Mirrored in
+// app.py's ISO_WALLS (same both-languages contract as ISO_ENVS).
+export const WALL_MODES = ["full", "low", "none"];
+
+/** Can wall decor hang here? Full-height walls only. The layout's own
+ *  `walls` override beats the floor's default. */
+export const envHasWalls = (key, walls) =>
+  (WALL_MODES.includes(walls) ? walls : envOf(key).walls) === "full";
 
 const TINT_RE = /^#[0-9a-f]{6}$/i;
 
@@ -901,7 +916,13 @@ export function validateIsoLayout(raw) {
   const mask = normalizeMask(raw.mask, w, d) ?? cutsToMask(raw.cuts, w, d);
   // "room" is the default and stored implicitly.
   const env = ISO_ENV_KEYS.includes(raw.env) && raw.env !== "room" ? raw.env : undefined;
-  const size = { w, d, ...(env && { env }), ...(mask && { mask }) };
+  // Walls are stored only when they OVERRIDE the floor's default — same
+  // implicit-default contract as env, so switching back cleans the blob.
+  const walls =
+    WALL_MODES.includes(raw.walls) && raw.walls !== envOf(env).walls
+      ? raw.walls
+      : undefined;
+  const size = { w, d, ...(env && { env }), ...(walls && { walls }), ...(mask && { mask }) };
   const seen = new Set();
   const unique = new Set();
   const clean = [];
@@ -917,9 +938,9 @@ export function validateIsoLayout(raw) {
     // be DRAWN in — a saved rot 2 on something with no back view would
     // otherwise render upside down. `true` is a legacy shape for rot 1.
     const rot = normalizeRot(p.item, p.rot === true ? 1 : p.rot);
-    // Wall decor needs a full-height wall to hang on — outdoors and on a
-    // low-walled terrace there isn't one.
-    if (ISO_ITEMS[p.item].wall && env && !envHasWalls(env)) continue;
+    // Wall decor needs a full-height wall to hang on — outdoors, on a
+    // low rail, or when the user turned the walls off, there isn't one.
+    if (ISO_ITEMS[p.item].wall && !envHasWalls(env, walls)) continue;
     let { gx, gy } = clampIsoPlacement(p.item, snapHalf(p.gx), snapHalf(p.gy), size, rot);
     // An item over void tiles is relocated to the nearest floor spot, or
     // dropped if the drawn shape has no room for it at all.
@@ -941,7 +962,14 @@ export function validateIsoLayout(raw) {
     clean.push({ id, item: p.item, gx, gy, ...(rot && { rot }), ...(tint && { tint }) });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }
-  return { w, d, ...(env && { env }), ...(mask && { mask }), placements: clean };
+  return {
+    w,
+    d,
+    ...(env && { env }),
+    ...(walls && { walls }),
+    ...(mask && { mask }),
+    placements: clean,
+  };
 }
 
 /** Ready-made rooms. Decorating rules that make these read as REAL rooms
@@ -1082,60 +1110,6 @@ export const ISO_PRESETS = {
       { item: "curtain", gx: 0, gy: 1, rot: 1 },
     ],
   },
-  cafe: {
-    label: "Morning café",
-    icon: "☕",
-    size: { w: 10, d: 7 },
-    items: [
-      // a REAL counter row along the back wall: bar, espresso machine, bar,
-      // little fridge at the end — an actual café since the kit arrived
-      { item: "bookshelf", gx: 0, gy: 0.5, rot: 1 },
-      { item: "counter", gx: 3.5, gy: 0 },
-      { item: "coffeecounter", gx: 4.5, gy: 0 },
-      { item: "counter", gx: 5.5, gy: 0 },
-      { item: "fridge", gx: 6.5, gy: 0 },
-      { item: "frame", gx: 1.5, gy: 0, tint: "#9a6a45" },
-      { item: "wallclock", gx: 3, gy: 0, tint: "#6b4a39" },
-      { item: "wallshelf", gx: 6.5, gy: 0, tint: "#9a6a45" },
-      { item: "aquarium", gx: 8.5, gy: 0 },
-      // Seating set A: two chairs across a table, genuinely facing each other.
-      // rot 0 looks toward +gy, rot 2 back toward −gy — the away-facing pair
-      // exists now that chairs ship real back-view artwork, so the far chair
-      // can sit BEYOND the table and turn round to it instead of every chair
-      // having to be tucked behind its own table.
-      { item: "rug", gx: 0.5, gy: 2, tint: "#c98a4b" },
-      { item: "cafetable", gx: 2, gy: 3 },
-      { item: "chair", gx: 2.5, gy: 2 },
-      { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
-      // one customer at the window table — a café with nobody in it reads
-      // as closed (NPCs belong in the communal presets, and this is one)
-      { item: "resident", gx: 2.5, gy: 4.5, tint: "#6fb8cf" },
-      // seating set B, same geometry, shifted right and forward
-      { item: "cafetable", gx: 6, gy: 4 },
-      { item: "chair", gx: 6.5, gy: 3 },
-      { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
-      // life
-      { item: "floorlamp", gx: 9, gy: 2.5 },
-      // clear of set B's far chair — the cat wanders, but it shouldn't
-      // START standing inside one
-      { item: "cat", gx: 4.5, gy: 5.5 },
-      // cushion moved off the monstera — the two used to intersect by 0.16
-      // tiles², so the plant appeared to grow out of it
-      { item: "cushion", gx: 7.5, gy: 5.5, tint: "#d98a93" },
-      { item: "monstera", gx: 9, gy: 6 },
-      { item: "plant", gx: 0.5, gy: 5.5 },
-      // a café needs somewhere to hang a coat and something on the walls
-      { item: "coatrack", gx: 2.5, gy: 5.5 },
-      { item: "bookcase", gx: 0, gy: 3, rot: 1 },
-      { item: "poster", gx: 0.5, gy: 0 },
-      // 8.5, not 8.3: preset coordinates must be half-snapped as written, and
-      // the wall shelf runs to 8.1, so this is the next legal slot clear of it
-      { item: "hangplant", gx: 8.5, gy: 0 },
-      // A way in, and a birdcage — the sort of thing old cafés keep.
-      { item: "doorway", gx: 4.5, gy: 0 },
-      { item: "birdcage", gx: 4, gy: 1 },
-    ],
-  },
   garden: {
     label: "Secret garden",
     icon: "🌿",
@@ -1160,23 +1134,30 @@ export const ISO_PRESETS = {
       // which previously overlapped it and left the cat apparently floating
       { item: "hammock", gx: 1, gy: 4 },
       { item: "lightjar", gx: 5.5, gy: 5 },
+      // a dog on the picnic blanket — a dog lying in a garden makes sense
+      // in a way a cat outdoors never quite did (owner call, 2026-08-10)
       { item: "picnic", gx: 1, gy: 6 },
-      { item: "cat", gx: 1.5, gy: 6.5 },
+      { item: "dog", gx: 1.5, gy: 6.5 },
       { item: "flowerbed", gx: 3.5, gy: 6.5 },
       { item: "bunny", gx: 5, gy: 7 },
     ],
   },
-  // A REAL café: a working counter run along the back wall, two seating
-  // zones on their own rugs, and customers. The env gives it terracotta
-  // tiles; the composition rules are the same as everywhere else — counters
-  // flush to the wall, each table's chairs on its centreline, the middle
-  // walkable.
+  // THE café — the two café presets merged (owner decision, 2026-08-10):
+  // Corner café's working counter run (bar, espresso machine, pastry case,
+  // till, menu board — the ordering side the owner wanted kept) plus Morning
+  // café's two facing-chair table sets, which were always its best feature.
+  // Two cafés that each had half of a café was a preset slot spent twice;
+  // the Morning café preset is retired. Both halves keep their PROVEN
+  // coordinates — the counter run and the table-set geometry are transplants,
+  // not redesigns, so only the seams needed occupancy-checking.
   cafeteria: {
     label: "Corner café",
     icon: "🥐",
-    size: { w: 9, d: 7, env: "cafe" },
+    size: { w: 10, d: 7, env: "cafe" },
     items: [
-      // the bar along the back, four pieces reading as one run
+      // a way in, then the bar along the back — four pieces reading as one run
+      { item: "doorway", gx: 0.5, gy: 0 },
+      { item: "menuboard", gx: 2.5, gy: 0 },
       { item: "barcounter", gx: 4, gy: 1 },
       { item: "barcounter", gx: 5, gy: 1 },
       { item: "barcounter", gx: 6, gy: 1 },
@@ -1188,16 +1169,26 @@ export const ISO_PRESETS = {
       { item: "shelf", gx: 5, gy: 0 },
       { item: "shelf", gx: 6, gy: 0 },
       { item: "fridge", gx: 8, gy: 0 },
-      { item: "menuboard", gx: 2, gy: 0 },
       // someone at the bar
       { item: "woodstool", gx: 5, gy: 2 },
       { item: "resident", gx: 5, gy: 2 },
-      // and one table in, across the open floor
-      { item: "persianrug", gx: 0.5, gy: 4, tint: "#7a4034" },
-      { item: "cafetable", gx: 1, gy: 4.5 },
-      { item: "mug", gx: 1, gy: 4.5 },
-      { item: "chair", gx: 0, gy: 5 },
-      { item: "resident", gx: 0, gy: 5, tint: "#7faf8f" },
+      // Seating set A on the room's one rug: two chairs across a table,
+      // genuinely facing each other (rot 0 looks toward +gy, rot 2 back
+      // toward −gy — possible since chairs ship real back-view artwork).
+      { item: "persianrug", gx: 0.5, gy: 2, tint: "#7a4034" },
+      { item: "cafetable", gx: 2, gy: 3 },
+      { item: "chair", gx: 2.5, gy: 2 },
+      { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
+      // a customer — a café with nobody in it reads as closed
+      { item: "resident", gx: 2.5, gy: 4.5, tint: "#6fb8cf" },
+      // seating set B, same geometry, shifted right and forward — served
+      // (the mug) but empty: that table is yours
+      { item: "cafetable", gx: 6, gy: 4 },
+      { item: "mug", gx: 6, gy: 4 },
+      { item: "chair", gx: 6.5, gy: 3 },
+      { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
+      // green in the far corner
+      { item: "monstera", gx: 9, gy: 6 },
     ],
   },
   // A READING room: bookcases wall to wall, one long table down the middle,
@@ -1398,9 +1389,9 @@ export const ISO_PRESETS = {
       { item: "leafpile", gx: 3, gy: 2.5 },
       { item: "rake", gx: 4, gy: 2.5 },
       // the corner you actually sit in — the bench kept empty for you,
-      // the cat keeping it warm
+      // the dog keeping it warm (a dog in a yard, not a cat: owner call)
       { item: "bench", gx: 1, gy: 5.5 },
-      { item: "cat", gx: 1, gy: 6.5 },
+      { item: "dog", gx: 1, gy: 6.5 },
       { item: "lantern", gx: 3, gy: 5.5 },
       // and the harvest, spread a full tile apart so they don't stack up
       { item: "haybale", gx: 7.5, gy: 4 },

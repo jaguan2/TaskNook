@@ -316,6 +316,11 @@ def _finite_number(v):
 # disagree.
 ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
 
+# The user-picked walls override — mirrors WALL_MODES in isoRoom.js, same
+# both-languages contract as ISO_ENVS above. Absent means "the floor's
+# default"; the frontend stores it only when it actually overrides.
+ISO_WALLS = ("full", "low", "none")
+
 
 def _hex_color(v):
     """A strict #rrggbb item tint."""
@@ -758,6 +763,11 @@ def register_routes(app):
                 if env not in ISO_ENVS:
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["env"] = env
+            walls = iso.get("walls")
+            if walls is not None:
+                if walls not in ISO_WALLS:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["walls"] = walls
             # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
             # at least one floor tile.
             mask = iso.get("mask")

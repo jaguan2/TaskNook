@@ -206,7 +206,9 @@ export function StoreProvider({ children }) {
   const [autoTimeOfDay, setAutoTimeOfDayState] = useState(
     () => readStored("tasknook.timeOfDay.auto") === "1"
   );
-  const [musicOn, setMusicOn] = useState(false);
+  // Persisted, so the transport bar comes back after a relaunch cued where
+  // the music stopped — closing the app shouldn't cost you your station.
+  const [musicOn, setMusicOn] = useState(() => readStored("tasknook.music.on") === "1");
 
   // ---- Real-world weather ----
   const [realWeather, setRealWeather] = useState(null);
@@ -574,6 +576,14 @@ export function StoreProvider({ children }) {
   const setIsoEnv = useCallback(
     (env) =>
       reshapeIso({ env }, (n, s) => `Nothing to hang ${n} wall ${s} on out here 🖼️`),
+    [reshapeIso]
+  );
+  // Walls decoupled from the floor: each floor sets a default, this overrides
+  // it. Same reshape path as env — turning walls off drops wall decor, and
+  // that deletion must be announced.
+  const setIsoWalls = useCallback(
+    (walls) =>
+      reshapeIso({ walls }, (n, s) => `Nothing to hang ${n} wall ${s} on without walls 🖼️`),
     [reshapeIso]
   );
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
@@ -1148,7 +1158,11 @@ export function StoreProvider({ children }) {
       applyTimeOfDay(timeOfDayNow());
     }
   };
-  const toggleMusic = () => setMusicOn((m) => !m);
+  const toggleMusic = () => {
+    // Outside the updater — updaters must stay pure (StrictMode double-invokes).
+    writeStored("tasknook.music.on", musicOn ? "0" : "1");
+    setMusicOn((m) => !m);
+  };
 
   // A named snapshot of the whole ambience "scene" — weather visual, time of
   // day, and the full sound mix — recalled in one click.
@@ -1333,6 +1347,7 @@ export function StoreProvider({ children }) {
   const selectStation = (station) => {
     setStation(stationKey(station));
     setMusicOn(true);
+    writeStored("tasknook.music.on", "1");
   };
 
   // Adds (and switches to) a station from a pasted YouTube or Spotify link.
@@ -1476,6 +1491,7 @@ export function StoreProvider({ children }) {
     setIsoTile,
     resetIsoShape,
     setIsoEnv,
+    setIsoWalls,
     applyIsoPreset,
     selfInRoom,
     setSelfInRoom,

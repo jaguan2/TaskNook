@@ -1051,3 +1051,47 @@ these changes (per the repo rule) and passes its frozen self-test
 resolves to a current 20.x on GitHub runners, so CI was already executing
 the jsdom suites — the dead-tests problem was local-only, and is now fixed
 locally too.
+
+
+---
+
+## 5. Flat cottage (2D scene) — improvement plan (added 2026-08-10)
+
+The owner's read: "looks a bit clunky and decoration could be improved on." Code-level
+diagnosis confirms it — the flat scene predates every lesson the iso room paid for:
+
+- **Nothing is grounded.** `RoomItems.jsx` (22 sprites, ~350 lines) has almost no
+  contact shading (3 shadow references total; the Cottage scene itself has 2). In the
+  iso room, the soft contact shadow under every grounded item is documented as "most
+  of what makes sprites read as sitting IN the room instead of pasted on" — the flat
+  placements float over the painted backdrop, which IS the clunky read.
+- **Sprites predate the model spec.** MODELS.md's rules (2–3 flat tones per material,
+  light-catch + shade band, silhouette-first, shared helpers) were all learned on the
+  iso catalog and never flowed back. ~16 lines per flat sprite vs the iso catalog's
+  helper-built pieces.
+- **Decoration ceiling.** 22 items across four zones vs 132 iso items in 15 sections;
+  the flat picker has no materials, no seasonal sets, no seating/persona life.
+- **No scene lighting.** The iso room casts light pools from `glow` items and dims
+  them by time of day; the flat lamps light nothing.
+
+### Recommended: a bounded quality pass (not parity)
+
+The iso room is the DEFAULT scene; the cottage is the opt-out throwback. Chasing
+catalog parity would be investment in the wrong scene — but a quality pass makes the
+throwback feel finished rather than abandoned:
+
+- [ ] **5.1 Contact shadows** — one shared soft-ellipse gradient under every grounded
+  placement (floor + desk zones, skip rugs/wall/ceiling), added in Cottage.jsx's
+  placement loop exactly like the iso room's `isoShadow`. One edit, the single
+  biggest de-clunking win.
+- [ ] **5.2 Contact sheet + redraw the worst offenders** — render all 22 flat sprites
+  into a labelled sheet (same review loop as MODELS.md §7), then apply the two-tone
+  light-catch/shade-band treatment to the flattest ones. Judged by eye, not by code.
+- [ ] **5.3 Lamp pools** — desk lamp + floor lamp cast a warm ellipse on their
+  surface, dimmed by time of day (the flat scene already receives `timeOfDay`).
+- [ ] **5.4 Small catalog infill** — a handful of pieces that exist in iso and are
+  missed here (candle, second rug texture, a seasonal touch), drawn to MODELS.md
+  rules. Picker stays small; the cottage is a vignette, not a lot.
+
+**Review protocol**: all of 5.1–5.4 are visual — per the project's own doctrine they
+land behind a before/after screenshot pass in the running app, not blind edits.

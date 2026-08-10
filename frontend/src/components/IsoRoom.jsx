@@ -4,6 +4,7 @@ import {
   ISO_ITEMS,
   clampIsoPlacement,
   envOf,
+  WALL_MODES,
   footOf,
   footprintFree,
   lipRuns,
@@ -430,7 +431,9 @@ function IsoSceneInner({
   // when there are none, so every wall-dependent bit of geometry falls away
   // from one number instead of from a scatter of `outdoors` checks.
   const env = envOf(size.env);
-  const wallH = env.walls === "full" ? WALL_H : env.walls === "low" ? LOW_WALL_H : 0;
+  // The layout's own walls override (user-picked) beats the floor's default.
+  const walls = WALL_MODES.includes(size.walls) ? size.walls : env.walls;
+  const wallH = walls === "full" ? WALL_H : walls === "low" ? LOW_WALL_H : 0;
 
   // Personas: seated ones snap onto their seat (slightly forward so they
   // draw in front of the backrest, lifted by the seat height); standing ones
@@ -670,8 +673,11 @@ function IsoSceneInner({
             <line x1="0" y1={-wallH} x2="0" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
           )}
 
-          {/* window on the left wall — only when that wall run covers it */}
-          {env.window && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
+          {/* window on the left wall — only when that wall run covers it,
+              and only at full height (a window poking above a low rail, or
+              floating in open air, is nonsense the walls override made
+              possible) */}
+          {env.window && walls === "full" && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
             <>
               <polygon points={wallRect("left", 1.1, 2.4, 28, 70)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 34, 58)} fill="url(#isoSky)" />
@@ -684,8 +690,9 @@ function IsoSceneInner({
           )}
 
           {/* string lights along the right wall's main run; they fade with
-              daylight */}
-          {env.lights && rightSeg.to - rightSeg.from >= 4 && (
+              daylight. A low rail still carries them (the terrace always
+              has), but open air leaves nothing to string them from. */}
+          {env.lights && walls !== "none" && rightSeg.to - rightSeg.from >= 4 && (
             <g opacity={tod.bulbs}>
               {(() => {
                 const from = rightSeg.from + 0.5;

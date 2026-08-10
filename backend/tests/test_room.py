@@ -212,6 +212,26 @@ def test_iso_roundtrips_an_environment(client, auth):
     )
 
 
+def test_iso_roundtrips_a_walls_override(client, auth):
+    """`walls` decouples the wall height from the floor (env): each of the
+    three modes must save and come back, and junk must 400 like a bad env."""
+    for walls in ("full", "low", "none"):
+        iso = {"w": 9, "d": 7, "env": "garden", "walls": walls, "placements": []}
+        assert (
+            client.put(
+                "/api/room", json={"placements": [], "iso": iso}, headers=auth
+            ).status_code
+            == 200
+        ), f"backend rejects walls {walls!r}"
+        assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+    bad = {"w": 9, "d": 7, "walls": "castle", "placements": []}
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": bad}, headers=auth).status_code
+        == 400
+    )
+
+
 def frontend_environments():
     """The environment keys the SPA actually ships, read out of its source.
 

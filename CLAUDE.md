@@ -449,6 +449,20 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   playback can only be truly verified by a human in the real app. All 7
   built-in stations verified valid + embeddable via YouTube oEmbed
   (2026-07-26).
+  **The bar RESUMES across launches**: `tasknook.music.on` brings the
+  transport back, and `tasknook.music.resume` (station key, playlist index,
+  seconds, title/duration — written ~every 5s while playing, on every pause,
+  on pagehide, and on player teardown) lets the boot mount CUE the saved spot
+  instead of autoplaying. Deliberate: there is no user gesture at boot, so
+  autoplay would be blocked anyway — cueing shows the saved track and time
+  with ▶ armed, and the first press resumes exactly there. Only the FIRST
+  player mount after launch may cue (a later mount is a real station click
+  and plays as always); the bar's track state is SEEDED from the record so
+  the position shows before the player even loads, and the 1Hz poll skips
+  CUED/UNSTARTED states (a cued player reports duration 0, which the bar
+  would misread as LIVE and wipe the seed). Singles loop by hand on ENDED —
+  cueVideoById drops the constructor's doubled-playlist loop. Spotify
+  stations get the bar back but not the position (the embed owns playback).
   Station model: built-ins + pasted YouTube/Spotify links —
   `lib/musicLink.js` resolves a link to a
   `{provider, id, kind?}` station, persisted to `localStorage`
@@ -600,7 +614,18 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   drop-shadow removed so it sits into the backdrop). Layouts also carry
   `env` ("room" default, stored
   implicitly; "garden" = open-air: grass floor, soil lip, NO walls — wall
-  decor is dropped by validation and hidden from the panel) and `mask` —
+  decor is dropped by validation and hidden from the panel). **The Room panel
+  sells envs as FLOOR choices** (Boards 🪵 / Dark boards 🟫 / Terracotta 🧱 /
+  Stone 🪨 / Grass 🌿 — owner decision, 2026-08-10: "setting" was a second
+  room-identity concept fighting the presets for the same job, and the floor
+  material is what you actually see); each floor still brings its env along
+  (window, string lights, lip colours) and sets a walls DEFAULT, which the
+  panel's separate WALLS row overrides — `walls` on the layout, one of
+  full/low/none, stored only when it differs from the floor's default and
+  mirrored in app.py's `ISO_WALLS` (same both-languages drift contract as
+  env). Open air hides the window and string lights, and turning walls off
+  drops wall decor via the same announced reshape as everything else.
+  Layouts also carry `mask` —
   **the floor is a tile mask** (d row-strings of w "0"/"1"s) painted in the
   Room panel's drag-to-draw floor-plan grid, so any shape works: the floor
   is per-tile clipPath'd under one gradient sheet, drags refuse void tiles
@@ -712,7 +737,7 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   stepped underneath) and `ear-twitch` on the near ear.
   See docs/DESIGN.md's "Motion" for the full rules and the measured budget.
   `ISO_PRESETS` (Loft ⭐ / Cozy study 🕯️ / Cozy cabin 🪵 /
-  Morning café ☕ / Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
+  Secret garden 🌿 / Corner café 🥐 / Reading room 📚 /
   Study hall 🧑‍🤝‍🧑 / Terrace 🪴 / Autumn yard 🍂 / Empty room 🫙) are whole-layout
   replacements that set floor size, env and shape too and use `tint`/`rot`
   for mood (applied via validate so preset `cuts` shorthand becomes a mask);
@@ -756,7 +781,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   ship their seats empty: a stranger studying at your desk reads wrong when
   the app has a `you` persona, while an empty desk chair or pond bench is an
   invitation. A café with nobody in it reads as closed, so the communal
-  rooms keep (and Morning café gained) their people. The presets are NOT a
+  rooms keep their people. **The two café presets merged** (owner decision,
+  2026-08-10): Morning café's facing-chair table sets joined Corner café's
+  counter run — two cafés that each had half of a café was a preset slot
+  spent twice — and the Morning café preset was retired; its customer moved
+  with its tables. The presets are NOT a
   shop window. A new piece belongs
   in the picker; it does not have to be placed in a built-in room, and the
   built-in rooms are deliberately left alone. There WAS a test asserting every

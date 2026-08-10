@@ -14,6 +14,7 @@ import {
   ISO_SIZE_MAX,
   cutsToMask,
   envHasWalls,
+  WALL_MODES,
   seatFor,
   seatedPlacement,
   stackedPlacement,
@@ -211,12 +212,17 @@ export default function RoomPanel() {
     setIsoTile,
     resetIsoShape,
     setIsoEnv,
+    setIsoWalls,
     applyIsoPreset,
     unlocked,
     unlockItem,
     unlockBalance,
   } = useStore();
   const isoEnv = isoRoom.env || "room";
+  // The effective walls: the layout's own override, else the floor's default.
+  const isoWalls = WALL_MODES.includes(isoRoom.walls)
+    ? isoRoom.walls
+    : ISO_ENVS[isoEnv].walls;
   // Floor-plan painting: pointerdown picks add/remove from the first tile,
   // dragging applies it to every tile crossed (the Sims floor-tool feel).
   const [paintMode, setPaintMode] = useState(null);
@@ -312,10 +318,11 @@ export default function RoomPanel() {
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>
             </div>
-            {/* environment: walled room or open-air garden */}
+            {/* The floor picker — each material is an env under the hood and
+                brings its walls along (stone = low rail, grass = open air). */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                setting
+                floor
               </span>
               {ISO_ENV_KEYS.map((env) => (
                 <button
@@ -328,6 +335,36 @@ export default function RoomPanel() {
                   }`}
                 >
                   {ISO_ENVS[env].icon} {ISO_ENVS[env].label}
+                </button>
+              ))}
+              <span className="w-full text-[10px] text-petal/40">
+                Each floor sets a walls default — stone a low rail, grass open
+                air — and the row below overrides it.
+              </span>
+            </div>
+            {/* Walls, decoupled from the floor: grass with full walls is a
+                courtyard, boards with none is a stage — neither needs its
+                own env to exist. Turning walls off drops wall decor (the
+                store toasts the count, same as reshaping). */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                walls
+              </span>
+              {[
+                { key: "full", label: "🧱 Full" },
+                { key: "low", label: "🚧 Low rail" },
+                { key: "none", label: "🌅 Open air" },
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  onClick={() => setIsoWalls(mode.key)}
+                  className={`pill px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                    isoWalls === mode.key
+                      ? "bg-glow text-plum"
+                      : "bg-white/10 text-petal hover:bg-white/20"
+                  }`}
+                >
+                  {mode.label}
                 </button>
               ))}
             </div>
@@ -474,7 +511,7 @@ export default function RoomPanel() {
           <div className="space-y-3">
             {ISO_ITEM_GROUPS.map((group) => {
               const keys = group.keys.filter(
-                (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv))
+                (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv, isoRoom.walls))
               );
               if (!keys.length) return null;
               return (

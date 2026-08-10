@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
 import { useStore } from "../store";
-import { readStored, writeStored } from "../lib/storage";
+import { readJSON, readStored, writeJSON, writeStored } from "../lib/storage";
 import { formatClock } from "../lib/time";
 import { stationKey } from "../lib/musicLink";
 
@@ -78,6 +78,17 @@ const fmtTime = (s) => formatClock(s);
 // A "duration" that is missing or absurd means a live stream.
 const isLiveDuration = (d) => !Number.isFinite(d) || d <= 0 || d > 43200;
 
+// Where the music stopped: station key, playlist index, seconds in, and the
+// title/duration so the bar can SHOW the spot before the player even loads.
+const RESUME_KEY = "tasknook.music.resume";
+// Read at module load, before any toggle can change it: "was music on when
+// the app last closed?" distinguishes the boot mount (no user gesture —
+// autoplay would be blocked, so CUE at the saved spot with ▶ armed) from a
+// station click (a real gesture that should start playing as always).
+const BOOTED_WITH_MUSIC_ON = readStored("tasknook.music.on") === "1";
+// Only the FIRST player mount after launch may cue; later mounts are clicks.
+let bootResumeConsumed = false;
+
 export default function MusicDock({ onOpenPanel }) {
   const { musicOn, toggleMusic, musicStations, activeStationKey, selectStation } =
     useStore();
@@ -93,7 +104,15 @@ export default function MusicDock({ onOpenPanel }) {
   // next one might.
   const [unavailable, setUnavailable] = useState(false);
   const [streamError, setStreamError] = useState(false);
-  const [track, setTrack] = useState({ title: "", t: 0, d: 0, live: false });
+  const [track, setTrack] = useState(() => {
+    // Seed the bar from the resume record so a relaunch shows the saved
+    // track and position IMMEDIATELY — before the player has loaded — with
+    // ▶ armed to pick up from there.
+    const saved = BOOTED_WITH_MUSIC_ON && station ? readJSON(RESUME_KEY, null) : null;
+    return saved && saved.key === stationKey(station) && Number.isFinite(saved.t)
+      ? { title: saved.title || "", t: saved.t, d: saved.d || 0, live: false }
+      : { title: "", t: 0, d: 0, live: false };
+  });
   const [volume, setVolume] = useState(() => {
     const saved = Number(readStored("tasknook.music.volume"));
     return saved >= 0 && saved <= 100 ? saved : 70;
@@ -103,6 +122,7 @@ export default function MusicDock({ onOpenPanel }) {
   const volumeRef = useRef(volume);
   volumeRef.current = volume;
   const skipStreakRef = useRef(0);
+  const lastSavedRef = useRef(-1);
 
   const isYouTube = station?.provider === "youtube";
   const isPlaylist = isYouTube && station?.kind === "playlist";
@@ -116,10 +136,44 @@ export default function MusicDock({ onOpenPanel }) {
     let cancelled = false;
     let player = null;
     let poll = null;
+    // The resume record, consumed by at most one mount per launch (see the
+    // module consts above for why only the boot mount may cue).
+    const savedSpot = readJSON(RESUME_KEY, null);
+    const resume =
+      BOOTED_WITH_MUSIC_ON &&
+      !bootResumeConsumed &&
+      savedSpot &&
+      savedSpot.key === key &&
+      Number.isFinite(savedSpot.t)
+        ? savedSpot
+        : null;
+    bootResumeConsumed = true;
     setUnavailable(false);
     setStreamError(false);
-    setTrack({ title: "", t: 0, d: 0, live: false });
+    // Keep the seeded title/position through the cue path — resetting here
+    // would blank the bar exactly when it should show where you left off.
+    if (!resume) setTrack({ title: "", t: 0, d: 0, live: false });
     skipStreakRef.current = 0;
+    // Written ~every 5s while playing, on every pause, and on pagehide —
+    // a hard window close loses a few seconds of position at worst.
+    const saveResume = (p) => {
+      try {
+        const d = p?.getDuration?.() ?? 0;
+        if (!p?.getCurrentTime || isLiveDuration(d)) return;
+        writeJSON(RESUME_KEY, {
+          key,
+          index: p.getPlaylistIndex?.() ?? -1,
+          t: Math.floor(p.getCurrentTime() || 0),
+          d,
+          title: p.getVideoData?.()?.title || "",
+          savedAt: Date.now(),
+        });
+      } catch {
+        /* player mid-teardown */
+      }
+    };
+    const flush = () => saveResume(playerRef.current);
+    window.addEventListener("pagehide", flush);
     (async () => {
       const YT = await loadYouTubeApi();
       if (cancelled) return;
@@ -143,9 +197,25 @@ export default function MusicDock({ onOpenPanel }) {
         events: {
           onReady: (e) => {
             e.target.setVolume(volumeRef.current);
-            // loadPlaylist is an explicit "load and play" — more reliable
-            // than autoplay playerVars for playlists.
-            if (station.kind === "playlist") {
+            if (resume) {
+              // CUE, don't play: the bar shows the saved track and time,
+              // and the first ▶ press resumes from exactly there.
+              if (station.kind === "playlist") {
+                e.target.cuePlaylist({
+                  list: station.id,
+                  listType: "playlist",
+                  index: resume.index > 0 ? resume.index : 0,
+                  startSeconds: Math.max(0, resume.t),
+                });
+              } else {
+                e.target.cueVideoById({
+                  videoId: station.id,
+                  startSeconds: Math.max(0, resume.t),
+                });
+              }
+            } else if (station.kind === "playlist") {
+              // loadPlaylist is an explicit "load and play" — more reliable
+              // than autoplay playerVars for playlists.
               e.target.loadPlaylist({ list: station.id, listType: "playlist" });
             } else {
               e.target.playVideo();
@@ -154,6 +224,15 @@ export default function MusicDock({ onOpenPanel }) {
           onStateChange: (e) => {
             setPlaying(e.data === YT.PlayerState.PLAYING);
             if (e.data === YT.PlayerState.PLAYING) skipStreakRef.current = 0;
+            // cueVideoById (the resume path) drops the constructor's
+            // doubled-playlist loop, so singles loop by hand instead.
+            if (e.data === YT.PlayerState.ENDED && station.kind !== "playlist") {
+              e.target.seekTo(0, true);
+              e.target.playVideo();
+            }
+            // Pausing is the natural "stepping away" moment — save the
+            // exact spot rather than waiting out the throttle.
+            if (e.data === YT.PlayerState.PAUSED) saveResume(e.target);
           },
           onError: () => {
             // In a playlist a single broken/blocked track shouldn't kill the
@@ -173,6 +252,11 @@ export default function MusicDock({ onOpenPanel }) {
         const p = playerRef.current;
         if (!p?.getCurrentTime) return;
         try {
+          const st = p.getPlayerState?.();
+          // Cued-but-unstarted (the resume state): the bar is showing the
+          // SAVED position, and a cued player reports duration 0 — polling
+          // now would wipe the seed and misread the zeros as a live stream.
+          if (st === YT.PlayerState.CUED || st === YT.PlayerState.UNSTARTED) return;
           const d = p.getDuration?.() ?? 0;
           const next = {
             title: p.getVideoData?.()?.title || "",
@@ -191,6 +275,18 @@ export default function MusicDock({ onOpenPanel }) {
               ? prev // same reference → React bails, no re-render
               : next
           );
+          // Remember the spot (~every 5s while playing) so a relaunch can
+          // cue it. Synchronous storage writes at 1Hz would be churn;
+          // losing up to five seconds of position is nothing.
+          if (
+            st === YT.PlayerState.PLAYING &&
+            !next.live &&
+            next.t % 5 === 0 &&
+            next.t !== lastSavedRef.current
+          ) {
+            lastSavedRef.current = next.t;
+            saveResume(p);
+          }
         } catch {
           /* player mid-teardown */
         }
@@ -198,6 +294,10 @@ export default function MusicDock({ onOpenPanel }) {
     })();
     return () => {
       cancelled = true;
+      // The station is changing or the dock is closing — bank the spot
+      // before the player is torn down.
+      flush();
+      window.removeEventListener("pagehide", flush);
       setPlaying(false);
       playerRef.current = null;
       clearInterval(poll);
