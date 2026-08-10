@@ -296,7 +296,7 @@ export const ISO_ITEMS = {
   // again when the figure got its proper proportions and the cloud went with
   // the taller head.
   you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 84, persona: true, self: true, unique: true },
-  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 58, persona: true },
+  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 61, persona: true },
   // ---- more pets: same roamer engine as the cat, different silhouettes ----
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
   bunny: { label: "Rabbit", icon: "🐇", foot: [0.7, 0.6], hitH: 26, roamer: true },
@@ -1015,15 +1015,15 @@ export const ISO_PRESETS = {
     icon: "🕯️",
     size: { w: 9, d: 7 },
     items: [
-      // work wall: desk flush against the right wall, stool on its centre —
-      // and the resident seated on it, studying (VC2-style)
-      // The desk is a SURFACE now, so these three ride on top of it — their
-      // stored gx/gy deliberately sits inside the desk's footprint.
+      // work wall: desk flush against the right wall, chair on its centre —
+      // deliberately EMPTY. NPCs live only in the communal presets; in a
+      // personal room the empty desk chair is yours.
+      // The desk is a SURFACE, so these ride on top of it — their stored
+      // gx/gy deliberately sits inside the desk's footprint.
       { item: "desk", gx: 3, gy: 0 },
       { item: "computer", gx: 3.5, gy: 0 },
       { item: "mug", gx: 5, gy: 0.5 },
       { item: "deskchair", gx: 4, gy: 1.5 },
-      { item: "resident", gx: 4, gy: 1.5 },
       { item: "frame", gx: 1, gy: 0 },
       { item: "wallclock", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 6, gy: 0 },
@@ -1107,6 +1107,9 @@ export const ISO_PRESETS = {
       { item: "cafetable", gx: 2, gy: 3 },
       { item: "chair", gx: 2.5, gy: 2 },
       { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
+      // one customer at the window table — a café with nobody in it reads
+      // as closed (NPCs belong in the communal presets, and this is one)
+      { item: "resident", gx: 2.5, gy: 4.5, tint: "#6fb8cf" },
       // seating set B, same geometry, shifted right and forward
       { item: "cafetable", gx: 6, gy: 4 },
       { item: "chair", gx: 6.5, gy: 3 },
@@ -1151,7 +1154,6 @@ export const ISO_PRESETS = {
       // the pond, with somewhere to sit facing it
       { item: "pond", gx: 6, gy: 0.5 },
       { item: "bench", gx: 6, gy: 4 },
-      { item: "resident", gx: 6.5, gy: 4, tint: "#7faf8f" },
       { item: "log", gx: 8, gy: 3.5 },
       { item: "bush", gx: 8.5, gy: 5.5 },
       // and the lying-down corner — the blanket well clear of the hammock,
@@ -1292,7 +1294,7 @@ export const ISO_PRESETS = {
       { item: "chair", gx: 10, gy: 4.5, rot: 2 },
       { item: "diningtable", gx: 4, gy: 7.5 },
       { item: "chair", gx: 4, gy: 6.5 },
-      { item: "resident", gx: 4, gy: 6.5, tint: "#6fb8cf" },
+      { item: "resident", gx: 4, gy: 6.5, tint: "#e0a374" },
       { item: "chair", gx: 5, gy: 6.5 },
       { item: "chair", gx: 4, gy: 9, rot: 2 },
       { item: "chair", gx: 5, gy: 9, rot: 2 },
@@ -1330,7 +1332,7 @@ export const ISO_PRESETS = {
       { item: "mug", gx: 13.5, gy: 9.5 },
       { item: "armchair", gx: 13, gy: 8.5, tint: "#7faf8f" },
       { item: "armchair", gx: 13, gy: 10.5, rot: 2, tint: "#cf8f93" },
-      { item: "resident", gx: 13, gy: 8.5, tint: "#6fb8cf" },
+      { item: "resident", gx: 13, gy: 8.5, tint: "#c9a24b" },
       { item: "beanbag", gx: 1.5, gy: 7.5, tint: "#8a7ac2" },
       { item: "plant", gx: 2.5, gy: 9.5 },
       // The hall gets its architecture: an arch to come in by, a window
@@ -1356,7 +1358,6 @@ export const ISO_PRESETS = {
       { item: "woodstool", gx: 2.5, gy: 4 },
       { item: "woodstool", gx: 4, gy: 4 },
       { item: "woodstool", gx: 3.5, gy: 1.5 },
-      { item: "resident", gx: 2.5, gy: 4, tint: "#e0a374" },
       { item: "matrug", gx: 6.5, gy: 4.5, tint: "#8a5346" },
       { item: "armchair", gx: 6.5, gy: 4.5, tint: "#7faf8f" },
       { item: "sidetable", gx: 5, gy: 5 },
@@ -1378,7 +1379,7 @@ export const ISO_PRESETS = {
   // collection — the wreath has nowhere to hang here and is deliberately left
   // out rather than forced in.
   //
-  // FIFTEEN pieces exactly. Preset rooms are meant to be clean and functional,
+  // FOURTEEN pieces. Preset rooms are meant to be clean and functional,
   // and three trees, a bench and a raked pile of leaves is a whole scene; the
   // temptation with a themed room is to use every piece in the theme.
   fall: {
@@ -1396,9 +1397,9 @@ export const ISO_PRESETS = {
       // the job someone is halfway through, under the trees that shed it
       { item: "leafpile", gx: 3, gy: 2.5 },
       { item: "rake", gx: 4, gy: 2.5 },
-      // the corner you actually sit in
+      // the corner you actually sit in — the bench kept empty for you,
+      // the cat keeping it warm
       { item: "bench", gx: 1, gy: 5.5 },
-      { item: "resident", gx: 1.5, gy: 5.5, tint: "#c9a24b" },
       { item: "cat", gx: 1, gy: 6.5 },
       { item: "lantern", gx: 3, gy: 5.5 },
       // and the harvest, spread a full tile apart so they don't stack up

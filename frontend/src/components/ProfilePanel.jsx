@@ -4,7 +4,6 @@ import { useStore } from "../store";
 import { ISO_SPRITES } from "./IsoItems";
 import {
   BIO_MAX,
-  BUILDS,
   EXPRESSIONS,
   HAIR_COLORS,
   HAIR_STYLES,
@@ -14,6 +13,7 @@ import {
   ZODIAC,
   profileSummary,
 } from "../lib/profile";
+import { WIDTH_RANGE, HEIGHT_RANGE } from "../lib/body";
 
 /**
  * The resident, drawn with the character being edited. Measured with getBBox
@@ -103,7 +103,7 @@ function Swatches({ options, value, onPick, label }) {
   );
 }
 
-/** A row of labelled pills — hairstyle, expression, build. */
+/** A row of labelled pills — hairstyle, expression. */
 function Choices({ options, value, onPick, label }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
@@ -142,6 +142,19 @@ export default function ProfilePanel() {
   const commit = (key) => {
     const value = draft[key] ?? "";
     if ((profile[key] || "") !== value) saveProfile({ [key]: value });
+  };
+
+  // The body sliders are local until release for the same reason the text
+  // fields are local until blur: saveCharacter round-trips to the server,
+  // and a drag emits dozens of change events. The draft still feeds the
+  // preview, so the figure follows the thumb live.
+  const [bodyDraft, setBodyDraft] = useState(null);
+  const shown = bodyDraft ? { ...character, ...bodyDraft } : character;
+  const commitBody = () => {
+    if (bodyDraft) {
+      saveCharacter(bodyDraft);
+      setBodyDraft(null);
+    }
   };
 
   return (
@@ -242,7 +255,7 @@ export default function ProfilePanel() {
         hint="Only this one looks like you — the other residents stay themselves."
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 py-2">
-          <CharacterPreview character={character} />
+          <CharacterPreview character={shown} />
         </div>
 
         {/* The switch that actually puts you in the scene. Without it the whole
@@ -319,13 +332,43 @@ export default function ProfilePanel() {
           />
         </Field>
 
-        <Field label="Build">
-          <Choices
-            label="Build"
-            options={BUILDS}
-            value={character.build}
-            onPick={(build) => saveCharacter({ build })}
-          />
+        <Field label="Body">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs text-petal/70">
+              <span className="w-11 shrink-0">Width</span>
+              <input
+                type="range"
+                min={WIDTH_RANGE[0]}
+                max={WIDTH_RANGE[1]}
+                step="0.2"
+                value={shown.width}
+                aria-label="Body width"
+                onChange={(e) =>
+                  setBodyDraft({ ...(bodyDraft || {}), width: Number(e.target.value) })
+                }
+                onPointerUp={commitBody}
+                onBlur={commitBody}
+                className="h-1 flex-1 accent-glow"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-petal/70">
+              <span className="w-11 shrink-0">Height</span>
+              <input
+                type="range"
+                min={HEIGHT_RANGE[0]}
+                max={HEIGHT_RANGE[1]}
+                step="0.5"
+                value={shown.height}
+                aria-label="Body height"
+                onChange={(e) =>
+                  setBodyDraft({ ...(bodyDraft || {}), height: Number(e.target.value) })
+                }
+                onPointerUp={commitBody}
+                onBlur={commitBody}
+                className="h-1 flex-1 accent-glow"
+              />
+            </label>
+          </div>
         </Field>
 
         <p className="text-xs text-petal/50">

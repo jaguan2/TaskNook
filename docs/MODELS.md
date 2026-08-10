@@ -85,6 +85,15 @@ leg, and the oversized shoe is half the toy-like read). A first pass at 37%
 leg still read as the old body: proportion deltas obey the same
 must-be-BIG rule as the model deltas.
 
+Body width and height are **user-tunable** (Profile panel sliders, stored on
+the character). `WIDTH_RANGE`/`HEIGHT_RANGE` in `lib/body.js` are
+guard-derived, not taste — tests pin each endpoint against the shoulder
+floor, the ≤1.55×-head chunky ceiling, the hem-covers-stance rule and the
+≥40% leg share, so widening a range without re-deriving it fails CI. Limb
+thickness scales gently with width (a wide torso on stick legs reads as
+parts pasted together). Stored `build` keys survive as the width's default,
+so pre-slider saves keep their silhouette.
+
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
 fixed it ("blocky and lifeless", user). Three things carried the redraw, in

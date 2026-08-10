@@ -277,7 +277,9 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, outfit, expression, build). Same division of labour as the
+  hair + colour, outfit, expression, and body width/height sliders — `build`
+  survives in storage as the width's legacy default; the body's geometry and
+  slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration. The character drives the `resident` sprite
@@ -739,7 +741,7 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   the harvest) with open ground between is what made it a place. Count is
   necessary, composition is not optional.
   **Autumn yard** is the seasonal preset and the reason the autumn set exists
-  as a set. Open air (garden env), FIFTEEN pieces exactly — the temptation
+  as a set. Open air (garden env), FOURTEEN pieces — the temptation
   with a themed room is to use every piece in the theme, and the wreath is
   deliberately left out because there is no wall to hang it on. Two things
   needed fixing after looking at it: three pumpkins half a tile apart read as
@@ -748,7 +750,13 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   birch and bush beside two maples made the season read as ambiguous — both
   now carry autumn tints.
   **Preset rooms are meant to be clean and functional — a target of about
-  FIFTEEN pieces, not a showcase** (user decision). The presets are NOT a
+  FIFTEEN pieces, not a showcase** (user decision).
+  **NPC residents live only in the COMMUNAL presets** — the cafés, the
+  Reading room, the Study hall (owner decision, 2026-08-09). Personal rooms
+  ship their seats empty: a stranger studying at your desk reads wrong when
+  the app has a `you` persona, while an empty desk chair or pond bench is an
+  invitation. A café with nobody in it reads as closed, so the communal
+  rooms keep (and Morning café gained) their people. The presets are NOT a
   shop window. A new piece belongs
   in the picker; it does not have to be placed in a built-in room, and the
   built-in rooms are deliberately left alone. There WAS a test asserting every

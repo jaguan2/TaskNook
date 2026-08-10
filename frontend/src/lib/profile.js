@@ -15,6 +15,7 @@
  * Everything here is a pure function so it can be tested in the fast `node`
  * environment; nothing touches the DOM, the store, or `localStorage`.
  */
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
 
 // --------------------------------------------------------------------------- //
 // MBTI
@@ -179,6 +180,9 @@ export const EXPRESSIONS = [
   { key: "sleepy", label: "Sleepy" },
 ];
 
+// Legacy vocabulary: the panel now offers body width/height SLIDERS instead
+// of build pills, but stored builds keep their meaning — a build is the
+// width the slider defaults to when no explicit width was ever saved.
 export const BUILDS = [
   { key: "slim", label: "Slim" },
   { key: "average", label: "Average" },
@@ -195,6 +199,8 @@ export const DEFAULT_CHARACTER = {
   outfit: "#7faf8f",
   expression: "calm",
   build: "average",
+  width: BUILD_SHAPE.average.halfW,
+  height: LEG_H,
 };
 
 const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
@@ -214,6 +220,16 @@ function pickKey(value, allowed, fallback) {
   return typeof value === "string" && allowed.has(value) ? value : fallback;
 }
 
+// A finite number clamped into the range, or the fallback. Clamping rather
+// than rejecting an out-of-range value: a slider position slightly outside
+// today's range (saved by a build that allowed more) should come back as
+// "as far as we go", not reset to the middle.
+function pickNum(value, [lo, hi], fallback) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(hi, Math.max(lo, value))
+    : fallback;
+}
+
 /**
  * A drawable character, whatever was stored.
  *
@@ -224,6 +240,7 @@ function pickKey(value, allowed, fallback) {
  */
 export function validateCharacter(raw) {
   const c = raw && typeof raw === "object" ? raw : {};
+  const build = pickKey(c.build, BUILD_KEYS, DEFAULT_CHARACTER.build);
   return {
     model: pickKey(c.model, MODEL_KEYS, DEFAULT_CHARACTER.model),
     skin: pickHex(c.skin, DEFAULT_CHARACTER.skin),
@@ -231,7 +248,12 @@ export function validateCharacter(raw) {
     hairColor: pickHex(c.hairColor, DEFAULT_CHARACTER.hairColor),
     outfit: pickHex(c.outfit, DEFAULT_CHARACTER.outfit),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
-    build: pickKey(c.build, BUILD_KEYS, DEFAULT_CHARACTER.build),
+    build,
+    // Width defaults from the BUILD, not from a fixed number — a pre-slider
+    // save that chose "slim" keeps its silhouette instead of snapping to
+    // average the first time it round-trips through here.
+    width: pickNum(c.width, WIDTH_RANGE, BUILD_SHAPE[build].halfW),
+    height: pickNum(c.height, HEIGHT_RANGE, LEG_H),
   };
 }
 

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
@@ -235,15 +235,159 @@ const ISO_TIME = {
   day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19, glow: 0.25 },
 };
 
-// memo: App re-renders every second (the focus timer ticks) and a big floor
-// is thousands of SVG nodes — the scene must only re-render when the room
-// actually changes (all callbacks are useCallback'd in the store).
-function IsoRoom({
+// One placed item, memo'd on its own: a roam tick (every ~3.5s with a pet in
+// the room) or a selection change re-renders only the rows whose RESOLVED
+// placement actually changed, not all ~150 on a full lot. The bail-out is
+// real because `effective` returns untouched plain furniture by identity —
+// only personas, stacked items and wanderers get fresh objects per render.
+const PlacedItem = memo(function PlacedItem({
+  p,
+  editMode,
+  activity,
+  character,
+  mood,
+  reduceMotion,
+  onStartDrag,
+}) {
+  const item = ISO_ITEMS[p.item];
+  const Sprite = ISO_SPRITES[p.item];
+  if (!item || !Sprite) return null;
+  const at = project(p.gx, p.gy);
+  const foot = footOf(p.item, p.rot);
+  const persona = !!item.persona;
+  const glides = persona || !!item.roamer;
+  // Wanderers use a CSS transform (transition = the glide);
+  // everything else keeps the attribute transform (instant drags).
+  //
+  // The transition is a TRANSITION, so `animation: none` in the
+  // reduced-motion block cannot touch it — the same hole the
+  // lightning flash falls through, and it has to be closed the same
+  // way, in JS. Under reduced motion nothing wanders anyway, but the
+  // property is dropped rather than left armed.
+  // CSS variables inherit, so these two properties on the placement
+  // group desynchronise every animation inside the sprite — leaves,
+  // flames, a chest rising — including sprites nobody has drawn yet.
+  //
+  // From the item's STORED square (`_hx`/`_hy`), never the resolved one.
+  // `effective` overwrites gx/gy with the wander offset, so reading
+  // p.gx here fed a value that changes every few seconds: each step
+  // handed the sprite a new phase, restarting its walk cycle, its
+  // breathing and its gesture clocks mid-motion. The comment said this
+  // and the code did the opposite — a wanderer was the one kind of item
+  // that couldn't hold a phase. From the position rather than a counter,
+  // so they survive reordering (`sortIso` reshuffles these constantly).
+  const ambience = ambienceVars(p._hx ?? p.gx, p._hy ?? p.gy);
+  const placeProps =
+    glides && !editMode && !reduceMotion
+      ? {
+          style: {
+            transform: `translate(${at.x}px, ${at.y}px)`,
+            // A soft start and settle — creatures amble, not slide.
+            transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
+            ...ambience,
+            ...(p.tint && { "--tint": p.tint }),
+          },
+        }
+      : {
+          transform: `translate(${at.x},${at.y})`,
+          style: { ...ambience, ...(p.tint && { "--tint": p.tint }) },
+        };
+  return (
+    <g
+      {...placeProps}
+      className={editMode ? "room-item" : undefined}
+      onPointerDown={(e) => onStartDrag?.(p, e)}
+    >
+      {/* Grab target = the item's FOOTPRINT diamond (plus its painted
+          pixels via normal SVG hit-testing). A full bounding box
+          would let tall items (the floor lamp's pole) blanket
+          everything behind them. */}
+      {editMode && (
+        <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
+      )}
+      {/* Contact shadow: one soft ellipse sized to the footprint,
+          under every grounded item. This is most of what makes the
+          sprites read as sitting IN the room instead of pasted on
+          (flat rugs/ponds and wall decor obviously except). */}
+      {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (() => {
+        // A shadow centred under the object is a shadow from a lamp
+        // directly overhead — it reads as a symmetric smudge and
+        // gives nothing away about the light. The scene's light
+        // comes from the upper RIGHT (string lights, the orb at the
+        // third intersection), so the shadow leans down-left, away
+        // from it, and stretches with the object's height.
+        const mid = project(foot[0] / 2, foot[1] / 2);
+        const lean = Math.min(9, 2 + (item.hitH || 20) * 0.06);
+        return (
+          <ellipse
+            cx={mid.x - lean}
+            cy={mid.y + lean * 0.5}
+            rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3 + lean * 0.4}
+            ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
+            fill="url(#isoShadow)"
+          />
+        );
+      })()}
+      {/* Mirroring about the origin is a grid TRANSPOSE — the item
+          faces the other wall and its footprint swaps to match.
+          noMirror items (rendered PNGs) ship a real second render
+          per orientation instead: pass rot through, skip the flip. */}
+      {(() => {
+        const sprite = persona ? (
+          <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
+            <Sprite
+              seated={!!p._seat && !p._lie}
+              lying={!!p._lie}
+              seatH={p._seat || 0}
+              activity={activity}
+              moving={!!p._moving}
+              // Only YOU wear the profile's character and think
+              // thoughts. Passing them to every persona turned a
+              // table of four into four copies of the same person.
+              character={item.self ? character : undefined}
+              mood={item.self ? mood : undefined}
+              // The odd turns wrap this whole sprite in
+              // scale(-1,1), which would draw the thought bubble's
+              // book and mug back-to-front. Tell it, so it can undo
+              // the flip for that one piece of artwork.
+              mirrored={(p.rot || 0) % 2 === 1}
+            />
+          </g>
+        ) : item.roamer ? (
+          <Sprite awake={!!p._awake} />
+        ) : (
+          <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
+            {/* rot 2/3 are the AWAY-facing pair, and they're a
+                different drawing — a half turn on the grid is
+                scale(-1,-1) on screen, i.e. upside down, so it can
+                never be faked. `back` picks the real back view;
+                only items with one are ever given a rot ≥ 2. */}
+            <Sprite
+              rot={(p.rot || 0) % 2}
+              back={(p.rot || 0) >= 2}
+              variant={item.variants?.[p.tint]}
+            />
+          </g>
+        );
+        // The odd turns are the mirror; the even ones are drawn as-is.
+        return (p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
+      })()}
+    </g>
+  );
+});
+
+// The SCENE, split from the camera. `view` state lives in the IsoRoom
+// wrapper below and reaches only the svg's viewBox attribute — nothing in
+// here reads it, so a 60Hz pan or zoom updates one attribute instead of
+// re-rendering the thousands of SVG nodes a 48×48 lot puts in this subtree.
+// Every prop holds its identity through a camera move; that is what lets
+// the memo hold, and why the wrapper useCallback's what it passes down.
+function IsoSceneInner({
   size,
   placements = [],
   editMode = false,
   timeOfDay = "night",
-  highlightId = null,
+  selectedId = null,
   // "focus" | "break" | null — what the timer is doing. A string, not two
   // booleans: the states are exclusive, and it still changes rarely enough that
   // the memo'd scene only re-renders on a phase edge rather than per tick.
@@ -251,129 +395,19 @@ function IsoRoom({
   character,
   mood = null,
   reduceMotion = false,
-  onMoveItem,
-  onRemoveItem,
+  cx,
+  cy,
+  onStartDrag,
   onRotateItem,
-  onTintItem,
+  onRemoveItem,
+  onClearSelect,
 }) {
   const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
-  const [selectedId, setSelectedId] = useState(null);
-  const svgRef = useRef(null);
-  const dragRef = useRef(null);
-  const panRef = useRef(null); // the world point the pointer grabbed
-  const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
-  const [view, setView] = useState(loadView);
-  const viewRef = useRef(view);
-  viewRef.current = view;
-  const sizeRef = useRef(size);
-  sizeRef.current = size;
-
-  const persistViewTimer = useRef(null);
-  // What the debounce is holding, so unmount can FLUSH it rather than drop it.
-  const pendingViewRef = useRef(null);
-  const flushView = () => {
-    clearTimeout(persistViewTimer.current);
-    if (pendingViewRef.current) {
-      writeStored("tasknook.isoView", JSON.stringify(pendingViewRef.current));
-      pendingViewRef.current = null;
-    }
-  };
-  // Cleanup used to only CLEAR the timer, so a pan or zoom followed within 300ms
-  // by toggling to the flat scene (or closing the app) silently lost the camera
-  // position — the one thing you'd notice next launch.
-  useEffect(() => flushView, []);
-  const applyView = (next) => {
-    const clamped = clampView(next);
-    setView(clamped);
-    // Persisting on every pointermove meant a synchronous JSON+disk write at
-    // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
-    // immediate.
-    pendingViewRef.current = clamped;
-    clearTimeout(persistViewTimer.current);
-    persistViewTimer.current = setTimeout(() => {
-      writeStored("tasknook.isoView", JSON.stringify(clamped));
-      pendingViewRef.current = null;
-    }, 300);
-  };
-
-  useEffect(() => {
-    if (!editMode) setSelectedId(null);
-  }, [editMode]);
-
-  // A freshly-added item arrives SELECTED (highlight + buttons + picker), so
-  // the user immediately sees what appeared and where to drag it.
-  useEffect(() => {
-    if (highlightId) setSelectedId(highlightId);
-  }, [highlightId]);
-
-  // Backspace/Delete removes the selected item (not while typing a hex code).
-  useEffect(() => {
-    if (!editMode) return undefined;
-    const onKey = (e) => {
-      if (e.key !== "Backspace" && e.key !== "Delete") return;
-      // Shared with App's Escape handler. This one used to check only
-      // INPUT/TEXTAREA, so Backspace deleted the selected furniture while you
-      // were typing in a `<select>` or a contenteditable.
-      if (isTypingTarget(e.target)) return;
-      if (!selectedId) return;
-      e.preventDefault();
-      onRemoveItem?.(selectedId);
-      setSelectedId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [editMode, selectedId, onRemoveItem]);
-
-  // Escape deselects first (closing the tint picker); only the NEXT press
-  // reaches App's handler and exits decorating. Capture + stopPropagation
-  // keeps App's window listener out of this one (same trick as TopBar's
-  // weather popover).
-  useEffect(() => {
-    if (!editMode || !selectedId) return undefined;
-    const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      setSelectedId(null);
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [editMode, selectedId]);
-
-  // Wheel zoom must preventDefault (page scroll), so it can't be a React
-  // onWheel prop — React registers those passively.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return undefined;
-    const onWheel = (e) => {
-      e.preventDefault();
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return;
-      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-      const v = viewRef.current;
-      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
-      // Big floors need a farther zoom-out: the limit grows with the room so
-      // a 48-wide lot still fits on screen.
-      const roomSpan = ((sizeRef.current.w + sizeRef.current.d) * TILE_W) / 2;
-      const maxW = Math.max(VIEW_MAX_W, roomSpan * 1.25);
-      const w = Math.min(maxW, Math.max(VIEW_MIN_W, v.w * factor));
-      const s = w / v.w;
-      if (s === 1) return;
-      // Anchor the zoom at the cursor: that world point stays put on screen.
-      applyView({ x: p.x - (p.x - v.x) * s, y: p.y - (p.y - v.y) * s, w, h: v.h * s });
-    };
-    svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
-  }, []);
 
   const { w, d } = size;
   const farL = project(0, d);
   const farR = project(w, 0);
   const front = project(w, d);
-
-  // Centre the room around world (320,240), whatever its dimensions (the
-  // bounding rect, ignoring cuts — a stable centre while cuts toggle).
-  const cx = 320 - (farL.x + farR.x) / 2;
-  const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
 
   // Mask-aware geometry: the floor's shape, and the walls and lip per tile edge.
   //
@@ -397,92 +431,6 @@ function IsoRoom({
   // from one number instead of from a scatter of `outdoors` checks.
   const env = envOf(size.env);
   const wallH = env.walls === "full" ? WALL_H : env.walls === "low" ? LOW_WALL_H : 0;
-
-  const toWorld = (e) => {
-    const svg = svgRef.current;
-    const ctm = svg?.getScreenCTM();
-    if (!ctm) return null;
-    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-  };
-  const toScene = (e) => {
-    const p = toWorld(e);
-    return p ? { x: p.x - cx, y: p.y - cy } : null;
-  };
-
-  const startDrag = (placement) => (e) => {
-    if (!editMode) return;
-    e.stopPropagation();
-    // dblclick isn't stopped by the pointerdown's stopPropagation — it still
-    // reaches the svg root, where it would recenter the camera mid-decorating.
-    pointerOnItemRef.current = true;
-    setSelectedId(placement.id);
-    const p = toScene(e);
-    if (!p) return;
-    const g = unproject(p.x, p.y);
-    dragRef.current = {
-      id: placement.id,
-      item: placement.item,
-      rot: placement.rot || 0,
-      dgx: g.gx - placement.gx,
-      dgy: g.gy - placement.gy,
-    };
-    svgRef.current?.setPointerCapture?.(e.pointerId);
-  };
-
-  const moveDrag = (e) => {
-    const drag = dragRef.current;
-    if (drag) {
-      const p = toScene(e);
-      if (!p) return;
-      const g = unproject(p.x, p.y);
-      const { gx, gy } = clampIsoPlacement(
-        drag.item,
-        snapHalf(g.gx - drag.dgx),
-        snapHalf(g.gy - drag.dgy),
-        size,
-        drag.rot
-      );
-      // Drags simply refuse void tiles — the item stops at the shape's edge.
-      if (
-        !ISO_ITEMS[drag.item].wall &&
-        !footprintFree(gx, gy, footOf(drag.item, drag.rot), size)
-      ) {
-        return;
-      }
-      // Belt as well as braces: remember the last position SENT so a no-op
-      // never even reaches the store. The store bails out too (see
-      // moveIsoItem), but stopping here also skips the clamp/collision work's
-      // downstream call entirely and keeps the drag ref honest about what the
-      // store believes.
-      if (drag.sentGx === gx && drag.sentGy === gy) return;
-      drag.sentGx = gx;
-      drag.sentGy = gy;
-      onMoveItem?.(drag.id, gx, gy);
-      return;
-    }
-    // Camera pan: keep the grabbed world point glued under the pointer.
-    const pan = panRef.current;
-    if (pan) {
-      const p = toWorld(e);
-      if (!p) return;
-      const v = viewRef.current;
-      applyView({ ...v, x: v.x + (pan.x - p.x), y: v.y + (pan.y - p.y) });
-    }
-  };
-
-  const endDrag = () => {
-    dragRef.current = null;
-    panRef.current = null;
-  };
-
-  const startPan = (e) => {
-    pointerOnItemRef.current = false;
-    if (editMode) setSelectedId(null);
-    const p = toWorld(e);
-    if (!p) return;
-    panRef.current = { x: p.x, y: p.y };
-    svgRef.current?.setPointerCapture?.(e.pointerId);
-  };
 
   // Personas: seated ones snap onto their seat (slightly forward so they
   // draw in front of the backrest, lifted by the seat height); standing ones
@@ -575,24 +523,7 @@ function IsoRoom({
     editMode && selectedId ? effective.find((p) => p.id === selectedId) : null;
 
   return (
-    <div className="pointer-events-auto absolute inset-0 select-none">
-      <svg
-        ref={svgRef}
-        viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-        style={{ touchAction: "none" }}
-        className="h-full w-full"
-        onPointerMove={moveDrag}
-        onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-        onPointerCancel={endDrag}
-        onPointerDown={startPan}
-        onDoubleClick={() => {
-          // Recenter only from empty space — double-clicking furniture (two
-          // quick drag-grabs) shouldn't fling the camera.
-          if (pointerOnItemRef.current) return;
-          applyView(DEFAULT_VIEW);
-        }}
-      >
+    <>
         <defs>
           {/* soft pool of light the room sits in — replaces the old card */}
           <radialGradient id="isoAmbient" cx="0.5" cy="0.5" r="0.5">
@@ -934,134 +865,18 @@ function IsoRoom({
           </g>
 
           {/* ---------- placed items ---------- */}
-          {ordered.map((p) => {
-            const item = ISO_ITEMS[p.item];
-            const Sprite = ISO_SPRITES[p.item];
-            if (!item || !Sprite) return null;
-            const at = project(p.gx, p.gy);
-            const foot = footOf(p.item, p.rot);
-            const persona = !!item.persona;
-            const glides = persona || !!item.roamer;
-            // Wanderers use a CSS transform (transition = the glide);
-            // everything else keeps the attribute transform (instant drags).
-            //
-            // The transition is a TRANSITION, so `animation: none` in the
-            // reduced-motion block cannot touch it — the same hole the
-            // lightning flash falls through, and it has to be closed the same
-            // way, in JS. Under reduced motion nothing wanders anyway, but the
-            // property is dropped rather than left armed.
-            // CSS variables inherit, so these two properties on the placement
-            // group desynchronise every animation inside the sprite — leaves,
-            // flames, a chest rising — including sprites nobody has drawn yet.
-            //
-            // From the item's STORED square (`_hx`/`_hy`), never the resolved one.
-            // `effective` overwrites gx/gy with the wander offset, so reading
-            // p.gx here fed a value that changes every few seconds: each step
-            // handed the sprite a new phase, restarting its walk cycle, its
-            // breathing and its gesture clocks mid-motion. The comment said this
-            // and the code did the opposite — a wanderer was the one kind of item
-            // that couldn't hold a phase. From the position rather than a counter,
-            // so they survive reordering (`sortIso` reshuffles these constantly).
-            const ambience = ambienceVars(p._hx ?? p.gx, p._hy ?? p.gy);
-            const placeProps =
-              glides && !editMode && !reduceMotion
-                ? {
-                    style: {
-                      transform: `translate(${at.x}px, ${at.y}px)`,
-                      // A soft start and settle — creatures amble, not slide.
-                      transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
-                      ...ambience,
-                      ...(p.tint && { "--tint": p.tint }),
-                    },
-                  }
-                : {
-                    transform: `translate(${at.x},${at.y})`,
-                    style: { ...ambience, ...(p.tint && { "--tint": p.tint }) },
-                  };
-            return (
-              <g
-                key={p.id}
-                {...placeProps}
-                className={editMode ? "room-item" : undefined}
-                onPointerDown={startDrag(p)}
-              >
-                {/* Grab target = the item's FOOTPRINT diamond (plus its painted
-                    pixels via normal SVG hit-testing). A full bounding box
-                    would let tall items (the floor lamp's pole) blanket
-                    everything behind them. */}
-                {editMode && (
-                  <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
-                )}
-                {/* Contact shadow: one soft ellipse sized to the footprint,
-                    under every grounded item. This is most of what makes the
-                    sprites read as sitting IN the room instead of pasted on
-                    (flat rugs/ponds and wall decor obviously except). */}
-                {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (() => {
-                  // A shadow centred under the object is a shadow from a lamp
-                  // directly overhead — it reads as a symmetric smudge and
-                  // gives nothing away about the light. The scene's light
-                  // comes from the upper RIGHT (string lights, the orb at the
-                  // third intersection), so the shadow leans down-left, away
-                  // from it, and stretches with the object's height.
-                  const mid = project(foot[0] / 2, foot[1] / 2);
-                  const lean = Math.min(9, 2 + (item.hitH || 20) * 0.06);
-                  return (
-                    <ellipse
-                      cx={mid.x - lean}
-                      cy={mid.y + lean * 0.5}
-                      rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3 + lean * 0.4}
-                      ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
-                      fill="url(#isoShadow)"
-                    />
-                  );
-                })()}
-                {/* Mirroring about the origin is a grid TRANSPOSE — the item
-                    faces the other wall and its footprint swaps to match.
-                    noMirror items (rendered PNGs) ship a real second render
-                    per orientation instead: pass rot through, skip the flip. */}
-                {(() => {
-                  const sprite = persona ? (
-                    <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-                      <Sprite
-                        seated={!!p._seat && !p._lie}
-                        lying={!!p._lie}
-                        seatH={p._seat || 0}
-                        activity={activity}
-                        moving={!!p._moving}
-                        // Only YOU wear the profile's character and think
-                        // thoughts. Passing them to every persona turned a
-                        // table of four into four copies of the same person.
-                        character={item.self ? character : undefined}
-                        mood={item.self ? mood : undefined}
-                        // The odd turns wrap this whole sprite in
-                        // scale(-1,1), which would draw the thought bubble's
-                        // book and mug back-to-front. Tell it, so it can undo
-                        // the flip for that one piece of artwork.
-                        mirrored={(p.rot || 0) % 2 === 1}
-                      />
-                    </g>
-                  ) : item.roamer ? (
-                    <Sprite awake={!!p._awake} />
-                  ) : (
-                    <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
-                      {/* rot 2/3 are the AWAY-facing pair, and they're a
-                          different drawing — a half turn on the grid is
-                          scale(-1,-1) on screen, i.e. upside down, so it can
-                          never be faked. `back` picks the real back view;
-                          only items with one are ever given a rot ≥ 2. */}
-                      <Sprite
-                        rot={(p.rot || 0) % 2}
-                        back={(p.rot || 0) >= 2}
-                        variant={item.variants?.[p.tint]}
-                      />
-                    </g>
-                  );
-                  // The odd turns are the mirror; the even ones are drawn as-is.
-                  return (p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
-                })()}
-              </g>
-            );
-          })}
+          {ordered.map((p) => (
+            <PlacedItem
+              key={p.id}
+              p={p}
+              editMode={editMode}
+              activity={activity}
+              character={character}
+              mood={mood}
+              reduceMotion={reduceMotion}
+              onStartDrag={onStartDrag}
+            />
+          ))}
 
           {/* selection chrome LAST — the highlight and ⟳/✕ buttons must sit
               above every item, or nearer furniture buries them (user-hit) */}
@@ -1107,7 +922,7 @@ function IsoRoom({
                     onPointerDown={(e) => {
                       e.stopPropagation();
                       onRemoveItem?.(p.id);
-                      setSelectedId(null);
+                      onClearSelect?.();
                     }}
                   >
                     <circle cx={hitR.x + 4} cy={-item.hitH - 2} r="9" fill="#d96a6a" />
@@ -1122,14 +937,293 @@ function IsoRoom({
               );
             })()}
         </g>
+    </>
+  );
+}
+
+const IsoScene = memo(IsoSceneInner);
+
+// The camera, and every pointer/keyboard interaction. This wrapper is the
+// perf boundary: `view` changes at pointer rate during a pan or zoom, and
+// from here it reaches ONLY the svg's viewBox attribute — IsoScene's props
+// all hold their identity through a camera move, so its memo skips the
+// whole subtree. (memo on the wrapper itself: App re-renders every second
+// on the focus timer's tick, and all store callbacks are useCallback'd.)
+function IsoRoom({
+  size,
+  placements = [],
+  editMode = false,
+  timeOfDay = "night",
+  highlightId = null,
+  activity = null,
+  character,
+  mood = null,
+  reduceMotion = false,
+  onMoveItem,
+  onRemoveItem,
+  onRotateItem,
+  onTintItem,
+}) {
+  const [selectedId, setSelectedId] = useState(null);
+  const svgRef = useRef(null);
+  const dragRef = useRef(null);
+  const panRef = useRef(null); // the world point the pointer grabbed
+  const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
+  const [view, setView] = useState(loadView);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+
+  const persistViewTimer = useRef(null);
+  // What the debounce is holding, so unmount can FLUSH it rather than drop it.
+  const pendingViewRef = useRef(null);
+  const flushView = () => {
+    clearTimeout(persistViewTimer.current);
+    if (pendingViewRef.current) {
+      writeStored("tasknook.isoView", JSON.stringify(pendingViewRef.current));
+      pendingViewRef.current = null;
+    }
+  };
+  // Cleanup used to only CLEAR the timer, so a pan or zoom followed within 300ms
+  // by toggling to the flat scene (or closing the app) silently lost the camera
+  // position — the one thing you'd notice next launch.
+  useEffect(() => flushView, []);
+  const applyView = (next) => {
+    const clamped = clampView(next);
+    setView(clamped);
+    // Persisting on every pointermove meant a synchronous JSON+disk write at
+    // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
+    // immediate.
+    pendingViewRef.current = clamped;
+    clearTimeout(persistViewTimer.current);
+    persistViewTimer.current = setTimeout(() => {
+      writeStored("tasknook.isoView", JSON.stringify(clamped));
+      pendingViewRef.current = null;
+    }, 300);
+  };
+
+  useEffect(() => {
+    if (!editMode) setSelectedId(null);
+  }, [editMode]);
+
+  // A freshly-added item arrives SELECTED (highlight + buttons + picker), so
+  // the user immediately sees what appeared and where to drag it.
+  useEffect(() => {
+    if (highlightId) setSelectedId(highlightId);
+  }, [highlightId]);
+
+  // Backspace/Delete removes the selected item (not while typing a hex code).
+  useEffect(() => {
+    if (!editMode) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      // Shared with App's Escape handler. This one used to check only
+      // INPUT/TEXTAREA, so Backspace deleted the selected furniture while you
+      // were typing in a `<select>` or a contenteditable.
+      if (isTypingTarget(e.target)) return;
+      if (!selectedId) return;
+      e.preventDefault();
+      onRemoveItem?.(selectedId);
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editMode, selectedId, onRemoveItem]);
+
+  // Escape deselects first (closing the tint picker); only the NEXT press
+  // reaches App's handler and exits decorating. Capture + stopPropagation
+  // keeps App's window listener out of this one (same trick as TopBar's
+  // weather popover).
+  useEffect(() => {
+    if (!editMode || !selectedId) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [editMode, selectedId]);
+
+  // Wheel zoom must preventDefault (page scroll), so it can't be a React
+  // onWheel prop — React registers those passively.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+      const v = viewRef.current;
+      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      // Big floors need a farther zoom-out: the limit grows with the room so
+      // a 48-wide lot still fits on screen.
+      const roomSpan = ((sizeRef.current.w + sizeRef.current.d) * TILE_W) / 2;
+      const maxW = Math.max(VIEW_MAX_W, roomSpan * 1.25);
+      const w = Math.min(maxW, Math.max(VIEW_MIN_W, v.w * factor));
+      const s = w / v.w;
+      if (s === 1) return;
+      // Anchor the zoom at the cursor: that world point stays put on screen.
+      applyView({ x: p.x - (p.x - v.x) * s, y: p.y - (p.y - v.y) * s, w, h: v.h * s });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Centre the room around world (320,240), whatever its dimensions (the
+  // bounding rect, ignoring cuts — a stable centre while cuts toggle).
+  // IsoScene derives the same centre; the wrapper needs it for hit-testing.
+  const farL = project(0, size.d);
+  const farR = project(size.w, 0);
+  const front = project(size.w, size.d);
+  const cx = 320 - (farL.x + farR.x) / 2;
+  const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
+
+  const toWorld = (e) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!ctm) return null;
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  };
+  const toScene = (e) => {
+    const p = toWorld(e);
+    return p ? { x: p.x - cx, y: p.y - cy } : null;
+  };
+
+  // Stable across camera moves (its deps are the room's centring, never the
+  // view) — a changing identity here alone would defeat IsoScene's memo.
+  const onStartDrag = useCallback(
+    (placement, e) => {
+      if (!editMode) return;
+      e.stopPropagation();
+      // dblclick isn't stopped by the pointerdown's stopPropagation — it still
+      // reaches the svg root, where it would recenter the camera mid-decorating.
+      pointerOnItemRef.current = true;
+      setSelectedId(placement.id);
+      const svg = svgRef.current;
+      const ctm = svg?.getScreenCTM();
+      if (!ctm) return;
+      const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+      const g = unproject(pt.x - cx, pt.y - cy);
+      dragRef.current = {
+        id: placement.id,
+        item: placement.item,
+        rot: placement.rot || 0,
+        dgx: g.gx - placement.gx,
+        dgy: g.gy - placement.gy,
+      };
+      svg?.setPointerCapture?.(e.pointerId);
+    },
+    [editMode, cx, cy]
+  );
+  const onClearSelect = useCallback(() => setSelectedId(null), []);
+
+  const moveDrag = (e) => {
+    const drag = dragRef.current;
+    if (drag) {
+      const p = toScene(e);
+      if (!p) return;
+      const g = unproject(p.x, p.y);
+      const { gx, gy } = clampIsoPlacement(
+        drag.item,
+        snapHalf(g.gx - drag.dgx),
+        snapHalf(g.gy - drag.dgy),
+        size,
+        drag.rot
+      );
+      // Drags simply refuse void tiles — the item stops at the shape's edge.
+      if (
+        !ISO_ITEMS[drag.item].wall &&
+        !footprintFree(gx, gy, footOf(drag.item, drag.rot), size)
+      ) {
+        return;
+      }
+      // Belt as well as braces: remember the last position SENT so a no-op
+      // never even reaches the store. The store bails out too (see
+      // moveIsoItem), but stopping here also skips the clamp/collision work's
+      // downstream call entirely and keeps the drag ref honest about what the
+      // store believes.
+      if (drag.sentGx === gx && drag.sentGy === gy) return;
+      drag.sentGx = gx;
+      drag.sentGy = gy;
+      onMoveItem?.(drag.id, gx, gy);
+      return;
+    }
+    // Camera pan: keep the grabbed world point glued under the pointer.
+    const pan = panRef.current;
+    if (pan) {
+      const p = toWorld(e);
+      if (!p) return;
+      const v = viewRef.current;
+      applyView({ ...v, x: v.x + (pan.x - p.x), y: v.y + (pan.y - p.y) });
+    }
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+    panRef.current = null;
+  };
+
+  const startPan = (e) => {
+    pointerOnItemRef.current = false;
+    if (editMode) setSelectedId(null);
+    const p = toWorld(e);
+    if (!p) return;
+    panRef.current = { x: p.x, y: p.y };
+    svgRef.current?.setPointerCapture?.(e.pointerId);
+  };
+
+  // The RAW placement, not the render-resolved one: the picker lives outside
+  // the svg and only needs the stored tint and the item.
+  const selectedRaw =
+    editMode && selectedId ? placements.find((p) => p.id === selectedId) : null;
+
+  return (
+    <div className="pointer-events-auto absolute inset-0 select-none">
+      <svg
+        ref={svgRef}
+        viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
+        style={{ touchAction: "none" }}
+        className="h-full w-full"
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        onPointerCancel={endDrag}
+        onPointerDown={startPan}
+        onDoubleClick={() => {
+          // Recenter only from empty space — double-clicking furniture (two
+          // quick drag-grabs) shouldn't fling the camera.
+          if (pointerOnItemRef.current) return;
+          applyView(DEFAULT_VIEW);
+        }}
+      >
+        <IsoScene
+          size={size}
+          placements={placements}
+          editMode={editMode}
+          timeOfDay={timeOfDay}
+          selectedId={selectedId}
+          activity={activity}
+          character={character}
+          mood={mood}
+          reduceMotion={reduceMotion}
+          cx={cx}
+          cy={cy}
+          onStartDrag={onStartDrag}
+          onRotateItem={onRotateItem}
+          onRemoveItem={onRemoveItem}
+          onClearSelect={onClearSelect}
+        />
       </svg>
 
-      {selectedPlacement &&
-        (ISO_ITEMS[selectedPlacement.item]?.tintable !== false ||
-          ISO_ITEMS[selectedPlacement.item]?.variants) && (
+      {selectedRaw &&
+        (ISO_ITEMS[selectedRaw.item]?.tintable !== false ||
+          ISO_ITEMS[selectedRaw.item]?.variants) && (
           <RoomTintPicker
-            placement={selectedPlacement}
-            item={ISO_ITEMS[selectedPlacement.item]}
+            placement={selectedRaw}
+            item={ISO_ITEMS[selectedRaw.item]}
             onTint={onTintItem}
           />
         )}

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
 import {
   MBTI_TYPES,
   MODELS,
@@ -129,7 +130,26 @@ describe("validateCharacter", () => {
       expression: "happy",
       build: "slim",
     };
-    expect(validateCharacter(chosen)).toEqual({ ...chosen, skin: "#8d5524" });
+    // width/height weren't stored, so they fill in from the BUILD and the
+    // classic leg — a pre-slider "slim" save keeps its slim silhouette.
+    expect(validateCharacter(chosen)).toEqual({
+      ...chosen,
+      skin: "#8d5524",
+      width: BUILD_SHAPE.slim.halfW,
+      height: LEG_H,
+    });
+  });
+
+  it("body sliders: clamps width/height, rejects junk, defaults width from the build", () => {
+    expect(validateCharacter({ width: 100 }).width).toBe(WIDTH_RANGE[1]);
+    expect(validateCharacter({ width: 0 }).width).toBe(WIDTH_RANGE[0]);
+    expect(validateCharacter({ height: 1000 }).height).toBe(HEIGHT_RANGE[1]);
+    expect(validateCharacter({ height: 0 }).height).toBe(HEIGHT_RANGE[0]);
+    for (const junk of ["9", NaN, Infinity, true, null]) {
+      expect(validateCharacter({ width: junk }).width).toBe(DEFAULT_CHARACTER.width);
+      expect(validateCharacter({ height: junk }).height).toBe(DEFAULT_CHARACTER.height);
+    }
+    expect(validateCharacter({ build: "sturdy" }).width).toBe(BUILD_SHAPE.sturdy.halfW);
   });
 
   it("every model is accepted, and an unknown one falls back", () => {

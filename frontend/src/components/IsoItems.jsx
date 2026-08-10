@@ -4,8 +4,6 @@ import { DEFAULT_CHARACTER, MOODS } from "../lib/profile";
 import {
   HEAD_R,
   LEG_H,
-  STAND_TORSO_Y,
-  STAND_HEAD_Y,
   SEAT_TORSO_Y,
   SEAT_HEAD_Y,
   figureMetrics,
@@ -2925,7 +2923,7 @@ const SHOE_FAR = "#221c40";
 const SEAT_KNEE_Y = 5;
 const SEAT_KNEE_X = 8.5;
 
-function SeatedLeg({ side, ankle, far = false }) {
+function SeatedLeg({ side, ankle, thighW = 7.5, shinW = 6.5, far = false }) {
   const knee = side * SEAT_KNEE_X;
   const cloth = far ? TROUSER_FAR : TROUSER;
   return (
@@ -2933,14 +2931,14 @@ function SeatedLeg({ side, ankle, far = false }) {
       <path
         d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
         stroke={cloth}
-        strokeWidth="7.5"
+        strokeWidth={thighW}
         strokeLinecap="round"
         fill="none"
       />
       <path
         d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
         stroke={cloth}
-        strokeWidth="6.5"
+        strokeWidth={shinW}
         strokeLinecap="round"
         fill="none"
       />
@@ -2959,14 +2957,14 @@ function SeatedLeg({ side, ankle, far = false }) {
  * `legW` comes from figureMetrics so the build axis thickens both trouser
  * and shoe together when limb deltas land.
  */
-function StandingLeg({ side, legW = 5.6, far = false }) {
+function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false }) {
   const cx = side * 4;
   const hipW = legW / 2 + 0.4;
   const ankW = legW / 2 - 0.2;
   return (
     <g>
       <path
-        d={`M ${cx - hipW} ${-LEG_H} L ${cx + hipW} ${-LEG_H} L ${cx + ankW} ${-2.2}
+        d={`M ${cx - hipW} ${-legH} L ${cx + hipW} ${-legH} L ${cx + ankW} ${-2.2}
             Q ${cx + ankW} ${-1.4} ${cx + ankW - 0.8} ${-1.4}
             L ${cx - ankW + 0.8} ${-1.4} Q ${cx - ankW} ${-1.4} ${cx - ankW} ${-2.2} Z`}
         fill={far ? TROUSER_FAR : TROUSER}
@@ -3272,7 +3270,8 @@ function Resident({
   // collar hang off the same `sh` the body actually has — placed from the
   // build's half-width alone, the narrower `fem` shoulders left both arms
   // floating in a gap beside the chest.
-  const { sh, wa, hem, legW } = figureMetrics(ch);
+  const { sh, wa, hem, legW, thighW, shinW, legH, standTorsoY, standHeadY } =
+    figureMetrics(ch);
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
   if (lying) {
@@ -3308,8 +3307,8 @@ function Resident({
   // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
   // the seat line (sinking a px into the cushion), not hovering above it —
   // and low enough that the thighs emerge from under it rather than behind it.
-  const torsoY = seated ? SEAT_TORSO_Y : STAND_TORSO_Y;
-  const headY = seated ? SEAT_HEAD_Y : STAND_HEAD_Y;
+  const torsoY = seated ? SEAT_TORSO_Y : standTorsoY;
+  const headY = seated ? SEAT_HEAD_Y : standHeadY;
   // The floor is at +seatH (the scene lifts a seated resident by exactly
   // that), less a couple of px so the sole meets it instead of sinking
   // through. The floor keeps a low cushion from reducing the shin to a stub.
@@ -3326,8 +3325,8 @@ function Resident({
     <g transform={`translate(${c.x}, ${c.y})`}>
       {seated ? (
         <>
-          <SeatedLeg side={-1} ankle={ankle} far />
-          <SeatedLeg side={1} ankle={ankle} />
+          <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} far />
+          <SeatedLeg side={1} ankle={ankle} thighW={thighW} shinW={shinW} />
         </>
       ) : (
         <>
@@ -3336,10 +3335,10 @@ function Resident({
               The far one uses the depth colours the seated pose already had
               (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block. */}
           <g className={moving ? "leg-step-a" : undefined}>
-            <StandingLeg side={-1} legW={legW} far />
+            <StandingLeg side={-1} legW={legW} legH={legH} far />
           </g>
           <g className={moving ? "leg-step-b" : undefined}>
-            <StandingLeg side={1} legW={legW} />
+            <StandingLeg side={1} legW={legW} legH={legH} />
           </g>
         </>
       )}
@@ -3550,14 +3549,16 @@ function You({ mood, mirrored = false, ...rest }) {
   // SEATED character, which is the pose this feature exists for (you only
   // type while sitting), and stranded over the headboard when lying down.
   // Anchored to the body's head positions (plus a per-pose clearance) so a
-  // proportion retune moves the cloud with the skull instead of leaving it
-  // at a height the head no longer reaches. Lying keeps its fixed spot — that
-  // pose's head is its own drawing.
+  // proportion retune — or this character's own height slider — moves the
+  // cloud with the skull instead of leaving it at a height the head no
+  // longer reaches. Lying keeps its fixed spot — that pose's head is its
+  // own drawing.
+  const { standHeadY } = figureMetrics(rest.character);
   const spot = rest.lying
     ? { x: -14, y: -30 }
     : rest.seated
     ? { x: 10, y: SEAT_HEAD_Y - 17 }
-    : { x: 10, y: STAND_HEAD_Y - 15.5 };
+    : { x: 10, y: standHeadY - 15.5 };
   return (
     <g>
       <Resident {...rest} />

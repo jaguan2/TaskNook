@@ -42,6 +42,9 @@ export const HEAD_LIFT = 8.5;
 // longer hem must never move it.
 export const WAIST_DROP = 10;
 
+// The default-height standing anchors. The sprite reads per-character
+// values from figureMetrics (height is user-tunable); these exist for the
+// tests and for anything that wants the classic figure.
 export const STAND_TORSO_Y = -(LEG_H - TORSO_OVERLAP + TORSO_H);
 export const STAND_HEAD_Y = STAND_TORSO_Y - HEAD_LIFT;
 // Seated, the torso's bottom edge belongs at the seat line, sinking 1px into
@@ -97,30 +100,61 @@ export const BUILD_SHAPE = {
   sturdy: { halfW: 8.8, waist: 0, limb: 0 },
 };
 
+// ---- user-tunable ranges -------------------------------------------------- //
+// The Profile panel exposes body WIDTH (the half-width the model shapes
+// apply to) and HEIGHT (the leg) as sliders. The endpoints are not taste —
+// each sits just inside a guard: width's floor keeps the trouser stance
+// tucked under the narrowest hem, its ceiling keeps shoulders under the
+// 1.55×-head chunky ceiling; height's floor keeps the visible leg ≥ 40% of
+// the figure, its ceiling stays inside the persona's hit region.
+export const WIDTH_RANGE = [6.4, 9];
+export const HEIGHT_RANGE = [26, 32];
+
+function clampNum(value, [lo, hi], fallback) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(hi, Math.max(lo, value))
+    : fallback;
+}
+
 /**
  * Everything hung off the body — shoulders, arms, hands, legs, the seated
  * knee — derives from these metrics rather than from hard-coded widths, so a
  * build or model change can't leave an arm floating beside the chest.
  *
- * `armW`/`legW`/`thighW`/`shinW` are limb thicknesses; `kneeX` is where a
- * seated knee lands (wide hems push it out so the thigh isn't tucked
- * invisibly under the torso — a thigh nobody can see is how you end up back
- * at a straight leg).
+ * A stored `width`/`height` wins; a character without one (or with junk)
+ * falls back to the build's width and the classic leg, so pre-slider saves
+ * and the preset residents render exactly as they always did.
+ *
+ * `armW`/`legW`/`thighW`/`shinW` are limb thicknesses — they scale gently
+ * with width, because a wide torso on unchanged stick legs reads as parts
+ * pasted together. `kneeX` is where a seated knee lands (wide hems push it
+ * out so the thigh isn't tucked invisibly under the torso). `standTorsoY`/
+ * `standHeadY` are per-character now that height is: the standing anchors
+ * stack off the leg.
  */
 export function figureMetrics(ch = {}) {
   const build = BUILD_SHAPE[ch.build] ?? BUILD_SHAPE.average;
   const shape = MODEL_SHAPE[ch.model] ?? MODEL_SHAPE.masc;
-  const sh = Math.max(MIN_SHOULDER, build.halfW + shape.shoulder);
-  const wa = build.halfW + shape.waist + build.waist;
-  const hem = build.halfW + shape.hem;
+  const halfW = clampNum(ch.width, WIDTH_RANGE, build.halfW);
+  const legH = clampNum(ch.height, HEIGHT_RANGE, LEG_H);
+  const limb =
+    build.limb +
+    Math.max(-0.6, Math.min(0.8, (halfW - BUILD_SHAPE.average.halfW) * 0.4));
+  const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder);
+  const wa = halfW + shape.waist + build.waist;
+  const hem = halfW + shape.hem;
+  const standTorsoY = -(legH - TORSO_OVERLAP + TORSO_H);
   return {
     sh,
     wa,
     hem,
-    armW: 5 + build.limb,
-    legW: 5.6 + build.limb,
-    thighW: 7.5 + build.limb,
-    shinW: 6.5 + build.limb,
+    legH,
+    standTorsoY,
+    standHeadY: standTorsoY - HEAD_LIFT,
+    armW: 5 + limb,
+    legW: 5.6 + limb,
+    thighW: 7.5 + limb,
+    shinW: 6.5 + limb,
     kneeX: Math.max(8.5, hem - 0.5),
   };
 }

@@ -5,8 +5,11 @@ import {
   MIN_SHOULDER,
   HEAD_R,
   TORSO_H,
+  TORSO_OVERLAP,
   WAIST_DROP,
   HEAD_LIFT,
+  WIDTH_RANGE,
+  HEIGHT_RANGE,
   STAND_TORSO_Y,
   STAND_HEAD_Y,
   SEAT_TORSO_Y,
@@ -109,16 +112,42 @@ describe("figureMetrics", () => {
     }
   });
 
-  it("limbs are uniform until the build axis lands", () => {
+  it("limbs scale gently with width, and default width keeps the classics", () => {
+    // A wide torso on unchanged stick legs reads as parts pasted together;
+    // a narrow one on thick limbs reads stuffed.
+    const base = figureMetrics({});
+    expect(base.armW).toBe(5);
+    expect(base.legW).toBe(5.6);
+    expect(base.thighW).toBe(7.5);
+    expect(base.shinW).toBe(6.5);
+    expect(figureMetrics({ width: WIDTH_RANGE[0] }).legW).toBeLessThan(base.legW);
+    expect(figureMetrics({ width: WIDTH_RANGE[1] }).legW).toBeGreaterThan(base.legW);
+  });
+
+  it("the slider extremes stay inside every guard", () => {
+    // WIDTH_RANGE/HEIGHT_RANGE claim to be guard-derived; this is what
+    // makes that claim true. If a range is ever widened, these fail before
+    // a user can drag a body outside its own rules.
     for (const model of MODELS) {
-      for (const build of BUILDS) {
-        const m = figureMetrics({ model, build });
-        expect(m.armW).toBe(5);
-        expect(m.legW).toBe(5.6);
-        expect(m.thighW).toBe(7.5);
-        expect(m.shinW).toBe(6.5);
+      for (const width of WIDTH_RANGE) {
+        const { sh, hem, legW } = figureMetrics({ model, width });
+        expect(sh, `${model} w${width}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
+        expect(sh / HEAD_R, `${model} w${width}`).toBeLessThanOrEqual(1.55);
+        expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
+      }
+      for (const height of HEIGHT_RANGE) {
+        const m = figureMetrics({ model, height });
+        const total = -m.standHeadY + HEAD_R;
+        const legShare = (m.legH - TORSO_OVERLAP) / total;
+        expect(legShare, `${model} h${height}`).toBeGreaterThanOrEqual(0.4);
+        // The tall end must stay inside the resident's hit region.
+        expect(total, `${model} h${height}`).toBeLessThanOrEqual(61);
       }
     }
+  });
+
+  it("junk width/height falls back to the build and the classic leg", () => {
+    expect(figureMetrics({ width: "9", height: NaN })).toEqual(figureMetrics({}));
   });
 
   it("falls back to masc/average for unknown keys", () => {
