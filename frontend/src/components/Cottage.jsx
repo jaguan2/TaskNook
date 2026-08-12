@@ -5,11 +5,15 @@ import { ambienceVars } from "../lib/motion";
 import { ITEM_SPRITES } from "./RoomItems";
 import RoomTintPicker from "./RoomTintPicker";
 
-// The scene scales with the window instead of being pinned to a fixed max
-// width: whichever viewport budget is smaller wins, so the 4:3 room grows as
-// the app is resized and never outgrows its space. 84vh of *width* is 63vh of
-// height at this aspect ratio, which clears the top bar and the focus timer.
-const SCENE_WIDTH = "min(90vw, 84vh)";
+// The scene is FULL-BLEED, like the iso room: the wall runs edge to edge
+// behind everything and the composition (window, desk) sits centred on a
+// canvas wide enough that ordinary windows crop the wall's sides, not the
+// room. `slice` + xMidYMax anchor the desk to the bottom of the viewport —
+// first-person at your desk, not a picture of a room on a card (owner
+// decision, 2026-08-10; the card era's SCENE_WIDTH sizing went with it).
+// Decor coordinates are untouched: the viewBox widened symmetrically, so
+// every saved placement still lands where it always did.
+const VIEW_BOX = "-320 0 1280 480";
 
 const SNOWFLAKES = [
   [112, 3], [136, 6], [162, 2], [190, 5], [216, 4], [242, 7], [270, 3],
@@ -72,7 +76,6 @@ function Cottage({
   timeOfDay = "night",
   room = [],
   editMode = false,
-  scale = 1,
   onMoveItem,
   onRemoveItem,
   onTintItem,
@@ -177,22 +180,23 @@ function Cottage({
 
   return (
     <div
-      className={`select-none relative w-full flex items-center justify-center ${
+      className={`select-none absolute inset-0 ${
         editMode ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
       <svg
         ref={svgRef}
-        viewBox="0 0 640 480"
+        viewBox={VIEW_BOX}
+        // Cover the viewport, bottom-anchored: wide windows crop the wall's
+        // sides, very wide ones crop the sky — the desk never leaves the
+        // bottom edge, which is what keeps it feeling sat-at.
+        preserveAspectRatio="xMidYMax slice"
+        className="h-full w-full"
         style={{
-          // Responsive base size × the user's own size preference (Room panel).
-          width: `calc(${SCENE_WIDTH} * ${scale})`,
           // Without this a touch drag pans/scrolls the page instead of moving
           // the item. Only while decorating, so normal scrolling is unaffected.
           touchAction: editMode ? "none" : undefined,
         }}
-        // No drop shadow / card bevel — the scene should feel built into the
-        // backdrop, not floating on a card (user feedback).
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
@@ -232,22 +236,22 @@ function Cottage({
           <clipPath id="skyClip">
             <rect x="98" y="46" width="320" height="212" />
           </clipPath>
-          <clipPath id="roomClip">
-            <rect x="8" y="8" width="624" height="464" rx="28" />
-          </clipPath>
         </defs>
 
-        {/* ---------- Room backdrop ---------- */}
-        <rect x="8" y="8" width="624" height="464" rx="28" fill="url(#wallGrad)" />
+        {/* ---------- Room backdrop — wall to every edge, no card. It
+            reaches above the viewBox so ultra-wide windows (which crop from
+            the top under xMidYMax) still meet wall, never void. ---------- */}
+        <rect x="-320" y="-240" width="1280" height="720" fill="url(#wallGrad)" />
 
         {/* ---------- Floor ---------- */}
-        <g clipPath="url(#roomClip)">
-          <rect x="8" y="390" width="624" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
-          <rect x="8" y="396" width="624" height="76" fill="url(#floorGrad)" />
+        <g>
+          <rect x="-320" y="390" width="1280" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
+          <rect x="-320" y="396" width="1280" height="84" fill="url(#floorGrad)" />
           {/* floorboards */}
-          <line x1="8" y1="420" x2="632" y2="420" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
-          <line x1="8" y1="446" x2="632" y2="446" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
-          {[[130, 398, 420], [340, 398, 420], [540, 398, 420], [220, 420, 446], [450, 420, 446], [90, 446, 470], [380, 446, 470]].map(([x, y1, y2], i) => (
+          <line x1="-320" y1="420" x2="960" y2="420" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
+          <line x1="-320" y1="446" x2="960" y2="446" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
+          {[[130, 398, 420], [340, 398, 420], [540, 398, 420], [220, 420, 446], [450, 420, 446], [90, 446, 470], [380, 446, 470],
+            [-240, 398, 420], [-90, 420, 446], [-180, 446, 470], [740, 398, 420], [880, 420, 446], [810, 446, 470]].map(([x, y1, y2], i) => (
             <line key={`board-${i}`} x1={x} y1={y1} x2={x} y2={y2} stroke="#26122a" strokeWidth="1.5" opacity="0.3" />
           ))}
           {/* soft shadow the desk casts */}

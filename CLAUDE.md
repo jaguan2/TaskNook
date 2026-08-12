@@ -565,9 +565,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   (same trade-off as SettingsPanel). Items with no sensible material opt out
   via `tintable: false`; shade details are translucent black overlays, not
   fixed darker hues, so they read over any tint.
-  **Room size**: `roomScale` (0.6–1.2, Room panel slider) multiplies the
-  responsive `SCENE_WIDTH`; it's a display preference so it lives in
-  localStorage (`tasknook.roomScale`), not the DB. Fixed items (`fixed: true`, e.g. the garland) are
+  **Room size**: gone with the card. The flat scene is full-bleed now, so
+  the old `roomScale` slider had nothing left to scale and was removed from
+  the Room panel (2026-08-10); `tasknook.roomScale` lingers in old storage,
+  read by nothing. Fixed items (`fixed: true`, e.g. the garland) are
   **singletons pinned to their SPAWN position** — they can't be dragged, so a
   duplicate spawned anywhere else could never be nudged back;
   `validatePlacements` collapses duplicates and re-homes them, healing layouts
@@ -589,10 +590,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   instead of moving the item. On reconcile, a server layout of `[]` is a
   deliberate empty room and must win — only `null` (never saved) may be
   overwritten by the local layout.
-- **Scene sizing & animation**: the SVG's width is `min(90vw, 84vh)`
-  (`SCENE_WIDTH`), so the 4:3 room scales with the window instead of being
-  pinned to a fixed max-width — verified to grow 588→1176px across window
-  sizes. Idle ambience (plant sway, garland twinkle, lamp breathe) is **CSS**
+- **Scene sizing & animation**: the flat scene is **FULL-BLEED** (owner
+  decision, 2026-08-10 — the card era's centred `min(90vw, 84vh)` sizing is
+  gone): the svg fills the viewport with `viewBox "-320 0 1280 480"` and
+  `preserveAspectRatio="xMidYMax slice"`, so the wall runs edge to edge, the
+  desk anchors the BOTTOM of the window (first-person at your desk), wide
+  windows crop the wall's sides and ultra-wide ones crop upward into wall
+  that extends above the viewBox for exactly that reason. Decor coordinates
+  were untouched — the viewBox widened symmetrically about the old canvas,
+  so saved placements land where they always did, and `clampToRoom` still
+  bounds them to the original room area around the desk. Verified by
+  headless screenshot at 16:9. Idle ambience (plant sway, garland twinkle, lamp breathe) is **CSS**
   keyframes, not framer-motion, because the scene re-renders every second (the
   focus timer ticks) and CSS animations live on the element, so they survive
   re-renders for free; all are disabled under `prefers-reduced-motion`. SVG
@@ -831,8 +839,7 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   drag-on-empty-space pans, double-click recenters, all plain viewBox math
   (`tasknook.isoView`, clamped so the room's centre can't leave the view).
   The wheel listener is added manually with `{passive:false}` — React's
-  onWheel is passive and can't preventDefault. The flat scene's `roomScale`
-  slider is hidden in iso mode (the camera replaces it).
+  onWheel is passive and can't preventDefault.
   Model in `lib/isoRoom.js` (footprints, half-tile snapping,
   depth sort by front corner, validation), projection in `lib/iso.js` (2:1
   dimetric; `project`/`unproject` are exact inverses — that's what makes

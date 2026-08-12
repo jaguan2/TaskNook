@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Boxes, Check, Eraser, Scaling, Sofa } from "lucide-react";
+import { Boxes, Check, Eraser, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
@@ -202,8 +202,6 @@ export default function RoomPanel() {
     addRoomItem,
     applyRoomPreset,
     clearRoom,
-    roomScale,
-    setRoomScale,
     isoPreview,
     setIsoPreview,
     isoRoom,
@@ -435,40 +433,10 @@ export default function RoomPanel() {
         )}
       </section>
 
-      {/* Room size — the flat scene's display scale. The iso room doesn't
-          need it: its camera zooms freely with the scroll wheel. */}
-      {!isoPreview && (
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-            <Scaling size={15} className="text-petal/70" /> Room size
-          </p>
-          <span className="text-xs tabular-nums text-petal/60">
-            {Math.round(roomScale * 100)}%
-            {roomScale !== 1 && (
-              <button
-                onClick={() => setRoomScale(1)}
-                className="ml-2 text-glow/80 hover:text-glow"
-              >
-                Reset
-              </button>
-            )}
-          </span>
-        </div>
-        <input
-          type="range"
-          min="0.6"
-          max="1.2"
-          step="0.05"
-          value={roomScale}
-          onChange={(e) => setRoomScale(Number(e.target.value))}
-          className="w-full accent-glow"
-        />
-        <p className="text-xs text-petal/50">
-          On top of this, the room already grows and shrinks with the window.
-        </p>
-      </section>
-      )}
+      {/* No Room-size slider any more: the flat scene went full-bleed (the
+          wall fills the viewport, the desk anchors the bottom), so a display
+          scale has nothing left to scale — same reason the iso camera
+          replaced it there. */}
 
       {/* Iso presets — each button is a live miniature of the room it applies */}
       {isoPreview && (

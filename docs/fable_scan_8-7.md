@@ -1095,3 +1095,30 @@ throwback feel finished rather than abandoned:
 
 **Review protocol**: all of 5.1–5.4 are visual — per the project's own doctrine they
 land behind a before/after screenshot pass in the running app, not blind edits.
+### The two candidate directions, written down (2026-08-10)
+
+**Method A — blend the card into the backdrop.** Keep the centred 4:3 card but
+dissolve its boundary: feather the wall gradient into the page background, drop
+the rounded clip, tint the backdrop from the room's palette so the seam
+disappears. Cheap (CSS/gradient work only), fully reversible, keeps the
+Room-size slider meaningful. But it is a cosmetic patch: the scene is still a
+picture of a room floating in space, presets still can't change the room
+itself, and every future improvement (lighting, diverse presets) still fights
+the card's frame.
+
+**Method B — full-bleed first-person (CHOSEN, shipped 2026-08-10).** The svg
+fills the viewport (`viewBox "-320 0 1280 480"`, `preserveAspectRatio
+"xMidYMax slice"`): wall edge to edge, desk anchored to the bottom, HUD
+floating over the room — the same composition model as the iso scene, so the
+two rooms share one mental model and future work transfers. Decor coordinates
+untouched (viewBox widened symmetrically); the Room-size slider was retired
+(nothing left to scale). Long-term this is the foundation the rest of §5
+builds on, and what makes flat-preset DIVERSITY possible at all: with the room
+itself on screen, presets can change the wall colour, the view out the window,
+and the light — "Night owl", "Greenhouse" and "Library" become different
+PLACES, not the same desk with different trinkets. Verified by headless
+screenshot at 16:9; sign-off in the running app still worthwhile at other
+window sizes.
+
+- [x] **5.0 Full-bleed conversion** — shipped; presets-as-places is the next
+  §5 step, then 5.1-5.4 above.

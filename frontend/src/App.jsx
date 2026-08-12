@@ -63,7 +63,6 @@ export default function App() {
     moveRoomItem,
     removeRoomItem,
     setRoomItemTint,
-    roomScale,
     isoPreview,
     isoRoom,
     lastIsoAddedId,
@@ -252,7 +251,6 @@ export default function App() {
               timeOfDay={timeOfDay}
               room={roomPlacements}
               editMode={roomEditMode}
-              scale={roomScale}
               onMoveItem={moveRoomItem}
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
