@@ -137,4 +137,8 @@ export const api = {
   listFriends: () => request("GET", "/friends"),
   addFriend: (username) => request("POST", "/friends", { username }),
   removeFriend: (id) => request("DELETE", `/friends/${id}`),
+
+  // visiting
+  friendRoom: (id) => request("GET", `/friends/${id}/room`),
+  setVisitAccess: (value) => request("PUT", "/visit-access", { value }),
 };

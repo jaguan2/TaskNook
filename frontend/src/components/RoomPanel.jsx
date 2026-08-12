@@ -202,6 +202,8 @@ export default function RoomPanel() {
     addRoomItem,
     applyRoomPreset,
     clearRoom,
+    visiting,
+    leaveVisit,
     isoPreview,
     setIsoPreview,
     isoRoom,
@@ -237,6 +239,33 @@ export default function RoomPanel() {
     acc[p.item] = (acc[p.item] || 0) + 1;
     return acc;
   }, {});
+
+  // While VISITING, the whole panel stands down — not just the Decorate
+  // toggle. The review caught the trap a per-button gate leaves open: every
+  // other control here (presets, floors, walls, size sliders, the floor-plan
+  // grid, the furniture picker) mutates your HOME room, which is not the
+  // room on screen — a click meant to restyle the friend's floor would
+  // silently re-floor your own home, and adding furniture even flips edit
+  // mode on mid-visit. One hint and the way back instead. (All hooks above
+  // run unconditionally, so the early return is rules-of-hooks safe.)
+  if (visiting) {
+    return (
+      <div className="space-y-3 rounded-2xl bg-white/5 px-4 py-6 text-center">
+        <p className="text-sm font-semibold text-cream">
+          You&apos;re at {visiting.friend.displayName}&apos;s place ☕
+        </p>
+        <p className="text-xs text-petal/60">
+          Decorating works on your own room — head home first.
+        </p>
+        <button
+          onClick={leaveVisit}
+          className="pill bg-glow px-4 py-2 text-sm font-semibold text-plum hover:bg-amber"
+        >
+          Head home
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

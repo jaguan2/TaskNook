@@ -71,6 +71,12 @@ class User(db.Model):
     # colours. Kept apart from `profile` because a different consumer reads it —
     # the iso room draws this every frame, panels read the other one.
     character = db.Column(db.Text, nullable=True)
+    # Who may visit this user's room: "public" | "friends" | "invite" |
+    # "private". A real COLUMN, not a blob field, because it is an access
+    # rule a multi-user server would enforce — not presentation the frontend
+    # owns. (Today enforcement is client-side theater against the seeded
+    # bots; see the /api/friends/<id>/room doc-comment.)
+    visit_access = db.Column(db.String(16), nullable=False, server_default="friends")
     created_at = db.Column(db.DateTime, default=utcnow)
 
     tasks = db.relationship(
@@ -97,6 +103,7 @@ class User(db.Model):
             "username": self.username,
             "displayName": self.display_name,
             "avatar": self.avatar,
+            "visitAccess": self.visit_access,
         }
 
 

@@ -227,6 +227,39 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   on a previous LOCAL day (same local-day convention as the stats). The friend graph is a **self-referential many-to-many stored
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
   directions to stay symmetric. This is intentional; don't "simplify" to one row.
+- **Visiting friends' rooms** (simulated social — full design in
+  docs/visiting_friends_plan.md): `User.visit_access`
+  (public/friends/invite/private, default "friends") rides `public_dict`
+  into `/api/friends`; `VISIT_ACCESS_LEVELS` in app.py mirrors
+  `VISIT_ACCESS` in `lib/visiting.js` — same both-languages contract as
+  ISO_ENVS. `GET /api/friends/<id>/room` is friend-gated (404 otherwise)
+  and returns room + character + door in one call; knock/private
+  enforcement is deliberately CLIENT-side theater, and the endpoint's
+  doc-comment is the contract that a multi-user future must move the gate
+  server-side first. The seeded bots hold one door state each (luna public,
+  kai friends, sora invite, mochi private — a one-shot boot backfill deals
+  them to existing installs) and store NO rooms or characters:
+  `lib/visiting.js` derives their homes from hand-picked presets
+  (luna→Cozy study, kai→Reading room, sora→Secret garden, mochi→Corner
+  café), places each owner where they belong — luna/kai/sora on the seats
+  the NPC pass left empty, mochi hosting standing at her counter (both
+  pinned via `seatFor` in visiting.test.js) — and derives their looks
+  deterministically from the username. Synthetic owner/guest ids are unique
+  PER FRIEND (the scene's wander offsets key off ids, and a reused id
+  carried one room's offset into the next); a knock is owned by the STORE,
+  not the panel, so closing the drawer mid-wait can't break "the bots
+  always answer"; and a visit remounts the scene (`key` per room) with
+  `saveView={false}`, so a visited camera never touches the saved home
+  view. `resolveVisitRoom` inserts the owner and YOU as the
+  guest — render-only, never persisted. IsoRoom's `personas` prop carries
+  per-placement characters + name tags: tag lifts are tuned by screenshot
+  (hitH is the grab region, a head too tall), and tags ride the wanderers'
+  2.6s glide clock or they teleport ahead of their person. A visit is a
+  read-only scene swap — drawers close on arrival, Decorate is disabled
+  with a hint, the chip (and Escape, ahead of everything else) leads home —
+  and `activity` still flows, so starting a focus block means studying
+  together. A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
+  answer. Your own door is set in ProfilePanel (PUT `/api/visit-access`).
 - **Ordering algorithms** live in `lib/algorithms.js` as pure
   `(tasks, context) => orderedTasks` functions (the `context` arg only matters for
   `random`). Completed tasks always sink to the bottom.

@@ -321,6 +321,10 @@ ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
 # default"; the frontend stores it only when it actually overrides.
 ISO_WALLS = ("full", "low", "none")
 
+# Who may visit a user's room. Short stored keys; the UI labels
+# ("friends-only", "invite-only") are frontend vocabulary.
+VISIT_ACCESS_LEVELS = ("public", "friends", "invite", "private")
+
 
 def _hex_color(v):
     """A strict #rrggbb item tint."""
@@ -982,6 +986,56 @@ def register_routes(app):
         db.session.commit()
         return jsonify({**friend.public_dict(), **build_stats(friend)}), 201
 
+    @app.get("/api/friends/<int:friend_id>/room")
+    @require_auth
+    def friend_room(user, friend_id):
+        """A friend's room, character and door setting — for VISITING.
+
+        Friend-gated (a stranger gets a 404), but deliberately NOT gated on
+        `visit_access`: TaskNook is a single-user local app, the "friends"
+        are seeded bots in the user's own SQLite file, and the knock/private
+        flows are cozy client-side theater. Returning the data to a friend
+        keeps that theater cheap and honest. THE CONTRACT FOR A MULTI-USER
+        FUTURE: before this endpoint is ever served beyond localhost,
+        enforcement must move HERE — 403 for `private`, an invites table for
+        `invite` — because a client-side gate is no gate at all.
+        """
+        friend = user.friends.filter_by(id=friend_id).first()
+        if not friend:
+            return jsonify({"error": "Not found"}), 404
+        # The visitable room is the ISO layout half of room_config; a legacy
+        # bare-list config (flat-scene only) has no iso room to show.
+        room = None
+        if friend.room_config:
+            try:
+                saved = json.loads(friend.room_config)
+                if isinstance(saved, dict) and isinstance(saved.get("iso"), dict):
+                    room = saved["iso"]
+            except ValueError:
+                room = None
+        character = _read_json_map(friend.character)
+        return jsonify(
+            {
+                **friend.public_dict(),
+                "room": room,
+                "character": character or None,
+            }
+        )
+
+    @app.put("/api/visit-access")
+    @require_auth
+    def set_visit_access(user):
+        """Your own door setting. A whitelist, not free text — the value is
+        an access rule, and an unknown level must fail loudly rather than be
+        stored as a string nothing will ever match."""
+        data = json_body()
+        value = data.get("value")
+        if value not in VISIT_ACCESS_LEVELS:
+            return jsonify({"error": "Invalid visit access"}), 400
+        user.visit_access = value
+        db.session.commit()
+        return jsonify({"visitAccess": value})
+
     @app.delete("/api/friends/<int:friend_id>")
     @require_auth
     def remove_friend(user, friend_id):
@@ -1162,8 +1216,27 @@ def befriend_demo_users(user):
     db.session.commit()
 
 
+# One of each door state, so every visit flow in the UI exists on day one:
+# luna's door is open, kai is friends-only (the default), sora makes you
+# knock, and mochi's room is private.
+DEMO_VISIT_ACCESS = {"luna": "public", "kai": "friends", "sora": "invite", "mochi": "private"}
+
+
 def seed_demo_data():
     if User.query.filter_by(username="luna").first():
+        # Existing install: the bots predate visit_access, so they all sit on
+        # the column default. Deal them their varied doors ONCE — if any bot
+        # differs from the default the backfill (or a future hand) already
+        # ran, and re-dealing would overwrite it on every boot. Accepted
+        # edge: a hand that deliberately sets all four back to "friends"
+        # (nothing in the app can) would see them re-dealt next boot —
+        # making this truly one-shot needs a marker row, which isn't worth
+        # it for seeded bots.
+        bots = User.query.filter(User.username.in_(DEMO_VISIT_ACCESS)).all()
+        if bots and all(b.visit_access == "friends" for b in bots):
+            for b in bots:
+                b.visit_access = DEMO_VISIT_ACCESS[b.username]
+            db.session.commit()
         return  # already seeded
 
     created = []
@@ -1173,6 +1246,7 @@ def seed_demo_data():
             display_name=display,
             avatar=avatar,
             password_hash=generate_password_hash(pw),
+            visit_access=DEMO_VISIT_ACCESS.get(username, "friends"),
         )
         db.session.add(u)
         db.session.flush()

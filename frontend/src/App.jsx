@@ -71,6 +71,8 @@ export default function App() {
     rotateIsoItem,
     setIsoItemTint,
     character,
+    visiting,
+    leaveVisit,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -130,6 +132,13 @@ export default function App() {
       // guard as the iso room's Delete shortcut now — the two were separate
       // copies that disagreed, and the shorter one was the dangerous one.
       if (isTypingTarget(e.target)) return;
+      // Leaving a friend's room outranks everything — you can't be
+      // decorating while visiting, and closing panels from inside a visit
+      // would strand you there with less UI.
+      if (visiting) {
+        leaveVisit();
+        return;
+      }
       if (roomEditMode) {
         setRoomEditMode(false);
         return;
@@ -144,7 +153,20 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frontKey, roomEditMode, setRoomEditMode]);
+  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit]);
+
+  // Arriving somewhere closes the drawers — you visited to SEE the room, and
+  // the Friends panel would be covering half of it — and EXITS decorating.
+  // The review caught the reachable path: the dock renders outside the
+  // decorating visibility wrapper, so a visit could begin mid-edit, leaving
+  // the HUD hidden all visit and two chips stacked on one spot.
+  useEffect(() => {
+    if (visiting) {
+      setOpenPanels([]);
+      setFrontKey(null);
+      setRoomEditMode(false);
+    }
+  }, [visiting, setRoomEditMode]);
 
   if (booting) {
     return (
@@ -229,8 +251,29 @@ export default function App() {
             </div>
           )}
         >
-          {isoPreview ? (
+          {visiting ? (
+            /* A friend's room: read-only (no edit, no move/remove/tint
+               callbacks), their people drawn and named via `personas`.
+               `activity` still flows, so starting a focus block means the
+               two of you study together. The `key` REMOUNTS the scene per
+               room — camera, selection and wander offsets are per-room
+               state, and React would otherwise reconcile the same component
+               and carry all three across the swap. */
             <IsoRoom
+              key={`visit-${visiting.friend.id}`}
+              size={visiting.layout}
+              placements={visiting.layout.placements}
+              editMode={false}
+              timeOfDay={timeOfDay}
+              activity={running ? phase : null}
+              character={character}
+              reduceMotion={reduceMotion}
+              personas={visiting.personas}
+              saveView={false}
+            />
+          ) : isoPreview ? (
+            <IsoRoom
+              key="home"
               size={isoRoom}
               placements={isoRoom.placements}
               editMode={roomEditMode}
@@ -259,6 +302,23 @@ export default function App() {
           )}
         </ErrorBoundary>
       </motion.div>
+
+      {/* Visiting chip: the way home is always on screen, same rule as the
+          decorating chip below. */}
+      <AnimatePresence>
+        {visiting && (
+          <motion.button
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            onClick={leaveVisit}
+            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+          >
+            {visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room
+            <span className="ml-1 text-petal/60">· leave</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Decorating chip: visible whenever edit mode is on, so there's always
           a way out even with the Room panel closed. */}
@@ -365,9 +425,12 @@ export default function App() {
         {/* rkive. — the maker's signature, same wordmark as the portfolio.
             Sits ON the bottom rail: same bottom-6, same 44px height, so its
             optical centre lines up with the transport bar and the clock
-            cluster instead of floating a few px below them. */}
+            cluster instead of floating a few px below them. The visiting
+            chip borrows this exact spot, so the signature steps aside for a
+            visit the same way it does for the decorating chip. */}
         <div
           className="intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center"
+          style={{ visibility: visiting ? "hidden" : undefined }}
           title="A space where I archive and share my journey, wherever it takes me."
         >
           <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">

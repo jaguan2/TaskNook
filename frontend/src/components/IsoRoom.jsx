@@ -249,6 +249,9 @@ const PlacedItem = memo(function PlacedItem({
   mood,
   reduceMotion,
   onStartDrag,
+  // A visited room's people: {character, label} for THIS placement. Lets a
+  // generic `resident` wear someone else's look without `self` semantics.
+  personaInfo = null,
 }) {
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
@@ -345,7 +348,9 @@ const PlacedItem = memo(function PlacedItem({
               // Only YOU wear the profile's character and think
               // thoughts. Passing them to every persona turned a
               // table of four into four copies of the same person.
-              character={item.self ? character : undefined}
+              // (A VISITED room's people are the exception — their looks
+              // arrive per-placement via `personaInfo`.)
+              character={item.self ? character : personaInfo?.character}
               mood={item.self ? mood : undefined}
               // The odd turns wrap this whole sprite in
               // scale(-1,1), which would draw the thought bubble's
@@ -402,6 +407,9 @@ function IsoSceneInner({
   onRotateItem,
   onRemoveItem,
   onClearSelect,
+  // Visiting: {placementId: {character, label}} — per-placement looks and
+  // the name tags drawn over them. Null at home.
+  personas = null,
 }) {
   const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
 
@@ -882,8 +890,56 @@ function IsoSceneInner({
               mood={mood}
               reduceMotion={reduceMotion}
               onStartDrag={onStartDrag}
+              personaInfo={personas ? personas[p.id] : null}
             />
           ))}
+
+          {/* Name tags for a visited room's people — after the furniture so
+              nothing buries a name (the selection-chrome rule), and OUTSIDE
+              the sprite groups so a mirrored body never flips its label. */}
+          {personas &&
+            effective.map((p) => {
+              const info = personas[p.id];
+              if (!info?.label) return null;
+              const at = project(p.gx, p.gy);
+              // Tuned by screenshot, not by the catalog: `hitH` is the grab
+              // REGION's height (generous over any body), and using it hung
+              // every tag a full head above its person. These sit the tag
+              // just over the hair for the default body in both poses.
+              const lift = p._seat ? p._seat + 47 : 44;
+              // Wanderers GLIDE (a 2.6s CSS transition on their sprite); the
+              // label must ride the same clock or it teleports ahead and
+              // hovers over empty floor until its person catches up.
+              const item = ISO_ITEMS[p.item];
+              const glides =
+                (item?.persona || item?.roamer) && !editMode && !reduceMotion;
+              const common = {
+                textAnchor: "middle",
+                fontSize: "11",
+                fontWeight: "600",
+                fill: "#f2e9dd",
+                stroke: "#1d0f1f",
+                strokeWidth: "2.6",
+                paintOrder: "stroke",
+                opacity: "0.92",
+              };
+              return glides ? (
+                <text
+                  key={`tag-${p.id}`}
+                  {...common}
+                  style={{
+                    transform: `translate(${at.x}px, ${at.y - lift}px)`,
+                    transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
+                  }}
+                >
+                  {info.label}
+                </text>
+              ) : (
+                <text key={`tag-${p.id}`} {...common} x={at.x} y={at.y - lift}>
+                  {info.label}
+                </text>
+              );
+            })}
 
           {/* selection chrome LAST — the highlight and ⟳/✕ buttons must sit
               above every item, or nearer furniture buries them (user-hit) */}
@@ -966,6 +1022,12 @@ function IsoRoom({
   character,
   mood = null,
   reduceMotion = false,
+  personas = null,
+  // False while VISITING: a pan around a friend's room must not overwrite
+  // the saved HOME camera, and a visit opens framed on the room rather than
+  // wherever home was last zoomed. (App remounts the scene per room via
+  // `key`, so this initializer runs fresh for every visit.)
+  saveView = true,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -976,9 +1038,15 @@ function IsoRoom({
   const dragRef = useRef(null);
   const panRef = useRef(null); // the world point the pointer grabbed
   const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
-  const [view, setView] = useState(loadView);
+  const [view, setView] = useState(() => (saveView ? loadView() : { ...DEFAULT_VIEW }));
   const viewRef = useRef(view);
   viewRef.current = view;
+  // Read through a ref so applyView stays non-reactive to the lint rule —
+  // the prop can't actually change within a mount (App keys the scene per
+  // room), but referencing it directly re-classifies every effect that
+  // calls applyView.
+  const saveViewRef = useRef(saveView);
+  saveViewRef.current = saveView;
   const sizeRef = useRef(size);
   sizeRef.current = size;
 
@@ -999,6 +1067,9 @@ function IsoRoom({
   const applyView = (next) => {
     const clamped = clampView(next);
     setView(clamped);
+    // A visited room's camera is throwaway — never let it near the stored
+    // home view (pendingViewRef stays null, so the unmount flush is a no-op).
+    if (!saveViewRef.current) return;
     // Persisting on every pointermove meant a synchronous JSON+disk write at
     // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
     // immediate.
@@ -1222,6 +1293,7 @@ function IsoRoom({
           onRotateItem={onRotateItem}
           onRemoveItem={onRemoveItem}
           onClearSelect={onClearSelect}
+          personas={personas}
         />
       </svg>
 

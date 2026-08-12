@@ -14,6 +14,7 @@ import {
   profileSummary,
 } from "../lib/profile";
 import { WIDTH_RANGE, HEIGHT_RANGE } from "../lib/body";
+import { VISIT_ACCESS } from "../lib/visiting";
 
 /**
  * The resident, drawn with the character being edited. Measured with getBBox
@@ -127,7 +128,16 @@ function Choices({ options, value, onPick, label }) {
 }
 
 export default function ProfilePanel() {
-  const { selfInRoom, setSelfInRoom, profile, character, saveProfile, saveCharacter } = useStore();
+  const {
+    selfInRoom,
+    setSelfInRoom,
+    profile,
+    character,
+    saveProfile,
+    saveCharacter,
+    user,
+    setVisitAccess,
+  } = useStore();
   const summary = profileSummary(profile);
 
   // Text inputs are local until blur: saveProfile round-trips to the server,
@@ -375,6 +385,20 @@ export default function ProfilePanel() {
           Tinting one resident in the room still overrides this outfit, so a
           houseful of people needn&apos;t all dress the same.
         </p>
+
+        <Field label="Who can visit">
+          <Choices
+            label="Who can visit your room"
+            options={VISIT_ACCESS}
+            value={user?.visitAccess || "friends"}
+            onPick={(value) => setVisitAccess(value)}
+          />
+          <p className="mt-1 text-xs text-petal/50">
+            {VISIT_ACCESS.find((v) => v.key === (user?.visitAccess || "friends"))?.hint}
+            . It&apos;ll matter the day friends can really drop by — for now
+            it&apos;s your door, set how you like it.
+          </p>
+        </Field>
       </Section>
 
       {summary.zodiac && (

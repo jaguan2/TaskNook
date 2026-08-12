@@ -13,6 +13,7 @@ import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
+import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
@@ -1158,6 +1159,71 @@ export function StoreProvider({ children }) {
       applyTimeOfDay(timeOfDayNow());
     }
   };
+  // ---------- Visiting friends' rooms (simulated social) ----------
+  // The scene swap is all this owns: fetch what the friend has stored, let
+  // lib/visiting derive the rest (their home, their look, you as the guest),
+  // and hand IsoRoom a read-only layout + personas. Never persisted.
+  const [visiting, setVisiting] = useState(null);
+  // Which friend's door is being knocked on (the invite-only wait).
+  const [knockingId, setKnockingId] = useState(null);
+  const knockTimer = useRef(null);
+  // One visit in flight at a time: two rapid Visit clicks otherwise race two
+  // fetches, and whichever RESOLVES last wins — potentially landing you in
+  // the first friend's room after clicking the second.
+  const visitBusyRef = useRef(false);
+  const visitFriend = async (friend) => {
+    if (visitBusyRef.current) return false;
+    visitBusyRef.current = true;
+    try {
+      const data = await api.friendRoom(friend.id);
+      // A long-ago-added item must not arrive pre-selected (tint picker and
+      // all) when the home scene remounts after the visit.
+      setLastIsoAddedId(null);
+      setVisiting({
+        friend: data,
+        ...resolveVisitRoom(data, {
+          character: characterRef.current,
+          name: profileRef.current.displayName || user?.displayName || "you",
+        }),
+      });
+      return true;
+    } catch (err) {
+      showToast(`Couldn't visit — ${err.message}`);
+      return false;
+    } finally {
+      visitBusyRef.current = false;
+    }
+  };
+  // The knock lives HERE, not in the Friends panel: drawers close for all
+  // sorts of reasons (Escape, a dock click, the arrival effect itself), and
+  // a knock timer owned by the panel died with it — the toast promised an
+  // answer that never came. "The bots always answer" means surviving the
+  // panel.
+  const knockFriend = (friend) => {
+    if (knockingId || visitBusyRef.current) return;
+    setKnockingId(friend.id);
+    showToast(`You knock on ${friend.displayName}'s door…`, KNOCK_WAIT_MS);
+    clearTimeout(knockTimer.current);
+    knockTimer.current = setTimeout(async () => {
+      setKnockingId(null);
+      const ok = await visitFriend(friend);
+      // Announce the welcome only if the door actually opened — a friend
+      // removed mid-knock already toasted the failure.
+      if (ok) showToast(`${friend.avatar} ${friend.displayName} lets you in!`, 2500);
+    }, KNOCK_WAIT_MS);
+  };
+  const leaveVisit = useCallback(() => setVisiting(null), []);
+  // Your own door. Matters the day friends can really visit; today it's a
+  // preference the bots politely respect.
+  const setVisitAccess = async (value) => {
+    try {
+      const res = await api.setVisitAccess(value);
+      setUser((u) => (u ? { ...u, visitAccess: res.visitAccess } : u));
+    } catch (err) {
+      showToast(`Couldn't change your door — ${err.message}`);
+    }
+  };
+
   const toggleMusic = () => {
     // Outside the updater — updaters must stay pure (StrictMode double-invokes).
     writeStored("tasknook.music.on", musicOn ? "0" : "1");
@@ -1492,6 +1558,12 @@ export function StoreProvider({ children }) {
     resetIsoShape,
     setIsoEnv,
     setIsoWalls,
+    visiting,
+    visitFriend,
+    knockFriend,
+    knockingId,
+    leaveVisit,
+    setVisitAccess,
     applyIsoPreset,
     selfInRoom,
     setSelfInRoom,

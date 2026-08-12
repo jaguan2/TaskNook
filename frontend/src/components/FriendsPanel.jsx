@@ -2,13 +2,25 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
+import { VISIT_ACCESS } from "../lib/visiting";
+
+const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
 
 export default function FriendsPanel() {
-  const { friends, refreshAll } = useStore();
+  // The knock timer lives in the STORE, not here — this drawer closes for
+  // all sorts of reasons mid-wait, and a knock that died with it broke
+  // "the bots always answer".
+  const { friends, refreshAll, visitFriend, knockFriend, knockingId } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [armedId, arm] = useArmed();
+
+  const visit = (f) => {
+    if (f.visitAccess === "private" || knockingId) return;
+    if (f.visitAccess === "invite") knockFriend(f);
+    else visitFriend(f);
+  };
 
   const add = async (e) => {
     e.preventDefault();
@@ -99,6 +111,31 @@ export default function FriendsPanel() {
                   className="h-full rounded-full bg-gradient-to-r from-sage to-glow transition-all duration-700"
                   style={{ width: `${f.completion}%` }}
                 />
+              </div>
+              {/* The door. One affordance per access level: walk in, knock
+                  and wait, or a lock you can't press. */}
+              <div className="mt-2">
+                {f.visitAccess === "private" ? (
+                  <span
+                    title={doorHint("private")}
+                    className="pill inline-flex cursor-default items-center gap-1 bg-white/5 px-3 py-1 text-xs font-semibold text-petal/40"
+                  >
+                    🔒 private
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => visit(f)}
+                    disabled={knockingId !== null}
+                    title={doorHint(f.visitAccess)}
+                    className="pill inline-flex items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20 disabled:opacity-50"
+                  >
+                    {knockingId === f.id
+                      ? "🚪 knocking…"
+                      : f.visitAccess === "invite"
+                      ? "🚪 Knock"
+                      : "🚪 Visit"}
+                  </button>
+                )}
               </div>
             </div>
           );

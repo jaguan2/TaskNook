@@ -62,6 +62,7 @@ def make_pre_migrations(db_path):
     sql(db_path, "ALTER TABLE user DROP COLUMN unlocked")
     sql(db_path, "ALTER TABLE user DROP COLUMN profile")
     sql(db_path, "ALTER TABLE user DROP COLUMN character")
+    sql(db_path, "ALTER TABLE user DROP COLUMN visit_access")
     sql(db_path, "ALTER TABLE task DROP COLUMN group_name")
     sql(db_path, "ALTER TABLE task DROP COLUMN is_routine")
     sql(db_path, "ALTER TABLE task DROP COLUMN notes")
