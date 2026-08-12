@@ -57,6 +57,34 @@ export function ambienceVars(gx, gy) {
   };
 }
 
+/**
+ * The walking clock. One footfall every STEP_S; every walk keyframe in
+ * index.css derives its period from this number (legs 2×, the body's
+ * bob-and-roll 2×), and `glideMs` rounds a glide to whole steps so a walk
+ * ends near a contact pose instead of mid-swing.
+ *
+ * WALK_SPEED is why the walk finally reads as walking: the glide used to be a
+ * FIXED 2.6s whatever the distance, so a half-tile shuffle and a cross-room
+ * trek moved at wildly different speeds under legs cycling at one fixed rate —
+ * textbook ice-skating. Constant speed + fixed cadence means stride length is
+ * always the same ~11px, and the feet agree with the floor.
+ *
+ * Shared by the placement group AND a visited room's name tags — the tag must
+ * ride the same clock as its person or it teleports ahead (the bug the fixed
+ * 2.6s clock was already shared to prevent).
+ */
+export const STEP_S = 0.44;
+export const WALK_SPEED = 26; // px/s of screen travel — an amble, not a scurry
+export const GLIDE_EASE = "cubic-bezier(0.45, 0.05, 0.35, 1)";
+export function glideMs(distPx) {
+  if (!(distPx > 0)) return 0;
+  const step = STEP_S * 1000;
+  const raw = (distPx / WALK_SPEED) * 1000;
+  // At least one full stride, at most a long-but-watchable walk — a walk
+  // order across a 48-tile lot shouldn't take half a minute.
+  return Math.min(7000, Math.max(step * 2, Math.round(raw / step) * step));
+}
+
 /** Does the OS ask for reduced motion right now? */
 export function systemPrefersReduced() {
   try {

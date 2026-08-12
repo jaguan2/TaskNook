@@ -63,7 +63,10 @@ export function intensityScale(sessionDays) {
 export function intensityOf(minutes, scale) {
   if (!minutes || minutes <= 0 || !scale.length) return 0;
   let level = 1;
-  for (const cut of scale) if (minutes >= cut) level = scale.indexOf(cut) + 1;
+  // Index loop, not indexOf: with a repeated cut point indexOf finds the first
+  // occurrence, so this was only correct because intensityScale de-duplicates —
+  // a property it declares for an unrelated reason. Don't lean on it.
+  for (let i = 0; i < scale.length; i += 1) if (minutes >= scale[i]) level = i + 1;
   return level;
 }
 

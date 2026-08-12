@@ -586,15 +586,45 @@ they touch.**
   how long; the data is already server-side. Turns the calendar from a tint grid into a
   record of your work.
 
-- [ ] **4.2 Calendar intensity + trends** — `sessionDays` holds full per-day minutes but
+
+  **PARTLY DONE.** The calendar now shades each day by its MINUTES rather than a
+  boolean (`intensityOf`/`intensityScale`, tertiles of your own non-zero days), and
+  ProgressPanel draws an 18-week heatmap with best-day / this-week / vs-last-week.
+  The half that remains is the actual journal: every `FocusSession` still stores a
+  `taskName` that no UI reads back, so "how long" is answered and "doing what" is
+  not. That needs an endpoint (`/api/sessions/day`) plus a row list under the
+  selected day — the calendar already has the day-selected state to hang it off.
+
+- [x] **4.2 Calendar intensity + trends** — `sessionDays` holds full per-day minutes but
   is reduced to a boolean tint. A GitHub-style intensity heatmap is nearly free; and
   ProgressPanel has no trend view at all — weekly bars, best day, this-week vs last-week
   would give the goal/streak chip something to build toward.
+
+
+  **DONE.** `intensityScale`/`intensityOf` in `lib/stats.js`, consumed by both
+  `CalendarPanel` (graduated day tints + minute tooltips, replacing the flat
+  `bg-sage/20`) and `ProgressPanel` (18-week heatmap, `focusWeeks`/`focusSummary`,
+  best day, this week, vs last week). The scale is the TERTILES of your own
+  non-zero days rather than fixed thresholds, so a 20-minute-a-day habit still
+  spans light to dark instead of sitting on the palest step forever. Days after
+  today draw as empty slots, never as zero-focus days, and `deltaPct` is `null`
+  rather than 0 for a first week.
 
 - [ ] **4.3 Task editing UI** — there is currently no way to rename a task or change its
   duration/priority anywhere in the app. `editTask` exists in the store but only the
   calendar's schedule-date and the routine toggle call it. This is the gap a real user
   hits first.
+
+
+  **PARTLY DONE.** `TaskDetails` (an inline expander on the to-do row, not a
+  dialog — VC2 north star) now edits the NAME, plus the new notes and due date. It
+  saves on blur rather than per keystroke because every write refetches, and it
+  sits at module scope for the same reason `Row` does.
+  Still true: **duration and priority cannot be changed on an existing task**
+  anywhere. `TaskPanel` offers both when CREATING one (lines 27/48/94) and then
+  only renders priority as a badge (172-174) — so the HudTasks tooltip "Open the
+  full task manager (priorities, ordering, durations)" over-promises for editing.
+  Two selects in the expander would close it.
 
 - [ ] **4.4 Data export / import** — tasks, sessions, and the room live in SQLite with no
   user-facing way out. For a local-first desktop app, a "download my data" JSON export
@@ -615,6 +645,14 @@ they touch.**
 - [ ] **4.8 Scheduled-date visibility** — a task planned for Friday looks identical to an
   unplanned one in the list; a small date badge + "add task on this day" from the
   calendar closes the loop.
+
+
+  **PARTLY DONE.** Tasks now carry a real DEADLINE (`dueDate`) and the row shows it
+  as a badge, in `danger` once it's today or past. What this item actually asks for
+  is still open: a task placed on Friday via `scheduledDate` looks identical to an
+  unplanned one, and there's no "add a task on this day" from the calendar.
+  Note the two fields are deliberately different — `scheduledDate` is calendar
+  placement and nothing sorts or warns on it; `dueDate` is the deadline.
 
 - [ ] **4.9 Smaller polish candidates** — custom stations can't be renamed/reordered after
   adding; no master ambience volume; sound-mix presets live in the Weather panel

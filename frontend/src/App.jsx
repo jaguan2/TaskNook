@@ -420,7 +420,7 @@ export default function App() {
             music keeps playing when the panel closes; hidden (not unmounted)
             while decorating so playback survives that too and the tint picker
             gets the bottom-centre spot. */}
-        <MusicDock onOpenPanel={() => toggleDockPanel("music")} />
+        <MusicDock />
 
         {/* rkive. — the maker's signature, same wordmark as the portfolio.
             Sits ON the bottom rail: same bottom-6, same 44px height, so its

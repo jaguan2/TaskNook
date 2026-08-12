@@ -503,38 +503,41 @@ export function StoreProvider({ children }) {
   // failure `newIsoPlacement` was already fixed for, and it is reachable in the
   // shipped default room — the Loft is L-shaped, and ~5% of legal positions for
   // a bed, sofa, desk, bookcase or stairs strand on one turn.
+  // Computed OUTSIDE the updater, like addIsoItem: updaters must stay pure
+  // (StrictMode double-invokes them), and this one toasts on refusal.
   const rotateIsoItem = useCallback(
     (id) => {
-      setIsoRoom((prev) => {
-        let refused = false;
-        const placements = prev.placements.map((p) => {
-          if (p.id !== id) return p;
-          // Four facings for seating that ships a back view, two for everything
-          // else (and for wall decor, where rot picks the wall, not a facing).
-          const rot = nextRot(p.item, p.rot);
-          const { rot: _dropped, ...rest } = p;
-          const at = clampIsoPlacement(p.item, p.gx, p.gy, prev, rot);
-          const turned = { ...rest, ...(rot && { rot }), ...at };
-          // Wall decor is glued to a wall by the clamp and never covers floor,
-          // so the mask doesn't apply to it.
-          if (ISO_ITEMS[p.item]?.wall) return turned;
-          if (footprintFree(at.gx, at.gy, footOf(p.item, rot), prev)) return turned;
-          // Prefer to keep the turn and move the piece, since the turn is what
-          // was asked for. Only if the drawn floor has nowhere to put it does
-          // the rotation get refused outright.
-          const spot = findFreeSpot(p.item, rot, prev, at.gx, at.gy, prev.placements);
-          if (spot) return { ...turned, ...spot };
-          refused = true;
-          return p;
-        });
-        if (refused) {
-          // Same rule as the item cap and the reshape drops: a refusal the user
-          // can see beats a control that silently does nothing.
-          showToast("No room to turn that piece — the floor's too tight 🌿");
-          return prev;
-        }
-        return { ...prev, placements };
+      const prev = isoRef.current;
+      let refused = false;
+      const placements = prev.placements.map((p) => {
+        if (p.id !== id) return p;
+        // Four facings for seating that ships a back view, two for everything
+        // else (and for wall decor, where rot picks the wall, not a facing).
+        const rot = nextRot(p.item, p.rot);
+        const { rot: _dropped, ...rest } = p;
+        const at = clampIsoPlacement(p.item, p.gx, p.gy, prev, rot);
+        const turned = { ...rest, ...(rot && { rot }), ...at };
+        // Wall decor is glued to a wall by the clamp and never covers floor,
+        // so the mask doesn't apply to it.
+        if (ISO_ITEMS[p.item]?.wall) return turned;
+        if (footprintFree(at.gx, at.gy, footOf(p.item, rot), prev)) return turned;
+        // Prefer to keep the turn and move the piece, since the turn is what
+        // was asked for. Only if the drawn floor has nowhere to put it does
+        // the rotation get refused outright.
+        const spot = findFreeSpot(p.item, rot, prev, at.gx, at.gy, prev.placements);
+        if (spot) return { ...turned, ...spot };
+        refused = true;
+        return p;
       });
+      if (refused) {
+        // Same rule as the item cap and the reshape drops: a refusal the user
+        // can see beats a control that silently does nothing.
+        showToast("No room to turn that piece — the floor's too tight 🌿");
+        return;
+      }
+      const next = { ...prev, placements };
+      isoRef.current = next;
+      setIsoRoom(next);
     },
     [showToast]
   );
@@ -559,13 +562,16 @@ export function StoreProvider({ children }) {
   // consequence of what you just did. Same rule as the item cap: a refusal
   // gets a toast.
   const reshapeIso = useCallback(
-    (change, lost) =>
-      setIsoRoom((prev) => {
-        const next = validateIsoLayout({ ...prev, ...change });
-        const gone = prev.placements.length - next.placements.length;
-        if (gone > 0) showToast(lost(gone, gone === 1 ? "piece" : "pieces"));
-        return next;
-      }),
+    // Also computed outside the updater — the toast is a side effect, and
+    // StrictMode's double-invoke would otherwise run it twice per reshape.
+    (change, lost) => {
+      const prev = isoRef.current;
+      const next = validateIsoLayout({ ...prev, ...change });
+      const gone = prev.placements.length - next.placements.length;
+      if (gone > 0) showToast(lost(gone, gone === 1 ? "piece" : "pieces"));
+      isoRef.current = next;
+      setIsoRoom(next);
+    },
     [showToast]
   );
   const setIsoSize = useCallback(
@@ -589,30 +595,35 @@ export function StoreProvider({ children }) {
   );
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
   const setIsoTile = useCallback(
+    // Outside the updater like the others — doubly important here, because
+    // drag-to-draw fires this on every pointerenter, making it the
+    // highest-frequency toaster in the app. Advancing isoRef synchronously is
+    // what lets a fast stroke's next tile build on this one instead of on the
+    // last rendered mask.
     (x, y, on) => {
-      setIsoRoom((prev) => {
-        const rows = (
-          prev.mask || Array.from({ length: prev.d }, () => "1".repeat(prev.w))
-        ).map((r) => r.split(""));
-        if (!rows[y] || rows[y][x] === undefined) return prev;
-        rows[y][x] = on ? "1" : "0";
-        const mask = rows.map((r) => r.join(""));
-        // Refuse to paint away the last floor tile — a room must exist.
-        if (!mask.some((r) => r.includes("1"))) return prev;
-        const next = validateIsoLayout({ ...prev, mask });
-        // Erasing a tile relocates what stood on it, but with nowhere left to
-        // go the piece is dropped — say so, since a drag-to-erase gesture can
-        // cross a lot of tiles quickly.
-        const gone = prev.placements.length - next.placements.length;
-        if (gone > 0) {
-          showToast(
-            `Nowhere left to put ${gone} ${gone === 1 ? "piece" : "pieces"} — ${
-              gone === 1 ? "it's" : "they're"
-            } gone 📦`
-          );
-        }
-        return next;
-      });
+      const prev = isoRef.current;
+      const rows = (
+        prev.mask || Array.from({ length: prev.d }, () => "1".repeat(prev.w))
+      ).map((r) => r.split(""));
+      if (!rows[y] || rows[y][x] === undefined) return;
+      rows[y][x] = on ? "1" : "0";
+      const mask = rows.map((r) => r.join(""));
+      // Refuse to paint away the last floor tile — a room must exist.
+      if (!mask.some((r) => r.includes("1"))) return;
+      const next = validateIsoLayout({ ...prev, mask });
+      // Erasing a tile relocates what stood on it, but with nowhere left to
+      // go the piece is dropped — say so, since a drag-to-erase gesture can
+      // cross a lot of tiles quickly.
+      const gone = prev.placements.length - next.placements.length;
+      if (gone > 0) {
+        showToast(
+          `Nowhere left to put ${gone} ${gone === 1 ? "piece" : "pieces"} — ${
+            gone === 1 ? "it's" : "they're"
+          } gone 📦`
+        );
+      }
+      isoRef.current = next;
+      setIsoRoom(next);
     },
     [showToast]
   );
@@ -669,9 +680,18 @@ export function StoreProvider({ children }) {
     (key) => {
       const wanted = isoRef.current.placements.some((p) => p.item === "you");
       const base = validateIsoLayout(isoPresetLayout(key));
-      setIsoRoom(withSelf(base, wanted) ?? base);
+      const carried = withSelf(base, wanted);
+      // null = you were in the old room and this one has nowhere to stand.
+      // The preset still applies (it's what was asked for), but a silent
+      // eviction is the exact failure the reshape toasts exist to prevent.
+      // Unreachable with the shipped presets — this is for a full custom room.
+      if (carried === null)
+        showToast("No space for you in that room — add yourself back once there's floor 🧩");
+      const next = carried ?? base;
+      isoRef.current = next;
+      setIsoRoom(next);
     },
-    [withSelf]
+    [withSelf, showToast]
   );
   const roomRef = useRef(roomPlacements);
   // Read inside the save actions so a rapid second edit merges onto the latest
@@ -1076,7 +1096,9 @@ export function StoreProvider({ children }) {
     if (!affected.length) return;
     try {
       await Promise.all(affected.map((t) => api.updateTask(t.id, { group: null })));
-      await refreshAll();
+      // A group change is a task write like any other — it can't move the
+      // friends list or the per-day session map, so it pays the narrow price.
+      await refreshTasks();
     } catch (err) {
       console.error("Failed to ungroup tasks:", err);
       showToast("Couldn't ungroup those tasks 🌧️");

@@ -31,11 +31,27 @@ export function setReauthorizer(fn) {
 
 // One shared attempt, so a burst of parallel 401s (refreshAll fires four calls
 // at once) produces a single login rather than four racing ones.
+//
+// `staleToken` is the token the 401'd request actually sent. Two subtleties
+// both exist because a 401 response can sit buffered on the wire while the
+// winning racer completes a whole login:
+// - the token wipe lives INSIDE the single flight, so only the caller that
+//   starts a login clears storage — when it sat in request(), every racer
+//   wiped, including one arriving after the replacement token was stored;
+// - a late racer that finds a token DIFFERENT from the one it sent doesn't
+//   need a login at all: someone already finished one, and starting another
+//   burned a second row against MAX_TOKENS_PER_USER (and, if that second
+//   login failed, left the tab with no token and no way to re-auth).
 let reauthInFlight = null;
-function reauthorizeOnce() {
+function reauthorizeOnce(staleToken) {
   if (!reauthInFlight) {
+    const current = getToken();
+    if (current && current !== staleToken) return Promise.resolve(current);
     reauthInFlight = Promise.resolve()
-      .then(() => reauthorize?.())
+      .then(() => {
+        setToken(null);
+        return reauthorize?.();
+      })
       .finally(() => {
         reauthInFlight = null;
       });
@@ -90,8 +106,7 @@ async function request(method, path, body, { retrying = false } = {}) {
       reauthorize &&
       !path.startsWith("/auth/")
     ) {
-      setToken(null);
-      const fresh = await reauthorizeOnce();
+      const fresh = await reauthorizeOnce(token);
       if (fresh) return request(method, path, body, { retrying: true });
     }
     const message = (data && data.error) || `Request failed (${res.status})`;

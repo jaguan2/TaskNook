@@ -474,8 +474,27 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   `loadPlaylist()` in `onReady` (more reliable than autoplay playerVars);
   single videos loop via the `playlist` doubling trick; a track that errors
   inside a playlist is auto-skipped (bounded at 5 consecutive) instead of
-  killing the station. The 🎧 button opens the Sounds panel. Spotify
+  killing the station. Spotify
   stations embed Spotify's compact 80px player (Spotify keeps its controls).
+  **The track title is a LINK OUT** (`stationUrl` in `lib/musicLink.js`) — a
+  real `<a target="_blank">`, not a click handler, so middle-click,
+  ctrl/⌘-click and right-click→copy-link all work. A playlist links to the
+  track PLAYING (`watch?v=…&list=…`, from the poll's `video_id`, also saved in
+  the resume record so the cued state links right too), not to the list's
+  first track. `target` is load-bearing: pywebview's WebView2 only routes to
+  the system browser via its new-window request, and the `else` branch of that
+  same handler NAVIGATES the app window — a plain link would replace TaskNook
+  with YouTube, in a frame with no back button.
+  **The bar HIDES without stopping** (`tasknook.music.collapsed`): the ⌄ folds
+  it to one pill, same idea as the Dock's ☰, and the pill tints `glow` while
+  something's playing. It must stay a STATE, never an early return — the
+  off-screen player is a sibling of the collapsed/expanded branch, so
+  unmounting to hide would destroy it and make "hide" mean "stop". Stopping is
+  the clock cluster's music toggle and the Sounds panel's On/Off; the bar's ✕
+  and its 🎧 shortcut are both gone (user feedback: the headphones weren't
+  useful, and an ✕ that killed playback was the wrong verb for a hide).
+  `MusicDock.test.jsx` guards the hide-doesn't-unmount invariant and the
+  link's `target`; both were verified by mutation.
   Two failure states, deliberately distinct: the API script failing to load =
   "needs internet", a player error = "won't play" (station-specific).
   YouTube bot-flags automated browsers (ERR 150 even headful), so transport

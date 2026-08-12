@@ -476,6 +476,25 @@ chair, because a preview that lies is worse than no preview.
   `text-petal/70` beside header text. Emoji stay where they're CONTENT:
   furniture/preset catalogs, station names, warm copy ("All clear 🌿"),
   the avatar, toasts — colour earns its place there.
+- **Never repeat a glyph on the same rail for two different actions.** The
+  music bar's collapsed pill was a ♪ until a screenshot put it an inch from
+  the clock cluster's ♪ toggle — and that one STOPS the music. Two identical
+  notes, one destructive: precisely the mis-click the rework was removing.
+  A collapse control's glyph is the inverse of the one that collapsed it (⌄
+  hides, ⌃ restores), and state goes in COLOUR — the pill tints `glow` only
+  while something is playing. Corollary: a hide is never an ✕. ✕ means stop
+  or close, and an ✕ on a playing station read as "stop" to everyone.
+- **A link out of the app is a real `<a target="_blank">`**, never an onClick.
+  That's what gives middle-click, ctrl/⌘-click and right-click→copy-link for
+  free, and `target` is what makes pywebview hand the URL to the system
+  browser instead of navigating the desktop window away from TaskNook. Mark it
+  with a persistent 9px `ExternalLink` glyph, not a hover-revealed one — a link
+  nobody knows is a link doesn't get clicked, and hover-only knowledge doesn't
+  survive touch.
+- **A collapsed rail element still sits on the rail.** Wrap the smaller pill in
+  the rail's own `flex h-11 items-center`; hanging a 32px pill off `bottom-6`
+  drops its optical centre 6px below the signature and the clock cluster.
+  Measured: signature centre 754px, expanded bar 753, collapsed pill 754.
 - Empty states are one warm sentence, not filler UI ("All clear 🌿"). Idle
   chrome shows nothing rather than placeholder text. Zero-data readouts get
   the sentence too — never a raw "0 of 0".

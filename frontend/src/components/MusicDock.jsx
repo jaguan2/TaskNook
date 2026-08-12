@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Headphones, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+} from "lucide-react";
 import { useStore } from "../store";
 import { readJSON, readStored, writeJSON, writeStored } from "../lib/storage";
 import { formatClock } from "../lib/time";
-import { stationKey } from "../lib/musicLink";
+import { stationKey, stationUrl } from "../lib/musicLink";
 
 // The persistent music player + VC2-style bottom transport bar. Mounted at
 // the App level (NOT inside the Sounds panel) so music keeps playing when the
@@ -81,6 +90,9 @@ const isLiveDuration = (d) => !Number.isFinite(d) || d <= 0 || d > 43200;
 // Where the music stopped: station key, playlist index, seconds in, and the
 // title/duration so the bar can SHOW the spot before the player even loads.
 const RESUME_KEY = "tasknook.music.resume";
+// Bar hidden, music still playing — a display preference, so it persists per
+// device exactly like `tasknook.dockCollapsed`.
+const COLLAPSED_KEY = "tasknook.music.collapsed";
 // Read at module load, before any toggle can change it: "was music on when
 // the app last closed?" distinguishes the boot mount (no user gesture —
 // autoplay would be blocked, so CUE at the saved spot with ▶ armed) from a
@@ -89,16 +101,28 @@ const BOOTED_WITH_MUSIC_ON = readStored("tasknook.music.on") === "1";
 // Only the FIRST player mount after launch may cue; later mounts are clicks.
 let bootResumeConsumed = false;
 
-export default function MusicDock({ onOpenPanel }) {
-  const { musicOn, toggleMusic, musicStations, activeStationKey, selectStation } =
-    useStore();
+const EMPTY_TRACK = { title: "", t: 0, d: 0, live: false, videoId: "" };
+
+export default function MusicDock() {
+  const { musicOn, musicStations, activeStationKey, selectStation } = useStore();
   // The store already resolves `activeStationKey` to a station that exists;
   // the fallback is belt-and-braces, because the cost of getting it wrong here
-  // is a dock that renders nothing at all — including the ✕ that stops the music.
+  // is a bar that renders nothing at all — no transport, no way back.
   const station =
     musicStations.find((s) => stationKey(s) === activeStationKey) || musicStations[0];
 
   const [playing, setPlaying] = useState(false);
+  // Collapsed = the bar folds down to a single pill and the music plays on.
+  // This is why hiding is a state and not an unmount: the YouTube player lives
+  // in the off-screen holder below, so returning null here would tear it down
+  // and "hide" would silently mean "stop".
+  const [collapsed, setCollapsed] = useState(() => readStored(COLLAPSED_KEY) === "1");
+  const setHidden = (next) => {
+    // Persist OUTSIDE the updater — updaters must stay pure (StrictMode
+    // double-invokes them).
+    writeStored(COLLAPSED_KEY, next ? "1" : "0");
+    setCollapsed(next);
+  };
   // Two distinct failure modes: the API script not loading means no internet;
   // a player error means THIS stream won't play (region/embed limits) but the
   // next one might.
@@ -110,8 +134,17 @@ export default function MusicDock({ onOpenPanel }) {
     // ▶ armed to pick up from there.
     const saved = BOOTED_WITH_MUSIC_ON && station ? readJSON(RESUME_KEY, null) : null;
     return saved && saved.key === stationKey(station) && Number.isFinite(saved.t)
-      ? { title: saved.title || "", t: saved.t, d: saved.d || 0, live: false }
-      : { title: "", t: 0, d: 0, live: false };
+      ? {
+          title: saved.title || "",
+          t: saved.t,
+          d: saved.d || 0,
+          live: false,
+          // The saved track's own id, so the title still deep-links correctly
+          // in the cued state (a playlist would otherwise link to track 1
+          // while the bar shows where you actually left off).
+          videoId: saved.vid || "",
+        }
+      : EMPTY_TRACK;
   });
   const [volume, setVolume] = useState(() => {
     const saved = Number(readStored("tasknook.music.volume"));
@@ -152,7 +185,7 @@ export default function MusicDock({ onOpenPanel }) {
     setStreamError(false);
     // Keep the seeded title/position through the cue path — resetting here
     // would blank the bar exactly when it should show where you left off.
-    if (!resume) setTrack({ title: "", t: 0, d: 0, live: false });
+    if (!resume) setTrack(EMPTY_TRACK);
     skipStreakRef.current = 0;
     // Written ~every 5s while playing, on every pause, and on pagehide —
     // a hard window close loses a few seconds of position at worst.
@@ -166,6 +199,7 @@ export default function MusicDock({ onOpenPanel }) {
           t: Math.floor(p.getCurrentTime() || 0),
           d,
           title: p.getVideoData?.()?.title || "",
+          vid: p.getVideoData?.()?.video_id || "",
           savedAt: Date.now(),
         });
       } catch {
@@ -258,8 +292,12 @@ export default function MusicDock({ onOpenPanel }) {
           // now would wipe the seed and misread the zeros as a live stream.
           if (st === YT.PlayerState.CUED || st === YT.PlayerState.UNSTARTED) return;
           const d = p.getDuration?.() ?? 0;
+          const data = p.getVideoData?.() || {};
           const next = {
-            title: p.getVideoData?.()?.title || "",
+            title: data.title || "",
+            // Which track is playing, for the title's deep link — inside a
+            // playlist this changes without the station changing.
+            videoId: data.video_id || "",
             // Whole seconds: the bar shows m:ss, so sub-second precision was
             // guaranteeing a new object (and a re-render) every tick even for a
             // paused player where nothing had changed at all.
@@ -271,7 +309,8 @@ export default function MusicDock({ onOpenPanel }) {
             prev.title === next.title &&
             prev.t === next.t &&
             prev.d === next.d &&
-            prev.live === next.live
+            prev.live === next.live &&
+            prev.videoId === next.videoId
               ? prev // same reference → React bails, no re-render
               : next
           );
@@ -349,131 +388,195 @@ export default function MusicDock({ onOpenPanel }) {
     (streamError && "won't play — try another station") ||
     track.title ||
     station.label;
+  // Where this station lives on the web — the title links out to it.
+  const link = stationUrl(station, track.videoId);
 
   return (
     // bottom-6 + a 44px-tall bar = the shared bottom rail (see App.jsx)
     <div className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2">
-      {/* the YouTube player lives off-screen (audio only, effectively) */}
+      {/* The YouTube player lives off-screen (audio only, effectively) —
+          OUTSIDE the collapsed/expanded branch below, because it must stay
+          mounted for the music to survive hiding the bar. */}
       <div
         ref={holderRef}
         className="pointer-events-none absolute bottom-0 h-[180px] w-[320px]"
         style={{ left: "-9999px" }}
       />
 
-      <div className="glass flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 shadow-soft">
-        <button
-          onClick={onOpenPanel}
-          title="Open the Sounds panel (stations & ambience)"
-          aria-label="Open the Sounds panel (stations & ambience)"
-          className="pill grid h-7 w-7 place-items-center text-petal/60 hover:bg-white/10 hover:text-cream"
-        >
-          <Headphones size={13} />
-        </button>
-        <button
-          onClick={stepBack}
-          title={isPlaylist ? "Previous track" : "Previous station"}
-          className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
-        >
-          <SkipBack size={13} />
-        </button>
-        {isYouTube && !unavailable && !streamError && (
+      {/* Folded away, the bar is HIDDEN, never unmounted — for a Spotify
+          station the visible embed IS the player, so dropping it from the tree
+          would stop the music the button promises to keep playing. Same
+          mechanism App.jsx already uses to survive decorating:
+          `visibility` (not display:none) also drops the transport out of the
+          tab order, and `absolute` takes it out of flow so the pill below can
+          hold the rail spot and stay centred. */}
+      <div className={collapsed ? "pointer-events-none invisible absolute bottom-0" : undefined}>
+        <div className="glass flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 shadow-soft">
           <button
-            onClick={togglePlay}
-            title={playing ? "Pause" : "Play"}
-            className="pill grid h-8 w-8 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
+            onClick={stepBack}
+            title={isPlaylist ? "Previous track" : "Previous station"}
+            className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
           >
-            {playing ? <Pause size={14} /> : <Play size={14} />}
+            <SkipBack size={13} />
           </button>
-        )}
-        <button
-          onClick={stepForward}
-          title={isPlaylist ? "Next track" : "Next station"}
-          className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
-        >
-          <SkipForward size={13} />
-        </button>
+          {isYouTube && !unavailable && !streamError && (
+            <button
+              onClick={togglePlay}
+              title={playing ? "Pause" : "Play"}
+              className="pill grid h-8 w-8 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
+            >
+              {playing ? <Pause size={14} /> : <Play size={14} />}
+            </button>
+          )}
+          <button
+            onClick={stepForward}
+            title={isPlaylist ? "Next track" : "Next station"}
+            className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
+          >
+            <SkipForward size={13} />
+          </button>
 
-        {station.provider === "spotify" ? (
-          <iframe
-            key={key}
-            title="Spotify player"
-            src={`https://open.spotify.com/embed/${station.kind}/${station.id}?utm_source=generator&theme=0`}
-            width="280"
-            height="80"
-            allow="autoplay; clipboard-write; encrypted-media"
-            className="rounded-xl border-0"
-          />
-        ) : (
-          /* Title over ONE controls line. Volume used to sit outside this
-             column, so it centred on the whole bar while the seek bar sat in
-             the column's lower row — two sliders an inch apart on different
-             baselines, which is exactly what reads as sloppy. Putting them on
-             the same line aligns them by construction instead of by tuning
-             padding. Fixed heights (leading-4 + h-3.5 + gap-0.5 = 32px) keep
-             the bar 44px whatever state it's in, matching the pills opposite:
-             a transport bar that changes height as a track loads is its own
-             kind of misalignment. */
-          <div className="flex w-64 flex-col justify-center gap-0.5 px-1">
-            <p title={title} className="truncate text-xs font-semibold leading-4 text-cream">
-              {title}
-            </p>
-            <div className="flex h-3.5 items-center gap-1.5">
-              {/* keep the bar mounted through pauses and seek-buffering —
-                  hiding it on every state change made seeking feel broken */}
-              {playing && track.live ? (
-                <span className="flex-1 text-[10px] font-bold uppercase leading-none tracking-wider text-danger">
-                  ● live
-                </span>
-              ) : !track.live && track.d > 0 ? (
-                <>
-                  {/* fixed-width so the seek bar doesn't jump a few px wider
-                      the moment a track ticks past 9:59 */}
-                  <span className="w-10 shrink-0 text-[10px] leading-none tabular-nums text-petal/60">
-                    {fmtTime(track.t)}
-                  </span>
-                  <input
-                    type="range"
-                    min="0"
-                    max={Math.max(1, Math.floor(track.d))}
-                    step="1"
-                    value={Math.floor(track.t)}
-                    onChange={(e) => seekTo(Number(e.target.value))}
-                    title="Seek"
-                    aria-label="Seek"
-                    className="h-1 min-w-0 flex-1 accent-glow"
+          {station.provider === "spotify" ? (
+            <iframe
+              key={key}
+              title="Spotify player"
+              src={`https://open.spotify.com/embed/${station.kind}/${station.id}?utm_source=generator&theme=0`}
+              width="280"
+              height="80"
+              allow="autoplay; clipboard-write; encrypted-media"
+              className="rounded-xl border-0"
+            />
+          ) : (
+            /* Title over ONE controls line. Volume used to sit outside this
+               column, so it centred on the whole bar while the seek bar sat in
+               the column's lower row — two sliders an inch apart on different
+               baselines, which is exactly what reads as sloppy. Putting them on
+               the same line aligns them by construction instead of by tuning
+               padding. Fixed heights (leading-4 + h-3.5 + gap-0.5 = 32px) keep
+               the bar 44px whatever state it's in, matching the pills opposite:
+               a transport bar that changes height as a track loads is its own
+               kind of misalignment. */
+            <div className="flex w-64 flex-col justify-center gap-0.5 px-1">
+              {/* The title is a real <a target="_blank">, not a click handler:
+                  that's what gives middle-click, ctrl/⌘-click and
+                  right-click → copy link address for free. It matters in the
+                  packaged app too — pywebview's WebView2 backend intercepts the
+                  new-window request and hands the URL to the system browser
+                  (edgechromium.py's on_new_window_request, and
+                  OPEN_EXTERNAL_LINKS_IN_BROWSER defaults on). Its `else` branch
+                  is why `target` is not optional: a plain same-window link would
+                  navigate the APP away to YouTube, and the desktop window has no
+                  back button to return with.
+                  The 9px glyph is always visible rather than hover-revealed —
+                  a link nobody knows is a link doesn't get clicked, and the
+                  affordance has to survive touch and keyboard too. */}
+              {link ? (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`${title} — open in your browser`}
+                  className="group flex items-center gap-1 text-xs font-semibold leading-4 text-cream transition-colors hover:text-glow"
+                >
+                  <span className="truncate group-hover:underline">{title}</span>
+                  <ExternalLink
+                    size={9}
+                    className="shrink-0 text-petal/40 transition-colors group-hover:text-glow"
                   />
-                  <span className="w-10 shrink-0 text-right text-[10px] leading-none tabular-nums text-petal/60">
-                    {fmtTime(track.d)}
-                  </span>
-                </>
+                </a>
               ) : (
-                <span className="flex-1" />
+                <p title={title} className="truncate text-xs font-semibold leading-4 text-cream">
+                  {title}
+                </p>
               )}
-              <Volume2 size={11} className="shrink-0 text-petal/50" />
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={volume}
-                onChange={(e) => changeVolume(Number(e.target.value))}
-                title="Music volume"
-                aria-label="Music volume"
-                className="h-1 w-10 shrink-0 accent-glow"
-              />
+              <div className="flex h-3.5 items-center gap-1.5">
+                {/* keep the bar mounted through pauses and seek-buffering —
+                    hiding it on every state change made seeking feel broken */}
+                {playing && track.live ? (
+                  <span className="flex-1 text-[10px] font-bold uppercase leading-none tracking-wider text-danger">
+                    ● live
+                  </span>
+                ) : !track.live && track.d > 0 ? (
+                  <>
+                    {/* fixed-width so the seek bar doesn't jump a few px wider
+                        the moment a track ticks past 9:59 */}
+                    <span className="w-10 shrink-0 text-[10px] leading-none tabular-nums text-petal/60">
+                      {fmtTime(track.t)}
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.max(1, Math.floor(track.d))}
+                      step="1"
+                      value={Math.floor(track.t)}
+                      onChange={(e) => seekTo(Number(e.target.value))}
+                      title="Seek"
+                      aria-label="Seek"
+                      className="h-1 min-w-0 flex-1 accent-glow"
+                    />
+                    <span className="w-10 shrink-0 text-right text-[10px] leading-none tabular-nums text-petal/60">
+                      {fmtTime(track.d)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                <Volume2 size={11} className="shrink-0 text-petal/50" />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={volume}
+                  onChange={(e) => changeVolume(Number(e.target.value))}
+                  title="Music volume"
+                  aria-label="Music volume"
+                  className="h-1 w-10 shrink-0 accent-glow"
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <button
-          onClick={toggleMusic}
-          title="Stop the music"
-          aria-label="Stop the music"
-          className="pill grid h-7 w-7 place-items-center text-petal/50 hover:bg-white/10 hover:text-danger"
-        >
-          <X size={14} />
-        </button>
+          {/* Hides the bar, keeps the music. Not a ✕ any more: an ✕ on a
+              playing station read as "stop", and stopping lives on the clock
+              cluster's music toggle and in the Sounds panel. Chevron DOWN
+              because the bar is on the bottom rail — it folds away toward its
+              own edge, the way the Dock's chevron points at the left one. */}
+          <button
+            onClick={() => setHidden(true)}
+            title="Hide the player — the music keeps playing"
+            aria-label="Hide the player — the music keeps playing"
+            className="pill grid h-7 w-7 place-items-center text-petal/50 hover:bg-white/10 hover:text-cream"
+          >
+            <ChevronDown size={14} />
+          </button>
+        </div>
       </div>
+
+      {/* The folded state: one pill, same idea as the Dock's ☰. The h-11
+          wrapper is what keeps it on the bottom rail — the pill itself is
+          smaller, and hanging it off `bottom-6` directly would drop its
+          optical centre 6px below the signature and the clock cluster.
+          A chevron UP, not a music note: the clock cluster's music toggle is
+          already a note on this same rail, and THAT one stops playback — two
+          note buttons an inch apart, one of which kills the music, is exactly
+          the confusion this rework removes. The chevron is the literal inverse
+          of the ⌄ that folded it away, and the glow tint (only while something
+          is playing) is what says "music" instead. */}
+      {collapsed && (
+        <div className="flex h-11 items-center">
+          <button
+            onClick={() => setHidden(false)}
+            title={playing ? "Show the music player (playing)" : "Show the music player"}
+            aria-label="Show the music player"
+            className={`glass pill grid h-8 w-8 place-items-center shadow-soft transition hover:bg-white/10 hover:text-cream ${
+              playing ? "text-glow" : "text-petal/60"
+            }`}
+          >
+            <ChevronUp size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
