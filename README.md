@@ -9,10 +9,10 @@ scene between night, sunset, and day — or let TaskNook check the real weather
 where you are and match it automatically. Watch your productivity garden grow
 — and cheer on your friends while you're at it.
 
-![An isometric loft at night — a sofa, bed and aquarium under string lights, someone sitting reading, a cat asleep on the floor, with a focus timer and to-do list overlaid](docs/preview.png)
+![An isometric study — someone sitting at a desk under the window with a mug beside them, an easel in the corner, a cat asleep on the rug, with a focus timer and to-do list overlaid](docs/preview.png)
 
 > More of it: **[screenshots](docs/screenshots/)** — every room preset, the
-> weather modes, and the panels.
+> weather modes, visiting a friend, and the panels.
 
 > **Just want to use it?** Download **`TaskNook.exe`** from the repo root and
 > double-click it — that's the whole app in one file, no Python or Node needed.

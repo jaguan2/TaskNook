@@ -11,31 +11,47 @@ The README's hero image is `../preview.png` — the same capture, as PNG.
 
 Each is a one-click preset: floor size, shape, environment and furniture all
 replaced together. They're kept deliberately clean — around fifteen pieces —
-so a room reads as somewhere you could sit rather than as a showroom.
+so a room reads as somewhere you could sit rather than as a showroom. Your
+own resident is dropped in from the picker and sat down where a person would
+actually sit; the communal rooms come with people already in them.
 
 | | |
 |---|---|
-| ![Loft](01-loft-night.webp) **Loft** — the default. An L-shaped attic at night, a tall window and a screen dividing off the bed. | ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, resident working at it, an easel in the corner. |
-| ![Morning café](03-cafe.webp) **Morning café** — counter run with an espresso machine, chairs turned in to face each other. | ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, a tall window, shelves and ladders either side. |
-| ![Corner café](05-corner-cafe.webp) **Corner café** — a bar run under the menu board, and one table across the open floor. | ![Secret garden](06-garden-day.webp) **Secret garden** — open air: a pond to sit by, a hammock, and the cat on a blanket. |
-| ![Terrace](07-terrace-sunset.webp) **Terrace** — waist-high balustrade instead of walls, flagstones, string lights. | ![Cozy cabin](08-cabin-snow.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow outside. |
-| ![Study hall](09-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. | ![Autumn yard](10-autumn-yard.webp) **Autumn yard** — the seasonal one: maples, a half-raked leaf pile, pumpkins by the hay bale. |
+| ![Loft](01-loft-night.webp) **Loft** — the default. An L-shaped attic at night: sofa and aquarium one side, bed behind a screen the other. | ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. |
+| ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. | ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. |
+| ![Corner café](05-corner-cafe.webp) **Corner café** — a bar run under the menu board, tables across the open floor, someone already served. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a pond to sit by, a hammock, and the cat on a blanket. |
+| ![Terrace](07-terrace.webp) **Terrace** — waist-high balustrade instead of walls, flagstones, string lights at sunset. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
+| ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — the seasonal one: maples, a half-raked leaf pile, pumpkins by the hay bale. | |
 
 ## Weather & time of day
 
-The same room in five conditions — one tap sets both the weather and the hour.
+The same room in five conditions — one tap in the Weather panel's matrix sets
+both the weather and the hour.
 
 | | |
 |---|---|
-| ![Rain](11-rain-night.webp) **Rain at night** | ![Storm](12-storm.webp) **Storm** — heavy cloud, lightning |
-| ![Falling leaves](13-falling-leaves.webp) **Falling leaves at sunset** | ![Snow](14-snow.webp) **Snow** |
-| ![Cloudy](15-cloudy-sunset.webp) **Cloudy at sunset** | |
+| ![Rain](10-rain-night.webp) **Rain at night** | ![Storm](11-storm.webp) **Storm** — heavy cloud, lightning |
+| ![Snow](12-snow-day.webp) **Snow by day** | ![Cloudy](13-cloudy-sunset.webp) **Cloudy at sunset** |
+| ![Clear](14-clear-night.webp) **Clear night** — stars, and the odd shooting one | |
+
+## Making it yours
+
+| | |
+|---|---|
+| ![Your character](22-character.webp) **Your character** — two models, nine hairstyles, skin/hair/outfit colours, expression, body sliders, and who's allowed to visit. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
+| ![Furniture](24-furniture.webp) **Furniture** — 130-odd pieces in themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
+
+## Friends & visiting
+
+| | |
+|---|---|
+| ![Friends](26-friends.webp) **Friends** — who's about, what they're up to right now, and whose door is open. | ![Visiting](27-visiting.webp) **Visiting** — walk into someone else's room, and drag yourself over to sit with them. |
 
 ## Features
 
 | | |
 |---|---|
-| ![Tasks](16-tasks.webp) **Tasks** — groups, priorities, durations, routines, five ordering algorithms | ![Timer](17-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak |
-| ![Sounds](18-sounds-and-music.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Progress](19-progress.webp) **Progress** — goal ring, focus time, productivity garden, break nudge |
-| ![Calendar](20-calendar.webp) **Calendar** — schedule tasks across days | ![Weather](21-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix |
-| ![Themes](22-themes.webp) **Settings** — colour schemes, brightness, motion | ![Decorating](23-decorating.webp) **Decorating** — draw the floor plan, then drag from a 131-piece catalog |
+| ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, five ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
+| ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Progress](18-progress.webp) **Progress** — goal ring, focus time, 18-week heatmap, break nudge |
+| ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and what each one went on | ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix |
+| ![Settings](21-settings.webp) **Settings** — colour schemes, brightness, motion | |
