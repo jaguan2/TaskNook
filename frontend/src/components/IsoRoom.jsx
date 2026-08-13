@@ -470,6 +470,32 @@ const PlacedItem = memo(function PlacedItem({
   );
 });
 
+/**
+ * The figure in your hand. Only personas are ever walkable, so this draws the
+ * one sprite kind — and it's deliberately NOT PlacedItem: no glide (you're
+ * carrying them, not sending them), no contact shadow (there's no ground under
+ * their feet), no grab target, and no wander offset. What it does keep is the
+ * placement's own tint and the per-placement character a visited room supplies,
+ * or the person in your hand would change clothes on the way across the room.
+ */
+function HeldFigure({ walk, character, personaInfo }) {
+  if (!walk) return null;
+  const item = ISO_ITEMS[walk.item];
+  const Sprite = ISO_SPRITES[walk.item];
+  if (!item || !Sprite) return null;
+  const sprite = (
+    <Sprite held character={item.self ? character : personaInfo?.character} />
+  );
+  return (
+    <g style={walk.tint ? { "--tint": walk.tint } : undefined}>
+      {/* The rot mirror only — a carried figure has no direction of travel to
+          face, and flipping them because your pointer drifted left would be a
+          twitch, not a turn. */}
+      {(walk.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+    </g>
+  );
+}
+
 // A visited room's name tag. Its own component because it shares `useGlide`
 // with the sprite it labels: the label must ride the SAME per-glide clock
 // (duration ∝ distance now, not a shared constant) or it teleports ahead and
@@ -541,6 +567,8 @@ function IsoSceneInner({
   // persona (at home). See `walkableBy`.
   walkId = null,
   walkPersonas = false,
+  // The one being carried right now, drawn by the overlay instead of here.
+  carriedId = null,
 }) {
   const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
 
@@ -642,7 +670,14 @@ function IsoSceneInner({
     const rec = !editMode && roamRef.current[p.id];
     return rec && rec.hx === p.gx && rec.hy === p.gy ? rec : null;
   };
-  const effective = placements.map((p) => {
+  // Someone in your hand isn't in the room. Filtered rather than hidden, and
+  // that's load-bearing twice over: their name tag (drawn from this same list)
+  // goes with them instead of hovering over empty floor, and UNMOUNTING is what
+  // makes setting them down instant — `useGlide` starts fresh on a remount, so
+  // there's no transition from where they used to be. A hidden-but-mounted
+  // sprite would reappear at the old tile and walk over, which is the opposite
+  // of what carrying somebody means.
+  const effective = placements.filter((p) => p.id !== carriedId).map((p) => {
     const item = ISO_ITEMS[p.item];
     if (item?.roamer) {
       const off = roamOffset(p);
@@ -1173,6 +1208,7 @@ function IsoRoom({
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
+  const heldRef = useRef(null);
   // The marker alone — kept out of IsoScene so pointer-rate target updates
   // never re-render the scene subtree.
   const [walkTarget, setWalkTarget] = useState(null);
@@ -1322,18 +1358,37 @@ function IsoRoom({
         e.stopPropagation();
         pointerOnItemRef.current = true;
         const foot = footOf(placement.item, placement.rot || 0);
+        // Where on the body you took hold. KEPT for the whole drag, unlike the
+        // marker this replaced (which centred the footprint under the pointer,
+        // correct for "stand there" and wrong for "I am carrying you"): without
+        // it, grabbing someone by the ankles snaps them 50px up your cursor the
+        // instant you move.
+        // The CTM math inline rather than via `toScene`, exactly as the edit
+        // branch below does it: `toScene` is rebuilt every render, so depending
+        // on it here would change this callback's identity every render and
+        // defeat IsoScene's memo — the one thing the comment above forbids.
+        const ctm0 = svgRef.current?.getScreenCTM();
+        const w0 = ctm0
+          ? new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm0.inverse())
+          : null;
+        const p0 = w0 ? { x: w0.x - cx, y: w0.y - cy } : null;
+        const home = project(placement.gx, placement.gy);
         walkRef.current = {
           // Carried through the drag because `walkPersonas` arms MANY: the
           // order has to land on the one that was grabbed.
           id: placement.id,
           item: placement.item,
           rot: placement.rot || 0,
+          tint: placement.tint,
           foot,
           gx: placement.gx,
           gy: placement.gy,
           ok: true,
+          hold: p0 ? { dx: p0.x - home.x, dy: p0.y - home.y } : { dx: 0, dy: 0 },
+          sx: home.x,
+          sy: home.y,
         };
-        setWalkTarget({ gx: placement.gx, gy: placement.gy, foot, ok: true });
+        setWalkTarget({ gx: placement.gx, gy: placement.gy, foot, ok: true, id: placement.id });
         svgRef.current?.setPointerCapture?.(e.pointerId);
         return;
       }
@@ -1360,25 +1415,43 @@ function IsoRoom({
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
+  // How far off the floor a carried figure hangs. Tuned by screenshot (same as
+  // the name tags): enough that the feet clear the landing diamond and the gap
+  // reads as air, little enough that the body stays next to the cursor holding
+  // it.
+  const HOLD_LIFT = 19;
+  // The held figure's transform, written straight to the DOM. React never sets
+  // this attribute (the JSX has no `transform` prop), so an imperative value
+  // survives the re-renders the diamond causes — and the ref callback below
+  // re-applies it after each one anyway.
+  const applyHeld = () => {
+    const walk = walkRef.current;
+    const el = heldRef.current;
+    if (!walk || !el) return;
+    el.setAttribute("transform", `translate(${walk.sx}, ${walk.sy - HOLD_LIFT})`);
+  };
+
   const moveDrag = (e) => {
     const walk = walkRef.current;
     if (walk) {
       const pt = toScene(e);
       if (!pt) return;
-      const g = unproject(pt.x, pt.y);
-      // Centre the footprint under the pointer — a walk order means "stand
-      // THERE", not "keep my grab offset".
-      const at = clampIsoPlacement(
-        walk.item,
-        snapHalf(g.gx - walk.foot[0] / 2),
-        snapHalf(g.gy - walk.foot[1] / 2),
-        size,
-        walk.rot
-      );
+      // The body hangs where you're holding it — pointer minus the grab
+      // offset — and the landing diamond goes under its FEET, so what you see
+      // dangling is what will stand there.
+      walk.sx = pt.x - walk.hold.dx;
+      walk.sy = pt.y - walk.hold.dy;
+      applyHeld();
+      const g = unproject(walk.sx, walk.sy);
+      const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
       const ok = personaCanStand(at.gx, at.gy, size, placements, walk.id);
+      // The FIGURE follows every pointermove (imperatively, above — 60Hz of
+      // React state for a 100-node sprite is exactly what this layer exists to
+      // avoid); only the diamond and its legality are state, and those change a
+      // few times a drag.
       if (walk.gx === at.gx && walk.gy === at.gy && walk.ok === ok) return;
       walkRef.current = { ...walk, gx: at.gx, gy: at.gy, ok };
-      setWalkTarget({ gx: at.gx, gy: at.gy, foot: walk.foot, ok });
+      setWalkTarget({ gx: at.gx, gy: at.gy, foot: walk.foot, ok, id: walk.id });
       return;
     }
     const drag = dragRef.current;
@@ -1453,7 +1526,9 @@ function IsoRoom({
       <svg
         ref={svgRef}
         viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-        style={{ touchAction: "none" }}
+        /* A closed hand for as long as you're carrying someone — the cursor is
+           the only "hand" in the picture, so it has to be the one that grips. */
+        style={{ touchAction: "none", ...(walkTarget && { cursor: "grabbing" }) }}
         className="h-full w-full"
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
@@ -1486,10 +1561,12 @@ function IsoRoom({
           personas={personas}
           walkId={walkId}
           walkPersonas={walkPersonas}
+          carriedId={walkTarget?.id ?? null}
         />
-        {/* The walk-order marker: where they'll stand if you let go. Outside
-            IsoScene (pointer-rate state must not re-render the room) and
-            after it, so no furniture buries it — the selection-chrome rule. */}
+        {/* Picking someone up: the landing diamond (where they'll stand if you
+            let go) and the figure itself, dangling from your cursor. Outside
+            IsoScene — pointer-rate updates must not re-render the room — and
+            after it, so no furniture buries either: the selection-chrome rule. */}
         {walkTarget && (
           <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
             <polygon
@@ -1506,6 +1583,23 @@ function IsoRoom({
               strokeDasharray="6 4"
               opacity="0.9"
             />
+            {/* An inline ref callback on purpose: it re-runs on every render,
+                which is what re-applies the imperative transform after the
+                diamond's state changes — and it lands the figure at the right
+                place on the very first frame, instead of flashing at the room's
+                origin for one. */}
+            <g
+              ref={(el) => {
+                heldRef.current = el;
+                if (el) applyHeld();
+              }}
+            >
+              <HeldFigure
+                walk={walkRef.current}
+                character={character}
+                personaInfo={personas ? personas[walkTarget.id] : null}
+              />
+            </g>
           </g>
         )}
       </svg>

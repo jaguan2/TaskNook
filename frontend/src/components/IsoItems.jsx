@@ -3246,6 +3246,26 @@ function Face({ expression, headY }) {
 // lib/body.js, so the sprite, the panel previews and the node-env geometry
 // tests all read one copy.
 
+/**
+ * A limb going limp while its owner dangles: a few degrees off vertical from
+ * the joint at its top, dead still.
+ *
+ * Always on its OWN wrapper, never on the element carrying a walk class — an
+ * animation and a transform can't share an element (the animation wins outright
+ * and the offset is silently lost). `held` and `moving` happen to be mutually
+ * exclusive, but structure beats an invariant a reader has to go and verify.
+ * The CSS property rather than the attribute, so `transform-origin` definitely
+ * applies to it.
+ */
+const hangLimb = (held, deg) =>
+  held
+    ? {
+        transform: `rotate(${deg}deg)`,
+        transformBox: "fill-box",
+        transformOrigin: "center top",
+      }
+    : undefined;
+
 function Resident({
   seated = false,
   lying = false,
@@ -3256,6 +3276,10 @@ function Resident({
   // scene needs.
   activity = null,
   moving = false,
+  // Dangling from your cursor mid drag-and-drop. Limbs go limp and the whole
+  // body swings from the scruff of the neck — the pinched-chibi pose, which is
+  // the entire point of picking someone up rather than pointing at a tile.
+  held = false,
   character,
 }) {
   const c = project(0.4, 0.4);
@@ -3326,6 +3350,14 @@ function Resident({
   const resting = activity === "break";
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
+      {/* Held: ONE wrapper for the whole body, pivoting at the top of the head
+          (`center top` of the fill-box — the scruff your fingers have hold of).
+          It can't share the element with the translate above, per the
+          attribute-vs-animation rule, so it's its own <g>. */}
+      <g
+        className={held ? "held-dangle" : undefined}
+        style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
+      >
       {seated ? (
         <>
           <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} far />
@@ -3340,11 +3372,19 @@ function Resident({
               While moving they SCISSOR from the hip — a stiff clay-toy stride,
               swing fore-and-aft, not the old vertical piston that hopped each
               trouser leg straight up and read as pedalling in place. */}
+          {/* Held, the legs hang: a few degrees apart from the hip, dead
+              still. Feet that stay parallel and level read as standing on
+              something, which is the one thing they must not read as when
+              there's no floor under them. */}
           <g className={moving ? "leg-stride-a" : undefined}>
-            <StandingLeg side={-1} legW={legW} legH={legH} far />
+            <g style={hangLimb(held, -5)}>
+              <StandingLeg side={-1} legW={legW} legH={legH} far />
+            </g>
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
-            <StandingLeg side={1} legW={legW} legH={legH} />
+            <g style={hangLimb(held, 6)}>
+              <StandingLeg side={1} legW={legW} legH={legH} />
+            </g>
           </g>
         </>
       )}
@@ -3388,21 +3428,24 @@ function Resident({
           {/* Gestures stand down mid-stride, the same way they yield to typing:
               an arm reaching overhead while the legs scissor reads as a glitch,
               and both animations would be fighting the swing below. */}
-          <g className={typing || moving ? undefined : "gesture-stretch"}>
+          <g className={typing || moving || held ? undefined : "gesture-stretch"}>
             <g className={typing ? "resident-type" : undefined}>
               {/* The FAR arm carries leg B's clock, so it opposes the far leg
                   (which is A) — contralateral swing, the thing that separates
                   walking from being wheeled along. */}
               <g className={moving ? "walk-arm-b" : undefined}>
+                <g style={hangLimb(held, -7)}>
                 <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
                 <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
                 <circle cx={-sh - 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+                </g>
               </g>
               {/* The eye-rub is suppressed on a break because this hand is
                   holding something: at 186° the mug would come up over the face
                   upside down. */}
               <g className={moving ? "walk-arm-a" : undefined}>
-              <g className={typing || resting || moving ? undefined : "gesture-rub"}>
+              <g className={typing || resting || moving || held ? undefined : "gesture-rub"}>
+              <g style={hangLimb(held, 8)}>
                 <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
                 {/* the near arm catches the light instead of vanishing into the
                     torso it shares a colour with */}
@@ -3424,6 +3467,7 @@ function Resident({
                     </g>
                   </g>
                 )}
+              </g>
               </g>
               </g>
             </g>
@@ -3458,7 +3502,7 @@ function Resident({
               that isn't raised is worse than no gesture at all. The yawn and
               the glance above are head-only and keep playing — yawning on the
               way across the room is fine. */}
-          <g className={typing || resting || moving ? undefined : "gesture-rub-head"}>
+          <g className={typing || resting || moving || held ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
               {/* Inside the gesture wrappers on purpose: hair turns with the
                   head. Behind the face is what matters, not behind the body. */}
@@ -3497,6 +3541,7 @@ function Resident({
             </g>
           </g>
         </g>
+      </g>
       </g>
       </g>
       </g>

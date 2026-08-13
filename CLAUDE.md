@@ -258,9 +258,11 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   teleport ahead of their person. **You can WALK AROUND a visit**:
   `resolveVisitRoom` returns `guestId` (null when no guest could stand) and
   your placement (`walkId={visiting.guestId}`) is grabbable outside edit
-  mode — dragging moves a dashed target marker (amber = legal, danger =
-  refused), release calls `onWalkTo` → the store's `moveVisitGuest`, and
-  the glide walks you over. The rule is `personaCanStand` in lib/isoRoom.js
+  mode — **dragging PICKS THEM UP**: the figure lifts off the floor and
+  dangles from your cursor (`held` → the pinched-chibi pose, see below)
+  while a dashed diamond under its feet shows where it will land (amber =
+  legal, danger = refused); release calls `onWalkTo` → the store's
+  `moveVisitGuest`. The rule is `personaCanStand` in lib/isoRoom.js
   — mask + the wander engine's furniture rule, EXCEPT a free seat is legal
   (that's how a walk order ends in sitting with your friend; an occupied
   seat is refused). Deliberately not the edit-drag rule: walking is
@@ -287,7 +289,38 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   The "drag your little self" hint is one toast per DEVICE
   (`tasknook.walkHinted`), shared by both rooms — it was a ref, so it fired
   every launch. At home it waits for the one moment it's true: booted, not
-  visiting, not decorating, and a persona actually standing in the room. The Friends panel also shows a PRESENCE line per friend
+  visiting, not decorating, and a persona actually standing in the room.
+  **The gesture is PICK UP AND SET DOWN, not "point at a tile"** (owner
+  request, 2026-08-13, with reference art: the pinched-chibi meme). Four
+  things make it work, and each replaced something the marker-only version
+  did:
+  (1) the figure is drawn by an overlay layer (`HeldFigure`) rather than by
+  `PlacedItem` — no glide, no contact shadow, no grab target, since none of
+  those are true of something in your hand;
+  (2) it follows the pointer IMPERATIVELY (`applyHeld` writes the transform
+  straight to the DOM, and React never sets that attribute so the value
+  survives re-renders) — 60Hz of React state for a ~100-node sprite is
+  exactly what this layer exists to avoid, so only the diamond and its
+  legality are state;
+  (3) the GRAB OFFSET is kept, unlike the marker (which centred the footprint
+  under the pointer — right for "stand there", wrong for "I am carrying
+  you"): without it, grabbing someone by the ankles snaps them up your cursor;
+  (4) the original is FILTERED OUT of the scene while carried, not hidden —
+  which takes its name tag with it AND makes setting down instant, because
+  `useGlide` starts fresh on a remount. A hidden-but-mounted sprite would
+  reappear at the old tile and walk over, the opposite of carrying somebody.
+  That last point is the trade-off: a walk ORDER no longer ends in a walk.
+  The two are mutually exclusive — if you carried them to the spot, they're
+  already there — so the stride now shows up in wandering, not in commands.
+  The dangle itself is `held-dangle` (index.css) plus `hangLimb`
+  (IsoItems.jsx): a 2.4s asymmetric pendulum about `center top` (the scruff of
+  the neck, where the fingers are) and four limbs each hanging a few degrees
+  off vertical from its own joint. Every limb rotation is on its OWN wrapper,
+  never the element carrying a walk class — an animation and a transform can't
+  share an element. Arm gestures stand down while held, both halves.
+  There is deliberately NO hand sprite: the cursor is the hand (`grabbing`
+  while carrying), and the reference's read comes from the dangle and the limp
+  limbs, not from drawn fingers. The Friends panel also shows a PRESENCE line per friend
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses

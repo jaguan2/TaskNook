@@ -258,6 +258,15 @@ The screen has an ownership map — respect it:
     planting and squash DO stay out. If the stride ever needs more, the
     escalation is 2–4 discrete parametric leg POSES (the `SeatedLeg`
     vocabulary), not more articulation.
+  - **Picking someone up is its own pose, not a lifted standing one.** Moving
+    your people is a drag-and-drop: the figure leaves the floor and dangles
+    from the cursor (`held-dangle`, ±4.5° about the top of the head), limbs
+    hanging a few degrees off vertical from their own joints, gestures stood
+    down. Everything that says "my feet are on something" has to go with it —
+    the contact shadow, the glide, the grab target. The cursor is the hand
+    (`grabbing`); no hand sprite is drawn, because the read comes from the
+    dangle and the limp limbs. A dashed diamond under the feet keeps the
+    legality feedback the marker had.
   - Arm gestures stand down mid-stride, the same way they yield to typing —
     and a two-part gesture must gate BOTH halves (the eye-rub's head half was
     left playing the first time the arm half gained a condition, which leans a

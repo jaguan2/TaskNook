@@ -603,6 +603,36 @@ body {
   transform-origin: center top;
 }
 
+/* ---- held: dangling from your cursor mid drag-and-drop ----------------
+   A body hanging by the scruff of its neck is a PENDULUM, so it swings from
+   the pivot (`center top` — the top of the head, where the fingers are) and
+   it never settles while it's being carried. Slow and small: 2.4s and ±4.5°,
+   because the figure is also being flung around the room by the pointer and a
+   big swing on top of that reads as a glitch rather than as weight.
+
+   No `--phase`: this is a CUE, like the walk and `break-stretch`. It starts
+   when you pick someone up, which is exactly when it should start.
+
+   Sized in absolute degrees rather than as a percentage of anything, and
+   asymmetric (the far side of the swing is shorter) so it doesn't read as a
+   metronome — the same lesson the walk's 60/40 stance taught. */
+@keyframes held-dangle {
+  0% {
+    transform: rotate(-4.5deg);
+    animation-timing-function: ease-in-out;
+  }
+  52% {
+    transform: rotate(3.5deg);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    transform: rotate(-4.5deg);
+  }
+}
+.held-dangle {
+  animation: held-dangle 2.4s linear infinite;
+}
+
 /* ---- idle gestures: the little things that make someone look ALIVE ----
    A person who only breathes is a mannequin that breathes. Every so often a
    resident yawns, stretches, glances around or rubs an eye.
@@ -1198,6 +1228,7 @@ body {
     .walk-roll,
     .walk-arm-a,
     .walk-arm-b,
+    .held-dangle,
     .cat-breathe,
     .tail-flick,
     .flame-dance,

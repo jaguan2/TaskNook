@@ -345,6 +345,28 @@ describe("the walk shares one clock", () => {
     expect(frames).toContain("animation-timing-function: ease-out");
   });
 
+  it("a carried figure dangles instead of standing in mid-air", () => {
+    // Drag-and-drop lifts the character off the floor, so every cue that says
+    // "my feet are on something" has to go: the limbs hang from their joints and
+    // the body swings from the scruff of the neck.
+    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+    // Four limbs, each on its OWN wrapper — sharing an element with a walk class
+    // would let the animation silently eat the offset.
+    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(4);
+    expect(items).toMatch(/transformOrigin: "center top"/);
+    // The swing is a cue, so no --phase (it starts when you pick someone up),
+    // and it pivots where the fingers are: the top of the head.
+    const dangle = css.match(/\.held-dangle \{([^}]*)\}/);
+    expect(dangle, ".held-dangle is missing").toBeTruthy();
+    expect(dangle[1]).toContain("infinite");
+    expect(dangle[1]).not.toContain("--phase");
+    expect(items).toMatch(/className=\{held \? "held-dangle" : undefined\}/);
+    // Reduced motion is NOT asserted here: "silences every animated class, by
+    // construction" above already derives that obligation for anything with an
+    // `animation:` declaration, which is a stronger guarantee than naming this
+    // one class would be.
+  });
+
   it("the glide's easing stays near constant speed", () => {
     // The legs cycle at a fixed cadence whatever the travel is doing, so
     // easing the travel IS foot-skate. The curve this replaced peaked at 2.22×
@@ -721,17 +743,24 @@ describe("idle gestures read as occasional, not as a loop", () => {
     }
   });
 
-  it("hands busy on a keyboard — or mid-stride — don't also stretch", () => {
+  it("hands that are busy — typing, walking, dangling — don't also gesture", () => {
     // Arm gestures fight the typing bob and the walk swing over the same
-    // transforms, and a person mid-keystroke (or mid-step) throwing their arms
-    // up reads as a glitch. The head is deliberately NOT gated on typing —
-    // yawning at your desk is the whole charm — but see the rub below: a
-    // TWO-PART gesture must gate both halves identically.
+    // transforms, and a person mid-keystroke (or mid-step, or held by the scruff
+    // of the neck) throwing their arms up reads as a glitch.
+    //
+    // Asserted as the TERMS in each gate rather than the whole literal: pinning
+    // the exact string means every new state has to come and edit this test,
+    // which is how it fails for the boring reason instead of the real one. What
+    // matters is that no busy-hands state is missing.
     expect(items).toMatch(/const typing = activity === "focus" && seated;/);
-    expect(items).toMatch(/className=\{typing \|\| moving \? undefined : "gesture-stretch"\}/);
-    expect(items).toMatch(
-      /className=\{typing \|\| resting \|\| moving \? undefined : "gesture-rub"\}/
-    );
+    const gateFor = (cls) =>
+      items.match(new RegExp(`\\{([^{}]+) \\? undefined : "${cls}"\\}`))[1];
+    for (const term of ["typing", "moving", "held"]) {
+      expect(gateFor("gesture-stretch"), `stretch must stand down for ${term}`).toContain(term);
+      expect(gateFor("gesture-rub"), `the eye-rub must stand down for ${term}`).toContain(term);
+    }
+    // The head keeps its own gestures through all of it — yawning at your desk
+    // is the whole charm, and so is yawning on the way across the room.
     expect(items).toMatch(/className="gesture-yawn"/);
     expect(items).toMatch(/className="gesture-look"/);
   });
