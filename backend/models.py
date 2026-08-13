@@ -45,6 +45,8 @@ AVATAR_MAX = 8
 TASK_NAME_MAX = 200
 TASK_NOTES_MAX = 2000
 GROUP_NAME_MAX = 60
+CHAT_TITLE_MAX = 60
+MESSAGE_MAX = 2000
 
 
 class User(db.Model):
@@ -169,6 +171,96 @@ class FocusSession(db.Model):
             "taskName": self.task_name,
             "day": self.day,
             "startedAt": _utc_iso(self.started_at),
+        }
+
+
+class Conversation(db.Model):
+    """A chat thread: one-to-one with a friend, or a named group.
+
+    `is_group` is stored rather than derived from the member count, because the
+    two are different KINDS of thread and a group can legitimately be left with
+    two members. A one-to-one has no title — its name is whoever else is in it,
+    which the client already knows how to draw.
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(CHAT_TITLE_MAX), nullable=True)
+    is_group = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    members = db.relationship(
+        "ConversationMember",
+        backref="conversation",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    messages = db.relationship(
+        "Message",
+        backref="conversation",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        order_by="Message.created_at",
+    )
+
+
+class ConversationMember(db.Model):
+    """Who is in a thread, and how far they have read.
+
+    A model rather than a plain association table (which is all `friendships`
+    needs) because membership carries state: `last_read_at` is what an unread
+    count is measured against. Storing a TIMESTAMP rather than a count means
+    the number is derived from the messages themselves and can't drift out of
+    step with them — the same reasoning as the unlock balance.
+    """
+
+    __table_args__ = (
+        db.UniqueConstraint("conversation_id", "user_id", name="uq_member_once"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(
+        db.Integer, db.ForeignKey("conversation.id"), nullable=False, index=True
+    )
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    last_read_at = db.Column(db.DateTime, nullable=True)
+    joined_at = db.Column(db.DateTime, default=utcnow)
+
+    # The cascade is declared from the USER side (via backref) so deleting an
+    # account takes its memberships with it, the same way tasks and tokens go.
+    user = db.relationship(
+        "User",
+        backref=db.backref("chat_memberships", lazy=True, cascade="all, delete-orphan"),
+    )
+
+
+class Message(db.Model):
+    """One line in a thread.
+
+    `sender_id` is a real user row — including the seeded bots, whose replies
+    are written by the client (see the POST endpoint's doc-comment). Deleting a
+    user takes their messages with them, same as their tasks.
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(
+        db.Integer, db.ForeignKey("conversation.id"), nullable=False, index=True
+    )
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    body = db.Column(db.String(MESSAGE_MAX), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
+
+    sender = db.relationship(
+        "User",
+        backref=db.backref("sent_messages", lazy=True, cascade="all, delete-orphan"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "conversationId": self.conversation_id,
+            "senderId": self.sender_id,
+            "body": self.body,
+            "createdAt": _utc_iso(self.created_at),
         }
 
 

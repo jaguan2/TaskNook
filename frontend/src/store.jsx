@@ -14,6 +14,7 @@ import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import { MESSAGE_MAX, botReply, groupResponders, replyDelayMs } from "./lib/chat";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
@@ -701,10 +702,15 @@ export function StoreProvider({ children }) {
   // directly.
   const profileRef = useRef(profile);
   const characterRef = useRef(character);
+  // Who YOU are, for code that runs on a timer: a scheduled bot reply has to
+  // know which members are "the others", and the closure that scheduled it may
+  // be several renders stale by the time it fires.
+  const userRef = useRef(user);
   useEffect(() => {
     profileRef.current = profile;
     characterRef.current = character;
-  }, [profile, character]);
+    userRef.current = user;
+  }, [profile, character, user]);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
@@ -881,6 +887,7 @@ export function StoreProvider({ children }) {
         showToast("Couldn't load your data — is the backend running? 🌧️")
       );
   }, [user, refreshAll, showToast]);
+
 
   // Reconcile the room with the server once signed in: the DB copy wins (it
   // survives cleared browser storage); if the DB has none yet, adopt this
@@ -1306,6 +1313,140 @@ export function StoreProvider({ children }) {
     }, KNOCK_WAIT_MS);
   };
   const leaveVisit = useCallback(() => setVisiting(null), []);
+
+  // ---- chat ------------------------------------------------------------ //
+  //
+  // The bots' replies are SCHEDULED, and — exactly like the knock above — the
+  // timers live here rather than in the panel. A reply owed by a drawer that
+  // has since closed never arrives, and "the bots always answer" is the whole
+  // illusion. Every pending timer is tracked so the provider can clear them on
+  // unmount instead of setting state into a dead tree.
+  const [chats, setChats] = useState([]);
+  const replyTimers = useRef(new Set());
+  useEffect(() => {
+    const timers = replyTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const refreshChats = useCallback(async () => {
+    try {
+      setChats(await api.listChats());
+    } catch (err) {
+      // A read, and a background one at that — the panel shows what it has.
+      console.error("Couldn't load chats:", err);
+    }
+  }, []);
+
+  /** Open (or reopen) the thread with one friend. Idempotent server-side. */
+  const openChatWith = async (friend) => {
+    try {
+      const chat = await api.openChat([friend.id]);
+      await refreshChats();
+      return chat;
+    } catch (err) {
+      showToast(`Couldn't open the chat — ${err.message}`);
+      return null;
+    }
+  };
+
+  const openGroupChat = async (friendIds, title) => {
+    try {
+      const chat = await api.openChat(friendIds, {
+        isGroup: true,
+        title: title?.trim() || undefined,
+      });
+      await refreshChats();
+      return chat;
+    } catch (err) {
+      showToast(`Couldn't start the group — ${err.message}`);
+      return null;
+    }
+  };
+
+  /**
+   * Say something, then let whoever is around answer.
+   *
+   * `onMessages` is handed the fresh list after each write so an open thread
+   * repaints without polling — the reply may land long after the send
+   * resolved, which is the point of scheduling it.
+   */
+  const sendChatMessage = async (chat, body, onMessages) => {
+    const text = body.trim().slice(0, MESSAGE_MAX);
+    if (!text || !chat) return;
+    try {
+      await api.sendMessage(chat.id, text);
+      onMessages?.(await api.chatMessages(chat.id));
+      refreshChats();
+    } catch (err) {
+      showToast(`Couldn't send — ${err.message}`);
+      return;
+    }
+
+    // Who replies: the one friend, or a couple of the group who are free.
+    const others = (chat.members || []).filter((m) => m.id !== userRef.current?.id);
+    if (!others.length) return;
+    const now = Date.now();
+    const seed = Date.now() % 1000;
+    const speaking = chat.isGroup
+      ? groupResponders(others.map((m) => m.username), text, now, seed)
+      : [others[0].username];
+
+    speaking.forEach((username, i) => {
+      const friend = others.find((m) => m.username === username);
+      if (!friend) return;
+      // Stagger a group so two people don't answer in the same instant.
+      const delay = replyDelayMs(username, now, seed + i) + i * 900;
+      const timer = setTimeout(async () => {
+        replyTimers.current.delete(timer);
+        try {
+          const reply = botReply(username, text, Date.now(), seed + i);
+          await api.sendMessage(chat.id, reply, friend.id);
+          onMessages?.(await api.chatMessages(chat.id));
+          refreshChats();
+        } catch {
+          // A reply that fails is a bot who didn't answer — no toast for a
+          // message the user never asked to send.
+        }
+      }, delay);
+      replyTimers.current.add(timer);
+    });
+  };
+
+  const markChatRead = useCallback(
+    async (chatId) => {
+      try {
+        await api.markChatRead(chatId);
+        refreshChats();
+      } catch {
+        /* unread badges are not worth a toast */
+      }
+    },
+    [refreshChats]
+  );
+
+  const deleteChat = async (chatId) => {
+    try {
+      await api.deleteChat(chatId);
+      await refreshChats();
+      return true;
+    } catch (err) {
+      showToast(`Couldn't delete the chat — ${err.message}`);
+      return false;
+    }
+  };
+
+  // Chats load on their own rather than inside refreshAll: the list is only
+  // read by the Friends panel and its unread badge, and every task tick would
+  // otherwise pay for it — the same reasoning that split refreshTasks out.
+  // Declared HERE, below refreshChats: a dependency array is evaluated during
+  // render, so referencing it further up the body is a temporal-dead-zone
+  // ReferenceError that blanks the whole app on boot.
+  useEffect(() => {
+    if (user) refreshChats();
+  }, [user, refreshChats]);
   // Your own door. Matters the day friends can really visit; today it's a
   // preference the bots politely respect.
   const setVisitAccess = async (value) => {
@@ -1621,6 +1762,15 @@ export function StoreProvider({ children }) {
     refreshFocus,
     dailyGoal,
     setDailyGoal,
+
+    // chat
+    chats,
+    refreshChats,
+    openChatWith,
+    openGroupChat,
+    sendChatMessage,
+    markChatRead,
+    deleteChat,
 
     // room decoration
     roomPlacements,

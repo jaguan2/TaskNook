@@ -156,4 +156,14 @@ export const api = {
   // visiting
   friendRoom: (id) => request("GET", `/friends/${id}/room`),
   setVisitAccess: (value) => request("PUT", "/visit-access", { value }),
+
+  // chat. `senderId` is how a bot's reply gets written — lib/chat.js chooses
+  // the words, the server just stores them (see the endpoint's doc-comment).
+  listChats: () => request("GET", "/chats"),
+  openChat: (memberIds, opts = {}) => request("POST", "/chats", { memberIds, ...opts }),
+  chatMessages: (id) => request("GET", `/chats/${id}/messages`),
+  sendMessage: (id, body, senderId) =>
+    request("POST", `/chats/${id}/messages`, senderId ? { body, senderId } : { body }),
+  markChatRead: (id) => request("POST", `/chats/${id}/read`),
+  deleteChat: (id) => request("DELETE", `/chats/${id}`),
 };

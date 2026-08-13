@@ -38,12 +38,14 @@ TaskNook/
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   ├── room.js       # freeform decoration model: catalog, zones, presets
 │       │   ├── profile.js    # who you are + how your resident is drawn (pure)
+│       │   ├── chat.js       # what a bot says back, and when (pure)
 │       │   └── iso.js        # isometric projection math (Sims-style room seed)
 │       └── components/   # Cottage (SVG scene + drag engine), RoomItems
 │                         #   (item sprites), HudFocusCard (top-left timer/
 │                         #   stopwatch), HudTasks (top-right to-do), TopBar
 │                         #   (bottom-right clock/toggles cluster — the name
 │                         #   is historical), Dock, Drawer, *Panel.jsx,
+│                         #   ChatThread (one open conversation),
 │                         #   WeatherOverlay, RoomTintPicker
 └── docs/preview.png      # README screenshot
 ```
@@ -208,8 +210,8 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   PROXIES `/api`), and a wildcard `Access-Control-Allow-Origin` would let
   any web page in any browser drive the localhost API with the well-known
   local-account credentials. Don't add flask-cors back.
-- **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
-  association table. `User.profile` and `User.character` are JSON blobs, not
+- **Models**: `User`, `Task`, `FocusSession`, `Token`, `Conversation`,
+  `ConversationMember`, `Message`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
   columns per field — same bargain as `room_config`/`unlocked`, and the whole
   point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
@@ -330,6 +332,48 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   and `activity` still flows, so starting a focus block means studying
   together. A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
   answer. Your own door is set in ProfilePanel (PUT `/api/visit-access`).
+- **Chatting with friends** (simulated social, same contract as visiting):
+  three tables — `Conversation` (`is_group` STORED, not inferred from the
+  member count, because a group left with two people is still a group),
+  `ConversationMember` (a model rather than a plain association table like
+  `friendships`, because membership carries `last_read_at` — a TIMESTAMP, so
+  the unread count is derived from the messages and can't drift out of step
+  with them) and `Message`. Endpoints: GET/POST `/api/chats`, GET/POST
+  `/api/chats/<id>/messages`, POST `/api/chats/<id>/read`, DELETE
+  `/api/chats/<id>`. A one-to-one is **idempotent** ("message Luna" is a
+  place, not an event); a group is deliberately not (two groups with the
+  same people is a thing people want). Someone else's thread is a **404, not
+  a 403** — it shouldn't confirm it exists.
+  **THE SEAM**: `POST /messages` accepts a `senderId` naming any member, which
+  is how a bot replies — `lib/chat.js` owns the words, the server just stores
+  them (the same division of labour as `lib/visiting.js`). Safe only because
+  every member is a row in your own SQLite file. The endpoint's doc-comment is
+  the contract: **that field must go before this is served beyond localhost**,
+  or a client can forge messages from anyone it shares a thread with.
+  **There is deliberately NO end-to-end encryption, and adding a label saying
+  otherwise would be a false claim** — both "ends" are the same local database
+  and the key would sit on the same disk. E2E becomes real (and worth the key
+  management) only if messages ever cross a network.
+  `lib/chat.js` is the pure model: `botReply` ties replies to **`npcActivity`**
+  — a bot mid-focus-block answers briefly and late ("mid-block — back in 12m",
+  and the number is the SAME one the presence line shows two rows up), one on a
+  break chats, an idle one natters; `replyDelayMs` makes the WAIT the feature
+  the way `KNOCK_WAIT_MS` does; `groupResponders` picks at most two, and
+  usually not whoever is working, because four bots answering every line is a
+  machine gun. All deterministic from (username, text, clock, seed) so the
+  tests can pin an exact reply at an exact instant.
+  **The reply timers live in the STORE, not the panel** — same lesson as the
+  knock: a reply owed by a drawer that has closed never arrives. Verified by
+  driving the real app: close the drawer mid-wait and the answer still lands,
+  as an unread badge. Chats are NOT part of `refreshAll` (only the Friends
+  panel reads them; every task tick would otherwise pay for it), and an open
+  thread keeps its messages in LOCAL state — the store hands them back through
+  the `onMessages` callback rather than re-rendering every context consumer for
+  a line nobody else can see.
+  **`clean_id` is not `clean_int`**: ids go through the strict one, because
+  `clean_int` CLAMPS into range — right for a duration, and wrong for an
+  identifier, where `memberIds: [0]` came back as `1` and opened a thread with
+  whoever user #1 happened to be. Caught by the chat tests; pinned by one.
 - **Ordering algorithms** live in `lib/algorithms.js` as pure
   `(tasks, context) => orderedTasks` functions (the `context` arg only matters for
   `random`). Completed tasks always sink to the bottom.
@@ -1267,9 +1311,10 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   (`IsoItems.test.jsx` renders every catalog entry in both orientations).
 - Backend: `cd backend && python -m pytest tests -q` — the schema/upgrade
   guarantees (`test_schema.py`), the room layout contract (`test_room.py`),
-  task groups + routines (`test_tasks.py`), and the rest of the API
-  (`test_api.py`: auth, the two time windows in `/api/stats`, sessions,
-  reorder, friend-graph symmetry, and the JSON error/404 contract).
+  task groups + routines (`test_tasks.py`), chat threads (`test_chat.py`:
+  membership, one-to-one idempotence, unread, and the sender seam), and the
+  rest of the API (`test_api.py`: auth, the two time windows in `/api/stats`,
+  sessions, reorder, friend-graph symmetry, and the JSON error/404 contract).
   `pip install -r requirements-dev.txt` first.
   Two things to remember when adding tests here: **demo seeding has already
   run** (the 4 cottage-dwellers own tasks, sessions and friendships, and every
