@@ -11,6 +11,12 @@ import { validateCharacter } from "../lib/profile";
 
 afterEach(cleanup);
 
+// The grab cursor IS the walk-order affordance, and it's the only part of a
+// walk order a render test can see (jsdom has no getScreenCTM, so the drag
+// itself is verified in a real browser).
+const grabCursors = (container) =>
+  [...container.querySelectorAll("g")].filter((g) => g.style && g.style.cursor === "grab");
+
 describe("IsoRoom while visiting", () => {
   it("renders a visited room with both name tags and no self bubble", () => {
     const { layout, personas } = resolveVisitRoom(
@@ -45,6 +51,7 @@ describe("IsoRoom while visiting", () => {
   });
 
   it("arms exactly your own placement for walk orders", () => {
+
     // The grab cursor is the walk-order affordance; the owner (and every
     // piece of furniture) must not offer it.
     const { layout, personas, guestId } = resolveVisitRoom(
@@ -63,9 +70,60 @@ describe("IsoRoom while visiting", () => {
         onWalkTo={() => {}}
       />
     );
-    const grabbable = [...container.querySelectorAll("g")].filter(
-      (g) => g.style && g.style.cursor === "grab"
+    expect(grabCursors(container).length).toBe(1);
+  });
+});
+
+describe("IsoRoom at home — walking your own island", () => {
+  // Two people and two pieces of furniture. `walkPersonas` means "they're all
+  // yours", which is the whole difference from a visit: there, exactly one
+  // placement walks and the host's people are untouchable.
+  const HOME = { w: 9, d: 7 };
+  const PLACEMENTS = [
+    { id: "me", item: "resident", gx: 2, gy: 2 },
+    { id: "flatmate", item: "resident", gx: 5, gy: 4 },
+    { id: "desk", item: "desk", gx: 6, gy: 1 },
+    { id: "rug", item: "rug", gx: 3, gy: 5 },
+  ];
+
+  it("arms every persona and nothing else", () => {
+    const { container } = render(
+      <IsoRoom
+        size={HOME}
+        placements={PLACEMENTS}
+        editMode={false}
+        saveView={false}
+        walkPersonas
+        onWalkTo={() => {}}
+      />
     );
-    expect(grabbable.length).toBe(1);
+    // Both residents, neither the desk nor the rug — a grab cursor on
+    // furniture would promise a walk that the drag handler then refuses.
+    expect(grabCursors(container).length).toBe(2);
+  });
+
+  it("offers no walk affordance while decorating", () => {
+    // In Decorate a drag MOVES things, so a walk cursor there would be
+    // advertising the wrong verb — and the handler takes the edit path anyway.
+    const { container } = render(
+      <IsoRoom
+        size={HOME}
+        placements={PLACEMENTS}
+        editMode
+        saveView={false}
+        walkPersonas
+        onWalkTo={() => {}}
+      />
+    );
+    expect(grabCursors(container).length).toBe(0);
+  });
+
+  it("arms nobody when the room isn't armed for walking", () => {
+    // The flat-cottage scene and any future read-only render: personas must
+    // not become grabbable just by existing.
+    const { container } = render(
+      <IsoRoom size={HOME} placements={PLACEMENTS} editMode={false} saveView={false} />
+    );
+    expect(grabCursors(container).length).toBe(0);
   });
 });

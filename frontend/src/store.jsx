@@ -1193,9 +1193,24 @@ export function StoreProvider({ children }) {
   // fetches, and whichever RESOLVES last wins — potentially landing you in
   // the first friend's room after clicking the second.
   const visitBusyRef = useRef(false);
-  // Once per app run, on the first arrival: walk orders are invisible until
-  // you know your character is grabbable.
-  const walkHintShown = useRef(false);
+  // Walk orders are invisible until you know your character is grabbable, so
+  // teach it ONCE PER DEVICE. This was a ref, which meant every launch, and a
+  // tip you've already read is nagging. Shared by both rooms — whichever you
+  // meet first, your own island or a friend's, is where you learn it.
+  const hintWalk = useCallback(() => {
+    if (readStored("tasknook.walkHinted") === "1") return;
+    writeStored("tasknook.walkHinted", "1");
+    showToast("Drag your little self to walk around 🚶", 4000);
+  }, [showToast]);
+  // At home the hint has no arrival to hang off, so it waits for the one moment
+  // it's true: booted, not visiting, not decorating (a drag means something
+  // else in there), and there is actually somebody standing in the room to
+  // walk. Advice about a character you haven't placed is just noise.
+  useEffect(() => {
+    if (booting || visiting || roomEditMode || !isoPreview) return;
+    if (!isoRoom.placements.some((p) => ISO_ITEMS[p.item]?.persona)) return;
+    hintWalk();
+  }, [booting, visiting, roomEditMode, isoPreview, isoRoom, hintWalk]);
   const visitFriend = async (friend) => {
     if (visitBusyRef.current) return false;
     visitBusyRef.current = true;
@@ -1211,10 +1226,7 @@ export function StoreProvider({ children }) {
           name: profileRef.current.displayName || user?.displayName || "you",
         }),
       });
-      if (!walkHintShown.current) {
-        walkHintShown.current = true;
-        showToast("Drag your little self to wander around 🚶", 3500);
-      }
+      hintWalk();
       return true;
     } catch (err) {
       showToast(`Couldn't visit — ${err.message}`);
@@ -1227,10 +1239,15 @@ export function StoreProvider({ children }) {
    * A walk order landing: move the guest — you — to the tile the drag chose.
    * Render-only, like everything about a visit; the scene validated the spot
    * (mask + furniture + seat occupancy) before committing it.
+   *
+   * Takes the id even though a visit only ever has one walker, because at home
+   * `onWalkTo` arms EVERY persona and the signature is shared. It's checked
+   * rather than ignored: a stray order for someone else's placement in a
+   * friend's room would be moving their furniture.
    */
-  const moveVisitGuest = useCallback((gx, gy) => {
+  const moveVisitGuest = useCallback((id, gx, gy) => {
     setVisiting((v) => {
-      if (!v?.guestId) return v;
+      if (!v?.guestId || id !== v.guestId) return v;
       let changed = false;
       const placements = v.layout.placements.map((p) => {
         if (p.id !== v.guestId || (p.gx === gx && p.gy === gy)) return p;
@@ -1238,6 +1255,36 @@ export function StoreProvider({ children }) {
         return { ...p, gx, gy };
       });
       return changed ? { ...v, layout: { ...v.layout, placements } } : v;
+    });
+  }, []);
+  /**
+   * Walking on your OWN island. The scene arms every persona (they're all
+   * yours, all drawn with your character), validates the tile with the same
+   * `personaCanStand` rule a visit uses, and lands here.
+   *
+   * Unlike a visit, this one PERSISTS — it's `moveIsoItem`, so the walk moves
+   * that resident's home and the room saves. That's deliberate rather than
+   * convenient: a wander offset is measured from a home and dies when the home
+   * moves (the roam record's whole point), so a "temporary" walk would be
+   * undone by the next roam tick and again by any reload. Walking your little
+   * person to the sofa and finding them still there tomorrow is also just what
+   * anyone would expect. It stays inside the wander engine's rules — no void,
+   * no furniture, but a free seat is legal — so a walk order can end in sitting
+   * down at your own desk.
+   */
+  const walkIsoPersona = useCallback((id, gx, gy) => {
+    setIsoRoom((prev) => {
+      const cur = prev.placements.find((p) => p.id === id);
+      // Its own updater rather than a call through to `moveIsoItem`, for the
+      // persona check: this is a write that happens OUTSIDE Decorate, so it
+      // must never become a route for moving furniture there. `prev` is the
+      // only honest place to ask what the id refers to.
+      if (!cur || !ISO_ITEMS[cur.item]?.persona) return prev;
+      if (cur.gx === gx && cur.gy === gy) return prev;
+      return {
+        ...prev,
+        placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+      };
     });
   }, []);
   // The knock lives HERE, not in the Friends panel: drawers close for all
@@ -1610,6 +1657,7 @@ export function StoreProvider({ children }) {
     knockingId,
     leaveVisit,
     moveVisitGuest,
+    walkIsoPersona,
     setVisitAccess,
     applyIsoPreset,
     selfInRoom,

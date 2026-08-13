@@ -289,6 +289,22 @@ function useGlide(x, y, active) {
   return { ms, moving: active && flight.moving, facing: flight.facing };
 }
 
+/**
+ * May this placement be walked RIGHT NOW? ONE rule with two call sites that
+ * must agree: the drag handler (may I start a walk order?) and the sprite (do I
+ * offer a grab cursor?). A cursor on something that won't walk is a lie, and a
+ * placement that walks without one is undiscoverable — so neither side gets to
+ * hold its own copy of the condition.
+ *
+ * `editMode` belongs in here rather than at the call sites, which is what the
+ * first cut got wrong: in Decorate a drag MOVES things, so the handler took the
+ * edit path while the sprite went on advertising a walk. Unreachable while
+ * visiting (never editable) and immediately visible at home.
+ */
+const walkableBy = (p, { editMode, walkId, walkPersonas }) =>
+  !editMode &&
+  (walkPersonas ? !!ISO_ITEMS[p.item]?.persona : walkId != null && p.id === walkId);
+
 // One placed item, memo'd on its own: a roam tick (every ~3.5s with a pet in
 // the room) or a selection change re-renders only the rows whose RESOLVED
 // placement actually changed, not all ~150 on a full lot. The bail-out is
@@ -521,8 +537,10 @@ function IsoSceneInner({
   // Visiting: {placementId: {character, label}} — per-placement looks and
   // the name tags drawn over them. Null at home.
   personas = null,
-  // The placement (your guest) that takes walk orders while visiting.
+  // Who takes walk orders: one placement (your guest, while visiting) or every
+  // persona (at home). See `walkableBy`.
   walkId = null,
+  walkPersonas = false,
 }) {
   const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
 
@@ -1019,7 +1037,7 @@ function IsoSceneInner({
               reduceMotion={reduceMotion}
               onStartDrag={onStartDrag}
               personaInfo={personas ? personas[p.id] : null}
-              walkable={walkId != null && p.id === walkId}
+              walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
             />
           ))}
 
@@ -1130,13 +1148,21 @@ function IsoRoom({
   // wherever home was last zoomed. (App remounts the scene per room via
   // `key`, so this initializer runs fresh for every visit.)
   saveView = true,
-  // Walk orders (visiting): `walkId` is the one placement — your guest —
-  // grabbable OUTSIDE edit mode. Dragging moves a target marker, not the
-  // person; releasing on a legal tile calls `onWalkTo(gx, gy)` once and the
-  // glide walks them over. Deliberately not the edit-mode drag: walking is
-  // fiction, so it obeys the wander engine's rules (no void, no furniture —
-  // but a free SEAT is legal, which is how you sit with your friend).
+  // Walk orders. A walkable placement is grabbable OUTSIDE edit mode: dragging
+  // moves a target marker, not the person, and releasing on a legal tile calls
+  // `onWalkTo(id, gx, gy)` once so the glide walks them over. Deliberately not
+  // the edit-mode drag — walking is fiction, so it obeys the wander engine's
+  // rules (no void, no furniture, but a free SEAT is legal, which is how a walk
+  // order ends in sitting down).
+  //
+  // Two ways to arm it, because the two rooms mean different things by "you":
+  //   * `walkId` — exactly one placement walks. VISITING: your guest is yours
+  //     to move and your host's people are not.
+  //   * `walkPersonas` — every persona walks. AT HOME: they're all your little
+  //     people, all drawn with your character, so singling one out as the "real"
+  //     you would be a distinction the room can't show.
   walkId = null,
+  walkPersonas = false,
   onWalkTo,
   onMoveItem,
   onRemoveItem,
@@ -1289,14 +1315,17 @@ function IsoRoom({
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
-        // A visit: only your own placement is grabbable, and grabbing it
-        // starts a walk order. Everything else falls through (no
-        // stopPropagation) so panning from furniture keeps working.
-        if (!walkId || placement.id !== walkId || !onWalkTo) return;
+        // Grabbing a walkable placement starts a walk order. Everything else
+        // falls through (no stopPropagation) so panning from furniture keeps
+        // working.
+        if (!onWalkTo || !walkableBy(placement, { editMode, walkId, walkPersonas })) return;
         e.stopPropagation();
         pointerOnItemRef.current = true;
         const foot = footOf(placement.item, placement.rot || 0);
         walkRef.current = {
+          // Carried through the drag because `walkPersonas` arms MANY: the
+          // order has to land on the one that was grabbed.
+          id: placement.id,
           item: placement.item,
           rot: placement.rot || 0,
           foot,
@@ -1327,7 +1356,7 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, onWalkTo]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1346,7 +1375,7 @@ function IsoRoom({
         size,
         walk.rot
       );
-      const ok = personaCanStand(at.gx, at.gy, size, placements, walkId);
+      const ok = personaCanStand(at.gx, at.gy, size, placements, walk.id);
       if (walk.gx === at.gx && walk.gy === at.gy && walk.ok === ok) return;
       walkRef.current = { ...walk, gx: at.gx, gy: at.gy, ok };
       setWalkTarget({ gx: at.gx, gy: at.gy, foot: walk.foot, ok });
@@ -1399,7 +1428,7 @@ function IsoRoom({
       setWalkTarget(null);
       // Commit on a real release only — a cancelled pointer (touch
       // interrupted, capture lost, cursor gone) is an abort, not an order.
-      if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.gx, walk.gy);
+      if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.id, walk.gx, walk.gy);
     }
     dragRef.current = null;
     panRef.current = null;
@@ -1456,6 +1485,7 @@ function IsoRoom({
           onClearSelect={onClearSelect}
           personas={personas}
           walkId={walkId}
+          walkPersonas={walkPersonas}
         />
         {/* The walk-order marker: where they'll stand if you let go. Outside
             IsoScene (pointer-rate state must not re-render the room) and

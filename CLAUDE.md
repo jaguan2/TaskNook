@@ -264,7 +264,30 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   — mask + the wander engine's furniture rule, EXCEPT a free seat is legal
   (that's how a walk order ends in sitting with your friend; an occupied
   seat is refused). Deliberately not the edit-drag rule: walking is
-  fiction. The Friends panel also shows a PRESENCE line per friend
+  fiction.
+  **And around your OWN island.** The plumbing is generic: `walkableBy` in
+  IsoRoom.jsx is the ONE rule ("may this placement be walked right now?"),
+  read by both the drag handler and the grab cursor so a cursor can never
+  advertise a walk the handler refuses. `editMode` lives INSIDE that rule —
+  in Decorate a drag moves things, and the first cut left personas showing a
+  grab cursor there (unreachable while visiting, immediate at home). Two ways
+  to arm it: `walkId` (exactly one placement — a visit's guest, since your
+  host's people aren't yours to move) or `walkPersonas` (every persona — at
+  home they're all yours and all drawn with your character, so singling out a
+  "real" you is a distinction the room can't show). `onWalkTo(id, gx, gy)`
+  carries the id for that reason, matching `onMoveItem`'s signature.
+  The home handler is the store's `walkIsoPersona`, and unlike a visit it
+  **PERSISTS** — it moves that resident's home and the room saves. A wander
+  offset is measured from a home and dies when the home moves, so a
+  render-only walk would be undone by the next roam tick and by any reload;
+  and finding your little person still on the sofa tomorrow is what anyone
+  expects. It is its OWN updater rather than a call through to `moveIsoItem`
+  so it can refuse non-personas: this is a write that happens OUTSIDE
+  Decorate and must never become a route for moving furniture there.
+  The "drag your little self" hint is one toast per DEVICE
+  (`tasknook.walkHinted`), shared by both rooms — it was a ref, so it fired
+  every launch. At home it waits for the one moment it's true: booted, not
+  visiting, not decorating, and a persona actually standing in the room. The Friends panel also shows a PRESENCE line per friend
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses

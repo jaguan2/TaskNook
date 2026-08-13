@@ -74,6 +74,7 @@ export default function App() {
     visiting,
     leaveVisit,
     moveVisitGuest,
+    walkIsoPersona,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -290,6 +291,11 @@ export default function App() {
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
               onTintItem={setIsoItemTint}
+              /* Walking at home: every persona is grabbable outside Decorate,
+                 same rule and same target marker as a visit. Unlike a visit it
+                 persists — see `walkIsoPersona`. */
+              walkPersonas
+              onWalkTo={walkIsoPersona}
             />
           ) : (
             <Cottage
