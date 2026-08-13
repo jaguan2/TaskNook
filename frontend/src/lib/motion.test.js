@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  GLIDE_EASE,
   MOTION_MODES,
+  STEP_S,
+  WALK_SPEED,
   ambienceVars,
   applyMotionMode,
+  glideMs,
   reducesMotion,
   systemPrefersReduced,
 } from "./motion";
@@ -199,7 +203,13 @@ describe("transitions are gated in JS, because CSS can't reach them", () => {
   const overlay = readFileSync(resolve(process.cwd(), "src/components/WeatherOverlay.jsx"), "utf8");
 
   it("the wander glide only gets its transition when motion is allowed", () => {
-    expect(isoRoom).toContain('transition: "transform');
+    // Two glide sites — the placement group and a visited room's name tag —
+    // and both must pace themselves with the SAME per-glide clock, or the
+    // tag teleports ahead of its person.
+    expect(
+      (isoRoom.match(/transition: `transform \$\{glide\.ms\}ms \$\{GLIDE_EASE\}`/g) || [])
+        .length
+    ).toBe(2);
     expect(isoRoom).toMatch(/glides\s*&&\s*!editMode\s*&&\s*!reduceMotion/);
   });
 
@@ -209,6 +219,150 @@ describe("transitions are gated in JS, because CSS can't reach them", () => {
 
   it("the lightning flash is still gated too", () => {
     expect(overlay).toMatch(/mode !== "storm" \|\| reduceMotion/);
+  });
+});
+
+// The walk: the stride, the body sway, and the glide that paces them all
+// share ONE clock — STEP_S. The CSS restates the number (a stride = two
+// steps), so this is a both-files drift guard, same idea as ISO_ENVS: retune
+// STEP_S without retuning the keyframes and the feet disagree with the floor
+// again, which is the exact ice-skating this clock was built to kill.
+describe("the walk shares one clock", () => {
+  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const STRIDE = STEP_S * 2;
+
+  it("glideMs walks whole steps at constant speed, clamped to watchable", () => {
+    expect(glideMs(0)).toBe(0);
+    expect(glideMs(-5)).toBe(0);
+    const step = Math.round(STEP_S * 1000);
+    for (const d of [1, 10, 26, 52, 80, 200, 400]) {
+      const ms = glideMs(d);
+      // Whole steps (a walk ends near a contact pose), never below one
+      // stride, capped so a cross-lot trek stays watchable.
+      expect(ms % step).toBe(0);
+      expect(ms).toBeGreaterThanOrEqual(step * 2);
+      expect(ms).toBeLessThanOrEqual(7000);
+    }
+    // Constant SPEED below the cap: double the distance, double the time
+    // (± a step of rounding) — the fixed 2.6s it replaced failed exactly this.
+    expect(Math.abs(glideMs(120) - 2 * glideMs(60))).toBeLessThanOrEqual(step);
+    // And the speed is WALK_SPEED, not a vestigial constant.
+    expect(Math.abs(glideMs(WALK_SPEED * 2) - 2000)).toBeLessThanOrEqual(step / 2);
+  });
+
+  // Everything limb-shaped cycles per STRIDE; only the body's bob is per STEP,
+  // because a body drops once per FOOTFALL and there are two of those to a
+  // stride. Getting that halving wrong is the difference between a walk and a
+  // waddle, so the two lists are separate on purpose.
+  const PER_STRIDE = ["leg-stride-a", "leg-stride-b", "walk-roll", "walk-arm-a", "walk-arm-b"];
+  const PER_STEP = ["walk-bob"];
+
+  it("the stride, the roll and the arms cycle at exactly one stride", () => {
+    for (const cls of PER_STRIDE) {
+      const block = css.match(new RegExp(`\\.${cls}[,\\s][^{]*\\{([^}]*)\\}`));
+      expect(block, `.${cls} is missing`).toBeTruthy();
+      expect(block[1], `.${cls} must run at one stride (2 × STEP_S)`).toContain(`${STRIDE}s`);
+      expect(block[1]).toContain("infinite");
+    }
+    // The body drops once per FOOTFALL — half the period of everything else.
+    for (const cls of PER_STEP) {
+      const block = css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`));
+      expect(block, `.${cls} is missing`).toBeTruthy();
+      expect(block[1], `.${cls} must run at one step`).toContain(`${STEP_S}s`);
+      expect(block[1]).not.toContain(`${STRIDE}s`);
+    }
+    // Leg B and the far arm are the counter-phase — half a stride behind, and
+    // NEGATIVE, so the alternation is already under way on the first frame.
+    for (const cls of ["leg-stride-b", "walk-arm-b"]) {
+      expect(
+        css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`))[1],
+        `.${cls} must be half a stride behind`
+      ).toContain(`animation-delay: -${STEP_S}s`);
+    }
+  });
+
+  it("the arms swing against the legs, not with them", () => {
+    // Contralateral. The NEAR arm rides leg A's clock and leg A is the FAR leg,
+    // so same-suffix ≠ same side — that opposition is the single strongest read
+    // of a gait, and the first cut of the walk had no arm swing at all.
+    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+    const far = items.indexOf('className={moving ? "walk-arm-b" : undefined}');
+    const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}');
+    expect(far).toBeGreaterThan(-1);
+    expect(near).toBeGreaterThan(-1);
+    // The far arm is drawn first (it's behind the torso), so its class appears
+    // first — which is what makes "far = b" checkable at all.
+    expect(far).toBeLessThan(near);
+    // Both arm keyframes swing the same arc in opposite phase; one shared
+    // keyframe + a delay is what guarantees they can't drift apart.
+    expect((css.match(/@keyframes walk-arm \{/g) || []).length).toBe(1);
+  });
+
+  it("the walk is a cue, not an ambient loop — it takes no phase", () => {
+    // It starts when a glide starts (same rule as break-stretch), so walkers
+    // desynchronise by simply not setting off together. A --phase here would
+    // detach the stride from the glide it must agree with.
+    for (const cls of [...PER_STRIDE, ...PER_STEP]) {
+      expect(
+        css.match(new RegExp(`\\.${cls}[,\\s][^{]*\\{([^}]*)\\}`))[1],
+        `.${cls} must not take --phase`
+      ).not.toContain("--phase");
+    }
+  });
+
+  it("limbs pivot at their joints and the body leans from the hips", () => {
+    // rotate-based stride (fore-and-aft), not the old vertical piston — and
+    // every rotation needs a fill-box origin or SVG pivots it about the canvas
+    // corner. The arms hang from the shoulder (top), the body leans from the
+    // hips (bottom).
+    for (const cls of ["leg-stride-a", "walk-arm-a"]) {
+      const block = css.match(new RegExp(`\\.${cls}[,\\s][^{]*\\{([^}]*)\\}`))[1];
+      expect(block).toContain("transform-box: fill-box");
+      expect(block).toContain("transform-origin: center top");
+    }
+    for (const frames of ["leg-stride", "walk-arm", "walk-roll"]) {
+      expect(css.match(new RegExp(`@keyframes ${frames} \\{([^@]*?)\\n\\}`))[1]).toMatch(
+        /rotate\(/
+      );
+    }
+    const roll = css.match(/\.walk-roll \{([^}]*)\}/)[1];
+    expect(roll).toContain("transform-box: fill-box");
+    expect(roll).toContain("transform-origin: center bottom");
+  });
+
+  it("the gait is asymmetric — stance longer than swing", () => {
+    // A 50/50 split gives every footfall identical weight, which is a march.
+    // Stance past the midpoint is also what produces double support: two legs
+    // half a stride apart, each in stance >50%, must overlap.
+    const frames = css.match(/@keyframes leg-stride \{([^@]*?)\n\}/)[1];
+    const toeOff = Number(frames.match(/(\d+)% \{\s*transform: rotate\(-8\.5deg\)/)[1]);
+    expect(toeOff).toBeGreaterThan(50);
+    expect(toeOff).toBeLessThan(70);
+    // Per-segment easing: constant angular velocity across a whole cycle is a
+    // wiper blade. Stance is the one linear segment; the swing is eased.
+    expect(frames).toContain("animation-timing-function: linear");
+    expect(frames).toContain("animation-timing-function: ease-in");
+    expect(frames).toContain("animation-timing-function: ease-out");
+  });
+
+  it("the glide's easing stays near constant speed", () => {
+    // The legs cycle at a fixed cadence whatever the travel is doing, so
+    // easing the travel IS foot-skate. The curve this replaced peaked at 2.22×
+    // the average and crawled the last sixth at 0.15× — a 15× spread inside
+    // one glide, which is worse than the ~4× BETWEEN glides that the
+    // constant-speed rework was built to fix.
+    const [, a, b, c, d] = GLIDE_EASE.match(
+      /cubic-bezier\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/
+    ).map(Number);
+    const cx = (t) => 3 * a * t * (1 - t) ** 2 + 3 * c * t ** 2 * (1 - t) + t ** 3;
+    const cy = (t) => 3 * b * t * (1 - t) ** 2 + 3 * d * t ** 2 * (1 - t) + t ** 3;
+    let peak = 0;
+    for (let i = 1; i <= 2000; i += 1) {
+      const t = i / 2000;
+      const dx = cx(t) - cx((i - 1) / 2000);
+      if (dx > 0) peak = Math.max(peak, (cy(t) - cy((i - 1) / 2000)) / dx);
+    }
+    expect(peak).toBeLessThan(1.45);
   });
 });
 
@@ -567,13 +721,17 @@ describe("idle gestures read as occasional, not as a loop", () => {
     }
   });
 
-  it("hands busy on a keyboard don't also stretch", () => {
-    // Arm gestures and the typing bob would fight over the same transforms, and
-    // a person mid-keystroke throwing their arms up reads as a glitch. The head
-    // is deliberately NOT gated — yawning at your desk is the whole charm.
+  it("hands busy on a keyboard — or mid-stride — don't also stretch", () => {
+    // Arm gestures fight the typing bob and the walk swing over the same
+    // transforms, and a person mid-keystroke (or mid-step) throwing their arms
+    // up reads as a glitch. The head is deliberately NOT gated on typing —
+    // yawning at your desk is the whole charm — but see the rub below: a
+    // TWO-PART gesture must gate both halves identically.
     expect(items).toMatch(/const typing = activity === "focus" && seated;/);
-    expect(items).toMatch(/className=\{typing \? undefined : "gesture-stretch"\}/);
-    expect(items).toMatch(/className=\{typing \|\| resting \? undefined : "gesture-rub"\}/);
+    expect(items).toMatch(/className=\{typing \|\| moving \? undefined : "gesture-stretch"\}/);
+    expect(items).toMatch(
+      /className=\{typing \|\| resting \|\| moving \? undefined : "gesture-rub"\}/
+    );
     expect(items).toMatch(/className="gesture-yawn"/);
     expect(items).toMatch(/className="gesture-look"/);
   });
@@ -586,9 +744,13 @@ describe("idle gestures read as occasional, not as a loop", () => {
     expect(items).toMatch(/className=\{resting \? "break-stretch" : undefined\}/);
     expect(items).toMatch(/\{resting && \(/);
     // Both halves of the eye-rub have to stand down while that hand holds a mug,
-    // or the arm swings a cup over the face upside down at 186°.
-    expect(items).toMatch(/typing \|\| resting \? undefined : "gesture-rub"/);
-    expect(items).toMatch(/typing \|\| resting \? undefined : "gesture-rub-head"/);
+    // or the arm swings a cup over the face upside down at 186°. Asserted as
+    // ONE gate reused, not two literals: the halves are only ever wrong
+    // together, and the head half was left behind the first time the arm half
+    // gained a condition.
+    const gate = items.match(/\{([^{}]+) \? undefined : "gesture-rub"\}/)[1];
+    expect(gate).toContain("resting");
+    expect(items).toContain(`{${gate} ? undefined : "gesture-rub-head"}`);
     // The cue must NOT take a phase: it answers something you did, so it lands
     // when it happens rather than somewhere in the next 89 seconds.
     const block = css.match(/\.break-stretch \{([^}]*)\}/)[1];

@@ -441,6 +441,168 @@ body {
   animation-delay: calc(var(--phase, 0s) + 0.25s);
 }
 
+/* ---- the walk: what a RESIDENT does mid-glide -------------------------
+   A stiff clay-toy stride, not the animals' trot. Three rules, each learned
+   from the version before it:
+
+   * The legs SCISSOR fore-and-aft from the hip (rotate about the leg top,
+     with a lift only on the swing half). They used to ride `leg-step`'s
+     vertical piston — two parallel columns hopping straight up under a body
+     drifting at constant height, which is pedalling, not walking. No knees
+     on purpose: a knee on a 5px trouser leg is invisible noise, and bending
+     it breaks the garment read (docs/MODELS.md).
+
+   * Everything above the hips moves as ONE mass — `walk-bob` drops at each
+     footfall (period = one step) and `walk-roll` leans onto the planted foot
+     (period = one stride). At this scale the body language IS the walk;
+     references from Animal Crossing down to 2-frame pixel sprites put the walk
+     in the body and leave the legs almost decorative.
+
+   * The arms swing against the legs (`walk-arm-a/b`). Nothing else on this
+     list is missed as fast: a figure whose arms hang still while its legs
+     scissor reads as a toy being pushed, however good the legs are.
+
+   * All the classes share ONE clock — 0.44s per step, 0.88s per stride —
+     and it is the same clock `glideMs` (lib/motion.js) paces glides with, so
+     stride length always matches ground actually covered. That agreement is
+     what killed the ice-skating; a fixed 2.6s glide meant speed varied ~4×
+     while the legs cycled at one rate. motion.test.js pins the periods
+     against STEP_S.
+
+   These are CUES, not ambient loops: they start when a glide starts, so they
+   take no `--phase` (same rule as break-stretch) — walkers desynchronise by
+   simply not setting off together. Leg B's negative delay is the half-stride
+   counter-phase. */
+@keyframes leg-stride {
+  /* STANCE. The foot is planted and the hips travel over it, so the leg sweeps
+     back at a near-even rate — the one segment where machine-steady IS the
+     physical answer, hence `linear`. */
+  0% {
+    transform: rotate(8.5deg) translateY(0);
+    animation-timing-function: linear;
+  }
+  /* Toe-off at 60%, not 50%. Each leg carries the body a little longer than
+     half the stride, so the two overlap in ~20% of double support — which is
+     what a walk is. Split it evenly and every footfall gets identical weight:
+     that is a march, and it was the loudest robot tell in the first cut. */
+  60% {
+    transform: rotate(-8.5deg) translateY(0);
+    animation-timing-function: ease-in;
+  }
+  /* MID-SWING. The free leg whips through: accelerating off the toe (ease-in
+     above), slowing into the next contact (ease-out here), lifted just enough
+     to clear the floor. Concatenating the two puts peak angular speed right
+     here, where a real leg's is. A single `linear` across the whole cycle gave
+     the leg one constant angular velocity — a wiper blade, not a limb. */
+  78% {
+    transform: rotate(-1deg) translateY(-1.7px);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: rotate(8.5deg) translateY(0);
+  }
+}
+.leg-stride-a {
+  animation: leg-stride 0.88s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+.leg-stride-b {
+  animation: leg-stride 0.88s linear infinite;
+  animation-delay: -0.44s;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+/* The bob and the roll are ONE mass on TWO clocks, so they need two elements:
+   both animate `transform`, and two animations on one element cancel (the same
+   reason the sway wrapper exists at all, outside body-breathe).
+   Splitting them is also what buys the smoothness. As five stops of a single
+   0.88s loop, `ease-in-out` decelerated to a dead stop at EVERY stop — four
+   stalls per stride, which is a mechanism ticking over rather than a body
+   carrying itself. Each half is now a plain sine that never stalls mid-swing. */
+@keyframes walk-bob {
+  /* Lowest at each footfall, highest as the leg passes underneath. With stiff
+     legs that is just geometry: the compass is longest when it's vertical. */
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+.walk-bob {
+  /* One bob per STEP. No transform-box/origin: a pure translate doesn't use a
+     transform-origin, and giving this element one would only invite a future
+     rotation to inherit the wrong pivot. */
+  animation: walk-bob 0.44s ease-in-out infinite;
+}
+@keyframes walk-roll {
+  /* Leans onto the leg that's carrying the weight — so the extremes are at
+     MID-STANCE (25%/75%) and level at each footfall, not the other way round.
+     Inverted, the body dipped and tilted on the same beat, which reads as a
+     rocking horse; a walker's trunk lists over the planted foot during single
+     support and comes back to level while both feet are down.
+     A sine has zero velocity at its peaks and maximum at its crossings, so
+     crossing→peak is `ease-out` and peak→crossing is `ease-in`. That's what
+     keeps the 25%/75% turnarounds soft without stalling at 0/50/100. */
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  25% {
+    transform: rotate(3.5deg);
+    animation-timing-function: ease-in;
+  }
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  75% {
+    transform: rotate(-3.5deg);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.walk-roll {
+  /* One roll per STRIDE — half the bob's rate, which is what stops the two
+     reading as one lurch. */
+  animation: walk-roll 0.88s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+/* Arms swing CONTRALATERALLY: the NEAR arm shares leg A's clock, and leg A is
+   the FAR leg — that opposition is the whole point, and it's the strongest read
+   of a natural gait there is. The walk shipped without it. The arms sat inside
+   the swaying body mass, so they rode along and hung dead at the figure's
+   sides: a wind-up toy being pushed along, which is most of what "robotic"
+   meant here. Shorter limb, smaller arc than the legs' 8.5°. Three stops with
+   ease-in-out at both ends is a pendulum, and a pendulum is what an arm is. */
+@keyframes walk-arm {
+  0% {
+    transform: rotate(6.5deg);
+  }
+  50% {
+    transform: rotate(-6.5deg);
+  }
+  100% {
+    transform: rotate(6.5deg);
+  }
+}
+.walk-arm-a {
+  animation: walk-arm 0.88s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+.walk-arm-b {
+  animation: walk-arm 0.88s ease-in-out infinite;
+  animation-delay: -0.44s;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+
 /* ---- idle gestures: the little things that make someone look ALIVE ----
    A person who only breathes is a mannequin that breathes. Every so often a
    resident yawns, stretches, glances around or rubs an eye.
@@ -1030,6 +1192,12 @@ body {
     .resident-type,
     .leg-step-a,
     .leg-step-b,
+    .leg-stride-a,
+    .leg-stride-b,
+    .walk-bob,
+    .walk-roll,
+    .walk-arm-a,
+    .walk-arm-b,
     .cat-breathe,
     .tail-flick,
     .flame-dance,

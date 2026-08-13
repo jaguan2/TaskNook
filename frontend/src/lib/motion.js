@@ -75,14 +75,27 @@ export function ambienceVars(gx, gy) {
  */
 export const STEP_S = 0.44;
 export const WALK_SPEED = 26; // px/s of screen travel — an amble, not a scurry
-export const GLIDE_EASE = "cubic-bezier(0.45, 0.05, 0.35, 1)";
+// Nearly linear ON PURPOSE. The legs cycle at a fixed 0.44s whatever the
+// glide is doing, so any easing on the travel is foot-skate: the curve this
+// replaced — cubic-bezier(0.45, 0.05, 0.35, 1) — peaked at 2.22× the average
+// speed at 39% of the way and crawled the last sixth of every walk at 0.15×,
+// a 15× spread WITHIN one glide. The fixed-2.6s glide it was built to fix
+// varied only ~4× BETWEEN glides, so the constant-speed rework was undone by
+// its own timing function: every walk ended with a figure paddling its legs
+// almost on the spot. This peaks at 1.26× and starts/ends at 0.69× — enough
+// that a walk doesn't snap into full speed from a standstill, little enough
+// that the feet keep agreeing with the floor.
+export const GLIDE_EASE = "cubic-bezier(0.3, 0.12, 0.7, 0.88)";
 export function glideMs(distPx) {
   if (!(distPx > 0)) return 0;
-  const step = STEP_S * 1000;
-  const raw = (distPx / WALK_SPEED) * 1000;
-  // At least one full stride, at most a long-but-watchable walk — a walk
-  // order across a 48-tile lot shouldn't take half a minute.
-  return Math.min(7000, Math.max(step * 2, Math.round(raw / step) * step));
+  // Rounded to an integer so multiples stay exact — 0.44 × 1000 is a float
+  // hair over 440, and every duration here is `k × step`.
+  const step = Math.round(STEP_S * 1000);
+  const steps = Math.round(((distPx / WALK_SPEED) * 1000) / step);
+  // At least one full stride; at most ~6.6s, so a walk order across a
+  // 48-tile lot stays watchable. The cap is IN steps, so even a capped walk
+  // ends near a contact pose.
+  return Math.min(15, Math.max(2, steps)) * step;
 }
 
 /** Does the OS ask for reduced motion right now? */

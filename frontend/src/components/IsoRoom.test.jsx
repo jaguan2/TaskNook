@@ -43,4 +43,29 @@ describe("IsoRoom while visiting", () => {
       "Kai"
     );
   });
+
+  it("arms exactly your own placement for walk orders", () => {
+    // The grab cursor is the walk-order affordance; the owner (and every
+    // piece of furniture) must not offer it.
+    const { layout, personas, guestId } = resolveVisitRoom(
+      { id: 3, username: "sora", displayName: "Sora", room: null, character: null },
+      { character: validateCharacter(null), name: "You" }
+    );
+    expect(guestId).toBeTruthy();
+    const { container } = render(
+      <IsoRoom
+        size={layout}
+        placements={layout.placements}
+        editMode={false}
+        personas={personas}
+        saveView={false}
+        walkId={guestId}
+        onWalkTo={() => {}}
+      />
+    );
+    const grabbable = [...container.querySelectorAll("g")].filter(
+      (g) => g.style && g.style.cursor === "grab"
+    );
+    expect(grabbable.length).toBe(1);
+  });
 });

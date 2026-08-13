@@ -3,6 +3,7 @@ import {
   VISIT_ACCESS,
   NPC_HOME_KEYS,
   deriveNpcCharacter,
+  npcActivity,
   resolveVisitRoom,
 } from "./visiting";
 import { ISO_PRESETS, footOf, footprintFree, seatFor, validateIsoLayout } from "./isoRoom";
@@ -182,5 +183,61 @@ describe("resolveVisitRoom", () => {
     const { layout } = resolveVisitRoom(bot("sora"), GUEST);
     const revalidated = validateIsoLayout(layout);
     expect(revalidated.placements.length).toBe(layout.placements.length);
+  });
+
+  it("hands back the guest's id for walk orders — and null when nobody stood", () => {
+    // `guestId` is what the scene arms walk-order dragging with; it must be
+    // the placement that actually landed, or null, never a dangling id.
+    const withGuest = resolveVisitRoom(bot("luna"), GUEST);
+    expect(withGuest.guestId).toBe(guestOf(withGuest.layout).id);
+    const withoutGuest = resolveVisitRoom(bot("luna"), null);
+    expect(withoutGuest.guestId).toBe(null);
+    expect(guestOf(withoutGuest.layout)).toBeUndefined();
+  });
+});
+
+describe("npcActivity — the friends list's presence line", () => {
+  const MIN = 60000;
+
+  it("is deterministic and stable within a minute", () => {
+    // Minute-aligned on purpose — the claim is "stable within one minute",
+    // so the 30s probe must not straddle a boundary.
+    const t = 29416667 * MIN;
+    for (const name of BOTS) {
+      expect(npcActivity(name, t)).toEqual(npcActivity(name, t));
+      expect(npcActivity(name, t + 30000)).toEqual(npcActivity(name, t));
+    }
+  });
+
+  it("keeps a full study loop: all three states, counted down by the minute", () => {
+    const start = 1765000000000;
+    let prev = npcActivity("luna", start);
+    const seen = new Set([prev.state]);
+    for (let m = 1; m <= 120; m++) {
+      const cur = npcActivity("luna", start + m * MIN);
+      seen.add(cur.state);
+      // Within a block the clock counts DOWN one minute at a time; a block
+      // edge starts the next span fresh. Anything else is a schedule tear.
+      if (cur.state === prev.state && cur.minutesLeft !== prev.minutesLeft) {
+        expect(cur.minutesLeft).toBe(prev.minutesLeft - 1);
+      }
+      expect(cur.minutesLeft).toBeGreaterThan(0);
+      prev = cur;
+    }
+    expect([...seen].sort()).toEqual(["break", "focus", "idle"]);
+    // The loop is 120 minutes: two hours apart is the same moment.
+    expect(npcActivity("luna", start + 120 * MIN)).toEqual(npcActivity("luna", start));
+  });
+
+  it("staggers the bots so the panel never shows four copies of one state", () => {
+    // Offsets derive from the username; if every bot shared one, the whole
+    // list would flip states in unison and read as the simulation it is.
+    const t = 1765000000000;
+    const differ = BOTS.some(
+      (name) =>
+        npcActivity(name, t).state !== npcActivity("luna", t).state ||
+        npcActivity(name, t).minutesLeft !== npcActivity("luna", t).minutesLeft
+    );
+    expect(differ).toBe(true);
   });
 });

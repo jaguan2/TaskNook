@@ -374,28 +374,31 @@ function CatFace({ x, y, r, asleep }) {
   );
 }
 
-function Cat({ awake = false }) {
+function Cat({ awake = false, moving = false }) {
   const c = project(0.6, 0.4);
   // Ground shadows come from the scene now (one soft ellipse per item), so
   // the poses draw only the cat.
   if (awake) {
-    // On the prowl: body up on legs, head high, tail curled skyward. The
-    // legs step in counter-phase and the body trots — walking, not sliding.
     // On the prowl: body up on legs, head high, tail curled skyward. The far
     // legs are drawn first and darkened, so the four of them read as depth
     // rather than as a fringe.
+    //
+    // `moving` gates the trot — it used to run off "displaced from home",
+    // which is true almost always once a wanderer has wandered, so a cat
+    // standing perfectly still trotted in place indefinitely. Now the legs
+    // step and the body bounces only while a glide is actually in flight.
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
         {[
           ["leg-step-b", 7],
           ["leg-step-a", -12],
         ].map(([cls, x]) => (
-          <g key={x} className={cls}>
+          <g key={x} className={moving ? cls : undefined}>
             <rect x={x} y="-15" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
             <rect x={x} y="-15" width="4.6" height="16" rx="2.3" fill="#000" opacity="0.28" />
           </g>
         ))}
-        <g className="resident-type">
+        <g className={moving ? "resident-type" : undefined}>
           {/* haunch, then barrel — the two-mass body of a walking cat */}
           <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" style={tinted("#3a3142")} />
           <ellipse cx="-1" cy="-18" rx="17" ry="9" style={tinted("#3a3142")} />
@@ -3333,15 +3336,26 @@ function Resident({
           {/* Legs run the full LEG_H — at 15px they were stubs under a long
               torso, which is most of what made the figure read as a toddler.
               The far one uses the depth colours the seated pose already had
-              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block. */}
-          <g className={moving ? "leg-step-a" : undefined}>
+              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block.
+              While moving they SCISSOR from the hip — a stiff clay-toy stride,
+              swing fore-and-aft, not the old vertical piston that hopped each
+              trouser leg straight up and read as pedalling in place. */}
+          <g className={moving ? "leg-stride-a" : undefined}>
             <StandingLeg side={-1} legW={legW} legH={legH} far />
           </g>
-          <g className={moving ? "leg-step-b" : undefined}>
+          <g className={moving ? "leg-stride-b" : undefined}>
             <StandingLeg side={1} legW={legW} legH={legH} />
           </g>
         </>
       )}
+      {/* Everything above the hips moves as ONE mass while walking — a bob (one
+          per step) and a lean onto the planted foot (one per stride), the Animal
+          Crossing waddle. TWO wrappers for the two clocks: both animate
+          `transform`, and two animations on one element cancel — which is also
+          why these sit outside body-breathe. HairLength rides inside, or long
+          hair would shear off the rolling head. */}
+      <g className={moving ? "walk-bob" : undefined}>
+      <g className={moving ? "walk-roll" : undefined}>
       {/* Before the torso: length falls behind the body, not onto the chest. */}
       <HairLength style={ch.hair} headY={headY} color={hairColor} />
       <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
@@ -3371,9 +3385,15 @@ function Resident({
             a keyboard are already the animation, and arms stretching mid-keystroke
             reads as a glitch rather than as a person. */}
         <g className={resting ? "break-stretch" : undefined}>
-          <g className={typing ? undefined : "gesture-stretch"}>
+          {/* Gestures stand down mid-stride, the same way they yield to typing:
+              an arm reaching overhead while the legs scissor reads as a glitch,
+              and both animations would be fighting the swing below. */}
+          <g className={typing || moving ? undefined : "gesture-stretch"}>
             <g className={typing ? "resident-type" : undefined}>
-              <g>
+              {/* The FAR arm carries leg B's clock, so it opposes the far leg
+                  (which is A) — contralateral swing, the thing that separates
+                  walking from being wheeled along. */}
+              <g className={moving ? "walk-arm-b" : undefined}>
                 <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
                 <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
                 <circle cx={-sh - 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
@@ -3381,7 +3401,8 @@ function Resident({
               {/* The eye-rub is suppressed on a break because this hand is
                   holding something: at 186° the mug would come up over the face
                   upside down. */}
-              <g className={typing || resting ? undefined : "gesture-rub"}>
+              <g className={moving ? "walk-arm-a" : undefined}>
+              <g className={typing || resting || moving ? undefined : "gesture-rub"}>
                 <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
                 {/* the near arm catches the light instead of vanishing into the
                     torso it shares a colour with */}
@@ -3403,6 +3424,7 @@ function Resident({
                     </g>
                   </g>
                 )}
+              </g>
               </g>
             </g>
           </g>
@@ -3431,7 +3453,12 @@ function Resident({
             not share an ELEMENT with one. The neck and collar stay outside, so
             a turning head turns against a body that doesn't. */}
         <g className="gesture-yawn">
-          <g className={typing || resting ? undefined : "gesture-rub-head"}>
+          {/* Both halves of the rub take the same gate, `moving` included: the
+              arm half stands down mid-stride, and a head leaning into a hand
+              that isn't raised is worse than no gesture at all. The yawn and
+              the glance above are head-only and keep playing — yawning on the
+              way across the room is fine. */}
+          <g className={typing || resting || moving ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
               {/* Inside the gesture wrappers on purpose: hair turns with the
                   head. Behind the face is what matters, not behind the body. */}
@@ -3470,6 +3497,8 @@ function Resident({
             </g>
           </g>
         </g>
+      </g>
+      </g>
       </g>
     </g>
   );
@@ -4683,21 +4712,22 @@ function DogHead({ x, y, r, asleep }) {
   );
 }
 
-function Dog({ awake = false }) {
+function Dog({ awake = false, moving = false }) {
   const c = project(0.55, 0.35);
   if (awake) {
+    // Same `moving` gate as the cat: trot only while a glide is in flight.
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
         {[
           ["leg-step-b", 8],
           ["leg-step-a", -11],
         ].map(([cls, x]) => (
-          <g key={x} className={cls}>
+          <g key={x} className={moving ? cls : undefined}>
             <rect x={x} y="-13" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
             <rect x={x} y="-13" width="4.8" height="14" rx="2.4" fill="#000" opacity="0.3" />
           </g>
         ))}
-        <g className="resident-type">
+        <g className={moving ? "resident-type" : undefined}>
           <ellipse cx="6" cy="-19" rx="11" ry="9" style={tinted("#c98a4b")} />
           <ellipse cx="-3" cy="-18" rx="16" ry="8.5" style={tinted("#c98a4b")} />
           {/* cream chest + belly shadow */}
@@ -4734,7 +4764,7 @@ function Dog({ awake = false }) {
   );
 }
 
-function Bunny({ awake = false }) {
+function Bunny({ awake = false, moving = false }) {
   const c = project(0.35, 0.3);
   // `twitch` puts the flick on an INNER group: the outer <g> carries the
   // rotate attribute, and an animation sharing that element would override it
@@ -4752,11 +4782,12 @@ function Bunny({ awake = false }) {
   );
   if (awake) {
     // Sitting up on the haunches: a vertical teardrop, ears apart and alert.
+    // The bounce is a hop, so it only plays while actually moving.
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
         {ear(-4.5, -14, true)}
         {ear(3.5, 12, false, true)}
-        <g className="resident-type">
+        <g className={moving ? "resident-type" : undefined}>
           <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={tinted("#d9d2e4")} />
           <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={tinted("#d9d2e4")} />
           <ellipse cx="-2" cy="-18" rx="4" ry="2.4" fill="#fff" opacity="0.2" />

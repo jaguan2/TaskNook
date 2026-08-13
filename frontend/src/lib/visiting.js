@@ -166,6 +166,7 @@ export function resolveVisitRoom(data, guest = null) {
     };
   }
 
+  let placedGuestId = null;
   if (guest) {
     // You arrive at the front of the room — visiting means being there,
     // not watching a diorama.
@@ -179,10 +180,52 @@ export function resolveVisitRoom(data, guest = null) {
         character: validateCharacter(guest.character),
         label: guest.name || "you",
       };
+      placedGuestId = guestId;
     }
   }
 
-  return { layout: { ...layout, placements }, personas };
+  // `guestId` is null when no guest stands in the room — it's what the scene
+  // uses to grant walk orders, and an id with no placement would arm a drag
+  // that can never start.
+  return { layout: { ...layout, placements }, personas, guestId: placedGuestId };
+}
+
+/**
+ * What a bot is DOING right now — the friends list's presence line.
+ *
+ * Honest theater, same contract as the rest of this file: the bots don't run
+ * timers, so their day is a fixed 120-minute study loop (blocks of focus,
+ * short breaks, a couple of idle stretches — the schedule a productivity app's
+ * bots ought to keep) offset per-username so the four are never all in the
+ * same state. Deterministic from the username and the CLOCK — never
+ * Math.random — so the panel can re-derive it on a timer without anyone's
+ * status jittering, and reopening the drawer agrees with what it said before.
+ *
+ * `now` is epoch milliseconds, passed in rather than read here so the
+ * function stays pure and node-testable at fixed instants.
+ */
+const ACTIVITY_CYCLE = [
+  ["focus", 25],
+  ["break", 5],
+  ["focus", 25],
+  ["idle", 10],
+  ["focus", 25],
+  ["break", 5],
+  ["idle", 25],
+];
+const CYCLE_MINUTES = ACTIVITY_CYCLE.reduce((sum, [, mins]) => sum + mins, 0);
+export function npcActivity(username, now) {
+  // A different multiplier than deriveNpcCharacter's, so a bot's schedule
+  // isn't correlated with its looks.
+  let h = 0;
+  for (const ch of String(username)) h = (h * 131 + ch.charCodeAt(0)) >>> 0;
+  let t = (Math.floor(now / 60000) + (h % CYCLE_MINUTES)) % CYCLE_MINUTES;
+  for (const [state, span] of ACTIVITY_CYCLE) {
+    if (t < span) return { state, minutesLeft: span - t };
+    t -= span;
+  }
+  // Unreachable: t < CYCLE_MINUTES and the spans sum to CYCLE_MINUTES.
+  return { state: "idle", minutesLeft: 1 };
 }
 
 // Exported for the tests: which preset key is whose home.

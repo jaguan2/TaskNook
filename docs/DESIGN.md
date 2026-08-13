@@ -210,6 +210,58 @@ The screen has an ownership map — respect it:
   for a lamp pool or a shimmer on water and wrong on a body — a person went
   half-transparent every three seconds. Living things scale
   (`body-breathe`/`cat-breathe`, origin `center bottom`).
+- **The walk is a cue on one clock, and the clock is the ground.** Three rules,
+  each replacing a specific failure (2026-08-12):
+  - **Walk classes play only while a glide is actually in flight.**
+    "Displaced from home" is true forever after the first wander, so gating on
+    it left figures marching in place indefinitely — the single biggest thing
+    that made the walk read wrong. `useGlide` (IsoRoom.jsx) owns the truth;
+    sprites take a `moving` prop, never derive it.
+  - **Cadence must agree with ground covered.** A fixed 2.6s glide meant ~4×
+    speed variance under one leg rate (ice-skating). `glideMs` (lib/motion.js)
+    paces every glide at `WALK_SPEED`, rounded to whole `STEP_S` steps; the
+    stride/sway keyframes restate that period in CSS, and `motion.test.js`
+    pins them against `STEP_S` — a both-files drift guard. Anything that must
+    ride a walker (a visited room's name tag) shares the same hook, not a
+    copied constant.
+  - **Walk classes are cues, not ambient loops — they take NO `--phase`**
+    (same rule as `break-stretch`): they start when a glide starts, so walkers
+    desynchronise by simply not setting off together, and a phase would detach
+    the stride from the glide it must agree with.
+  - **A gait is asymmetric and its limbs are not on rails.** Three things in
+    the first cut read as clockwork and all three were timing, not artwork
+    (2026-08-13): a `linear` leg sweep (one constant angular velocity for a
+    whole cycle — a wiper blade), a 50/50 stance/swing split (identical weight
+    on every footfall, which is a march, and no double support), and the bob
+    and roll fused into one 5-stop `ease-in-out` loop that stalled dead at
+    every stop. Now: stance is linear and lasts to 60%, the swing is
+    ease-in→ease-out so peak angular speed lands at mid-swing, and the two body
+    clocks are separate elements (`walk-bob` per STEP, `walk-roll` per STRIDE).
+  - **The roll leans onto the leg carrying the weight** — extremes at
+    mid-stance, level at each footfall. Inverted, the body dips and tilts on
+    the same beat, which reads as a rocking horse.
+  - **Easing the travel is foot-skate.** The legs cycle at a fixed cadence
+    whatever the glide does, so `GLIDE_EASE` must stay near-linear.
+    `cubic-bezier(0.45, 0.05, 0.35, 1)` peaked at 2.22× the average speed and
+    crawled the last sixth of every walk at 0.15× — a 15× spread INSIDE one
+    glide, which quietly undid the constant-speed rework above (that fixed a
+    ~4× spread BETWEEN glides). It's 1.26× peak now, and `motion.test.js`
+    integrates the curve and fails past 1.45×.
+  - Style calls: stiff hip scissor (`leg-stride-a/b`), one-mass bob and roll,
+    contralateral arm swing (`walk-arm-a/b`, ±6.5° against the legs' ±8.5°),
+    per-glide facing mirror. **Arm counter-swing was previously ruled out here
+    as "the uncanny direction" — that was wrong**, and it was the single
+    biggest robot tell left: the arms sat inside the swaying body mass, so a
+    walking figure held them dead at its sides like a toy being pushed. At this
+    scale a ±6.5° pendulum from the shoulder is all it takes, and the shoulder
+    join was checked at 2× magnification for a silhouette break. Knees, foot
+    planting and squash DO stay out. If the stride ever needs more, the
+    escalation is 2–4 discrete parametric leg POSES (the `SeatedLeg`
+    vocabulary), not more articulation.
+  - Arm gestures stand down mid-stride, the same way they yield to typing —
+    and a two-part gesture must gate BOTH halves (the eye-rub's head half was
+    left playing the first time the arm half gained a condition, which leans a
+    head into a hand that isn't raised).
 - **Occasional gestures: a sliver of a long cycle.** A person who only breathes
   is a mannequin that breathes, so residents yawn, stretch, glance around and rub
   an eye. Four cycles of PRIME length (53/79/89/101s) run at once and drift

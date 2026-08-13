@@ -450,6 +450,40 @@ export function seatFor(placement, placements) {
 }
 
 /**
+ * May a persona STAND (or sit) at gx,gy? The walk-order rule.
+ *
+ * Not the edit-mode drag rule (that one only refuses void tiles — decorating
+ * is deliberate, overlap included) and not quite the wander rule either:
+ * walking is fiction, so it refuses furniture the way the wander engine does,
+ * EXCEPT that a seat under the centre is legal — landing on one is how a
+ * walk order ends in sitting down (`seatFor` resolves it at render). A seat
+ * someone else already resolves onto is taken: two people snapping to one
+ * chair's centre is the stacked-mug bug wearing a face.
+ */
+export function personaCanStand(gx, gy, layout, placements, selfId) {
+  const foot = footOf("resident", 0);
+  if (!footprintFree(gx, gy, foot, layout)) return false;
+  const others = placements.filter((p) => p.id !== selfId);
+  const seat = seatFor({ id: selfId, item: "resident", gx, gy }, others);
+  if (seat) {
+    return !others.some(
+      (o) =>
+        ISO_ITEMS[o.item]?.persona &&
+        seatFor(o, others)?.placement.id === seat.placement.id
+    );
+  }
+  // Open floor: the wander engine's "bumped into furniture" rule.
+  return !others.some((o) => {
+    const it = ISO_ITEMS[o.item];
+    if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
+    const of = footOf(o.item, o.rot);
+    return (
+      gx < o.gx + of[0] && o.gx < gx + foot[0] && gy < o.gy + of[1] && o.gy < gy + foot[1]
+    );
+  });
+}
+
+/**
  * Where a persona is actually drawn once they've been seated, and how deep.
  * Render-time only: the stored gx/gy never changes, so persistence, validation
  * and the drag engine know nothing about it.

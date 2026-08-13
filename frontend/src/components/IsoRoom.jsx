@@ -8,6 +8,7 @@ import {
   footOf,
   footprintFree,
   lipRuns,
+  personaCanStand,
   seatFor,
   seatedPlacement,
   snapHalf,
@@ -19,7 +20,7 @@ import {
   wallSegment,
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
-import { ambienceVars } from "../lib/motion";
+import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
@@ -236,6 +237,58 @@ const ISO_TIME = {
   day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19, glow: 0.25 },
 };
 
+/**
+ * One glide's clock, shared by anything that must ride it.
+ *
+ * The old glide was a FIXED 2.6s whatever the distance, so a half-tile
+ * shuffle crept and a long hop sprinted — while the legs cycled at one fixed
+ * rate. Now the duration comes from `glideMs` (constant screen speed, whole
+ * steps), and this hook is also the truth about whether a glide is actually
+ * IN FLIGHT: `moving` used to be "displaced from home", which after the
+ * first-ever wander is true forever, so figures marched in place
+ * indefinitely between glides — the single biggest thing that made the walk
+ * read wrong.
+ *
+ * `facing` is the screen direction of the last real move (-1 left, +1
+ * right; the sprites are drawn facing left, so +1 mirrors them). Decided per
+ * glide, instant — the two-facings economy the rest of the catalog uses.
+ *
+ * Render-time: `ms` is computed against the LAST COMMITTED position, so the
+ * new duration lands in the same commit as the new transform (an effect
+ * would be one commit late and the glide would run at the previous
+ * duration). The ref advances in the effect, after the commit. A re-render
+ * without a position change renders `transform 0ms`, which is safe: a
+ * running transition keeps the parameters it started with.
+ */
+function useGlide(x, y, active) {
+  const prevRef = useRef({ x, y });
+  const timerRef = useRef(null);
+  const [flight, setFlight] = useState({ moving: false, facing: -1 });
+  const prev = prevRef.current;
+  const ms = active ? glideMs(Math.hypot(x - prev.x, y - prev.y)) : 0;
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => {
+    const from = prevRef.current;
+    prevRef.current = { x, y };
+    if (!active) return;
+    const dx = x - from.x;
+    const dist = Math.hypot(dx, y - from.y);
+    if (dist < 0.5) return;
+    clearTimeout(timerRef.current);
+    setFlight((f) => ({
+      moving: true,
+      // A near-vertical screen move keeps the old facing — flickering the
+      // mirror on a 1px horizontal component reads as a twitch.
+      facing: Math.abs(dx) > 2 ? (dx > 0 ? 1 : -1) : f.facing,
+    }));
+    timerRef.current = setTimeout(
+      () => setFlight((f) => (f.moving ? { ...f, moving: false } : f)),
+      glideMs(dist) + 140
+    );
+  }, [x, y, active]);
+  return { ms, moving: active && flight.moving, facing: flight.facing };
+}
+
 // One placed item, memo'd on its own: a roam tick (every ~3.5s with a pet in
 // the room) or a selection change re-renders only the rows whose RESOLVED
 // placement actually changed, not all ~150 on a full lot. The bail-out is
@@ -252,14 +305,19 @@ const PlacedItem = memo(function PlacedItem({
   // A visited room's people: {character, label} for THIS placement. Lets a
   // generic `resident` wear someone else's look without `self` semantics.
   personaInfo = null,
+  // While visiting, YOUR placement takes walk orders — grabbable outside
+  // edit mode (cursor + the footprint hit polygon say so).
+  walkable = false,
 }) {
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
-  if (!item || !Sprite) return null;
   const at = project(p.gx, p.gy);
+  const persona = !!item?.persona;
+  const glides = persona || !!item?.roamer;
+  // Before the early return — a hook must run on every render.
+  const glide = useGlide(at.x, at.y, glides && !editMode && !reduceMotion);
+  if (!item || !Sprite) return null;
   const foot = footOf(p.item, p.rot);
-  const persona = !!item.persona;
-  const glides = persona || !!item.roamer;
   // Wanderers use a CSS transform (transition = the glide);
   // everything else keeps the attribute transform (instant drags).
   //
@@ -286,15 +344,22 @@ const PlacedItem = memo(function PlacedItem({
       ? {
           style: {
             transform: `translate(${at.x}px, ${at.y}px)`,
-            // A soft start and settle — creatures amble, not slide.
-            transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
+            // A soft start and settle — creatures amble, not slide. The
+            // duration is per-glide (constant speed, whole steps) so the
+            // stride always agrees with the ground covered.
+            transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
+            ...(walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
         }
       : {
           transform: `translate(${at.x},${at.y})`,
-          style: { ...ambience, ...(p.tint && { "--tint": p.tint }) },
+          style: {
+            ...(walkable && { cursor: "grab" }),
+            ...ambience,
+            ...(p.tint && { "--tint": p.tint }),
+          },
         };
   return (
     <g
@@ -305,8 +370,9 @@ const PlacedItem = memo(function PlacedItem({
       {/* Grab target = the item's FOOTPRINT diamond (plus its painted
           pixels via normal SVG hit-testing). A full bounding box
           would let tall items (the floor lamp's pole) blanket
-          everything behind them. */}
-      {editMode && (
+          everything behind them. A walk-order target gets the same
+          diamond — a body is small and a fingertip isn't. */}
+      {(editMode || walkable) && (
         <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
       )}
       {/* Contact shadow: one soft ellipse sized to the footprint,
@@ -337,6 +403,12 @@ const PlacedItem = memo(function PlacedItem({
           noMirror items (rendered PNGs) ship a real second render
           per orientation instead: pass rot through, skip the flip. */}
       {(() => {
+        // The mirror serves two masters now: the odd ROTATIONS (a grid
+        // transpose) and the walk FACING (the sprites are drawn facing
+        // screen-left, so a rightward glide flips them toward where they're
+        // going — before this, a figure slid backward while looking at you).
+        // XOR, because two mirrors cancel.
+        const flip = ((p.rot || 0) % 2 === 1) !== (glide.facing > 0);
         const sprite = persona ? (
           <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
             <Sprite
@@ -344,7 +416,7 @@ const PlacedItem = memo(function PlacedItem({
               lying={!!p._lie}
               seatH={p._seat || 0}
               activity={activity}
-              moving={!!p._moving}
+              moving={glide.moving}
               // Only YOU wear the profile's character and think
               // thoughts. Passing them to every persona turned a
               // table of four into four copies of the same person.
@@ -352,15 +424,14 @@ const PlacedItem = memo(function PlacedItem({
               // arrive per-placement via `personaInfo`.)
               character={item.self ? character : personaInfo?.character}
               mood={item.self ? mood : undefined}
-              // The odd turns wrap this whole sprite in
-              // scale(-1,1), which would draw the thought bubble's
-              // book and mug back-to-front. Tell it, so it can undo
-              // the flip for that one piece of artwork.
-              mirrored={(p.rot || 0) % 2 === 1}
+              // The mirror wraps this whole sprite in scale(-1,1), which
+              // would draw the thought bubble's book and mug back-to-front.
+              // Tell it, so it can undo the flip for that one artwork.
+              mirrored={flip}
             />
           </g>
         ) : item.roamer ? (
-          <Sprite awake={!!p._awake} />
+          <Sprite awake={!!p._awake} moving={glide.moving} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
             {/* rot 2/3 are the AWAY-facing pair, and they're a
@@ -375,12 +446,52 @@ const PlacedItem = memo(function PlacedItem({
             />
           </g>
         );
-        // The odd turns are the mirror; the even ones are drawn as-is.
-        return (p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
+        // Facing default is -1 (drawn direction) and furniture never glides,
+        // so for everything but a walker this is exactly the old rot mirror.
+        return flip ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
       })()}
     </g>
   );
 });
+
+// A visited room's name tag. Its own component because it shares `useGlide`
+// with the sprite it labels: the label must ride the SAME per-glide clock
+// (duration ∝ distance now, not a shared constant) or it teleports ahead and
+// hovers over empty floor until its person catches up.
+function PersonaTag({ p, label, glides }) {
+  const at = project(p.gx, p.gy);
+  const glide = useGlide(at.x, at.y, glides);
+  // Tuned by screenshot, not by the catalog: `hitH` is the grab REGION's
+  // height (generous over any body), and using it hung every tag a full head
+  // above its person. These sit the tag just over the hair for the default
+  // body in both poses.
+  const lift = p._seat ? p._seat + 47 : 44;
+  const common = {
+    textAnchor: "middle",
+    fontSize: "11",
+    fontWeight: "600",
+    fill: "#f2e9dd",
+    stroke: "#1d0f1f",
+    strokeWidth: "2.6",
+    paintOrder: "stroke",
+    opacity: "0.92",
+  };
+  return glides ? (
+    <text
+      {...common}
+      style={{
+        transform: `translate(${at.x}px, ${at.y - lift}px)`,
+        transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
+      }}
+    >
+      {label}
+    </text>
+  ) : (
+    <text {...common} x={at.x} y={at.y - lift}>
+      {label}
+    </text>
+  );
+}
 
 // The SCENE, split from the camera. `view` state lives in the IsoRoom
 // wrapper below and reaches only the svg's viewBox attribute — nothing in
@@ -410,6 +521,8 @@ function IsoSceneInner({
   // Visiting: {placementId: {character, label}} — per-placement looks and
   // the name tags drawn over them. Null at home.
   personas = null,
+  // The placement (your guest) that takes walk orders while visiting.
+  walkId = null,
 }) {
   const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
 
@@ -467,7 +580,12 @@ function IsoSceneInner({
       });
       if (!wanderers.length) return;
       const p = wanderers[Math.floor(Math.random() * wanderers.length)];
-      const cur = roamRef.current[p.id] || { dx: 0, dy: 0 };
+      const rec = roamRef.current[p.id];
+      // An offset is only valid for the HOME it was measured from — a walk
+      // order (or an edit-mode drag) moves the home out from under it, and a
+      // stale offset re-applied to the new home can put a body inside
+      // furniture no tick ever approved.
+      const cur = rec && rec.hx === p.gx && rec.hy === p.gy ? rec : { dx: 0, dy: 0 };
       const f = footOf(p.item, p.rot);
       // Cat rule: once curled up on a rug, mostly stay there.
       if (
@@ -492,16 +610,24 @@ function IsoSceneInner({
         return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
       });
       if (blocked) return; // bumped into furniture — stay put
-      roamRef.current = { ...roamRef.current, [p.id]: next };
+      roamRef.current = {
+        ...roamRef.current,
+        [p.id]: { ...next, hx: p.gx, hy: p.gy },
+      };
       setRoamTick((t) => t + 1);
     }, 3500);
     return () => clearInterval(id);
   }, [editMode, reduceMotion, placements, size]);
 
+  // Same home-check the roam tick applies: a record whose home moved is dead.
+  const roamOffset = (p) => {
+    const rec = !editMode && roamRef.current[p.id];
+    return rec && rec.hx === p.gx && rec.hy === p.gy ? rec : null;
+  };
   const effective = placements.map((p) => {
     const item = ISO_ITEMS[p.item];
     if (item?.roamer) {
-      const off = !editMode && roamRef.current[p.id];
+      const off = roamOffset(p);
       const gx = off ? p.gx + off.dx : p.gx;
       const gy = off ? p.gy + off.dy : p.gy;
       // Awake while out wandering; asleep at home or curled on a rug.
@@ -522,11 +648,13 @@ function IsoSceneInner({
     if (!item?.persona) return p;
     const seat = seatFor(p, placements);
     if (seat) return { ...p, ...seatedPlacement(p, seat) };
-    const off = !editMode && roamRef.current[p.id];
-    // Mid-wander = walking: the sprite swaps to a stepping gait.
-    const moving = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
+    // Whether they're WALKING isn't derived here any more: displacement from
+    // home is true forever once someone has wandered, which is how figures
+    // came to march in place indefinitely. PlacedItem's useGlide watches the
+    // resolved position and knows when a glide is actually in flight.
+    const off = roamOffset(p);
     return off
-      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _moving: moving }
+      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy }
       : p;
   });
   const ordered = sortIso(effective);
@@ -891,6 +1019,7 @@ function IsoSceneInner({
               reduceMotion={reduceMotion}
               onStartDrag={onStartDrag}
               personaInfo={personas ? personas[p.id] : null}
+              walkable={walkId != null && p.id === walkId}
             />
           ))}
 
@@ -901,43 +1030,16 @@ function IsoSceneInner({
             effective.map((p) => {
               const info = personas[p.id];
               if (!info?.label) return null;
-              const at = project(p.gx, p.gy);
-              // Tuned by screenshot, not by the catalog: `hitH` is the grab
-              // REGION's height (generous over any body), and using it hung
-              // every tag a full head above its person. These sit the tag
-              // just over the hair for the default body in both poses.
-              const lift = p._seat ? p._seat + 47 : 44;
-              // Wanderers GLIDE (a 2.6s CSS transition on their sprite); the
-              // label must ride the same clock or it teleports ahead and
-              // hovers over empty floor until its person catches up.
               const item = ISO_ITEMS[p.item];
-              const glides =
-                (item?.persona || item?.roamer) && !editMode && !reduceMotion;
-              const common = {
-                textAnchor: "middle",
-                fontSize: "11",
-                fontWeight: "600",
-                fill: "#f2e9dd",
-                stroke: "#1d0f1f",
-                strokeWidth: "2.6",
-                paintOrder: "stroke",
-                opacity: "0.92",
-              };
-              return glides ? (
-                <text
+              return (
+                <PersonaTag
                   key={`tag-${p.id}`}
-                  {...common}
-                  style={{
-                    transform: `translate(${at.x}px, ${at.y - lift}px)`,
-                    transition: "transform 2.6s cubic-bezier(0.45, 0.05, 0.35, 1)",
-                  }}
-                >
-                  {info.label}
-                </text>
-              ) : (
-                <text key={`tag-${p.id}`} {...common} x={at.x} y={at.y - lift}>
-                  {info.label}
-                </text>
+                  p={p}
+                  label={info.label}
+                  glides={
+                    (item?.persona || item?.roamer) && !editMode && !reduceMotion
+                  }
+                />
               );
             })}
 
@@ -1028,6 +1130,14 @@ function IsoRoom({
   // wherever home was last zoomed. (App remounts the scene per room via
   // `key`, so this initializer runs fresh for every visit.)
   saveView = true,
+  // Walk orders (visiting): `walkId` is the one placement — your guest —
+  // grabbable OUTSIDE edit mode. Dragging moves a target marker, not the
+  // person; releasing on a legal tile calls `onWalkTo(gx, gy)` once and the
+  // glide walks them over. Deliberately not the edit-mode drag: walking is
+  // fiction, so it obeys the wander engine's rules (no void, no furniture —
+  // but a free SEAT is legal, which is how you sit with your friend).
+  walkId = null,
+  onWalkTo,
   onMoveItem,
   onRemoveItem,
   onRotateItem,
@@ -1036,6 +1146,10 @@ function IsoRoom({
   const [selectedId, setSelectedId] = useState(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
+  const walkRef = useRef(null);
+  // The marker alone — kept out of IsoScene so pointer-rate target updates
+  // never re-render the scene subtree.
+  const [walkTarget, setWalkTarget] = useState(null);
   const panRef = useRef(null); // the world point the pointer grabbed
   const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
   const [view, setView] = useState(() => (saveView ? loadView() : { ...DEFAULT_VIEW }));
@@ -1174,7 +1288,26 @@ function IsoRoom({
   // view) — a changing identity here alone would defeat IsoScene's memo.
   const onStartDrag = useCallback(
     (placement, e) => {
-      if (!editMode) return;
+      if (!editMode) {
+        // A visit: only your own placement is grabbable, and grabbing it
+        // starts a walk order. Everything else falls through (no
+        // stopPropagation) so panning from furniture keeps working.
+        if (!walkId || placement.id !== walkId || !onWalkTo) return;
+        e.stopPropagation();
+        pointerOnItemRef.current = true;
+        const foot = footOf(placement.item, placement.rot || 0);
+        walkRef.current = {
+          item: placement.item,
+          rot: placement.rot || 0,
+          foot,
+          gx: placement.gx,
+          gy: placement.gy,
+          ok: true,
+        };
+        setWalkTarget({ gx: placement.gx, gy: placement.gy, foot, ok: true });
+        svgRef.current?.setPointerCapture?.(e.pointerId);
+        return;
+      }
       e.stopPropagation();
       // dblclick isn't stopped by the pointerdown's stopPropagation — it still
       // reaches the svg root, where it would recenter the camera mid-decorating.
@@ -1194,11 +1327,31 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy]
+    [editMode, cx, cy, walkId, onWalkTo]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
   const moveDrag = (e) => {
+    const walk = walkRef.current;
+    if (walk) {
+      const pt = toScene(e);
+      if (!pt) return;
+      const g = unproject(pt.x, pt.y);
+      // Centre the footprint under the pointer — a walk order means "stand
+      // THERE", not "keep my grab offset".
+      const at = clampIsoPlacement(
+        walk.item,
+        snapHalf(g.gx - walk.foot[0] / 2),
+        snapHalf(g.gy - walk.foot[1] / 2),
+        size,
+        walk.rot
+      );
+      const ok = personaCanStand(at.gx, at.gy, size, placements, walkId);
+      if (walk.gx === at.gx && walk.gy === at.gy && walk.ok === ok) return;
+      walkRef.current = { ...walk, gx: at.gx, gy: at.gy, ok };
+      setWalkTarget({ gx: at.gx, gy: at.gy, foot: walk.foot, ok });
+      return;
+    }
     const drag = dragRef.current;
     if (drag) {
       const p = toScene(e);
@@ -1239,7 +1392,15 @@ function IsoRoom({
     }
   };
 
-  const endDrag = () => {
+  const endDrag = (e) => {
+    const walk = walkRef.current;
+    if (walk) {
+      walkRef.current = null;
+      setWalkTarget(null);
+      // Commit on a real release only — a cancelled pointer (touch
+      // interrupted, capture lost, cursor gone) is an abort, not an order.
+      if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.gx, walk.gy);
+    }
     dragRef.current = null;
     panRef.current = null;
   };
@@ -1294,7 +1455,29 @@ function IsoRoom({
           onRemoveItem={onRemoveItem}
           onClearSelect={onClearSelect}
           personas={personas}
+          walkId={walkId}
         />
+        {/* The walk-order marker: where they'll stand if you let go. Outside
+            IsoScene (pointer-rate state must not re-render the room) and
+            after it, so no furniture buries it — the selection-chrome rule. */}
+        {walkTarget && (
+          <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
+            <polygon
+              points={floorPatch(
+                walkTarget.gx,
+                walkTarget.gy,
+                walkTarget.foot[0],
+                walkTarget.foot[1]
+              )}
+              fill={walkTarget.ok ? "#ffe9b0" : "#d96a6a"}
+              fillOpacity="0.12"
+              stroke={walkTarget.ok ? "#ffe9b0" : "#d96a6a"}
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+              opacity="0.9"
+            />
+          </g>
+        )}
       </svg>
 
       {selectedRaw &&

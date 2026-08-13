@@ -1160,3 +1160,79 @@ window sizes.
 
 - [x] **5.0 Full-bleed conversion** — shipped; presets-as-places is the next
   §5 step, then 5.1-5.4 above.
+
+# Fable scan follow-ups — 2026-08-12
+
+## Issue-list verification (all five confirmed real, all fixed)
+
+- [x] **removeTaskGroup paid for refreshAll()** — the one task write still
+  fetching friends + sessionDays; now `refreshTasks()` like every other.
+- [x] **showToast inside three setState updaters** (rotateIsoItem,
+  reshapeIso, setIsoTile) — hoisted out, computed against `isoRef.current`
+  and the ref advanced synchronously (setIsoTile fires per pointerenter
+  during drag-to-draw, so the sync advance is what keeps a fast stroke
+  building on its own tiles).
+- [x] **applyIsoPreset swallowed withSelf's null** — a preset with no floor
+  for `you` now applies AND toasts the eviction instead of silently
+  dropping you. Latent (unreachable with shipped presets), closed anyway.
+- [x] **Re-auth race in api.js** — the token wipe moved INSIDE the
+  single-flight, plus a stale-token check: a 401 response that lost a race
+  against a completed re-login now reuses the fresh token instead of wiping
+  it and burning a second row against MAX_TOKENS_PER_USER.
+- [x] **stats.js intensityOf leaned on intensityScale's de-dup** via
+  `indexOf` — index loop now; correctness no longer rests on a property
+  declared for an unrelated reason.
+
+## 6. The walk (2026-08-12) — investigated with three design threads, shipped
+
+Owner: "It feels a little weird when seeing the models walk. We might need
+to look into actual animation and modeling instead of just doing it through
+css." Three parallel threads (gait craft / technology / cozy-game
+references) converged on the same verdict, each from its own evidence:
+**the weirdness was gait LOGIC, not the CSS medium** — and "actual
+animation" tooling (rAF, SMIL, WAAPI, sprite sheets) loses against this
+codebase's constraints (slider-parametric SVG bodies, memo'd scene,
+single-attribute reduced-motion machinery). Long-term the substrate stays
+CSS classes gated by real state. What shipped:
+
+1. **March-in-place fixed (the big one).** `moving` meant "displaced from
+   home" — true forever after the first wander — so figures pumped their
+   legs indefinitely while standing still. `useGlide` (IsoRoom.jsx) now
+   knows when a glide is actually in flight; animals gate their trot the
+   same way.
+2. **Constant-speed glides.** Fixed 2.6s whatever the distance meant ~4×
+   speed variance under a fixed leg cadence (ice-skating). `glideMs`
+   (lib/motion.js) paces every glide at WALK_SPEED, rounded to whole
+   STEP_S steps; name tags ride the identical clock (shared hook).
+3. **A stride, not a piston.** Legs scissored fore-and-aft from the hip
+   (`leg-stride-a/b`, no knees — clay-toy stiffness on purpose); the body
+   bobs per step and rolls toward the planted foot (`walk-sway`, the
+   Animal Crossing waddle). Walk classes are cues (no `--phase`);
+   motion.test.js pins their periods against STEP_S as a drift guard.
+4. **Facing.** Sprites mirror toward the screen direction of travel
+   (per-glide, instant, XOR'd with the rot mirror) — no more walking
+   backward while looking at the camera.
+
+Deliberately NOT done (thread consensus, break-the-charm list): knees/IK,
+foot planting, squash & stretch, hops, arm counter-swing, rAF-driven
+frames. Escalation path if the stride still reads wrong in the running
+app: 2–4 discrete parametric leg POSES cycled by steps() (the SeatedLeg
+vocabulary), not more articulation.
+
+## 7. Visiting, round two (2026-08-12)
+
+- [x] **Walk around a visit** — drag your character; dashed target marker
+  (amber/danger), release → they walk over. Rule = `personaCanStand`
+  (lib/isoRoom.js): mask + wander-engine furniture rule, except a FREE
+  seat is legal (walking onto a stool sits you with your friend; occupied
+  seats refuse). Render-only, store-owned (`moveVisitGuest`), one-per-run
+  hint toast. Roam records now stamp their home and die when it moves, so
+  a walk order can't inherit a stale wander offset.
+- [x] **Friends presence line** — `npcActivity`: deterministic 120-minute
+  study loop (focus/break/idle) offset per username, pure function of
+  (username, clock). Panel re-derives on a 30s tick; "📖 focusing — 12m
+  left" counts down for real. Honest theater, same contract as the rest
+  of visiting.
+- Future: a visited owner's typing could follow THEIR npcActivity instead
+  of your timer; presence could gate the door hint ("come back after
+  their block").

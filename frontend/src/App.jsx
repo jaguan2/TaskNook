@@ -73,6 +73,7 @@ export default function App() {
     character,
     visiting,
     leaveVisit,
+    moveVisitGuest,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -270,6 +271,8 @@ export default function App() {
               reduceMotion={reduceMotion}
               personas={visiting.personas}
               saveView={false}
+              walkId={visiting.guestId ?? null}
+              onWalkTo={moveVisitGuest}
             />
           ) : isoPreview ? (
             <IsoRoom

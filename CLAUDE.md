@@ -253,8 +253,22 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   view. `resolveVisitRoom` inserts the owner and YOU as the
   guest — render-only, never persisted. IsoRoom's `personas` prop carries
   per-placement characters + name tags: tag lifts are tuned by screenshot
-  (hitH is the grab region, a head too tall), and tags ride the wanderers'
-  2.6s glide clock or they teleport ahead of their person. A visit is a
+  (hitH is the grab region, a head too tall), and tags share the walkers'
+  per-glide clock via the same `useGlide` hook (`PersonaTag`) or they
+  teleport ahead of their person. **You can WALK AROUND a visit**:
+  `resolveVisitRoom` returns `guestId` (null when no guest could stand) and
+  your placement (`walkId={visiting.guestId}`) is grabbable outside edit
+  mode — dragging moves a dashed target marker (amber = legal, danger =
+  refused), release calls `onWalkTo` → the store's `moveVisitGuest`, and
+  the glide walks you over. The rule is `personaCanStand` in lib/isoRoom.js
+  — mask + the wander engine's furniture rule, EXCEPT a free seat is legal
+  (that's how a walk order ends in sitting with your friend; an occupied
+  seat is refused). Deliberately not the edit-drag rule: walking is
+  fiction. The Friends panel also shows a PRESENCE line per friend
+  (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
+  offset per username — a pure function of (username, clock), never
+  Math.random, so the panel re-derives it on a 30s timer without statuses
+  jittering. A visit is otherwise a
   read-only scene swap — drawers close on arrival, Decorate is disabled
   with a hint, the chip (and Escape, ahead of everything else) leads home —
   and `activity` still flows, so starting a focus block means studying
@@ -719,8 +733,40 @@ account is auto-friended with them on creation, same as the old sign-up flow.
   of the backrest, lifted by the seat height, sitting pose); on open floor
   they idle-wander via a VISUAL-ONLY offset (never persisted — the stored
   spot is home; the interval collision-checks the floor mask AND furniture
-  footprints, and pauses in edit mode). Personas use a CSS transform +
+  footprints, and pauses in edit mode; a roam record stamps the home it was
+  measured from and dies if the home moves, so a walk order can't inherit a
+  stale offset). Personas use a CSS transform +
   transition (the glide) instead of the attribute transform others use.
+  **The glide is paced by `glideMs` (lib/motion.js): constant screen speed
+  (`WALK_SPEED`), rounded to whole steps of `STEP_S`, capped in steps.** It
+  was a fixed 2.6s whatever the distance, so speed varied ~4× under legs
+  cycling at one rate — ice-skating. `useGlide` (IsoRoom.jsx) is the one
+  clock: it computes each glide's duration at render time (same commit as
+  the transform change), knows when a glide is actually IN FLIGHT
+  (`moving` — it used to mean "displaced from home", which is true forever
+  after the first wander, so figures marched in place indefinitely), and
+  picks `facing` from the screen direction of travel (sprites are drawn
+  facing left; +x mirrors them, XOR'd with the rot mirror). While moving, a
+  resident scissors stiff legs from the hip (`leg-stride-a/b`), swings its
+  arms AGAINST them (`walk-arm-a/b` — the NEAR arm rides leg A's clock and
+  leg A is the FAR leg; that's what contralateral means), and carries
+  everything above the hips as one mass on two clocks: `walk-bob` per STEP,
+  `walk-roll` per STRIDE. The animals gate their trot on `moving` too.
+  These walk classes are CUES, not ambient loops — they start
+  when a glide starts, take NO `--phase`, and every limb shares the stride
+  period 2×STEP_S (only the body's bob is per STEP — a body drops once per
+  FOOTFALL, and there are two of those to a stride);
+  motion.test.js pins the CSS periods against STEP_S (a
+  both-files drift guard) and the two glide sites' shared clock. **What made
+  the first cut read as clockwork was all timing, not artwork** — see
+  docs/DESIGN.md's "Motion" for the four fixes (linear leg sweep, 50/50
+  stance/swing, fused bob+roll stalling at every stop, and a `GLIDE_EASE`
+  that varied speed 15× inside one glide while the legs cycled at a fixed
+  rate). Arm gestures stand down mid-stride, both halves of the two-part
+  ones. No knees,
+  no rAF, no sprite sheets on purpose: bodies are slider-parametric SVG and
+  the scene is memo'd, so CSS classes gated by local state are the substrate
+  that survives.
   Seated residents TYPE (`.resident-type` arm bob) while a focus block runs
   (`working` prop = `running && phase === "focus"` — a boolean, so the
   memo'd scene only re-renders on start/stop, not per tick). Items with

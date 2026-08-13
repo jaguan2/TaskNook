@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
-import { VISIT_ACCESS } from "../lib/visiting";
+import { VISIT_ACCESS, npcActivity } from "../lib/visiting";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
+
+// The presence line: what a friend is doing RIGHT NOW, beside their door.
+// Same honest theater as the rest of visiting — npcActivity derives it from
+// the clock, deterministically, so it holds still while you look at it.
+const ACTIVITY_LINE = {
+  focus: (m) => `📖 focusing — ${m}m left`,
+  break: () => "☕ on a break",
+  idle: () => "🪴 pottering about",
+};
 
 export default function FriendsPanel() {
   // The knock timer lives in the STORE, not here — this drawer closes for
@@ -15,6 +24,14 @@ export default function FriendsPanel() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [armedId, arm] = useArmed();
+  // The statuses move with the clock, so the open panel re-derives them every
+  // half-minute — a focus block counting down that never counted would give
+  // the simulation away.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const visit = (f) => {
     if (f.visitAccess === "private" || knockingId) return;
@@ -112,9 +129,9 @@ export default function FriendsPanel() {
                   style={{ width: `${f.completion}%` }}
                 />
               </div>
-              {/* The door. One affordance per access level: walk in, knock
-                  and wait, or a lock you can't press. */}
-              <div className="mt-2">
+              {/* The door and the presence line share a row: what they're
+                  doing on the right, how to reach them on the left. */}
+              <div className="mt-2 flex items-center justify-between gap-2">
                 {f.visitAccess === "private" ? (
                   <span
                     title={doorHint("private")}
@@ -136,6 +153,14 @@ export default function FriendsPanel() {
                       : "🚪 Visit"}
                   </button>
                 )}
+                {(() => {
+                  const a = npcActivity(f.username, now);
+                  return (
+                    <span className="shrink-0 text-[11px] text-petal/60">
+                      {ACTIVITY_LINE[a.state](a.minutesLeft)}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           );

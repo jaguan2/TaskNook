@@ -1193,6 +1193,9 @@ export function StoreProvider({ children }) {
   // fetches, and whichever RESOLVES last wins — potentially landing you in
   // the first friend's room after clicking the second.
   const visitBusyRef = useRef(false);
+  // Once per app run, on the first arrival: walk orders are invisible until
+  // you know your character is grabbable.
+  const walkHintShown = useRef(false);
   const visitFriend = async (friend) => {
     if (visitBusyRef.current) return false;
     visitBusyRef.current = true;
@@ -1208,6 +1211,10 @@ export function StoreProvider({ children }) {
           name: profileRef.current.displayName || user?.displayName || "you",
         }),
       });
+      if (!walkHintShown.current) {
+        walkHintShown.current = true;
+        showToast("Drag your little self to wander around 🚶", 3500);
+      }
       return true;
     } catch (err) {
       showToast(`Couldn't visit — ${err.message}`);
@@ -1216,6 +1223,23 @@ export function StoreProvider({ children }) {
       visitBusyRef.current = false;
     }
   };
+  /**
+   * A walk order landing: move the guest — you — to the tile the drag chose.
+   * Render-only, like everything about a visit; the scene validated the spot
+   * (mask + furniture + seat occupancy) before committing it.
+   */
+  const moveVisitGuest = useCallback((gx, gy) => {
+    setVisiting((v) => {
+      if (!v?.guestId) return v;
+      let changed = false;
+      const placements = v.layout.placements.map((p) => {
+        if (p.id !== v.guestId || (p.gx === gx && p.gy === gy)) return p;
+        changed = true;
+        return { ...p, gx, gy };
+      });
+      return changed ? { ...v, layout: { ...v.layout, placements } } : v;
+    });
+  }, []);
   // The knock lives HERE, not in the Friends panel: drawers close for all
   // sorts of reasons (Escape, a dock click, the arrival effect itself), and
   // a knock timer owned by the panel died with it — the toast promised an
@@ -1585,6 +1609,7 @@ export function StoreProvider({ children }) {
     knockFriend,
     knockingId,
     leaveVisit,
+    moveVisitGuest,
     setVisitAccess,
     applyIsoPreset,
     selfInRoom,
