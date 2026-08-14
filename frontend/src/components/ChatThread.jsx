@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
-import { MESSAGE_MAX, chatTitle, whenLabel } from "../lib/chat";
+import { chatTitle, dialogueOptions, whenLabel } from "../lib/chat";
 import { npcActivity } from "../lib/visiting";
 
 // What a friend is doing, shown under their name in the thread header — the
@@ -26,11 +26,10 @@ const ACTIVITY_LINE = {
 export default function ChatThread({ chat, onBack }) {
   const { user, sendChatMessage, markChatRead, deleteChat } = useStore();
   const [messages, setMessages] = useState(null);
-  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [armedId, arm] = useArmed();
   const scroller = useRef(null);
-  const inputRef = useRef(null);
 
   const others = useMemo(
     () => (chat.members || []).filter((m) => m.id !== user?.id),
@@ -67,13 +66,27 @@ export default function ChatThread({ chat, onBack }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  const send = (e) => {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text) return;
-    setDraft("");
-    inputRef.current?.focus();
-    sendChatMessage(chat, text, setMessages);
+  // What you can say right now. In a group the menu follows whoever the thread
+  // is named after — one person's schedule, so the options stay coherent —
+  // while `groupResponders` still decides who actually answers.
+  const speaker = others[0]?.username;
+  const options = useMemo(() => {
+    if (!speaker) return [];
+    // Their turn = the last line is theirs, which is the only time "Thanks"
+    // isn't a non-sequitur.
+    const last = messages?.[messages.length - 1];
+    const theirTurn = !!last && last.senderId !== user?.id;
+    return dialogueOptions(speaker, now, { theirTurn });
+  }, [speaker, now, messages, user?.id]);
+
+  const say = (option) => {
+    if (sending) return;
+    // Locked until the line lands, so a double-tap can't post it twice — the
+    // reply is scheduled off the send, so a duplicate would be answered twice.
+    setSending(true);
+    Promise.resolve(sendChatMessage(chat, option.label, setMessages, option.id)).finally(
+      () => setSending(false)
+    );
   };
 
   const title = chatTitle(chat, user?.id);
@@ -164,25 +177,27 @@ export default function ChatThread({ chat, onBack }) {
         </div>
       </div>
 
-      <form onSubmit={send} className="flex shrink-0 gap-2">
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          maxLength={MESSAGE_MAX}
-          placeholder="say something…"
-          aria-label="Message"
-          className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
-        />
-        <button
-          disabled={!draft.trim()}
-          title="Send"
-          aria-label="Send"
-          className="pill bg-glow px-4 py-2 text-sm font-semibold text-plum hover:bg-amber disabled:opacity-40"
-        >
-          ↑
-        </button>
-      </form>
+      {/* You PICK a line rather than typing one — the RPG grammar. The bots'
+          replies are canned, so a text box promises a conversation they can't
+          have: you write something thoughtful and get a non-sequitur. A menu
+          says what this is before you commit a sentence to it, and every reply
+          fits what you actually chose, because the option IS the intent.
+          The options re-derive from `now` (a 30s tick already runs here for the
+          timestamps), so a friend who finishes a focus block mid-thread starts
+          offering different things to say. */}
+      <div className="flex shrink-0 flex-col gap-1.5" aria-label="Things you can say">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            onClick={() => say(o)}
+            disabled={sending}
+            className="pill w-full bg-white/10 px-3 py-2 text-left text-sm text-cream transition hover:bg-white/20 disabled:opacity-40"
+          >
+            <span className="mr-1.5 text-glow/70">›</span>
+            {o.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

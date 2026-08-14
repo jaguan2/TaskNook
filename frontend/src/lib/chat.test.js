@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  OPTION_LABEL,
   REPLY_MAX_MS,
   REPLY_MIN_MS,
   botReply,
+  breakNudgeLine,
   chatTitle,
+  dailyCheckIn,
+  dialogueOptions,
   groupResponders,
+  nudgeSpeaker,
   replyDelayMs,
+  replyToOption,
   whenLabel,
 } from "./chat";
 import { npcActivity } from "./visiting";
@@ -196,5 +202,120 @@ describe("message timestamps", () => {
   it("survives a missing or malformed stamp", () => {
     expect(whenLabel(null, now)).toBe("");
     expect(whenLabel("not a date", now)).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The dialogue menu — you pick a line, you don't type one.
+// ---------------------------------------------------------------------------
+const BOTS = ["luna", "kai", "sora", "mochi"];
+const STATES = ["focus", "break", "idle"];
+
+describe("dialogue options are an RPG menu, not a text box", () => {
+  it("offers only real options, and offers them by what the bot is doing", () => {
+    for (const state of STATES) {
+      const now = instantWhere("luna", state);
+      const opts = dialogueOptions("luna", now);
+      expect(opts.length).toBeGreaterThanOrEqual(3);
+      for (const o of opts) {
+        // A label that isn't in the table would render as an empty button.
+        expect(OPTION_LABEL[o.id], `unknown option ${o.id}`).toBeTruthy();
+        expect(o.label).toBe(OPTION_LABEL[o.id]);
+      }
+      // Distinct ids: two buttons saying the same thing is a menu bug.
+      expect(new Set(opts.map((o) => o.id)).size).toBe(opts.length);
+    }
+  });
+
+  it("only offers Thanks when they've just said something", () => {
+    const now = instantWhere("kai", "idle");
+    expect(dialogueOptions("kai", now).map((o) => o.id)).not.toContain("thanks");
+    expect(dialogueOptions("kai", now, { theirTurn: true }).map((o) => o.id)).toContain(
+      "thanks"
+    );
+  });
+
+  it("every option gets a real answer in every state", () => {
+    // The guard that catches a missing row in the reply tables: an option with
+    // no line for the current state would come back empty, or leaking {left}.
+    for (const state of STATES) {
+      for (const bot of BOTS) {
+        const now = instantWhere(bot, state);
+        for (const id of Object.keys(OPTION_LABEL)) {
+          const reply = replyToOption(bot, id, now, 3);
+          expect(reply, `${bot}/${state}/${id}`).toBeTruthy();
+          expect(reply, `${bot}/${state}/${id} leaked a placeholder`).not.toContain("{");
+        }
+      }
+    }
+  });
+
+  it("is deterministic, and repeats differ", () => {
+    const now = instantWhere("sora", "idle");
+    expect(replyToOption("sora", "greet", now, 1)).toBe(replyToOption("sora", "greet", now, 1));
+    const seeds = new Set([0, 1, 2, 3].map((s) => replyToOption("sora", "greet", now, s)));
+    expect(seeds.size).toBeGreaterThan(1);
+  });
+
+  it("a bot mid-block stays brief whatever you pick — except goodbye", () => {
+    const now = instantWhere("luna", "focus");
+    const { minutesLeft } = npcActivity("luna", now);
+    // "How's it going?" mid-block must answer with the block, and the SAME
+    // countdown the presence line shows.
+    const reply = replyToOption("luna", "howsit", now, 0);
+    const quoted = reply.match(/(\d+)\s*m/);
+    if (quoted) expect(Number(quoted[1])).toBe(minutesLeft);
+    // Goodbye is the one thing you can always say to someone who's busy.
+    expect(replyToOption("luna", "bye", now, 0)).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Messages you didn't ask for.
+// ---------------------------------------------------------------------------
+describe("the daily check-in", () => {
+  it("is one message a day, from one friend, at a waking hour", () => {
+    const seen = new Set();
+    for (let d = 1; d <= 28; d += 1) {
+      const day = `2026-09-${String(d).padStart(2, "0")}`;
+      const c = dailyCheckIn(BOTS, day);
+      expect(BOTS).toContain(c.username);
+      expect(c.text).toBeTruthy();
+      // 08:00–21:00. A 04:00 check-in is just a backlog waiting for you.
+      expect(c.minute).toBeGreaterThanOrEqual(8 * 60);
+      expect(c.minute).toBeLessThan(21 * 60);
+      seen.add(c.username);
+    }
+    // Over a month it should not always be the same person.
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it("is stable for a day and independent of friend ORDER", () => {
+    const a = dailyCheckIn(BOTS, "2026-09-04");
+    const b = dailyCheckIn([...BOTS].reverse(), "2026-09-04");
+    expect(a).toEqual(b); // else the sender changes when the list re-sorts
+    expect(dailyCheckIn(BOTS, "2026-09-05")).not.toEqual(a);
+  });
+
+  it("says nothing when you have no friends", () => {
+    expect(dailyCheckIn([], "2026-09-04")).toBe(null);
+    expect(dailyCheckIn(null, "2026-09-04")).toBe(null);
+  });
+});
+
+describe("the break nudge, said by a friend", () => {
+  it("quotes the span it was given", () => {
+    expect(breakNudgeLine("luna", "2 hours", 0)).toContain("2 hours");
+    expect(breakNudgeLine("luna", "90 minutes", 1)).toContain("90 minutes");
+  });
+
+  it("comes from whoever isn't mid-block", () => {
+    // A nudge to take a break, delivered by someone deep in a focus block, is
+    // the one voice that shouldn't be giving it.
+    const now = instantWhere("luna", "focus");
+    const speaker = nudgeSpeaker(BOTS, now);
+    const others = BOTS.filter((b) => npcActivity(b, now).state !== "focus");
+    if (others.length) expect(others).toContain(speaker);
+    expect(nudgeSpeaker([], now)).toBe(null);
   });
 });

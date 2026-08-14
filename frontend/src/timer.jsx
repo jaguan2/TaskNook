@@ -60,7 +60,7 @@ export const useTimer = () => useContext(TimerContext);
 export const useTimerStatus = () => useContext(TimerStatusContext);
 
 export function TimerProvider({ children }) {
-  const { activeTask, stats, refreshFocus, showToast } = useStore();
+  const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend } = useStore();
 
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [remaining, setRemaining] = useState(25 * 60);
@@ -351,10 +351,14 @@ export function TimerProvider({ children }) {
     });
     breakRunRef.current = { focus: r.focus, away: r.away };
     if (r.nudge) {
-      showToast(
-        `${formatSpan(BREAK_NUDGE_MINUTES)} without a break — stretch your legs? 🌿`,
-        NUDGE_TOAST_MS
-      );
+      const span = formatSpan(BREAK_NUDGE_MINUTES);
+      showToast(`${span} without a break — stretch your legs? 🌿`, NUDGE_TOAST_MS);
+      // And a friend says it in their own words. Both channels on purpose: the
+      // toast is the one that can't be missed, and the message is the one still
+      // waiting for you when you come back. Fire-and-forget — a nudge that
+      // couldn't be delivered must not surface an error over the top of the
+      // toast that just worked.
+      nudgeFromFriend?.(span);
     }
   };
 

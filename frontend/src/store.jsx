@@ -8,13 +8,25 @@ import {
   useMemo,
 } from "react";
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
-import { readJSON, readStored, writeStored } from "./lib/storage";
+import { readJSON, readStored, removeStored, writeStored } from "./lib/storage";
+import { toISO } from "./lib/dates";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
-import { MESSAGE_MAX, botReply, groupResponders, replyDelayMs } from "./lib/chat";
+import {
+  MESSAGE_MAX,
+  botReply,
+  breakNudgeLine,
+  dailyCheckIn,
+  groupResponders,
+  nudgeSpeaker,
+  replyDelayMs,
+  replyToOption,
+} from "./lib/chat";
+// One unprompted message a day, marked per device. See `deliverCheckIn`.
+const CHECKIN_KEY = "tasknook.chat.checkin";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
@@ -706,11 +718,16 @@ export function StoreProvider({ children }) {
   // know which members are "the others", and the closure that scheduled it may
   // be several renders stale by the time it fires.
   const userRef = useRef(user);
+  // Same reason: the check-in and the break nudge both fire from timers and
+  // need the CURRENT friend list, not whichever one was in scope when the
+  // interval was created.
+  const friendsRef = useRef(friends);
   useEffect(() => {
     profileRef.current = profile;
     characterRef.current = character;
     userRef.current = user;
-  }, [profile, character, user]);
+    friendsRef.current = friends;
+  }, [profile, character, user, friends]);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
@@ -1373,7 +1390,7 @@ export function StoreProvider({ children }) {
    * repaints without polling — the reply may land long after the send
    * resolved, which is the point of scheduling it.
    */
-  const sendChatMessage = async (chat, body, onMessages) => {
+  const sendChatMessage = async (chat, body, onMessages, optionId = null) => {
     const text = body.trim().slice(0, MESSAGE_MAX);
     if (!text || !chat) return;
     try {
@@ -1402,7 +1419,12 @@ export function StoreProvider({ children }) {
       const timer = setTimeout(async () => {
         replyTimers.current.delete(timer);
         try {
-          const reply = botReply(username, text, Date.now(), seed + i);
+          // A picked option answers the OPTION, not the words on the button:
+          // the intent is already known, so there's nothing to infer from the
+          // text and no chance of the regexes reading it differently.
+          const reply = optionId
+            ? replyToOption(username, optionId, Date.now(), seed + i)
+            : botReply(username, text, Date.now(), seed + i);
           await api.sendMessage(chat.id, reply, friend.id);
           onMessages?.(await api.chatMessages(chat.id));
           refreshChats();
@@ -1414,6 +1436,88 @@ export function StoreProvider({ children }) {
       replyTimers.current.add(timer);
     });
   };
+
+  /**
+   * A bot opens a thread and says something you didn't prompt.
+   *
+   * The one place an unprompted message is written, shared by the daily
+   * check-in and the break nudge. Opening the thread is idempotent server-side,
+   * so "message you" works whether or not you've ever spoken.
+   */
+  const botSays = useCallback(
+    async (friend, body) => {
+      try {
+        const chat = await api.openChat([friend.id]);
+        await api.sendMessage(chat.id, body, friend.id);
+        refreshChats();
+        return true;
+      } catch {
+        // Unprompted and cosmetic: a failure here is a friend who didn't
+        // happen to message, not something to interrupt anyone about.
+        return false;
+      }
+    },
+    [refreshChats]
+  );
+
+  /**
+   * A friend noticing you've been at it too long.
+   *
+   * Deliberately IN ADDITION to the toast, not instead of it: a chat message
+   * can sit unread behind a closed drawer, and a health nudge that's easy to
+   * miss isn't one. The toast interrupts; this is the warm version that's
+   * still there when you come back.
+   */
+  const nudgeFromFriend = useCallback(
+    async (spanLabel) => {
+      const list = friendsRef.current || [];
+      if (!list.length) return;
+      const speaker = nudgeSpeaker(list.map((f) => f.username), Date.now());
+      const friend = list.find((f) => f.username === speaker);
+      if (friend) await botSays(friend, breakNudgeLine(speaker, spanLabel, Date.now() % 997));
+    },
+    [botSays]
+  );
+
+  /**
+   * The day's unprompted hello, delivered once.
+   *
+   * `dailyCheckIn` decides who and when from the date alone; this only decides
+   * whether it has HAPPENED, which is the one part that can't be pure. The
+   * marker is per-device localStorage rather than a DB flag: the message itself
+   * is already a durable row, and a second device would rightly get its own.
+   *
+   * Nothing fires before the appointed minute, so opening the app at 08:00
+   * doesn't collect a message timed for the afternoon — it arrives while you're
+   * there, which is the whole point of it being unprompted.
+   */
+  const deliverCheckIn = useCallback(async () => {
+    const list = friendsRef.current || [];
+    if (!list.length) return;
+    const today = toISO(new Date());
+    if (readStored(CHECKIN_KEY) === today) return;
+    const plan = dailyCheckIn(list.map((f) => f.username), today);
+    if (!plan) return;
+    const nowDate = new Date();
+    if (nowDate.getHours() * 60 + nowDate.getMinutes() < plan.minute) return;
+    const friend = list.find((f) => f.username === plan.username);
+    if (!friend) return;
+    // Claim the day BEFORE the write: two ticks overlapping on a slow request
+    // would otherwise both send it.
+    writeStored(CHECKIN_KEY, today);
+    const ok = await botSays(friend, plan.text);
+    if (!ok) removeStored(CHECKIN_KEY); // let a failed day try again
+  }, [botSays]);
+
+  // Checked on a slow timer as well as on arrival: the app is left open for
+  // hours at a time (it's half ambient furniture), so the appointed minute
+  // usually passes while you're already looking at it.
+  useEffect(() => {
+    if (booting || !user) return undefined;
+    deliverCheckIn();
+    const id = setInterval(deliverCheckIn, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [booting, user, deliverCheckIn]);
 
   const markChatRead = useCallback(
     async (chatId) => {
@@ -1767,6 +1871,7 @@ export function StoreProvider({ children }) {
     chats,
     refreshChats,
     openChatWith,
+    nudgeFromFriend,
     openGroupChat,
     sendChatMessage,
     markChatRead,

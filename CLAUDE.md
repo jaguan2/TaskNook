@@ -383,6 +383,35 @@ running `git commit` yourself.
   usually not whoever is working, because four bots answering every line is a
   machine gun. All deterministic from (username, text, clock, seed) so the
   tests can pin an exact reply at an exact instant.
+  **You PICK what to say — an RPG menu, not a text box** (owner decision,
+  2026-08-14). The bots' replies are canned, so a free-text field promises a
+  conversation they can't have: you write something thoughtful and get a
+  non-sequitur. `dialogueOptions(username, now, {theirTurn})` offers three
+  lines chosen by what the bot is DOING (`MENU` per npcActivity state) and
+  `replyToOption` answers the OPTION rather than the words on the button —
+  the intent is already known, so nothing is inferred and the regexes can't
+  read it differently. "Thanks" only appears when the last line is theirs.
+  `OPTION_LABEL` is both the button text and the body posted as you, so what
+  you clicked is what appears in the thread. Typed text still works through
+  `botReply`; both entry points funnel into ONE `replyFor`, so they can't
+  drift into telling different stories. The menu re-derives off the 30s
+  timestamp tick, so a friend finishing a block mid-thread starts offering
+  different things to say.
+  **Bots message YOU, twice over.** `dailyCheckIn(usernames, dayKey)` is one
+  unprompted hello a day — one, not one per friend, because four threads
+  opening every morning is a notification pile — pure in the date, scheduled
+  into waking hours (08:00–21:00) so it lands while you're there rather than
+  waiting for you. The store's `deliverCheckIn` owns the only impure half
+  ("has it happened?"), marked per device in `tasknook.chat.checkin` and
+  claimed BEFORE the write so two overlapping ticks can't both send it; a
+  failed send releases the day. And the break nudge now also arrives as a
+  friend noticing (`breakNudgeLine` + `nudgeSpeaker`, which picks whoever
+  ISN'T mid-block — a reminder to rest, delivered by someone deep in a focus
+  block, is the one voice that shouldn't give it). That is IN ADDITION to the
+  toast, deliberately: a chat message can sit unread behind a closed drawer,
+  and a health nudge that's easy to miss isn't one. Both unprompted paths go
+  through `botSays`, which opens the thread (idempotent) and posts as the
+  friend.
   **The reply timers live in the STORE, not the panel** — same lesson as the
   knock: a reply owed by a drawer that has closed never arrives. Verified by
   driving the real app: close the drawer mid-wait and the answer still lands,
