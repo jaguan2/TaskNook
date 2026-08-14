@@ -3,8 +3,14 @@ import { useStore } from "../store";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
 import { useArmed } from "../lib/useArmed";
 
+// The three are a SCALE, so all three colours have to be fixed ones or the
+// scale stops meaning anything. `danger` rather than `rose` for high: rose is
+// re-tinted per theme (blue in shore, grey in linen, tan in walnut), so urgent
+// tasks lost their urgency in three of the four presets — and in the warm ones
+// they landed next to medium's amber, making the top two steps indistinguishable.
+// Same reasoning the delete grammar already uses. amber/sage are fixed already.
 const PRIORITY_STYLE = {
-  high: "bg-rose/30 text-rose border-rose/40",
+  high: "bg-danger/25 text-danger border-danger/40",
   medium: "bg-amber/20 text-amber border-amber/40",
   low: "bg-sage/20 text-sage border-sage/40",
 };

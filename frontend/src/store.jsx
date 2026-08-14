@@ -1512,12 +1512,23 @@ export function StoreProvider({ children }) {
   // Checked on a slow timer as well as on arrival: the app is left open for
   // hours at a time (it's half ambient furniture), so the appointed minute
   // usually passes while you're already looking at it.
+  //
+  // Waits for the FRIENDS, not just for boot. `setBooting(false)` fires the
+  // moment the local account is authenticated, which is several requests before
+  // `refreshAll` has loaded anyone to hear from — so this ran against an empty
+  // list, bailed, and (having no dependency on `friends`) never re-ran. The
+  // check-in then had to wait out the 5-minute interval, and a launch shorter
+  // than that dropped the day's message entirely. Found by driving the real app
+  // with the clock shifted past the scheduled minute; the unit tests couldn't
+  // see it, because the bug was in WHEN the pure function gets called.
+  // `friends.length` rather than `friends`: refreshAll hands back a new array
+  // every time, which would tear down and rebuild the interval on every tick.
   useEffect(() => {
-    if (booting || !user) return undefined;
+    if (booting || !user || !friends.length) return undefined;
     deliverCheckIn();
     const id = setInterval(deliverCheckIn, 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, [booting, user, deliverCheckIn]);
+  }, [booting, user, friends.length, deliverCheckIn]);
 
   const markChatRead = useCallback(
     async (chatId) => {
