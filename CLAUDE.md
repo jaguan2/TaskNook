@@ -92,12 +92,19 @@ than publishing GitHub Releases — the download link never moves.
 **Rebuild the exe on EVERY change that reaches it** (owner's decision,
 2026-08-01), so the committed binary is never behind the source. Anything
 that touches `frontend/`, `backend/`, `desktop.py` or `build-exe.bat`
-reaches it; a docs- or test-only commit does not. The cost is real and
-accepted: each rebuild adds ~42 MB to git history **permanently** (the repo
-was already 470 MB across 24 builds when this rule was adopted), so `.git`
-grows by roughly the size of the exe per shipped commit and clones get
-slower forever. Git LFS is the escape hatch if that ever bites — it keeps
-both this rule and the stable link. `TaskNook.command` remains the
+reaches it; a docs- or test-only commit does not. The cost of this is far
+lower than it looks, and the earlier note here (~42 MB per rebuild
+permanently, "470 MB across 24 builds") was measuring LOOSE objects, not what
+the repo actually costs. Measured 2026-08-13 with 33 exe builds in history:
+`.git` was 1.5 GB loose and packed to **168 MB** — one `git gc` away. Two
+consecutive builds differ only in the frontend bundle and a few bytes of
+PyInstaller header, so git deltas them to a few MB each; the marginal cost of
+a shipped build is single-digit MB, not the size of the exe. What that means
+in practice: run `git gc` occasionally (it is not automatic enough here, since
+a 42 MB loose blob per build blows past the usual thresholds), and don't
+reach for Git LFS on size grounds alone — 33 builds fit in 168 MB. LFS
+remains the escape hatch, and it would keep both this rule and the stable
+link, but nothing about the current numbers demands it. `TaskNook.command` remains the
 macOS/Linux one-click launcher (build + install + launch from source).
 `desktop.py` is frozen-aware (`sys._MEIPASS`, writable-DB fallback under
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
@@ -156,6 +163,20 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `PORT=5000` — change the API port
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
+
+## Committing
+
+**Never put `Co-Authored-By: Claude …` (or any AI attribution) in a commit
+message here.** GitHub turns a co-author trailer into a repo CONTRIBUTOR, so
+two such commits — both of them routine line-ending fixes — put a `claude`
+avatar in the contributors list beside the owner's. Getting it back out cost a
+full `main` history rewrite (2026-08-13): every SHA changed, which made the
+remote an "unrelated history" to every existing clone and broke `git pull`
+until each one was reset onto it. The default Claude Code convention adds that
+trailer; this repo overrides it. The owner writes and makes the commits —
+write the message for them to paste (their style: one `- TAG: user-facing
+line` per change, TAG ∈ NEW/ADJUSTED/FIXED/REMOVED/UPDATED) rather than
+running `git commit` yourself.
 
 ## Conventions & key facts
 
