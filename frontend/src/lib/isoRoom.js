@@ -1017,8 +1017,13 @@ export const ISO_PRESETS = {
   loft: {
     label: "Loft",
     icon: "⭐",
-    // L-shaped attic: the front-right corner is cut away.
-    size: { w: 10, d: 8, cuts: [{ corner: "front", cw: 4, cd: 3 }] },
+    // A full 10×8 rectangle. It used to cut a 4×3 notch out of the front corner
+    // for an L-shaped attic, but this is the preset a fresh install opens on —
+    // the first thing anyone sees shouldn't be a room with a bite taken out of
+    // it, and the floor plan is a drag-to-draw grid, so anyone who wants the L
+    // can paint it back in two strokes. Removing a cut only ADDS floor, so no
+    // placement can be stranded by this.
+    size: { w: 10, d: 8 },
     items: [
       // Rebuilt: the first version left the dresser, the standing mirror, the
       // guitar, the vinyl crate AND the floor lamp adrift in open floor, which

@@ -2964,6 +2964,13 @@ function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false }) {
   const cx = side * 4;
   const hipW = legW / 2 + 0.4;
   const ankW = legW / 2 - 0.2;
+  // The knee, as a proportion of the leg. Not a bend — a tonal break. At this
+  // scale a bent joint is invisible noise (docs/MODELS.md), but the eye still
+  // needs SOMETHING to split thigh from shin, or the two legs read as one
+  // undivided column and the figure looks like 70% leg however good the ratio
+  // is. 0.46 up from the ankle is where a knee actually sits.
+  const kneeY = -legH * 0.46;
+  const kneeW = ankW + (hipW - ankW) * 0.46;
   return (
     <g>
       <path
@@ -2972,11 +2979,53 @@ function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false }) {
             L ${cx - ankW + 0.8} ${-1.4} Q ${cx - ankW} ${-1.4} ${cx - ankW} ${-2.2} Z`}
         fill={far ? TROUSER_FAR : TROUSER}
       />
+      {/* Every box in the catalog carries three tones; the legs carried ONE
+          flat fill, which is most of why they read as a single dark mass. A lit
+          edge and a shadowed one give the limb a round side, and they're
+          translucent overlays rather than fixed hues so they survive any
+          trouser colour (docs/MODELS.md). Light comes from the upper right,
+          same as the contact shadows. */}
+      <path
+        d={`M ${cx + hipW - 1.5} ${-legH} L ${cx + hipW} ${-legH} L ${cx + ankW} ${-2.4}
+            L ${cx + ankW - 1.3} ${-2.4} Z`}
+        fill="#fff"
+        opacity={far ? 0.05 : 0.1}
+      />
+      <path
+        d={`M ${cx - hipW} ${-legH} L ${cx - hipW + 1.3} ${-legH} L ${cx - ankW + 1.1} ${-2.4}
+            L ${cx - ankW} ${-2.4} Z`}
+        fill="#000"
+        opacity="0.13"
+      />
+      {/* The knee: the soft shadow that falls UNDER a kneecap, and nothing
+          else. Drawn as an ellipse INSET from both edges — a full-width bar
+          spanning the leg reads as a seam or a cropped hem, which is a garment
+          detail, not a joint. One mark, but it's what turns a column into thigh
+          and shin. */}
+      <ellipse
+        cx={cx}
+        cy={kneeY}
+        rx={kneeW - 0.7}
+        ry="1.5"
+        fill="#000"
+        opacity={far ? 0.1 : 0.13}
+      />
       <rect x={cx - ankW} y={-4.6} width={ankW * 2} height="1.7" fill="#000" opacity="0.14" />
-      {/* nudged outward for stance; the light catch keeps the shoe reading
-          as its own shape rather than a wider ankle */}
+      {/* The shoe has to TERMINATE the leg. It was #2b2350 under #4a3a5b
+          trousers — both dark, near the same hue, so on a dark floor the foot
+          dissolved into the trouser and the leg ran unbroken to the ground.
+          A brighter sole edge and a stronger top catch give it its own
+          silhouette without making the foot bigger. */}
       <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
-      <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.08 : 0.12} />
+      <ellipse
+        cx={cx + side * 0.5}
+        cy="1.1"
+        rx="4.9"
+        ry="1.5"
+        fill="#fff"
+        opacity={far ? 0.09 : 0.16}
+      />
+      <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
     </g>
   );
 }
@@ -3304,6 +3353,17 @@ function Resident({
   if (lying) {
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
+        {/* A bed's long axis is a DIAGONAL on screen, and its head end is the
+            one with the pillows. This pose was drawn flat along screen-x with
+            the head at -x, which put the sleeper across the mattress at ~27° to
+            it AND head-down at the foot of the bed, feet on the pillows.
+            One wrapper fixes both: `scale(-1,1)` swaps the ends, then
+            `rotate(-SKEW)` lays the body along the bed. SKEW is the projection's
+            own angle (atan(TILE_H / TILE_W)) — the same number every wall sprite
+            skews by — so the body follows the mattress exactly rather than by
+            eye. Its own <g>: the breathe animation below can't share an element
+            with a transform attribute. */}
+        <g transform={`rotate(${-SKEW}) scale(-1,1)`}>
         <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
           {/* body along the bed, knees slightly raised */}
           <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
@@ -3327,6 +3387,7 @@ function Resident({
           <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
           <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
           <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
+        </g>
         </g>
       </g>
     );

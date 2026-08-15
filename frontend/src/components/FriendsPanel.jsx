@@ -307,9 +307,15 @@ export default function FriendsPanel() {
                   style={{ width: `${f.completion}%` }}
                 />
               </div>
-              {/* The door and the presence line share a row: what they're
-                  doing on the right, how to reach them on the left. */}
+              {/* Two ways to reach them on the left, what they're doing on the
+                  right. The ACTIONS are their own group: as three children of
+                  one `justify-between` row, the door button floated in the
+                  middle and landed at a different x on every card, because its
+                  position was set by the length of the presence text beside it
+                  ("pottering about" vs "focusing — 6m left"). Chat and the door
+                  are a pair and now sit as one. */}
               <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => chatWith(f)}
                   title={`Message ${f.displayName}`}
@@ -343,10 +349,11 @@ export default function FriendsPanel() {
                       : "🚪 Visit"}
                   </button>
                 )}
+                </div>
                 {(() => {
                   const a = npcActivity(f.username, now);
                   return (
-                    <span className="shrink-0 text-[11px] text-petal/60">
+                    <span className="shrink-0 text-right text-[11px] text-petal/60">
                       {ACTIVITY_LINE[a.state](a.minutesLeft)}
                     </span>
                   );

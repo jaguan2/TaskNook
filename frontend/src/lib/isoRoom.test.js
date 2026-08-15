@@ -879,11 +879,23 @@ describe("you, in the room", () => {
 // `clampIsoPlacement` is bounds-only by design, so the caller has to check —
 // which `newIsoPlacement` does and `rotateIsoItem` didn't.
 describe("rotating on a drawn floor", () => {
-  // The shipped default room is L-shaped, which is why this was reachable
-  // without anyone painting a custom floor.
-  const loft = validateIsoLayout(isoPresetLayout(DEFAULT_ISO_PRESET));
+  // An L-shaped floor drawn HERE rather than borrowed from whichever preset is
+  // currently the default. It used to use the shipped default, which was
+  // L-shaped — so the day the default became a plain rectangle these tests
+  // failed for a reason that had nothing to do with rotation. What they need is
+  // *a* non-rectangular room, and that's a fixture, not a product decision.
+  const loft = validateIsoLayout({
+    w: 10,
+    d: 8,
+    mask: Array.from({ length: 8 }, (_, y) =>
+      // The same bite the Loft used to carry: a 4×3 notch out of the front
+      // corner, i.e. the last three rows lose their last four columns.
+      y >= 5 ? "111111" + "0000" : "1111111111"
+    ),
+    placements: [],
+  });
 
-  it("the default room really is non-rectangular", () => {
+  it("the fixture really is non-rectangular", () => {
     expect(loft.mask.join("")).toMatch(/0/);
   });
 
