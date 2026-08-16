@@ -118,19 +118,49 @@ Two rules that come out of it:
   way), because a fixed darker hue only matches the one colour it was tuned
   against. The near arm gets a white catch so it doesn't vanish into a torso
   it shares a colour with.
+- **Limbs are SEGMENTS meeting at joints** (owner call, 2026-08-16 — this
+  revises the old "a bend is invisible noise" line). The way Roblox split R6
+  limbs into R15 parts: an arm is upper + forearm meeting at an elbow, a
+  standing leg is thigh + shin meeting at a knee, and the joint reads from
+  the SEAM — the width step and the angle change — not from anatomical
+  detail. Rest poses are Sims-soft: the elbow bows slightly out and returns
+  to the hand, the knee sits a hair off the hip-ankle line; a limb is never
+  a straight column. **Each limb is ONE CONTINUOUS POLYLINE bent at the
+  joint, washed ONCE** — never per-segment capsules with per-segment washes:
+  where round caps overlap, translucent layers double into lens-shaped blobs
+  and the limb reads as sausage links (v2 shipped exactly that; the owner's
+  in-app screenshot caught it). Joint creases go on the INSIDE of the bend
+  and faint (centred, they read as stains). Each limb stays ONE `<g>` so the
+  walk/gesture/held wrappers rotate it whole; a short sleeve ends AT the
+  elbow, which is what makes bare forearms read. **Parts NEST, and one light
+  runs through them** (owner: "it should look like one cohesive piece"): a
+  limb's root is buried INSIDE the part it hangs from — the shoulder starts
+  within the torso outline, the hip under the hem — with a faint occlusion
+  crease where they meet, and every limb carries the same outer-light /
+  inner-shade edge treatment. A capsule started beside the torso leaves a
+  step at the armpit and reads as a part from a different kit. Hair
+  masses carry the same three-tone treatment as every box (`volumeFor` in
+  `character/hair.jsx`): lit upper curve, shadowed underside — one flat
+  colour is a decal whatever its outline.
 
-**Hair is THREE layers, and the split is load-bearing.** A style is one
-`HAIR_REGISTRY` entry (`character/hair.jsx`) providing any of them: `front`
-may cover the crown and stop at the temples — **nothing in it descends past
-the eye line** (`headY + 2`); `behind` is crown volume, drawn before the head
-circle but inside the gesture wrappers so it turns with a head turn; `length`
-is everything that falls past the jaw, drawn **before the torso**. Masses ride
-`HAIR_LIFT` (1.2px) off the skull with a brow shadow — hair drawn on the
-skull's own radius is a decal, not a haircut. Garments mirror the scheme in
-`GARMENT_REGISTRY` (`character/garments.jsx`): outer layers draw a `shell`
-BIGGER than the body with an under-shadow at the hem (`OUTER_BULK`), and a
-`collar` slot renders after the body's own neck — the one spot the torso pass
-can't reach. Registry keys are pinned against the profile catalog both ways.
+**Hair is built with the WIG METHOD** (researched 2026-08-16; the previous
+cap-plus-temple-tabs construction was the textbook amateur tell — assembled
+pieces instead of one mass). A style is one `HAIR_REGISTRY` entry
+(`character/hair.jsx`) drawn with the kit: **one inflated closed silhouette**
+(`wigPath` — a dome hugging the skull low and growing toward the crown,
+carved into 3–6 VARIED round teeth; even teeth read as a comb; a
+negative-depth tooth carves the curtains' parting notch), **back masses in
+the SHADOW TONE** (`farColor` — the cheapest depth move there is), and an
+interior budget of at most three marks (the `brow` shadow, one crown `shine`,
+the odd anchored line). Same-tone shapes may compose freely — a seam only
+exists where tones meet. The kit THROWS if a style's clumps don't close its
+own outline. Layers: `front` (over the head, inside the gesture wrappers),
+`length` (behind the torso), `back` (replaces everything when the figure
+turns away — see the `away` prop). Garments mirror the scheme in
+`GARMENT_REGISTRY`: outer layers draw a `shell` BIGGER than the body with an
+under-shadow at the hem (`OUTER_BULK`), a `collar` slot renders after the
+body's own neck, and a `back` slot serves the turned-away view (the hoodie's
+hood hangs down it). Registry keys are pinned against the catalog both ways.
 
 **Learned from:** every style once put its length in `HairFront`, which paints
 after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —

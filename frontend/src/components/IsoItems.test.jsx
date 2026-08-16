@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
-import { GARMENT_REGISTRY, HAIR_REGISTRY } from "./character";
+import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { DEFAULT_CHARACTER, HAIR_STYLES, MODELS, OUTFITS } from "../lib/profile";
+import { DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -69,6 +69,14 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(() => draw(<Sprite seated />)).not.toThrow();
       expect(() => draw(<Sprite seated activity="focus" />)).not.toThrow();
       expect(() => draw(<Sprite moving />)).not.toThrow();
+      // Turned away: the back of the head replaces the face — it must render
+      // AND actually differ (a back view identical to the front would mean
+      // the away prop is wired to nothing).
+      const front = draw(<Sprite />).container.innerHTML;
+      cleanup();
+      const back = draw(<Sprite away />).container.innerHTML;
+      cleanup();
+      expect(back).not.toBe(front);
     }
   });
 
@@ -141,6 +149,23 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(Object.keys(GARMENT_REGISTRY).sort()).toEqual(
         OUTFITS.map((o) => o.key).sort()
       );
+      expect(Object.keys(HAT_REGISTRY).sort()).toEqual(HATS.map((h) => h.key).sort());
+    });
+
+    it("every hat renders, and each draws its own geometry", () => {
+      const seen = new Map();
+      for (const { key } of HATS) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, hat: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}"`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
     });
 
     it("every hair style draws its own geometry", () => {

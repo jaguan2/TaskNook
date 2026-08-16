@@ -15,7 +15,7 @@
  * Everything here is a pure function so it can be tested in the fast `node`
  * environment; nothing touches the DOM, the store, or `localStorage`.
  */
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, TORSO_RANGE, LEG_H, TORSO_H } from "./body";
 
 // --------------------------------------------------------------------------- //
 // MBTI
@@ -189,6 +189,22 @@ export const HAIR_STYLES = [
 ];
 
 /**
+ * Hats — the first ACCESSORY slot, orthogonal to hair and garments (the
+ * Roblox lesson: accessories are where variety gets cheap). Artwork lives in
+ * components/character/hats.jsx (HAT_REGISTRY, same both-ways key contract
+ * as hair). "none" is a real catalog entry, not an absence — the picker
+ * needs a button for bare-headed.
+ */
+export const HATS = [
+  { key: "none", label: "None" },
+  { key: "beanie", label: "Beanie" },
+  { key: "cap", label: "Cap" },
+  { key: "bucket", label: "Bucket hat" },
+  { key: "beret", label: "Beret" },
+  { key: "straw", label: "Sun hat" },
+];
+
+/**
  * The wardrobe. `outfit` was a lone hex for years, so every resident in the app
  * wore the same sweater in a different colour — nine hairstyles against one
  * garment.
@@ -225,6 +241,19 @@ export const OUTFITS = [
 
 // Trousers were a hard-coded constant, so the whole lower half of every
 // resident was the same colour — half the figure, none of it yours.
+/**
+ * Prints on the torso — a garment is more than a solid colour (owner call).
+ * Drawn in the INNER colour, clipped to the torso path, under whatever the
+ * garment layers on top; each earns its slot by being tellable from the
+ * others at 57px, same bar as everything else.
+ */
+export const PATTERNS = [
+  { key: "none", label: "Plain" },
+  { key: "stripes", label: "Stripes" },
+  { key: "chest", label: "Chest stripe" },
+  { key: "dots", label: "Dots" },
+];
+
 export const TROUSER_COLORS = [
   { key: "plum", hex: "#4a3a5b" },
   { key: "denim", hex: "#3f5a7a" },
@@ -273,14 +302,19 @@ export const DEFAULT_CHARACTER = {
   garment: "sweater",
   inner: "#f2e9dd",
   trouser: "#4a3a5b",
+  hat: "none",
+  print: "none",
   expression: "calm",
   build: "average",
   width: BUILD_SHAPE.average.halfW,
   height: LEG_H,
+  torso: TORSO_H,
 };
 
 const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
+const HAT_KEYS = new Set(HATS.map((h) => h.key));
+const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
 /** The garment's own rules, for the sprite: sleeve length and whether it layers. */
 export const garmentOf = (key) => OUTFITS.find((o) => o.key === key) || OUTFITS[0];
@@ -332,6 +366,8 @@ export function validateCharacter(raw) {
     garment: pickKey(c.garment, GARMENT_KEYS, DEFAULT_CHARACTER.garment),
     inner: pickHex(c.inner, DEFAULT_CHARACTER.inner),
     trouser: pickHex(c.trouser, DEFAULT_CHARACTER.trouser),
+    hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
+    print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,
     // Width defaults from the BUILD, not from a fixed number — a pre-slider
@@ -339,6 +375,9 @@ export function validateCharacter(raw) {
     // average the first time it round-trips through here.
     width: pickNum(c.width, WIDTH_RANGE, BUILD_SHAPE[build].halfW),
     height: pickNum(c.height, HEIGHT_RANGE, LEG_H),
+    // Legs and torso are separate axes; pre-split saves had no torso and
+    // keep the classic one.
+    torso: pickNum(c.torso, TORSO_RANGE, TORSO_H),
   };
 }
 

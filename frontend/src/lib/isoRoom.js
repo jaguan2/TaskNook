@@ -311,7 +311,8 @@ export const ISO_ITEMS = {
   // again when the figure got its proper proportions and the cloud went with
   // the taller head.
   you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 84, persona: true, self: true, unique: true },
-  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 61, persona: true },
+  // hitH covers the TALLEST slider combo (long legs + long torso ≈ 64px).
+  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 66, persona: true },
   // ---- more pets: same roamer engine as the cat, different silhouettes ----
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
   bunny: { label: "Rabbit", icon: "🐇", foot: [0.7, 0.6], hitH: 26, roamer: true },

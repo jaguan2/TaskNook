@@ -13,18 +13,13 @@
 // The registries are the scalability move: adding a style used to mean edits
 // to three switch statements that nothing tied together; now it's one object,
 // and tests pin registry keys against the profile catalog both ways.
+import { useId } from "react";
 import { SKEW, project } from "../../lib/iso";
 import { tinted } from "../../lib/tint";
 import { DEFAULT_CHARACTER, MOODS, garmentOf } from "../../lib/profile";
+import { HEAD_R, figureMetrics, torsoGeom } from "../../lib/body";
 import {
-  HEAD_R,
-  SEAT_TORSO_Y,
-  SEAT_HEAD_Y,
-  TORSO_H,
-  figureMetrics,
-  torsoGeom,
-} from "../../lib/body";
-import {
+  Arm,
   HAIR,
   INK,
   SEAT_KNEE_Y,
@@ -36,10 +31,12 @@ import {
   hangLimb,
 } from "./body";
 import { Garment, GarmentCollar } from "./garments";
-import { HairBehind, HairFront, HairLength } from "./hair";
+import { HairBack, HairBehind, HairFront, HairLength } from "./hair";
+import { Hat } from "./hats";
 
 export { HAIR_REGISTRY } from "./hair";
 export { GARMENT_REGISTRY } from "./garments";
+export { HAT_REGISTRY } from "./hats";
 
 /**
  * The resident. Small enough that only the silhouette carries, so what got
@@ -58,6 +55,10 @@ export function Resident({
   // scene needs.
   activity = null,
   moving = false,
+  // Facing AWAY from the camera — the wander engine turns a figure around
+  // when it walks up-screen. The body is symmetric enough to share; the head
+  // swaps to the back of its hair and the garments to their backs.
+  away = false,
   // Dangling from your cursor mid drag-and-drop. Limbs go limp and the whole
   // body swings from the scruff of the neck — the pinched-chibi pose, which is
   // the entire point of picking someone up rather than pointing at a tile.
@@ -65,6 +66,9 @@ export function Resident({
   character,
 }) {
   const c = project(0.4, 0.4);
+  // Per-instance id for the torso clip the print pattern needs — SVG ids are
+  // document-global and a room holds many residents.
+  const clipId = useId();
   // The character is validated at the store boundary, but this sprite is also
   // rendered by panel previews and tests, so it stands alone with the classic
   // resident as its default.
@@ -79,8 +83,21 @@ export function Resident({
   // collar hang off the same `sh` the body actually has — placed from the
   // build's half-width alone, the narrower `fem` shoulders left both arms
   // floating in a gap beside the chest.
-  const { sh, wa, hem, legW, thighW, shinW, legH, standTorsoY, standHeadY } =
-    figureMetrics(ch);
+  const {
+    sh,
+    wa,
+    hem,
+    legW,
+    thighW,
+    shinW,
+    legH,
+    torsoH,
+    waistDrop,
+    standTorsoY,
+    standHeadY,
+    seatTorsoY,
+    seatHeadY,
+  } = figureMetrics(ch);
   // Lying down is its own drawing, not a squashed sitting pose: dropped on a
   // bed the resident used to perch bolt upright on the duvet.
   if (lying) {
@@ -128,8 +145,8 @@ export function Resident({
   // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
   // the seat line (sinking a px into the cushion), not hovering above it —
   // and low enough that the thighs emerge from under it rather than behind it.
-  const torsoY = seated ? SEAT_TORSO_Y : standTorsoY;
-  const headY = seated ? SEAT_HEAD_Y : standHeadY;
+  const torsoY = seated ? seatTorsoY : standTorsoY;
+  const headY = seated ? seatHeadY : standHeadY;
   // The floor is at +seatH (the scene lifts a seated resident by exactly
   // that), less a couple of px so the sole meets it instead of sinking
   // through. The floor keeps a low cushion from reducing the shin to a stub.
@@ -143,9 +160,14 @@ export function Resident({
   // so the hand hangs from the same spot — because a hoodie shell one step
   // proud of the torso over sweater-thin arms reads as a bib, not a layer.
   const wornGarment = garmentOf(ch.garment);
-  const sleeveH = wornGarment.sleeves === "short" ? 5.5 : 12;
+  const sleeveShort = wornGarment.sleeves === "short";
   const sleeveBulk = wornGarment.outer ? 0.9 : 0;
   const trouser = ch.trouser || TROUSER;
+  // A hat REPLACES the crown hair (front + behind layers), the research
+  // rule: a hat drawn over the full dome reads as a balloon perched on a
+  // wig. LENGTH survives — drapes, plaits and tails keep falling from under
+  // the rim, which is what makes the hat read as worn over a hairstyle.
+  const hatted = ch.hat && ch.hat !== "none";
   const typing = activity === "focus" && seated;
   // A break used to be indistinguishable from idle in the room: the phase
   // reached the app and stopped at the thought bubble. Now they put the keyboard
@@ -206,10 +228,62 @@ export function Resident({
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
         {(() => {
-          const { body, band } = torsoGeom({ sh, wa, hem, top: torsoY });
+          const { body, band } = torsoGeom({
+            sh,
+            wa,
+            hem,
+            top: torsoY,
+            bot: torsoY + torsoH,
+            waistY: torsoY + waistDrop,
+          });
           return (
             <>
               <path d={body} style={outfit} />
+              {/* The PRINT: pattern shapes in the inner colour, clipped to
+                  the torso so they can never spill past the silhouette. Under
+                  the garment layer — an outer shell covers its print exactly
+                  the way a real jacket covers a shirt. */}
+              {ch.print && ch.print !== "none" && (
+                <>
+                  <clipPath id={clipId}>
+                    <path d={body} />
+                  </clipPath>
+                  <g clipPath={`url(#${clipId})`} fill={ch.inner}>
+                    {ch.print === "stripes" &&
+                      [4.5, 9.5, 14.5].map((dy) => (
+                        <rect
+                          key={dy}
+                          x={-hem - 2}
+                          y={torsoY + dy}
+                          width={(hem + 2) * 2}
+                          height="2.1"
+                          opacity="0.85"
+                        />
+                      ))}
+                    {ch.print === "chest" && (
+                      <rect
+                        x={-hem - 2}
+                        y={torsoY + 5}
+                        width={(hem + 2) * 2}
+                        height="4.6"
+                        opacity="0.9"
+                      />
+                    )}
+                    {ch.print === "dots" &&
+                      [5.5, 9.5, 13.5].flatMap((dy, row) =>
+                        [-6, -2, 2, 6].map((dx) => (
+                          <circle
+                            key={`${dx},${dy}`}
+                            cx={dx + (row % 2) * 2}
+                            cy={torsoY + dy}
+                            r="0.95"
+                            opacity="0.85"
+                          />
+                        ))
+                      )}
+                  </g>
+                </>
+              )}
               {/* The garment, over the plain torso — see garments.jsx. Drawn
                   before the volume shading so the light catch and the waist
                   band fall across the whole dressed body, not just the bits of
@@ -221,9 +295,11 @@ export function Resident({
                   wa={wa}
                   hem={hem}
                   top={torsoY}
-                  bot={torsoY + TORSO_H}
+                  bot={torsoY + torsoH}
+                  waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
+                  away={away}
                 />
               </g>
               {/* Volume the same way every box in the catalog gets it: the top
@@ -254,15 +330,18 @@ export function Resident({
                   walking from being wheeled along. */}
               <g className={moving ? "walk-arm-b" : undefined}>
                 <g style={hangLimb(held, -7)}>
-                {/* Short sleeves bare the forearm, which is the outline change
-                    a t-shirt or a dress is FOR — the sleeve stops at the elbow
-                    and the rest of the arm is skin. Drawn as skin first with
-                    the sleeve over it, so one number (`sleeveH`) moves the
-                    hemline without a second copy of the arm. */}
-                <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill={skin} />
-                <rect x={-sh - 3.4 - sleeveBulk} y={torsoY + 5} width={5 + sleeveBulk} height={sleeveH} rx="2.5" style={outfit} />
-                <rect x={-sh - 3.4 - sleeveBulk} y={torsoY + 5} width={5 + sleeveBulk} height="12" rx="2.5" fill="#000" opacity="0.16" />
-                <circle cx={-sh - 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+                {/* Two segments and an elbow — see Arm. A short sleeve stops
+                    AT the joint and the forearm shows as skin. */}
+                <Arm
+                  side={-1}
+                  sh={sh}
+                  torsoY={torsoY}
+                  skin={skin}
+                  outfit={outfit}
+                  shortSleeve={sleeveShort}
+                  bulk={sleeveBulk}
+                  far
+                />
                 </g>
               </g>
               {/* The eye-rub is suppressed on a break because this hand is
@@ -271,12 +350,15 @@ export function Resident({
               <g className={moving ? "walk-arm-a" : undefined}>
               <g className={typing || resting || moving || held ? undefined : "gesture-rub"}>
               <g style={hangLimb(held, 8)}>
-                <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill={skin} />
-                <rect x={sh - 1.6} y={torsoY + 5} width={5 + sleeveBulk} height={sleeveH} rx="2.5" style={outfit} />
-                {/* the near arm catches the light instead of vanishing into the
-                    torso it shares a colour with */}
-                <rect x={sh - 1.6} y={torsoY + 5} width={5 + sleeveBulk} height="12" rx="2.5" fill="#fff" opacity="0.1" />
-                <circle cx={sh + 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
+                <Arm
+                  side={1}
+                  sh={sh}
+                  torsoY={torsoY}
+                  skin={skin}
+                  outfit={outfit}
+                  shortSleeve={sleeveShort}
+                  bulk={sleeveBulk}
+                />
                 {/* The mug lives INSIDE the arm, so it tracks the hand through
                     every gesture for free — it rises with a stretch instead of
                     hanging in the air where the hand used to be. Same palette as
@@ -334,39 +416,60 @@ export function Resident({
           <g className={typing || resting || moving || held ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
               {/* Inside the gesture wrappers on purpose: hair turns with the
-                  head. Behind the face is what matters, not behind the body. */}
-              <HairBehind style={ch.hair} headY={headY} color={hairColor} />
+                  head. Behind the face is what matters, not behind the body.
+                  Turned away, the face side of the skull IS the back of the
+                  head: HairBack covers it and the hairline layers stand down. */}
+              {!hatted && !away && (
+                <HairBehind style={ch.hair} headY={headY} color={hairColor} />
+              )}
               <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-              <HairFront style={ch.hair} headY={headY} color={hairColor} />
+              {away && !hatted && (
+                <HairBack style={ch.hair} headY={headY} color={hairColor} />
+              )}
+              {!hatted && !away && (
+                <HairFront style={ch.hair} headY={headY} color={hairColor} />
+              )}
               {/* A sheen on the crown. The hair is the biggest single shape on the
                   figure and it was one flat colour, so it read as a helmet — this is
                   the same white light-catch the shoulders and the boxes get, aimed
-                  up-right at the light. */}
-              <ellipse
-                cx="2.4"
-                cy={headY - 4.1}
-                rx="3.1"
-                ry="1.6"
-                fill="#fff"
-                opacity="0.16"
-                transform={`rotate(-22 2.4 ${headY - 4.1})`}
-              />
-              <Face expression={ch.expression} headY={headY} />
-              <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-              <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+                  up-right at the light. (The hat brings its own light catch.) */}
+              {!hatted && (
+                <ellipse
+                  cx="2.4"
+                  cy={headY - 4.1}
+                  rx="3.1"
+                  ry="1.6"
+                  fill="#fff"
+                  opacity="0.16"
+                  transform={`rotate(-22 2.4 ${headY - 4.1})`}
+                />
+              )}
+              {/* The hat, worn OVER the finished hair and its sheen — inside
+                  the gesture group, so it turns with a glance instead of
+                  hovering while the head moves under it. */}
+              <Hat kind={ch.hat} headY={headY} />
+              {!away && <Face expression={ch.expression} headY={headY} />}
+              {!away && (
+                <>
+                  <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+                  <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
+                </>
+              )}
               {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
                   keyframes outrank while they run but which takes over the moment
                   they don't — so under reduced motion the mouth is simply shut,
                   rather than a character left permanently gaping. */}
-              <ellipse
-                className="gesture-yawn-mouth"
-                cx="0"
-                cy={headY + 5.1}
-                rx="1.9"
-                ry="2.5"
-                fill={INK}
-                opacity="0"
-              />
+              {!away && (
+                <ellipse
+                  className="gesture-yawn-mouth"
+                  cx="0"
+                  cy={headY + 5.1}
+                  rx="1.9"
+                  ry="2.5"
+                  fill={INK}
+                  opacity="0"
+                />
+              )}
             </g>
           </g>
         </g>
@@ -456,11 +559,11 @@ export function You({ mood, mirrored = false, ...rest }) {
   // cloud with the skull instead of leaving it at a height the head no
   // longer reaches. Lying keeps its fixed spot — that pose's head is its
   // own drawing.
-  const { standHeadY } = figureMetrics(rest.character);
+  const { standHeadY, seatHeadY } = figureMetrics(rest.character);
   const spot = rest.lying
     ? { x: -14, y: -30 }
     : rest.seated
-    ? { x: 10, y: SEAT_HEAD_Y - 17 }
+    ? { x: 10, y: seatHeadY - 17 }
     : { x: 10, y: standHeadY - 15.5 };
   return (
     <g>

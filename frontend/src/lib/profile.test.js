@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H, TORSO_H } from "./body";
 import {
   MBTI_TYPES,
   MODELS,
@@ -143,9 +143,18 @@ describe("validateCharacter", () => {
       garment: "sweater",
       inner: DEFAULT_CHARACTER.inner,
       trouser: DEFAULT_CHARACTER.trouser,
+      hat: "none",
+      print: "none",
       width: BUILD_SHAPE.slim.halfW,
       height: LEG_H,
+      torso: TORSO_H,
     });
+  });
+
+  it("hats: keeps a real one, refuses an invented one, defaults bare-headed", () => {
+    expect(validateCharacter({ hat: "beanie" }).hat).toBe("beanie");
+    expect(validateCharacter({ hat: "fedora" }).hat).toBe("none");
+    expect(validateCharacter({}).hat).toBe("none");
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {

@@ -1,252 +1,390 @@
-// Every hairstyle's ARTWORK — one registry entry per style.
+// Every hairstyle's ARTWORK — one registry entry per style, built with the
+// WIG METHOD (researched 2026-08-16 from professional stylized-hair craft and
+// the avataaars/OpenPeeps production SVG sources):
 //
-// lib/profile.js's HAIR_STYLES owns the vocabulary (keys + labels); this
-// registry owns the drawing, and a test pins the two key sets equal both
-// ways. Before the registry a style was up to THREE switch cases across three
-// functions, and nothing tied them together — the exact drift that once let a
-// style ship with its crown but no hairline.
+//   * A style is ONE inflated silhouette — a shell that hugs the skull at the
+//     ears and grows away toward the crown — CARVED into clumps, never pieces
+//     appended onto a bald cap. Assembled cap-plus-temple-tabs was this file's
+//     old construction and is the #1 amateur tell ("floating hair", "the wig
+//     look"): the eye reads seams, not hair. Same-tone shapes may still
+//     compose freely (a bun ball over the dome) — a seam only exists where
+//     tones meet.
+//   * The lower edge is a walk of VARIED round teeth (the clump grammar):
+//     odd-ish counts, one dominant clump, uneven widths and depths. Even
+//     teeth read as a comb. A tooth with negative depth cuts UP — that's how
+//     the curtains' parting notch is carved from the same grammar.
+//   * BACK masses (everything hanging behind the figure) are painted in the
+//     SHADOW TONE (`farColor`) — the single cheapest depth move in the
+//     research: the back sheet separates from the front for free.
+//   * Interior budget: at most three marks — the brow shadow under the
+//     fringe, one crown shine following the dome, and the odd anchored line.
 //
-// A style may provide any of three LAYERS (each optional):
-//
-//   behind(ctx) — crown volume, drawn before the head circle but INSIDE the
-//     gesture wrappers, so it turns with a glance or a yawn. Knots and
-//     bunches that sit on the skull belong here, not in length — in the
-//     static layer they stayed pinned while the head moved around them.
-//
-//   length(ctx) — everything that falls past the jaw, drawn BEFORE THE TORSO
-//     so it hangs behind the body. Length must clear the SHOULDER, not the
-//     head (a masc shoulder reaches ~12.6): drawn narrower it gets swallowed
-//     and a long style renders as a bob. Not inside the gesture wrappers —
-//     hair down your back barely moves when you glance sideways.
-//
-//   front(ctx) — the hairline over the skull. THE RULE, and the whole reason
-//     the hair once read as a headscarf: it may cover the CROWN and stop at
-//     the temples; nothing here descends past the eye line (headY + 2) at
-//     the sides of the face. Omitted, a style gets the default cap+temples.
-//
-// ctx carries { headY, color, R, HR, cap, temples, brow }:
-//   R — the skull's radius; HR — the LIFTED radius (R + HAIR_LIFT). Hair has
-//   thickness: masses drawn on HR sit ON the head instead of being painted
-//   onto it — the difference between a haircut and a decal. 1.2px is a real
-//   layer at a 7.3px skull; 2px is a helmet.
-//   cap — the default hairline dome (on HR) WITH its brow shadow;
-//   temples — framing pieces that stop just below the eye line;
-//   brow — the shadow an overhanging mass casts on the forehead, the lift
-//   cue. Styles that draw their own mass (coils, an afro) add it themselves
-//   or their volume reads painted-on while the capped styles float.
-import { HEAD_R } from "../../lib/body";
+// Layers (see index.jsx): `front` draws over the head inside the gesture
+// wrappers; `length` draws before the torso so it hangs behind the body;
+// `back` replaces everything when the figure turns away. The old `behind`
+// layer is retired — crown volume welds into `front` now.
+import { HEAD_R, farColor } from "../../lib/body";
 import { HAIR_LIFT } from "./body";
 
+const R = HEAD_R;
+
+/** The inflated dome: left base → elliptical arc over the apex → right base. */
+const domeArc = (headY, { sideX, apex, baseY }) =>
+  `M ${-sideX} ${headY + baseY} A ${sideX} ${apex} 0 0 1 ${sideX} ${headY + baseY}`;
+
+/**
+ * The carved lower edge, walking right→left: each [width, depth] is one
+ * round tooth (a clump); negative depth carves upward. Widths must sum to
+ * the dome's full span — the kit throws in dev if a style's clumps don't
+ * close their own outline.
+ */
+const teeth = (clumps) =>
+  clumps.map(([w, d]) => `q ${-w * 0.38} ${d} ${-w} 0`).join(" ");
+
+const wigPath = (headY, cfg, clumps) => {
+  const span = clumps.reduce((s, [w]) => s + w, 0);
+  if (Math.abs(span - cfg.sideX * 2) > 0.05) {
+    throw new Error(`wig clumps span ${span}, dome needs ${cfg.sideX * 2}`);
+  }
+  return `${domeArc(headY, cfg)} ${teeth(clumps)} z`;
+};
+
+/** One crown shine, concentric with the dome — the only highlight allowed. */
+const shine = (headY, apex, color = "#fff") => (
+  <path
+    d={`M${-R * 0.62} ${headY - apex * 0.62} q${R * 0.62} ${-apex * 0.4} ${R * 1.24} 0`}
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    fill="none"
+    opacity="0.12"
+  />
+);
+
+/** The shadow an overhanging fringe casts on the forehead — the lift cue. */
+const brow = (headY) => (
+  <path
+    d={`M${-R + 0.8} ${headY - 1.1} q4.2 2.3 ${R * 2 - 1.6} 0 q-4.2 1.4 -${R * 2 - 1.6} 0 z`}
+    fill="#000"
+    opacity="0.1"
+  />
+);
+
+// The default wig — a soft short cut. Also what unknown styles fall back to.
+const SHORT_CFG = { sideX: 8.1, apex: 9.3, baseY: 0.2 };
+const SHORT_CLUMPS = [
+  [2.6, 1.9],
+  [3.7, 1.1],
+  [4.6, 1.7],
+  [3.1, 0.9],
+  [2.2, 1.8],
+];
+
 export const HAIR_REGISTRY = {
-  // The default cap+temples IS the style.
-  short: {},
+  short: {
+    front: ({ headY, color }) => (
+      <>
+        <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+        {shine(headY, SHORT_CFG.apex)}
+        {brow(headY)}
+      </>
+    ),
+  },
   buzz: {
-    // Close-cropped: a thin shadow ON the skull, not a cap over it — the one
-    // style that deliberately skips the lift, because showing the skull's own
-    // shape is what a buzz cut is. It used to be the `short` cap minus its
-    // temple tabs, which at 57px is the same silhouette — two picker entries
-    // drawing one head.
-    front: ({ R, headY, color }) => (
-      <path
-        d={`M${-R + 1.1} ${headY - 3} a${R - 1.1} ${R - 1.1} 0 0 1 ${(R - 1.1) * 2} 0
-            q-1.2 -1.1 -${R - 1.1} -1.1 q-${R - 1.1} 0 -${R - 1.1} 1.1 z`}
-        fill={color}
-      />
+    // The one style with no wig: the hairline band IS the haircut, scalp
+    // reading through. A crescent alone read as balding (research).
+    back: ({ headY, color }) => (
+      <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.55" />
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={`M${-R + 0.4} ${headY + 1.6} A ${R - 0.4} ${R - 0.4} 0 0 1 ${R - 0.4} ${headY + 1.6}`}
+          stroke={color}
+          strokeWidth="1.7"
+          fill="none"
+          opacity="0.8"
+        />
+        <path
+          d={`M${-R + 1.1} ${headY - 3} a${R - 1.1} ${R - 1.1} 0 0 1 ${(R - 1.1) * 2} 0
+              q-1.2 -1.1 -${R - 1.1} -1.1 q-${R - 1.1} 0 -${R - 1.1} 1.1 z`}
+          fill={color}
+          opacity="0.9"
+        />
+      </>
     ),
   },
   messy: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1.4} rx="8.6" ry="7.8" fill={color} />
-    ),
-    // A few tufts breaking the dome.
-    front: ({ R, headY, color, cap, temples }) => (
+    // The short wig with a rougher edge, plus two tufts CROSSING the top
+    // silhouette — a wobbly outline alone reads as "short" (research).
+    front: ({ headY, color }) => (
       <>
-        {cap}
-        {temples}
-        {[
-          [-4.6, -1.4],
-          [-0.8, -2.6],
-          [3.4, -1.8],
-        ].map(([cx, dy]) => (
+        <path
+          d={wigPath(headY, { sideX: 8.3, apex: 9.7, baseY: 0.1 }, [
+            [2.3, 2.3],
+            [3.9, 1],
+            [3, 2.1],
+            [4.5, 1.4],
+            [2.9, 2.4],
+          ])}
+          fill={color}
+        />
+        <path
+          d={`M-4.2 ${headY - 9.1} q1.6 -2.6 3.6 -2 q-1.2 1.4 -1.1 2.6 z`}
+          fill={color}
+        />
+        <path
+          d={`M2.2 ${headY - 9.3} q2.2 -2 3.8 -0.8 q-1.7 0.8 -2.1 2.2 z`}
+          fill={color}
+        />
+        {brow(headY)}
+      </>
+    ),
+  },
+  bob: {
+    // The dark back sheet curls IN under the jaw (the make-or-break — a
+    // flared hem reads as a lampshade); the front wig carries the blunt
+    // fringe. Two masses, two tones, per the method's long-hair form.
+    length: ({ headY, color }) => (
+      <path
+        d={`M-8.8 ${headY - 3} q-4.4 6.6 -3.2 11.6 q0.9 2.5 3.2 2.8
+            L8.8 ${headY + 11.4} q2.3 -0.3 3.2 -2.8 q1.2 -5 -3.2 -11.6 z`}
+        fill={farColor(color)}
+      />
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 8.5, apex: 9.5, baseY: 0.9 }, [
+            [2.1, 2.8],
+            [3.5, 1.2],
+            [5, 1.7],
+            [4.1, 1.1],
+            [2.3, 2.9],
+          ])}
+          fill={color}
+        />
+        {shine(headY, 9.5)}
+        {brow(headY)}
+      </>
+    ),
+  },
+  long: {
+    // Dark back sheet to below the shoulders + two base-tone curtains riding
+    // over it — the tone split is what makes it deep instead of a slab.
+    length: ({ headY, color }) => (
+      <>
+        <path
+          d={`M-9 ${headY - 3} q-6 15 -5.4 25 l28.8 0 q0.6 -10 -5.4 -25 z`}
+          fill={farColor(color)}
+        />
+        {[-1, 1].map((s) => (
           <path
-            key={cx}
-            d={`M${cx} ${headY - R + 1} q${dy} -3.4 ${dy * 1.6} -1.2 q-0.4 1.6 -${Math.abs(dy) * 0.5} 2.4 z`}
+            key={s}
+            d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
+                q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
             fill={color}
           />
         ))}
       </>
     ),
-  },
-  bob: {
-    // Stops at the jaw and flicks OUT, which is what makes a bob a bob — and
-    // the flick has to reach past the shoulder to be seen at all.
-    length: ({ headY, color }) => (
-      <path
-        d={`M-8.6 ${headY - 3} q-5 9 -4.6 13.4 l26.4 0 q0.4 -4.4 -4.6 -13.4 z`}
-        fill={color}
-      />
-    ),
-    // A bob's fringe is its signature: a straight edge across the brow.
-    front: ({ R, headY, color, cap, temples }) => (
+    front: ({ headY, color }) => (
       <>
-        {cap}
-        <path d={`M${-R} ${headY - 1.6} q${R} 2.4 ${R * 2} 0 l0 -2 l${-R * 2} 0 z`} fill={color} />
-        {temples}
+        <path
+          d={wigPath(headY, { sideX: 8.4, apex: 9.6, baseY: 0.8 }, [
+            [2, 2.6],
+            [3.8, 1.3],
+            [5.2, 1.8],
+            [3.6, 1.1],
+            [2.2, 2.7],
+          ])}
+          fill={color}
+        />
+        {shine(headY, 9.6)}
+        {brow(headY)}
       </>
-    ),
-  },
-  long: {
-    // Must clear the SHOULDER, not just the head. At ±11.4 it sat inside a
-    // masc shoulder (up to 12.6) and the torso swallowed everything below the
-    // jaw, so long hair rendered as a bob. It flares wider than any body.
-    length: ({ headY, color }) => (
-      <path
-        d={`M-9 ${headY - 3} q-6 15 -5.4 25 l28.8 0 q0.6 -10 -5.4 -25 z`}
-        fill={color}
-      />
     ),
   },
   ponytail: {
-    // The gathering knot lives in BEHIND, not in length: it sits on the
-    // skull, and the behind layer rides the gesture wrappers, so it moves
-    // with a glance or a yawn. In the static layer it stayed pinned while the
-    // head shifted 2-3px around it — hair visibly sliding off the crown.
-    behind: ({ headY, color }) => (
-      <>
-        <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-        <circle cx="-1" cy={headY - 6.8} r="3.1" fill={color} />
-      </>
-    ),
-    // The tail hangs to ONE SIDE. Centred it was drawn before both the head
-    // and the torso and disappeared entirely behind them — the style rendered
-    // as short hair with a small nub above the crown. The path starts inside
-    // the knot's radius so a turned head never opens a gap at the join.
+    // Slick wig with the gathering knot welded at the crown; the tail hangs
+    // to one side in the shadow tone.
     length: ({ headY, color }) => (
       <path
         d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
-        fill={color}
+        fill={farColor(color)}
       />
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 8, apex: 9.2, baseY: 0.1 }, [
+            [4.9, 1],
+            [6.1, 1.5],
+            [5, 0.9],
+          ])}
+          fill={color}
+        />
+        <circle cx="-1" cy={headY - 8.6} r="3" fill={color} />
+        {shine(headY, 9.2)}
+      </>
     ),
   },
   bun: {
-    // High enough to break the skull's silhouette; tucked behind it was a
-    // nub you couldn't tell from short hair.
-    behind: ({ headY, color }) => (
-      <circle cx="0" cy={headY - 8.6} r="4.4" fill={color} />
+    // Pulled tight: minimal inflation, exposed hairline, the ball welded
+    // onto the apex (avataaars welds its bun into the same path — same-tone
+    // overlap achieves it here), tension lines converging on it.
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 7.8, apex: 8.7, baseY: -0.4 }, [
+            [5, 0.7],
+            [5.7, 1.2],
+            [4.9, 0.6],
+          ])}
+          fill={color}
+        />
+        <circle cx="0" cy={headY - 9.4} r="3.9" fill={color} />
+        <path
+          d={`M-2.8 ${headY - 7.2} a3.9 3.9 0 0 0 5.6 0 q-1.6 1.9 -5.6 0 z`}
+          fill="#000"
+          opacity="0.13"
+        />
+        {[-1, 1].map((s) => (
+          <path
+            key={s}
+            d={`M${s * 4.8} ${headY - 4.2} Q ${s * 1.8} ${headY - 6.8} ${s * 0.9} ${headY - 8.2}`}
+            stroke="#000"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.15"
+          />
+        ))}
+      </>
     ),
   },
   curly: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1} rx="9.2" ry="8.4" fill={color} />
-    ),
-    // Overlapping circles read as volume; a single lumpy path reads as a
-    // badly drawn cap. All of them stay on the crown, and the brow shadow
-    // underneath is what lifts the coils off the skull.
-    front: ({ headY, color, brow }) => (
+    // A same-tone backing dome with coils riding its edge — the coils ARE
+    // the outline's teeth, in circle form.
+    front: ({ headY, color }) => (
       <>
+        <circle cx="0" cy={headY - 1.2} r={R + 1.6} fill={color} />
         {[
-          [-5.6, -3.4, 3.2],
-          [-2.0, -5.4, 3.3],
-          [1.8, -5.4, 3.3],
-          [5.2, -3.4, 3.2],
-          [6.6, -0.6, 2.6],
-          [-6.8, -0.6, 2.6],
+          [-5.8, -3.6, 3.3],
+          [-2, -5.6, 3.4],
+          [1.9, -5.5, 3.4],
+          [5.4, -3.5, 3.3],
+          [7, -0.6, 2.7],
+          [-7, -0.7, 2.7],
         ].map(([cx, dy, r]) => (
           <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
         ))}
-        {brow}
+        {shine(headY, 10)}
+        {brow(headY)}
       </>
     ),
   },
   braids: {
-    // Same rule as the ponytail knot: the gathered roots at the skull's
-    // sides belong to the head and turn with it; only the plaits hang back.
-    behind: ({ headY, color }) => (
-      <>
-        <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-        {[-1, 1].map((s) => (
-          <circle key={s} cx={s * 6.6} cy={headY + 1} r="2.3" fill={color} />
-        ))}
-      </>
-    ),
-    // Only the hanging plaits — the strands start a touch below the roots,
-    // still under their cover, so the moving anchor always overlaps the
-    // static plait top.
+    // Tight crown, roots at the temples, two plaits behind the body in the
+    // shadow tone with their knots reading as segments.
     length: ({ headY, color }) => (
       <>
         {[-1, 1].map((s) => (
           <g key={s}>
             <path
               d={`M${s * 6.6} ${headY + 2.5} q${s * 3} 6.5 ${s * 1.4} 12.5`}
-              stroke={color}
+              stroke={farColor(color)}
               strokeWidth="3.6"
               strokeLinecap="round"
               fill="none"
             />
-            {/* the knots that separate a braid from a rope */}
             {[5, 9.5, 13].map((dy) => (
-              <circle key={dy} cx={s * (6.8 + dy * 0.16)} cy={headY + 1 + dy} r="2.2" fill={color} />
+              <circle
+                key={dy}
+                cx={s * (6.8 + dy * 0.16)}
+                cy={headY + 1 + dy}
+                r="2.2"
+                fill={farColor(color)}
+              />
             ))}
           </g>
         ))}
       </>
     ),
-  },
-  undercut: {
-    // Volume on top swept to one side, sides taken right down — the shape
-    // `short` and `buzz` were both circling without either landing on it.
-    // No temple pieces: bare sides ARE the style.
-    front: ({ HR, headY, color }) => (
+    front: ({ headY, color }) => (
       <>
         <path
-          d={`M${-HR + 0.6} ${headY - 1.6} a${HR - 0.6} ${HR - 0.6} 0 0 1 ${(HR - 0.6) * 2} 0
-              q-1 -1.4 -3.2 -1.3 q-3.4 -3.6 -8 -1 q-1.4 0.8 -2 2.3 z`}
+          d={wigPath(headY, { sideX: 8, apex: 9, baseY: 0.6 }, [
+            [2.4, 2.2],
+            [5.4, 1.1],
+            [5.8, 1.4],
+            [2.4, 2.3],
+          ])}
+          fill={color}
+        />
+        {[-1, 1].map((s) => (
+          <circle key={s} cx={s * 6.7} cy={headY + 1.2} r="2.2" fill={color} />
+        ))}
+        {shine(headY, 9)}
+      </>
+    ),
+  },
+  undercut: {
+    // All the mass combed one way over a HIGH rim — bare skin below is the
+    // style; the razor part is the one allowed line.
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 7.9, apex: 9.6, baseY: -1.2 }, [
+            [10.6, 1.7],
+            [5.2, 0.7],
+          ])}
           fill={color}
         />
         <path
-          d={`M${-2.4} ${headY - HR + 0.6} q5.4 -3.4 8.6 -1.2 q-2.6 0.4 -4.4 2.2 z`}
+          d={`M${-2.6} ${headY - 9.6} q5.6 -3 8.8 -0.8 q-2.7 0.3 -4.5 2 z`}
           fill={color}
+        />
+        <path
+          d={`M${-6.9} ${headY - 3.2} q2.6 -1.9 5.4 -2.5`}
+          stroke="#fff"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.28"
         />
       </>
     ),
   },
   afro: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 2.4} rx="10.6" ry="9.6" fill={color} />
-    ),
-    // A big scalloped round mass — the widest silhouette in the set, and the
-    // one shape none of the original nine was reaching for.
-    front: ({ headY, color, brow }) => (
+    // The widest silhouette: a scalloped cloud, one tone, its own hairline
+    // arc across the forehead — afros sit ON the hairline, they don't drape.
+    front: ({ headY, color }) => (
       <>
+        <circle cx="0" cy={headY - 2.6} r={R + 3.1} fill={color} />
         {[
-          [-7.4, -4.2, 3.6],
-          [-3.4, -7.4, 3.9],
-          [1.4, -7.6, 3.9],
-          [6.2, -4.6, 3.7],
-          [8.2, -0.6, 3.2],
-          [-8.8, -0.8, 3.2],
-          [0, -5.2, 5.4],
+          [-8, -5.4, 3.7],
+          [-3.6, -8, 4],
+          [1.6, -8.2, 4],
+          [6.6, -5.6, 3.8],
+          [9, -1, 3.3],
+          [-9.4, -1.2, 3.3],
         ].map(([cx, dy, r]) => (
           <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
         ))}
-        {brow}
+        <path
+          d={`M${-R + 0.6} ${headY + 0.6} a${R - 0.6} ${R - 0.6} 0 0 1 ${(R - 0.6) * 2} 0 l0 -2.6
+              a${R - 0.6} ${R + 1} 0 0 0 ${-(R - 0.6) * 2} 0 z`}
+          fill={color}
+        />
+        {shine(headY, 10.4)}
+        {brow(headY)}
       </>
     ),
   },
   pigtails: {
-    // The bunches sit on the SKULL and turn with it, same rule the ponytail
-    // knot follows; only the tails below hang back in length.
-    behind: ({ headY, color }) => (
-      <>
-        <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-        {[-1, 1].map((side) => (
-          <circle key={side} cx={side * 8.2} cy={headY - 2.6} r="3.4" fill={color} />
-        ))}
-      </>
-    ),
-    // Two short bunches either side, well clear of the shoulders — shorter and
-    // wider-set than the braids, so the two read as different styles rather
-    // than as one style at two lengths.
+    // Crown wig with the side bunches welded on; the tails beneath hang in
+    // the shadow tone, well clear of the shoulders.
     length: ({ headY, color }) => (
       <>
         {[-1, 1].map((side) => (
@@ -254,215 +392,258 @@ export const HAIR_REGISTRY = {
             key={side}
             d={`M${side * 8.2} ${headY - 1} q${side * 3.6} 4.4 ${side * 2.2} 9.4
                 q${-side * 2.6} 1.6 ${-side * 4.4} -0.6 q${side * 1.4} -4.6 ${-side * 0.4} -8.8 z`}
-            fill={color}
+            fill={farColor(color)}
           />
         ))}
+      </>
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 8, apex: 9.1, baseY: 0.3 }, [
+            [2.3, 2],
+            [5.2, 1.2],
+            [5.9, 1.6],
+            [2.6, 2.1],
+          ])}
+          fill={color}
+        />
+        {[-1, 1].map((side) => (
+          <circle key={side} cx={side * 8.3} cy={headY - 2.2} r="3.3" fill={color} />
+        ))}
+        {shine(headY, 9.1)}
       </>
     ),
   },
   twoblock: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1.6} rx="8.8" ry="8.2" fill={color} />
-    ),
-    // Two levels: a full top with SQUARE sideburn blocks under it, and a step
-    // between them. The mark is the shelf, NOT a fringe — a first attempt drew
-    // a heavy curtain to the brow and it covered the eyes like a visor, which
-    // is the hairline rule being broken exactly as it warns.
-    front: ({ HR, headY, color, cap }) => (
+    // The Korean cap cut: a full brow-grazing fringe carved from the dome,
+    // rims ending ABOVE the ears with bare skin below — mass where the cut
+    // grows it, skin where it's clipped (research; two failed attempts are
+    // recorded in git history: a visor, then sideburn blocks).
+    front: ({ headY, color }) => (
       <>
-        {cap}
-        <path d={`M${-HR + 0.1} ${headY - 1.8} l-0.9 0 l0 4.6 l2.4 0 l0 -4.2 z`} fill={color} />
-        <path d={`M${HR - 0.1} ${headY - 1.8} l0.9 0 l0 4.6 l-2.4 0 l0 -4.2 z`} fill={color} />
         <path
-          d={`M${-HR + 0.4} ${headY - 1.6} q4 1.5 ${HR * 2 - 0.8} 0`}
-          fill="none"
-          stroke="#000"
-          strokeWidth="1"
-          opacity="0.22"
-          strokeLinecap="round"
+          d={wigPath(headY, { sideX: 8.6, apex: 9.7, baseY: -0.2 }, [
+            [1.9, 1.2],
+            [3.1, 2.4],
+            [3.6, 2.7],
+            [3.5, 2.5],
+            [3.2, 2.3],
+            [1.9, 1.3],
+          ])}
+          fill={color}
         />
-      </>
-    ),
-  },
-  wolf: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 2} rx="9.2" ry="8.6" fill={color} />
-    ),
-    // The shag at the nape — short and ragged, nothing like the bob's clean
-    // curtain. Stops at the collar: a wolf cut is layered, not long.
-    length: ({ headY, color }) => (
-      <path
-        d={`M-8.4 ${headY - 1} q-2.6 7 -1.6 11.4 q1.8 -2.6 3.2 -1
-            q0.6 2.6 2.4 3.2 q1.2 -2.4 2.8 -2.4 q1.6 0 2.8 2.4
-            q1.8 -0.6 2.4 -3.2 q1.4 -1.6 3.2 1 q1 -4.4 -1.6 -11.4 z`}
-        fill={color}
-      />
-    ),
-    // Layered and shaggy, not spiked. A first attempt threw four tall points
-    // off the crown and read as punk; a wolf cut's mark is that the outline
-    // BREAKS into pieces, not that it stands up — so these are low and uneven,
-    // and the length lives in the nape.
-    front: ({ headY, color, cap, temples }) => (
-      <>
-        {cap}
-        {temples}
-        {[
-          [-6.2, -1.6, -2.2, -1.5],
-          [-2.4, -3.4, -1.8, -1.2],
-          [2.2, -3.6, 1.8, -1.2],
-          [6, -1.8, 2.2, -1.4],
-        ].map(([cx, cy, dx, dy]) => (
+        {shine(headY, 9.7)}
+        {[-1, 1].map((s) => (
           <path
-            key={cx}
-            d={`M${cx} ${headY + cy} q${dx * 0.6} ${dy * 1.4} ${dx} ${dy * 1.9}
-                q${dx * 0.5} ${-dy * 0.4} ${dx * 0.2} ${-dy * 1.5} z`}
-            fill={color}
+            key={s}
+            d={`M${s * 8.4} ${headY - 0.1} q${-s * 0.3} 1.2 ${-s * 1.5} 1.5`}
+            stroke="#000"
+            strokeWidth="1"
+            opacity="0.16"
+            fill="none"
+            strokeLinecap="round"
           />
         ))}
       </>
     ),
   },
-  curtains: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1.2} rx="8.4" ry="7.8" fill={color} />
-    ),
-    // A centre part: two drapes framing the face, and between them a notch of
-    // bare forehead — the notch IS the silhouette. The drapes stop AT the eye
-    // line, the absolute floor the headscarf rule allows, and each shades the
-    // temple it hangs over (the split brow cue — the shared crescent would
-    // shade the bare notch too and give the game away).
-    front: ({ HR, headY, color }) => (
+  wolf: {
+    // Tall broken crown over thin dark shag — the identity is the contrast
+    // between the lifted choppy top and the ragged ends (research).
+    length: ({ headY, color }) => (
       <>
         <path
-          d={`M${-HR} ${headY - 0.4}
-              a${HR} ${HR} 0 0 1 ${HR * 2} 0
-              Q ${HR - 1.2} ${headY + 0.8} 2.4 ${headY + 2}
-              Q 0.8 ${headY - 4.4} 0 ${headY - 5.2}
-              Q -0.8 ${headY - 4.4} -2.4 ${headY + 2}
-              Q ${-(HR - 1.2)} ${headY + 0.8} ${-HR} ${headY - 0.4} z`}
+          d={`M-8.2 ${headY - 1} q-2.4 6.6 -1.5 10.8 q1.7 -2.4 3 -0.9
+              q0.6 2.4 2.3 3 q1.1 -2.2 2.6 -2.2 q1.5 0 2.6 2.2
+              q1.7 -0.6 2.3 -3 q1.3 -1.5 3 0.9 q0.9 -4.2 -1.5 -10.8 z`}
+          fill={farColor(color)}
+        />
+        {[-1, 1].map((s) => (
+          <g key={s}>
+            <path
+              d={`M${s * 8} ${headY - 2} q${s * 1.4} 3.6 ${s * 3.4} 4.6 q${-s * 2.6} 1 ${-s * 3.6} -0.6 z`}
+              fill={farColor(color)}
+            />
+            <path
+              d={`M${s * 8.6} ${headY + 2.6} q${s * 1.2} 4 ${s * 3.2} 5.2 q${-s * 2.4} 1 ${-s * 3.4} -0.8 z`}
+              fill={farColor(color)}
+            />
+          </g>
+        ))}
+      </>
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 8.3, apex: 10.3, baseY: 0.3 }, [
+            [2.2, 2.5],
+            [3.3, 1.1],
+            [2.8, 2.2],
+            [2.6, 1],
+            [3, 2.3],
+            [2.7, 1.2],
+          ])}
           fill={color}
         />
+        {/* the crown BREAKS into pieces — tufts crossing the top */}
+        <path d={`M-5.6 ${headY - 9.2} q1.2 -3 3.2 -2.6 q-1 1.6 -0.9 3 z`} fill={color} />
+        <path d={`M-0.6 ${headY - 10.2} q1.8 -2.4 3.4 -1.4 q-1.3 1.1 -1.5 2.6 z`} fill={color} />
+        <path d={`M3.8 ${headY - 9.4} q2.2 -1.6 3.6 -0.4 q-1.5 0.7 -1.9 2 z`} fill={color} />
+        {brow(headY)}
+      </>
+    ),
+  },
+  curtains: {
+    // The centre part carved with the same tooth grammar — one wide tooth
+    // cutting UP forms the notch of bare forehead; the deep side teeth are
+    // the drapes, kicked slightly outward at the tips.
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={wigPath(headY, { sideX: 8.2, apex: 9.4, baseY: 0.5 }, [
+            [2.9, 2.1],
+            [3.5, 1.3],
+            [3.6, -5.8],
+            [3.5, 1.3],
+            [2.9, 2.1],
+          ])}
+          fill={color}
+        />
+        {shine(headY, 9.4)}
         {[-1, 1].map((s) => (
           <path
             key={s}
-            d={`M${s * 5.4} ${headY - 0.2} q${s * 0.8} 1.6 ${s * 0.2} 2.2 q${-s * 2} -0.2 ${-s * 2.6} -1.6 z`}
+            d={`M${s * 5.6} ${headY} q${s * 0.8} 1.5 ${s * 0.2} 2.1 q${-s * 2} -0.2 ${-s * 2.6} -1.5 z`}
             fill="#000"
-            opacity="0.15"
+            opacity="0.14"
           />
         ))}
       </>
     ),
   },
   mullet: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1.2} rx="8.4" ry="7.8" fill={color} />
-    ),
-    // Business in front (the default cap), party in the back: a nape curtain
-    // LONGER than the wolf's shag, squared off across the shoulders with the
-    // corners flicking out. The clean cap is what separates it from the wolf
-    // — same neighbourhood, opposite temperament.
+    // Business in front — a crisp short wig — party behind: the squared nape
+    // curtain in the shadow tone, corners flicking out past the shoulders.
     length: ({ headY, color }) => (
       <path
         d={`M-8 ${headY - 1} q-3.6 8 -3.8 15.6 q2.6 -1.8 4.2 -0.4
             q2.2 1.4 7.6 1.4 q5.4 0 7.6 -1.4 q1.6 -1.4 4.2 0.4 q-0.2 -7.6 -3.8 -15.6 z`}
-        fill={color}
+        fill={farColor(color)}
       />
+    ),
+    front: ({ headY, color }) => (
+      <>
+        <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+        {shine(headY, SHORT_CFG.apex)}
+        {brow(headY)}
+      </>
     ),
   },
   spacebuns: {
-    // Two buns HIGH on the crown — the double break in the skull's outline is
-    // the whole style. Behind-layer only: they sit on the head and turn with
-    // it, same rule as the single bun they refuse to be confused with.
-    behind: ({ headY, color }) => (
+    // The tight wig with two balls breaking the top silhouette and the part
+    // groove between them — both signatures, per the research.
+    front: ({ headY, color }) => (
       <>
-        <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
+        <path
+          d={wigPath(headY, { sideX: 7.9, apex: 8.8, baseY: -0.2 }, [
+            [5, 0.8],
+            [5.9, 1.3],
+            [4.9, 0.7],
+          ])}
+          fill={color}
+        />
         {[-1, 1].map((s) => (
-          <circle key={s} cx={s * 5.6} cy={headY - 8.2} r="3.3" fill={color} />
+          <circle key={s} cx={s * 5.6} cy={headY - 8.6} r="3.2" fill={color} />
         ))}
+        <path
+          d={`M0 ${headY - 8.8} L0 ${headY - 5.9}`}
+          stroke="#000"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          opacity="0.2"
+        />
       </>
     ),
   },
   locs: {
-    behind: ({ headY, color }) => (
-      <ellipse cx="0" cy={headY - 1.6} rx="9" ry="8.2" fill={color} />
-    ),
-    // Thick clean ropes falling past the jaw — four of them, alternating
-    // lengths, no knots. The braids keep their two knotted plaits; the count
-    // and the clean line are what make these read as a different style.
+    // Rounded crown breaking into ropes of varied thickness and staggered
+    // length — alternating tones so the strands separate (uniform clean
+    // ropes read as a wig, the research's exact warning).
     length: ({ headY, color }) => (
       <>
         {[
-          [-8.6, 10.8],
-          [-5.6, 13.2],
-          [5.6, 12.4],
-          [8.6, 10],
-        ].map(([x, len]) => (
+          [-9.2, 9.6, 2.6, -1.6, true],
+          [-6.6, 13, 3.4, -1, false],
+          [-3.8, 11, 2.4, -0.5, true],
+          [3.8, 12.2, 3.2, 0.5, false],
+          [6.6, 10, 2.4, 1, true],
+          [9.2, 12.6, 3, 1.6, false],
+        ].map(([x, len, w, drift, dark]) => (
           <path
             key={x}
-            d={`M${x} ${headY + 1} q${x > 0 ? 1.4 : -1.4} ${len * 0.5} ${x > 0 ? 0.6 : -0.6} ${len}`}
-            stroke={color}
-            strokeWidth="3"
+            d={`M${x} ${headY + 0.6} q${drift} ${len * 0.55} ${drift * 0.5} ${len}`}
+            stroke={dark ? farColor(color) : color}
+            strokeWidth={w}
             strokeLinecap="round"
             fill="none"
           />
         ))}
       </>
     ),
-  },
-  highpony: {
-    // The tail whips UP off a high knot before falling — drawn entirely in
-    // the behind layer because the whole style is attached at the crown and
-    // must ride a head turn (the low ponytail's tail hangs from the nape and
-    // stays put, which is why that one splits across two layers).
-    behind: ({ headY, color }) => (
+    front: ({ headY, color }) => (
       <>
-        <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-        <circle cx="1.6" cy={headY - 8.4} r="2.9" fill={color} />
         <path
-          d={`M1.6 ${headY - 8.4} q7.4 -3.4 9.8 2.6 q1.6 4.6 -1.6 9.6 q-1.6 2.4 -3.4 1.2
-              q-1.6 -1.2 -0.4 -3.4 q2.4 -4.4 -0.6 -7.2 q-2 -1.8 -3.8 -2.8 z`}
+          d={wigPath(headY, { sideX: 8.4, apex: 9.8, baseY: 0.4 }, [
+            [2.2, 1.8],
+            [2.9, 1],
+            [3.2, 1.9],
+            [3.1, 0.9],
+            [2.8, 1.7],
+            [2.6, 1],
+          ])}
           fill={color}
         />
+        {brow(headY)}
+      </>
+    ),
+  },
+  highpony: {
+    // Slick tension toward a high knot, the tail whipping up and over in the
+    // shadow tone — from the front a high pony is mostly its silhouette.
+    front: ({ headY, color }) => (
+      <>
+        <path
+          d={`M1.6 ${headY - 8.6} q7.4 -3.4 9.8 2.6 q1.6 4.6 -1.6 9.6 q-1.6 2.4 -3.4 1.2
+              q-1.6 -1.2 -0.4 -3.4 q2.4 -4.4 -0.6 -7.2 q-2 -1.8 -3.8 -2.8 z`}
+          fill={farColor(color)}
+        />
+        <path
+          d={wigPath(headY, { sideX: 7.9, apex: 8.9, baseY: -0.3 }, [
+            [4.9, 0.6],
+            [6, 1.1],
+            [4.9, 0.5],
+          ])}
+          fill={color}
+        />
+        <circle cx="1.6" cy={headY - 8.8} r="2.9" fill={color} />
+        {[-1, 1].map((s) => (
+          <path
+            key={s}
+            d={`M${s * 5} ${headY - 3.8} Q ${s * 2.6} ${headY - 6.4} ${s * 1.2} ${headY - 7.8}`}
+            stroke="#000"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.15"
+          />
+        ))}
       </>
     ),
   },
 };
 
-/** The shared pieces every front branch may compose from. */
-function frontCtx(headY, color) {
-  const R = HEAD_R;
-  const HR = R + HAIR_LIFT;
-  const brow = (
-    <path
-      d={`M${-R + 0.6} ${headY - 1.2} q4.4 3.2 ${R * 2 - 1.2} 0 q-4.4 1.9 -${R * 2 - 1.2} 0 z`}
-      fill="#000"
-      opacity="0.16"
-    />
-  );
-  // A hairline sits ABOVE the equator and dips lower at the temples than at
-  // the centre, leaving forehead visible — that gap is what reads as a face.
-  const cap = (
-    <>
-      <path
-        d={`M${-HR} ${headY - 0.4} a${HR} ${HR} 0 0 1 ${HR * 2} 0 q-1.4 -1.2 -3.4 -1.1 q-3.6 -3.4 -8.2 -0.9 q-1.6 0.8 -2.4 2 z`}
-        fill={color}
-      />
-      {brow}
-    </>
-  );
-  // Temple pieces: they STOP just below the eye line, framing rather than
-  // enclosing. Any longer and the hood is back. On the lifted radius too, so
-  // they sit outside the cheek rather than inside it.
-  const temples = (
-    <>
-      <path d={`M${-HR + 0.2} ${headY - 1.4} q-1.5 2.6 -0.7 4.4 q-1.7 -1.6 -1.3 -4.2 z`} fill={color} />
-      <path d={`M${HR - 0.2} ${headY - 1.4} q1.5 2.6 0.7 4.4 q1.7 -1.6 1.3 -4.2 z`} fill={color} />
-    </>
-  );
-  return { headY, color, R, HR, cap, temples, brow };
-}
-
-/** Crown volume — behind the head circle, inside the gesture wrappers. */
+/** Crown volume behind the head — retired for styles (kept for the layer API). */
 export function HairBehind({ style, headY, color }) {
   return HAIR_REGISTRY[style]?.behind?.({ headY, color }) ?? null;
 }
@@ -472,15 +653,37 @@ export function HairLength({ style, headY, color }) {
   return HAIR_REGISTRY[style]?.length?.({ headY, color }) ?? null;
 }
 
-/** The hairline over the skull. Styles without their own get the default cap. */
+/** The hair over the skull. Styles without their own get the short wig. */
 export function HairFront({ style, headY, color }) {
-  const ctx = frontCtx(headY, color);
   const draw = HAIR_REGISTRY[style]?.front;
-  if (draw) return draw(ctx);
+  if (draw) return draw({ headY, color });
   return (
     <>
-      {ctx.cap}
-      {ctx.temples}
+      <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+      {shine(headY, SHORT_CFG.apex)}
+      {brow(headY)}
+    </>
+  );
+}
+
+/**
+ * The BACK of the head — what replaces the face and hairline when a persona
+ * turns away. From behind, nearly every style is simply hair: a full cover a
+ * touch wider than the skull. Styles whose backs genuinely differ override
+ * `back` (the buzz's stubble); everyone else gets the default.
+ */
+export function HairBack({ style, headY, color }) {
+  const entry = HAIR_REGISTRY[style];
+  if (entry?.back) return entry.back({ headY, color, R });
+  return (
+    <>
+      <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
+      {shine(headY, R + 2)}
+      <path
+        d={`M${-6.2} ${headY + 4.6} q6.2 3.4 12.4 0 q-6.2 1.9 -12.4 0 z`}
+        fill="#000"
+        opacity="0.12"
+      />
     </>
   );
 }

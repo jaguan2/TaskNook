@@ -433,6 +433,7 @@ const PlacedItem = memo(function PlacedItem({
               seatH={p._seat || 0}
               activity={activity}
               moving={glide.moving}
+              away={!!p._away}
               // Only YOU wear the profile's character and think
               // thoughts. Passing them to every persona turned a
               // table of four into four copies of the same person.
@@ -656,9 +657,15 @@ function IsoSceneInner({
         return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
       });
       if (blocked) return; // bumped into furniture — stay put
+      // Which way is this glide going on SCREEN? Up-screen (+gx and +gy both
+      // shrink the screen-y) means walking away from the camera — the figure
+      // turns its back. A mostly-sideways step keeps the previous facing, so
+      // nobody spins on a shuffle.
+      const screenDy = ((next.dx - cur.dx) + (next.dy - cur.dy)) * (TILE_H / 2);
+      const away = screenDy < -1.5 ? true : screenDy > 1.5 ? false : !!cur.away;
       roamRef.current = {
         ...roamRef.current,
-        [p.id]: { ...next, hx: p.gx, hy: p.gy },
+        [p.id]: { ...next, away, hx: p.gx, hy: p.gy },
       };
       setRoamTick((t) => t + 1);
     }, 3500);
@@ -707,7 +714,7 @@ function IsoSceneInner({
     // resolved position and knows when a glide is actually in flight.
     const off = roamOffset(p);
     return off
-      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy }
+      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _away: !!off.away }
       : p;
   });
   const ordered = sortIso(effective);

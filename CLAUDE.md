@@ -511,7 +511,21 @@ running `git commit` yourself.
   `GARMENT_REGISTRY`: `draw` (over the torso; a `shell(scale)` ctx helper
   gives outer layers their proud outline + hem under-shadow) and `collar`
   (rendered AFTER the body's neck — the one spot `draw` can't reach, and how
-  the turtleneck exists). The framework applies the shared physics —
+  the turtleneck exists). `HAT_REGISTRY` (`character/hats.jsx`, catalog
+  `HATS` in profile.js) is the first ACCESSORY slot: a hat REPLACES the
+  crown hair layers (front + behind + sheen) — drawn over the full dome it
+  reads as a balloon on a wig — while LENGTH keeps falling from under the
+  rim, which is what makes it read as worn over a hairstyle. The Profile
+  panel's hair and hat pickers render REAL worn previews (`HairIcon`/
+  `HatIcon` — the style's actual layers on a head, in the user's colours),
+  so the icon can never drift from the artwork; the character preview above
+  them uses a FIXED frame with a drawn floor, never a fitted bounding box —
+  auto-fit re-zoomed every body to the same apparent size, which made the
+  width/height sliders look dead. Hairstyle accuracy is research-backed:
+  each cut's front-view signatures live as comments on its registry entry
+  (two block = brow-grazing fringe over BARE sides; wolf = tall jagged
+  crown; buzz = a hairline band, not a crescent — a crescent reads as
+  balding). The framework applies the shared physics —
   `HAIR_LIFT` (masses ride 1.2px off the skull, with a brow shadow: hair on
   the skull's own radius is a decal), `OUTER_BULK` (worn layers are bigger
   than the body, sleeves thicken via `outer: true`) — so a new entry gets

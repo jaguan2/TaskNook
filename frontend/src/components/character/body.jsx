@@ -77,55 +77,47 @@ export function SeatedLeg({ side, ankle, thighW = 7.5, shinW = 6.5, far = false,
 export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trouser = TROUSER }) {
   const cx = side * 4;
   const cloth = far ? farColor(trouser) : trouser;
-  const hipW = legW / 2 + 0.4;
-  const ankW = legW / 2 - 0.2;
-  // The knee, as a proportion of the leg. Not a bend — a tonal break. At this
-  // scale a bent joint is invisible noise (docs/MODELS.md), but the eye still
-  // needs SOMETHING to split thigh from shin, or the two legs read as one
-  // undivided column and the figure looks like 70% leg however good the ratio
-  // is. 0.46 up from the ankle is where a knee actually sits.
-  const kneeY = -legH * 0.46;
-  const kneeW = ankW + (hipW - ankW) * 0.46;
+  // ONE CONTINUOUS POLYLINE bent at the knee — same lesson as the arm: v2
+  // built the leg from two capsules with per-segment washes, and the caps
+  // overlapping at the joint banded the trousers into plates. The knee sits
+  // a hair OUTWARD of the hip-ankle line (the Sims-soft rest pose: a leg is
+  // never a straight column), 0.46 up from the ankle, where a knee actually
+  // sits; the BEND is the articulation, and the edge tones follow the same
+  // bent path as single strokes so no layer ever overlaps another.
+  const K = { x: cx + side * 0.9, y: -legH * 0.46 };
+  const w = legW + 0.4;
+  const bent = (off) =>
+    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
+  const line = (d, paint, width, opacity) => (
+    <path
+      d={d}
+      stroke={paint}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+      opacity={opacity}
+    />
+  );
   return (
     <g>
-      <path
-        d={`M ${cx - hipW} ${-legH} L ${cx + hipW} ${-legH} L ${cx + ankW} ${-2.2}
-            Q ${cx + ankW} ${-1.4} ${cx + ankW - 0.8} ${-1.4}
-            L ${cx - ankW + 0.8} ${-1.4} Q ${cx - ankW} ${-1.4} ${cx - ankW} ${-2.2} Z`}
-        fill={cloth}
-      />
-      {/* Every box in the catalog carries three tones; the legs carried ONE
-          flat fill, which is most of why they read as a single dark mass. A lit
-          edge and a shadowed one give the limb a round side, and they're
-          translucent overlays rather than fixed hues so they survive any
-          trouser colour (docs/MODELS.md). Light comes from the upper right,
-          same as the contact shadows. */}
-      <path
-        d={`M ${cx + hipW - 1.5} ${-legH} L ${cx + hipW} ${-legH} L ${cx + ankW} ${-2.4}
-            L ${cx + ankW - 1.3} ${-2.4} Z`}
-        fill="#fff"
-        opacity={far ? 0.05 : 0.1}
-      />
-      <path
-        d={`M ${cx - hipW} ${-legH} L ${cx - hipW + 1.3} ${-legH} L ${cx - ankW + 1.1} ${-2.4}
-            L ${cx - ankW} ${-2.4} Z`}
-        fill="#000"
-        opacity="0.13"
-      />
-      {/* The knee: the soft shadow that falls UNDER a kneecap, and nothing
-          else. Drawn as an ellipse INSET from both edges — a full-width bar
-          spanning the leg reads as a seam or a cropped hem, which is a garment
-          detail, not a joint. One mark, but it's what turns a column into thigh
-          and shin. */}
+      {line(bent(0), cloth, w)}
+      {/* Every box in the catalog carries three tones: one lit edge, one
+          falling away — each a single stroke riding the same bent path.
+          Translucent overlays, never fixed hues (docs/MODELS.md). */}
+      {line(bent(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
+      {line(bent(-w / 4), "#000", w / 2.9, 0.11)}
+      {/* the crease inside the bend — the knee's only mark */}
       <ellipse
-        cx={cx}
-        cy={kneeY}
-        rx={kneeW - 0.7}
-        ry="1.5"
+        cx={K.x - side * 1.2}
+        cy={K.y + 0.5}
+        rx="1.2"
+        ry="0.8"
         fill="#000"
-        opacity={far ? 0.1 : 0.13}
+        opacity="0.11"
       />
-      <rect x={cx - ankW} y={-4.6} width={ankW * 2} height="1.7" fill="#000" opacity="0.14" />
+      {/* the cuff band that makes the hem a hem */}
+      <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
       {/* The shoe has to TERMINATE the leg. It was #2b2350 under #4a3a5b
           trousers — both dark, near the same hue, so on a dark floor the foot
           dissolved into the trouser and the leg ran unbroken to the ground.
@@ -143,6 +135,102 @@ export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trous
       <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
     </g>
   );
+}
+
+/**
+ * One arm: TWO segments meeting at an elbow, the way Roblox split R6 limbs
+ * into R15 parts — the joint is what makes a low-fi body read as 3D, and it
+ * reads from the seam and the angle, not from anatomical detail. The upper
+ * arm bows slightly OUT from the shoulder and the forearm returns IN to the
+ * hand, the Sims-style relaxed rest pose: a limb that is never a straight
+ * column. (Owner call, 2026-08-16 — this replaces the one-rect arm and
+ * revises the old "no joints" doctrine.)
+ *
+ * The HAND stays at the same anchor the one-rect arm ended at, on purpose:
+ * the mug, the typing bob, the walk swing and the held-pose dangle all hang
+ * off that point, so the bend redistributes the path without moving anything
+ * downstream.
+ *
+ * Sleeves: a long sleeve clothes both segments; a short one stops AT THE
+ * ELBOW — the joint is the natural hemline, which is what makes bare
+ * forearms finally read as short sleeves rather than as a shrunken garment.
+ */
+export function Arm({ side, sh, torsoY, skin, outfit, shortSleeve = false, bulk = 0, far = false }) {
+  // The shoulder is BURIED in the torso — the arm grows out of the body
+  // rather than standing beside it. Started outside the torso edge, the
+  // capsule left a step at the armpit where the shoulder curve ended and a
+  // separate part began ("the joints look separate… it should look like one
+  // cohesive piece", owner). Overlap is what welds low-poly parts: each
+  // piece's root nests inside the piece it hangs from, and only its far end
+  // shows.
+  const S = { x: side * (sh - 0.5), y: torsoY + 4.4 }; // shoulder, inside the torso
+  const E = { x: side * (sh + 1.9), y: torsoY + 12 }; // elbow, bowed out
+  const H = { x: side * (sh + 0.9), y: torsoY + 17.5 }; // hand (fixed anchor)
+  // ONE CONTINUOUS POLYLINE per layer, bent at the elbow — the joint reads
+  // from the BEND in the outline, nothing else. Per-segment capsules with
+  // per-segment washes grew a lens blob at every joint (owner screenshot);
+  // clean low-poly bodies keep each part ONE flat tone.
+  const whole = `M ${S.x} ${S.y} L ${E.x} ${E.y} L ${H.x} ${H.y}`;
+  const upper = `M ${S.x} ${S.y} L ${E.x} ${E.y}`;
+  const w = 4.3 + bulk;
+  const line = (d, paint, width, opacity) => (
+    <path
+      d={d}
+      stroke={paint}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+      opacity={opacity}
+    />
+  );
+  return (
+    <g>
+      {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}
+      {line(whole, skin, 4.1)}
+      <SleeveSeg d={shortSleeve ? upper : whole} w={w} outfit={outfit} />
+      {/* ONE light logic across the whole body: lit on the outer edge, the
+          same edge-tone treatment the legs carry — full-limb washes gave the
+          arms their own shading language and made them read as parts from a
+          different kit. The far arm still takes the overall depth wash on
+          top (its whole limb falls away), same rule as the far trouser leg. */}
+      {line(`M ${S.x + side * (w / 4)} ${S.y + 1} L ${E.x + side * (w / 4)} ${E.y} L ${H.x + side * (w / 4)} ${H.y - 1}`, "#fff", w / 2.7, far ? 0.05 : 0.09)}
+      {line(`M ${S.x - side * (w / 4)} ${S.y + 1.4} L ${E.x - side * (w / 4)} ${E.y} L ${H.x - side * (w / 4)} ${H.y - 1}`, "#000", w / 2.9, 0.1)}
+      {far && line(whole, "#000", w, 0.12)}
+      {/* the crease inside the bend, barely there */}
+      <ellipse
+        cx={E.x - side * 1.1}
+        cy={E.y + 0.2}
+        rx="1"
+        ry="0.7"
+        fill="#000"
+        opacity="0.09"
+      />
+      {/* the armpit's occlusion — the one mark that says these two parts
+          MEET: a soft shade tucked where the arm leaves the torso, the same
+          contact shading every box in the catalog gets where it touches. */}
+      <path
+        d={`M ${side * (sh - 0.6)} ${torsoY + 7.6} q ${side * 1.6} 0.8 ${side * 2.2} 2.6`}
+        stroke="#000"
+        strokeWidth="1"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.1"
+      />
+      <circle cx={H.x} cy={H.y} r="2.5" fill={skin} />
+      {far && <circle cx={H.x} cy={H.y} r="2.5" fill="#000" opacity="0.12" />}
+    </g>
+  );
+}
+
+/**
+ * A sleeve segment in the outfit's tint. Strokes can't take a `{fill}` style,
+ * so this is the one place the tint var is spelled as a stroke — keep it
+ * beside Arm, which is its only caller.
+ */
+function SleeveSeg({ d, w, outfit }) {
+  const colour = outfit?.fill || "var(--tint, #7faf8f)";
+  return <path d={d} stroke={colour} strokeWidth={w} strokeLinecap="round" fill="none" />;
 }
 
 /** Eyes and mouth. Expression is the cheapest personality per pixel here. */

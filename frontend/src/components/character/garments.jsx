@@ -66,6 +66,8 @@ export const GARMENT_REGISTRY = {
   // The base garment: the torso path IS a plain sweater. Nothing to add.
   sweater: {},
   tee: {
+    // From behind there's no collar — the bare forearms carry the garment.
+    back: () => null,
     // A collar: with bare forearms (`sleeves: "short"`) doing the outline
     // work, the torso only needs to stop looking knitted.
     draw: ({ top }) => (
@@ -80,6 +82,24 @@ export const GARMENT_REGISTRY = {
     ),
   },
   hoodie: {
+    // The hood hangs DOWN THE BACK — the one garment whose rear view says
+    // more than its front.
+    back: ({ sh, top, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        <path
+          d={`M${-sh + 2.6} ${top + 0.5} Q 0 ${top - 2} ${sh - 2.6} ${top + 0.5}
+              L ${sh - 3.6} ${top + 9.5} Q 0 ${top + 12.5} ${-sh + 3.6} ${top + 9.5} z`}
+          style={outfit}
+        />
+        <path
+          d={`M${-sh + 3.6} ${top + 9.5} Q 0 ${top + 12.5} ${sh - 3.6} ${top + 9.5}
+              Q 0 ${top + 10.7} ${-sh + 3.6} ${top + 9.5} z`}
+          fill="#000"
+          opacity="0.18"
+        />
+      </>
+    ),
     draw: ({ sh, wa, top, waistY, outfit, shell }) => (
       <>
         <g style={outfit}>{shell()}</g>
@@ -104,6 +124,8 @@ export const GARMENT_REGISTRY = {
     ),
   },
   jacket: {
+    // From behind a jacket is just its shell — the open front is a front.
+    back: ({ outfit, shell }) => <g style={outfit}>{shell()}</g>,
     // Open front: the inner layer shows as a panel down the middle — the
     // two-tone split. It starts BELOW the shoulder curve; drawn from the very
     // top its square corners poked out through the neckline as two pale spurs.
@@ -177,6 +199,7 @@ export const GARMENT_REGISTRY = {
     ),
   },
   cardigan: {
+    back: ({ outfit, shell }) => <g style={outfit}>{shell()}</g>,
     // Open over the shirt like the jacket, but the split is a V — the two
     // fronts lean apart at the collar and meet low, where the jacket's panel
     // runs parallel top to bottom. Different split shape = different garment,
@@ -276,12 +299,19 @@ export const GARMENT_REGISTRY = {
 };
 
 /** What makes this garment that garment, drawn OVER the plain torso. */
-export function Garment({ kind, sh, wa, hem, top, bot, inner, outfit }) {
+export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, away = false }) {
   const entry = GARMENT_REGISTRY[kind];
-  if (!entry?.draw) return null;
-  const ctx = { sh, wa, hem, top, bot, waistY: top + WAIST_DROP, inner, outfit };
+  if (!entry) return null;
+  // waistY arrives from the body's own metrics (the torso is user-tunable
+  // now); the WAIST_DROP default keeps previews and tests that don't pass
+  // one on the classic figure.
+  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit };
   ctx.shell = shellFor(ctx);
-  return entry.draw(ctx);
+  // Turned away, a garment shows its `back` when it has one; garments whose
+  // artwork is symmetric (overalls' straps, the dress, the puffer's seams)
+  // simply draw the same both ways.
+  const drawFn = away ? entry.back ?? entry.draw : entry.draw;
+  return drawFn ? drawFn(ctx) : null;
 }
 
 /**

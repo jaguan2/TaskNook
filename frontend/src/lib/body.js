@@ -101,14 +101,18 @@ export const BUILD_SHAPE = {
 };
 
 // ---- user-tunable ranges -------------------------------------------------- //
-// The Profile panel exposes body WIDTH (the half-width the model shapes
-// apply to) and HEIGHT (the leg) as sliders. The endpoints are not taste —
-// each sits just inside a guard: width's floor keeps the trouser stance
-// tucked under the narrowest hem, its ceiling keeps shoulders under the
-// 1.55×-head chunky ceiling; height's floor keeps the visible leg ≥ 40% of
-// the figure, its ceiling stays inside the persona's hit region.
+// The panel exposes body WIDTH (the half-width the model shapes apply to),
+// LEG height and TORSO height as sliders — legs and torso are separate axes
+// (owner call, 2026-08-16: "there is torso height and leg height, not just
+// both"). The endpoints are not taste — each sits just inside a guard:
+// width's floor keeps the trouser stance tucked under the narrowest hem, its
+// ceiling keeps shoulders under the 1.55×-head chunky ceiling; the leg
+// range keeps the DEFAULT-torso figure's leg share ≥ 40%; the torso range is
+// bounded so no combination drops the leg share under 33% (the anti-toddler
+// floor) or grows past the resident's hit region.
 export const WIDTH_RANGE = [6.4, 9];
 export const HEIGHT_RANGE = [26, 32];
+export const TORSO_RANGE = [14, 20];
 
 function clampNum(value, [lo, hi], fallback) {
   return typeof value === "number" && Number.isFinite(value)
@@ -137,20 +141,30 @@ export function figureMetrics(ch = {}) {
   const shape = MODEL_SHAPE[ch.model] ?? MODEL_SHAPE.masc;
   const halfW = clampNum(ch.width, WIDTH_RANGE, build.halfW);
   const legH = clampNum(ch.height, HEIGHT_RANGE, LEG_H);
+  const torsoH = clampNum(ch.torso, TORSO_RANGE, TORSO_H);
+  // The waist rides the torso proportionally (the classic 10-of-17), so a
+  // long torso doesn't wear its waist at the chest.
+  const waistDrop = torsoH * (WAIST_DROP / TORSO_H);
   const limb =
     build.limb +
     Math.max(-0.6, Math.min(0.8, (halfW - BUILD_SHAPE.average.halfW) * 0.4));
   const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder);
   const wa = halfW + shape.waist + build.waist;
   const hem = halfW + shape.hem;
-  const standTorsoY = -(legH - TORSO_OVERLAP + TORSO_H);
+  const standTorsoY = -(legH - TORSO_OVERLAP + torsoH);
   return {
     sh,
     wa,
     hem,
     legH,
+    torsoH,
+    waistDrop,
     standTorsoY,
     standHeadY: standTorsoY - HEAD_LIFT,
+    // Seated anchors are per-character too, now that the torso is: the
+    // torso's bottom edge stays at the seat line whatever its height.
+    seatTorsoY: 1 - torsoH,
+    seatHeadY: 1 - torsoH - HEAD_LIFT,
     armW: 5 + limb,
     legW: 5.6 + limb,
     thighW: 7.5 + limb,
