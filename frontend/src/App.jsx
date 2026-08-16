@@ -25,7 +25,6 @@ import SkyOverlay from "./components/SkyOverlay";
 // already in the main bundle via the always-mounted scene.
 const TaskPanel = lazy(() => import("./components/TaskPanel"));
 const CalendarPanel = lazy(() => import("./components/CalendarPanel"));
-const ProgressPanel = lazy(() => import("./components/ProgressPanel"));
 const FriendsPanel = lazy(() => import("./components/FriendsPanel"));
 const MusicPanel = lazy(() => import("./components/MusicPanel"));
 const WeatherPanel = lazy(() => import("./components/WeatherPanel"));
@@ -34,9 +33,13 @@ const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
 
 const PANELS = {
+  // There is deliberately no Progress panel. It existed, and it was mostly a
+  // mirror: the goal/streak chip already lives on the scene, the calendar
+  // already shades every day by focus intensity, and what remained (goal
+  // config, list completion) moved into Tasks — dissolved 2026-08-16, owner
+  // call ("not really worthwhile having").
   tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
   calendar: { title: "Calendar", subtitle: "Plan tasks across your days", Comp: CalendarPanel },
-  progress: { title: "Progress", subtitle: "Your cozy productivity, today", Comp: ProgressPanel },
   friends: { title: "Friends", subtitle: "Cheer on your cottage neighbours", Comp: FriendsPanel },
   music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
   weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },

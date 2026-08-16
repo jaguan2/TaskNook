@@ -211,7 +211,7 @@ TaskNook/
         ├── components/
         │   ├── Cottage.jsx        # The hand-built SVG desk scene
         │   ├── TopBar.jsx, Dock.jsx, Drawer.jsx, FocusTimer.jsx
-        │   ├── TaskPanel, CalendarPanel, ProgressPanel, FriendsPanel,
+        │   ├── TaskPanel, CalendarPanel, FriendsPanel,
         │   │   MusicPanel, WeatherPanel, SettingsPanel (.jsx)
         │   └── WeatherOverlay.jsx # Full-screen rain / snow / storm visuals
         └── lib/

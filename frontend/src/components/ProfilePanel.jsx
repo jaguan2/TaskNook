@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, RefreshCw, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
 import { ISO_SPRITES } from "./IsoItems";
@@ -41,23 +41,69 @@ const TABS = [
   { key: "extras", label: "Extras" },
 ];
 
-function CharacterPreview({ character, away }) {
+/**
+ * The dressing-room stage: drag sideways to SPIN the figure (a four-step
+ * turntable — front, mirrored side-read, back, mirrored back; with two real
+ * drawings plus their mirrors, quarter turns are the honest rotation), and
+ * scroll to zoom. The frame stays FIXED per zoom level — it never refits to
+ * the figure, because auto-fit is what once zoomed every slider change away.
+ */
+function CharacterStage({ character, angle, onSpin }) {
   const Resident = ISO_SPRITES.resident;
-  // A FIXED frame, sized for the biggest figure the sliders and catalog can
-  // produce, with the feet pinned to a drawn floor. It used to re-measure
-  // and refit per change — which quietly ZOOMED every body back to the same
-  // apparent size, so the width and height sliders looked like they did
-  // nothing (owner report). Against a fixed frame and a baseline, a bigger
-  // body is simply bigger.
+  const [zoom, setZoom] = useState(1.35);
+  const svgRef = useRef(null);
+  const dragRef = useRef(null);
+  // Wheel zoom must preventDefault (the drawer would scroll), so it can't be
+  // a React onWheel prop — React registers those passively. Same pattern as
+  // the room's camera.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      setZoom((z) => Math.min(2.8, Math.max(0.8, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12))));
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+  const q = ((Math.round(angle / 90) % 4) + 4) % 4;
+  const away = q === 2 || q === 3;
+  const mirrored = q === 1 || q === 3;
+  // Zoom scales the window, anchored a little above the figure's middle so
+  // zooming in walks up toward the face rather than the floor.
+  const w = 46 / zoom;
+  const h = 112 / zoom;
+  const cy = -44 - (zoom - 1) * 6;
   return (
     <svg
-      viewBox="-22 -100 44 108"
-      className="h-32 w-full"
+      ref={svgRef}
+      viewBox={`${-w / 2} ${cy - h / 2} ${w} ${h}`}
+      className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
+      style={{ touchAction: "none" }}
       role="img"
-      aria-label="Preview of your character"
+      aria-label="Preview of your character — drag to spin, scroll to zoom"
+      onPointerDown={(e) => {
+        dragRef.current = { x: e.clientX, a: angle };
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const d = dragRef.current;
+        if (d) onSpin(d.a + (e.clientX - d.x) * 1.1);
+      }}
+      onPointerUp={() => {
+        dragRef.current = null;
+        // Settle on a clean quarter — a figure left mid-twist looks stuck.
+        onSpin((a) => Math.round(a / 90) * 90);
+      }}
+      onPointerCancel={() => {
+        dragRef.current = null;
+        onSpin((a) => Math.round(a / 90) * 90);
+      }}
     >
       <ellipse cx="0" cy="1.6" rx="14" ry="2.6" fill="#000" opacity="0.18" />
-      <Resident character={character} away={away} />
+      <g transform={mirrored ? "scale(-1,1)" : undefined}>
+        <Resident character={character} away={away} />
+      </g>
     </svg>
   );
 }
@@ -69,7 +115,7 @@ function CharacterPreview({ character, away }) {
  */
 function HairIcon({ style, hairColor, skin }) {
   return (
-    <svg viewBox="-15 -14 30 38" className="h-12 w-10" aria-hidden="true">
+    <svg viewBox="-15 -14 30 38" className="h-12 w-full" aria-hidden="true">
       <HairLength style={style} headY={0} color={hairColor} />
       <HairBehind style={style} headY={0} color={hairColor} />
       <circle cx="0" cy="0" r="7.3" fill={skin} />
@@ -84,7 +130,7 @@ function HairIcon({ style, hairColor, skin }) {
 function HatIcon({ hat, hair, hairColor, skin }) {
   const worn = hat !== "none";
   return (
-    <svg viewBox="-15 -16 30 32" className="h-12 w-10" aria-hidden="true">
+    <svg viewBox="-15 -16 30 32" className="h-12 w-full" aria-hidden="true">
       <HairLength style={hair} headY={0} color={hairColor} />
       {!worn && <HairBehind style={hair} headY={0} color={hairColor} />}
       <circle cx="0" cy="0" r="7.3" fill={skin} />
@@ -100,15 +146,18 @@ function HatIcon({ hat, hair, hairColor, skin }) {
 function GarmentIcon({ character, garment }) {
   const Resident = ISO_SPRITES.resident;
   return (
-    <svg viewBox="-18 -50 36 34" className="h-12 w-10" aria-hidden="true">
+    <svg viewBox="-18 -50 36 34" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, garment }} />
     </svg>
   );
 }
 
 function IconGrid({ label, options, value, onPick, renderIcon }) {
+  // A real GRID, not a wrap of fixed-width chips: the cells share the row's
+  // full width, so the drawer's space is spent on bigger icons instead of a
+  // ragged right margin (owner: "utilize the blank space a little more").
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+    <div className="grid w-full grid-cols-5 gap-1.5" role="group" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.key}
@@ -117,7 +166,7 @@ function IconGrid({ label, options, value, onPick, renderIcon }) {
           title={o.label}
           aria-label={o.label}
           aria-pressed={value === o.key}
-          className={`flex w-14 flex-col items-center rounded-xl px-1 pb-1 pt-0.5 transition ${
+          className={`flex flex-col items-center rounded-xl px-0.5 pb-1 pt-0.5 transition ${
             value === o.key
               ? "bg-glow/20 ring-1 ring-glow"
               : "bg-white/5 hover:bg-white/10"
@@ -353,9 +402,9 @@ export default function ProfilePanel() {
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
-  // Preview the back of your head too — the residents really do turn around
-  // in the room now, so the mirror should show what everyone else sees.
-  const [previewAway, setPreviewAway] = useState(false);
+  // The stage's turntable angle — dragging the figure spins it, the button
+  // advances a quarter turn.
+  const [spin, setSpin] = useState(0);
 
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
@@ -395,25 +444,45 @@ export default function ProfilePanel() {
       />
 
       <section>
-        <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <Shirt size={15} className="text-petal/70" /> Your character
-        </p>
+        {/* The room switch lives in the HEADER, not buried under the tabs —
+            it's the one control here that isn't appearance, and it should be
+            one flick from anywhere (owner request). */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Shirt size={15} className="text-petal/70" /> Your character
+          </p>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 text-xs text-petal/70"
+            title="Your character appears once in the room, and thinks about what you're doing."
+          >
+            In the room
+            <input
+              type="checkbox"
+              checked={selfInRoom}
+              onChange={(e) => setSelfInRoom(e.target.checked)}
+              className="h-4 w-4 accent-glow"
+            />
+          </label>
+        </div>
 
         {/* THE STICKY STAGE: preview + tabs pin to the top of the drawer's
             scroll, so the figure is on screen for every adjustment below —
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            <CharacterPreview character={shown} away={previewAway} />
+            <CharacterStage character={shown} angle={spin} onSpin={setSpin} />
             <button
               type="button"
-              onClick={() => setPreviewAway((a) => !a)}
-              title={previewAway ? "Face the mirror" : "Turn around"}
-              aria-label={previewAway ? "Show front" : "Show back"}
+              onClick={() => setSpin((a) => Math.round(a / 90) * 90 + 90)}
+              title="Turn around"
+              aria-label="Turn the character a quarter turn"
               className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-petal/80 transition hover:bg-white/20"
             >
               <RefreshCw size={13} />
             </button>
+            <span className="pointer-events-none absolute bottom-1.5 right-2.5 text-[10px] text-petal/40">
+              drag to spin · scroll to zoom
+            </span>
           </div>
           <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
             {TABS.map((t) => (
@@ -601,22 +670,6 @@ export default function ProfilePanel() {
       </section>
 
       <hr className="border-white/10" />
-
-      {/* Room-facing settings — not appearance, so they stay out of the tabs. */}
-      <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2.5">
-        <span className="text-xs text-petal/80">
-          Put me in the room
-          <span className="mt-0.5 block text-[11px] text-petal/50">
-            You&apos;ll appear once, and think about what you&apos;re doing.
-          </span>
-        </span>
-        <input
-          type="checkbox"
-          checked={selfInRoom}
-          onChange={(e) => setSelfInRoom(e.target.checked)}
-          className="h-4 w-4 shrink-0 accent-glow"
-        />
-      </label>
 
       <Field label="Who can visit">
         <Choices

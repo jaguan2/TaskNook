@@ -319,3 +319,64 @@ describe("the break nudge, said by a friend", () => {
     expect(nudgeSpeaker([], now)).toBe(null);
   });
 });
+
+describe("friendship warms the dialogue", () => {
+  const NAMES = ["luna", "kai", "sora", "mochi"];
+  const replies = (name, text, now, bond, n = 40) =>
+    new Set(Array.from({ length: n }, (_, i) => botReply(name, text, now, i, bond)));
+
+  it("below close friendship, the bond changes nothing — old replies stay word-for-word", () => {
+    for (const state of ["focus", "break", "idle"]) {
+      const now = instantWhere("luna", state);
+      for (let seed = 0; seed < 12; seed += 1) {
+        const base = botReply("luna", "hello?", now, seed);
+        expect(botReply("luna", "hello?", now, seed, 2)).toBe(base);
+        expect(botReply("luna", "hello?", now, seed, 3)).toBe(base);
+      }
+    }
+  });
+
+  it("a close friend can say things a new one never does — and only additively", () => {
+    const now = instantWhere("kai", "idle");
+    const distant = replies("kai", "thanks!", now, 1);
+    const close = replies("kai", "thanks!", now, 5);
+    // High bond WIDENS the pool: something only a close friend says…
+    const closeOnly = [...close].filter((r) => !distant.has(r));
+    expect(closeOnly.length).toBeGreaterThan(0);
+    // …but a new friend's lines all survive (personality isn't swapped out).
+    expect([...distant].every((r) => close.has(r))).toBe(true);
+  });
+
+  it("the study invitation gets its own close variants", () => {
+    const now = instantWhere("sora", "idle");
+    const distant = new Set(
+      Array.from({ length: 40 }, (_, i) => replyToOption("sora", "study", now, i, 1))
+    );
+    const close = new Set(
+      Array.from({ length: 40 }, (_, i) => replyToOption("sora", "study", now, i, 5))
+    );
+    expect([...close].filter((r) => !distant.has(r)).length).toBeGreaterThan(0);
+  });
+
+  it("close lines never leak an unfilled placeholder either", () => {
+    for (const state of ["focus", "break", "idle"]) {
+      for (const name of NAMES) {
+        const now = instantWhere(name, state);
+        for (let seed = 0; seed < 24; seed += 1) {
+          expect(botReply(name, "hello?", now, seed, 5)).not.toContain("{");
+          expect(replyToOption(name, "study", now, seed, 5)).not.toContain("{");
+        }
+      }
+    }
+  });
+
+  it("a close focus reply still quotes the presence line's real countdown", () => {
+    const now = instantWhere("luna", "focus");
+    const { minutesLeft } = npcActivity("luna", now);
+    for (let seed = 0; seed < 24; seed += 1) {
+      const reply = botReply("luna", "how's it going?", now, seed, 5);
+      const quoted = reply.match(/(\d+)\s*(?:m\b|minutes)/);
+      if (quoted) expect(Number(quoted[1])).toBe(minutesLeft);
+    }
+  });
+});

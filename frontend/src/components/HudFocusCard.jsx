@@ -333,7 +333,7 @@ export default function HudFocusCard() {
         {/* Daily goal + streak: chromeless, straight on the backdrop (VC2
             keeps this on the main screen, not buried in a stats dialog). */}
         <p
-          title="Today's focus vs your daily goal (set in Progress) and your streak of goal-met days"
+          title="Today's focus vs your daily goal (set in Tasks) and your streak of goal-met days"
           className={`mt-1.5 flex items-center justify-center gap-1 text-center text-[11px] font-semibold drop-shadow ${
             goalMet ? "text-sage" : "text-petal/60"
           }`}

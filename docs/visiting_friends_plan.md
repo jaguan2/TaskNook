@@ -153,3 +153,17 @@ visiting ever ships.
    home" for texture?
 3. The bot→room pairings above — taste-check them.
 4. Your account's default `visit_access` — "friends" (recommended)?
+
+## Friendship (added 2026-08-16)
+
+The bond system shipped: points per message sent / visit / minute spent in a
+friend's room (`lib/friendship.js` owns the vocabulary, the store owns the
+`tasknook.friendship` tally), five levels shown as a bar on the friend row,
+and close friendship (level 4+) additively widening the chat reply pools.
+
+**Noted for LATER, deliberately not built** (owner, 2026-08-16): friendship
+rewards — an outfit, a hat, a decoration a friend gifts you at a level, the
+way Animal Crossing villagers hand you their shirt. The unlock machinery
+(`lib/unlocks.js`, `user.unlocked`) already exists and is inert; a gift would
+be one entry in `PREMIUM` granted through `unlockItem` instead of bought.
+Until then the bar is honest cosmetics: a reason to interact, not a grind.

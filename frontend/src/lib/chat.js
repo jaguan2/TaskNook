@@ -90,6 +90,25 @@ const SHAPED = {
   bye: ["night! 🌙", "see you 👋", "later! good luck with the list", "bye for now"],
 };
 
+// What close friendship ADDS. At bond level 4+ these pools merge into the
+// base ones, so a close friend SOMETIMES says something only a close friend
+// would — additive rather than replacing, because a friendship warming up
+// should widen what someone might say, not swap their personality out. Low
+// bond can never produce these lines; that asymmetry is the whole tweak.
+const CLOSE_LINES = {
+  greeting: ["there you are 🥰", "was hoping you'd come by"],
+  thanks: ["always. what are friends for?", "for you? any time 💛"],
+  bye: ["come back soon, yeah? 🌙", "miss you already — go on"],
+  idle: ["you're my favourite interruption 🌸", "saved you a seat ☕"],
+  focus: ["stay while I finish? {left}m 📖", "you can keep me company — {left}m left"],
+};
+const CLOSE_OPTION_LINES = {
+  study: ["with you? always 🌸", "thought you'd never ask"],
+};
+const CLOSE_BOND = 4;
+const withClose = (base, extra, bond) =>
+  bond >= CLOSE_BOND && extra ? [...base, ...extra] : base;
+
 // ---------------------------------------------------------------------------
 // What YOU can say: an RPG dialogue menu, not a text box.
 // ---------------------------------------------------------------------------
@@ -151,17 +170,23 @@ export function dialogueOptions(username, now, { theirTurn = false } = {}) {
   return ids.map((id) => ({ id, label: OPTION_LABEL[id] }));
 }
 
-/** What they say back to the option you picked. */
-export function replyToOption(username, optionId, now, seed = 0) {
+/**
+ * What they say back to the option you picked.
+ *
+ * `bond` is the friendship level (lib/friendship.js) — 4+ widens the pools
+ * with lines only a close friend says. Defaults to 1 so every reply pinned
+ * before the bond existed still lands word-for-word.
+ */
+export function replyToOption(username, optionId, now, seed = 0, bond = 1) {
   const { state, minutesLeft } = npcActivity(username, now);
   const own = OPTION_LINES[optionId];
   if (own) {
-    const lines = own[state] || own.idle;
+    const lines = withClose(own[state] || own.idle, CLOSE_OPTION_LINES[optionId], bond);
     return pick(lines, hash(username, optionId, seed)).replace("{left}", String(minutesLeft));
   }
   // Everything else answers the way typed text of that shape would, so the two
   // entry points can never drift into telling different stories.
-  return replyFor(username, OPTION_SHAPE[optionId] ?? null, optionId, now, seed);
+  return replyFor(username, OPTION_SHAPE[optionId] ?? null, optionId, now, seed, bond);
 }
 
 /** Which shaped reply, if any, the text calls for. */
@@ -181,8 +206,8 @@ function shapeOf(text) {
  * `seed` distinguishes repeats — pass the thread's message count, so asking
  * the same thing twice doesn't get the same words back.
  */
-export function botReply(username, text, now, seed = 0) {
-  return replyFor(username, shapeOf(text), text, now, seed);
+export function botReply(username, text, now, seed = 0, bond = 1) {
+  return replyFor(username, shapeOf(text), text, now, seed, bond);
 }
 
 /**
@@ -192,17 +217,23 @@ export function botReply(username, text, now, seed = 0) {
  * `salt` is whatever should make repeats differ — the text you typed, or the
  * option id. Split out so the two entry points can't drift apart.
  */
-function replyFor(username, shape, salt, now, seed = 0) {
+function replyFor(username, shape, salt, now, seed = 0, bond = 1) {
   const { state, minutesLeft } = npcActivity(username, now);
   const h = hash(username, salt, seed);
 
   // Busy beats chatty: mid-block, they answer the way someone typing with one
   // hand does, whatever you asked.
   if (state === "focus" && shape !== "bye") {
-    return pick(LINES.focus, h).replace("{left}", String(minutesLeft));
+    return pick(withClose(LINES.focus, CLOSE_LINES.focus, bond), h).replace(
+      "{left}",
+      String(minutesLeft)
+    );
   }
-  if (shape) return pick(SHAPED[shape], h);
-  return pick(LINES[state] || LINES.idle, h).replace("{left}", String(minutesLeft));
+  if (shape) return pick(withClose(SHAPED[shape], CLOSE_LINES[shape], bond), h);
+  return pick(
+    withClose(LINES[state] || LINES.idle, state === "idle" ? CLOSE_LINES.idle : null, bond),
+    h
+  ).replace("{left}", String(minutesLeft));
 }
 
 /**

@@ -347,7 +347,23 @@ running `git commit` yourself.
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses
-  jittering. A visit is otherwise a
+  jittering. The row's NUMBERS are simulated too (`npcDailyStats`, same
+  file): the API's seeded rows never change, so every bot showed "0m
+  focused" forever beside a presence line claiming they were mid-block. It
+  rolls 2–6 tasks per LOCAL day, picks how much of the list finishes (not
+  always 100% — that would read as bots), and ticks focus minutes up
+  through waking hours; the done-count is DERIVED from the minutes (each
+  finished task costs 20–40 of them), so the two readouts can never
+  disagree. **Friendship** (`lib/friendship.js` + `tasknook.friendship`):
+  a per-device bond tally per bot — points per message sent, per visit,
+  per minute spent in their room (a store interval while `visiting`) — read
+  as five levels shown as a rose bar on the friend row. Mostly cosmetic BY
+  DESIGN (a reason to interact, not a grind; rewards are a noted-later in
+  docs/visiting_friends_plan.md), except that level 4+ additively widens
+  the chat reply pools (`CLOSE_LINES` in lib/chat.js — bond is passed at
+  reply-FIRE time, and low bond can never produce a close line; the
+  asymmetry is the tweak). The tally lives client-side like the check-in
+  marker — the server never hears of it. A visit is otherwise a
   read-only scene swap — drawers close on arrival, Decorate is disabled
   with a hint, the chip (and Escape, ahead of everything else) leads home —
   and `activity` still flows, so starting a focus block means studying
@@ -437,22 +453,29 @@ running `git commit` yourself.
 - **Two time windows in `/api/stats`, don't mix them.** `tasksTotal` /
   `tasksDone` / `completion` describe the **current list** — a standing to-do
   list isn't recreated each morning — while `tasksDoneToday` and
-  `focusMinutesToday` are bucketed by the LOCAL day. ProgressPanel labels them
-  accordingly ("List completion" vs "Done today"); it used to say "Today's
-  completion" over lifetime counts, so a task finished a year ago read as
-  today's progress and the bar never moved. `local_day_start_utc()` in
+  `focusMinutesToday` are bucketed by the LOCAL day. TaskPanel labels them
+  accordingly ("List completion" over the bar, "· N today" in its sub-line); a
+  heading once said "Today's completion" over lifetime counts, so a task
+  finished a year ago read as today's progress and the bar never moved.
+  **There is deliberately no Progress panel** (dissolved 2026-08-16, owner
+  call): it mostly mirrored what the scene chip and the calendar already
+  showed. Goal config + list completion live in TaskPanel now; the history
+  summary lives under the calendar's month grid. `local_day_start_utc()` in
   `app.py` is how the day boundary reaches a naive-UTC `completed_at` column.
 - **Focus history is SHOWN, not just collected.** `sessionDays` holds full
   per-day minutes; the calendar used to reduce it to one flat tint, so five
-  minutes and five hours looked identical, and ProgressPanel was 100% today-only
-  — months of data behind a boolean. Both now shade by `intensityOf`/
-  `intensityScale` (`lib/stats.js`), whose scale is the TERTILES OF YOUR OWN
-  non-zero days: a fixed scale would leave a 20-minute-a-day habit on the palest
-  step forever. ProgressPanel also draws an 18-week heatmap plus best-day /
-  this-week / vs-last-week (`focusWeeks`, `focusSummary`). Days after today are
-  drawn as empty slots, never as zero-focus days — "you did nothing on Friday" is
-  a lie when it's Wednesday — and `deltaPct` is `null` rather than 0 when last
-  week was empty, because "up 0%" and "your first week" are different statements.
+  minutes and five hours looked identical — months of data behind a boolean.
+  It shades by `intensityOf`/`intensityScale` (`lib/stats.js`), whose scale is
+  the TERTILES OF YOUR OWN non-zero days: a fixed scale would leave a
+  20-minute-a-day habit on the palest step forever. The month grid IS the
+  history view — under it sits the headline line (days focused / best day /
+  this week / vs last week, `focusSummary`). A separate 18-week heatmap
+  (`focusWeeks`) existed in the Progress panel and restated the same days the
+  calendar was already shading; both are gone. `deltaPct` is `null` rather
+  than 0 when last week was empty, because "up 0%" and "your first week" are
+  different statements. The calendar deliberately does NOT read `useTimer` for
+  live minutes — redrawing a month grid at 1Hz to warm one number is the
+  wrong trade; the line updates when a block logs.
 - **Calendar activity marking**: `GET /api/sessions/days` aggregates focus
   minutes per day (`{day: minutes}`), fetched into `store.jsx`'s `sessionDays`
   as part of `refreshAll()`. `CalendarPanel.jsx` unions that with days derived
@@ -556,7 +579,7 @@ running `git commit` yourself.
   subtree and only context consumers update. There are **two** hooks, and
   picking the wrong one undoes the whole thing:
   `useTimer()` is everything including `remaining`/`elapsed` (HudFocusCard
-  and ProgressPanel — they display the clock, so ticking is correct), while
+  and TaskPanel — they display live minutes, so ticking is correct), while
   `useTimerStatus()` is a memoised `{running, phase, timerMode}` for
   components that merely REACT to a session. `App` must use the status hook:
   reading the full context there puts App back on a 1Hz re-render and drags
@@ -584,12 +607,14 @@ running `git commit` yourself.
   mode/presets/pomodoro tucked behind the
   `⚙` expander, and a chromeless daily-goal/streak chip underneath
   (`🎯 focused/goal · 🔥 streak` — goal lives in `tasknook.dailyGoal`, streak
-  math is `lib/stats.js`'s pure `focusStreak`, configured in ProgressPanel).
-  The chip and ProgressPanel show `focusMinutesLive` = the DB's completed
+  math is `lib/stats.js`'s pure `focusStreak`, configured in TaskPanel's
+  goal-ring section).
+  The chip and TaskPanel show `focusMinutesLive` = the DB's completed
   sessions + the CURRENT running block's minutes — without the live part the
   app reads as "not tracking me" (user feedback).
-  **Break nudge** (`lib/breaks.js`, toggle in ProgressPanel,
-  `tasknook.breakNudge`): after `BREAK_NUDGE_MINUTES` (120) of unbroken
+  **Break nudge** (`lib/breaks.js`, toggle in TaskPanel beside the goal —
+  the goal pushes, this says when to stop — `tasknook.breakNudge`): after
+  `BREAK_NUDGE_MINUTES` (120) of unbroken
   PRESENCE, a 60s toast suggests standing up. The trigger is neither of the
   two obvious things, and both were tried:
   **focus-timer seconds is too narrow** — plenty of studying happens with a

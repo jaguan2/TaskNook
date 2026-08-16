@@ -8,13 +8,14 @@ import {
   useMemo,
 } from "react";
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
-import { readJSON, readStored, removeStored, writeStored } from "./lib/storage";
+import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
 import { toISO } from "./lib/dates";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import {
   MESSAGE_MAX,
   botReply,
@@ -276,7 +277,8 @@ export function StoreProvider({ children }) {
   });
 
   // ---- Daily goal ----
-  // Target focus minutes per day; drives the goal ring + streak in Progress.
+  // Target focus minutes per day; drives the goal ring + streak in the Tasks
+  // panel and the chip under the focus card.
   const [dailyGoal, setDailyGoalState] = useState(() => {
     const saved = Number(readStored("tasknook.dailyGoal"));
     return saved >= 15 && saved <= 960 ? saved : 120;
@@ -1221,6 +1223,46 @@ export function StoreProvider({ children }) {
       applyTimeOfDay(timeOfDayNow());
     }
   };
+  // ---------- Friendship (simulated social) ----------
+  // The bond tally: username → points. lib/friendship.js owns what points are
+  // worth and what the levels mean; this owns only the impure half — the
+  // per-device tally in localStorage, and WHEN points accrue (a message sent,
+  // a door stepped through, minutes spent in a friend's room). Per-device
+  // rather than a DB column for the same reason the check-in marker is: the
+  // whole feature is client-side theater, and the server never hears of it.
+  const [friendship, setFriendship] = useState(() => {
+    const saved = readJSON("tasknook.friendship", {});
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+    const clean = {};
+    for (const [name, pts] of Object.entries(saved)) {
+      const n = clampBond(pts);
+      if (n > 0) clean[name] = n;
+    }
+    return clean;
+  });
+  // Persisted by effect, not inside the updater — updaters must stay pure
+  // (StrictMode double-invokes them; same rule the dock's toggle follows).
+  useEffect(() => {
+    writeJSON("tasknook.friendship", friendship);
+  }, [friendship]);
+  const addBond = useCallback((username, points) => {
+    if (!username || !points) return;
+    setFriendship((prev) => ({
+      ...prev,
+      [username]: clampBond((prev[username] || 0) + points),
+    }));
+  }, []);
+  // Read inside reply timers, which fire long after the closure that made
+  // them — same staleness rule as userRef/friendsRef.
+  const friendshipRef = useRef(friendship);
+  useEffect(() => {
+    friendshipRef.current = friendship;
+  }, [friendship]);
+  const bondLevelOf = useCallback(
+    (username) => levelFor(friendshipRef.current[username] || 0).level,
+    []
+  );
+
   // ---------- Visiting friends' rooms (simulated social) ----------
   // The scene swap is all this owns: fetch what the friend has stored, let
   // lib/visiting derive the rest (their home, their look, you as the guest),
@@ -1267,6 +1309,9 @@ export function StoreProvider({ children }) {
         }),
       });
       hintWalk();
+      // Showing up is how friendship starts; staying accrues by the minute
+      // (the effect below).
+      addBond(data.username, BOND_POINTS.visit);
       return true;
     } catch (err) {
       showToast(`Couldn't visit — ${err.message}`);
@@ -1347,6 +1392,19 @@ export function StoreProvider({ children }) {
   };
   const leaveVisit = useCallback(() => setVisiting(null), []);
 
+  // Time TOGETHER is the slow, honest way the bond grows: one point per
+  // minute spent in a friend's room, however you spend it — studying
+  // together counts by simply being there, like real libraries. Keyed on the
+  // username so a new visit restarts the clock, and the interval dies with
+  // the visit (leaving mid-minute earns nothing, which is what a minute
+  // means).
+  useEffect(() => {
+    const username = visiting?.friend?.username;
+    if (!username) return undefined;
+    const id = setInterval(() => addBond(username, BOND_POINTS.minuteTogether), 60_000);
+    return () => clearInterval(id);
+  }, [visiting?.friend?.username, addBond]);
+
   // ---- chat ------------------------------------------------------------ //
   //
   // The bots' replies are SCHEDULED, and — exactly like the knock above — the
@@ -1421,6 +1479,10 @@ export function StoreProvider({ children }) {
     // Who replies: the one friend, or a couple of the group who are free.
     const others = (chat.members || []).filter((m) => m.id !== userRef.current?.id);
     if (!others.length) return;
+    // Saying something to someone is the cheapest brick in the friendship —
+    // everyone who heard you gets it, which makes a group line worth more in
+    // total but no more per person.
+    others.forEach((m) => addBond(m.username, BOND_POINTS.message));
     const now = Date.now();
     const seed = Date.now() % 1000;
     const speaking = chat.isGroup
@@ -1437,10 +1499,13 @@ export function StoreProvider({ children }) {
         try {
           // A picked option answers the OPTION, not the words on the button:
           // the intent is already known, so there's nothing to infer from the
-          // text and no chance of the regexes reading it differently.
+          // text and no chance of the regexes reading it differently. The bond
+          // level is read at FIRE time, not send time — the message that's
+          // being answered may itself have tipped a level.
+          const bond = bondLevelOf(username);
           const reply = optionId
-            ? replyToOption(username, optionId, Date.now(), seed + i)
-            : botReply(username, text, Date.now(), seed + i);
+            ? replyToOption(username, optionId, Date.now(), seed + i, bond)
+            : botReply(username, text, Date.now(), seed + i, bond);
           await api.sendMessage(chat.id, reply, friend.id);
           onMessages?.(await api.chatMessages(chat.id));
           refreshChats();
@@ -1903,6 +1968,7 @@ export function StoreProvider({ children }) {
     sendChatMessage,
     markChatRead,
     deleteChat,
+    friendship,
 
     // room decoration
     roomPlacements,

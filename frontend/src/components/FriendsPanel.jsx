@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Heart } from "lucide-react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
-import { VISIT_ACCESS, npcActivity } from "../lib/visiting";
+import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
+import { levelFor } from "../lib/friendship";
 import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 
@@ -32,6 +34,7 @@ export default function FriendsPanel() {
     chats,
     openChatWith,
     openGroupChat,
+    friendship,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -267,8 +270,19 @@ export default function FriendsPanel() {
           </p>
         )}
         {friends.map((f) => {
-          const hours = Math.floor(f.focusMinutesToday / 60);
-          const mins = f.focusMinutesToday % 60;
+          // The DISPLAYED day is simulated (lib/visiting.js), not the seeded
+          // rows: the API's numbers never change, so every bot showed
+          // "0m focused" forever beside a presence line claiming they were
+          // mid-block. npcDailyStats rolls a fresh list per local day and
+          // ticks the minutes up through it, on the same 30s clock as the
+          // presence line — one simulation, one story.
+          const sim = npcDailyStats(f.username, now);
+          const hours = Math.floor(sim.focusMinutes / 60);
+          const mins = sim.focusMinutes % 60;
+          const completion = sim.tasksTotal
+            ? Math.round((sim.tasksDone / sim.tasksTotal) * 100)
+            : 0;
+          const bond = levelFor(friendship[f.username] || 0);
           return (
             <div
               key={f.id}
@@ -297,15 +311,34 @@ export default function FriendsPanel() {
                     </button>
                   </div>
                   <p className="text-xs text-petal/60">
-                    {hours > 0 ? `${hours}h ` : ""}{mins}m focused · {f.tasksDone}/{f.tasksTotal} tasks
+                    {hours > 0 ? `${hours}h ` : ""}{mins}m focused · {sim.tasksDone}/{sim.tasksTotal} tasks
                   </p>
                 </div>
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-sage to-glow transition-all duration-700"
-                  style={{ width: `${f.completion}%` }}
+                  style={{ width: `${completion}%` }}
                 />
+              </div>
+              {/* The friendship bar: one bar that fills over the whole
+                  friendship, not per level — level colour lives in the label.
+                  Rose DECORATES here (the meaning is the width + label, which
+                  survive any theme's re-tint of rose). */}
+              <div
+                className="mt-1.5 flex items-center gap-2"
+                title={`Friendship grows as you chat, visit and spend time together${
+                  bond.next ? ` — ${bond.next} to the next level` : " — as close as it gets"
+                }`}
+              >
+                <Heart size={10} className="shrink-0 text-rose" fill="currentColor" />
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-rose to-blush transition-all duration-700"
+                    style={{ width: `${Math.round(bond.frac * 100)}%` }}
+                  />
+                </div>
+                <span className="shrink-0 text-[10px] text-petal/50">{bond.label}</span>
               </div>
               {/* Two ways to reach them on the left, what they're doing on the
                   right. The ACTIONS are their own group: as three children of

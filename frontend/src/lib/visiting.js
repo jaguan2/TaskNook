@@ -228,5 +228,55 @@ export function npcActivity(username, now) {
   return { state: "idle", minutesLeft: 1 };
 }
 
+/**
+ * A bot's day in NUMBERS — the friends list's "focused · tasks" line.
+ *
+ * The API serves the seeded users' real rows, which never change: every bot
+ * showed "0m focused" forever, right beside a presence line claiming they
+ * were mid-block — two simulations telling different stories. This replaces
+ * the displayed numbers with a day that actually happens: a to-do list of
+ * 2–6 tasks rolled fresh per LOCAL day, a finishing point somewhere between
+ * "got through some of it" and "cleared it", and focus minutes that tick up
+ * through waking hours as the tasks fall.
+ *
+ * The minutes and the count can never disagree, because the count is DERIVED
+ * from the minutes: each finished task costs 20–40 of them, and a task is
+ * done when the day's clock has covered its span. Deterministic in
+ * (username, local day, clock) — never Math.random — so the panel re-derives
+ * it on its 30s tick and the numbers only ever move forward, like someone
+ * actually working through a list.
+ */
+export function npcDailyStats(username, now) {
+  const d = new Date(now);
+  // LOCAL parts, the same day-boundary convention as everywhere else.
+  const seed = `${username}:${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  // A third multiplier, so a bot's workload correlates with neither its looks
+  // nor its schedule.
+  let h = 0;
+  for (const ch of seed) h = (h * 193 + ch.charCodeAt(0)) >>> 0;
+
+  const tasksTotal = 2 + (h % 5); // 2..6, fresh each day
+  // How much of the list today actually finishes — some days end 2/5, and a
+  // roster of four bots all on 100% every evening would read as bots.
+  const doneTarget = Math.max(1, Math.round((tasksTotal * (40 + ((h >>> 8) % 61))) / 100));
+
+  // Everyone starts at their own hour (07:00–10:00) and winds down by 21:00.
+  const startMin = 7 * 60 + ((h >>> 16) % 181);
+  const minuteOfDay = d.getHours() * 60 + d.getMinutes();
+  const t = Math.max(0, Math.min(1, (minuteOfDay - startMin) / (21 * 60 - startMin)));
+
+  const spans = [];
+  for (let i = 0; i < doneTarget; i += 1) spans.push(20 + ((h >>> ((i * 5) % 27)) % 21));
+  const dayMinutes = spans.reduce((sum, span) => sum + span, 0);
+  const focusMinutes = Math.floor(dayMinutes * t);
+  let tasksDone = 0;
+  let acc = 0;
+  for (const span of spans) {
+    acc += span;
+    if (acc <= focusMinutes) tasksDone += 1;
+  }
+  return { focusMinutes, tasksDone, tasksTotal };
+}
+
 // Exported for the tests: which preset key is whose home.
 export const NPC_HOME_KEYS = { ...NPC_HOMES };

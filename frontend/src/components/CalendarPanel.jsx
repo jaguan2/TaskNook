@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { toISO } from "../lib/dates";
-import { intensityOf, intensityScale } from "../lib/stats";
+import { focusSummary, intensityOf, intensityScale, localTodayISO } from "../lib/stats";
 import { formatSpan } from "../lib/breaks";
 
 function monthMatrix(year, month) {
@@ -93,6 +93,14 @@ export default function CalendarPanel() {
     return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
   };
 
+  // Headline history — the numbers the Progress panel's heatmap used to carry.
+  // The month grid above already IS the history (it shades every day by
+  // intensity), so what moved here is just the summary line. No live minutes:
+  // that would mean useTimer, and a panel that redraws a whole month grid
+  // every second to keep one number warm is the wrong trade — the line
+  // updates when a block logs.
+  const summary = focusSummary(sessionDays, localTodayISO());
+
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);
   const unscheduled = tasks.filter((t) => !t.scheduledDate && !t.completed);
 
@@ -178,6 +186,24 @@ export default function CalendarPanel() {
         ))}
         <span>more focus</span>
       </div>
+
+      {/* Only once there's history — an all-zero readout over a fresh install
+          is a reproach, and the empty state here is simply nothing. */}
+      {summary.activeDays > 0 && (
+        <p className="flex flex-wrap items-center gap-x-3 text-xs text-petal/60">
+          <span>
+            <span className="font-semibold text-cream">{summary.activeDays}</span> day
+            {summary.activeDays === 1 ? "" : "s"} focused
+          </span>
+          {summary.bestMinutes > 0 && <span>best {spanFor(summary.bestMinutes)}</span>}
+          <span>this week {spanFor(summary.last7) || "0m"}</span>
+          {summary.deltaPct !== null && (
+            <span className={summary.deltaPct >= 0 ? "text-sage" : "text-petal/70"}>
+              {summary.deltaPct >= 0 ? "▲" : "▼"} {Math.abs(summary.deltaPct)}% vs last week
+            </span>
+          )}
+        </p>
+      )}
 
       {/* What the day actually went on. The calendar could always say HOW LONG
           you focused; taskName was collected from the start and read by
