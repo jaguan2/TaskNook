@@ -14,6 +14,24 @@ import {
   systemPrefersReduced,
 } from "./motion";
 
+/**
+ * Every sprite source that draws a room's inhabitants, concatenated. The
+ * character moved out of IsoItems.jsx into its own package (the registry
+ * refactor), but for these SOURCE scans the two are one body of artwork —
+ * the pins don't care which file a gesture gate lives in, only that it
+ * exists somewhere in the sprites.
+ */
+const spriteSources = () =>
+  [
+    "src/components/IsoItems.jsx",
+    "src/components/character/index.jsx",
+    "src/components/character/body.jsx",
+    "src/components/character/hair.jsx",
+    "src/components/character/garments.jsx",
+  ]
+    .map((p) => readFileSync(resolve(process.cwd(), p), "utf8"))
+    .join("\n");
+
 /** Pretend the OS does (or doesn't) ask for reduced motion. */
 function systemSays(reduce) {
   vi.stubGlobal("matchMedia", (q) => ({
@@ -285,7 +303,7 @@ describe("the walk shares one clock", () => {
     // Contralateral. The NEAR arm rides leg A's clock and leg A is the FAR leg,
     // so same-suffix ≠ same side — that opposition is the single strongest read
     // of a gait, and the first cut of the walk had no arm swing at all.
-    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+    const items = spriteSources();
     const far = items.indexOf('className={moving ? "walk-arm-b" : undefined}');
     const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}');
     expect(far).toBeGreaterThan(-1);
@@ -349,7 +367,7 @@ describe("the walk shares one clock", () => {
     // Drag-and-drop lifts the character off the floor, so every cue that says
     // "my feet are on something" has to go: the limbs hang from their joints and
     // the body swings from the scruff of the neck.
-    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+    const items = spriteSources();
     // Four limbs, each on its OWN wrapper — sharing an element with a walk class
     // would let the animation silently eat the offset.
     expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(4);
@@ -394,7 +412,7 @@ describe("the walk shares one clock", () => {
 describe("ambient loops are desynchronised per item", () => {
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
-  const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+  const items = spriteSources();
   const roomItems = readFileSync(resolve(process.cwd(), "src/components/RoomItems.jsx"), "utf8");
 
   it("a wanderer's phase comes from its stored square, not the one it walked to", () => {
@@ -613,7 +631,7 @@ describe("ambient loops are desynchronised per item", () => {
 // wrong are both invisible in a code review, so they're pinned here.
 describe("idle gestures read as occasional, not as a loop", () => {
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
-  const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+  const items = spriteSources();
   const GESTURES = [
     "gesture-look", "gesture-yawn", "gesture-yawn-mouth",
     "gesture-stretch", "gesture-rub", "gesture-rub-head",

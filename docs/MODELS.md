@@ -2,8 +2,12 @@
 
 How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
-is the authority on the *models* — the 131 sprites in
-`frontend/src/components/IsoItems.jsx`.
+is the authority on the *models* — the furniture sprites in
+`frontend/src/components/IsoItems.jsx` and the character package in
+`frontend/src/components/character/` (body rig, hair and garment REGISTRIES,
+pose assembly — split out because the character is the fastest-growing
+artwork, and a style there is one self-contained registry entry rather than
+switch cases).
 
 These are rules, not preferences. Most were paid for: every "learned from"
 note below is a sprite that shipped wrong and had to be redrawn.
@@ -115,11 +119,18 @@ Two rules that come out of it:
   against. The near arm gets a white catch so it doesn't vanish into a torso
   it shares a colour with.
 
-**Hair is THREE layers, and the split is load-bearing.** `HairFront` may cover
-the crown and stop at the temples — **nothing in it descends past the eye line**
-(`headY + 2`). `HairBehind` is crown volume, drawn before the head circle but
-inside the gesture wrappers so it turns with a head turn. `HairLength` is
-everything that falls past the jaw, drawn **before the torso**.
+**Hair is THREE layers, and the split is load-bearing.** A style is one
+`HAIR_REGISTRY` entry (`character/hair.jsx`) providing any of them: `front`
+may cover the crown and stop at the temples — **nothing in it descends past
+the eye line** (`headY + 2`); `behind` is crown volume, drawn before the head
+circle but inside the gesture wrappers so it turns with a head turn; `length`
+is everything that falls past the jaw, drawn **before the torso**. Masses ride
+`HAIR_LIFT` (1.2px) off the skull with a brow shadow — hair drawn on the
+skull's own radius is a decal, not a haircut. Garments mirror the scheme in
+`GARMENT_REGISTRY` (`character/garments.jsx`): outer layers draw a `shell`
+BIGGER than the body with an under-shadow at the hem (`OUTER_BULK`), and a
+`collar` slot renders after the body's own neck — the one spot the torso pass
+can't reach. Registry keys are pinned against the profile catalog both ways.
 
 **Learned from:** every style once put its length in `HairFront`, which paints
 after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —

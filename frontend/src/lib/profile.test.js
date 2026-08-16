@@ -6,6 +6,7 @@ import {
   ZODIAC,
   DEFAULT_CHARACTER,
   HAIR_STYLES,
+  OUTFITS,
   isMbti,
   parseBirthDate,
   zodiacFor,
@@ -131,13 +132,45 @@ describe("validateCharacter", () => {
       build: "slim",
     };
     // width/height weren't stored, so they fill in from the BUILD and the
-    // classic leg — a pre-slider "slim" save keeps its slim silhouette.
+    // classic leg — a pre-slider "slim" save keeps its slim silhouette. The
+    // wardrobe axes fill in the same way: a character saved before garments
+    // existed still validates to the plain sweater over plum trousers it drew
+    // at the time, which is the whole reason the character is a JSON blob and
+    // not columns.
     expect(validateCharacter(chosen)).toEqual({
       ...chosen,
       skin: "#8d5524",
+      garment: "sweater",
+      inner: DEFAULT_CHARACTER.inner,
+      trouser: DEFAULT_CHARACTER.trouser,
       width: BUILD_SHAPE.slim.halfW,
       height: LEG_H,
     });
+  });
+
+  it("the wardrobe: keeps a real garment, refuses an invented one", () => {
+    expect(validateCharacter({ garment: "hoodie" }).garment).toBe("hoodie");
+    expect(validateCharacter({ garment: "spacesuit" }).garment).toBe("sweater");
+    expect(validateCharacter({ garment: 7 }).garment).toBe("sweater");
+    // Trousers and the second colour are hexes, normalised like every other.
+    expect(validateCharacter({ trouser: "#3F5A7A" }).trouser).toBe("#3f5a7a");
+    expect(validateCharacter({ trouser: "not a colour" }).trouser).toBe(
+      DEFAULT_CHARACTER.trouser
+    );
+    expect(validateCharacter({ inner: "#ABCDEF" }).inner).toBe("#abcdef");
+  });
+
+  it("every garment in the catalogue is actually reachable", () => {
+    // The panel offers exactly this list, so a key here that the validator
+    // rejects would be a button that silently does nothing.
+    for (const o of OUTFITS) {
+      expect(validateCharacter({ garment: o.key }).garment).toBe(o.key);
+      expect(o.label).toBeTruthy();
+    }
+    // A garment earns its slot by changing the outline or the two-tone split;
+    // the ones that layer must declare it, or the panel won't offer the second
+    // colour and half the garment renders in a colour nobody chose.
+    expect(OUTFITS.filter((o) => o.inner).length).toBeGreaterThan(0);
   });
 
   it("body sliders: clamps width/height, rejects junk, defaults width from the build", () => {

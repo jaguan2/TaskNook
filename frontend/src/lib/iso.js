@@ -15,6 +15,9 @@
 export const TILE_W = 48; // a floor diamond is twice as wide…
 export const TILE_H = 24; // …as it is tall (2:1 isometric)
 export const WALL_H = 118; // wall height in screen px
+// The wall plane's skew in degrees — atan(TILE_H / TILE_W), the projection's
+// own angle. Every wall sprite skews by it, and the lying pose lies along it.
+export const SKEW = (Math.atan(TILE_H / TILE_W) * 180) / Math.PI;
 
 /** Grid → scene coordinates (the top corner of tile (gx,gy)'s diamond). */
 export function project(gx, gy) {

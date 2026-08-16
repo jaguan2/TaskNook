@@ -69,6 +69,16 @@ const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 // The two "lofi ... radio" LIVE streams were removed 2026-07 — they refused
 // to play in the embedded player (user-verified), while regular videos and
 // playlists work fine.
+// SPOTIFY stations behave differently from YouTube ones, and the difference is
+// a trade, not an upgrade: the embed brings its own transport, so you can skip
+// between tracks on an album (which a single YouTube video can't do) — but
+// Spotify's embed keeps playback to itself, so TaskNook's own bar can't drive
+// it and won't show a position, and an embed plays 30-second PREVIEWS unless
+// the listener is signed in to Spotify Premium in that browser. That's why the
+// YouTube version of the same set stays in the list rather than being replaced:
+// one plays in full for everyone, the other is skippable.
+// An `artist` link deliberately isn't accepted (`lib/spotify.js`) — only
+// playlist/album/track/show/episode have an embed that plays.
 const BUILT_IN_STATIONS = [
   { provider: "youtube", id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
   { provider: "youtube", id: "foEjHAkrIDA", label: "secret cafe r&b ☕" },
@@ -79,6 +89,12 @@ const BUILT_IN_STATIONS = [
     kind: "playlist",
     id: "PLwzQP2wCE5w5_L9yjomQyX2CMFa0T-pw_",
     label: "homework music 📝",
+  },
+  {
+    provider: "spotify",
+    kind: "album",
+    id: "1c5jK2Zo2yKEHGmSedVbwE",
+    label: "secret cafe r&b ☕ (skippable)",
   },
 ];
 

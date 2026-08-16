@@ -2,8 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
+import { GARMENT_REGISTRY, HAIR_REGISTRY } from "./character";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { DEFAULT_CHARACTER, HAIR_STYLES, MODELS } from "../lib/profile";
+import { DEFAULT_CHARACTER, HAIR_STYLES, MODELS, OUTFITS } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -127,6 +128,19 @@ describe("the isometric catalog and its artwork agree", () => {
       const character = { ...DEFAULT_CHARACTER, model, hair };
       expect(() => draw(<Resident character={character} />)).not.toThrow();
       expect(() => draw(<Resident character={character} seated seatH={19} />)).not.toThrow();
+    });
+
+    it("the registries and the profile catalog agree, both ways", () => {
+      // The registry refactor's whole point: a style is ONE self-contained
+      // entry, and this is the structural guard — a picker key with no
+      // artwork, or artwork no picker can reach, is now a failing test
+      // instead of a silent default cap (hair) or a bare torso (garment).
+      expect(Object.keys(HAIR_REGISTRY).sort()).toEqual(
+        HAIR_STYLES.map((h) => h.key).sort()
+      );
+      expect(Object.keys(GARMENT_REGISTRY).sort()).toEqual(
+        OUTFITS.map((o) => o.key).sort()
+      );
     });
 
     it("every hair style draws its own geometry", () => {

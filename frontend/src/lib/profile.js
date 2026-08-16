@@ -162,6 +162,76 @@ export const HAIR_STYLES = [
   { key: "bun", label: "Bun" },
   { key: "curly", label: "Curly" },
   { key: "braids", label: "Braids" },
+  // Added after rendering all nine side by side: `buzz` and `short` were the
+  // same silhouette at 57px, and nothing in the set was shaved-sided, coiled,
+  // or two-tailed. Same rule as the wardrobe — a style earns a slot by changing
+  // the OUTLINE, not by having a different name.
+  { key: "undercut", label: "Undercut" },
+  { key: "afro", label: "Afro" },
+  { key: "pigtails", label: "Pigtails" },
+  // Cuts people actually ask for by name. Both clear the outline rule on their
+  // own terms: the two block has a STEP in its silhouette (long top over
+  // cropped sides), the wolf carries its mass above the crown and breaks up at
+  // the nape — neither is a smooth cap, which is what the rest of the short
+  // end of the set already had covered.
+  { key: "twoblock", label: "Two block" },
+  { key: "wolf", label: "Wolf cut" },
+  // The registry round (see components/character/hair.jsx — a style is one
+  // self-contained entry now). Same bar as ever, outline first: curtains =
+  // the centre-part notch; mullet = a square nape curtain under a clean cap;
+  // space buns = two crown buns; locs = thick clean ropes past the jaw;
+  // high pony = the tail whipping UP off the crown.
+  { key: "curtains", label: "Curtains" },
+  { key: "mullet", label: "Mullet" },
+  { key: "spacebuns", label: "Space buns" },
+  { key: "locs", label: "Locs" },
+  { key: "highpony", label: "High pony" },
+];
+
+/**
+ * The wardrobe. `outfit` was a lone hex for years, so every resident in the app
+ * wore the same sweater in a different colour — nine hairstyles against one
+ * garment.
+ *
+ * THE RULE FOR ADDING ONE: a garment earns a slot only if it changes the
+ * OUTLINE or the TWO-TONE SPLIT. The figure is 57px tall; a recoloured t-shirt
+ * and a recoloured sweater are the same sprite, so "more options" that differ
+ * only in name is catalogue padding you can't see. Each of these changes the
+ * silhouette (a hood, a flared hem, bare forearms) or splits the torso into two
+ * colours (an open jacket, straps over a shirt).
+ *
+ * `sleeves: "short"` bares the forearm, which the arm drawing reads directly.
+ * `inner` marks the garments that show a second colour underneath.
+ */
+export const OUTFITS = [
+  { key: "sweater", label: "Sweater" },
+  { key: "tee", label: "T-shirt", sleeves: "short" },
+  // `outer: true` marks a garment WORN OVER the body rather than fitted to
+  // it: the sprite draws its shell one step proud of the torso and thickens
+  // the sleeves to match — layers have thickness, or they read as a print.
+  { key: "hoodie", label: "Hoodie", outer: true },
+  { key: "jacket", label: "Jacket", inner: true, outer: true },
+  { key: "overalls", label: "Overalls", inner: true },
+  { key: "dress", label: "Dress", sleeves: "short" },
+  // The registry round. Cardigan = an open V over the shirt (a different
+  // split shape than the jacket's parallel panel); turtleneck = the collar
+  // swallows the neck (the one garment that changes the NECK line, via the
+  // registry's `collar` slot); puffer = the fattest shell in the set, with
+  // the quilt seams that name it.
+  { key: "cardigan", label: "Cardigan", inner: true, outer: true },
+  { key: "turtleneck", label: "Turtleneck" },
+  { key: "puffer", label: "Puffer", outer: true },
+];
+
+// Trousers were a hard-coded constant, so the whole lower half of every
+// resident was the same colour — half the figure, none of it yours.
+export const TROUSER_COLORS = [
+  { key: "plum", hex: "#4a3a5b" },
+  { key: "denim", hex: "#3f5a7a" },
+  { key: "charcoal", hex: "#3a3a42" },
+  { key: "clay", hex: "#8a5a44" },
+  { key: "moss", hex: "#4e6b4a" },
+  { key: "cream", hex: "#c8b394" },
 ];
 
 export const HAIR_COLORS = [
@@ -197,6 +267,12 @@ export const DEFAULT_CHARACTER = {
   hair: "short",
   hairColor: "#3a3142",
   outfit: "#7faf8f",
+  // The classic resident wore a plain sweater over plum trousers, so those are
+  // the defaults — an existing room looks identical until someone picks
+  // something else.
+  garment: "sweater",
+  inner: "#f2e9dd",
+  trouser: "#4a3a5b",
   expression: "calm",
   build: "average",
   width: BUILD_SHAPE.average.halfW,
@@ -205,6 +281,9 @@ export const DEFAULT_CHARACTER = {
 
 const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
+const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
+/** The garment's own rules, for the sprite: sleeve length and whether it layers. */
+export const garmentOf = (key) => OUTFITS.find((o) => o.key === key) || OUTFITS[0];
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
 
@@ -247,6 +326,12 @@ export function validateCharacter(raw) {
     hair: pickKey(c.hair, HAIR_KEYS, DEFAULT_CHARACTER.hair),
     hairColor: pickHex(c.hairColor, DEFAULT_CHARACTER.hairColor),
     outfit: pickHex(c.outfit, DEFAULT_CHARACTER.outfit),
+    // New axes fall back to the classic look, so every character saved before
+    // the wardrobe existed still validates to exactly what it drew before —
+    // the same bargain the JSON blob buys everywhere else (no migration).
+    garment: pickKey(c.garment, GARMENT_KEYS, DEFAULT_CHARACTER.garment),
+    inner: pickHex(c.inner, DEFAULT_CHARACTER.inner),
+    trouser: pickHex(c.trouser, DEFAULT_CHARACTER.trouser),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,
     // Width defaults from the BUILD, not from a fixed number — a pre-slider

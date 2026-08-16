@@ -474,12 +474,58 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, outfit, expression, and body width/height sliders — `build`
+  hair + colour, **a wardrobe**, expression, and body width/height sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
-  frontend change with no migration. The character drives the `resident` sprite
+  frontend change with no migration.
+  **The wardrobe** (`OUTFITS`, `TROUSER_COLORS`): `outfit` was a lone hex for
+  years, so nine hairstyles sat over ONE garment and half the figure (the
+  trousers) was a hard-coded constant nobody could change. A character now
+  carries `garment` + `inner` (the layered second colour) + `trouser`, all
+  falling back to the classic sweater-over-plum so a pre-wardrobe save still
+  validates to exactly what it drew before — the JSON blob's whole point.
+  **THE RULE FOR ADDING A GARMENT: it earns a slot only if it changes the
+  OUTLINE or the TWO-TONE SPLIT.** The figure is 57px; a recoloured tee and a
+  recoloured sweater are the same sprite, so options that differ only in name
+  are catalogue padding you cannot see. The nine shipped ones each clear it —
+  a hood, a flared hem, bare forearms (`sleeves: "short"`, which the arm reads
+  directly), an open jacket front vs a cardigan's V, dungaree straps, a
+  turtleneck's swallowed neck, a puffer's quilted bulk. Every garment draws
+  OVER the unchanged torso path, so a new one can't break the silhouette
+  rules the body already satisfies. **The same rule governs HAIR** (19
+  styles): rendering the set side by side is what showed `buzz` and `short`
+  were one silhouette wearing two names — that's the bar.
+  **The character's artwork lives in `components/character/`** — split out of
+  IsoItems.jsx (which keeps the furniture) because the character is the
+  fastest-growing artwork in the app. The package follows the drawing's real
+  seams: `body.jsx` (legs, face, palette, the held-pose helper), `hair.jsx`
+  and `garments.jsx` (REGISTRIES — see below), `index.jsx` (Resident/You
+  assembly, poses, animation gates). lib/body.js stays the geometry, and
+  lib/profile.js stays the vocabulary.
+  **A style is ONE registry entry, not switch cases.** `HAIR_REGISTRY`: an
+  entry may provide `behind` (crown volume, rides head turns), `length`
+  (past the jaw, behind the body, must clear the SHOULDER) and `front` (the
+  hairline; nothing past the eye line — omit it for the default cap).
+  `GARMENT_REGISTRY`: `draw` (over the torso; a `shell(scale)` ctx helper
+  gives outer layers their proud outline + hem under-shadow) and `collar`
+  (rendered AFTER the body's neck — the one spot `draw` can't reach, and how
+  the turtleneck exists). The framework applies the shared physics —
+  `HAIR_LIFT` (masses ride 1.2px off the skull, with a brow shadow: hair on
+  the skull's own radius is a decal), `OUTER_BULK` (worn layers are bigger
+  than the body, sleeves thicken via `outer: true`) — so a new entry gets
+  the 3D read for free. `IsoItems.test.jsx` pins registry keys against the
+  profile catalog BOTH ways, and renders every style × both models with
+  distinct markup — a picker key with no artwork is a failing test, not a
+  silent default cap. Two traps, both hit:
+  `tinted()` (now `lib/tint.js`, shared with the furniture) returns `{fill}`
+  and NOT `color`, so `currentColor` inside a garment silently resolves to
+  inherited cream — pass the outfit style in; and a garment whose panel is
+  the OUTFIT colour vanishes into the torso it sits on (the dungarees' bib
+  had to become the inner colour to read at all). Judge new entries on a
+  contact sheet of the whole set, never one at a time.
+  The character drives the `resident` sprite
   in the iso room; a placement's own `tint` still overrides the profile outfit,
   so one differently-dressed resident stays possible. Birth dates are parsed
   from LOCAL parts, never `new Date(str)` — that reads a bare date as UTC and

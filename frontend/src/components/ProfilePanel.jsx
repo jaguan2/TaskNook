@@ -7,6 +7,8 @@ import {
   EXPRESSIONS,
   HAIR_COLORS,
   HAIR_STYLES,
+  OUTFITS,
+  TROUSER_COLORS,
   MBTI_TYPES,
   MODELS,
   SKIN_TONES,
@@ -80,6 +82,11 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream placeholder:text-petal/40 focus:border-white/25 focus:outline-none";
 
 /** A row of colour dots — the same control skin/hair/outfit all want. */
+// Which garments layer a second colour — the jacket's shirt front, the
+// dungarees' bib. Derived from the catalog rather than restated, so adding a
+// layered garment can't forget to bring its colour row along.
+const LAYERED = new Set(OUTFITS.filter((o) => o.inner).map((o) => o.key));
+
 function Swatches({ options, value, onPick, label }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
@@ -325,11 +332,43 @@ export default function ProfilePanel() {
         </Field>
 
         <Field label="Outfit">
+          <Choices
+            label="Outfit"
+            options={OUTFITS}
+            value={character.garment}
+            onPick={(garment) => saveCharacter({ garment })}
+          />
+        </Field>
+
+        <Field label="Outfit colour">
           <Swatches
             label="Outfit colour"
             options={HAIR_COLORS}
             value={character.outfit}
             onPick={(hex) => saveCharacter({ outfit: hex })}
+          />
+        </Field>
+
+        {/* Only the layered garments show a second colour, so the row that
+            picks it appears only when there is something to see. Offering a
+            control that changes nothing is worse than not offering it. */}
+        {LAYERED.has(character.garment) && (
+          <Field label="Under / straps">
+            <Swatches
+              label="Second colour"
+              options={SKIN_TONES}
+              value={character.inner}
+              onPick={(hex) => saveCharacter({ inner: hex })}
+            />
+          </Field>
+        )}
+
+        <Field label="Trousers">
+          <Swatches
+            label="Trouser colour"
+            options={TROUSER_COLORS}
+            value={character.trouser}
+            onPick={(hex) => saveCharacter({ trouser: hex })}
           />
         </Field>
 
