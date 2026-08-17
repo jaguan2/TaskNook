@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -146,8 +146,10 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(Object.keys(HAIR_REGISTRY).sort()).toEqual(
         HAIR_STYLES.map((h) => h.key).sort()
       );
+      // The registry backs BOTH wardrobe slots: every top and every real
+      // coat ("none" is an absence, not artwork).
       expect(Object.keys(GARMENT_REGISTRY).sort()).toEqual(
-        OUTFITS.map((o) => o.key).sort()
+        [...OUTFITS.map((o) => o.key), ...COATS.filter((c) => c.key !== "none").map((c) => c.key)].sort()
       );
       expect(Object.keys(HAT_REGISTRY).sort()).toEqual(HATS.map((h) => h.key).sort());
     });
@@ -229,6 +231,110 @@ describe("the isometric catalog and its artwork agree", () => {
           `${key}: ${p.item} asks for ${p.tint}`
         ).toContain(p.tint);
       }
+    }
+  });
+});
+
+describe("the profile view and the wardrobe slots", () => {
+  afterEach(cleanup);
+  const Resident = ISO_SPRITES.resident;
+  // Render a set of variants and insist every one draws its OWN geometry —
+  // the same distinct-markup guard the hats and hair fronts already live
+  // under. A key whose drawing collapses into another's is catalogue padding.
+  const allDistinct = (labelOf, nodes) => {
+    const seen = new Map();
+    for (const [key, node] of nodes) {
+      const { container } = draw(node);
+      const html = container.innerHTML;
+      expect(
+        seen.has(html),
+        `${labelOf} "${key}" draws identically to "${seen.get(html)}"`
+      ).toBe(false);
+      seen.set(html, key);
+      cleanup();
+    }
+  };
+
+  it("front, profile and back are three different drawings", () => {
+    allDistinct(
+      "facing",
+      ["front", "side", "back"].map((facing) => [
+        facing,
+        <Resident key={facing} character={DEFAULT_CHARACTER} facing={facing} />,
+      ])
+    );
+  });
+
+  it("every hair style draws its own PROFILE, on both models", () => {
+    for (const model of MODELS.map((m) => m.key)) {
+      allDistinct(
+        `${model} profile hair`,
+        HAIR_STYLES.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, model, hair: key }}
+            facing="side"
+          />,
+        ])
+      );
+    }
+  });
+
+  it("every bottom draws its own legs, front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      allDistinct(
+        `${facing} bottoms`,
+        PANTS.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, pants: key }}
+            facing={facing}
+          />,
+        ])
+      );
+    }
+  });
+
+  it("every coat layers its own artwork over the same top", () => {
+    allDistinct(
+      "coat",
+      COATS.map(({ key }) => [
+        key,
+        <Resident
+          key={key}
+          character={{ ...DEFAULT_CHARACTER, garment: "tee", coat: key }}
+        />,
+      ])
+    );
+  });
+
+  it("the seated pose survives every bottom", () => {
+    for (const { key } of PANTS) {
+      expect(() =>
+        draw(
+          <Resident
+            character={{ ...DEFAULT_CHARACTER, pants: key }}
+            seated
+            seatH={19}
+          />
+        )
+      ).not.toThrow();
+      cleanup();
+    }
+  });
+
+  it("the cat and the dog have real front and back views", () => {
+    for (const pet of ["cat", "dog"]) {
+      const Sprite = ISO_SPRITES[pet];
+      allDistinct(
+        pet,
+        ["side", "front", "back"].map((facing) => [
+          facing,
+          <Sprite key={facing} awake facing={facing} />,
+        ])
+      );
     }
   });
 });

@@ -87,6 +87,13 @@ export function deriveNpcCharacter(username) {
     hair: pick(HAIR_STYLES, 8).key,
     hairColor: pick(HAIR_COLORS, 12).hex,
     outfit: pick(NPC_OUTFITS, 16),
+    // The bots dress from the whole wardrobe — a roster in identical
+    // trousers reads as uniforms the moment yours aren't. Bottoms from the
+    // full-length kinds (a host in a skirt is fine; four would be a theme),
+    // and about a third of them layer a coat.
+    pants: pick(["trousers", "jeans", "joggers", "wide", "skirt"], 27),
+    coat: (h >>> 9) % 3 === 0 ? pick(["hoodie", "jacket", "cardigan"], 21) : "none",
+    coatColor: pick(NPC_OUTFITS, 25),
     expression: "calm",
     // Snapped to the sliders' own steps so a derived body is always a body
     // the panel could have produced.

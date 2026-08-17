@@ -6,11 +6,13 @@ import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
 import {
   BIO_MAX,
+  COATS,
   EXPRESSIONS,
   HAIR_COLORS,
   HAIR_STYLES,
   HATS,
   OUTFITS,
+  PANTS,
   PATTERNS,
   TROUSER_COLORS,
   MBTI_TYPES,
@@ -51,6 +53,10 @@ const TABS = [
 function CharacterStage({ character, angle, onSpin }) {
   const Resident = ISO_SPRITES.resident;
   const [zoom, setZoom] = useState(1.35);
+  // The camera can MOVE now, not just zoom: dragging the empty stage pans
+  // the view (the iso room's own grammar — drag-on-empty-space pans), while
+  // dragging the FIGURE spins it. Double-click brings the camera home.
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   // Wheel zoom must preventDefault (the drawer would scroll), so it can't be
@@ -67,8 +73,10 @@ function CharacterStage({ character, angle, onSpin }) {
     return () => svg.removeEventListener("wheel", onWheel);
   }, []);
   const q = ((Math.round(angle / 90) % 4) + 4) % 4;
-  const away = q === 2 || q === 3;
-  const mirrored = q === 1 || q === 3;
+  // Three real drawings plus one mirror: front, the PROFILE, back, and the
+  // profile mirrored — an honest turntable now that a side view exists.
+  const facing = q === 0 ? "front" : q === 2 ? "back" : "side";
+  const mirrored = q === 3;
   // Zoom scales the window, anchored a little above the figure's middle so
   // zooming in walks up toward the face rather than the floor.
   const w = 46 / zoom;
@@ -77,32 +85,60 @@ function CharacterStage({ character, angle, onSpin }) {
   return (
     <svg
       ref={svgRef}
-      viewBox={`${-w / 2} ${cy - h / 2} ${w} ${h}`}
+      viewBox={`${-w / 2 + pan.x} ${cy - h / 2 + pan.y} ${w} ${h}`}
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label="Preview of your character — drag to spin, scroll to zoom"
+      aria-label="Preview of your character — drag the figure to spin, drag the floor to move, scroll to zoom"
       onPointerDown={(e) => {
-        dragRef.current = { x: e.clientX, a: angle };
+        // Hit-testing decides the gesture: the figure spins, everything
+        // else pans.
+        const spin = !!e.target.closest?.("[data-figure]");
+        dragRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          a: angle,
+          px: pan.x,
+          py: pan.y,
+          spin,
+        };
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
       onPointerMove={(e) => {
         const d = dragRef.current;
-        if (d) onSpin(d.a + (e.clientX - d.x) * 1.1);
+        if (!d) return;
+        if (d.spin) {
+          onSpin(d.a + (e.clientX - d.x) * 1.1);
+        } else {
+          // Pointer pixels → viewBox units, so the scene sticks to the
+          // cursor at every zoom. Clamped so the figure can't be lost.
+          const rect = svgRef.current?.getBoundingClientRect();
+          const k = rect ? w / rect.width : 0.15;
+          setPan({
+            x: Math.max(-26, Math.min(26, d.px - (e.clientX - d.x) * k)),
+            y: Math.max(-58, Math.min(58, d.py - (e.clientY - d.y) * k)),
+          });
+        }
       }}
       onPointerUp={() => {
+        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
         // Settle on a clean quarter — a figure left mid-twist looks stuck.
-        onSpin((a) => Math.round(a / 90) * 90);
+        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
       }}
       onPointerCancel={() => {
+        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
-        onSpin((a) => Math.round(a / 90) * 90);
+        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
+      }}
+      onDoubleClick={() => {
+        setPan({ x: 0, y: 0 });
+        setZoom(1.35);
       }}
     >
       <ellipse cx="0" cy="1.6" rx="14" ry="2.6" fill="#000" opacity="0.18" />
-      <g transform={mirrored ? "scale(-1,1)" : undefined}>
-        <Resident character={character} away={away} />
+      <g transform={mirrored ? "scale(-1,1)" : undefined} data-figure>
+        <Resident character={character} facing={facing} />
       </g>
     </svg>
   );
@@ -142,12 +178,32 @@ function HatIcon({ hat, hair, hairColor, skin }) {
   );
 }
 
-/** A garment worn by YOUR body — the torso close-up, colours and all. */
+/** A top worn by YOUR body — the torso close-up, coatless so the top shows. */
 function GarmentIcon({ character, garment }) {
   const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-18 -50 36 34" className="h-12 w-full" aria-hidden="true">
-      <Resident character={{ ...character, garment }} />
+      <Resident character={{ ...character, garment, coat: "none" }} />
+    </svg>
+  );
+}
+
+/** A coat over your CURRENT top — what layering actually looks like. */
+function CoatIcon({ character, coat }) {
+  const Resident = ISO_SPRITES.resident;
+  return (
+    <svg viewBox="-18 -50 36 34" className="h-12 w-full" aria-hidden="true">
+      <Resident character={{ ...character, coat }} />
+    </svg>
+  );
+}
+
+/** A bottom on your own legs — the lower-half close-up. */
+function PantsIcon({ character, pants }) {
+  const Resident = ISO_SPRITES.resident;
+  return (
+    <svg viewBox="-16 -34 32 40" className="h-12 w-full" aria-hidden="true">
+      <Resident character={{ ...character, pants }} />
     </svg>
   );
 }
@@ -481,7 +537,7 @@ export default function ProfilePanel() {
               <RefreshCw size={13} />
             </button>
             <span className="pointer-events-none absolute bottom-1.5 right-2.5 text-[10px] text-petal/40">
-              drag to spin · scroll to zoom
+              drag me to spin · drag the floor to move · scroll to zoom
             </span>
           </div>
           <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
@@ -598,9 +654,12 @@ export default function ProfilePanel() {
 
           {tab === "outfit" && (
             <>
-              <Field label="Garment">
+              {/* The wardrobe is three SLOTS now — top, coat over it, bottom —
+                  each with its colour beside it (colour is a property of the
+                  item, the Mii Maker rule). */}
+              <Field label="Top">
                 <IconGrid
-                  label="Garment"
+                  label="Top"
                   options={OUTFITS}
                   value={character.garment}
                   onPick={(garment) => saveCharacter({ garment })}
@@ -609,9 +668,9 @@ export default function ProfilePanel() {
                   )}
                 />
               </Field>
-              <Field label="Colour">
+              <Field label="Top colour">
                 <Swatches
-                  label="Outfit colour"
+                  label="Top colour"
                   options={HAIR_COLORS}
                   value={character.outfit}
                   onPick={(hex) => saveCharacter({ outfit: hex })}
@@ -637,9 +696,37 @@ export default function ProfilePanel() {
                   onPick={(print) => saveCharacter({ print })}
                 />
               </Field>
-              <Field label="Trousers">
+              <Field label="Outer layer">
+                <IconGrid
+                  label="Outer layer"
+                  options={COATS}
+                  value={character.coat}
+                  onPick={(coat) => saveCharacter({ coat })}
+                  renderIcon={(key) => <CoatIcon character={shown} coat={key} />}
+                />
+              </Field>
+              {character.coat !== "none" && (
+                <Field label="Coat colour">
+                  <Swatches
+                    label="Coat colour"
+                    options={TROUSER_COLORS}
+                    value={character.coatColor}
+                    onPick={(hex) => saveCharacter({ coatColor: hex })}
+                  />
+                </Field>
+              )}
+              <Field label="Bottoms">
+                <IconGrid
+                  label="Bottoms"
+                  options={PANTS}
+                  value={character.pants}
+                  onPick={(pants) => saveCharacter({ pants })}
+                  renderIcon={(key) => <PantsIcon character={shown} pants={key} />}
+                />
+              </Field>
+              <Field label="Bottoms colour">
                 <Swatches
-                  label="Trouser colour"
+                  label="Bottoms colour"
                   options={TROUSER_COLORS}
                   value={character.trouser}
                   onPick={(hex) => saveCharacter({ trouser: hex })}

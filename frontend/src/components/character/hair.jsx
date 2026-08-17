@@ -70,6 +70,58 @@ const brow = (headY) => (
   />
 );
 
+// ---- the PROFILE kit -------------------------------------------------------
+// The side view follows the same wig method in profile space (the figure
+// faces -x; the scene's mirror covers the other way): ONE closed silhouette
+// from the fringe tip on the forehead, up over the inflated crown, down the
+// BACK of the skull — where most of any haircut's mass lives — then carved
+// forward along the nape to cover the ear, and up the cheek line to close.
+// `sideLength` is `length`'s profile counterpart: masses hanging behind the
+// shoulders, drawn before the torso. A style's front `length` must NEVER be
+// reused sideways — it's symmetric, so half of it would fall across the face.
+const sideWigPath = (headY, cfg = {}) => {
+  const {
+    fringeX = -6.3, // where the fringe tip touches the forehead
+    fringeY = -1.7, // its height on it (offset from headY)
+    apex = 9.7, // crown height above the head centre
+    backX = 8.5, // how far the mass stands off the back of the skull
+    napeY = 4.4, // where the back edge ends below the head centre
+    earX = 0.8, // how far forward the lower edge reaches (ear coverage)
+    earY = 3,
+  } = cfg;
+  return [
+    `M ${fringeX} ${headY + fringeY}`,
+    `Q ${fringeX - 2} ${headY - apex * 0.52} ${-2.4} ${headY - apex}`,
+    `Q ${backX * 0.6} ${headY - apex} ${backX} ${headY - apex * 0.26}`,
+    `Q ${backX + 0.4} ${headY + 1.2} ${backX - 1.1} ${headY + napeY}`,
+    `q ${-(backX - 1.1 - earX) * 0.5} 1.7 ${-(backX - 1.1 - earX)} ${earY - napeY}`,
+    `Q ${earX - 2.8} ${headY + earY - 1.4} ${(fringeX + earX) / 2 - 0.6} ${headY + 0.7}`,
+    `Q ${fringeX + 0.9} ${headY - 0.5} ${fringeX} ${headY + fringeY}`,
+    "z",
+  ].join(" ");
+};
+
+/** The crown shine, tilted for the profile dome. */
+const sideShine = (headY, apex) => (
+  <path
+    d={`M ${-3.4} ${headY - apex + 1.7} q 3.8 -1.5 6.8 0.9`}
+    stroke="#fff"
+    strokeWidth="2"
+    strokeLinecap="round"
+    fill="none"
+    opacity="0.12"
+  />
+);
+
+/** The fringe's forehead shadow, front half only — that's all a profile shows. */
+const sideBrow = (headY) => (
+  <path
+    d={`M${-R + 1} ${headY - 1} q 3.6 1.7 7.6 1.2 q -4 1.3 -7.6 -0.2 z`}
+    fill="#000"
+    opacity="0.1"
+  />
+);
+
 // The default wig — a soft short cut. Also what unknown styles fall back to.
 const SHORT_CFG = { sideX: 8.1, apex: 9.3, baseY: 0.2 };
 const SHORT_CLUMPS = [
@@ -82,6 +134,13 @@ const SHORT_CLUMPS = [
 
 export const HAIR_REGISTRY = {
   short: {
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY)} fill={color} />
+        {sideShine(headY, 9.7)}
+        {sideBrow(headY)}
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
@@ -95,6 +154,31 @@ export const HAIR_REGISTRY = {
     // reading through. A crescent alone read as balding (research).
     back: ({ headY, color }) => (
       <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.55" />
+    ),
+    // Profile: the same three marks as the front — stubble (back half),
+    // hairline band, and the SOLID crescent along the crown. Without the
+    // crescent the side read as a bald halo (sheet, 2026-08-17).
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={`M 0.4 ${headY - R + 0.3} A ${R - 0.3} ${R - 0.3} 0 0 1 0.4 ${headY + R - 0.3} q 3.4 -0.4 4.9 -3.4 z`}
+          fill={color}
+          opacity="0.5"
+        />
+        <path
+          d={`M${-R + 0.4} ${headY + 1.6} A ${R - 0.4} ${R - 0.4} 0 0 1 ${R - 0.4} ${headY + 1.6}`}
+          stroke={color}
+          strokeWidth="1.7"
+          fill="none"
+          opacity="0.8"
+        />
+        <path
+          d={`M${-R + 1.1} ${headY - 3} a${R - 1.1} ${R - 1.1} 0 0 1 ${(R - 1.1) * 2} 0
+              q-1.2 -1.1 -${R - 1.1} -1.1 q-${R - 1.1} 0 -${R - 1.1} 1.1 z`}
+          fill={color}
+          opacity="0.9"
+        />
+      </>
     ),
     front: ({ headY, color }) => (
       <>
@@ -117,6 +201,14 @@ export const HAIR_REGISTRY = {
   messy: {
     // The short wig with a rougher edge, plus two tufts CROSSING the top
     // silhouette — a wobbly outline alone reads as "short" (research).
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 10, fringeY: -1.3, napeY: 4.8 })} fill={color} />
+        <path d={`M-3.4 ${headY - 9.6} q1.5 -2.6 3.5 -2.1 q-1.2 1.4 -1.1 2.7 z`} fill={color} />
+        <path d={`M2.8 ${headY - 9.4} q2.2 -1.9 3.7 -0.7 q-1.6 0.8 -2 2.2 z`} fill={color} />
+        {sideBrow(headY)}
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -145,6 +237,25 @@ export const HAIR_REGISTRY = {
     // The dark back sheet curls IN under the jaw (the make-or-break — a
     // flared hem reads as a lampshade); the front wig carries the blunt
     // fringe. Two masses, two tones, per the method's long-hair form.
+    // Profile: ONE helmet mass — skull, ear and all — its bottom edge
+    // tucking inward under the jaw, the same make-or-break curl.
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={`M -6.4 ${headY - 1.4}
+              Q -8.4 ${headY - 6} -2.6 ${headY - 9.6}
+              Q 4.4 ${headY - 10.4} 8.4 ${headY - 5}
+              Q 10.2 ${headY + 1} 8 ${headY + 6.4}
+              Q 6.6 ${headY + 9} 3.4 ${headY + 8.6}
+              Q 0.4 ${headY + 8.4} -1.2 ${headY + 6.6}
+              Q -4.8 ${headY + 5} -5.2 ${headY + 1.6}
+              Q -5.4 ${headY - 0.2} -6.4 ${headY - 1.4} z`}
+          fill={color}
+        />
+        {sideShine(headY, 9.9)}
+        {sideBrow(headY)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <path
         d={`M-8.8 ${headY - 3} q-4.4 6.6 -3.2 11.6 q0.9 2.5 3.2 2.8
@@ -172,6 +283,29 @@ export const HAIR_REGISTRY = {
   long: {
     // Dark back sheet to below the shoulders + two base-tone curtains riding
     // over it — the tone split is what makes it deep instead of a slab.
+    // Profile: the whole fall hangs BEHIND the figure — dark sheet plus one
+    // base-tone strand riding it, before the torso so it drapes down the back.
+    sideLength: ({ headY, color }) => (
+      <>
+        <path
+          d={`M -1.6 ${headY - 7.2} Q 9.4 ${headY - 5.4} 9.8 ${headY + 4}
+              Q 10.6 ${headY + 14} 8.6 ${headY + 22} q -5 2.4 -9.2 0.6
+              Q 1.8 ${headY + 8} -1.6 ${headY - 7.2} z`}
+          fill={farColor(color)}
+        />
+        <path
+          d={`M 5.4 ${headY - 3.6} q 3.6 9.2 2.4 21.6 q -2.6 1.4 -4.6 0.4 q 1.6 -12.4 -1 -18.6 z`}
+          fill={color}
+        />
+      </>
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 9.8, napeY: 5.2, earY: 3.6 })} fill={color} />
+        {sideShine(headY, 9.8)}
+        {sideBrow(headY)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <>
         <path
@@ -208,6 +342,29 @@ export const HAIR_REGISTRY = {
   ponytail: {
     // Slick wig with the gathering knot welded at the crown; the tail hangs
     // to one side in the shadow tone.
+    // Profile is this style's best angle: the tail swings clear behind the
+    // head, gathered at a knot the tension lines converge on.
+    sideLength: ({ headY, color }) => (
+      <path
+        d={`M 6.4 ${headY - 6} q 6.8 2.4 6 12.2 q -0.5 5.6 -3.8 8.4 q -2.4 2 -3.5 -0.2
+            q -0.9 -2 0.7 -4.2 q 2.6 -3.8 1.6 -8.8 q -0.7 -3.4 -3.6 -5.2 z`}
+        fill={farColor(color)}
+      />
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 8.9, napeY: 2.6, earY: 2, fringeY: -2.4 })} fill={color} />
+        <circle cx="5.6" cy={headY - 6.2} r="2.9" fill={color} />
+        <path
+          d={`M -3 ${headY - 7.4} Q 1.6 ${headY - 8.2} 4.4 ${headY - 6.8}`}
+          stroke="#000"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.15"
+        />
+      </>
+    ),
     length: ({ headY, color }) => (
       <path
         d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
@@ -233,6 +390,27 @@ export const HAIR_REGISTRY = {
     // Pulled tight: minimal inflation, exposed hairline, the ball welded
     // onto the apex (avataaars welds its bun into the same path — same-tone
     // overlap achieves it here), tension lines converging on it.
+    // Profile: the ball sits high at the BACK of the crown — from the side a
+    // topknot's position is the style.
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 8.6, napeY: 2, earY: 1.6, fringeY: -2.6 })} fill={color} />
+        <circle cx="4.6" cy={headY - 8.4} r="3.7" fill={color} />
+        <path
+          d={`M 2 ${headY - 6.6} a 3.7 3.7 0 0 0 5.2 -0.6 q -2 2.2 -5.2 0.6 z`}
+          fill="#000"
+          opacity="0.13"
+        />
+        <path
+          d={`M -3.6 ${headY - 6.6} Q 0.6 ${headY - 8.4} 3 ${headY - 7.8}`}
+          stroke="#000"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.15"
+        />
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -266,6 +444,24 @@ export const HAIR_REGISTRY = {
   curly: {
     // A same-tone backing dome with coils riding its edge — the coils ARE
     // the outline's teeth, in circle form.
+    // Profile: the cloud shifts back off the face; coils walk the outline
+    // from the fringe over the crown down to the nape.
+    side: ({ headY, color }) => (
+      <>
+        <circle cx="1" cy={headY - 1.4} r={R + 1.5} fill={color} />
+        {[
+          [-5.4, -4.4, 3.2],
+          [-1.4, -6.2, 3.4],
+          [3, -5.8, 3.4],
+          [6.6, -3.2, 3.2],
+          [8.2, 0.6, 2.8],
+          [7.4, 4.2, 2.6],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        {sideBrow(headY)}
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <circle cx="0" cy={headY - 1.2} r={R + 1.6} fill={color} />
@@ -287,6 +483,28 @@ export const HAIR_REGISTRY = {
   braids: {
     // Tight crown, roots at the temples, two plaits behind the body in the
     // shadow tone with their knots reading as segments.
+    // Profile: ONE plait shows — the near one hides the far one exactly.
+    sideLength: ({ headY, color }) => (
+      <>
+        <path
+          d={`M 5.8 ${headY + 2} q 3.4 5.8 2.2 12.6`}
+          stroke={farColor(color)}
+          strokeWidth="3.6"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {[4.6, 9, 12.6].map((dy) => (
+          <circle key={dy} cx={6.6 + dy * 0.1} cy={headY + 1.2 + dy} r="2.2" fill={farColor(color)} />
+        ))}
+      </>
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 9.1, napeY: 3, earY: 2.2 })} fill={color} />
+        <circle cx="5.6" cy={headY + 1.6} r="2.2" fill={color} />
+        {sideShine(headY, 9.1)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <>
         {[-1, 1].map((s) => (
@@ -332,6 +550,34 @@ export const HAIR_REGISTRY = {
   undercut: {
     // All the mass combed one way over a HIGH rim — bare skin below is the
     // style; the razor part is the one allowed line.
+    // Profile is the undercut's money shot: the heavy top sweeps back and
+    // ends on a hard rim well ABOVE the ear, clipped skin under it.
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={`M -6.8 ${headY - 1}
+              Q -8.6 ${headY - 6.2} -2.8 ${headY - 9.4}
+              Q 4.2 ${headY - 10.8} 8.2 ${headY - 5.2}
+              Q 9.2 ${headY - 3.2} 8.6 ${headY - 1.6}
+              q -4.6 1.4 -9.2 0.6
+              Q -3.2 ${headY - 1.4} -6.8 ${headY - 1} z`}
+          fill={color}
+        />
+        <path
+          d={`M -6.4 ${headY - 0.6} q 7.4 1.5 14.6 -0.8`}
+          stroke="#fff"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.28"
+        />
+        <path
+          d={`M 2.6 ${headY + 0.2} A ${R - 0.6} ${R - 0.6} 0 0 1 ${R - 1} ${headY + 2.8} q -2.2 -0.4 -4.1 -1.6 z`}
+          fill={color}
+          opacity="0.35"
+        />
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -359,6 +605,29 @@ export const HAIR_REGISTRY = {
   afro: {
     // The widest silhouette: a scalloped cloud, one tone, its own hairline
     // arc across the forehead — afros sit ON the hairline, they don't drape.
+    // Profile: the same cloud, shifted a touch back; the hairline arc only
+    // shows on the face side.
+    side: ({ headY, color }) => (
+      <>
+        <circle cx="0.8" cy={headY - 2.8} r={R + 3} fill={color} />
+        {[
+          [-7, -6, 3.7],
+          [-2.4, -8.4, 4],
+          [3, -8.2, 4],
+          [7.6, -5.4, 3.8],
+          [9.6, -0.8, 3.3],
+          [8, 3.6, 3],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        <path
+          d={`M ${-R + 0.6} ${headY + 0.8} a ${R - 0.6} ${R - 0.6} 0 0 1 6.4 -6.8 l -1.2 -2.4
+              a ${R + 1} ${R + 1} 0 0 0 -6.6 7.4 z`}
+          fill={color}
+        />
+        {sideBrow(headY)}
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <circle cx="0" cy={headY - 2.6} r={R + 3.1} fill={color} />
@@ -385,6 +654,21 @@ export const HAIR_REGISTRY = {
   pigtails: {
     // Crown wig with the side bunches welded on; the tails beneath hang in
     // the shadow tone, well clear of the shoulders.
+    // Profile: the NEAR bunch faces the viewer, sitting behind the ear, its
+    // tail below it; the far pair hides behind the head exactly.
+    sideLength: ({ headY, color }) => (
+      <path
+        d={`M 5 ${headY + 0.5} q 3.4 4.2 2.2 9.2 q -2.6 1.6 -4.4 -0.6 q 1.4 -4.4 -0.2 -8.2 z`}
+        fill={farColor(color)}
+      />
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 9.2, napeY: 2.6, earY: 2 })} fill={color} />
+        <circle cx="4.8" cy={headY - 1.4} r="3.3" fill={color} />
+        {sideShine(headY, 9.2)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <>
         {[-1, 1].map((side) => (
@@ -420,6 +704,34 @@ export const HAIR_REGISTRY = {
     // rims ending ABOVE the ears with bare skin below — mass where the cut
     // grows it, skin where it's clipped (research; two failed attempts are
     // recorded in git history: a visor, then sideburn blocks).
+    // Profile: the deep fringe grazes the brow and the rim runs high and
+    // LEVEL, bare skin between it and the ear — the "two blocks" seen
+    // edge-on. Its own path rather than the generic wig: the generic's
+    // lower edge dips toward the cheek, which at this fringe depth painted
+    // a blindfold across the eyes (sheet, 2026-08-17).
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={`M -6.6 ${headY - 1.2}
+              Q -8.5 ${headY - 6} -2.6 ${headY - 9.5}
+              Q 4.4 ${headY - 10.2} 8.3 ${headY - 4.6}
+              Q 9 ${headY - 2.6} 8.5 ${headY - 0.9}
+              q -4.6 1.5 -9.4 1
+              Q -4.6 ${headY + 0.2} -6.6 ${headY - 1.2} z`}
+          fill={color}
+        />
+        {sideShine(headY, 9.9)}
+        <path
+          d={`M 3.4 ${headY + 0.7} q 2.4 0.6 4.6 -0.1`}
+          stroke="#000"
+          strokeWidth="1"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.16"
+        />
+        {sideBrow(headY)}
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -451,6 +763,32 @@ export const HAIR_REGISTRY = {
   wolf: {
     // Tall broken crown over thin dark shag — the identity is the contrast
     // between the lifted choppy top and the ragged ends (research).
+    // Profile: the tall broken crown, with the shag flicking out at the nape.
+    sideLength: ({ headY, color }) => (
+      <>
+        <path
+          d={`M 6.6 ${headY + 0.5} q 2.4 3 4.4 3.8 q -2.6 1.2 -4.2 -0.4 z`}
+          fill={farColor(color)}
+        />
+        <path
+          d={`M 7 ${headY + 4.6} q 2 3.8 4 4.8 q -2.6 1 -4 -0.6 z`}
+          fill={farColor(color)}
+        />
+        <path
+          d={`M 5.6 ${headY + 8.6} q 1.4 3.4 3.2 4.4 q -2.4 0.8 -3.6 -0.8 z`}
+          fill={farColor(color)}
+        />
+      </>
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 10.4, fringeY: -1.2, napeY: 4.4 })} fill={color} />
+        <path d={`M-4.6 ${headY - 9.4} q1.1 -3 3.1 -2.7 q-1 1.6 -0.9 3 z`} fill={color} />
+        <path d={`M0.4 ${headY - 10.4} q1.8 -2.4 3.4 -1.4 q-1.3 1.1 -1.5 2.6 z`} fill={color} />
+        <path d={`M4.8 ${headY - 9.2} q2.2 -1.6 3.6 -0.4 q-1.5 0.7 -1.9 2 z`} fill={color} />
+        {sideBrow(headY)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <>
         <path
@@ -498,6 +836,29 @@ export const HAIR_REGISTRY = {
     // The centre part carved with the same tooth grammar — one wide tooth
     // cutting UP forms the notch of bare forehead; the deep side teeth are
     // the drapes, kicked slightly outward at the tips.
+    // Profile: the near drape falls PAST the temple toward the eye — the
+    // deep fringe point — with the part groove running back from it.
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={sideWigPath(headY, { fringeX: -6.6, fringeY: 1.2, apex: 9.5, napeY: 3.6 })}
+          fill={color}
+        />
+        <path
+          d={`M -5.4 ${headY - 7.6} Q -1 ${headY - 9.9} 3 ${headY - 9.2}`}
+          stroke="#000"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.15"
+        />
+        <path
+          d={`M -6.2 ${headY + 0.6} q 0.8 1.4 0.2 2 q -1.8 -0.4 -2.3 -1.6 z`}
+          fill="#000"
+          opacity="0.14"
+        />
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -525,6 +886,23 @@ export const HAIR_REGISTRY = {
   mullet: {
     // Business in front — a crisp short wig — party behind: the squared nape
     // curtain in the shadow tone, corners flicking out past the shoulders.
+    // Profile shows the mullet's whole joke at once: crisp on the face side,
+    // the curtain pouring off the nape behind.
+    sideLength: ({ headY, color }) => (
+      <path
+        d={`M 4.6 ${headY - 2} Q 9.4 ${headY + 1} 9.6 ${headY + 8}
+            q 0.2 4.6 -1.6 7.4 q 2.4 -0.6 3.4 0.8 q -3.4 1.8 -7 0.6
+            q -2.2 -0.8 -1.8 -3.4 q 0.6 -7 -2.6 -12 z`}
+        fill={farColor(color)}
+      />
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY)} fill={color} />
+        {sideShine(headY, 9.7)}
+        {sideBrow(headY)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <path
         d={`M-8 ${headY - 1} q-3.6 8 -3.8 15.6 q2.6 -1.8 4.2 -0.4
@@ -543,6 +921,18 @@ export const HAIR_REGISTRY = {
   spacebuns: {
     // The tight wig with two balls breaking the top silhouette and the part
     // groove between them — both signatures, per the research.
+    // Profile: the near bun breaks the top; the far one hides behind it.
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 8.7, napeY: 2.2, earY: 1.6, fringeY: -2.4 })} fill={color} />
+        <circle cx="1.6" cy={headY - 8.8} r="3.2" fill={color} />
+        <path
+          d={`M -0.8 ${headY - 7.4} a 3.2 3.2 0 0 0 4.6 -0.4 q -1.8 1.8 -4.6 0.4 z`}
+          fill="#000"
+          opacity="0.13"
+        />
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -570,6 +960,33 @@ export const HAIR_REGISTRY = {
     // Rounded crown breaking into ropes of varied thickness and staggered
     // length — alternating tones so the strands separate (uniform clean
     // ropes read as a wig, the research's exact warning).
+    // Profile: the ropes gather at the back of the skull and the nape,
+    // staggered and tone-alternating same as the front.
+    sideLength: ({ headY, color }) => (
+      <>
+        {[
+          [2.6, 10, 2.4, 0.4, true],
+          [4.8, 13, 3.2, 0.9, false],
+          [6.8, 11, 2.4, 1.3, true],
+          [8.4, 12.8, 3, 1.7, false],
+        ].map(([x, len, w, drift, dark]) => (
+          <path
+            key={x}
+            d={`M${x} ${headY + 0.8} q${drift} ${len * 0.55} ${drift * 0.5} ${len}`}
+            stroke={dark ? farColor(color) : color}
+            strokeWidth={w}
+            strokeLinecap="round"
+            fill="none"
+          />
+        ))}
+      </>
+    ),
+    side: ({ headY, color }) => (
+      <>
+        <path d={sideWigPath(headY, { apex: 9.9, napeY: 3.8 })} fill={color} />
+        {sideBrow(headY)}
+      </>
+    ),
     length: ({ headY, color }) => (
       <>
         {[
@@ -611,6 +1028,27 @@ export const HAIR_REGISTRY = {
   highpony: {
     // Slick tension toward a high knot, the tail whipping up and over in the
     // shadow tone — from the front a high pony is mostly its silhouette.
+    // Profile: the whip arcs up off the crown and falls behind the head —
+    // drawn first so the crown wig sits over its root.
+    side: ({ headY, color }) => (
+      <>
+        <path
+          d={`M 2.8 ${headY - 8.8} q 7.6 -3.2 9.8 3 q 1.5 4.8 -1.8 9.6 q -1.7 2.3 -3.4 1.1
+              q -1.5 -1.2 -0.3 -3.4 q 2.3 -4.4 -0.7 -7.2 q -1.9 -1.8 -3.6 -2.7 z`}
+          fill={farColor(color)}
+        />
+        <path d={sideWigPath(headY, { apex: 8.7, napeY: 1.8, earY: 1.4, fringeY: -2.6 })} fill={color} />
+        <circle cx="2.9" cy={headY - 8.7} r="2.9" fill={color} />
+        <path
+          d={`M -3.4 ${headY - 6.4} Q 0 ${headY - 8.4} 1.8 ${headY - 8}`}
+          stroke="#000"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.15"
+        />
+      </>
+    ),
     front: ({ headY, color }) => (
       <>
         <path
@@ -662,6 +1100,24 @@ export function HairFront({ style, headY, color }) {
       <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
       {shine(headY, SHORT_CFG.apex)}
       {brow(headY)}
+    </>
+  );
+}
+
+/** Profile masses hanging behind the shoulders — before the torso. */
+export function HairSideLength({ style, headY, color }) {
+  return HAIR_REGISTRY[style]?.sideLength?.({ headY, color }) ?? null;
+}
+
+/** The profile hair over the skull. Styles without one get the generic wig. */
+export function HairSide({ style, headY, color }) {
+  const draw = HAIR_REGISTRY[style]?.side;
+  if (draw) return draw({ headY, color });
+  return (
+    <>
+      <path d={sideWigPath(headY)} fill={color} />
+      {sideShine(headY, 9.7)}
+      {sideBrow(headY)}
     </>
   );
 }

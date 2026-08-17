@@ -141,8 +141,11 @@ describe("validateCharacter", () => {
       ...chosen,
       skin: "#8d5524",
       garment: "sweater",
+      coat: "none",
+      coatColor: DEFAULT_CHARACTER.coatColor,
       inner: DEFAULT_CHARACTER.inner,
       trouser: DEFAULT_CHARACTER.trouser,
+      pants: "trousers",
       hat: "none",
       print: "none",
       width: BUILD_SHAPE.slim.halfW,
@@ -158,7 +161,7 @@ describe("validateCharacter", () => {
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {
-    expect(validateCharacter({ garment: "hoodie" }).garment).toBe("hoodie");
+    expect(validateCharacter({ garment: "tee" }).garment).toBe("tee");
     expect(validateCharacter({ garment: "spacesuit" }).garment).toBe("sweater");
     expect(validateCharacter({ garment: 7 }).garment).toBe("sweater");
     // Trousers and the second colour are hexes, normalised like every other.
@@ -167,6 +170,29 @@ describe("validateCharacter", () => {
       DEFAULT_CHARACTER.trouser
     );
     expect(validateCharacter({ inner: "#ABCDEF" }).inner).toBe("#abcdef");
+  });
+
+  it("one-slot-era coats migrate into the coat slot, colours intact", () => {
+    // A save from before the wardrobe split stored "jacket" as the garment,
+    // its shell colour in `outfit` and the shirt showing through the opening
+    // in `inner`. The migration must keep drawing the same pixels: the coat
+    // keeps its colour, the opening's colour becomes the top's.
+    const legacy = validateCharacter({
+      garment: "jacket",
+      outfit: "#c4767f",
+      inner: "#f2d3bb",
+    });
+    expect(legacy.coat).toBe("jacket");
+    expect(legacy.coatColor).toBe("#c4767f");
+    expect(legacy.garment).toBe("tee");
+    expect(legacy.outfit).toBe("#f2d3bb");
+    // An explicit coat wins — the legacy path only fires when none was stored.
+    const modern = validateCharacter({ garment: "tee", coat: "hoodie", coatColor: "#3f5a7a" });
+    expect(modern.coat).toBe("hoodie");
+    expect(modern.coatColor).toBe("#3f5a7a");
+    // And the bottoms: a real style holds, junk falls back to trousers.
+    expect(validateCharacter({ pants: "jorts" }).pants).toBe("jorts");
+    expect(validateCharacter({ pants: "kilt" }).pants).toBe("trousers");
   });
 
   it("every garment in the catalogue is actually reachable", () => {

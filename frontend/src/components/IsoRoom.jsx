@@ -433,7 +433,7 @@ const PlacedItem = memo(function PlacedItem({
               seatH={p._seat || 0}
               activity={activity}
               moving={glide.moving}
-              away={!!p._away}
+              facing={p._facing || "front"}
               // Only YOU wear the profile's character and think
               // thoughts. Passing them to every persona turned a
               // table of four into four copies of the same person.
@@ -448,7 +448,10 @@ const PlacedItem = memo(function PlacedItem({
             />
           </g>
         ) : item.roamer ? (
-          <Sprite awake={!!p._awake} moving={glide.moving} />
+          // Animals are DRAWN in profile — that's their walking pose — so
+          // "side" is their default; a vertical-dominant glide turns them
+          // toward or away from the camera the same way it turns a person.
+          <Sprite awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
             {/* rot 2/3 are the AWAY-facing pair, and they're a
@@ -657,15 +660,27 @@ function IsoSceneInner({
         return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
       });
       if (blocked) return; // bumped into furniture — stay put
-      // Which way is this glide going on SCREEN? Up-screen (+gx and +gy both
-      // shrink the screen-y) means walking away from the camera — the figure
-      // turns its back. A mostly-sideways step keeps the previous facing, so
-      // nobody spins on a shuffle.
-      const screenDy = ((next.dx - cur.dx) + (next.dy - cur.dy)) * (TILE_H / 2);
-      const away = screenDy < -1.5 ? true : screenDy > 1.5 ? false : !!cur.away;
+      // Which way is this glide going on SCREEN? Up-screen means walking away
+      // (the back view); down-screen toward the camera (the front); and a
+      // HORIZONTAL-dominant move shows the PROFILE — which in a 2:1 dimetric
+      // room is every single-axis grid walk, so profiles carry most of the
+      // wandering. A tiny shuffle keeps the previous facing, so nobody spins
+      // on a 1px step.
+      const ddx = next.dx - cur.dx;
+      const ddy = next.dy - cur.dy;
+      const sdx = (ddx - ddy) * (TILE_W / 2);
+      const sdy = (ddx + ddy) * (TILE_H / 2);
+      const facing =
+        Math.hypot(sdx, sdy) < 2.5
+          ? cur.facing || "front"
+          : Math.abs(sdy) > Math.abs(sdx) * 0.6
+          ? sdy < 0
+            ? "back"
+            : "front"
+          : "side";
       roamRef.current = {
         ...roamRef.current,
-        [p.id]: { ...next, away, hx: p.gx, hy: p.gy },
+        [p.id]: { ...next, facing, hx: p.gx, hy: p.gy },
       };
       setRoamTick((t) => t + 1);
     }, 3500);
@@ -696,7 +711,7 @@ function IsoSceneInner({
       // `_hx`/`_hy` carry the STORED square through, because gx/gy no longer
       // hold it. The ambience phase has to come from something that doesn't
       // move, or every step restarts the sprite's animations.
-      return { ...p, gx, gy, _hx: p.gx, _hy: p.gy, _awake: awake };
+      return { ...p, gx, gy, _hx: p.gx, _hy: p.gy, _awake: awake, _facing: off?.facing };
     }
     // Small objects rest on whatever surface they're over — same trick as
     // seating, and equally render-only. The +0.1 gy nudge puts them a hair
@@ -714,7 +729,7 @@ function IsoSceneInner({
     // resolved position and knows when a glide is actually in flight.
     const off = roamOffset(p);
     return off
-      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _away: !!off.away }
+      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _facing: off.facing }
       : p;
   });
   const ordered = sortIso(effective);

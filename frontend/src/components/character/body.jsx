@@ -1,8 +1,9 @@
-// The character's BODY: palette constants, the two leg drawings, the face,
-// and the held-pose limb helper. The geometry itself (half-widths, torso
-// curve, anchors) lives in lib/body.js — this file is the artwork that reads
-// those numbers. See docs/MODELS.md for the silhouette rules it answers to.
-import { LEG_H, farColor } from "../../lib/body";
+// The character's BODY: palette constants, the leg drawings (front and
+// profile), the two faces, and the held-pose limb helper. The geometry itself
+// (half-widths, torso curve, anchors) lives in lib/body.js — this file is the
+// artwork that reads those numbers. See docs/MODELS.md for the silhouette
+// rules it answers to.
+import { HEAD_R, LEG_H, farColor } from "../../lib/body";
 
 export const SKIN = "#edc39e";
 export const HAIR = "#3a3142";
@@ -40,25 +41,64 @@ export const SHOE_FAR = "#221c40";
 export const SEAT_KNEE_Y = 5;
 export const SEAT_KNEE_X = 8.5;
 
-export function SeatedLeg({ side, ankle, thighW = 7.5, shinW = 6.5, far = false, trouser = TROUSER }) {
+/**
+ * What each bottom DOES to a leg drawing — artwork knowledge, so it lives
+ * beside the drawings rather than in the catalog. `shorts` ends the cloth at
+ * the knee; `bare` removes it entirely (the skirt kinds — the flare itself is
+ * drawn by the assembly at hip level); `slim`/`wide` adjust the column;
+ * `straight` drops the knee bow (a wide drape hides the knee); the rest are
+ * MARKS: a pressed crease, a turned-up hem, a jogger's elastic ankle cuff.
+ */
+const PANTS_FORM = {
+  trousers: {},
+  dress: { slim: -0.7, crease: true, cleanHem: true },
+  jeans: { turnup: true },
+  joggers: { slim: -0.5, cuffBand: true },
+  wide: { wide: 2.4, straight: true },
+  shorts: { shorts: true },
+  jorts: { shorts: true, turnup: true },
+  skirt: { bare: true },
+  pleats: { bare: true },
+};
+export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
+
+export function SeatedLeg({
+  side,
+  ankle,
+  thighW = 7.5,
+  shinW = 6.5,
+  far = false,
+  trouser = TROUSER,
+  pants = "trousers",
+  skin = SKIN,
+}) {
   const knee = side * SEAT_KNEE_X;
   const cloth = far ? farColor(trouser) : trouser;
+  // Pants styles reach every pose. Seated, shorts and skirts read the same
+  // honest way: cloth drapes the thigh (a skirt covers a lap), the shin is
+  // skin. The wide leg thickens both segments.
+  const form = pantsFormOf(pants);
+  const bareShin = form.shorts || form.bare;
+  const extra = (form.wide || 0) * 0.75 + (form.slim || 0);
   return (
     <g>
       <path
         d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
         stroke={cloth}
-        strokeWidth={thighW}
+        strokeWidth={thighW + extra}
         strokeLinecap="round"
         fill="none"
       />
       <path
         d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
-        stroke={cloth}
-        strokeWidth={shinW}
+        stroke={bareShin ? (far ? farColor(skin) : skin) : cloth}
+        strokeWidth={bareShin ? shinW - 1.4 : shinW + extra}
         strokeLinecap="round"
         fill="none"
       />
+      {form.cuffBand && !bareShin && (
+        <rect x={knee - (shinW + extra) / 2 + 0.4} y={ankle - 2.6} width={shinW + extra - 0.8} height="1.8" fill="#fff" opacity="0.18" />
+      )}
       <ellipse cx={knee} cy={ankle + 1.4} rx="4.8" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
     </g>
   );
@@ -74,9 +114,19 @@ export function SeatedLeg({ side, ankle, thighW = 7.5, shinW = 6.5, far = false,
  * `legW` comes from figureMetrics so the build axis thickens both trouser
  * and shoe together when limb deltas land.
  */
-export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trouser = TROUSER }) {
+export function StandingLeg({
+  side,
+  legW = 5.6,
+  legH = LEG_H,
+  far = false,
+  trouser = TROUSER,
+  pants = "trousers",
+  skin = SKIN,
+}) {
   const cx = side * 4;
   const cloth = far ? farColor(trouser) : trouser;
+  const form = pantsFormOf(pants);
+  const skinTone = far ? farColor(skin) : skin;
   // ONE CONTINUOUS POLYLINE bent at the knee — same lesson as the arm: v2
   // built the leg from two capsules with per-segment washes, and the caps
   // overlapping at the joint banded the trousers into plates. The knee sits
@@ -84,10 +134,13 @@ export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trous
   // never a straight column), 0.46 up from the ankle, where a knee actually
   // sits; the BEND is the articulation, and the edge tones follow the same
   // bent path as single strokes so no layer ever overlaps another.
-  const K = { x: cx + side * 0.9, y: -legH * 0.46 };
-  const w = legW + 0.4;
+  const K = { x: cx + (form.straight ? 0 : side * 0.9), y: -legH * 0.46 };
+  const w = legW + 0.4 + (form.wide || 0) + (form.slim || 0);
   const bent = (off) =>
     `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
+  // Shorts: the cloth stops just past the knee; the shin below is skin.
+  const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
+  const clothD = form.shorts ? upper : bent;
   const line = (d, paint, width, opacity) => (
     <path
       d={d}
@@ -99,14 +152,31 @@ export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trous
       opacity={opacity}
     />
   );
+  // The skirt kinds: the LEG is just a leg — skin, knee, shoe — and the
+  // flare above it belongs to the assembly.
+  if (form.bare) {
+    return (
+      <g>
+        {line(bent(0), skinTone, legW - 0.5)}
+        {line(bent(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08)}
+        <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
+        <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
+        <ellipse cx={cx + side * 0.5} cy="1.1" rx="4.9" ry="1.5" fill="#fff" opacity={far ? 0.09 : 0.16} />
+        <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
+      </g>
+    );
+  }
   return (
     <g>
-      {line(bent(0), cloth, w)}
+      {form.shorts && line(bent(0), skinTone, legW - 0.7)}
+      {line(clothD(0), cloth, w)}
       {/* Every box in the catalog carries three tones: one lit edge, one
           falling away — each a single stroke riding the same bent path.
           Translucent overlays, never fixed hues (docs/MODELS.md). */}
-      {line(bent(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
-      {line(bent(-w / 4), "#000", w / 2.9, 0.11)}
+      {line(clothD(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
+      {line(clothD(-w / 4), "#000", w / 2.9, 0.11)}
+      {/* dress pants press a CREASE down the front of each leg */}
+      {form.crease && line(clothD(0), "#fff", 0.9, far ? 0.1 : 0.16)}
       {/* the crease inside the bend — the knee's only mark */}
       <ellipse
         cx={K.x - side * 1.2}
@@ -116,8 +186,25 @@ export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trous
         fill="#000"
         opacity="0.11"
       />
-      {/* the cuff band that makes the hem a hem */}
-      <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
+      {/* The hem, per form: shorts hem at the knee; a turn-up is a LIGHT
+          band (rolled denim shows its underside); joggers cinch to an
+          elastic cuff; dress pants break clean with no band at all. */}
+      {form.shorts ? (
+        <rect
+          x={K.x - w / 2 + 0.3}
+          y={K.y - 0.6}
+          width={w - 0.6}
+          height={form.turnup ? 2.1 : 1.6}
+          fill={form.turnup ? "#fff" : "#000"}
+          opacity={form.turnup ? 0.2 : 0.14}
+        />
+      ) : form.turnup ? (
+        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.2" />
+      ) : form.cuffBand ? (
+        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.18" />
+      ) : form.cleanHem ? null : (
+        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
+      )}
       {/* The shoe has to TERMINATE the leg. It was #2b2350 under #4a3a5b
           trousers — both dark, near the same hue, so on a dark floor the foot
           dissolved into the trouser and the leg ran unbroken to the ground.
@@ -134,6 +221,123 @@ export function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false, trous
       />
       <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
     </g>
+  );
+}
+
+/**
+ * One PROFILE leg — the side-view counterpart of StandingLeg, same one-
+ * continuous-polyline construction. The differences ARE the profile: both
+ * legs stand near the body's centre line (a person seen side-on is one leg
+ * wide), the near one a half-step ahead of the far one; the knee bows
+ * FORWARD, toward the face — knees bend the way you walk, and a knee bowed
+ * outward here would read as a leg on backwards; and the shoe points where
+ * the body faces, long toe forward with a stub of heel behind, instead of
+ * the front view's symmetric oval.
+ */
+export function SideLeg({
+  far = false,
+  legW = 5.6,
+  legH = LEG_H,
+  trouser = TROUSER,
+  pants = "trousers",
+  skin = SKIN,
+}) {
+  const cx = far ? 1.7 : -0.8;
+  const cloth = far ? farColor(trouser) : trouser;
+  const form = pantsFormOf(pants);
+  const skinTone = far ? farColor(skin) : skin;
+  const K = { x: cx - (form.straight ? 0 : 1.3), y: -legH * 0.46 };
+  const w = legW + 0.4 + (form.wide || 0) + (form.slim || 0);
+  const bent = (off) =>
+    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
+  const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
+  const clothD = form.shorts ? upper : bent;
+  const line = (d, paint, width, opacity) => (
+    <path
+      d={d}
+      stroke={paint}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+      opacity={opacity}
+    />
+  );
+  const shoe = (
+    <>
+      {/* toe forward, heel behind — the asymmetry is the profile */}
+      <ellipse cx={cx - 2.3} cy="0.3" rx="5.3" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
+      <ellipse cx={cx - 2.3} cy="1" rx="5.3" ry="1.4" fill="#fff" opacity={far ? 0.09 : 0.16} />
+      <ellipse cx={cx - 4.2} cy="-0.9" rx="2.5" ry="0.9" fill="#fff" opacity={far ? 0.12 : 0.2} />
+    </>
+  );
+  if (form.bare) {
+    return (
+      <g>
+        {line(bent(0), skinTone, legW - 0.5)}
+        {line(bent(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08)}
+        <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
+        {shoe}
+      </g>
+    );
+  }
+  return (
+    <g>
+      {form.shorts && line(bent(0), skinTone, legW - 0.7)}
+      {line(clothD(0), cloth, w)}
+      {line(clothD(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
+      {line(clothD(-w / 4), "#000", w / 2.9, 0.11)}
+      {form.crease && line(clothD(0), "#fff", 0.9, far ? 0.1 : 0.16)}
+      {/* the crease sits BEHIND the knee in profile — inside the bend */}
+      <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.8" fill="#000" opacity="0.11" />
+      {form.shorts ? (
+        <rect
+          x={K.x - w / 2 + 0.3}
+          y={K.y - 0.6}
+          width={w - 0.6}
+          height={form.turnup ? 2.1 : 1.6}
+          fill={form.turnup ? "#fff" : "#000"}
+          opacity={form.turnup ? 0.2 : 0.14}
+        />
+      ) : form.turnup ? (
+        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.2" />
+      ) : form.cuffBand ? (
+        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.18" />
+      ) : form.cleanHem ? null : (
+        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
+      )}
+      {shoe}
+    </g>
+  );
+}
+
+/**
+ * The PROFILE face: a nose breaking the skull's front edge (the single mark
+ * that says "side view" — a profile without one is a blank circle), one eye,
+ * one brow-less lid line per expression, a small mouth tucked near the front
+ * edge, and one cheek's blush. Drawn for a figure facing -x; the scene's
+ * mirror handles the other way.
+ */
+export function SideFace({ expression, headY, skin }) {
+  const R = HEAD_R;
+  const stroke = { fill: "none", stroke: INK, strokeWidth: 0.9, strokeLinecap: "round" };
+  return (
+    <>
+      {/* the nose: a soft wedge riding the circle's front edge */}
+      <path
+        d={`M ${-R + 0.5} ${headY - 0.4} q -2.4 0.4 -1.9 2.6 q 0.4 1.7 2.1 1.3 z`}
+        fill={skin}
+      />
+      {expression === "happy" ? (
+        <path d={`M-4.7 ${headY + 2} q1.2 -1.6 2.4 0`} {...stroke} />
+      ) : expression === "sleepy" ? (
+        <path d={`M-4.7 ${headY + 2} q1.2 0.9 2.4 0`} {...stroke} />
+      ) : (
+        <circle cx="-3.5" cy={headY + 1.9} r="0.95" fill={INK} />
+      )}
+      <path d={`M-6.3 ${headY + 4.3} q0.9 0.9 1.9 0.3`} {...stroke} opacity="0.75" />
+      <ellipse cx="-2.4" cy={headY + 3.5} rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
+    </>
   );
 }
 

@@ -305,12 +305,13 @@ describe("the walk shares one clock", () => {
     // of a gait, and the first cut of the walk had no arm swing at all.
     const items = spriteSources();
     const far = items.indexOf('className={moving ? "walk-arm-b" : undefined}');
-    const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}');
     expect(far).toBeGreaterThan(-1);
-    expect(near).toBeGreaterThan(-1);
-    // The far arm is drawn first (it's behind the torso), so its class appears
-    // first — which is what makes "far = b" checkable at all.
-    expect(far).toBeLessThan(near);
+    // The far arm is drawn first (it's behind the torso), so within the FRONT
+    // assembly its class appears before the near arm's — the profile assembly
+    // (one visible arm, on the near clock) sits earlier in the file, so the
+    // near class is searched from the far one onward.
+    const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}', far);
+    expect(near).toBeGreaterThan(far);
     // Both arm keyframes swing the same arc in opposite phase; one shared
     // keyframe + a delay is what guarantees they can't drift apart.
     expect((css.match(/@keyframes walk-arm \{/g) || []).length).toBe(1);
@@ -368,9 +369,10 @@ describe("the walk shares one clock", () => {
     // "my feet are on something" has to go: the limbs hang from their joints and
     // the body swings from the scruff of the neck.
     const items = spriteSources();
-    // Four limbs, each on its OWN wrapper — sharing an element with a walk class
-    // would let the animation silently eat the offset.
-    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(4);
+    // Every limb on its OWN wrapper — sharing an element with a walk class
+    // would let the animation silently eat the offset. Four limbs in the front
+    // pose plus the profile's three visible ones (two legs, one arm).
+    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(7);
     expect(items).toMatch(/transformOrigin: "center top"/);
     // The swing is a cue, so no --phase (it starts when you pick someone up),
     // and it pivots where the fingers are: the top of the head.

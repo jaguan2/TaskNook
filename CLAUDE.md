@@ -503,12 +503,35 @@ running `git commit` yourself.
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
-  **The wardrobe** (`OUTFITS`, `TROUSER_COLORS`): `outfit` was a lone hex for
-  years, so nine hairstyles sat over ONE garment and half the figure (the
-  trousers) was a hard-coded constant nobody could change. A character now
-  carries `garment` + `inner` (the layered second colour) + `trouser`, all
-  falling back to the classic sweater-over-plum so a pre-wardrobe save still
+  **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
+  (`OUTFITS`: sweater/tee/button-up/overalls/dress/turtleneck, coloured by
+  `outfit`), a COAT over it (`COATS`: none/hoodie/jacket/cardigan/puffer,
+  its own `coatColor` — the open fronts show the TOP through the opening,
+  which is what makes two slots read as two garments), and BOTTOMS
+  (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
+  pleated skirt, coloured by `trouser`; khakis are trousers in a khaki
+  colour). 6×5×9 = 270 silhouette combinations before any colour. What a
+  bottom does to the leg drawing lives in `PANTS_FORM` (character/body.jsx)
+  — shorts end the cloth at the knee, skirts render BARE legs with the
+  flare drawn by the assembly at hip level, the rest are marks (crease,
+  turn-up, elastic cuff). One-slot-era saves that stored "hoodie" as the
+  garment MIGRATE in `validateCharacter` (coat keeps its colour, the
+  opening's colour becomes the top's — same pixels); everything else falls
+  back to the classic sweater-over-plum so a pre-wardrobe save still
   validates to exactly what it drew before — the JSON blob's whole point.
+  **The figure has THREE FACINGS** — front, PROFILE, back (`facing` prop;
+  `away` survives as the boolean). The profile is its own drawing: nose,
+  one eye, one arm, forward-bent knees, toe-forward shoes; hair carries
+  `side`/`sideLength` registry slots (a generic `sideWigPath` covers new
+  styles) and garments an optional `side` (without one a garment draws
+  NOTHING side-on — reusing the front paints collars across a half-width
+  body). The wander engine picks facing from the SCREEN direction of each
+  glide — horizontal-dominant shows the profile, which in a 2:1 room is
+  every single-axis walk — and the cat/dog take the same `facing` prop
+  (their trot IS the profile; front/back are their own compact drawings).
+  The profile stage spins through front → profile → back → mirrored
+  profile; dragging the FIGURE spins, dragging the floor PANS (the iso
+  room's own grammar), wheel zooms, double-click recenters.
   **THE RULE FOR ADDING A GARMENT: it earns a slot only if it changes the
   OUTLINE or the TWO-TONE SPLIT.** The figure is 57px; a recoloured tee and a
   recoloured sweater are the same sprite, so options that differ only in name

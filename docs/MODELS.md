@@ -314,3 +314,35 @@ thing is recognisable.
 - [ ] Reviewed on a contact sheet, then in a room
 - [ ] **Not** added to a preset room by default — see `docs/DESIGN.md`; presets
       are deliberately kept clean at ~15 pieces and are not a shop window
+
+## 9. The profile view (2026-08-17)
+
+Personas draw THREE facings — front, profile, back — plus mirrors; animals
+draw profile (their walking pose), front and back. Rules the profile round
+established:
+
+- **A profile is its own drawing, never a squeezed front.** Torso narrows to
+  ~0.6× via the same `torsoGeom`; both legs stand near the centre line (near
+  a half-step ahead of far); knees bend FORWARD; shoes point where the body
+  faces (long toe, stub heel); ONE arm shows, hanging at the centre line
+  with the elbow bowed back (`Arm` with a tiny `sh` does this for free); the
+  face is `SideFace` — the nose bump breaking the skull's front edge is the
+  single mark that says "side view".
+- **Profile hair is the wig method in profile space.** `sideWigPath` walks
+  fringe tip → over the inflated crown → down the BACK of the skull → carved
+  forward along the nape → up the cheek. Styles override `side` (and
+  `sideLength` for masses hanging behind the shoulders — never reuse the
+  symmetric front `length`, half of it would cross the face). High-rim cuts
+  (two block, undercut) need a LEVEL bottom edge — the generic's cheek dip
+  painted a blindfold across the eyes.
+- **Bottoms are `PANTS_FORM` entries** (body.jsx): geometry flags
+  (shorts/bare/slim/wide/straight) plus marks (crease, turn-up, cuffBand).
+  Skirt kinds render bare legs; the flare is the ASSEMBLY's, drawn at hip
+  level under the torso.
+- **Coats are the same registry with the colours rewired**: shell in
+  `coatColor`, opening shows the top's colour. A coat's `side` must run its
+  opening sliver to the shell's own front edge, or it reads as a stripe.
+- **Facing comes from the screen direction of a glide** (IsoRoom's roam
+  tick): vertical-dominant → front/back, otherwise profile. In a 2:1 room
+  every single-axis grid walk is horizontal-dominant, so profiles carry most
+  of the wandering — which is exactly why they exist.

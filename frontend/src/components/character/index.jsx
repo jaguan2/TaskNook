@@ -27,11 +27,21 @@ import {
   TROUSER,
   Face,
   SeatedLeg,
+  SideFace,
+  SideLeg,
   StandingLeg,
   hangLimb,
+  pantsFormOf,
 } from "./body";
-import { Garment, GarmentCollar } from "./garments";
-import { HairBack, HairBehind, HairFront, HairLength } from "./hair";
+import { Coat, Garment, GarmentCollar } from "./garments";
+import {
+  HairBack,
+  HairBehind,
+  HairFront,
+  HairLength,
+  HairSide,
+  HairSideLength,
+} from "./hair";
 import { Hat } from "./hats";
 
 export { HAIR_REGISTRY } from "./hair";
@@ -59,6 +69,10 @@ export function Resident({
   // when it walks up-screen. The body is symmetric enough to share; the head
   // swaps to the back of its hair and the garments to their backs.
   away = false,
+  // The finer version: "front" | "side" | "back". The wander engine passes
+  // this now (a mostly-horizontal glide shows the PROFILE — in a 2:1 room
+  // that's most walks); `away` survives as the boolean it always was.
+  facing = null,
   // Dangling from your cursor mid drag-and-drop. Limbs go limp and the whole
   // body swings from the scruff of the neck — the pinched-chibi pose, which is
   // the entire point of picking someone up rather than pointing at a tile.
@@ -154,15 +168,28 @@ export function Resident({
   // Hands are on a keyboard, so the arms have a job and the idle gestures don't
   // get them. The head is free either way — someone yawning at their desk is
   // exactly the point.
-  // Sleeve length, from the garment. 12 is the full arm (the sleeve simply
-  // covers all of it); a short sleeve stops at the elbow and lets the forearm
-  // show as skin. An OUTER garment also thickens the sleeve — outward only,
-  // so the hand hangs from the same spot — because a hoodie shell one step
-  // proud of the torso over sweater-thin arms reads as a bib, not a layer.
+  // Sleeve length: the COAT's sleeves cover the arm whenever one is worn
+  // (that's what wearing a coat means); coatless, the top decides — a short
+  // sleeve stops at the elbow and lets the forearm show as skin. A worn coat
+  // also thickens the sleeve — outward only, so the hand hangs from the same
+  // spot — because a shell one step proud of the torso over shirt-thin arms
+  // reads as a bib, not a layer.
   const wornGarment = garmentOf(ch.garment);
-  const sleeveShort = wornGarment.sleeves === "short";
-  const sleeveBulk = wornGarment.outer ? 0.9 : 0;
+  const coatWorn = !!ch.coat && ch.coat !== "none";
+  const coatStyle = tinted(ch.coatColor || "#8a5346");
+  const sleeveShort = !coatWorn && wornGarment.sleeves === "short";
+  const sleeveBulk = coatWorn ? (ch.coat === "puffer" ? 1.6 : 0.9) : 0;
+  // The arm's sleeve is painted by whatever's outermost.
+  const armStyle = coatWorn ? coatStyle : outfit;
   const trouser = ch.trouser || TROUSER;
+  const pants = ch.pants || "trousers";
+  // The skirt kinds: the legs render bare (see PANTS_FORM) and the flare is
+  // drawn HERE, at hip level between the hair's length and the torso — it's
+  // clothing on the hips, not part of a leg.
+  const skirted = !!pantsFormOf(pants).bare;
+  const skirtHem = -legH * (pants === "pleats" ? 0.42 : 0.52);
+  const view = facing || (away ? "back" : "front");
+  const back = view === "back";
   // A hat REPLACES the crown hair (front + behind layers), the research
   // rule: a hat drawn over the full dome reads as a balloon perched on a
   // wig. LENGTH survives — drapes, plaits and tails keep falling from under
@@ -173,6 +200,154 @@ export function Resident({
   // reached the app and stopped at the thought bubble. Now they put the keyboard
   // down, pick up a mug and stretch — the one moment the room should notice.
   const resting = activity === "break";
+  // ---- the PROFILE: its own drawing, not a squeezed front ---------------- //
+  // A body seen side-on is one leg wide: the torso narrows to its depth, both
+  // legs stand near the centre line (near ahead of far), ONE arm shows, the
+  // face gains a nose and loses an eye, and the hair swaps to its side
+  // silhouette. Standing/walking only — a seated figure keeps the front pair,
+  // because seats already choose their facing via rot + mirror.
+  if (view === "side" && !seated && !lying) {
+    const sSh = Math.max(4.8, sh * 0.6);
+    const sWa = Math.max(4.4, wa * 0.62);
+    const sHem = Math.max(4.6, hem * 0.62);
+    return (
+      <g transform={`translate(${c.x}, ${c.y})`}>
+        <g
+          className={held ? "held-dangle" : undefined}
+          style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
+        >
+          <g className={moving ? "leg-stride-a" : undefined}>
+            <g style={hangLimb(held, -5)}>
+              <SideLeg far legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} />
+            </g>
+          </g>
+          <g className={moving ? "leg-stride-b" : undefined}>
+            <g style={hangLimb(held, 6)}>
+              <SideLeg legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} />
+            </g>
+          </g>
+          <g className={moving ? "walk-bob" : undefined}>
+            <g className={moving ? "walk-roll" : undefined}>
+              <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
+              {skirted && (
+                <g>
+                  <path
+                    d={`M ${-sHem + 0.4} ${-legH + 2} L ${sHem - 0.4} ${-legH + 2}
+                        L ${sHem + 2.4} ${skirtHem - 1.4} Q 0 ${skirtHem + 0.8} ${-sHem - 2.4} ${skirtHem - 1.4} Z`}
+                    fill={trouser}
+                  />
+                  <path
+                    d={`M ${-sHem - 2.4} ${skirtHem - 1.4} Q 0 ${skirtHem + 0.8} ${sHem + 2.4} ${skirtHem - 1.4}
+                        L ${sHem + 1.4} ${skirtHem - 2.6} Q 0 ${skirtHem - 0.6} ${-sHem - 1.4} ${skirtHem - 2.6} Z`}
+                    fill="#000"
+                    opacity="0.14"
+                  />
+                  {pants === "pleats" &&
+                    [-sHem * 0.5, sHem * 0.5].map((x) => (
+                      <path
+                        key={x}
+                        d={`M ${x} ${-legH + 4} L ${x * 1.4} ${skirtHem - 1}`}
+                        stroke="#000"
+                        strokeWidth="0.8"
+                        opacity="0.13"
+                        fill="none"
+                      />
+                    ))}
+                </g>
+              )}
+              <g
+                className="body-breathe"
+                style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}
+              >
+                {(() => {
+                  const geom = {
+                    sh: sSh,
+                    wa: sWa,
+                    hem: sHem,
+                    top: torsoY,
+                    bot: torsoY + torsoH,
+                    waistY: torsoY + waistDrop,
+                  };
+                  const { body, band } = torsoGeom(geom);
+                  return (
+                    <>
+                      <path d={body} style={outfit} />
+                      {/* Wrap-around prints show side-on too — same shapes,
+                          clipped to the narrow torso. */}
+                      {ch.print && ch.print !== "none" && (
+                        <>
+                          <clipPath id={`${clipId}s`}>
+                            <path d={body} />
+                          </clipPath>
+                          <g clipPath={`url(#${clipId}s)`} fill={ch.inner}>
+                            {ch.print === "stripes" &&
+                              [4.5, 9.5, 14.5].map((dy) => (
+                                <rect key={dy} x={-sHem - 2} y={torsoY + dy} width={(sHem + 2) * 2} height="2.1" opacity="0.85" />
+                              ))}
+                            {ch.print === "chest" && (
+                              <rect x={-sHem - 2} y={torsoY + 5} width={(sHem + 2) * 2} height="4.6" opacity="0.9" />
+                            )}
+                            {ch.print === "dots" &&
+                              [5.5, 9.5, 13.5].flatMap((dy, row) =>
+                                [-4, 0, 4].map((dx) => (
+                                  <circle key={`${dx},${dy}`} cx={dx + (row % 2) * 2} cy={torsoY + dy} r="0.95" opacity="0.85" />
+                                ))
+                              )}
+                          </g>
+                        </>
+                      )}
+                      <g style={outfit}>
+                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} view="side" />
+                      </g>
+                      <Coat
+                        kind={ch.coat}
+                        {...geom}
+                        topColor={`var(--tint, ${ch.outfit || "#7faf8f"})`}
+                        coatStyle={coatStyle}
+                        view="side"
+                      />
+                      <ellipse cx="0" cy={torsoY + 3.5} rx={sSh - 1.2} ry="4.6" fill="#fff" opacity="0.13" />
+                      <path d={band} fill="#000" opacity="0.14" />
+                    </>
+                  );
+                })()}
+                {/* the one visible arm, hanging at the body's centre line —
+                    elbows bow BACKWARD, which a tiny sh does for free */}
+                <g className={moving ? "walk-arm-a" : undefined}>
+                  <g style={hangLimb(held, 8)}>
+                    <Arm
+                      side={1}
+                      sh={1.4}
+                      torsoY={torsoY}
+                      skin={skin}
+                      outfit={armStyle}
+                      shortSleeve={sleeveShort}
+                      bulk={sleeveBulk}
+                    />
+                  </g>
+                </g>
+                <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill={skin} />
+                <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill="#000" opacity="0.16" />
+                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" style={outfit} />
+                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" fill="#fff" opacity="0.1" />
+                <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
+                {/* head-only gestures keep playing in profile; the arm ones
+                    stand down — they're front-view choreography */}
+                <g className="gesture-yawn">
+                  <g className="gesture-look">
+                    <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+                    {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
+                    <Hat kind={ch.hat} headY={headY} />
+                    <SideFace expression={ch.expression} headY={headY} skin={skin} />
+                  </g>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       {/* Held: ONE wrapper for the whole body, pivoting at the top of the head
@@ -185,8 +360,8 @@ export function Resident({
       >
       {seated ? (
         <>
-          <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} far />
-          <SeatedLeg side={1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} />
+          <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} far />
+          <SeatedLeg side={1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} />
         </>
       ) : (
         <>
@@ -203,12 +378,12 @@ export function Resident({
               there's no floor under them. */}
           <g className={moving ? "leg-stride-a" : undefined}>
             <g style={hangLimb(held, -5)}>
-              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} far />
+              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} far />
             </g>
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
             <g style={hangLimb(held, 6)}>
-              <StandingLeg side={1} legW={legW} legH={legH} trouser={trouser} />
+              <StandingLeg side={1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} />
             </g>
           </g>
         </>
@@ -223,6 +398,35 @@ export function Resident({
       <g className={moving ? "walk-roll" : undefined}>
       {/* Before the torso: length falls behind the body, not onto the chest. */}
       <HairLength style={ch.hair} headY={headY} color={hairColor} />
+      {/* The skirt flare, over the bare legs and under the torso's hem.
+          Standing only — seated, the cloth already drapes the lap via the
+          leg drawing. */}
+      {skirted && !seated && (
+        <g>
+          <path
+            d={`M ${-hem + 0.6} ${-legH + 2} L ${hem - 0.6} ${-legH + 2}
+                L ${hem + 3.6} ${skirtHem - 1.6} Q 0 ${skirtHem + 1} ${-hem - 3.6} ${skirtHem - 1.6} Z`}
+            fill={trouser}
+          />
+          <path
+            d={`M ${-hem - 3.6} ${skirtHem - 1.6} Q 0 ${skirtHem + 1} ${hem + 3.6} ${skirtHem - 1.6}
+                L ${hem + 2.4} ${skirtHem - 3} Q 0 ${skirtHem - 0.6} ${-hem - 2.4} ${skirtHem - 3} Z`}
+            fill="#000"
+            opacity="0.14"
+          />
+          {pants === "pleats" &&
+            [-hem * 0.6, 0, hem * 0.6].map((x) => (
+              <path
+                key={x}
+                d={`M ${x} ${-legH + 4} L ${x * 1.5} ${skirtHem - 1.2}`}
+                stroke="#000"
+                strokeWidth="0.8"
+                opacity="0.13"
+                fill="none"
+              />
+            ))}
+        </g>
+      )}
       <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
             it was the same width top to bottom, which is what made the body
@@ -287,7 +491,8 @@ export function Resident({
               {/* The garment, over the plain torso — see garments.jsx. Drawn
                   before the volume shading so the light catch and the waist
                   band fall across the whole dressed body, not just the bits of
-                  torso the garment left showing. */}
+                  torso the garment left showing. The COAT goes over the
+                  finished top, in its own colour — the two-slot wardrobe. */}
               <g style={outfit}>
                 <Garment
                   kind={ch.garment}
@@ -299,9 +504,21 @@ export function Resident({
                   waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
-                  away={away}
+                  view={back ? "back" : "front"}
                 />
               </g>
+              <Coat
+                kind={ch.coat}
+                sh={sh}
+                wa={wa}
+                hem={hem}
+                top={torsoY}
+                bot={torsoY + torsoH}
+                waistY={torsoY + waistDrop}
+                topColor={`var(--tint, ${ch.outfit || "#7faf8f"})`}
+                coatStyle={coatStyle}
+                view={back ? "back" : "front"}
+              />
               {/* Volume the same way every box in the catalog gets it: the top
                   faces the light, the lower body falls away. The character was
                   the one object in the room with a single flat tone, which is
@@ -337,7 +554,7 @@ export function Resident({
                   sh={sh}
                   torsoY={torsoY}
                   skin={skin}
-                  outfit={outfit}
+                  outfit={armStyle}
                   shortSleeve={sleeveShort}
                   bulk={sleeveBulk}
                   far
@@ -355,7 +572,7 @@ export function Resident({
                   sh={sh}
                   torsoY={torsoY}
                   skin={skin}
-                  outfit={outfit}
+                  outfit={armStyle}
                   shortSleeve={sleeveShort}
                   bulk={sleeveBulk}
                 />
@@ -419,14 +636,14 @@ export function Resident({
                   head. Behind the face is what matters, not behind the body.
                   Turned away, the face side of the skull IS the back of the
                   head: HairBack covers it and the hairline layers stand down. */}
-              {!hatted && !away && (
+              {!hatted && !back && (
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
               <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-              {away && !hatted && (
+              {back && !hatted && (
                 <HairBack style={ch.hair} headY={headY} color={hairColor} />
               )}
-              {!hatted && !away && (
+              {!hatted && !back && (
                 <HairFront style={ch.hair} headY={headY} color={hairColor} />
               )}
               {/* A sheen on the crown. The hair is the biggest single shape on the
@@ -448,8 +665,8 @@ export function Resident({
                   the gesture group, so it turns with a glance instead of
                   hovering while the head moves under it. */}
               <Hat kind={ch.hat} headY={headY} />
-              {!away && <Face expression={ch.expression} headY={headY} />}
-              {!away && (
+              {!back && <Face expression={ch.expression} headY={headY} />}
+              {!back && (
                 <>
                   <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
                   <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
@@ -459,7 +676,7 @@ export function Resident({
                   keyframes outrank while they run but which takes over the moment
                   they don't — so under reduced motion the mouth is simply shut,
                   rather than a character left permanently gaping. */}
-              {!away && (
+              {!back && (
                 <ellipse
                   className="gesture-yawn-mouth"
                   cx="0"

@@ -366,10 +366,55 @@ function CatFace({ x, y, r, asleep }) {
   );
 }
 
-function Cat({ awake = false, moving = false }) {
+function Cat({ awake = false, moving = false, facing = "side" }) {
   const c = project(0.6, 0.4);
   // Ground shadows come from the scene now (one soft ellipse per item), so
   // the poses draw only the cat.
+  // The prowl pose IS the profile; a vertical-dominant glide turns the cat
+  // toward the camera (face + chest, tail curling up behind) or away (the
+  // back of the skull — ears, no face). Same facing economy as the people.
+  if (awake && facing !== "side") {
+    const rear = facing === "back";
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <path
+          className="tail-sway"
+          d="M7 -13 q9 -3 7 -16"
+          fill="none"
+          style={{ stroke: "var(--tint, #3a3142)" }}
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        {[
+          ["leg-step-b", 3.2],
+          ["leg-step-a", -7.8],
+        ].map(([cls, x]) => (
+          <g key={x} className={moving ? cls : undefined}>
+            <rect x={x} y="-13" width="4.6" height="14" rx="2.3" style={tinted("#3a3142")} />
+            <rect x={x} y="-13" width="4.6" height="14" rx="2.3" fill="#000" opacity="0.24" />
+          </g>
+        ))}
+        <g className={moving ? "resident-type" : undefined}>
+          {/* the body end-on: one compact mass, chest lit, belly falling away */}
+          <ellipse cx="0" cy="-16" rx="10" ry="8.5" style={tinted("#3a3142")} />
+          <ellipse cx="0" cy="-19.5" rx="6.6" ry="3" fill="#fff" opacity="0.09" />
+          <ellipse cx="0" cy="-11" rx="8.5" ry="3" fill="#000" opacity="0.16" />
+          {rear ? (
+            <g>
+              <circle cx="0" cy="-27" r="7.6" style={tinted("#3a3142")} />
+              <ellipse cx="-1.8" cy="-30" rx="4.2" ry="2.4" fill="#fff" opacity="0.08" />
+              <polygon points="-6.2,-31.5 -4,-38.5 -0.4,-32.6" style={tinted("#3a3142")} />
+              <g className="ear-twitch">
+                <polygon points="2.4,-32.6 6.6,-37.4 7,-31" style={tinted("#3a3142")} />
+              </g>
+            </g>
+          ) : (
+            <CatFace x={0} y={-27} r={7.6} asleep={false} />
+          )}
+        </g>
+      </g>
+    );
+  }
   if (awake) {
     // On the prowl: body up on legs, head high, tail curled skyward. The far
     // legs are drawn first and darkened, so the four of them read as depth
@@ -3999,8 +4044,50 @@ function DogHead({ x, y, r, asleep }) {
   );
 }
 
-function Dog({ awake = false, moving = false }) {
+function Dog({ awake = false, moving = false, facing = "side" }) {
   const c = project(0.55, 0.35);
+  // Same facing economy as the cat: the trot is the profile, and turning
+  // toward/away from the camera is its own compact drawing.
+  if (awake && facing !== "side") {
+    const rear = facing === "back";
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <g className="tail-sway">
+          <path d="M5 -13 q8 -1 7 -14" fill="none" style={{ stroke: "var(--tint, #c98a4b)" }} strokeWidth="5.5" strokeLinecap="round" />
+          <path d="M5 -13 q8 -1 7 -14" fill="none" stroke="#f2e7dc" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+        </g>
+        {[
+          ["leg-step-b", 3.6],
+          ["leg-step-a", -8.4],
+        ].map(([cls, x]) => (
+          <g key={x} className={moving ? cls : undefined}>
+            <rect x={x} y="-12" width="4.8" height="13" rx="2.4" style={tinted("#c98a4b")} />
+            <rect x={x} y="-12" width="4.8" height="13" rx="2.4" fill="#000" opacity="0.26" />
+          </g>
+        ))}
+        <g className={moving ? "resident-type" : undefined}>
+          <ellipse cx="0" cy="-15" rx="10.5" ry="8" style={tinted("#c98a4b")} />
+          {!rear && <ellipse cx="0" cy="-12.5" rx="6" ry="4.4" fill="#f2e7dc" opacity="0.5" />}
+          <ellipse cx="0" cy="-18.5" rx="6.8" ry="2.8" fill="#fff" opacity="0.09" />
+          <ellipse cx="0" cy="-10.5" rx="8.6" ry="2.8" fill="#000" opacity="0.16" />
+          {rear ? (
+            <g>
+              <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" style={tinted("#c98a4b")} />
+              <ellipse cx="-1.6" cy="-27.6" rx="4.2" ry="2.2" fill="#fff" opacity="0.08" />
+              <ellipse cx="-6.4" cy="-24.6" rx="2.5" ry="4.6" style={tinted("#c98a4b")} />
+              <ellipse cx="-6.4" cy="-24.6" rx="2.5" ry="4.6" fill="#000" opacity="0.22" />
+              <g className="ear-twitch-hanging">
+                <ellipse cx="6.4" cy="-24.9" rx="2.4" ry="4.5" style={tinted("#c98a4b")} />
+                <ellipse cx="6.4" cy="-24.9" rx="2.4" ry="4.5" fill="#000" opacity="0.12" />
+              </g>
+            </g>
+          ) : (
+            <DogHead x={0} y={-25} r={7.8} asleep={false} />
+          )}
+        </g>
+      </g>
+    );
+  }
   if (awake) {
     // Same `moving` gate as the cat: trot only while a glide is in flight.
     return (

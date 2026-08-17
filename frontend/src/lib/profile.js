@@ -222,21 +222,59 @@ export const HATS = [
 export const OUTFITS = [
   { key: "sweater", label: "Sweater" },
   { key: "tee", label: "T-shirt", sleeves: "short" },
-  // `outer: true` marks a garment WORN OVER the body rather than fitted to
-  // it: the sprite draws its shell one step proud of the torso and thickens
-  // the sleeves to match — layers have thickness, or they read as a print.
-  { key: "hoodie", label: "Hoodie", outer: true },
-  { key: "jacket", label: "Jacket", inner: true, outer: true },
+  // Button-up: collar wings + placket + buttons — the neck-and-centre marks
+  // are what separate a shirt from a tee at this size.
+  { key: "shirt", label: "Button-up" },
   { key: "overalls", label: "Overalls", inner: true },
   { key: "dress", label: "Dress", sleeves: "short" },
-  // The registry round. Cardigan = an open V over the shirt (a different
-  // split shape than the jacket's parallel panel); turtleneck = the collar
-  // swallows the neck (the one garment that changes the NECK line, via the
-  // registry's `collar` slot); puffer = the fattest shell in the set, with
-  // the quilt seams that name it.
-  { key: "cardigan", label: "Cardigan", inner: true, outer: true },
+  // Cardigan/turtleneck notes live with their entries below and in COATS.
+  // Turtleneck = the collar swallows the neck (the one garment that changes
+  // the NECK line, via the registry's `collar` slot).
   { key: "turtleneck", label: "Turtleneck" },
-  { key: "puffer", label: "Puffer", outer: true },
+];
+
+/**
+ * The OUTER layer — a real second slot, not more entries in one list (owner
+ * call, 2026-08-17: "change clothing into inner and outer shirts"). A coat is
+ * WORN OVER whatever top you picked, with its own colour: hoodie over a tee,
+ * cardigan over a dress. The one-slot era's outer garments migrate in
+ * `validateCharacter` — see the legacy note there. "none" is a real catalog
+ * entry: the picker needs a button for shirtsleeves.
+ *
+ * Every coat draws its shell one step proud of the torso and thickens the
+ * sleeves to match — layers have thickness, or they read as a print. The
+ * open ones (jacket's parallel panel, cardigan's V) show the TOP through the
+ * opening, which is what makes two slots read as two garments.
+ */
+export const COATS = [
+  { key: "none", label: "None" },
+  { key: "hoodie", label: "Hoodie" },
+  { key: "jacket", label: "Jacket" },
+  { key: "cardigan", label: "Cardigan" },
+  { key: "puffer", label: "Puffer" },
+];
+
+/**
+ * Bottom STYLES (owner call, same day: "various pants options… dress pants,
+ * khaki, shorts, skirts, jorts"). Same slot rule as everything else — each
+ * earns its place with an outline change or a distinct MARK the leg drawing
+ * renders (a crease, a turn-up, an ankle cuff): shorts and jorts bare the
+ * shin, the wide leg drops as a straight column, joggers taper to an elastic
+ * cuff, skirts replace the trouser legs with bare legs under a flare.
+ * Khakis are trousers in a khaki COLOUR — that's what TROUSER_COLORS is for.
+ * With six tops, five coats and nine bottoms the wardrobe is 270 silhouette
+ * combinations before a single colour is picked.
+ */
+export const PANTS = [
+  { key: "trousers", label: "Trousers" },
+  { key: "dress", label: "Dress pants" },
+  { key: "jeans", label: "Jeans" },
+  { key: "joggers", label: "Joggers" },
+  { key: "wide", label: "Wide leg" },
+  { key: "shorts", label: "Shorts" },
+  { key: "jorts", label: "Jorts" },
+  { key: "skirt", label: "Skirt" },
+  { key: "pleats", label: "Pleated skirt" },
 ];
 
 // Trousers were a hard-coded constant, so the whole lower half of every
@@ -300,8 +338,11 @@ export const DEFAULT_CHARACTER = {
   // the defaults — an existing room looks identical until someone picks
   // something else.
   garment: "sweater",
+  coat: "none",
+  coatColor: "#8a5346",
   inner: "#f2e9dd",
   trouser: "#4a3a5b",
+  pants: "trousers",
   hat: "none",
   print: "none",
   expression: "calm",
@@ -316,8 +357,14 @@ const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
 const HAT_KEYS = new Set(HATS.map((h) => h.key));
 const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
+const COAT_KEYS = new Set(COATS.map((c) => c.key));
+const PANTS_KEYS = new Set(PANTS.map((p) => p.key));
+// The one-slot era stored these in `garment`; they're coats now.
+const LEGACY_COATS = new Set(["hoodie", "jacket", "cardigan", "puffer"]);
 /** The garment's own rules, for the sprite: sleeve length and whether it layers. */
 export const garmentOf = (key) => OUTFITS.find((o) => o.key === key) || OUTFITS[0];
+/** The coat worn over it, "none" included. */
+export const coatOf = (key) => COATS.find((c) => c.key === key) || COATS[0];
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
 
@@ -354,18 +401,39 @@ function pickNum(value, [lo, hi], fallback) {
 export function validateCharacter(raw) {
   const c = raw && typeof raw === "object" ? raw : {};
   const build = pickKey(c.build, BUILD_KEYS, DEFAULT_CHARACTER.build);
+  // Legacy one-slot saves: "hoodie" in the garment slot becomes the coat,
+  // KEEPING its colour — and the shirt in a jacket's opening keeps the colour
+  // it used to show (the old `inner`), so a migrated character draws the same
+  // pixels it always did. Only fires when no explicit coat was ever stored.
+  let garment = pickKey(c.garment, GARMENT_KEYS, DEFAULT_CHARACTER.garment);
+  let coat = pickKey(c.coat, COAT_KEYS, DEFAULT_CHARACTER.coat);
+  let outfit = pickHex(c.outfit, DEFAULT_CHARACTER.outfit);
+  let coatColor = pickHex(c.coatColor, DEFAULT_CHARACTER.coatColor);
+  if (
+    typeof c.garment === "string" &&
+    LEGACY_COATS.has(c.garment) &&
+    !(typeof c.coat === "string" && COAT_KEYS.has(c.coat))
+  ) {
+    coat = c.garment;
+    coatColor = outfit;
+    garment = "tee";
+    outfit = pickHex(c.inner, DEFAULT_CHARACTER.inner);
+  }
   return {
     model: pickKey(c.model, MODEL_KEYS, DEFAULT_CHARACTER.model),
     skin: pickHex(c.skin, DEFAULT_CHARACTER.skin),
     hair: pickKey(c.hair, HAIR_KEYS, DEFAULT_CHARACTER.hair),
     hairColor: pickHex(c.hairColor, DEFAULT_CHARACTER.hairColor),
-    outfit: pickHex(c.outfit, DEFAULT_CHARACTER.outfit),
+    outfit,
     // New axes fall back to the classic look, so every character saved before
     // the wardrobe existed still validates to exactly what it drew before —
     // the same bargain the JSON blob buys everywhere else (no migration).
-    garment: pickKey(c.garment, GARMENT_KEYS, DEFAULT_CHARACTER.garment),
+    garment,
+    coat,
+    coatColor,
     inner: pickHex(c.inner, DEFAULT_CHARACTER.inner),
     trouser: pickHex(c.trouser, DEFAULT_CHARACTER.trouser),
+    pants: pickKey(c.pants, PANTS_KEYS, DEFAULT_CHARACTER.pants),
     hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
