@@ -232,7 +232,8 @@ hundred flat boxes looks *worse* than uniform.
 - Main material: `var(--tint, <fallback>)` via the `tinted()` helper.
 - **Shading is translucent BLACK; highlights are translucent WHITE.** Never a
   fixed darker hue — the user can tint almost anything, and a hard-coded shade
-  only works for the colour you happened to pick.
+  only works for the colour you happened to pick. (The CHARACTER refines this
+  pair to cool-dark/warm-light — see §10; furniture keeps plain #000/#fff.)
 - Items with no sensible single material opt out with `tintable: false`
   (6 of 131 — screens, the Kenney PNG renders, multi-coloured things like a
   stack of books).
@@ -322,12 +323,18 @@ draw profile (their walking pose), front and back. Rules the profile round
 established:
 
 - **A profile is its own drawing, never a squeezed front.** Torso narrows to
-  ~0.6× via the same `torsoGeom`; both legs stand near the centre line (near
-  a half-step ahead of far); knees bend FORWARD; shoes point where the body
+  ~0.6× and is an ASYMMETRIC S, not the symmetric `torsoGeom` slab (a slab
+  read as a plank — owner, 2026-08-17): the chest carries forward above the
+  waist, the belly tucks in below it, the seat sits back at the hem — each
+  deviation under a px. The head unit leans 0.7px forward with the chest,
+  or it reads as a slump. Both legs stand near the centre line (near a
+  half-step ahead of far); knees bend FORWARD; shoes point where the body
   faces (long toe, stub heel); ONE arm shows, hanging at the centre line
-  with the elbow bowed back (`Arm` with a tiny `sh` does this for free); the
-  face is `SideFace` — the nose bump breaking the skull's front edge is the
-  single mark that says "side view".
+  with the elbow bowed back (`Arm` with a tiny `sh` does this for free) and
+  casting a soft shadow onto the torso behind it — without one the sleeve
+  reads as a stripe painted down the body; the face is `SideFace` — the
+  nose bump breaking the skull's front edge is the single mark that says
+  "side view".
 - **Profile hair is the wig method in profile space.** `sideWigPath` walks
   fringe tip → over the inflated crown → down the BACK of the skull → carved
   forward along the nape → up the cheek. Styles override `side` (and
@@ -342,7 +349,55 @@ established:
 - **Coats are the same registry with the colours rewired**: shell in
   `coatColor`, opening shows the top's colour. A coat's `side` must run its
   opening sliver to the shell's own front edge, or it reads as a stripe.
+- **Shoes are a slot** (`FrontShoe`/`SideShoe`, switched on `SHOES` kinds):
+  the classic chunky oval IS the sneaker; each other kind is an outline
+  change (boot shaft, heel spike + lifted arch) or one mark (loafer band,
+  Mary Jane strap). Boots draw after the trouser, so legs tuck in for free.
 - **Facing comes from the screen direction of a glide** (IsoRoom's roam
   tick): vertical-dominant → front/back, otherwise profile. In a 2:1 room
   every single-axis grid walk is horizontal-dominant, so profiles carry most
   of the wandering — which is exactly why they exist.
+
+## 10. The wardrobe's light (2026-08-17)
+
+Research-backed doctrine (cel-shading + fashion-flat practice, adapted to
+user-picked colours). The torso was the only unshaded surface on the figure,
+which is most of why clothes read flatter than the body wearing them.
+
+- **ONE light: above, slightly in front, from screen RIGHT.** Every form
+  shadow and highlight on the figure answers to it — hair sheen, torso
+  crescent, both arms (lit on their screen-right edge, NOT their outer
+  edges), both legs. A mark that disagrees reads as a part from another kit.
+- **Three paints, one module** (`character/body.jsx`): `SHADE` (#221638,
+  cool violet-dark) for FORM shadow — translucent black scales a colour
+  toward grey, a cool dark keeps it alive with less value drop; `GLINT`
+  (#fff3e0, warm off-white) for highlights — pure white reads as chalk;
+  neutral `#000` stays for CREVICES (under a hem, inside a pocket mouth,
+  armpits — occlusion is airless, not cool). All translucent, so any picker
+  colour survives.
+- **The assembly casts the light, the registry declares the fabric.** The
+  form-shadow crescent, lit shoulder, chin shadow and hem-onto-bottoms band
+  are drawn ONCE in `character/index.jsx`, over whatever is worn — a new
+  garment models correctly with zero shading code. A registry entry declares
+  `finish: {shade, glint}` (knit is matte, nylon sheens — material is an
+  axis separate from colour), `cuffs: true` (ribbed wrist), and
+  `drape: true` (cloth hangs past the hem → the hem band stands down:
+  dress, cardigan).
+- **Luminance-adaptive strengths** (`toneFor` in lib/tint.js): on near-black
+  fills the shadow dies, so the highlight carries the form; on cream, the
+  reverse. Multiply every form mark by the matching factor.
+- **Occlusion at EVERY overlap** — under the chin, under the hood, under the
+  top's hem onto the trousers, a coat's edge onto the shirt, the sleeve hem
+  at the elbow. These 1–2px dark bands are the highest-value marks per pixel
+  and read at any scale.
+- **Folds: two per figure, at real gather points only** (a skirt's waist),
+  drawn as tapering SHADOW WEDGES, never stroked lines, never symmetric.
+  Everything else stays smooth — a taut plane at 57px has no folds.
+- **Fixed anchors the tint never touches**: shoe soles, `STITCH` ochre
+  topstitch (denim's one defining mark), `BRASS` dungaree buckles. A small
+  fixed material is what makes a recolour look designed.
+- **Guards**: `character/palette.test.jsx` lints every garment's paints
+  against the allowed set (colour slots + anchors + overlays) — mutation
+  verified; the art sheet renders tops and coats in three colourways
+  (mid/dark/light), because single-colourway review is exactly how the
+  first too-faint mark set shipped.

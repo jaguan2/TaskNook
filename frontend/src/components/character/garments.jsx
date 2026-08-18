@@ -19,8 +19,21 @@
 //   outfit — the tinted() style carrying the outfit colour ({fill}, never
 //     `color`: currentColor resolves to inherited cream — a trap already hit)
 //   shell() — the OUTER-layer helper below
-import { OUTER_BULK } from "./body";
+import { BRASS, GLINT, OUTER_BULK, SHADE } from "./body";
 import { WAIST_DROP, torsoGeom } from "../../lib/body";
+
+/**
+ * A garment's FINISH: how strongly the assembly's shared form shadow and
+ * highlight land on it. This is material as an axis separate from colour —
+ * the same user hex reads as matte cotton on a tee and sheeny nylon on the
+ * puffer purely from these two numbers, which is how one recolour system
+ * serves every fabric (the GW2 dye lesson). Opacities, multiplied by the
+ * luminance tone at the assembly.
+ */
+export const DEFAULT_FINISH = { shade: 0.16, glint: 0.1 };
+const KNIT = { shade: 0.15, glint: 0.07 };
+const MATTE = { shade: 0.14, glint: 0.05 };
+const CRISP = { shade: 0.18, glint: 0.15 };
 
 /**
  * An OUTER layer is worn over the body, so it has to be BIGGER than it. A
@@ -63,9 +76,42 @@ const shellFor = ({ sh, wa, hem, top, bot }) => (scale = 1) => {
 };
 
 export const GARMENT_REGISTRY = {
-  // The base garment: the torso path IS a plain sweater. Nothing to add.
-  sweater: {},
+  // The sweater used to be the bare torso, which meant "sweater vs tee" was
+  // a collar-line apart (owner: "there feels like no difference"). Knitwear
+  // reads from its RIBBING: a crew band at the neck, a ribbed hem, ribbed
+  // cuffs on the sleeves' wrists via the arm — here, the two bands.
+  sweater: {
+    finish: KNIT,
+    cuffs: true,
+    draw: ({ hem, top, bot }) => (
+      <>
+        <path
+          d={`M ${-4} ${top + 0.6} Q 0 ${top + 3.4} ${4} ${top + 0.6}`}
+          fill="none"
+          stroke="#000"
+          strokeWidth="1.7"
+          opacity="0.2"
+          strokeLinecap="round"
+        />
+        <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
+        {[-hem + 3, -hem + 5.4, -hem + 7.8, hem - 7.8, hem - 5.4, hem - 3].map((x) => (
+          <path
+            key={x}
+            d={`M ${x} ${bot - 2.1} L ${x} ${bot - 0.3}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            opacity="0.26"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
+    back: ({ hem, bot }) => (
+      <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
+    ),
+  },
   tee: {
+    finish: MATTE,
     // From behind there's no collar — the bare forearms carry the garment.
     back: () => null,
     // A collar: with bare forearms (`sleeves: "short"`) doing the outline
@@ -76,7 +122,7 @@ export const GARMENT_REGISTRY = {
         fill="none"
         stroke="#000"
         strokeWidth="1.1"
-        opacity="0.18"
+        opacity="0.2"
         strokeLinecap="round"
       />
     ),
@@ -114,12 +160,21 @@ export const GARMENT_REGISTRY = {
           d={`M 0 ${top + 2.8} L 0 ${bot - 0.5}`}
           stroke="#000"
           strokeWidth="0.9"
-          opacity="0.2"
+          opacity="0.24"
           strokeLinecap="round"
         />
         {[6.5, 10.5, 14.5].map((dy) => (
-          <circle key={dy} cx="-1.2" cy={top + dy} r="0.75" fill="#000" opacity="0.38" />
+          <circle key={dy} cx="-1.2" cy={top + dy} r="0.75" fill="#000" opacity="0.5" />
         ))}
+        {/* the untucked shirt-tail curve at the hem */}
+        <path
+          d={`M ${-6} ${bot - 0.4} Q 0 ${bot + 1.8} ${6} ${bot - 0.4}`}
+          fill="none"
+          stroke="#000"
+          strokeWidth="0.9"
+          opacity="0.16"
+          strokeLinecap="round"
+        />
       </>
     ),
   },
@@ -175,28 +230,70 @@ export const GARMENT_REGISTRY = {
         />
       </>
     ),
-    draw: ({ sh, wa, top, waistY, outfit, shell }) => (
+    // A hoodie from the front is three things at once: the hood's BULK
+    // rising above the shoulder line (not just a shaded lens), the kangaroo
+    // pocket, and the drawstrings. The old version had only the lens, which
+    // left it a shell like every other coat (owner: "no difference").
+    draw: ({ sh, top, waistY, outfit, shell }) => (
       <>
+        {/* the hood's two lobes peek OVER the shoulders behind the neck */}
+        <path
+          d={`M ${-sh + 0.6} ${top + 2} Q ${-sh + 0.6} ${top - 3.4} ${-1.2} ${top - 3.2}
+              L ${1.2} ${top - 3.2} Q ${sh - 0.6} ${top - 3.4} ${sh - 0.6} ${top + 2} z`}
+          style={outfit}
+        />
         <g style={outfit}>{shell()}</g>
-        {/* The hood: a collar bunched behind the neck. It's the outline change
-            — a hoodie reads from the shoulders up, not from a drawstring
-            nobody can see at this size. */}
         <path
           d={`M ${-sh + 1} ${top + 1.5} Q 0 ${top - 5.5} ${sh - 1} ${top + 1.5}
               Q 0 ${top + 4.5} ${-sh + 1} ${top + 1.5} Z`}
           fill="#000"
           opacity="0.18"
         />
+        {/* the crevice under the hood's bulk — the hood lies ON the chest,
+            and without a contact line its lens read as a painted yoke */}
         <path
-          d={`M ${-wa + 1.5} ${waistY + 3} Q 0 ${waistY + 6} ${wa - 1.5} ${waistY + 3}`}
-          fill="none"
+          d={`M ${-sh + 1.6} ${top + 1.8} Q 0 ${top + 4.9} ${sh - 1.6} ${top + 1.8}`}
           stroke="#000"
-          strokeWidth="1.1"
-          opacity="0.16"
+          strokeWidth="0.8"
+          fill="none"
+          opacity="0.2"
           strokeLinecap="round"
         />
+        {/* drawstrings */}
+        {[-1.7, 1.7].map((x) => (
+          <path
+            key={x}
+            d={`M ${x} ${top + 3.6} L ${x * 1.15} ${top + 7.4}`}
+            stroke="#000"
+            strokeWidth="0.8"
+            opacity="0.28"
+            strokeLinecap="round"
+          />
+        ))}
+        {/* The kangaroo pocket: a soft POUCH — filled a step darker with
+            rounded bottom corners, its mouths two angled slits. The first
+            cut was a sharp-cornered trapezoid outline, which read as a
+            drawn-on box in a wardrobe where every other mark is soft. */}
+        <path
+          d={`M ${-4.7} ${waistY - 0.4} L ${4.7} ${waistY - 0.4} L ${4} ${waistY + 3.2}
+              Q ${3.8} ${waistY + 4.9} ${2.2} ${waistY + 4.9} L ${-2.2} ${waistY + 4.9}
+              Q ${-3.8} ${waistY + 4.9} ${-4} ${waistY + 3.2} z`}
+          fill="#000"
+          opacity="0.12"
+        />
+        {[-1, 1].map((s) => (
+          <path
+            key={s}
+            d={`M ${s * 4.7} ${waistY - 0.2} L ${s * 3.4} ${waistY + 3.4}`}
+            stroke="#000"
+            strokeWidth="0.9"
+            opacity="0.26"
+            strokeLinecap="round"
+          />
+        ))}
       </>
     ),
+    finish: DEFAULT_FINISH,
   },
   jacket: {
     // From behind a jacket is just its shell — the open front is a front.
@@ -262,8 +359,17 @@ export const GARMENT_REGISTRY = {
           opacity="0.2"
           strokeLinejoin="round"
         />
+        {/* LAPELS folding back from the opening — the mark that makes a
+            jacket a jacket instead of "shell with a slot". Each catches the
+            light along its top fold: a lapel is cloth turned TOWARD the
+            light, which is what separates it from a shadow. */}
+        <path d={`M ${-4.6} ${top + 1.2} L ${-2.6} ${top + 5.5} L ${-6.2} ${top + 4.6} z`} fill="#000" opacity="0.24" />
+        <path d={`M ${4.6} ${top + 1.2} L ${2.6} ${top + 5.5} L ${6.2} ${top + 4.6} z`} fill="#000" opacity="0.24" />
+        <path d={`M ${-4.6} ${top + 1.2} L ${-6.2} ${top + 4.6}`} stroke={GLINT} strokeWidth="0.7" fill="none" opacity="0.3" strokeLinecap="round" />
+        <path d={`M ${4.6} ${top + 1.2} L ${6.2} ${top + 4.6}`} stroke={GLINT} strokeWidth="0.7" fill="none" opacity="0.3" strokeLinecap="round" />
       </>
     ),
+    finish: CRISP,
   },
   overalls: {
     // Dungarees OVER the shirt: the bib and straps take the INNER colour and
@@ -311,6 +417,15 @@ export const GARMENT_REGISTRY = {
               Q ${hem} ${bot} ${hem - 3} ${bot} L ${-hem + 3} ${bot}
               Q ${-hem} ${bot} ${-hem} ${bot - 3} Z`}
         />
+        {/* brass buckles where the straps meet the bib — the fixed-anchor
+            rule (the shoe-sole split): a spot of hardware the tint never
+            touches is what makes any strap colour read as dungarees */}
+        {[-1, 1].map((s) => (
+          <g key={s}>
+            <circle cx={s * (wa - 1.9)} cy={waistY - 5} r="1" fill={BRASS} />
+            <circle cx={s * (wa - 1.9)} cy={waistY - 5} r="1" fill="none" stroke="#000" strokeWidth="0.45" opacity="0.35" />
+          </g>
+        ))}
       </g>
     ),
   },
@@ -333,7 +448,7 @@ export const GARMENT_REGISTRY = {
     // fronts lean apart at the collar and meet low, where the jacket's panel
     // runs parallel top to bottom. Different split shape = different garment,
     // which is the whole two-tone rule.
-    draw: ({ top, bot, inner, outfit, shell }) => (
+    draw: ({ hem, top, bot, inner, outfit, shell }) => (
       <>
         <g style={outfit}>{shell()}</g>
         {/* the shirt in the V, widest at the collar, closing at mid-chest */}
@@ -359,12 +474,34 @@ export const GARMENT_REGISTRY = {
           opacity="0.2"
           strokeLinejoin="round"
         />
-        {/* one button where the fronts meet — the knitwear tell */}
-        <circle cx="0" cy={top + 13.6} r="0.9" fill="#000" opacity="0.3" />
+        {/* a column of buttons where the fronts meet, and a ribbed hem a
+            knit length LONGER than the body — a cardigan hangs, a jacket
+            stops (the length difference is the two coats' split) */}
+        {[13.6, 16.6].map((dy) => (
+          <circle key={dy} cx="0" cy={top + dy} r="0.9" fill="#000" opacity="0.44" />
+        ))}
+        <path
+          d={`M ${-hem - 1} ${bot + 1} Q 0 ${bot + 3.2} ${hem + 1} ${bot + 1}
+              L ${hem + 1} ${bot + 3.2} Q 0 ${bot + 5.2} ${-hem - 1} ${bot + 3.2} z`}
+          style={outfit}
+        />
+        <path
+          d={`M ${-hem - 1} ${bot + 1} Q 0 ${bot + 3.2} ${hem + 1} ${bot + 1}
+              L ${hem + 1} ${bot + 3.2} Q 0 ${bot + 5.2} ${-hem - 1} ${bot + 3.2} z`}
+          fill="#000"
+          opacity="0.14"
+        />
       </>
     ),
+    finish: KNIT,
+    cuffs: true,
+    // The knit hem hangs BELOW the body — the assembly's hem-onto-trousers
+    // shadow would paint across it, so this entry opts out.
+    drape: true,
   },
   turtleneck: {
+    finish: KNIT,
+    cuffs: true,
     // The one garment that changes the NECK line: the rolled collar swallows
     // it (see `collar` below — drawn after the body's own neck, which would
     // otherwise paint skin over it). The torso itself needs nothing.
@@ -382,40 +519,76 @@ export const GARMENT_REGISTRY = {
     },
   },
   puffer: {
-    // The fattest shell in the set — bulk IS the garment — plus the quilt
-    // seams that name it. Two seams, not five: at 57px more segments read as
-    // stripes, not stitching.
-    // Profile: same story — the seams wrap the body, so they show side-on too.
+    // The fattest shell in the set — bulk IS the garment — quilted into
+    // TUBES. Two seams, not five (at 57px more segments read as stripes),
+    // but the seams alone read as pinstripes on a sweatshirt: what says
+    // "inflated" is each tube catching its own light along the top and
+    // pinching dark INTO the seam below — per-bulge modelling, the one
+    // fabric whose sheen is the material. A zip in fixed neutral closes it.
+    // Profile: the same tubes wrap the body, so the story survives side-on.
+    finish: { shade: 0.19, glint: 0.2 },
     side: ({ wa, top, outfit, shell }) => (
       <>
         <g style={outfit}>{shell(1.9)}</g>
         {[top + 6.5, top + 11.5].map((y) => (
-          <path
-            key={y}
-            d={`M ${-wa - 1.8} ${y} Q 0 ${y + 1.8} ${wa + 1.8} ${y}`}
-            fill="none"
-            stroke="#000"
-            strokeWidth="1.1"
-            opacity="0.16"
-            strokeLinecap="round"
-          />
+          <g key={y}>
+            <path
+              d={`M ${-wa - 2} ${y - 3} Q 0 ${y - 1.4} ${wa + 2} ${y - 3}`}
+              fill="none"
+              stroke={GLINT}
+              strokeWidth="1.5"
+              opacity="0.14"
+              strokeLinecap="round"
+            />
+            <path
+              d={`M ${-wa - 2.2} ${y} Q 0 ${y + 1.8} ${wa + 2.2} ${y}`}
+              fill="none"
+              stroke={SHADE}
+              strokeWidth="1.1"
+              opacity="0.3"
+              strokeLinecap="round"
+            />
+          </g>
         ))}
       </>
     ),
-    draw: ({ wa, top, outfit, shell }) => (
+    draw: ({ wa, top, bot, outfit, shell }) => (
       <>
         <g style={outfit}>{shell(1.9)}</g>
         {[top + 6.5, top + 11.5].map((y) => (
-          <path
-            key={y}
-            d={`M ${-wa - 1.8} ${y} Q 0 ${y + 1.8} ${wa + 1.8} ${y}`}
-            fill="none"
-            stroke="#000"
-            strokeWidth="1.1"
-            opacity="0.16"
-            strokeLinecap="round"
-          />
+          <g key={y}>
+            {/* the tube above each seam: lit along its crown… */}
+            <path
+              d={`M ${-wa - 2} ${y - 3} Q 0 ${y - 1.4} ${wa + 2} ${y - 3}`}
+              fill="none"
+              stroke={GLINT}
+              strokeWidth="1.5"
+              opacity="0.14"
+              strokeLinecap="round"
+            />
+            {/* …pinching dark into the quilt seam below it */}
+            <path
+              d={`M ${-wa - 2.2} ${y} Q 0 ${y + 1.8} ${wa + 2.2} ${y}`}
+              fill="none"
+              stroke={SHADE}
+              strokeWidth="1.1"
+              opacity="0.3"
+              strokeLinecap="round"
+            />
+          </g>
         ))}
+        {/* the bottom tube's crown, so the last segment inflates too */}
+        <path
+          d={`M ${-wa - 1.8} ${bot - 2.6} Q 0 ${bot - 1} ${wa + 1.8} ${bot - 2.6}`}
+          fill="none"
+          stroke={GLINT}
+          strokeWidth="1.4"
+          opacity="0.12"
+          strokeLinecap="round"
+        />
+        {/* the zip: fixed neutral, its pull at the collar */}
+        <path d={`M 0 ${top + 1.6} L 0 ${bot + 0.8}`} stroke="#000" strokeWidth="0.8" opacity="0.3" />
+        <circle cx="0" cy={top + 3.4} r="0.65" fill="#000" opacity="0.42" />
       </>
     ),
   },
@@ -447,6 +620,19 @@ export const GARMENT_REGISTRY = {
           d={`M ${-wa + 0.5} ${waistY - 1} L ${wa - 0.5} ${waistY - 1}
               L ${hem + 5.2} ${bot + 8.5} Q 0 ${bot + 11} ${-hem - 5.2} ${bot + 8.5} Z`}
         />
+        {/* Two pipe folds falling from the waist — hanging cloth gathers
+            where it's suspended, and these are the only two folds the whole
+            figure gets (chibi budget: folds at real gather points only,
+            each distinct, never parallel repeats). Shadow WEDGES, not lines. */}
+        {[-0.5, 0.58].map((f) => (
+          <path
+            key={f}
+            d={`M ${f * wa} ${waistY + 0.5} L ${f * (hem + 3.5) - 0.9} ${bot + 7.2}
+                L ${f * (hem + 3.5) + 0.9} ${bot + 7.2} z`}
+            fill={SHADE}
+            opacity="0.13"
+          />
+        ))}
         {/* The skirt is a cone standing off the legs, so its hem carries the
             same shaded band every box's base does — without it the flare read
             as a flat pennant pinned to the waist. */}
@@ -458,6 +644,8 @@ export const GARMENT_REGISTRY = {
         />
       </>
     ),
+    // The flare replaces the hem-on-trousers story outright.
+    drape: true,
   },
 };
 

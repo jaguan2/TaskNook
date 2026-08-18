@@ -16,15 +16,24 @@
 //   * BACK masses (everything hanging behind the figure) are painted in the
 //     SHADOW TONE (`farColor`) — the single cheapest depth move in the
 //     research: the back sheet separates from the front for free.
-//   * Interior budget: at most three marks — the brow shadow under the
-//     fringe, one crown shine following the dome, and the odd anchored line.
+//   * THE TEXTURE PASS (researched 2026-08-17 — Roblox UGC craft bakes all
+//     strand detail as streaks over chunky geometry; stylized-hair doctrine
+//     gives the flat-vector recipe): every carved wig also carries
+//     (a) a shadow WEDGE tucked into a couple of its hem notches — locks
+//     overlap, and without the wedge the carving reads as outline only;
+//     (b) 2–3 tapered FLOW LINES radiating from the crown, following the
+//     locks, unequal, stopping short of every edge (lines that touch the
+//     silhouette flatten it — "grass" strands off the mass are banned);
+//     (c) a NOTCHED light band across the crown instead of a blob sheen —
+//     a blob says plastic dome, broken dashes say strands catching light.
+//     Budget stays capped: wedges + lines + band + brow and nothing else.
 //
 // Layers (see index.jsx): `front` draws over the head inside the gesture
 // wrappers; `length` draws before the torso so it hangs behind the body;
 // `back` replaces everything when the figure turns away. The old `behind`
 // layer is retired — crown volume welds into `front` now.
 import { HEAD_R, farColor } from "../../lib/body";
-import { HAIR_LIFT } from "./body";
+import { GLINT, HAIR_LIFT } from "./body";
 
 const R = HEAD_R;
 
@@ -49,16 +58,101 @@ const wigPath = (headY, cfg, clumps) => {
   return `${domeArc(headY, cfg)} ${teeth(clumps)} z`;
 };
 
-/** One crown shine, concentric with the dome — the only highlight allowed. */
-const shine = (headY, apex, color = "#fff") => (
-  <path
-    d={`M${-R * 0.62} ${headY - apex * 0.62} q${R * 0.62} ${-apex * 0.4} ${R * 1.24} 0`}
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    fill="none"
-    opacity="0.12"
-  />
+/**
+ * The crown light — a NOTCHED band, not one arc: one major dash rising to
+ * the crown, a smaller one falling on the light side (screen right), and a
+ * short third below, each aligned with the flow. The zigzag break between
+ * them is what reads as many strands catching light.
+ */
+const shine = (headY, apex, color = GLINT) => (
+  <g stroke={color} strokeLinecap="round" fill="none">
+    <path
+      d={`M${-R * 0.66} ${headY - apex * 0.48} q ${R * 0.4} ${-apex * 0.26} ${R * 0.86} ${-apex * 0.14}`}
+      strokeWidth="1.9"
+      opacity="0.16"
+    />
+    <path
+      d={`M${R * 0.36} ${headY - apex * 0.6} q ${R * 0.3} ${apex * 0.1} ${R * 0.44} ${apex * 0.26}`}
+      strokeWidth="1.4"
+      opacity="0.13"
+    />
+    <path
+      d={`M${-R * 0.16} ${headY - apex * 0.34} q ${R * 0.22} ${-apex * 0.1} ${R * 0.44} ${-apex * 0.08}`}
+      strokeWidth="0.9"
+      opacity="0.1"
+    />
+  </g>
+);
+
+/**
+ * Shadow wedges tucked into a wig's hem notches — the mark that says one
+ * lock lies OVER its neighbour. `picks` indexes the junctions between
+ * clumps, walking right→left like the teeth themselves.
+ */
+const notchShadows = (headY, { sideX, baseY }, clumps, picks) => {
+  let x = sideX;
+  const notches = [];
+  for (const [w] of clumps.slice(0, -1)) {
+    x -= w;
+    notches.push(x);
+  }
+  return (
+    <g fill="#000" opacity="0.13">
+      {picks
+        .filter((i) => i >= 0 && i < notches.length)
+        .map((i) => (
+          <path
+            key={i}
+            d={`M ${notches[i] - 1.2} ${headY + baseY + 0.3} q 1.2 -2.3 2.4 0 q -1.2 0.8 -2.4 0 z`}
+          />
+        ))}
+    </g>
+  );
+};
+
+/**
+ * 2–3 tapered flow lines radiating from the crown — unequal lengths, widths
+ * and drifts (uniform lines read as a comb), each stopping short of the
+ * silhouette and the hem. `lean` sweeps the whole set sideways for combed
+ * styles.
+ */
+const flowLines = (headY, { sideX, apex }, { lines = 3, lean = 0 } = {}) => {
+  if (!lines) return null;
+  const specs = [
+    { x: -sideX * 0.52, len: apex * 0.6, w: 0.75, drift: -0.5 },
+    { x: sideX * 0.54, len: apex * 0.68, w: 0.75, drift: 0.6 },
+    { x: sideX * 0.08, len: apex * 0.48, w: 0.6, drift: 0.3 },
+  ].slice(0, lines);
+  return (
+    <g stroke="#000" strokeLinecap="round" fill="none" opacity="0.11">
+      {specs.map((s) => {
+        const ox = s.x * 0.34 + lean * 2;
+        const oy = headY - apex * 0.66 + Math.abs(s.x) * 0.14;
+        return (
+          <path
+            key={s.x}
+            strokeWidth={s.w}
+            d={`M ${ox} ${oy} Q ${s.x * 0.82 + lean * 1.6} ${oy + s.len * 0.5} ${
+              s.x + s.drift + lean * 2.2
+            } ${oy + s.len}`}
+          />
+        );
+      })}
+    </g>
+  );
+};
+
+/**
+ * A carved wig WITH its texture pass — the standard way to draw a wig-method
+ * style's mass. Slick gathered styles (bun, ponytails) skip this and keep
+ * their bare path + tension lines: pulled-tight hair has no loose flow.
+ */
+const wig = (headY, color, cfg, clumps, opts = {}) => (
+  <>
+    <path d={wigPath(headY, cfg, clumps)} fill={color} />
+    {notchShadows(headY, cfg, clumps, opts.notch ?? [0, clumps.length - 2])}
+    {flowLines(headY, cfg, opts)}
+  </>
 );
 
 /** The shadow an overhanging fringe casts on the forehead — the lift cue. */
@@ -101,16 +195,26 @@ const sideWigPath = (headY, cfg = {}) => {
   ].join(" ");
 };
 
-/** The crown shine, tilted for the profile dome. */
+/**
+ * The profile crown's texture: the notched light band tilted for the side
+ * dome, plus ONE tapered flow line following the back of the skull — the
+ * side masses are big enough to need the same fluid read as the front.
+ */
 const sideShine = (headY, apex) => (
-  <path
-    d={`M ${-3.4} ${headY - apex + 1.7} q 3.8 -1.5 6.8 0.9`}
-    stroke="#fff"
-    strokeWidth="2"
-    strokeLinecap="round"
-    fill="none"
-    opacity="0.12"
-  />
+  <>
+    <g stroke={GLINT} strokeLinecap="round" fill="none">
+      <path d={`M ${-3.2} ${headY - apex + 2} q 3 -1.4 5.2 0.2`} strokeWidth="1.8" opacity="0.16" />
+      <path d={`M ${3.2} ${headY - apex + 3} q 1.7 1 2.4 2.6`} strokeWidth="1.3" opacity="0.12" />
+    </g>
+    <path
+      d={`M 2.8 ${headY - apex + 3.4} Q 6.2 ${headY - apex * 0.34} 5.2 ${headY + 1.6}`}
+      stroke="#000"
+      strokeWidth="0.7"
+      strokeLinecap="round"
+      fill="none"
+      opacity="0.11"
+    />
+  </>
 );
 
 /** The fringe's forehead shadow, front half only — that's all a profile shows. */
@@ -143,7 +247,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+        {wig(headY, color, SHORT_CFG, SHORT_CLUMPS)}
         {shine(headY, SHORT_CFG.apex)}
         {brow(headY)}
       </>
@@ -211,16 +315,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.3, apex: 9.7, baseY: 0.1 }, [
-            [2.3, 2.3],
-            [3.9, 1],
-            [3, 2.1],
-            [4.5, 1.4],
-            [2.9, 2.4],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.3, apex: 9.7, baseY: 0.1 }, [ [2.3, 2.3], [3.9, 1], [3, 2.1], [4.5, 1.4], [2.9, 2.4], ], { lean: 0.35 })}
         <path
           d={`M-4.2 ${headY - 9.1} q1.6 -2.6 3.6 -2 q-1.2 1.4 -1.1 2.6 z`}
           fill={color}
@@ -265,16 +360,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.5, apex: 9.5, baseY: 0.9 }, [
-            [2.1, 2.8],
-            [3.5, 1.2],
-            [5, 1.7],
-            [4.1, 1.1],
-            [2.3, 2.9],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.5, apex: 9.5, baseY: 0.9 }, [ [2.1, 2.8], [3.5, 1.2], [5, 1.7], [4.1, 1.1], [2.3, 2.9], ])}
         {shine(headY, 9.5)}
         {brow(headY)}
       </>
@@ -324,16 +410,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.4, apex: 9.6, baseY: 0.8 }, [
-            [2, 2.6],
-            [3.8, 1.3],
-            [5.2, 1.8],
-            [3.6, 1.1],
-            [2.2, 2.7],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.4, apex: 9.6, baseY: 0.8 }, [ [2, 2.6], [3.8, 1.3], [5.2, 1.8], [3.6, 1.1], [2.2, 2.7], ])}
         {shine(headY, 9.6)}
         {brow(headY)}
       </>
@@ -390,6 +467,20 @@ export const HAIR_REGISTRY = {
     // Pulled tight: minimal inflation, exposed hairline, the ball welded
     // onto the apex (avataaars welds its bun into the same path — same-tone
     // overlap achieves it here), tension lines converging on it.
+    // From behind a bun IS its ball — the default dome erased it, so a
+    // resident walking away lost the hairstyle (sheet, 2026-08-17).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
+        <circle cx="0" cy={headY - 9.4} r="3.9" fill={color} />
+        <path
+          d={`M-2.8 ${headY - 7.2} a3.9 3.9 0 0 0 5.6 0 q-1.6 1.9 -5.6 0 z`}
+          fill="#000"
+          opacity="0.13"
+        />
+        {shine(headY, R + 2)}
+      </>
+    ),
     // Profile: the ball sits high at the BACK of the crown — from the side a
     // topknot's position is the style.
     side: ({ headY, color }) => (
@@ -475,7 +566,39 @@ export const HAIR_REGISTRY = {
         ].map(([cx, dy, r]) => (
           <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
         ))}
-        {shine(headY, 10)}
+        {/* interior curl marks — small C-arcs echoing the outline's coils;
+            straight flow lines are the wrong grammar for curls */}
+        {[
+          [-3.6, -2.4, 2],
+          [2.6, -3.8, 2.2],
+          [0.2, 0.4, 1.7],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+{/* the light catches coil TOPS — arcs on the light side, never a
+            straight band across a cloud of curls */}
+        {[
+          [2.2, -6.2, 2.4],
+          [5.2, -2.6, 2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
         {brow(headY)}
       </>
     ),
@@ -531,15 +654,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8, apex: 9, baseY: 0.6 }, [
-            [2.4, 2.2],
-            [5.4, 1.1],
-            [5.8, 1.4],
-            [2.4, 2.3],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8, apex: 9, baseY: 0.6 }, [ [2.4, 2.2], [5.4, 1.1], [5.8, 1.4], [2.4, 2.3], ], { lines: 2 })}
         {[-1, 1].map((s) => (
           <circle key={s} cx={s * 6.7} cy={headY + 1.2} r="2.2" fill={color} />
         ))}
@@ -580,13 +695,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 7.9, apex: 9.6, baseY: -1.2 }, [
-            [10.6, 1.7],
-            [5.2, 0.7],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 7.9, apex: 9.6, baseY: -1.2 }, [ [10.6, 1.7], [5.2, 0.7], ], { lines: 2, lean: 0.8 })}
         <path
           d={`M${-2.6} ${headY - 9.6} q5.6 -3 8.8 -0.8 q-2.7 0.3 -4.5 2 z`}
           fill={color}
@@ -646,7 +755,39 @@ export const HAIR_REGISTRY = {
               a${R - 0.6} ${R + 1} 0 0 0 ${-(R - 0.6) * 2} 0 z`}
           fill={color}
         />
-        {shine(headY, 10.4)}
+        {/* coil marks, spread wider than the curly cut's — same grammar */}
+        {[
+          [-5.6, -4.6, 2.2],
+          [1.2, -6.6, 2.4],
+          [5.8, -2.2, 2],
+          [-1.8, -1.6, 1.8],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+{/* the light catches coil TOPS — arcs on the light side, never a
+            straight band across a cloud of curls */}
+        {[
+          [1.6, -7.8, 2.6],
+          [6.4, -3.4, 2.2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
         {brow(headY)}
       </>
     ),
@@ -683,15 +824,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8, apex: 9.1, baseY: 0.3 }, [
-            [2.3, 2],
-            [5.2, 1.2],
-            [5.9, 1.6],
-            [2.6, 2.1],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8, apex: 9.1, baseY: 0.3 }, [ [2.3, 2], [5.2, 1.2], [5.9, 1.6], [2.6, 2.1], ], { lines: 2 })}
         {[-1, 1].map((side) => (
           <circle key={side} cx={side * 8.3} cy={headY - 2.2} r="3.3" fill={color} />
         ))}
@@ -734,17 +867,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.6, apex: 9.7, baseY: -0.2 }, [
-            [1.9, 1.2],
-            [3.1, 2.4],
-            [3.6, 2.7],
-            [3.5, 2.5],
-            [3.2, 2.3],
-            [1.9, 1.3],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.6, apex: 9.7, baseY: -0.2 }, [ [1.9, 1.2], [3.1, 2.4], [3.6, 2.7], [3.5, 2.5], [3.2, 2.3], [1.9, 1.3], ])}
         {shine(headY, 9.7)}
         {[-1, 1].map((s) => (
           <path
@@ -813,17 +936,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.3, apex: 10.3, baseY: 0.3 }, [
-            [2.2, 2.5],
-            [3.3, 1.1],
-            [2.8, 2.2],
-            [2.6, 1],
-            [3, 2.3],
-            [2.7, 1.2],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.3, apex: 10.3, baseY: 0.3 }, [ [2.2, 2.5], [3.3, 1.1], [2.8, 2.2], [2.6, 1], [3, 2.3], [2.7, 1.2], ], { lean: -0.2 })}
         {/* the crown BREAKS into pieces — tufts crossing the top */}
         <path d={`M-5.6 ${headY - 9.2} q1.2 -3 3.2 -2.6 q-1 1.6 -0.9 3 z`} fill={color} />
         <path d={`M-0.6 ${headY - 10.2} q1.8 -2.4 3.4 -1.4 q-1.3 1.1 -1.5 2.6 z`} fill={color} />
@@ -861,16 +974,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.2, apex: 9.4, baseY: 0.5 }, [
-            [2.9, 2.1],
-            [3.5, 1.3],
-            [3.6, -5.8],
-            [3.5, 1.3],
-            [2.9, 2.1],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.2, apex: 9.4, baseY: 0.5 }, [ [2.9, 2.1], [3.5, 1.3], [3.6, -5.8], [3.5, 1.3], [2.9, 2.1], ], { lines: 2 })}
         {shine(headY, 9.4)}
         {[-1, 1].map((s) => (
           <path
@@ -912,7 +1016,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+        {wig(headY, color, SHORT_CFG, SHORT_CLUMPS)}
         {shine(headY, SHORT_CFG.apex)}
         {brow(headY)}
       </>
@@ -921,6 +1025,23 @@ export const HAIR_REGISTRY = {
   spacebuns: {
     // The tight wig with two balls breaking the top silhouette and the part
     // groove between them — both signatures, per the research.
+    // From behind both buns still break the dome — same rule as the bun.
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
+        {[-1, 1].map((s) => (
+          <circle key={s} cx={s * 5.6} cy={headY - 8.6} r="3.2" fill={color} />
+        ))}
+        <path
+          d={`M0 ${headY - 8.6} L0 ${headY - 5.2}`}
+          stroke="#000"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          opacity="0.2"
+        />
+        {shine(headY, R + 2)}
+      </>
+    ),
     // Profile: the near bun breaks the top; the far one hides behind it.
     side: ({ headY, color }) => (
       <>
@@ -1010,17 +1131,7 @@ export const HAIR_REGISTRY = {
     ),
     front: ({ headY, color }) => (
       <>
-        <path
-          d={wigPath(headY, { sideX: 8.4, apex: 9.8, baseY: 0.4 }, [
-            [2.2, 1.8],
-            [2.9, 1],
-            [3.2, 1.9],
-            [3.1, 0.9],
-            [2.8, 1.7],
-            [2.6, 1],
-          ])}
-          fill={color}
-        />
+        {wig(headY, color, { sideX: 8.4, apex: 9.8, baseY: 0.4 }, [ [2.2, 1.8], [2.9, 1], [3.2, 1.9], [3.1, 0.9], [2.8, 1.7], [2.6, 1], ], { lines: 0 })}
         {brow(headY)}
       </>
     ),
@@ -1028,6 +1139,22 @@ export const HAIR_REGISTRY = {
   highpony: {
     // Slick tension toward a high knot, the tail whipping up and over in the
     // shadow tone — from the front a high pony is mostly its silhouette.
+    // From behind: the knot on the crown and the tail falling straight down
+    // the back of the head — the default dome erased both.
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
+        <path
+          d={`M 0.6 ${headY - 7.6} q 2.8 6.2 1.2 12.4`}
+          stroke={farColor(color)}
+          strokeWidth="3.4"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <circle cx="0.8" cy={headY - 8.8} r="2.9" fill={color} />
+        {shine(headY, R + 2)}
+      </>
+    ),
     // Profile: the whip arcs up off the crown and falls behind the head —
     // drawn first so the crown wig sits over its root.
     side: ({ headY, color }) => (
@@ -1097,7 +1224,7 @@ export function HairFront({ style, headY, color }) {
   if (draw) return draw({ headY, color });
   return (
     <>
-      <path d={wigPath(headY, SHORT_CFG, SHORT_CLUMPS)} fill={color} />
+      {wig(headY, color, SHORT_CFG, SHORT_CLUMPS)}
       {shine(headY, SHORT_CFG.apex)}
       {brow(headY)}
     </>

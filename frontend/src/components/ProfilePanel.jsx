@@ -7,6 +7,7 @@ import { Hat } from "./character/hats";
 import {
   BIO_MAX,
   COATS,
+  DEFAULT_CHARACTER,
   EXPRESSIONS,
   HAIR_COLORS,
   HAIR_STYLES,
@@ -14,6 +15,8 @@ import {
   OUTFITS,
   PANTS,
   PATTERNS,
+  SHOES,
+  SHOE_COLORS,
   TROUSER_COLORS,
   MBTI_TYPES,
   MODELS,
@@ -81,7 +84,11 @@ function CharacterStage({ character, angle, onSpin }) {
   // zooming in walks up toward the face rather than the floor.
   const w = 46 / zoom;
   const h = 112 / zoom;
-  const cy = -44 - (zoom - 1) * 6;
+  // The figure spans roughly y −57…+14 (it draws 9.6px below the origin), so
+  // its centre is ≈ −23 — the camera opens ON the body instead of a head
+  // pinned to the frame's bottom half (owner: "when we first open it, it's
+  // centered").
+  const cy = -23 - (zoom - 1) * 10;
   return (
     <svg
       ref={svgRef}
@@ -136,7 +143,10 @@ function CharacterStage({ character, angle, onSpin }) {
         setZoom(1.35);
       }}
     >
-      <ellipse cx="0" cy="1.6" rx="14" ry="2.6" fill="#000" opacity="0.18" />
+      {/* The figure draws 9.6px below the origin (project(0.4,0.4)), so the
+          shadow belongs under the FEET at ~y12, not at the origin where it
+          floated at shin height. */}
+      <ellipse cx="0" cy="12" rx="15" ry="2.5" fill="#000" opacity="0.18" />
       <g transform={mirrored ? "scale(-1,1)" : undefined} data-figure>
         <Resident character={character} facing={facing} />
       </g>
@@ -208,32 +218,109 @@ function PantsIcon({ character, pants }) {
   );
 }
 
-function IconGrid({ label, options, value, onPick, renderIcon }) {
+/** A pair of shoes on your own feet — ankles down. */
+function ShoesIcon({ character, shoes }) {
+  const Resident = ISO_SPRITES.resident;
+  return (
+    <svg viewBox="-15 -1 30 15" className="h-12 w-full" aria-hidden="true">
+      <Resident character={{ ...character, shoes }} />
+    </svg>
+  );
+}
+
+function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swatchValue, onSwatch }) {
   // A real GRID, not a wrap of fixed-width chips: the cells share the row's
   // full width, so the drawer's space is spent on bigger icons instead of a
   // ragged right margin (owner: "utilize the blank space a little more").
+  //
+  // Colour lives IN the item now: tapping a tile selects it AND pops a
+  // SMALL DIALOG of its colours at that tile (owner, twice: "popup the
+  // options after someone clicks on an item", then "just make a small
+  // dialog" — the first cut was a full-width strip, which read as a panel
+  // section rather than a popup). `swatchesFor(key)` returns the palette
+  // for a tile, or null for tiles with nothing to colour (a bare head,
+  // "no coat"). The dialog anchors at the tile's centre, clamped so it
+  // never leaves the drawer, and dismisses on any tap OUTSIDE it — no ✕
+  // (owner: "people should just know to click out of it"; the ✕ also ate a
+  // corner and skewed the padding).
+  const [pop, setPop] = useState(null);
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!pop) return undefined;
+    const dismiss = (e) => {
+      if (!popRef.current?.contains(e.target)) setPop(null);
+    };
+    // Escape closes the DIALOG, not the drawer under it — capture +
+    // stopPropagation ahead of App's own Escape handler, the same grammar
+    // as the clock cluster's weather popover.
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setPop(null);
+    };
+    // pointerdown, so tapping ANOTHER tile closes this dialog first and
+    // that tile's own click then opens its colours — one dialog at a time.
+    document.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [pop]);
+  const swatches = pop ? swatchesFor?.(value) : null;
   return (
-    <div className="grid w-full grid-cols-5 gap-1.5" role="group" aria-label={label}>
-      {options.map((o) => (
-        <button
-          key={o.key}
-          type="button"
-          onClick={() => onPick(o.key)}
-          title={o.label}
-          aria-label={o.label}
-          aria-pressed={value === o.key}
-          className={`flex flex-col items-center rounded-xl px-0.5 pb-1 pt-0.5 transition ${
-            value === o.key
-              ? "bg-glow/20 ring-1 ring-glow"
-              : "bg-white/5 hover:bg-white/10"
-          }`}
+    <div className="relative">
+      <div className="grid w-full grid-cols-5 gap-1.5" role="group" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            onClick={(e) => {
+              onPick(o.key);
+              const el = e.currentTarget;
+              const wrap = el.offsetParent;
+              const mid = el.offsetLeft + el.offsetWidth / 2;
+              setPop(
+                swatchesFor?.(o.key)
+                  ? {
+                      top: el.offsetTop + el.offsetHeight,
+                      left: wrap
+                        ? Math.min(Math.max(mid, 88), Math.max(88, wrap.clientWidth - 88))
+                        : mid,
+                    }
+                  : null
+              );
+            }}
+            title={o.label}
+            aria-label={o.label}
+            aria-pressed={value === o.key}
+            className={`flex flex-col items-center rounded-xl px-0.5 pb-1 pt-0.5 transition ${
+              value === o.key
+                ? "bg-glow/20 ring-1 ring-glow"
+                : "bg-white/5 hover:bg-white/10"
+            }`}
+          >
+            {renderIcon(o.key)}
+            <span className="w-full truncate text-center text-[10px] leading-tight text-petal/70">
+              {o.label}
+            </span>
+          </button>
+        ))}
+      </div>
+      {swatches && (
+        <div
+          ref={popRef}
+          className="absolute z-20 w-max max-w-[10.5rem] -translate-x-1/2 rounded-xl border border-white/10 bg-plum/95 p-2.5 shadow-xl backdrop-blur-md"
+          style={{ top: pop.top + 4, left: pop.left }}
         >
-          {renderIcon(o.key)}
-          <span className="w-full truncate text-center text-[10px] leading-tight text-petal/70">
-            {o.label}
-          </span>
-        </button>
-      ))}
+          <Swatches
+            label={`${label} colour`}
+            options={swatches}
+            value={swatchValue}
+            onPick={onSwatch}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -625,6 +712,12 @@ export default function ProfilePanel() {
           {tab === "hair" && (
             <>
               <Field label="Style">
+                {/* Only the SELECTED tile wears your colour — the rest stay
+                    in the classic default (owner: "not all the other hair
+                    colors need to change when you select a color"). A wall
+                    of tiles repainting per swatch tap read as the panel
+                    glitching; the figure above is where your colour shows.
+                    Same rule for every wardrobe grid below. */}
                 <IconGrid
                   label="Hairstyle"
                   options={HAIR_STYLES}
@@ -633,20 +726,15 @@ export default function ProfilePanel() {
                   renderIcon={(key) => (
                     <HairIcon
                       style={key}
-                      hairColor={character.hairColor}
+                      hairColor={
+                        key === character.hair ? character.hairColor : DEFAULT_CHARACTER.hairColor
+                      }
                       skin={character.skin}
                     />
                   )}
-                />
-              </Field>
-              {/* Colour lives WITH the thing it colours — pick the style,
-                  its swatches sit right here (the Mii Maker mechanic). */}
-              <Field label="Colour">
-                <Swatches
-                  label="Hair colour"
-                  options={HAIR_COLORS}
-                  value={character.hairColor}
-                  onPick={(hex) => saveCharacter({ hairColor: hex })}
+                  swatchesFor={() => HAIR_COLORS}
+                  swatchValue={character.hairColor}
+                  onSwatch={(hex) => saveCharacter({ hairColor: hex })}
                 />
               </Field>
             </>
@@ -664,16 +752,18 @@ export default function ProfilePanel() {
                   value={character.garment}
                   onPick={(garment) => saveCharacter({ garment })}
                   renderIcon={(key) => (
-                    <GarmentIcon character={shown} garment={key} />
+                    <GarmentIcon
+                      character={
+                        key === character.garment
+                          ? shown
+                          : { ...shown, outfit: DEFAULT_CHARACTER.outfit }
+                      }
+                      garment={key}
+                    />
                   )}
-                />
-              </Field>
-              <Field label="Top colour">
-                <Swatches
-                  label="Top colour"
-                  options={HAIR_COLORS}
-                  value={character.outfit}
-                  onPick={(hex) => saveCharacter({ outfit: hex })}
+                  swatchesFor={() => HAIR_COLORS}
+                  swatchValue={character.outfit}
+                  onSwatch={(hex) => saveCharacter({ outfit: hex })}
                 />
               </Field>
               {/* The layered garments' second colour appears only when the
@@ -702,34 +792,61 @@ export default function ProfilePanel() {
                   options={COATS}
                   value={character.coat}
                   onPick={(coat) => saveCharacter({ coat })}
-                  renderIcon={(key) => <CoatIcon character={shown} coat={key} />}
+                  renderIcon={(key) => (
+                    <CoatIcon
+                      character={
+                        key === character.coat
+                          ? shown
+                          : { ...shown, coatColor: DEFAULT_CHARACTER.coatColor }
+                      }
+                      coat={key}
+                    />
+                  )}
+                  swatchesFor={(key) => (key === "none" ? null : TROUSER_COLORS)}
+                  swatchValue={character.coatColor}
+                  onSwatch={(hex) => saveCharacter({ coatColor: hex })}
                 />
               </Field>
-              {character.coat !== "none" && (
-                <Field label="Coat colour">
-                  <Swatches
-                    label="Coat colour"
-                    options={TROUSER_COLORS}
-                    value={character.coatColor}
-                    onPick={(hex) => saveCharacter({ coatColor: hex })}
-                  />
-                </Field>
-              )}
               <Field label="Bottoms">
                 <IconGrid
                   label="Bottoms"
                   options={PANTS}
                   value={character.pants}
                   onPick={(pants) => saveCharacter({ pants })}
-                  renderIcon={(key) => <PantsIcon character={shown} pants={key} />}
+                  renderIcon={(key) => (
+                    <PantsIcon
+                      character={
+                        key === character.pants
+                          ? shown
+                          : { ...shown, trouser: DEFAULT_CHARACTER.trouser }
+                      }
+                      pants={key}
+                    />
+                  )}
+                  swatchesFor={() => TROUSER_COLORS}
+                  swatchValue={character.trouser}
+                  onSwatch={(hex) => saveCharacter({ trouser: hex })}
                 />
               </Field>
-              <Field label="Bottoms colour">
-                <Swatches
-                  label="Bottoms colour"
-                  options={TROUSER_COLORS}
-                  value={character.trouser}
-                  onPick={(hex) => saveCharacter({ trouser: hex })}
+              <Field label="Shoes">
+                <IconGrid
+                  label="Shoes"
+                  options={SHOES}
+                  value={character.shoes}
+                  onPick={(shoes) => saveCharacter({ shoes })}
+                  renderIcon={(key) => (
+                    <ShoesIcon
+                      character={
+                        key === character.shoes
+                          ? shown
+                          : { ...shown, shoeColor: DEFAULT_CHARACTER.shoeColor }
+                      }
+                      shoes={key}
+                    />
+                  )}
+                  swatchesFor={() => SHOE_COLORS}
+                  swatchValue={character.shoeColor}
+                  onSwatch={(hex) => saveCharacter({ shoeColor: hex })}
                 />
               </Field>
             </>

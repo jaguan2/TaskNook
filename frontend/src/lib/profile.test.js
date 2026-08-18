@@ -146,6 +146,8 @@ describe("validateCharacter", () => {
       inner: DEFAULT_CHARACTER.inner,
       trouser: DEFAULT_CHARACTER.trouser,
       pants: "trousers",
+      shoes: "sneakers",
+      shoeColor: DEFAULT_CHARACTER.shoeColor,
       hat: "none",
       print: "none",
       width: BUILD_SHAPE.slim.halfW,
@@ -193,6 +195,10 @@ describe("validateCharacter", () => {
     // And the bottoms: a real style holds, junk falls back to trousers.
     expect(validateCharacter({ pants: "jorts" }).pants).toBe("jorts");
     expect(validateCharacter({ pants: "kilt" }).pants).toBe("trousers");
+    // Shoes too.
+    expect(validateCharacter({ shoes: "heels" }).shoes).toBe("heels");
+    expect(validateCharacter({ shoes: "crocs" }).shoes).toBe("sneakers");
+    expect(validateCharacter({ shoeColor: "#A97C50" }).shoeColor).toBe("#a97c50");
   });
 
   it("every garment in the catalogue is actually reachable", () => {

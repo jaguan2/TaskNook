@@ -4,6 +4,7 @@
 // artwork that reads those numbers. See docs/MODELS.md for the silhouette
 // rules it answers to.
 import { HEAD_R, LEG_H, farColor } from "../../lib/body";
+import { toneFor } from "../../lib/tint";
 
 export const SKIN = "#edc39e";
 export const HAIR = "#3a3142";
@@ -16,6 +17,26 @@ export const INK = "#3a3142";
 export const HAIR_LIFT = 1.2;
 // How far an OUTER garment stands off the body it's worn over. See garments.jsx.
 export const OUTER_BULK = 1.1;
+// ---- THE LIGHT ---------------------------------------------------------- //
+// One light for the whole figure: above, slightly in front, from screen
+// RIGHT — where the hair sheen already sat. Every form shadow and highlight
+// derives from it; a mark that disagrees reads as a part from another kit.
+//   SHADE — form shadow (the side falling away from the light). Cool
+//     violet-dark, NOT pure black: translucent black scales a colour toward
+//     grey and reads washed-out, while a cool dark keeps the hue alive with
+//     less value drop (and matches the app's plum nights). Still translucent,
+//     so it survives every colour the picker offers.
+//   GLINT — highlight. Warm off-white, not pure white — pure white overlays
+//     desaturate toward chalk; warm reads as lamplight.
+//   Crevices (where two forms touch: under a hem, inside a pocket mouth)
+//   stay NEUTRAL #000 — occlusion is the absence of light, not cool light.
+export const SHADE = "#221638";
+export const GLINT = "#fff3e0";
+// Fixed ANCHORS — tiny regions the tint never touches (the shoe-sole rule
+// generalised): denim topstitch ochre, dungaree-buckle brass. A small fixed
+// material is what makes a user recolour look designed instead of hue-shifted.
+export const STITCH = "#c9995c";
+export const BRASS = "#d9a05b";
 export const TROUSER = "#4a3a5b";
 // The far leg is derived, not hand-tuned — which is what let the trousers
 // become user-colourable without a second palette: `farColor(trouser)` at the
@@ -41,6 +62,213 @@ export const SHOE_FAR = "#221c40";
 export const SEAT_KNEE_Y = 5;
 export const SEAT_KNEE_X = 8.5;
 
+// The classic pair keeps its hand-tuned far tone byte-exact; any other
+// colour derives one, same rule as the trousers.
+const farShoe = (hex) => (hex === SHOE ? SHOE_FAR : farColor(hex));
+
+/**
+ * The shoe from the FRONT, per kind — REMODELLED (owner, twice: "just two
+ * circles", then "they look around the same"). Every kind is now BUILT like
+ * a shoe instead of restyled from one ellipse: a SOLE the upper sits on, an
+ * UPPER with its own silhouette, and the hardware that names it. The sole is
+ * a fixed light rubber tone — soles aren't dyed with the shoe, and the
+ * two-material split is most of what makes a shoe read as modelled.
+ * `cx` is the foot's centre; the floor is at y≈2.7.
+ */
+const SOLE = "#ded5c4";
+const SOCK = "#f2ede4";
+
+export function FrontShoe({ cx, kind = "sneakers", color = SHOE, far = false }) {
+  // Far depth comes from DERIVING each material darker (farColor), never
+  // from a wash rect over the whole piece — a rect is wider than the leg,
+  // and its spill painted a grey slab onto the floor beside the far foot
+  // (owner screenshot: "a random shadow on the left leg").
+  const c = far ? farShoe(color) : color;
+  const sole = far ? farColor(SOLE) : SOLE;
+  const sock = far ? farColor(SOCK) : SOCK;
+  if (kind === "loafers") {
+    return (
+      <g>
+        {/* sleek low vamp on a thin stacked sole */}
+        <rect x={cx - 4.5} y="1.3" width="9" height="1.5" rx="0.7" fill={c} />
+        <rect x={cx - 4.5} y="1.9" width="9" height="0.9" rx="0.45" fill="#000" opacity="0.3" />
+        <path
+          d={`M ${cx - 4.4} 1.5 Q ${cx - 4.6} -0.7 ${cx - 1.8} -1.3 L ${cx + 1.8} -1.3
+              Q ${cx + 4.6} -0.7 ${cx + 4.4} 1.5 z`}
+          fill={c}
+        />
+        <ellipse cx={cx} cy="-0.1" rx="2.7" ry="0.9" fill="#fff" opacity="0.22" />
+        {/* the penny strap, with its slot */}
+        <rect x={cx - 2.5} y="-1.15" width="5" height="1.1" rx="0.55" fill="#000" opacity="0.32" />
+        <rect x={cx - 0.7} y="-0.95" width="1.4" height="0.7" rx="0.35" fill={c} />
+      </g>
+    );
+  }
+  if (kind === "boots") {
+    return (
+      <g>
+        {/* shaft with a folded cuff, over a chunky block sole */}
+        <rect x={cx - 3.2} y="-8.6" width="6.4" height="8.2" rx="1.1" fill={c} />
+        <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill={c} />
+        <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill="#fff" opacity="0.2" />
+        <rect x={cx - 2.8} y="-6.2" width="1.1" height="4.6" fill="#fff" opacity="0.09" />
+        <path
+          d={`M ${cx - 4.5} 1.4 Q ${cx - 4.6} -1 ${cx - 1.6} -1.6 L ${cx + 1.6} -1.6
+              Q ${cx + 4.6} -1 ${cx + 4.5} 1.4 z`}
+          fill={c}
+        />
+        <rect x={cx - 4.7} y="1.2" width="9.4" height="1.7" rx="0.8" fill="#000" opacity="0.32" />
+        <ellipse cx={cx} cy="-0.4" rx="2.6" ry="0.9" fill="#fff" opacity="0.16" />
+      </g>
+    );
+  }
+  if (kind === "heels") {
+    return (
+      <g>
+        {/* a low pointed pump: shallow vamp, deep throat, spike behind */}
+        <path
+          d={`M ${cx - 4.3} 2 Q ${cx - 4} -0.4 ${cx - 1.4} -0.9 Q ${cx + 1.6} -1.2 ${cx + 3.2} 0.4
+              Q ${cx + 3.9} 1.3 ${cx + 3.8} 2 z`}
+          fill={c}
+        />
+        <path d={`M ${cx - 1.6} -0.7 q 1.7 -0.7 3.2 0.3 q -1.6 0.2 -3.2 -0.3 z`} fill="#000" opacity="0.28" />
+        <ellipse cx={cx - 1.8} cy="0.6" rx="1.6" ry="0.7" fill="#fff" opacity="0.28" />
+        <rect x={cx - 4.3} y="1.8" width="8.1" height="0.65" rx="0.3" fill="#000" opacity="0.24" />
+        <rect x={cx + 1.9} y="1.4" width="1.05" height="2.1" rx="0.4" fill={c} />
+        <rect x={cx + 1.9} y="1.4" width="1.05" height="2.1" rx="0.4" fill="#000" opacity="0.18" />
+      </g>
+    );
+  }
+  if (kind === "maryjanes") {
+    return (
+      <g>
+        {/* the sock frill above a rounded strapped shoe */}
+        <rect x={cx - 2.7} y="-3" width="5.4" height="1.8" rx="0.9" fill={sock} />
+        <path
+          d={`M ${cx - 4.3} 1.6 Q ${cx - 4.4} -0.9 ${cx} -1.5 Q ${cx + 4.4} -0.9 ${cx + 4.3} 1.6 z`}
+          fill={c}
+        />
+        <rect x={cx - 4} y="-1.2" width="8" height="1.05" rx="0.5" fill={c} />
+        <rect x={cx - 4} y="-0.5" width="8" height="0.4" fill="#000" opacity="0.22" />
+        <circle cx={cx + 2.9} cy="-0.65" r="0.55" fill="#fff" opacity="0.75" />
+        <ellipse cx={cx - 1} cy="0.2" rx="2" ry="0.8" fill="#fff" opacity="0.24" />
+        <rect x={cx - 4.3} y="1.5" width="8.6" height="0.9" rx="0.45" fill="#000" opacity="0.24" />
+      </g>
+    );
+  }
+  // sneakers: a chunky light SOLE under a laced upper — the two-material
+  // split that says "trainer" at any size
+  return (
+    <g>
+      <rect x={cx - 4.9} y="0.8" width="9.8" height="2.1" rx="1" fill={sole} />
+      <rect x={cx - 4.9} y="2.1" width="9.8" height="0.8" rx="0.4" fill="#000" opacity="0.2" />
+      <path
+        d={`M ${cx - 4.5} 1 Q ${cx - 4.7} -1.6 ${cx - 1.7} -2.4 Q ${cx + 1.7} -3 ${cx + 3.7} -1.2
+            Q ${cx + 4.6} -0.2 ${cx + 4.5} 1 z`}
+        fill={c}
+      />
+      <ellipse cx={cx + 0.4} cy="0.1" rx="2.7" ry="1" fill="#fff" opacity="0.26" />
+      <path d={`M ${cx - 2.6} -1.5 q 2 -0.8 4 0`} stroke="#000" strokeWidth="0.7" fill="none" opacity="0.3" strokeLinecap="round" />
+      <path d={`M ${cx - 2.2} -0.5 q 1.8 -0.7 3.6 0`} stroke="#000" strokeWidth="0.7" fill="none" opacity="0.3" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/**
+ * The shoe in PROFILE, toe pointing -x — same modelled construction, and
+ * the view where each silhouette really earns its name.
+ */
+export function SideShoe({ cx, kind = "sneakers", color = SHOE, far = false }) {
+  // Same far rule as FrontShoe: derive materials darker, no wash rect.
+  const c = far ? farShoe(color) : color;
+  const sole = far ? farColor(SOLE) : SOLE;
+  const sock = far ? farColor(SOCK) : SOCK;
+  if (kind === "loafers") {
+    return (
+      <g>
+        <path
+          d={`M ${cx - 7.3} 1.9 Q ${cx - 7.4} 0.3 ${cx - 5.2} -0.3 Q ${cx - 2.2} -1.2 ${cx + 0.4} -1.4
+              L ${cx + 2.3} -1 Q ${cx + 2.7} 0.6 ${cx + 2.6} 1.9 z`}
+          fill={c}
+        />
+        <rect x={cx - 7.3} y="1.7" width="9.9" height="0.9" rx="0.45" fill="#000" opacity="0.28" />
+        <rect x={cx + 0.9} y="1.1" width="1.5" height="1.5" rx="0.4" fill="#000" opacity="0.26" />
+        <rect x={cx - 1.2} y="-1.6" width="2.3" height="1" rx="0.5" fill="#000" opacity="0.32" />
+        <ellipse cx={cx - 4.8} cy="0.1" rx="2" ry="0.8" fill="#fff" opacity="0.24" />
+      </g>
+    );
+  }
+  if (kind === "boots") {
+    return (
+      <g>
+        <rect x={cx - 2.7} y="-8.8" width="5.4" height="8.6" rx="1" fill={c} />
+        <rect x={cx - 3.1} y="-9.4" width="6.2" height="2.4" rx="1" fill={c} />
+        <rect x={cx - 3.1} y="-9.4" width="6.2" height="2.4" rx="1" fill="#fff" opacity="0.2" />
+        <path
+          d={`M ${cx - 7.2} 1.6 Q ${cx - 7.2} 0 ${cx - 4.6} -0.6 L ${cx + 2.7} -0.6 L ${cx + 2.7} 1.6 z`}
+          fill={c}
+        />
+        <rect x={cx - 7.5} y="1.4" width="10.4" height="1.6" rx="0.7" fill="#000" opacity="0.3" />
+        <ellipse cx={cx - 5} cy="0.3" rx="1.9" ry="0.8" fill="#fff" opacity="0.18" />
+      </g>
+    );
+  }
+  if (kind === "heels") {
+    return (
+      <g>
+        {/* the pump: pointed toe, high arch, the spike doing the standing */}
+        <path
+          d={`M ${cx - 7.4} 2.4 Q ${cx - 6.4} 0.6 ${cx - 3.8} -0.6 Q ${cx - 1} -1.7 ${cx + 1.2} -1.5
+              L ${cx + 2.4} -0.9 Q ${cx + 2.6} 0.4 ${cx + 1.8} 1 Q ${cx - 1} 1.2 ${cx - 3.2} 1.8
+              Q ${cx - 5.6} 2.5 ${cx - 7.4} 2.4 z`}
+          fill={c}
+        />
+        <path d={`M ${cx - 1.8} -1.2 q 1.9 -0.5 3.4 0.4 q -1.7 0.3 -3.4 -0.4 z`} fill="#000" opacity="0.26" />
+        <ellipse cx={cx - 5.2} cy="0.7" rx="1.8" ry="0.7" fill="#fff" opacity="0.28" />
+        <path d={`M ${cx + 0.9} 0.9 L ${cx + 2.1} 0.9 L ${cx + 1.9} 3 L ${cx + 1.3} 3 z`} fill={c} />
+        <path d={`M ${cx + 0.9} 0.9 L ${cx + 2.1} 0.9 L ${cx + 1.9} 3 L ${cx + 1.3} 3 z`} fill="#000" opacity="0.18" />
+      </g>
+    );
+  }
+  if (kind === "maryjanes") {
+    return (
+      <g>
+        <rect x={cx - 1.6} y="-3.2" width="3.4" height="1.9" rx="0.9" fill={sock} />
+        <path
+          d={`M ${cx - 7} 1.9 Q ${cx - 7.1} 0.1 ${cx - 4.4} -0.7 Q ${cx - 1.6} -1.5 ${cx + 1.2} -1.3
+              L ${cx + 2.4} -0.7 Q ${cx + 2.6} 0.7 ${cx + 2.5} 1.9 z`}
+          fill={c}
+        />
+        <rect x={cx - 1.4} y="-1.7" width="1.1" height="1.6" rx="0.5" fill={c} />
+        <rect x={cx - 1.4} y="-1.7" width="1.1" height="1.6" rx="0.5" fill="#000" opacity="0.2" />
+        <circle cx={cx - 0.85} cy="-1.15" r="0.5" fill="#fff" opacity="0.75" />
+        <rect x={cx - 7} y="1.7" width="9.5" height="0.9" rx="0.45" fill="#000" opacity="0.26" />
+        <ellipse cx={cx - 4.6} cy="0.1" rx="1.9" ry="0.8" fill="#fff" opacity="0.24" />
+      </g>
+    );
+  }
+  // sneakers: the light sole runs the whole length; laces cross the instep;
+  // a heel tab finishes the back
+  return (
+    <g>
+      <path
+        d={`M ${cx - 7.8} 2.7 L ${cx + 2.9} 2.7 L ${cx + 2.9} 0.9 Q ${cx - 2.4} 0.5 ${cx - 7.3} 1.3 z`}
+        fill={sole}
+      />
+      <rect x={cx - 7.7} y="2.3" width="10.5" height="0.7" rx="0.35" fill="#000" opacity="0.18" />
+      <path
+        d={`M ${cx - 7.1} 1.3 Q ${cx - 6.7} -0.3 ${cx - 4.4} -1.1 Q ${cx - 1.4} -2.2 ${cx + 0.9} -1.9
+            L ${cx + 2.5} -1.1 Q ${cx + 2.8} 0.1 ${cx + 2.7} 1 Q ${cx - 2.4} 0.6 ${cx - 7.1} 1.3 z`}
+        fill={c}
+      />
+      <ellipse cx={cx - 5.6} cy="0" rx="1.9" ry="1" fill="#fff" opacity="0.28" />
+      <path d={`M ${cx - 3.2} -1.2 q 1.5 -0.6 2.9 -0.2`} stroke="#000" strokeWidth="0.65" fill="none" opacity="0.3" strokeLinecap="round" />
+      <path d={`M ${cx - 2.6} -0.3 q 1.3 -0.5 2.5 -0.1`} stroke="#000" strokeWidth="0.65" fill="none" opacity="0.3" strokeLinecap="round" />
+      <rect x={cx + 1.7} y="-2.4" width="1.1" height="1.5" rx="0.5" fill={c} />
+    </g>
+  );
+}
+
 /**
  * What each bottom DOES to a leg drawing — artwork knowledge, so it lives
  * beside the drawings rather than in the catalog. `shorts` ends the cloth at
@@ -52,11 +280,14 @@ export const SEAT_KNEE_X = 8.5;
 const PANTS_FORM = {
   trousers: {},
   dress: { slim: -0.7, crease: true, cleanHem: true },
-  jeans: { turnup: true },
+  // `stitch` = the contrast topstitch that NAMES denim — one dashed ochre
+  // line above the hem, in fixed STITCH so it contrasts any wash the user
+  // dyes the denim.
+  jeans: { turnup: true, stitch: true },
   joggers: { slim: -0.5, cuffBand: true },
   wide: { wide: 2.4, straight: true },
   shorts: { shorts: true },
-  jorts: { shorts: true, turnup: true },
+  jorts: { shorts: true, turnup: true, stitch: true },
   skirt: { bare: true },
   pleats: { bare: true },
 };
@@ -71,6 +302,8 @@ export function SeatedLeg({
   trouser = TROUSER,
   pants = "trousers",
   skin = SKIN,
+  shoes = "sneakers",
+  shoeColor = SHOE,
 }) {
   const knee = side * SEAT_KNEE_X;
   const cloth = far ? farColor(trouser) : trouser;
@@ -99,7 +332,9 @@ export function SeatedLeg({
       {form.cuffBand && !bareShin && (
         <rect x={knee - (shinW + extra) / 2 + 0.4} y={ankle - 2.6} width={shinW + extra - 0.8} height="1.8" fill="#fff" opacity="0.18" />
       )}
-      <ellipse cx={knee} cy={ankle + 1.4} rx="4.8" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
+      <g transform={`translate(0, ${ankle + 1.1})`}>
+        <FrontShoe cx={knee} kind={shoes} color={shoeColor} far={far} />
+      </g>
     </g>
   );
 }
@@ -122,6 +357,8 @@ export function StandingLeg({
   trouser = TROUSER,
   pants = "trousers",
   skin = SKIN,
+  shoes = "sneakers",
+  shoeColor = SHOE,
 }) {
   const cx = side * 4;
   const cloth = far ? farColor(trouser) : trouser;
@@ -160,23 +397,23 @@ export function StandingLeg({
         {line(bent(0), skinTone, legW - 0.5)}
         {line(bent(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08)}
         <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
-        <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
-        <ellipse cx={cx + side * 0.5} cy="1.1" rx="4.9" ry="1.5" fill="#fff" opacity={far ? 0.09 : 0.16} />
-        <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
+        <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} far={far} />
       </g>
     );
   }
+  const tone = toneFor(trouser);
   return (
     <g>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
       {/* Every box in the catalog carries three tones: one lit edge, one
           falling away — each a single stroke riding the same bent path.
-          Translucent overlays, never fixed hues (docs/MODELS.md). */}
-      {line(clothD(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
-      {line(clothD(-w / 4), "#000", w / 2.9, 0.11)}
+          Translucent overlays in the shared light pair (SHADE/GLINT), scaled
+          by the trouser colour's luminance so near-black denim still models. */}
+      {line(clothD(w / 4), GLINT, w / 2.9, far ? 0.05 : 0.11 * tone.glint)}
+      {line(clothD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade)}
       {/* dress pants press a CREASE down the front of each leg */}
-      {form.crease && line(clothD(0), "#fff", 0.9, far ? 0.1 : 0.16)}
+      {form.crease && line(clothD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint)}
       {/* the crease inside the bend — the knee's only mark */}
       <ellipse
         cx={K.x - side * 1.2}
@@ -205,21 +442,22 @@ export function StandingLeg({
       ) : form.cleanHem ? null : (
         <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
       )}
-      {/* The shoe has to TERMINATE the leg. It was #2b2350 under #4a3a5b
-          trousers — both dark, near the same hue, so on a dark floor the foot
-          dissolved into the trouser and the leg ran unbroken to the ground.
-          A brighter sole edge and a stronger top catch give it its own
-          silhouette without making the foot bigger. */}
-      <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
-      <ellipse
-        cx={cx + side * 0.5}
-        cy="1.1"
-        rx="4.9"
-        ry="1.5"
-        fill="#fff"
-        opacity={far ? 0.09 : 0.16}
-      />
-      <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.12 : 0.2} />
+      {/* denim's contrast topstitch, riding above the hem or shorts hem */}
+      {form.stitch && (
+        <path
+          d={`M ${(form.shorts ? K.x : cx) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : -7}
+              L ${(form.shorts ? K.x : cx) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : -7}`}
+          stroke={STITCH}
+          strokeWidth="0.55"
+          strokeDasharray="0.9 0.8"
+          fill="none"
+          opacity={far ? 0.5 : 0.85}
+        />
+      )}
+      {/* The shoe has to TERMINATE the leg (the sneaker's bright sole and
+          top catch exist so the foot doesn't dissolve into a dark trouser
+          on a dark floor) — and it's a wardrobe slot now, see FrontShoe. */}
+      <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} far={far} />
     </g>
   );
 }
@@ -241,6 +479,8 @@ export function SideLeg({
   trouser = TROUSER,
   pants = "trousers",
   skin = SKIN,
+  shoes = "sneakers",
+  shoeColor = SHOE,
 }) {
   const cx = far ? 1.7 : -0.8;
   const cloth = far ? farColor(trouser) : trouser;
@@ -263,14 +503,8 @@ export function SideLeg({
       opacity={opacity}
     />
   );
-  const shoe = (
-    <>
-      {/* toe forward, heel behind — the asymmetry is the profile */}
-      <ellipse cx={cx - 2.3} cy="0.3" rx="5.3" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
-      <ellipse cx={cx - 2.3} cy="1" rx="5.3" ry="1.4" fill="#fff" opacity={far ? 0.09 : 0.16} />
-      <ellipse cx={cx - 4.2} cy="-0.9" rx="2.5" ry="0.9" fill="#fff" opacity={far ? 0.12 : 0.2} />
-    </>
-  );
+  // toe forward, heel behind — the asymmetry is the profile
+  const shoe = <SideShoe cx={cx} kind={shoes} color={shoeColor} far={far} />;
   if (form.bare) {
     return (
       <g>
@@ -281,15 +515,27 @@ export function SideLeg({
       </g>
     );
   }
+  const tone = toneFor(trouser);
   return (
     <g>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
-      {line(clothD(w / 4), "#fff", w / 2.9, far ? 0.05 : 0.09)}
-      {line(clothD(-w / 4), "#000", w / 2.9, 0.11)}
-      {form.crease && line(clothD(0), "#fff", 0.9, far ? 0.1 : 0.16)}
+      {line(clothD(w / 4), GLINT, w / 2.9, far ? 0.05 : 0.11 * tone.glint)}
+      {line(clothD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade)}
+      {form.crease && line(clothD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint)}
       {/* the crease sits BEHIND the knee in profile — inside the bend */}
       <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.8" fill="#000" opacity="0.11" />
+      {form.stitch && (
+        <path
+          d={`M ${(form.shorts ? K.x : cx) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : -7}
+              L ${(form.shorts ? K.x : cx) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : -7}`}
+          stroke={STITCH}
+          strokeWidth="0.55"
+          strokeDasharray="0.9 0.8"
+          fill="none"
+          opacity={far ? 0.5 : 0.85}
+        />
+      )}
       {form.shorts ? (
         <rect
           x={K.x - w / 2 + 0.3}
@@ -359,7 +605,22 @@ export function SideFace({ expression, headY, skin }) {
  * ELBOW — the joint is the natural hemline, which is what makes bare
  * forearms finally read as short sleeves rather than as a shrunken garment.
  */
-export function Arm({ side, sh, torsoY, skin, outfit, shortSleeve = false, bulk = 0, far = false }) {
+export function Arm({
+  side,
+  sh,
+  torsoY,
+  skin,
+  outfit,
+  shortSleeve = false,
+  bulk = 0,
+  far = false,
+  // Ribbed cuff at the wrist — knitwear's tell, declared by the outermost
+  // garment's registry entry (`cuffs: true`), never inferred by name here.
+  cuff = false,
+  // Luminance-adaptive strengths from toneFor(the sleeve's colour) — the
+  // assembly computes it once, since only it knows which hex is outermost.
+  tone = { shade: 1, glint: 1 },
+}) {
   // The shoulder is BURIED in the torso — the arm grows out of the body
   // rather than standing beside it. Started outside the torso edge, the
   // capsule left a step at the armpit where the shoulder curve ended and a
@@ -388,18 +649,37 @@ export function Arm({ side, sh, torsoY, skin, outfit, shortSleeve = false, bulk 
       opacity={opacity}
     />
   );
+  // A crossbar ACROSS the limb at fraction t of segment P→Q — the hem of a
+  // short sleeve, the ribbed cuff of a long one. Perpendicular to the
+  // segment so it follows the arm's own bend.
+  const bar = (P, Q, t, extra, paint, sw, op) => {
+    const x = P.x + (Q.x - P.x) * t;
+    const y = P.y + (Q.y - P.y) * t;
+    const dx = Q.x - P.x;
+    const dy = Q.y - P.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const px = (-dy / L) * (w / 2 + extra);
+    const py = (dx / L) * (w / 2 + extra);
+    return line(`M ${x - px} ${y - py} L ${x + px} ${y + py}`, paint, sw, op);
+  };
   return (
     <g>
       {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}
       {line(whole, skin, 4.1)}
       <SleeveSeg d={shortSleeve ? upper : whole} w={w} outfit={outfit} />
-      {/* ONE light logic across the whole body: lit on the outer edge, the
-          same edge-tone treatment the legs carry — full-limb washes gave the
-          arms their own shading language and made them read as parts from a
-          different kit. The far arm still takes the overall depth wash on
-          top (its whole limb falls away), same rule as the far trouser leg. */}
-      {line(`M ${S.x + side * (w / 4)} ${S.y + 1} L ${E.x + side * (w / 4)} ${E.y} L ${H.x + side * (w / 4)} ${H.y - 1}`, "#fff", w / 2.7, far ? 0.05 : 0.09)}
-      {line(`M ${S.x - side * (w / 4)} ${S.y + 1.4} L ${E.x - side * (w / 4)} ${E.y} L ${H.x - side * (w / 4)} ${H.y - 1}`, "#000", w / 2.9, 0.1)}
+      {/* ONE light logic across the whole body: lit on the screen-right edge,
+          shaded screen-left — the same single light the legs and torso answer
+          to. It used to be "lit on the outer edge", which lit the two arms
+          from opposite sides of the room. The far arm still takes the overall
+          depth wash on top (its whole limb falls away), same rule as the far
+          trouser leg. */}
+      {line(`M ${S.x + w / 4} ${S.y + 1} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 1}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint)}
+      {line(`M ${S.x - w / 4} ${S.y + 1.4} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 1}`, SHADE, w / 2.9, 0.13 * tone.shade)}
+      {/* a short sleeve's HEM — the crossbar is what makes the bare forearm
+          read as a hemline rather than a glitch in the sleeve */}
+      {shortSleeve && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}
+      {/* the knit cuff, cinched just above the hand */}
+      {cuff && !shortSleeve && bar(E, H, 0.78, 0.1, "#000", 1.5, 0.15)}
       {far && line(whole, "#000", w, 0.12)}
       {/* the crease inside the bend, barely there */}
       <ellipse

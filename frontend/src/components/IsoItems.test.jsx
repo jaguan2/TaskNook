@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SHOES } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -322,6 +322,22 @@ describe("the profile view and the wardrobe slots", () => {
         )
       ).not.toThrow();
       cleanup();
+    }
+  });
+
+  it("every shoe draws its own feet, front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      allDistinct(
+        `${facing} shoes`,
+        SHOES.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, shoes: key }}
+            facing={facing}
+          />,
+        ])
+      );
     }
   });
 

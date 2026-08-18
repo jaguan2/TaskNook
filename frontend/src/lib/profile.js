@@ -277,6 +277,31 @@ export const PANTS = [
   { key: "pleats", label: "Pleated skirt" },
 ];
 
+/**
+ * Shoes (owner call, 2026-08-17: "right now it kind of just looks like two
+ * circles"). The classic chunky shoe IS the sneaker; the others each change
+ * the outline or carry the one mark that names them — a loafer sits low with
+ * its instep band, boots grow a shaft up the ankle, heels lift on a spike
+ * (the profile view is where they really read), Mary Janes strap across.
+ * `SHOE_FORM` in character/body.jsx owns what each does to the drawing.
+ */
+export const SHOES = [
+  { key: "sneakers", label: "Sneakers" },
+  { key: "loafers", label: "Loafers" },
+  { key: "boots", label: "Boots" },
+  { key: "heels", label: "Heels" },
+  { key: "maryjanes", label: "Mary Janes" },
+];
+
+export const SHOE_COLORS = [
+  { key: "ink", hex: "#2b2350" },
+  { key: "black", hex: "#26232b" },
+  { key: "brown", hex: "#5b3a29" },
+  { key: "tan", hex: "#a97c50" },
+  { key: "cream", hex: "#d9cbb2" },
+  { key: "cherry", hex: "#8e3a3f" },
+];
+
 // Trousers were a hard-coded constant, so the whole lower half of every
 // resident was the same colour — half the figure, none of it yours.
 /**
@@ -343,6 +368,8 @@ export const DEFAULT_CHARACTER = {
   inner: "#f2e9dd",
   trouser: "#4a3a5b",
   pants: "trousers",
+  shoes: "sneakers",
+  shoeColor: "#2b2350",
   hat: "none",
   print: "none",
   expression: "calm",
@@ -359,6 +386,7 @@ const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
 const COAT_KEYS = new Set(COATS.map((c) => c.key));
 const PANTS_KEYS = new Set(PANTS.map((p) => p.key));
+const SHOE_KEYS = new Set(SHOES.map((s) => s.key));
 // The one-slot era stored these in `garment`; they're coats now.
 const LEGACY_COATS = new Set(["hoodie", "jacket", "cardigan", "puffer"]);
 /** The garment's own rules, for the sprite: sleeve length and whether it layers. */
@@ -434,6 +462,8 @@ export function validateCharacter(raw) {
     inner: pickHex(c.inner, DEFAULT_CHARACTER.inner),
     trouser: pickHex(c.trouser, DEFAULT_CHARACTER.trouser),
     pants: pickKey(c.pants, PANTS_KEYS, DEFAULT_CHARACTER.pants),
+    shoes: pickKey(c.shoes, SHOE_KEYS, DEFAULT_CHARACTER.shoes),
+    shoeColor: pickHex(c.shoeColor, DEFAULT_CHARACTER.shoeColor),
     hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),

@@ -510,7 +510,38 @@ running `git commit` yourself.
   which is what makes two slots read as two garments), and BOTTOMS
   (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
   pleated skirt, coloured by `trouser`; khakis are trousers in a khaki
-  colour). 6×5×9 = 270 silhouette combinations before any colour. What a
+  colour), plus SHOES (`SHOES` + `shoeColor`: sneakers, loafers, boots,
+  heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
+  BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
+  and that two-material split is what makes a 5px shoe read as modelled).
+  6×5×9×5 = 1,350 silhouette combinations before any colour.
+  **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
+  research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
+  slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
+  overlay pair (never pure black/white — those wash out), strengths scaled
+  by the garment colour's luminance (`toneFor` in lib/tint.js) so near-black
+  and cream picks still model. The form crescent, lit shoulder, chin shadow
+  and hem-onto-bottoms band are drawn once in character/index.jsx over
+  whatever is worn; a registry entry adds only its signature marks plus
+  `finish` (matte knit vs sheeny nylon), `cuffs`, `drape` (opts out of the
+  hem band: dress, cardigan). Fixed anchors the tint never touches — shoe
+  soles, `STITCH` denim ochre, `BRASS` buckles — are what make recolours
+  read as designed. `character/palette.test.jsx` lints every garment's
+  paints against the allowed set (mutation-verified), and the art sheet
+  renders tops/coats in three colourways, because single-colourway review
+  is how the first too-faint mark set shipped. In the panel,
+  COLOUR IS A SMALL DIALOG: tapping a tile in any picker grid selects it and
+  pops a compact swatch card anchored AT that tile (IconGrid's `swatchesFor`;
+  owner, twice — the first cut was a full-width strip). Unselected tiles
+  render in the classic DEFAULT colours and only the selected tile wears
+  your pick — a wall of tiles repainting per swatch tap read as glitching.
+  There are no standalone colour rows left.
+  **The owner designs artwork themselves via `npm run art`**
+  (frontend/scripts/art-sheet.mjs + the SHEET_DIR-gated
+  artsheet.fixtures.test.jsx): renders every character piece side by side
+  to frontend/art-sheet/index.html (gitignored). docs/CONTRIBUTING_ART.md
+  is the guide — coordinate system, registry formats, the review loop. Keep
+  that doc current when a registry's shape changes. What a
   bottom does to the leg drawing lives in `PANTS_FORM` (character/body.jsx)
   — shorts end the cloth at the knee, skirts render BARE legs with the
   flare drawn by the assembly at hip level, the rest are marks (crease,
@@ -542,7 +573,16 @@ running `git commit` yourself.
   OVER the unchanged torso path, so a new one can't break the silhouette
   rules the body already satisfies. **The same rule governs HAIR** (19
   styles): rendering the set side by side is what showed `buzz` and `short`
-  were one silhouette wearing two names — that's the bar.
+  were one silhouette wearing two names — that's the bar. **Hair carries a
+  TEXTURE PASS** (2026-08-17, Roblox-UGC/stylized-hair research — doctrine
+  in hair.jsx's header): every carved wig gets shadow wedges tucked into
+  its hem notches, 2–3 unequal tapered flow lines that stop short of every
+  edge, and a NOTCHED crown light band instead of a blob sheen (the
+  assembly's generic sheen ellipse is gone — stacked on the band it read
+  as a smudge); coil styles use C-arc curl marks instead of straight lines,
+  and gathered styles (bun, ponytails) stay matte with tension lines. Buns
+  and ponies also carry real `back` views now — the default dome erased
+  them on a resident walking away.
   **The character's artwork lives in `components/character/`** — split out of
   IsoItems.jsx (which keeps the furniture) because the character is the
   fastest-growing artwork in the app. The package follows the drawing's real
