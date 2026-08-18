@@ -380,17 +380,22 @@ export function Resident({
                 <g className={moving ? "walk-arm-a" : undefined}>
                   <g style={hangLimb(held, 8)}>
                     <path
-                      d={`M 0 ${torsoY + 5.2} L 2.4 ${torsoY + 12.6} L 1.4 ${torsoY + 18}`}
+                      d={`M 0.8 ${torsoY + 5.2} L 3.2 ${torsoY + 12.6} L 2.2 ${torsoY + 18}`}
                       stroke="#000"
                       strokeWidth="5.6"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       fill="none"
-                      opacity="0.09"
+                      opacity="0.1"
                     />
+                    {/* sh=2.2 tucks the resting arm toward the BACK half of
+                        the body, and edges off — with them the arm read as a
+                        painted stripe down the torso at room scale (owner
+                        screenshot, twice). The contact shadow above is what
+                        separates it now. */}
                     <Arm
                       side={1}
-                      sh={1.4}
+                      sh={2.2}
                       torsoY={torsoY}
                       skin={skin}
                       outfit={armStyle}
@@ -398,6 +403,7 @@ export function Resident({
                       bulk={sleeveBulk}
                       cuff={cuff}
                       tone={bodyTone}
+                      edges={false}
                     />
                   </g>
                 </g>

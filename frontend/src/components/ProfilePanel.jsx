@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, RefreshCw, Shirt, UserRound } from "lucide-react";
+import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
+import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
@@ -367,6 +368,82 @@ function Swatches({ options, value, onPick, label }) {
   );
 }
 
+/**
+ * Your PETS — who lives here beyond you (owner request, 2026-08-18): every
+ * cat or dog placed in the room gets a NAME and a TEMPER. Identity lives on
+ * the placement itself (a pet IS a placement), so two cats are two rows and
+ * removing one takes its name with it. The temper reaches the wander engine
+ * (lib/isoRoom.js `PET_TEMPERS`): a curious pet ranges the whole room and
+ * won't settle on a rug; a sleepy one barely leaves its spot. The name shows
+ * when you pick the pet up in the room.
+ */
+function PetsSection({ isoRoom, setPetIdentity }) {
+  const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
+  return (
+    <section>
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
+        <PawPrint size={15} className="text-petal/70" /> Your pets
+      </p>
+      {pets.length === 0 ? (
+        <p className="text-xs text-petal/50">
+          No pets yet — adopt one from the Room panel&apos;s Living things shelf,
+          then name it here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {pets.map((p) => {
+            const Sprite = ISO_SPRITES[p.item];
+            return (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2"
+              >
+                <svg
+                  viewBox="-9 -26 32 40"
+                  className="h-14 w-12 shrink-0"
+                  aria-hidden="true"
+                  style={p.tint ? { "--tint": p.tint } : undefined}
+                >
+                  <Sprite awake facing="front" />
+                </svg>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {/* Save on BLUR, not per keystroke — every write saves the
+                      room. Keyed on the stored name so an outside change
+                      (validation trimming it) refreshes the field. */}
+                  <input
+                    key={`${p.id}:${p.name || ""}`}
+                    type="text"
+                    defaultValue={p.name || ""}
+                    placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
+                    maxLength={PET_NAME_MAX}
+                    aria-label="Pet name"
+                    onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
+                  />
+                  <Choices
+                    label="Temper"
+                    options={PET_TEMPERS}
+                    value={p.temper || "mellow"}
+                    onPick={(temper) => setPetIdentity(p.id, { temper })}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-petal/50">
+            Temper changes how they wander — curious pets range the whole room,
+            sleepy ones barely leave their spot. Pick a pet up in the room to
+            carry it somewhere new.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Choices({ options, value, onPick, label }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
@@ -542,6 +619,8 @@ export default function ProfilePanel() {
     saveCharacter,
     user,
     setVisitAccess,
+    isoRoom,
+    setPetIdentity,
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
@@ -872,6 +951,10 @@ export default function ProfilePanel() {
           )}
         </div>
       </section>
+
+      <hr className="border-white/10" />
+
+      <PetsSection isoRoom={isoRoom} setPetIdentity={setPetIdentity} />
 
       <hr className="border-white/10" />
 

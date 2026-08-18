@@ -366,10 +366,50 @@ function CatFace({ x, y, r, asleep }) {
   );
 }
 
-function Cat({ awake = false, moving = false, facing = "side" }) {
+function Cat({ awake = false, moving = false, facing = "side", held = false }) {
   const c = project(0.6, 0.4);
   // Ground shadows come from the scene now (one soft ellipse per item), so
   // the poses draw only the cat.
+  // Picked up (pets are carryable at home, same gesture as the personas):
+  // the classic scruff-hold — the body STRETCHES long, hind legs dangling
+  // off the bottom, front legs pinned up by the hold, tail hanging with a
+  // last curl. Same held-dangle swing as a carried person.
+  if (held) {
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <g
+          className="held-dangle"
+          style={{ transformBox: "fill-box", transformOrigin: "center top" }}
+        >
+          {/* hind legs first, hanging limp below the body */}
+          {[-5, 1.2].map((x, i) => (
+            <g key={x}>
+              <rect x={x} y="-6" width="4.2" height="10" rx="2.1" style={tinted("#3a3142")} />
+              <rect x={x} y="-6" width="4.2" height="10" rx="2.1" fill="#000" opacity={i ? 0.1 : 0.22} />
+            </g>
+          ))}
+          {/* the tail hangs and curls at the tip */}
+          <path
+            d="M5.6 -8 q4.4 8 1 13 q-2.2 3.2 -5.4 1.6"
+            fill="none"
+            style={{ stroke: "var(--tint, #3a3142)" }}
+            strokeWidth="3.6"
+            strokeLinecap="round"
+          />
+          {/* the stretched body — a picked-up cat is longer than it has any
+              right to be */}
+          <ellipse cx="0" cy="-16" rx="8.4" ry="13.5" style={tinted("#3a3142")} />
+          <ellipse cx="-2.4" cy="-21" rx="4.4" ry="7.5" fill="#fff" opacity="0.08" />
+          <ellipse cx="0" cy="-7" rx="6.2" ry="4.4" fill="#000" opacity="0.14" />
+          {/* front legs pinned tight to the chest by the hold */}
+          {[-6.2, 2.4].map((x) => (
+            <rect key={x} x={x} y="-27" width="3.8" height="9.5" rx="1.9" style={tinted("#3a3142")} />
+          ))}
+          <CatFace x={0} y={-33.5} r={7.6} asleep={false} />
+        </g>
+      </g>
+    );
+  }
   // The prowl pose IS the profile; a vertical-dominant glide turns the cat
   // toward the camera (face + chest, tail curling up behind) or away (the
   // back of the skull — ears, no face). Same facing economy as the people.
@@ -4044,8 +4084,41 @@ function DogHead({ x, y, r, asleep }) {
   );
 }
 
-function Dog({ awake = false, moving = false, facing = "side" }) {
+function Dog({ awake = false, moving = false, facing = "side", held = false }) {
   const c = project(0.55, 0.35);
+  // Carried: same scruff-hold dangle as the cat, in dog proportions — a
+  // rounder body, the folded ears hanging with gravity, tail down.
+  if (held) {
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <g
+          className="held-dangle"
+          style={{ transformBox: "fill-box", transformOrigin: "center top" }}
+        >
+          {[-5.4, 1.4].map((x, i) => (
+            <g key={x}>
+              <rect x={x} y="-5" width="4.6" height="10.5" rx="2.3" style={tinted("#c98a4b")} />
+              <rect x={x} y="-5" width="4.6" height="10.5" rx="2.3" fill="#000" opacity={i ? 0.1 : 0.24} />
+            </g>
+          ))}
+          <path
+            d="M5.4 -7 q4 7 1.4 11.5"
+            fill="none"
+            style={{ stroke: "var(--tint, #c98a4b)" }}
+            strokeWidth="4.4"
+            strokeLinecap="round"
+          />
+          <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" style={tinted("#c98a4b")} />
+          <ellipse cx="0" cy="-11" rx="5.6" ry="6.8" fill="#f2e7dc" opacity="0.5" />
+          <ellipse cx="-2.4" cy="-20" rx="4.6" ry="6.5" fill="#fff" opacity="0.08" />
+          {[-6.8, 2.6].map((x) => (
+            <rect key={x} x={x} y="-25.5" width="4.2" height="9" rx="2.1" style={tinted("#c98a4b")} />
+          ))}
+          <DogHead x={0} y={-31.5} r={7.8} asleep={false} />
+        </g>
+      </g>
+    );
+  }
   // Same facing economy as the cat: the trot is the profile, and turning
   // toward/away from the camera is its own compact drawing.
   if (awake && facing !== "side") {

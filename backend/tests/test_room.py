@@ -366,6 +366,63 @@ def test_iso_round_trips_every_quarter_turn(client, auth, rot):
     assert saved["placements"][0]["rot"] == rot
 
 
+def test_iso_pet_identity_round_trips(client, auth):
+    """A pet's name and temper ride its placement — the backend bounds the
+    values (same stance as rot) and hands them back intact."""
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [
+            {"id": "p1", "item": "cat", "gx": 2, "gy": 3, "name": "Mochi", "temper": "curious"}
+        ],
+    }
+    assert (
+        client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]
+    assert saved["placements"][0]["name"] == "Mochi"
+    assert saved["placements"][0]["temper"] == "curious"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("name", ""),
+        ("name", "   "),
+        ("name", "x" * 17),
+        ("name", 7),
+        ("temper", "feral"),
+        ("temper", 3),
+    ],
+)
+def test_iso_rejects_malformed_pet_identity(client, auth, field, value):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [{"id": "p1", "item": "cat", "gx": 2, "gy": 3, field: value}],
+    }
+    res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+    assert res.status_code == 400
+
+
+@pytest.mark.skipif(
+    not pathlib.Path(__file__).resolve().parents[2].joinpath("frontend").exists(),
+    reason="frontend sources not present",
+)
+def test_pet_tempers_match_frontend():
+    """PET_TEMPERS is duplicated across two languages (the ISO_ENVS drift
+    contract): the backend must accept every key lib/isoRoom.js defines."""
+    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    block = re.search(r"export const PET_TEMPERS = \[(.*?)\];", js, re.S)
+    assert block, f"couldn't find PET_TEMPERS in {ISO_ROOM_JS} — has it moved?"
+    keys = set(re.findall(r"key: \"(\w+)\"", block.group(1)))
+    assert keys, "found PET_TEMPERS but parsed no keys out of it"
+    from app import PET_TEMPERS
+
+    assert keys == set(PET_TEMPERS)
+
+
 def test_legacy_list_config_still_readable(app, client, auth):
     """Saves from before the iso room existed stored a bare list — GET must
     surface them as the flat layout, not error or hide them."""

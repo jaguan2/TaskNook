@@ -50,6 +50,8 @@ import {
   isoPresetLayout,
   newIsoPlacement,
   nextRot,
+  PET_TEMPERS,
+  cleanPetName,
   validateIsoLayout,
 } from "./lib/isoRoom";
 
@@ -1361,14 +1363,48 @@ export function StoreProvider({ children }) {
     setIsoRoom((prev) => {
       const cur = prev.placements.find((p) => p.id === id);
       // Its own updater rather than a call through to `moveIsoItem`, for the
-      // persona check: this is a write that happens OUTSIDE Decorate, so it
-      // must never become a route for moving furniture there. `prev` is the
-      // only honest place to ask what the id refers to.
-      if (!cur || !ISO_ITEMS[cur.item]?.persona) return prev;
+      // living-things check: this is a write that happens OUTSIDE Decorate,
+      // so it must never become a route for moving furniture there. Personas
+      // AND pets (roamers) qualify — carrying your cat somewhere is the same
+      // gesture as carrying your little self. `prev` is the only honest
+      // place to ask what the id refers to.
+      const it = cur && ISO_ITEMS[cur.item];
+      if (!cur || !(it?.persona || it?.roamer)) return prev;
       if (cur.gx === gx && cur.gy === gy) return prev;
       return {
         ...prev,
         placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+      };
+    });
+  }, []);
+  /**
+   * A pet's identity — name and temper — living ON its placement, because a
+   * pet IS a placement: two cats are two rows, each with its own name, and
+   * deleting the cat deletes the name with it. Refuses non-pets for the same
+   * reason walkIsoPersona refuses furniture. Values are cleaned here AND in
+   * validation (`cleanPetName` / the temper whitelist), so a bad write can't
+   * survive either path; "mellow" is the default and stored implicitly.
+   */
+  const setPetIdentity = useCallback((id, patch) => {
+    setIsoRoom((prev) => {
+      const cur = prev.placements.find((p) => p.id === id);
+      if (!cur || !ISO_ITEMS[cur.item]?.roamer) return prev;
+      const next = { ...cur };
+      if ("name" in patch) {
+        const name = cleanPetName(patch.name);
+        if (name) next.name = name;
+        else delete next.name;
+      }
+      if ("temper" in patch) {
+        const temper = PET_TEMPERS.some((t) => t.key === patch.temper && t.key !== "mellow")
+          ? patch.temper
+          : undefined;
+        if (temper) next.temper = temper;
+        else delete next.temper;
+      }
+      return {
+        ...prev,
+        placements: prev.placements.map((p) => (p.id === id ? next : p)),
       };
     });
   }, []);
@@ -2006,6 +2042,7 @@ export function StoreProvider({ children }) {
     leaveVisit,
     moveVisitGuest,
     walkIsoPersona,
+    setPetIdentity,
     setVisitAccess,
     applyIsoPreset,
     selfInRoom,

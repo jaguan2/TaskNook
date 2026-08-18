@@ -353,4 +353,15 @@ describe("the profile view and the wardrobe slots", () => {
       );
     }
   });
+
+  it("the cat and the dog have a real held pose (pets are carryable)", () => {
+    for (const pet of ["cat", "dog"]) {
+      const Sprite = ISO_SPRITES[pet];
+      const held = draw(<Sprite held />).container.innerHTML;
+      const front = draw(<Sprite awake facing="front" />).container.innerHTML;
+      // Its own drawing, not the front pose with a class on it.
+      expect(held).not.toBe(front);
+      expect(held).toContain("held-dangle");
+    }
+  });
 });

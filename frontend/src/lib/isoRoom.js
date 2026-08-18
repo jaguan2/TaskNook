@@ -485,6 +485,47 @@ export function personaCanStand(gx, gy, layout, placements, selfId) {
 }
 
 /**
+ * May a PET be set down at gx,gy? Same open-floor rule as a persona's walk
+ * order but WITHOUT the seat exception — there's no seated-cat drawing, so a
+ * pet dropped on a chair would float at cushion depth. Rugs stay legal (layer
+ * −1 doesn't block), which is where a cat wants to be anyway.
+ */
+export function petCanStand(gx, gy, layout, placements, selfId, item) {
+  const foot = footOf(item, 0);
+  if (!footprintFree(gx, gy, foot, layout)) return false;
+  return !placements.some((o) => {
+    if (o.id === selfId) return false;
+    const it = ISO_ITEMS[o.item];
+    if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
+    const of = footOf(o.item, o.rot);
+    return (
+      gx < o.gx + of[0] && o.gx < gx + foot[0] && gy < o.gy + of[1] && o.gy < gy + foot[1]
+    );
+  });
+}
+
+/**
+ * PET TEMPERS — how a pet's personality reaches the wander engine. Three
+ * numbers each: `chance` (how often a roam tick actually moves them),
+ * `stay` (how sticky a soft spot is once they've curled up on it) and
+ * `range` (how far from home they drift). Mellow is the default and matches
+ * the engine's classic behaviour, so an unnamed pet acts exactly as pets
+ * always did. The keys are mirrored in backend app.py (`PET_TEMPERS`) —
+ * same both-languages contract as ISO_ENVS.
+ */
+export const PET_TEMPERS = [
+  { key: "mellow", label: "Mellow", chance: 1, stay: 0.8, range: 1.5 },
+  { key: "curious", label: "Curious", chance: 1, stay: 0.4, range: 2.6 },
+  { key: "sleepy", label: "Sleepy", chance: 0.3, stay: 0.96, range: 0.8 },
+];
+export const petTemper = (key) =>
+  PET_TEMPERS.find((t) => t.key === key) || PET_TEMPERS[0];
+// A pet's name: short, trimmed, and never just whitespace.
+export const PET_NAME_MAX = 16;
+export const cleanPetName = (raw) =>
+  typeof raw === "string" ? raw.trim().slice(0, PET_NAME_MAX) : "";
+
+/**
  * Where a persona is actually drawn once they've been seated, and how deep.
  * Render-time only: the stored gx/gy never changes, so persistence, validation
  * and the drag engine know nothing about it.
@@ -994,7 +1035,25 @@ export function validateIsoLayout(raw) {
       if (unique.has(p.item)) continue;
       unique.add(p.item);
     }
-    clean.push({ id, item: p.item, gx, gy, ...(rot && { rot }), ...(tint && { tint }) });
+    // Pet identity rides the placement (a pet IS a placement): a short name
+    // and a temper, both validated here so a hand-edited blob can't smuggle
+    // in an essay or an unknown personality. Pets only — furniture with a
+    // name is a bug wearing a collar.
+    const name = ISO_ITEMS[p.item].roamer ? cleanPetName(p.name) : "";
+    const temper =
+      ISO_ITEMS[p.item].roamer && PET_TEMPERS.some((t) => t.key === p.temper && t.key !== "mellow")
+        ? p.temper
+        : undefined;
+    clean.push({
+      id,
+      item: p.item,
+      gx,
+      gy,
+      ...(rot && { rot }),
+      ...(tint && { tint }),
+      ...(name && { name }),
+      ...(temper && { temper }),
+    });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }
   return {

@@ -91,6 +91,8 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       save(`cat-${f}`, <Cat awake facing={f} />, "-44 -48 88 62");
       save(`dog-${f}`, <Dog awake facing={f} />, "-44 -48 88 62");
     }
+    save(`cat-held`, <Cat held />, "-44 -48 88 62");
+    save(`dog-held`, <Dog held />, "-44 -48 88 62");
     expect(count).toBeGreaterThan(0);
   });
 });

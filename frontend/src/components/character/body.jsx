@@ -620,6 +620,10 @@ export function Arm({
   // Luminance-adaptive strengths from toneFor(the sleeve's colour) — the
   // assembly computes it once, since only it knows which hex is outermost.
   tone = { shade: 1, glint: 1 },
+  // The PROFILE arm rests ON a like-coloured torso: edge tones there turn
+  // the limb into a painted stripe (owner screenshot, twice), so the side
+  // view switches them off and lets the contact shadow do the separating.
+  edges = true,
 }) {
   // The shoulder is BURIED in the torso — the arm grows out of the body
   // rather than standing beside it. Started outside the torso edge, the
@@ -673,8 +677,8 @@ export function Arm({
           from opposite sides of the room. The far arm still takes the overall
           depth wash on top (its whole limb falls away), same rule as the far
           trouser leg. */}
-      {line(`M ${S.x + w / 4} ${S.y + 1} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 1}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint)}
-      {line(`M ${S.x - w / 4} ${S.y + 1.4} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 1}`, SHADE, w / 2.9, 0.13 * tone.shade)}
+      {edges && line(`M ${S.x + w / 4} ${S.y + 1} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 1}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint)}
+      {edges && line(`M ${S.x - w / 4} ${S.y + 1.4} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 1}`, SHADE, w / 2.9, 0.13 * tone.shade)}
       {/* a short sleeve's HEM — the crossbar is what makes the bare forearm
           read as a hemline rather than a glitch in the sleeve */}
       {shortSleeve && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}

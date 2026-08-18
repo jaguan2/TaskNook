@@ -1070,7 +1070,30 @@ running `git commit` yourself.
   memo'd scene only re-renders on start/stop, not per tick). Items with
   `roamer: true` (the cat) share the wander engine with cat rules: awake
   walking pose while out roaming; once its spot overlaps any `layer:-1`
-  item (rug/blanket) it curls up asleep and mostly stays (80% per tick).
+  item (rug/blanket) it curls up asleep and mostly stays — how mostly is
+  the TEMPER now (see below).
+  **PETS are yours to pick up and to name** (owner request, 2026-08-18).
+  At home, `walkableBy` arms roamers alongside personas: dragging a cat or
+  dog picks it up (each has a real `held` scruff-hold drawing — stretched
+  body, dangling hind legs — pinned by IsoItems.test), the landing rule is
+  `petCanStand` (the persona rule WITHOUT the seat exception: there's no
+  seated-pet drawing), and the store's `walkIsoPersona` accepts
+  persona-or-roamer, still refusing furniture. A pet's IDENTITY — `name`
+  (≤16 chars) and `temper` — lives ON its placement, because a pet IS a
+  placement: two cats are two rows, and removing one takes its name along.
+  `PET_TEMPERS` (mellow default/curious/sleepy, lib/isoRoom.js) reaches
+  the wander engine as three numbers — move chance per tick, soft-spot
+  stickiness, drift range — so a curious pet ranges the room and won't
+  settle while a sleepy one barely leaves its spot; "mellow" is stored
+  implicitly (the env/walls contract) and the key list is mirrored in
+  app.py's `PET_TEMPERS` (both-languages drift guard in test_room.py,
+  which also pins the name/temper round-trip — the backend bounds the
+  values without knowing which items are pets, same stance as `rot`).
+  The **Pets section lives in the Profile panel** ("who you are, and who
+  lives here"): one row per placed pet — real sprite thumbnail, name field
+  (saves on blur), temper pills. The name shows above the pet while you
+  carry it (HeldFigure's `label`, which also restored the carried guest's
+  tag on visits).
   **Things on tables**: an item marked `stacks` whose centre lands on one with
   a `surface` height renders lifted onto it (`surfaceFor` →
   `stackedPlacement`) — render-time only, same as seating, so persistence and

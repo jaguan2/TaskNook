@@ -98,7 +98,7 @@ const notchShadows = (headY, { sideX, baseY }, clumps, picks) => {
   }
   return (
     <g fill="#000" opacity="0.13">
-      {picks
+      {[...new Set(picks)]
         .filter((i) => i >= 0 && i < notches.length)
         .map((i) => (
           <path

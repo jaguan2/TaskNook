@@ -344,6 +344,11 @@ ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
 # default"; the frontend stores it only when it actually overrides.
 ISO_WALLS = ("full", "low", "none")
 
+# Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same
+# both-languages contract). "mellow" is the default and stored implicitly,
+# but a client sending it explicitly is legal.
+PET_TEMPERS = ("mellow", "curious", "sleepy")
+
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
 VISIT_ACCESS_LEVELS = ("public", "friends", "invite", "private")
@@ -760,6 +765,22 @@ def register_routes(app):
                     return None, False
                 if rot:
                     entry["rot"] = rot
+            # Pet identity: a NAME and a TEMPER ride the placement (pets ARE
+            # placements). Same bounded-not-knowing stance as rot: which items
+            # are pets is catalog (frontend) knowledge, so this only bounds the
+            # values — the client's validateIsoLayout strips them from
+            # non-pets on read. PET_TEMPERS mirrors lib/isoRoom.js (the
+            # both-languages contract, like ISO_ENVS).
+            name = p.get("name")
+            if name is not None:
+                if not (isinstance(name, str) and 0 < len(name.strip()) <= 16):
+                    return None, False
+                entry["name"] = name.strip()
+            temper = p.get("temper")
+            if temper is not None:
+                if temper not in PET_TEMPERS:
+                    return None, False
+                entry["temper"] = temper
             clean.append(entry)
         return clean, True
 

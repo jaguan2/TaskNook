@@ -305,6 +305,27 @@ describe("validateIsoLayout", () => {
     expect(out.placements[1].tint).toBeUndefined();
   });
 
+  it("keeps a pet's name and temper, cleans bad ones, refuses them on furniture", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "a", item: "cat", gx: 2, gy: 2, name: "  Mochi  ", temper: "curious" },
+        // "mellow" is the default and stored implicitly, like env "room"
+        { id: "b", item: "dog", gx: 5, gy: 2, temper: "mellow" },
+        { id: "c", item: "cat", gx: 2, gy: 5, name: "x".repeat(40), temper: "feral" },
+        { id: "d", item: "stool", gx: 6, gy: 5, name: "Chair-kun", temper: "curious" },
+      ],
+    });
+    expect(out.placements[0].name).toBe("Mochi");
+    expect(out.placements[0].temper).toBe("curious");
+    expect(out.placements[1].temper).toBeUndefined();
+    expect(out.placements[2].name).toHaveLength(16);
+    expect(out.placements[2].temper).toBeUndefined();
+    expect(out.placements[3].name).toBeUndefined();
+    expect(out.placements[3].temper).toBeUndefined();
+  });
+
   it("wraps an out-of-range rot into the item's real facings", () => {
     // A sofa has four (it ships a back view), so 7 wraps to 3 rather than
     // being thrown away. A picture frame has two whatever you write.
