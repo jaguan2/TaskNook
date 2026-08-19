@@ -366,9 +366,10 @@ function CatFace({ x, y, r, asleep, fur, earL, earR, eye = "#ffe9b0", brow, muzz
       {/* a calico's colour cap over one side of the skull — before the ears
           so their wedges stay crisp on top of it */}
       {cap && <ellipse cx={x - r * 0.42} cy={y - r * 0.5} rx={r * 0.68} ry={r * 0.56} fill={cap} opacity="0.92" />}
-      {/* the skull is a sphere — same volume gradient as every round mass */}
+      {/* the skull is a sphere — same volume gradient as every round mass.
+          (The old flat sheen ellipse went with it: stacked on the gradient
+          it read as a smudge, the hair-sheen lesson again.) */}
       {vol && <circle cx={x} cy={y} r={r} fill={vol} />}
-      <ellipse cx={x - 2} cy={y - r * 0.4} rx={r * 0.6} ry={r * 0.34} fill="#fff" opacity="0.09" />
       {/* ears: outer wedge on the skull, pink inner wedge inside it */}
       <polygon points={`${x - r * 0.8},${y - r * 0.6} ${x - r * 0.5},${y - r * 1.75} ${x + r * 0.05},${y - r * 0.8}`} style={earLStyle} />
       <polygon points={`${x - r * 0.62},${y - r * 0.75} ${x - r * 0.48},${y - r * 1.36} ${x - r * 0.17},${y - r * 0.87}`} fill="#e8a3a8" opacity="0.5" />
@@ -492,7 +493,11 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
             </>
           )}
           <ellipse cx="0" cy="-16" rx="8.4" ry="13.5" fill={vol} />
-          <ellipse cx="-2.4" cy="-21" rx="4.4" ry="7.5" fill="#fff" opacity="0.08" />
+          {/* fur grain down the stretched flank */}
+          <g stroke="#000" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.1">
+            <path d="M-5 -22 q1.2 2.6 0.4 4.8" />
+            <path d="M4 -16 q1.1 2.4 0.4 4.4" />
+          </g>
           <ellipse cx="0" cy="-7" rx="6.2" ry="4.4" fill="#000" opacity="0.14" />
           {/* front legs pinned tight to the chest by the hold */}
           {[-6.2, 2.4].map((x) => (
@@ -647,7 +652,13 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
           {/* the two masses each round off — haunch first, then the barrel */}
           <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" fill={vol} />
           <ellipse cx="-1" cy="-18" rx="17" ry="9" fill={vol} />
-          <ellipse cx="-3" cy="-22" rx="10" ry="4" fill="#fff" opacity="0.09" />
+          {/* fur grain along the barrel, one pale stroke on the haunch */}
+          <g stroke="#000" strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.11">
+            <path d="M-8.5 -21.5 q1.6 2.6 0.6 5" />
+            <path d="M-1.5 -22.5 q1.7 2.8 0.5 5.4" />
+            <path d="M5 -23.5 q1.5 2.6 0.7 4.8" />
+          </g>
+          <path d="M10.5 -24.5 q1.3 2.2 0.5 4.2" stroke="#fff" strokeWidth="0.9" fill="none" opacity="0.07" strokeLinecap="round" />
           <ellipse cx="-1" cy="-12.5" rx="15" ry="3.6" fill="#000" opacity="0.16" />
           {/* the near pair joins the diagonals: front on A, rear on B */}
           <g className={moving ? "leg-trot-a" : undefined}>
@@ -698,8 +709,12 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
         {/* the curl is one soft loaf — the volume rounds it as a single mass */}
         <ellipse cx="0" cy="-7" rx="22" ry="11.5" fill={vol} />
         <ellipse cx="9" cy="-12" rx="12" ry="9" fill={vol} opacity="0.7" />
-        <ellipse cx="8" cy="-15" rx="7" ry="3.4" fill="#fff" opacity="0.07" />
-        <ellipse cx="-3" cy="-11" rx="12" ry="4.5" fill="#fff" opacity="0.07" />
+        {/* fur grain following the curl */}
+        <g stroke="#000" strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.1">
+          <path d="M-6 -14 q1.8 3 0.6 5.6" />
+          <path d="M12.5 -12 q1.6 2.6 0.5 5" />
+          <path d="M3 -16 q1.5 2.6 0.5 4.6" />
+        </g>
         <ellipse cx="0" cy="-2.5" rx="20" ry="5.5" fill="#000" opacity="0.2" />
         <CatFace x={-14} y={-13} r={8.2} asleep fur={fur} {...face} />
         {/* front paws tucked under the chin */}
@@ -4425,7 +4440,10 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
           {spots([[-3.4, -20.5, 2.4], [3.4, -12.5, 2.2], [1, -25, 1.8]])}
           {cream && <ellipse cx="0" cy="-11" rx="5.6" ry="6.8" fill={cream} opacity="0.5" />}
           <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" fill={vol} />
-          <ellipse cx="-2.4" cy="-20" rx="4.6" ry="6.5" fill="#fff" opacity="0.08" />
+          <g stroke="#000" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.1">
+            <path d="M-5.2 -21 q1.2 2.4 0.4 4.6" />
+            <path d="M4.2 -15 q1.1 2.2 0.4 4.2" />
+          </g>
           {[-6.8, 2.6].map((x) => (
             <g key={x}>
               <rect x={x} y="-25.5" width="4.2" height="9" rx="2.1" style={fur} />
@@ -4477,14 +4495,27 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
             {spots([[-4.5, -17, 2.3], [4.2, -13, 2.1]])}
             {!rear && cream && <ellipse cx="0" cy="-12.5" rx="6" ry="4.4" fill={cream} opacity="0.5" />}
             <ellipse cx="0" cy="-15" rx={B?.longer ? 11.5 : 10.5} ry="8" fill={vol} />
-            <ellipse cx="0" cy="-18.5" rx="6.8" ry="2.8" fill="#fff" opacity="0.09" />
+            {/* fur grain */}
+            <g stroke="#000" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.1">
+              <path d="M-7.5 -17.5 q1.3 2.2 0.5 4" />
+              <path d="M6.5 -16.5 q1.2 2 0.4 3.6" />
+            </g>
             <ellipse cx="0" cy="-10.5" rx="8.6" ry="2.8" fill="#000" opacity="0.16" />
             {rear ? (
               <g>
+                {/* the back read, dog edition: haunch mounds + tail root +
+                    spine crease — same grammar as the cat's */}
+                <ellipse cx="-4.4" cy="-11" rx="4.7" ry="3.7" style={fur} />
+                <ellipse cx="4.4" cy="-11" rx="4.7" ry="3.7" style={fur} />
+                <ellipse cx="-4.4" cy="-11" rx="4.7" ry="3.7" fill={vol} />
+                <ellipse cx="4.4" cy="-11" rx="4.7" ry="3.7" fill={vol} />
+                <path d="M0 -13 L0 -8.2" stroke="#000" strokeWidth="1.1" opacity="0.2" strokeLinecap="round" />
+                <path d="M0 -19.5 L0 -14" stroke="#000" strokeWidth="0.9" opacity="0.1" strokeLinecap="round" />
+                <ellipse cx="4.8" cy="-13" rx="2.3" ry="1.9" style={fur} />
                 <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" style={fur} />
                 {B?.spots && <ellipse cx="1.8" cy="-28" rx="2.2" ry="1.8" fill={B.spots} opacity="0.9" />}
                 <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" fill={vol} />
-                <ellipse cx="-1.6" cy="-27.6" rx="4.2" ry="2.2" fill="#fff" opacity="0.08" />
+                <path d="M-3.2 -18.9 q3.2 1.5 6.4 0" stroke="#000" strokeWidth="0.9" fill="none" opacity="0.16" strokeLinecap="round" />
                 {(B?.ears || "folded") === "folded" ? (
                   <>
                     <ellipse cx="-6.4" cy="-24.6" rx="2.5" ry="4.6" style={B?.earColor ? { fill: B.earColor } : fur} />
@@ -4554,6 +4585,13 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
             {/* haunch and barrel round off as two soft masses */}
             <ellipse cx={B?.longer ? 7 : 6} cy="-19" rx="11" ry="9" fill={vol} />
             <ellipse cx="-3" cy="-18" rx={B?.longer ? 18 : 16} ry="8.5" fill={vol} />
+            {/* fur grain along the barrel */}
+            <g stroke="#000" strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.1">
+              <path d="M-9.5 -20.5 q1.6 2.6 0.6 4.8" />
+              <path d="M-2.5 -21.5 q1.6 2.7 0.5 5.2" />
+              <path d="M4 -22.5 q1.5 2.5 0.6 4.6" />
+            </g>
+            <path d="M9.5 -23.5 q1.3 2.2 0.5 4" stroke="#fff" strokeWidth="0.9" fill="none" opacity="0.07" strokeLinecap="round" />
             <ellipse cx="-2" cy="-12" rx="14" ry="3.4" fill="#000" opacity="0.16" />
             {/* the near pair joins the diagonals: front on A, rear on B */}
             <g className={moving ? "leg-trot-a" : undefined}>
@@ -4603,6 +4641,11 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
         {cream && <ellipse cx="-6" cy="-9" rx="12" ry="5" fill={cream} opacity="0.4" />}
         <ellipse cx="0" cy="-7" rx="21" ry="10.5" fill={vol} />
         <ellipse cx="8" cy="-11" rx="11" ry="8" fill={vol} opacity="0.7" />
+        {/* fur grain following the loaf */}
+        <g stroke="#000" strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.1">
+          <path d="M-4 -13 q1.7 2.8 0.6 5.2" />
+          <path d="M12 -11 q1.5 2.5 0.5 4.8" />
+        </g>
         <ellipse cx="0" cy="-2.5" rx="19" ry="5" fill="#000" opacity="0.2" />
         <DogHead x={-14} y={-12} r={8} asleep {...headProps} />
         {/* muzzle resting on the front paws — the pose that reads as content */}

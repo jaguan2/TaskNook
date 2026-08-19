@@ -7,11 +7,13 @@ import {
   breakNudgeLine,
   chatTitle,
   dailyCheckIn,
+  dayPartOf,
   dialogueOptions,
   groupResponders,
   nudgeSpeaker,
   replyDelayMs,
   replyToOption,
+  topicOf,
   whenLabel,
 } from "./chat";
 import { npcActivity } from "./visiting";
@@ -378,5 +380,75 @@ describe("friendship warms the dialogue", () => {
       const quoted = reply.match(/(\d+)\s*(?:m\b|minutes)/);
       if (quoted) expect(Number(quoted[1])).toBe(minutesLeft);
     }
+  });
+});
+
+// The personality round (2026-08-19): every neighbour speaks in their own
+// voice, topics rotate through the day, and typed text routes through the
+// same intent tables as the menu.
+describe("voices, rotation and the free-form field", () => {
+  it("two bots never answer the same moment in the same words", () => {
+    for (const state of ["focus", "break", "idle"]) {
+      const now = instantWhere("luna", state);
+      // Same instant, same seed, same prompt — the voices are the only
+      // variable, and they must actually differ.
+      expect(botReply("luna", "hello?", now, 3)).not.toBe(botReply("kai", "hello?", now, 3));
+      expect(botReply("kai", "hello?", now, 3)).not.toBe(botReply("mochi", "hello?", now, 3));
+    }
+  });
+
+  it("dayPartOf splits the local day in three", () => {
+    expect(dayPartOf(new Date(2026, 7, 19, 9))).toBe("morning");
+    expect(dayPartOf(new Date(2026, 7, 19, 14))).toBe("afternoon");
+    expect(dayPartOf(new Date(2026, 7, 19, 21))).toBe("evening");
+  });
+
+  it("what a bot studies is stable within a band and comes from its own list", () => {
+    const morning = new Date(2026, 7, 19, 9, 0).getTime();
+    const laterMorning = new Date(2026, 7, 19, 11, 30).getTime();
+    expect(topicOf("luna", morning)).toBe(topicOf("luna", laterMorning));
+    // And rotates SOMEWHERE across the day/bots — with five topics and three
+    // bands, at least one boundary must move for someone.
+    const evening = new Date(2026, 7, 19, 20, 0).getTime();
+    const moved = ["luna", "kai", "sora", "mochi"].some(
+      (u) => topicOf(u, morning) !== topicOf(u, evening)
+    );
+    expect(moved).toBe(true);
+  });
+
+  it("the menu rotates through the day", () => {
+    // Structural: the tables themselves offer different mornings and
+    // evenings — resolved through the real dialogueOptions at instants in
+    // each band with whatever state holds there, the ids must not be one
+    // fixed set all day for all states.
+    const sets = new Set();
+    for (const h of [9, 14, 20]) {
+      const now = new Date(2026, 7, 19, h).getTime();
+      sets.add(dialogueOptions("luna", now).map((o) => o.id).join(","));
+    }
+    expect(sets.size).toBeGreaterThan(1);
+  });
+
+  it("typed questions route into the option tables", () => {
+    const now = instantWhere("sora", "break");
+    // "what are you studying" typed by hand answers with the SAME rotating
+    // topic the menu's option would name.
+    const reply = botReply("sora", "what are you studying today?", now, 0);
+    expect(reply).toContain(topicOf("sora", now));
+  });
+
+  it("a low moment gets encouragement even mid-block", () => {
+    const now = instantWhere("luna", "focus");
+    const reply = botReply("luna", "I'm so tired and stressed", now, 1);
+    // Luna's own encouragement, not the brush-off focus line.
+    expect(reply).not.toContain("mid-block");
+    expect(reply.length).toBeGreaterThan(10);
+  });
+
+  it("a plain statement gets an acknowledgement, not a kettle non-sequitur", () => {
+    const now = instantWhere("mochi", "idle");
+    const reply = botReply("mochi", "I reorganised my whole desk today", now, 2);
+    expect(typeof reply).toBe("string");
+    expect(reply.length).toBeGreaterThan(0);
   });
 });

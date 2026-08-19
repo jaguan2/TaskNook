@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
 import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
+import { useArmed } from "../lib/useArmed";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
@@ -389,17 +390,39 @@ function Swatches({ options, value, onPick, label }) {
  * won't settle on a rug; a sleepy one barely leaves its spot. The name shows
  * when you pick the pet up in the room.
  */
-function PetsSection({ isoRoom, setPetIdentity }) {
+function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
   const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
+  // Rehoming is a delete of someone with a NAME — the two-tap armed "sure?"
+  // guard, same grammar as every other delete of user data.
+  const [armedId, arm] = useArmed();
   return (
     <section>
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
         <PawPrint size={15} className="text-petal/70" /> Your pets
       </p>
+      {/* Adopt from right here — the section is "who lives here", and going
+          via the Room panel's furniture shelf to get a PET read as shopping.
+          addIsoItem already owns the cap and no-floor refusal toasts. */}
+      <div className="mb-2 flex flex-wrap gap-2">
+        {[
+          ["cat", "🐈 Adopt a cat"],
+          ["dog", "🐕 Adopt a dog"],
+          ["bunny", "🐇 Adopt a rabbit"],
+        ].map(([item, label]) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => addIsoItem(item)}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-petal transition hover:border-glow/50 hover:text-cream"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {pets.length === 0 ? (
         <p className="text-xs text-petal/50">
-          No pets yet — adopt one from the Room panel&apos;s Living things shelf,
-          then name it here.
+          No pets yet — adopt one above and it appears in your room, ready to
+          name.
         </p>
       ) : (
         <div className="space-y-2">
@@ -408,8 +431,22 @@ function PetsSection({ isoRoom, setPetIdentity }) {
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2"
+                className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2"
               >
+                {/* Finding a new home is a delete wearing kind words — the
+                    armed "sure?" guard applies like everywhere else. */}
+                <button
+                  type="button"
+                  onClick={() => arm(p.id, () => removeIsoItem(p.id))}
+                  title={armedId === p.id ? "Really find them a new home?" : "Find a new home"}
+                  className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${
+                    armedId === p.id
+                      ? "bg-danger/20 text-danger"
+                      : "text-petal/50 hover:bg-white/10 hover:text-cream"
+                  }`}
+                >
+                  {armedId === p.id ? "sure?" : "new home"}
+                </button>
                 <svg
                   viewBox="-9 -26 32 40"
                   className="h-14 w-12 shrink-0"
@@ -643,6 +680,8 @@ export default function ProfilePanel() {
     setVisitAccess,
     isoRoom,
     setPetIdentity,
+    addIsoItem,
+    removeIsoItem,
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
@@ -999,7 +1038,12 @@ export default function ProfilePanel() {
 
       <hr className="border-white/10" />
 
-      <PetsSection isoRoom={isoRoom} setPetIdentity={setPetIdentity} />
+      <PetsSection
+        isoRoom={isoRoom}
+        setPetIdentity={setPetIdentity}
+        addIsoItem={addIsoItem}
+        removeIsoItem={removeIsoItem}
+      />
 
       <hr className="border-white/10" />
 

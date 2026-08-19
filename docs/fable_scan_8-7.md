@@ -1308,3 +1308,40 @@ vocabulary), not more articulation.
 - Next: glasses accessory slot (agent rank 5), tank top (needs assembly
   bare-shoulder wiring), cape (arm suppression), the three.js spike when
   the owner wants to spend the days.
+- [x] **DONE (2026-08-19, follow-up)**: the ink cat's rear read as a broken
+  face-less front (owner screenshot) — the sphere highlight was too strong
+  on near-black fur AND stacked on the old flat sheen ellipses. Fixed three
+  ways: sphere glint 0.26 → 0.14 (comment in volume.jsx records the rule),
+  the redundant flat sheens removed wherever a volume overlay exists, and
+  the REAR poses got a real back read — two haunch mounds with the tail
+  knotted between them, spine + nape creases (cat and dog). Plus a
+  FUR-GRAIN pass: 2–3 unequal tapered strokes per mass (the hair texture
+  doctrine, on fur), every pose, both animals.
+
+## 10. The social round (2026-08-19, same day)
+
+- [x] **Adopt / new home** — the Profile panel's Pets section now owns the
+  whole lifecycle: three Adopt buttons (routed through addIsoItem, so the
+  cap and no-floor toasts apply) and a per-pet "new home" button behind the
+  shared armed-"sure?" guard. Rehoming is a delete wearing kind words; it
+  gets the delete grammar.
+- [x] **Voices** — lib/chat.js `VOICE`: luna (night-owl), kai (early bird),
+  sora (bookworm), mochi (café keeper) each own their focus/break/idle,
+  greeting/thanks/bye, joke/encourage/ack, check-in and TOPIC pools.
+  Replacement, not merging — CLOSE_LINES stays additive (warmth widens,
+  personality swaps).
+- [x] **Rotation** — `topicOf(username, now)` picks per (bot, day,
+  third-of-day), so "what are you working on" changes morning → evening →
+  tomorrow; `blocksLeftOf` holds per day so "how long are you on for?"
+  keeps its story. The MENU itself is state × dayPart now: mornings offer
+  "What's the plan today?", evenings "Calling it a night soon?".
+- [x] **Free-form line** — a text input under the menu (menu stays primary).
+  Typed text routes through `intentOf`: study/join/how-long questions land
+  in the SAME option tables as the menu (typed "what are you studying"
+  answers with the rotating topic), jokes and low-mood messages get their
+  own per-voice pools (encouragement even interrupts a focus block — a
+  friend looks up for that), and unrecognised statements get an in-character
+  acknowledgement instead of a kettle non-sequitur.
+- Verified: 912 frontend tests (7 new voice/rotation pins), lint clean,
+  real-app run — adopt/rehome exercised, typed question answered in-voice,
+  zero console errors. Exe rebuilt + self-tested.

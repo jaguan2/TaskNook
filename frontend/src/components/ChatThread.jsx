@@ -27,6 +27,8 @@ export default function ChatThread({ chat, onBack }) {
   const { user, sendChatMessage, markChatRead, deleteChat } = useStore();
   const [messages, setMessages] = useState(null);
   const [sending, setSending] = useState(false);
+  // The free-form line — local until sent, like every draft in the app.
+  const [typed, setTyped] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [armedId, arm] = useArmed();
   const scroller = useRef(null);
@@ -197,6 +199,44 @@ export default function ChatThread({ chat, onBack }) {
             {o.label}
           </button>
         ))}
+        {/* The free-form line under the menu (owner, 2026-08-19). The menu
+            stays primary — it advertises what the bots answer WELL — but
+            typed text goes through the same intent recognisers (lib/chat.js
+            intentOf), so "how long are you on for?" typed by hand lands the
+            same per-friend answer as the menu line, and anything the
+            recognisers don't know gets an in-character acknowledgement
+            rather than a non-sequitur. */}
+        <form
+          className="flex gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const text = typed.trim();
+            if (!text || sending) return;
+            setTyped("");
+            setSending(true);
+            Promise.resolve(sendChatMessage(chat, text, setMessages)).finally(() =>
+              setSending(false)
+            );
+          }}
+        >
+          <input
+            type="text"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder="…or say it your way"
+            maxLength={280}
+            aria-label="Type a message"
+            className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream placeholder:text-petal/40 focus:border-glow/50 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={sending || !typed.trim()}
+            className="pill bg-white/10 px-3 py-2 text-sm text-petal transition hover:bg-white/20 disabled:opacity-40"
+            aria-label="Send"
+          >
+            ↑
+          </button>
+        </form>
       </div>
     </div>
   );
