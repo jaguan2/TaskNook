@@ -91,6 +91,7 @@ export default function SettingsPanel() {
             step="0.05"
             value={brightness}
             onChange={(e) => setBrightness(Number(e.target.value))}
+            aria-label="Scene brightness"
             className="flex-1 accent-glow"
           />
           <span className="text-xs text-petal/60">bright</span>

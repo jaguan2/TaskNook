@@ -61,6 +61,7 @@ function TaskDetails({ task, editTask, onClose }) {
         onChange={(e) => setName(e.target.value)}
         onBlur={() => commit({ name: name.trim() || task.name })}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        maxLength={200}
         aria-label="Task name"
         className="w-full rounded-md bg-white/10 px-2 py-1 text-sm text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
@@ -69,6 +70,7 @@ function TaskDetails({ task, editTask, onClose }) {
         onChange={(e) => setNotes(e.target.value)}
         onBlur={() => commit({ notes })}
         rows={2}
+        maxLength={2000}
         placeholder="Notes…"
         aria-label="Notes"
         className="cozy-scroll w-full resize-none rounded-md bg-white/10 px-2 py-1 text-xs text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
@@ -359,6 +361,7 @@ export default function HudTasks({ onOpenTasks }) {
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
                 onBlur={submitGroup}
+                maxLength={60}
                 placeholder="Group name"
                 className="w-24 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-cream placeholder:text-petal/40 outline-none"
               />
@@ -393,13 +396,24 @@ export default function HudTasks({ onOpenTasks }) {
                   {section.key}
                 </span>
                 <span className="h-px flex-1 bg-white/10" />
+                {/* Armed like the row deletes: ungrouping is unrecoverable
+                    (the quick-add select is the only way back INTO a group),
+                    so one stray tap mustn't scatter a whole section. */}
                 <button
-                  onClick={() => removeTaskGroup(section.key)}
+                  onClick={() => arm(`group:${section.key}`, () => removeTaskGroup(section.key))}
                   title="Remove group (its tasks stay, ungrouped)"
-                  aria-label="Remove group (its tasks stay, ungrouped)"
-                  className="hover-reveal px-1 text-xs text-petal/30 transition hover:text-danger"
+                  aria-label={
+                    confirmId === `group:${section.key}`
+                      ? "Tap again to remove this group"
+                      : "Remove group (its tasks stay, ungrouped)"
+                  }
+                  className={`hover-reveal px-1 transition ${
+                    confirmId === `group:${section.key}`
+                      ? "confirming text-[10px] font-bold text-danger"
+                      : "text-xs text-petal/30 hover:text-danger"
+                  }`}
                 >
-                  ✕
+                  {confirmId === `group:${section.key}` ? "sure?" : "✕"}
                 </button>
               </div>
               {section.tasks.length === 0 && (
@@ -435,6 +449,7 @@ export default function HudTasks({ onOpenTasks }) {
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          maxLength={200}
           placeholder="＋ New Task"
           className="min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-cream placeholder:text-petal/40 outline-none"
         />

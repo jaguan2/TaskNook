@@ -535,6 +535,56 @@ export const HAIR_REGISTRY = {
   curly: {
     // A same-tone backing dome with coils riding its edge — the coils ARE
     // the outline's teeth, in circle form.
+    // From behind the coils still tooth the outline down to the nape — the
+    // default dome smoothed the cloud into a swim cap (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.8} r={R + 1.6} fill={color} />
+        {[
+          [-5.8, -3.8, 3.3],
+          [-2, -5.8, 3.4],
+          [1.9, -5.7, 3.4],
+          [5.4, -3.7, 3.3],
+          [7, -0.4, 2.7],
+          [-7, -0.4, 2.7],
+          [4.6, 4.8, 2.4],
+          [-4.6, 4.8, 2.4],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        {/* interior curl marks — the same C-arc grammar as the front */}
+        {[
+          [-3.4, -2.6, 2],
+          [2.8, -4, 2.2],
+          [-0.4, 1.8, 1.7],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+        {/* coil-top glints on the light side, never a straight band */}
+        {[
+          [2, -6.4, 2.4],
+          [5.4, -2.4, 2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
     // Profile: the cloud shifts back off the face; coils walk the outline
     // from the fringe over the crown down to the nape.
     side: ({ headY, color }) => (
@@ -665,6 +715,16 @@ export const HAIR_REGISTRY = {
   undercut: {
     // All the mass combed one way over a HIGH rim — bare skin below is the
     // style; the razor part is the one allowed line.
+    // The shaved band shows from behind too: the combed mass ends on its
+    // high rim with stubble below it down to the nape — the default dome
+    // grew the clipped sides back out (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.4" />
+        {wig(headY, color, { sideX: 7.9, apex: 9.6, baseY: -2 }, [ [9.8, 1.6], [6, 0.8], ], { lines: 2, lean: 0.8 })}
+        {shine(headY, 9.6)}
+      </>
+    ),
     // Profile is the undercut's money shot: the heavy top sweeps back and
     // ends on a hard rim well ABOVE the ear, clipped skin under it.
     side: ({ headY, color }) => (
@@ -714,6 +774,55 @@ export const HAIR_REGISTRY = {
   afro: {
     // The widest silhouette: a scalloped cloud, one tone, its own hairline
     // arc across the forehead — afros sit ON the hairline, they don't drape.
+    // From behind the cloud is unchanged — an afro is round from every
+    // angle, and the default dome clipped the widest cut in the set to a
+    // skull cap (sheet, 2026-08-19). No hairline arc: that's a face mark.
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 2.5} r={R + 3.1} fill={color} />
+        {[
+          [-8.2, -5.4, 3.8],
+          [-2.8, -8.2, 4],
+          [2.8, -8.2, 4],
+          [8.2, -5.4, 3.8],
+          [9.6, -0.8, 3.3],
+          [-9.6, -0.8, 3.3],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        {/* coil marks, spread wide — same C-arc grammar as the front */}
+        {[
+          [-5.2, -4.4, 2.2],
+          [1.4, -6.8, 2.4],
+          [5.6, -1.6, 2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+        {/* coil-top glints on the light side, never a straight band */}
+        {[
+          [2, -7.6, 2.6],
+          [6.6, -3, 2.2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
     // Profile: the same cloud, shifted a touch back; the hairline arc only
     // shows on the face side.
     side: ({ headY, color }) => (
@@ -837,6 +946,16 @@ export const HAIR_REGISTRY = {
     // rims ending ABOVE the ears with bare skin below — mass where the cut
     // grows it, skin where it's clipped (research; two failed attempts are
     // recorded in git history: a visor, then sideburn blocks).
+    // From behind the cut IS its nape: the cap stops on a high, LEVEL rim
+    // with clipped skin below it — the default dome buried the shaved band
+    // (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.4" />
+        {wig(headY, color, { sideX: 8.2, apex: 9.4, baseY: -1.8 }, [ [3.1, 1.1], [4.4, 1.5], [3.6, 1], [2.6, 1.3], [2.7, 0.9], ])}
+        {shine(headY, 9.4)}
+      </>
+    ),
     // Profile: the deep fringe grazes the brow and the rim runs high and
     // LEVEL, bare skin between it and the ear — the "two blocks" seen
     // edge-on. Its own path rather than the generic wig: the generic's

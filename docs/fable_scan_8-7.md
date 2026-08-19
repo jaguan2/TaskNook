@@ -1345,3 +1345,98 @@ vocabulary), not more articulation.
 - Verified: 912 frontend tests (7 new voice/rotation pins), lint clean,
   real-app run — adopt/rehome exercised, typed question answered in-voice,
   zero console errors. Exe rebuilt + self-tested.
+
+## 11. Free-time sweep (2026-08-19, same day)
+
+Two scouted audits (bugs/perf/a11y + art-catalog texture), then fixes.
+
+**Bugs & UX (all DONE):**
+- [x] MusicDock volume defaulted to 0 on a fresh install (`Number(null)` is 0
+  and `saved >= 0` accepted it) - stations played silently. Now falls to 70.
+- [x] Removing a task group was ONE tap and unrecoverable (nothing else can
+  re-group a task) - now behind the shared armed-"sure?" guard.
+- [x] Calendar computed "today" at render time - a window left open past
+  midnight kept ringing yesterday's cell. Now state on a 60s tick.
+- [x] FriendsPanel: failed friend-removal now toasts (the error line renders
+  off-screen from the row); a failed group-create keeps your member picks.
+- [x] maxLength on task name/notes/group inputs (200/2000/60, matching the
+  backend's silent clean_str truncation), TaskPanel add too.
+- [x] A11y batch: dock labels show on keyboard focus (group-focus-within);
+  play button + timer-options aria (with aria-expanded); TopBar IconToggle
+  aria-label + aria-pressed; MusicDock transport aria-labels; range sliders
+  named (brightness, 7 sound channels, room width/depth).
+
+**Furniture texture pass (audit-ranked weakest sprites):**
+- [x] Bookshelf faces were FIXED brown hues (MODELS.md par.4 violation - a
+  recoloured shelf kept two brown faces) - now tint + translucent black,
+  plus the TintedBox contact band it never had.
+- [x] Piano: contact band + top-edge catch (only large hand-rolled box
+  without weight).
+- [x] Bench rebuilt: feet + lifted seat + plank seams (was two floor-to-top
+  slabs reading as fence panels).
+- [x] Sofa/armchair cushions: tuck crease + front piping per cushion.
+- [x] Bed duvet: quilt seams + turn-back band (largest sprite, zero texture).
+- [x] Chair backrest: spindle seams, both facings.
+- [x] Crates: plank seams + corner battens on both crates.
+- [x] Planks on the bare tops: desk, side table, nightstand, cafe bar.
+- [x] Petbed: stitch ring + fleece tufts. Patterned rug: Fringe on both
+  ends. Striped rug: hand-fudged screen-space fringe swapped for the
+  shared grid-space Fringe helper.
+
+**Character registry gaps (audit):**
+- [x] sweater/tee/turtleneck had NO `side` draw (profile view showed a bare
+  torso) - side hem bands/collar edges added; shirt got cuffs + crisp
+  finish, overalls matte, dress knit.
+- [x] afro/curly/twoblock/undercut had no `back` - afro collapsed to a plain
+  disc from behind; now the lobed cloud / coil dome / shaved-nape caps.
+
+Verified: 912 frontend tests + lint green, art sheet re-rendered and
+reviewed (hair backs, three-colourway tops), real-app drive over Loft /
+Secret garden / Reading room presets with zero console errors. Exe rebuilt
++ self-tested.
+
+## 12. Expansion round (2026-08-19, same day)
+
+- [x] **Mood lighting set** - three new "Light & warmth" items, all stackable
+  (they live on nightstands) and all through the glow field so they dim
+  with the day: lavalamp (rocket cone silhouette, the WAX takes the tint),
+  mushroomlamp (overhung toadstool cap, bulb glow spills onto the stem),
+  moonlamp (cratered globe on a cradle, tintable: false - a green moon is
+  not a moon).
+- [x] **GLASSES - the third accessory slot** (owner wishlist). GLASSES in
+  profile.js (none/round/square/halfmoon), character/glasses.jsx registry
+  (front + side; nothing from behind - temple tips at a 7.3px skull are
+  noise), rendered inside the head's gesture group AFTER hair and hat so a
+  fringe can't bury the rims; stacks WITH hats, unlike hair. Deliberately
+  colour-less: frames are fixed ink the way shoe soles are fixed rubber.
+  Extras tab got the IconGrid with real worn previews; old saves fall back
+  to "none". Catalog<->registry pinned both ways + art-sheet fixtures
+  (240 pieces now).
+
+Verified: 920 frontend tests, lint clean, real-app drive - all three lamps
+placed and casting pools, round glasses equipped and visible on both the
+preview and the room resident, zero console errors. CLAUDE.md wardrobe
+paragraph updated. Exe rebuilt + self-tested.
+
+## 13. Body slimming retune (2026-08-19, same day)
+
+Owner feedback: "the models look like blobs" + "guy/girl should differ more".
+
+- [x] **Slimmer overall** - every build's base half-width down ~0.6px (the
+  old average torso was 19.2 x 17, nearly square); both waists pinched
+  (masc -1.0: a V, not a slab; fem -3.2: a smaller hourglass); limb bases
+  down ~0.2; WIDTH_RANGE re-derived to [6.2, 8.4] against the same guards.
+- [x] **Models further apart** - masc keeps its 9.6 shoulder on the narrower
+  base (+2.8 offset) while fem floors at MIN_SHOULDER across all builds;
+  and `limb` is a MODEL axis now: fem arms/legs 0.6px finer than masc.
+  Silhouette-only doctrine intact - the difference is shoulders, waist,
+  hem, limbs.
+- [x] body.test.js PINNED table re-baselined (the test's own comment says a
+  deliberate retune re-baselines it); classics limb pins updated; new pin:
+  masc-vs-fem limb delta is exactly 0.6.
+- MODELS.md par.2 updated with the retune note. Old saves with width > 8.4
+  clamp on load - the retune applied, not data loss.
+
+Verified: 920 tests + lint green; dressing-room zoom shots of both models
+(V-shoulders vs pinched waist clearly distinct), room-scale resident reads
+slim and leggy. Exe rebuilt + self-tested.

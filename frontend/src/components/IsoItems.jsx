@@ -118,11 +118,19 @@ function Stool() {
 
 function Bookshelf() {
   const box = isoBox(0, 0, 1.5, 0.7, 86);
+  const { B, C, D } = box.corners;
   return (
     <g>
+      {/* Faces are the tint + translucent black, never fixed darker hues —
+          a recoloured bookshelf used to keep two brown faces (MODELS.md §4). */}
       <polygon points={box.left} style={tinted("#a87f5f")} />
-      <polygon points={box.right} fill="#8f5d49" />
-      <polygon points={box.top} fill="#b58c6a" />
+      <polygon points={box.right} style={tinted("#a87f5f")} />
+      <polygon points={box.right} fill="#000" opacity="0.32" />
+      <polygon points={box.top} style={tinted("#a87f5f")} />
+      <polygon points={box.top} fill="#fff" opacity="0.08" />
+      {/* the contact band TintedBox pieces get for free */}
+      <polygon points={`${D.x},${D.y} ${C.x},${C.y} ${C.x},${C.y - 7} ${D.x},${D.y - 7}`} fill="#000" opacity="0.15" />
+      <polygon points={`${B.x},${B.y} ${C.x},${C.y} ${C.x},${C.y - 7} ${B.x},${B.y - 7}`} fill="#000" opacity="0.15" />
       <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
         {/* A row of identical rectangles reads as a barcode. Real shelves have
             books of different widths, one leaning into the gap, a stack lying
@@ -2151,6 +2159,16 @@ function Bed() {
             than the mattress, so its sides fall past the mattress edge —
             that's the drape. Stops short of the pillows. */}
         <TintedBox gx={0.05} gy={1.15} dx={W - 0.1} dy={D - 1.3} h={MAT + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
+        {/* Quilting + the turn-back. The duvet is the largest single surface
+            in the catalog and carried no texture at all — two seams each way
+            say quilted, and the lighter band at its head edge is the fold. */}
+        <g transform={`translate(0,${-(MAT + 4)})`}>
+          <polygon points={floorPatch(0.05, 1.15, W - 0.1, 0.16)} fill="#fff" opacity="0.12" />
+          <polygon points={floorPatch(0.09, 1.33, W - 0.18, 0.025)} fill="#000" opacity="0.12" />
+          <polygon points={floorPatch(0.09, 1.98, W - 0.18, 0.025)} fill="#000" opacity="0.09" />
+          <polygon points={floorPatch(0.68, 1.36, 0.025, D - 1.55)} fill="#000" opacity="0.09" />
+          <polygon points={floorPatch(1.31, 1.36, 0.025, D - 1.55)} fill="#000" opacity="0.09" />
+        </g>
       </g>
     </g>
   );
@@ -2253,6 +2271,18 @@ function Upholstered({ w, seats, back = false }) {
                   mid={0.1}
                 />
               ))}
+              {/* Per-cushion upholstery marks: a tuck crease where the cushion
+                  meets the back, a piping catch along the front edge. Eleven
+                  boxes with zero seams read as blocks, not upholstery — the
+                  pouf's stitch ring and the cushion's tuft set the grammar. */}
+              <g transform="translate(0,-7)">
+                {Array.from({ length: seats }, (_, i) => (
+                  <g key={`seam-${i}`}>
+                    <polygon points={floorPatch(at(i) + 0.08, BACK + 0.09, cw - 0.16, 0.03)} fill="#000" opacity="0.13" />
+                    <polygon points={floorPatch(at(i) + 0.08, D - 0.2, cw - 0.16, 0.03)} fill="#fff" opacity="0.14" />
+                  </g>
+                ))}
+              </g>
             </g>
             <TintedBox gx={w - ARM} gy={BACK} dx={ARM} dy={D - BACK} h={19} fallback="#d98a93" dark={0.34} mid={0.19} />
           </>
@@ -2299,6 +2329,11 @@ function Nightstand() {
     <g>
       <TintedBox gx={0.04} gy={0.04} dx={W - 0.08} dy={D - 0.08} h={H} fallback="#a87f5f" dark={0.34} mid={0.2} />
       <Drawers gx={0.04} gy={0.04} dy={D - 0.08} width={(W - 0.08) * (TILE_W / 2)} rows={2} top={-H + 3} height={8} />
+      {/* grain seams on the top — flat marks only, so the `surface` height in
+          the catalog still matches where stacked items land */}
+      <g transform={`translate(0,${-H})`}>
+        <Planks w={W - 0.08} d={D - 0.08} n={2} />
+      </g>
     </g>
   );
 }
@@ -2325,6 +2360,8 @@ function Desk() {
       <g transform={`translate(0,${-TOP})`}>
         <TintedBox gx={0} gy={0} dx={W} dy={D} h={4} fallback="#b58c6a" dark={0.3} mid={0.16} />
         <g transform="translate(0,-4)">
+          {/* a bare slab reads as flat-pack — same seams the tables get */}
+          <Planks w={W} d={D} n={3} />
           <Laptop />
         </g>
       </g>
@@ -2439,6 +2476,10 @@ function Chair({ back = false }) {
             chairs — you need to see under it for the shape to say "chair". */}
         <g transform={`translate(0,${-SEAT})`}>
           <TintedBox gx={0.07} gy={D - 0.15} dx={W - 0.14} dy={0.09} h={26} fallback="#a87f5f" dark={0.36} mid={0.22} />
+          <g transform={`translate(${project(0.07, D - 0.06).x}, ${project(0.07, D - 0.06).y}) skewY(${SKEW})`}>
+            <line x1="4.5" y1="-23" x2="4.5" y2="-6" stroke="#000" strokeWidth="1" opacity="0.16" />
+            <line x1="9" y1="-23" x2="9" y2="-6" stroke="#000" strokeWidth="1" opacity="0.16" />
+          </g>
         </g>
       </g>
     );
@@ -2448,6 +2489,12 @@ function Chair({ back = false }) {
       {/* backrest first: it stands at the far edge, so everything else is in
           front of it */}
       <TintedBox gx={0.07} gy={0.06} dx={W - 0.14} dy={0.09} h={42} fallback="#a87f5f" dark={0.36} mid={0.22} />
+      {/* spindle seams on the backrest face — one unbroken 42px slab read as
+          a fence picket, and the seams cost two lines */}
+      <g transform={`translate(${project(0.07, 0.15).x}, ${project(0.07, 0.15).y}) skewY(${SKEW})`}>
+        <line x1="4.5" y1="-38" x2="4.5" y2="-21" stroke="#000" strokeWidth="1" opacity="0.16" />
+        <line x1="9" y1="-38" x2="9" y2="-21" stroke="#000" strokeWidth="1" opacity="0.16" />
+      </g>
       {[
         [0.07, 0.09],
         [0.53, 0.09],
@@ -2551,6 +2598,9 @@ function SideTable() {
       <Drawers gx={0.05} gy={0.05} dy={D - 0.1} width={(W - 0.1) * (TILE_W / 2)} rows={2} top={-H + 3} height={8} />
       <g transform={`translate(0,${-H})`}>
         <TintedBox gx={0} gy={0} dx={W} dy={D} h={3} fallback="#b58c6a" dark={0.28} mid={0.15} />
+        <g transform="translate(0,-3)">
+          <Planks w={W} d={D} n={2} />
+        </g>
       </g>
     </g>
   );
@@ -3129,7 +3179,22 @@ function Picnic() {
 }
 
 function Bench({ back = false }) {
-  const slat = <TintedBox gx={0} gy={back ? 0 : 0.12} dx={1.6} dy={0.45} h={16} fallback="#a87f5f" />;
+  const sy = back ? 0 : 0.12;
+  // The seat rides on two feet with plank seams across it — as one floor-to-
+  // seat slab it read as a fence panel standing in front of a taller one
+  // (the variable was even NAMED slat while drawing zero slats).
+  const slat = (
+    <g>
+      <TintedBox gx={0.08} gy={sy + 0.06} dx={0.12} dy={0.33} h={4} fallback="#6b4a39" tint={false} dark={0.42} mid={0.26} />
+      <TintedBox gx={1.4} gy={sy + 0.06} dx={0.12} dy={0.33} h={4} fallback="#6b4a39" tint={false} dark={0.42} mid={0.26} />
+      <g transform="translate(0,-4)">
+        <TintedBox gx={0} gy={sy} dx={1.6} dy={0.45} h={12} fallback="#a87f5f" />
+        <g transform="translate(0,-12)">
+          <Planks w={1.6} d={0.45 + sy} n={2} />
+        </g>
+      </g>
+    </g>
+  );
   const rest = (
     <TintedBox gx={0} gy={back ? 0.45 : 0} dx={1.6} dy={0.12} h={30} fallback="#8f5d49" dark={0.38} mid={0.22} />
   );
@@ -3647,6 +3712,16 @@ function PetBed() {
         <ellipse cx="0" cy="-2.5" rx="26" ry="14" style={tinted("#9b8bd6")} />
         <ellipse cx="0" cy="-3" rx="19" ry="9.5" fill="#000" opacity="0.22" />
         <ellipse cx="0" cy="-3.5" rx="18" ry="9" fill="#f2e9dd" opacity="0.5" />
+        {/* stitch ring on the bolster + a few fleece tufts on the pad — it
+            had less texture than the pouf at twice the size */}
+        <ellipse cx="0" cy="-2.7" rx="22.5" ry="11.7" fill="none" stroke="#000" opacity="0.13" strokeWidth="1" strokeDasharray="2.5 2.5" />
+        <path
+          d="M-8 -3.5 q2 -2.2 4 0 M2 -6.5 q2 -2.2 4 0 M-2 -0.5 q2 -2.2 4 0 M7 -2.5 q1.6 -1.8 3.2 0"
+          stroke="#000"
+          opacity="0.08"
+          fill="none"
+          strokeWidth="1"
+        />
         <ellipse cx="-4" cy="-6" rx="9" ry="4" fill="#fff" opacity="0.12" />
       </g>
     </g>
@@ -3674,11 +3749,20 @@ function Crates() {
   return (
     <g>
       <TintedBox gx={0} gy={0} dx={0.8} dy={0.7} h={16} fallback="#c98a4b" dark={0.34} mid={0.2} />
+      {/* plank seams + corner battens — one 15px line on a two-crate stack
+          left the upper crate reading as a plinth, not slatted wood */}
       <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
         <line x1="2" y1="-8" x2="17" y2="-8" stroke="#000" strokeWidth="1" opacity="0.2" />
+        <line x1="2" y1="-4" x2="17" y2="-4" stroke="#000" strokeWidth="1" opacity="0.14" />
+        <line x1="3.5" y1="-14" x2="3.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
+        <line x1="15.5" y1="-14" x2="15.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
       </g>
       <g transform="translate(0,-16)">
         <TintedBox gx={0.08} gy={0.06} dx={0.62} dy={0.56} h={14} fallback="#c98a4b" dark={0.34} mid={0.2} />
+        <g transform={`translate(${project(0.08, 0.62).x}, ${project(0.08, 0.62).y}) skewY(${SKEW})`}>
+          <line x1="1.5" y1="-7" x2="13.5" y2="-7" stroke="#000" strokeWidth="1" opacity="0.2" />
+          <line x1="1.5" y1="-3.5" x2="13.5" y2="-3.5" stroke="#000" strokeWidth="1" opacity="0.14" />
+        </g>
         {/* tape across the top, so it reads as packed rather than as a plinth */}
         <g transform="translate(0,-14)">
           <polygon points={floorPatch(0.3, 0.06, 0.08, 0.56)} fill="#e8d9b8" opacity="0.75" />
@@ -3735,6 +3819,70 @@ function LightJar() {
       ))}
       <ellipse cx="0" cy="-12" rx="6" ry="3" fill="none" stroke="#fff" strokeWidth="1" opacity="0.35" />
       <rect x="-4.5" y="-15" width="9" height="3" rx="1.2" style={tinted("#c98a4b")} />
+    </g>
+  );
+}
+
+function LavaLamp() {
+  // Tapered rocket silhouette — cone base, waisted glass, cone cap — which
+  // nothing else in the catalog has. The WAX takes the tint (that's the part
+  // you pick the lamp in); vessel and metal stay fixed, same bargain as the
+  // shoe soles.
+  const c = project(0.2, 0.2);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="6" ry="2.8" fill="#000" opacity="0.3" />
+      <path d="M-5.5 -1.5 L-3 -8 L3 -8 L5.5 -1.5 Z" fill="#8a8494" />
+      <path d="M-5.5 -1.5 L-3 -8 L0 -8 L0 -1.5 Z" fill="#fff" opacity="0.14" />
+      <path d="M-4.5 -8 Q -5.5 -14 -2.2 -22 L2.2 -22 Q 5.5 -14 4.5 -8 Z" fill="#cbe8ef" opacity="0.25" />
+      {/* the wax: a pool at the bottom, two risen blobs — drawn mid-float so
+          the lamp reads as ON even before the glow pool sells it */}
+      <path d="M-4.7 -8 Q 0 -12.5 4.7 -8 Z" style={tinted("#d98a93")} opacity="0.85" />
+      <ellipse cx="-1" cy="-15" rx="2.1" ry="2.6" style={tinted("#d98a93")} opacity="0.8" />
+      <ellipse cx="1.4" cy="-19.5" rx="1.4" ry="1.8" style={tinted("#d98a93")} opacity="0.75" />
+      <ellipse cx="0" cy="-14" rx="3.4" ry="6" fill="#ffe9b0" opacity="0.25" />
+      <path d="M-2.2 -22 L-1.4 -26 L1.4 -26 L2.2 -22 Z" fill="#8a8494" />
+    </g>
+  );
+}
+
+function MushroomLamp() {
+  // A toadstool nightlight: stem + a domed cap that OVERHANGS it — the
+  // overhang is the silhouette; a cap flush with the stem is just a lamp.
+  const c = project(0.225, 0.225);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-1" rx="6.5" ry="3" fill="#000" opacity="0.3" />
+      <path d="M-2.6 -2 Q -3.4 -10 -2.2 -13 L2.2 -13 Q 3.4 -10 2.6 -2 Z" fill="#f2e9dd" />
+      <path d="M-2.6 -2 Q -3.4 -10 -2.2 -13 L0 -13 L0 -2 Z" fill="#fff" opacity="0.3" />
+      {/* light spills from UNDER the cap onto the stem — that's where a
+          nightlight's bulb lives */}
+      <ellipse cx="0" cy="-13" rx="7.5" ry="2.6" fill="#ffe9b0" opacity="0.5" />
+      <path d="M-9 -14 Q -9 -24 0 -24 Q 9 -24 9 -14 Q 4 -16 0 -16 Q -4 -16 -9 -14 Z" style={tinted("#c25f5f")} />
+      <path d="M-9 -14 Q -9 -24 0 -24 L0 -16 Q -4 -16 -9 -14 Z" fill="#fff" opacity="0.18" />
+      {/* spots are translucent white so they read over any tint */}
+      <ellipse cx="-3.6" cy="-20" rx="1.5" ry="1.1" fill="#fff" opacity="0.5" />
+      <ellipse cx="2.8" cy="-21.5" rx="1.1" ry="0.9" fill="#fff" opacity="0.5" />
+      <ellipse cx="4.6" cy="-17.5" rx="1" ry="0.8" fill="#fff" opacity="0.45" />
+    </g>
+  );
+}
+
+function MoonLamp() {
+  // The desk moon: a cratered globe on a little cradle. Fixed moon palette —
+  // tintable: false in the catalog, because a green moon is not a moon.
+  const c = project(0.175, 0.175);
+  return (
+    <g transform={`translate(${c.x}, ${c.y})`}>
+      <ellipse cx="0" cy="-0.8" rx="5" ry="2.4" fill="#000" opacity="0.3" />
+      <path d="M-4 -2 Q 0 -4.5 4 -2 L3 -0.5 L-3 -0.5 Z" fill="#6b5b52" />
+      <circle cx="0" cy="-9" r="6" fill="#f4ecd8" />
+      <circle cx="0" cy="-9" r="6" fill="#ffe9b0" opacity="0.35" />
+      <ellipse cx="-2" cy="-10.5" rx="1.4" ry="1.1" fill="#d8c9a8" />
+      <ellipse cx="1.8" cy="-8" rx="1" ry="0.8" fill="#d8c9a8" />
+      <ellipse cx="0.4" cy="-11.6" rx="0.7" ry="0.6" fill="#d8c9a8" />
+      {/* lit limb on the light side, the same side every glint in the room uses */}
+      <path d="M-6 -9 A 6 6 0 0 1 0 -15" fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.4" />
     </g>
   );
 }
@@ -4177,6 +4325,9 @@ function PersianRug() {
           <ellipse key={`${gx}-${gy}`} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#e8b04b")} opacity="0.3" />
         );
       })}
+      {/* fringe on the short ends — the one rug whose referent always has it */}
+      <Fringe gx={0} gy={0.26} len={1.68} axis="gy" out={-0.14} n={6} />
+      <Fringe gx={3} gy={0.26} len={1.68} axis="gy" out={0.14} n={6} />
     </g>
   );
 }
@@ -4196,24 +4347,11 @@ function StripedRug() {
           opacity={i % 2 ? 0.12 : 0.2}
         />
       ))}
-      {/* fringe at both short ends */}
-      {[0, 1].map((end) =>
-        [0.2, 0.5, 0.8, 1.1, 1.4, 1.7].map((t) => {
-          const a = project(end ? 2.6 : 0, t);
-          return (
-            <line
-              key={`${end}-${t}`}
-              x1={a.x}
-              y1={a.y}
-              x2={a.x + (end ? 5 : -5)}
-              y2={a.y + (end ? 2.5 : -2.5)}
-              stroke="#f7e9e2"
-              strokeWidth="1.2"
-              opacity="0.25"
-            />
-          );
-        })
-      )}
+      {/* fringe at both short ends — through the shared helper, so the
+          strands land at the correct screen angle instead of hand-fudged
+          per-rug pixel offsets (the exact case Fringe's docstring names) */}
+      <Fringe gx={0} gy={0.15} len={1.5} axis="gy" out={-0.14} n={6} opacity={0.25} />
+      <Fringe gx={2.6} gy={0.15} len={1.5} axis="gy" out={0.14} n={6} opacity={0.25} />
     </g>
   );
 }
@@ -4745,6 +4883,19 @@ function Piano() {
       <polygon points={box.right} fill="#000" opacity="0.34" />
       <polygon points={box.top} style={tinted("#4a3a5b")} />
       <polygon points={box.top} fill="#fff" opacity="0.07" />
+      {/* contact band + top-edge catch — the only large hand-rolled box
+          without them, so it floated beside furniture that has weight */}
+      {(() => {
+        const { B, C, D } = box.corners;
+        const up = (p) => `${p.x},${p.y - 62}`;
+        return (
+          <>
+            <polygon points={`${D.x},${D.y} ${C.x},${C.y} ${C.x},${C.y - 7} ${D.x},${D.y - 7}`} fill="#000" opacity="0.15" />
+            <polygon points={`${B.x},${B.y} ${C.x},${C.y} ${C.x},${C.y - 7} ${B.x},${B.y - 7}`} fill="#000" opacity="0.15" />
+            <polyline points={`${up(D)} ${up(C)} ${up(B)}`} fill="none" stroke="#fff" opacity="0.13" strokeWidth="1.3" strokeLinejoin="round" />
+          </>
+        );
+      })()}
       {/* everything below lives on the front-left face */}
       <g transform={`translate(${face.x}, ${face.y}) skewY(${SKEW})`}>
         <rect x="3" y="-56" width="42" height="20" rx="1.5" fill="#000" opacity="0.18" />
@@ -5042,6 +5193,11 @@ function BarCounter() {
           dark={0.26}
           mid={0.13}
         />
+        {/* grain on the counter top — projection is linear, so translating
+            the Planks group by the top's origin keeps them in grid space */}
+        <g transform={`translate(${project(-0.05, -0.05).x}, ${project(-0.05, -0.05).y - 3.5})`}>
+          <Planks w={W + 0.1} d={D + 0.28} n={2} />
+        </g>
       </g>
     </g>
   );
@@ -5194,6 +5350,9 @@ export const ISO_SPRITES = {
   crates: Crates,
   mug: Mug,
   lightjar: LightJar,
+  lavalamp: LavaLamp,
+  mushroomlamp: MushroomLamp,
+  moonlamp: MoonLamp,
   ladder: LadderShelf,
   neon: NeonSign,
   corkboard: Corkboard,

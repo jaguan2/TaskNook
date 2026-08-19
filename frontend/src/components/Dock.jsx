@@ -84,7 +84,10 @@ export default function Dock({ active, onSelect }) {
                 }`}
               >
                 <item.Icon size={17} />
-                <span className="pointer-events-none absolute left-12 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream opacity-0 transition group-hover:opacity-100">
+                {/* group-focus-within keeps the label visible for keyboard
+                    users too — tabbing the dock otherwise shows eight
+                    identical unlabeled icons. */}
+                <span className="pointer-events-none absolute left-12 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
                   {item.label}
                 </span>
               </button>

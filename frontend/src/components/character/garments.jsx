@@ -109,11 +109,40 @@ export const GARMENT_REGISTRY = {
     back: ({ hem, bot }) => (
       <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
     ),
+    // Profile: the ribbed hem band survives edge-on (the cuff rides the
+    // arm) — without it the side torso lost the knit read entirely.
+    side: ({ hem, bot }) => (
+      <>
+        <rect x={-hem + 1.2} y={bot - 2.3} width={(hem - 1.2) * 2} height="2.3" fill="#000" opacity="0.15" />
+        {[-hem + 2.4, 0, hem - 2.4].map((x) => (
+          <path
+            key={x}
+            d={`M ${x} ${bot - 2.1} L ${x} ${bot - 0.3}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            opacity="0.26"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
   },
   tee: {
     finish: MATTE,
     // From behind there's no collar — the bare forearms carry the garment.
     back: () => null,
+    // Profile: the collar's near edge is the whole torso story — the short
+    // sleeve (the outline mark) rides the arm and survives on its own.
+    side: ({ top }) => (
+      <path
+        d={`M ${-3.8} ${top + 0.7} Q ${-0.8} ${top + 3.4} ${2} ${top + 1}`}
+        fill="none"
+        stroke="#000"
+        strokeWidth="1.1"
+        opacity="0.2"
+        strokeLinecap="round"
+      />
+    ),
     // A collar: with bare forearms (`sleeves: "short"`) doing the outline
     // work, the torso only needs to stop looking knitted.
     draw: ({ top }) => (
@@ -128,6 +157,10 @@ export const GARMENT_REGISTRY = {
     ),
   },
   shirt: {
+    // Pressed cotton holds its plane — the jacket's crisp finish, and
+    // buttoned cuffs where knitwear wears ribbing.
+    finish: CRISP,
+    cuffs: true,
     // A button-up reads from its NECK and CENTRE: two collar wings, the
     // placket line, a few buttons. From behind, just the collar's band.
     back: ({ top }) => (
@@ -372,6 +405,8 @@ export const GARMENT_REGISTRY = {
     finish: CRISP,
   },
   overalls: {
+    // Denim is the flattest cloth in the set — the tee's matte numbers.
+    finish: MATTE,
     // Dungarees OVER the shirt: the bib and straps take the INNER colour and
     // the torso stays the outfit, which is the way round that actually splits
     // the chest in two. Drawn the other way (bib in the outfit colour) the bib
@@ -502,6 +537,11 @@ export const GARMENT_REGISTRY = {
   turtleneck: {
     finish: KNIT,
     cuffs: true,
+    // Profile: the swallowed neck is GarmentCollar's job in every view; the
+    // torso just keeps its knit hem band so the side doesn't read bare.
+    side: ({ hem, bot }) => (
+      <rect x={-hem + 1.2} y={bot - 2.3} width={(hem - 1.2) * 2} height="2.3" fill="#000" opacity="0.15" />
+    ),
     // The one garment that changes the NECK line: the rolled collar swallows
     // it (see `collar` below — drawn after the body's own neck, which would
     // otherwise paint skin over it). The torso itself needs nothing.
@@ -893,6 +933,8 @@ export const GARMENT_REGISTRY = {
         />
       </>
     ),
+    // Soft jersey drapes matte — the knit numbers; a sheen would read satin.
+    finish: KNIT,
     // The flare replaces the hem-on-trousers story outright.
     drape: true,
   },

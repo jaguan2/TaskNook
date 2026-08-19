@@ -20,9 +20,19 @@ const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function CalendarPanel() {
   const { tasks, editTask, sessionDays } = useStore();
-  const today = new Date();
-  const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
-  const [selected, setSelected] = useState(toISO(today));
+  // "Today" is state on a slow tick, not a render-time `new Date()`: TaskNook
+  // sits open all day, and a panel mounted before midnight kept ringing
+  // yesterday's cell until something unrelated re-rendered it.
+  const [todayISO, setTodayISO] = useState(localTodayISO);
+  useEffect(() => {
+    const id = setInterval(() => setTodayISO(localTodayISO()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const [view, setView] = useState(() => {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  const [selected, setSelected] = useState(localTodayISO);
   // What the selected day was actually spent on. Fetched per day rather than
   // held in the store: it's one panel's concern, and sessionDays is already
   // refetched wholesale on every refreshAll.
@@ -133,7 +143,7 @@ export default function CalendarPanel() {
         {cells.map((date, i) => {
           if (!date) return <span key={i} />;
           const iso = toISO(date);
-          const isToday = iso === toISO(today);
+          const isToday = iso === todayISO;
           const isSel = iso === selected;
           const count = countByDate[iso] || 0;
           const isActive = activeDays.has(iso);

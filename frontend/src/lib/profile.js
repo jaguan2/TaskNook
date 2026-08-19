@@ -231,6 +231,23 @@ export const SCARF_COLORS = [
 ];
 
 /**
+ * Glasses — the third accessory slot (artwork in character/glasses.jsx, same
+ * both-ways key contract as hats and scarves). They live on the FACE, so one
+ * entry reads in front and profile alike, under every hat and over every
+ * hairstyle. Deliberately NO colour option: frames are a fixed dark neutral
+ * the way shoe soles are fixed rubber — at ~1px of frame a sixth hex channel
+ * buys nothing you can see, and a fixed anchor reads as designed.
+ */
+export const GLASSES = [
+  { key: "none", label: "None" },
+  { key: "round", label: "Round" },
+  { key: "square", label: "Square" },
+  // Half-moons sit low on the nose with the top rim open — the one pair the
+  // character looks OVER rather than through.
+  { key: "halfmoon", label: "Half-moon" },
+];
+
+/**
  * The wardrobe. `outfit` was a lone hex for years, so every resident in the app
  * wore the same sweater in a different colour — nine hairstyles against one
  * garment.
@@ -420,6 +437,7 @@ export const DEFAULT_CHARACTER = {
   hat: "none",
   scarf: "none",
   scarfColor: "#8e3a3f",
+  glasses: "none",
   print: "none",
   expression: "calm",
   build: "average",
@@ -432,6 +450,7 @@ const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
 const HAT_KEYS = new Set(HATS.map((h) => h.key));
 const SCARF_KEYS = new Set(SCARVES.map((s) => s.key));
+const GLASSES_KEYS = new Set(GLASSES.map((g) => g.key));
 const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
 const COAT_KEYS = new Set(COATS.map((c) => c.key));
@@ -517,6 +536,7 @@ export function validateCharacter(raw) {
     hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
     scarf: pickKey(c.scarf, SCARF_KEYS, DEFAULT_CHARACTER.scarf),
     scarfColor: pickHex(c.scarfColor, DEFAULT_CHARACTER.scarfColor),
+    glasses: pickKey(c.glasses, GLASSES_KEYS, DEFAULT_CHARACTER.glasses),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,

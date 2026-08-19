@@ -6,11 +6,13 @@ import { useArmed } from "../lib/useArmed";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
+import { Glasses } from "./character/glasses";
 import {
   BIO_MAX,
   COATS,
   DEFAULT_CHARACTER,
   EXPRESSIONS,
+  GLASSES,
   HAIR_COLORS,
   HAIR_STYLES,
   HATS,
@@ -228,6 +230,21 @@ function ScarfIcon({ character, scarf }) {
   return (
     <svg viewBox="-16 -52 32 28" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, scarf }} />
+    </svg>
+  );
+}
+
+/** Glasses on your own face — the head close-up, frames over the real eyes. */
+function GlassesIcon({ glasses, hair, hairColor, skin }) {
+  return (
+    <svg viewBox="-15 -14 30 30" className="h-12 w-full" aria-hidden="true">
+      <HairLength style={hair} headY={0} color={hairColor} />
+      <HairBehind style={hair} headY={0} color={hairColor} />
+      <circle cx="0" cy="0" r="7.3" fill={skin} />
+      <HairFront style={hair} headY={0} color={hairColor} />
+      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
+      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <Glasses kind={glasses} headY={0} />
     </svg>
   );
 }
@@ -1029,6 +1046,24 @@ export default function ProfilePanel() {
                   swatchesFor={(key) => (key === "none" ? null : SCARF_COLORS)}
                   swatchValue={character.scarfColor}
                   onSwatch={(hex) => saveCharacter({ scarfColor: hex })}
+                />
+              </Field>
+              {/* No swatches on purpose: frames are a fixed neutral, the
+                  shoe-sole argument — see GLASSES in lib/profile.js. */}
+              <Field label="Glasses">
+                <IconGrid
+                  label="Glasses"
+                  options={GLASSES}
+                  value={character.glasses}
+                  onPick={(glasses) => saveCharacter({ glasses })}
+                  renderIcon={(key) => (
+                    <GlassesIcon
+                      glasses={key}
+                      hair={character.hair}
+                      hairColor={character.hairColor}
+                      skin={character.skin}
+                    />
+                  )}
                 />
               </Field>
             </>

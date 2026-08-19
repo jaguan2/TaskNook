@@ -4,8 +4,9 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
+import { GLASSES_REGISTRY } from "./character/glasses";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -154,6 +155,23 @@ describe("the isometric catalog and its artwork agree", () => {
       );
       expect(Object.keys(HAT_REGISTRY).sort()).toEqual(HATS.map((h) => h.key).sort());
       expect(Object.keys(SCARF_REGISTRY).sort()).toEqual(SCARVES.map((s) => s.key).sort());
+      expect(Object.keys(GLASSES_REGISTRY).sort()).toEqual(GLASSES.map((g) => g.key).sort());
+    });
+
+    it("every pair of glasses renders, and each draws its own geometry", () => {
+      const seen = new Map();
+      for (const { key } of GLASSES) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, glasses: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}"`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
     });
 
     it("every scarf renders, and each draws its own geometry", () => {

@@ -326,6 +326,7 @@ export default function RoomPanel() {
                 step="1"
                 value={isoRoom.w}
                 onChange={(e) => setIsoSize(Number(e.target.value), isoRoom.d)}
+                aria-label="Room width"
                 className="flex-1 accent-glow"
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.w}</span>
@@ -341,6 +342,7 @@ export default function RoomPanel() {
                 step="1"
                 value={isoRoom.d}
                 onChange={(e) => setIsoSize(isoRoom.w, Number(e.target.value))}
+                aria-label="Room depth"
                 className="flex-1 accent-glow"
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>

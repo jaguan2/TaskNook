@@ -64,17 +64,22 @@ describe("figureMetrics", () => {
   // here must be a deliberate retune re-baselined against a contact sheet,
   // never a drive-by.
   const PINNED = {
+    // Re-baselined for the 2026-08-19 slimming retune (owner: "they look
+    // like blobs") — reviewed on the contact sheet and in the dressing room.
+    // masc keeps its shoulder line but the waist pinches to a V; fem is a
+    // smaller hourglass; both hems came in with the base widths.
     masc: {
-      slim: { sh: 8.8, wa: 6.2, hem: 7, kneeX: 8.5 },
-      average: { sh: 9.6, wa: 7, hem: 7.8, kneeX: 8.5 },
-      sturdy: { sh: 11, wa: 8.4, hem: 9.2, kneeX: 8.7 },
+      slim: { sh: 8.8, wa: 5, hem: 6.6, kneeX: 8.5 },
+      average: { sh: 9.6, wa: 5.8, hem: 7.4, kneeX: 8.5 },
+      sturdy: { sh: 10.8, wa: 7, hem: 8.6, kneeX: 8.5 },
     },
     fem: {
-      // slim and average both floor at MIN_SHOULDER — their difference
-      // lives in the waist-to-hem contrast, exactly as documented.
-      slim: { sh: 8.6, wa: 3.6, hem: 9.2, kneeX: 8.7 },
-      average: { sh: 8.6, wa: 4.4, hem: 10, kneeX: 9.5 },
-      sturdy: { sh: 9.4, wa: 5.8, hem: 11.4, kneeX: 10.9 },
+      // All three builds now sit at MIN_SHOULDER (sturdy lands there
+      // exactly) — the whole fem silhouette lives in the waist-to-hem
+      // contrast and the finer limbs, exactly as documented.
+      slim: { sh: 8.6, wa: 2.8, hem: 8.2, kneeX: 8.5 },
+      average: { sh: 8.6, wa: 3.6, hem: 9, kneeX: 8.5 },
+      sturdy: { sh: 8.6, wa: 4.8, hem: 10.2, kneeX: 9.7 },
     },
   };
 
@@ -113,16 +118,22 @@ describe("figureMetrics", () => {
     }
   });
 
-  it("limbs scale gently with width, and default width keeps the classics", () => {
+  it("limbs scale gently with width, and the models' limbs differ", () => {
     // A wide torso on unchanged stick legs reads as parts pasted together;
-    // a narrow one on thick limbs reads stuffed.
+    // a narrow one on thick limbs reads stuffed. Since the slimming retune
+    // the limb is also a MODEL axis: fem's arms and legs are visibly finer
+    // than masc's at the same build — a 0.6px full-width difference, which
+    // is the floor of what survives 57px.
     const base = figureMetrics({});
-    expect(base.armW).toBe(5);
-    expect(base.legW).toBe(5.6);
-    expect(base.thighW).toBe(7.5);
-    expect(base.shinW).toBe(6.5);
+    expect(base.armW).toBeCloseTo(4.8, 9);
+    expect(base.legW).toBeCloseTo(5.5, 9);
+    expect(base.thighW).toBeCloseTo(7.4, 9);
+    expect(base.shinW).toBeCloseTo(6.4, 9);
     expect(figureMetrics({ width: WIDTH_RANGE[0] }).legW).toBeLessThan(base.legW);
     expect(figureMetrics({ width: WIDTH_RANGE[1] }).legW).toBeGreaterThan(base.legW);
+    const fem = figureMetrics({ model: "fem" });
+    expect(base.armW - fem.armW).toBeCloseTo(0.6, 9);
+    expect(base.legW - fem.legW).toBeCloseTo(0.6, 9);
   });
 
   it("the slider extremes stay inside every guard", () => {

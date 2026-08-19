@@ -187,6 +187,7 @@ export default function HudFocusCard() {
               <button
                 onClick={startTimer}
                 title={stopwatch ? "Start tracking" : "Start focusing"}
+                aria-label={stopwatch ? "Start tracking" : "Start focusing"}
                 className="pill grid h-9 w-12 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
               >
                 <Play size={16} />
@@ -215,6 +216,8 @@ export default function HudFocusCard() {
             <button
               onClick={() => setExpanded((e) => !e)}
               title="Timer options"
+              aria-label="Timer options"
+              aria-expanded={expanded}
               className={`pill grid h-8 w-8 place-items-center transition ${
                 expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
               }`}

@@ -75,11 +75,17 @@ export const MIN_SHOULDER = 8.6;
  * looked like the same body twice.
  */
 export const MODEL_SHAPE = {
-  // masc's shoulder came down from +2.6 in the chest-size pass: the
-  // reference kits' shoulders sit at ~1.2–1.3× the head, and +2.6 on the
-  // old widths put ours at 1.6×.
-  masc: { shoulder: +2.2, waist: -0.4, hem: +0.4 },
-  fem: { shoulder: +0.6, waist: -3.0, hem: +2.6 },
+  // The 2026-08-19 slimming retune (owner: "they look like blobs", "make the
+  // two models more different"): base widths came down ~0.6px per build and
+  // the difference moved INTO these offsets. masc keeps its shoulder width
+  // (+2.8 on the narrower base lands on the same 9.6 as before) but the
+  // waist pinches to -1.0, so the male body is now a V rather than a slab;
+  // fem drops both waist and hem so the hourglass reads against a smaller
+  // figure. `limb` is per-model too — the same silhouette-only doctrine,
+  // just applied to arms and legs: fem's are visibly finer, and that
+  // difference survives 57px where a 0.4px waist tweak would not.
+  masc: { shoulder: +2.8, waist: -1.0, hem: +0.6, limb: +0.1 },
+  fem: { shoulder: +0.6, waist: -3.2, hem: +2.2, limb: -0.5 },
 };
 
 /**
@@ -91,13 +97,13 @@ export const MODEL_SHAPE = {
  * rather than one axis pretending to be two.
  */
 export const BUILD_SHAPE = {
-  // The chest-size pass scaled all three halfWs down TOGETHER — trimming
-  // only average would have left it narrower than slim, which makes the
-  // axis nonsense. These widths are final; the build axis still owes the
-  // waist/limb deltas (and possibly a fourth build) on top of them.
-  slim: { halfW: 6.6, waist: 0, limb: 0 },
-  average: { halfW: 7.4, waist: 0, limb: 0 },
-  sturdy: { halfW: 8.8, waist: 0, limb: 0 },
+  // Scaled down together AGAIN in the slimming retune (same rule as the
+  // chest-size pass: trimming only average would make the axis nonsense).
+  // The blob read was mostly torso aspect — 19.2 wide × 17 tall at the old
+  // average is nearly square, and no shading can rescue a square.
+  slim: { halfW: 6.0, waist: 0, limb: 0 },
+  average: { halfW: 6.8, waist: 0, limb: 0 },
+  sturdy: { halfW: 8.0, waist: 0, limb: 0 },
 };
 
 // ---- user-tunable ranges -------------------------------------------------- //
@@ -110,7 +116,12 @@ export const BUILD_SHAPE = {
 // range keeps the DEFAULT-torso figure's leg share ≥ 40%; the torso range is
 // bounded so no combination drops the leg share under 33% (the anti-toddler
 // floor) or grows past the resident's hit region.
-export const WIDTH_RANGE = [6.4, 9];
+// Retuned with the slimming pass: the floor is where masc's hem still tucks
+// the ±4 trouser stance (6.2 + 0.6 hem ≥ 4 + legW/2, with legW at its
+// narrowest), the ceiling is where masc's shoulder grazes the 1.55×-head
+// chunky ceiling (8.4 + 2.8 = 11.2 → 1.53×). Old saves stored up to 9;
+// clampNum folds them to 8.4, which is the retune applied, not data loss.
+export const WIDTH_RANGE = [6.2, 8.4];
 export const HEIGHT_RANGE = [26, 32];
 export const TORSO_RANGE = [14, 20];
 
@@ -147,6 +158,7 @@ export function figureMetrics(ch = {}) {
   const waistDrop = torsoH * (WAIST_DROP / TORSO_H);
   const limb =
     build.limb +
+    (shape.limb || 0) +
     Math.max(-0.6, Math.min(0.8, (halfW - BUILD_SHAPE.average.halfW) * 0.4));
   const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder);
   const wa = halfW + shape.waist + build.waist;
@@ -165,10 +177,13 @@ export function figureMetrics(ch = {}) {
     // torso's bottom edge stays at the seat line whatever its height.
     seatTorsoY: 1 - torsoH,
     seatHeadY: 1 - torsoH - HEAD_LIFT,
-    armW: 5 + limb,
-    legW: 5.6 + limb,
-    thighW: 7.5 + limb,
-    shinW: 6.5 + limb,
+    // Bases came down ~0.2 in the slimming retune; with masc's +0.1 model
+    // limb the male figure lands a hair under the old classics, and fem's
+    // -0.5 puts real daylight between the two bodies' arms and legs.
+    armW: 4.7 + limb,
+    legW: 5.4 + limb,
+    thighW: 7.3 + limb,
+    shinW: 6.3 + limb,
     kneeX: Math.max(8.5, hem - 0.5),
   };
 }

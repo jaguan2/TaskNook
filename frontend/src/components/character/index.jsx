@@ -47,10 +47,12 @@ import {
 } from "./hair";
 import { Hat } from "./hats";
 import { Scarf } from "./scarves";
+import { Glasses } from "./glasses";
 
 export { HAIR_REGISTRY } from "./hair";
 export { GARMENT_REGISTRY } from "./garments";
 export { HAT_REGISTRY } from "./hats";
+export { GLASSES_REGISTRY } from "./glasses";
 
 /**
  * The resident. Small enough that only the silhouette carries, so what got
@@ -465,6 +467,9 @@ export function Resident({
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
                     <SideFace expression={ch.expression} headY={headY} skin={skin} />
+                    {/* glasses over the finished face — after the hair's side
+                        mass and the hat, so neither can bury the lens */}
+                    <Glasses kind={ch.glasses} headY={headY} view="side" />
                   </g>
                 </g>
                 </g>
@@ -875,6 +880,12 @@ export function Resident({
                   <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
                 </>
               )}
+              {/* Glasses land right after the eyes' layer — over the fringe
+                  and the hat's rim, so no crown mass can bury the rims, and
+                  inside the gesture group so they turn with a glance. Turned
+                  away they draw nothing: from behind, glasses are temple tips
+                  at most, which at 7px is noise. */}
+              {!back && <Glasses kind={ch.glasses} headY={headY} />}
               {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
                   keyframes outrank while they run but which takes over the moment
                   they don't — so under reduced motion the mouth is simply shut,

@@ -98,6 +98,16 @@ thickness scales gently with width (a wide torso on stick legs reads as
 parts pasted together). Stored `build` keys survive as the width's default,
 so pre-slider saves keep their silhouette.
 
+The 2026-08-19 **slimming retune** (owner: "they look like blobs", "make the
+two models more different"): every build's base half-width came down ~0.6px
+(the old average torso was 19.2 wide × 17 tall — nearly square, and no
+shading rescues a square), both waists pinched (masc −1.0 so the male body
+is a V rather than a slab; fem −3.2), limb bases came down ~0.2, and `limb`
+became a MODEL axis too — fem's arms and legs run 0.6px finer than masc's,
+because a sub-half-pixel model delta is invisible at 57px. Old saves with
+widths above the new 8.4 ceiling clamp down on load: that is the retune
+applied, not data loss.
+
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
 fixed it ("blocky and lifeless", user). Three things carried the redraw, in

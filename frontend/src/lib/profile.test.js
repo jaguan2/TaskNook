@@ -151,6 +151,7 @@ describe("validateCharacter", () => {
       hat: "none",
       scarf: "none",
       scarfColor: DEFAULT_CHARACTER.scarfColor,
+      glasses: "none",
       print: "none",
       width: BUILD_SHAPE.slim.halfW,
       height: LEG_H,
@@ -172,6 +173,14 @@ describe("validateCharacter", () => {
     expect(validateCharacter({ scarfColor: "tartan" }).scarfColor).toBe(
       DEFAULT_CHARACTER.scarfColor
     );
+  });
+
+  it("glasses: keeps a real pair, refuses an invented one, defaults bare-faced", () => {
+    expect(validateCharacter({ glasses: "round" }).glasses).toBe("round");
+    expect(validateCharacter({ glasses: "monocle" }).glasses).toBe("none");
+    // A pre-glasses save has no key at all — it falls back to "none", the
+    // JSON blob's whole bargain.
+    expect(validateCharacter({}).glasses).toBe("none");
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {

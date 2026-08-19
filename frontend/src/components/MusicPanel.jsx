@@ -190,6 +190,7 @@ export default function MusicPanel() {
                 step="0.05"
                 value={soundMix[key] || 0}
                 onChange={(e) => setSoundLevel(key, Number(e.target.value))}
+                aria-label={`${name} volume`}
                 className="flex-1 accent-glow"
               />
             </div>

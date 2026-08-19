@@ -229,6 +229,11 @@ export const ISO_ITEMS = {
   cactus: { label: "Cactus", icon: "🌵", foot: [0.5, 0.5], hitH: 46 },
   terrarium: { label: "Terrarium", icon: "🫙", foot: [0.6, 0.6], hitH: 28, stacks: true },
   lightjar: { label: "Jar of lights", icon: "✨", foot: [0.4, 0.4], hitH: 24, stacks: true, glow: [15, 0.3] },
+  // ---- mood lighting (2026-08-19): three more ways to light a corner ----
+  lavalamp: { label: "Lava lamp", icon: "🌋", foot: [0.4, 0.4], hitH: 30, stacks: true, glow: [15, 0.3] },
+  mushroomlamp: { label: "Mushroom lamp", icon: "🍄", foot: [0.45, 0.45], hitH: 26, stacks: true, glow: [17, 0.4] },
+  // a green moon is not a moon
+  moonlamp: { label: "Moon lamp", icon: "🌕", foot: [0.35, 0.35], hitH: 16, stacks: true, tintable: false, glow: [13, 0.3] },
   mug: { label: "Mug", icon: "☕", foot: [0.3, 0.3], hitH: 16, stacks: true },
   // The cat treats every layer:-1 item as a soft spot, so it will eventually
   // curl up in this one — which is the entire point of a pet bed.
@@ -368,7 +373,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Light & warmth",
     keys: ["floorlamp", "desklamp", "tablelamp", "paperlantern", "lantern", "candle",
-      "candelabra", "lightjar", "fireplace"],
+      "candelabra", "lightjar", "lavalamp", "mushroomlamp", "moonlamp", "fireplace"],
   },
   {
     label: "Plants & greenery",

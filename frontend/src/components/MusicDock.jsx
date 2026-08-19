@@ -147,7 +147,11 @@ export default function MusicDock() {
       : EMPTY_TRACK;
   });
   const [volume, setVolume] = useState(() => {
-    const saved = Number(readStored("tasknook.music.volume"));
+    // Missing key must fall to 70: readStored gives null, Number(null) is 0,
+    // and a `saved >= 0` bound would accept it — a fresh install then plays
+    // every station at volume 0, which reads as "music is broken".
+    const raw = readStored("tasknook.music.volume");
+    const saved = raw === null ? NaN : Number(raw);
     return saved >= 0 && saved <= 100 ? saved : 70;
   });
   const playerRef = useRef(null);
@@ -415,6 +419,7 @@ export default function MusicDock() {
           <button
             onClick={stepBack}
             title={isPlaylist ? "Previous track" : "Previous station"}
+            aria-label={isPlaylist ? "Previous track" : "Previous station"}
             className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
           >
             <SkipBack size={13} />
@@ -423,6 +428,7 @@ export default function MusicDock() {
             <button
               onClick={togglePlay}
               title={playing ? "Pause" : "Play"}
+              aria-label={playing ? "Pause" : "Play"}
               className="pill grid h-8 w-8 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
             >
               {playing ? <Pause size={14} /> : <Play size={14} />}
@@ -431,6 +437,7 @@ export default function MusicDock() {
           <button
             onClick={stepForward}
             title={isPlaylist ? "Next track" : "Next station"}
+            aria-label={isPlaylist ? "Next track" : "Next station"}
             className="pill grid h-7 w-7 place-items-center text-petal/70 hover:bg-white/10 hover:text-cream"
           >
             <SkipForward size={13} />

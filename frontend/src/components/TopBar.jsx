@@ -135,6 +135,8 @@ function IconToggle({ active, onClick, title, slashWhenOff, children }) {
   return (
     <button
       title={title}
+      aria-label={title}
+      aria-pressed={active}
       onClick={onClick}
       className={`pill relative grid h-11 w-11 place-items-center shadow-soft transition ${
         active

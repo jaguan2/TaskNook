@@ -525,7 +525,12 @@ running `git commit` yourself.
   and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
   `character/scarves.jsx` registry: wrapped/loop/long, drawn TORSO-anchored
   after the collar so a glance can't shear it off — the second accessory
-  slot, and the accent-colour one).
+  slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
+  `character/glasses.jsx`: round/square/halfmoon — the third accessory
+  slot, deliberately colour-less: frames are a fixed ink like shoe soles
+  are fixed rubber. Drawn inside the head's gesture group AFTER hair and
+  hat so a fringe can't bury the rims; nothing from behind — temple tips
+  at a 7.3px skull are noise. They stack with hats, unlike hair).
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`

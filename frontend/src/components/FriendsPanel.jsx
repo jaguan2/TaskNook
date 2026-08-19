@@ -35,6 +35,7 @@ export default function FriendsPanel() {
     openChatWith,
     openGroupChat,
     friendship,
+    showToast,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -83,9 +84,14 @@ export default function FriendsPanel() {
   const startGroup = async () => {
     if (picking.length < 2) return;
     const chat = await openGroupChat(picking, groupName);
-    setPicking(null);
-    setGroupName("");
-    if (chat) setOpenChatId(chat.id);
+    // Only clear the picks on success — a failed create already toasted, and
+    // throwing away the member selection on top of it makes the user rebuild
+    // it just to retry.
+    if (chat) {
+      setPicking(null);
+      setGroupName("");
+      setOpenChatId(chat.id);
+    }
   };
 
   const add = async (e) => {
@@ -109,7 +115,11 @@ export default function FriendsPanel() {
       await api.removeFriend(id);
       await refreshAll();
     } catch (err) {
+      // The error line renders above the roster, which can be entirely
+      // off-screen from the row you tapped — toast too, per the app rule
+      // that a failed write is never silent where you're looking.
       setError(err.message);
+      showToast("Couldn't remove that friend — " + err.message);
     }
   };
 

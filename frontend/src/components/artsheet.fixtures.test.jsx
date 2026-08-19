@@ -18,6 +18,7 @@ import { BUNNY_COATS, CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
+  GLASSES,
   HAIR_STYLES,
   HATS,
   OUTFITS,
@@ -92,6 +93,10 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const { key } of SCARVES) {
       save(`scarf-${key}`, <Resident character={dressed({ scarf: key })} />);
       save(`scarf-${key}-side`, <Resident character={dressed({ scarf: key })} facing="side" />);
+    }
+    for (const { key } of GLASSES) {
+      save(`glasses-${key}`, <Resident character={dressed({ glasses: key })} />);
+      save(`glasses-${key}-side`, <Resident character={dressed({ glasses: key })} facing="side" />);
     }
     // Every coat and breed, every pose — a pattern that only works on the
     // barrel but not the curl is exactly what side-by-side review catches.
