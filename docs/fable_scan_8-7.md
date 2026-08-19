@@ -1440,3 +1440,61 @@ Owner feedback: "the models look like blobs" + "guy/girl should differ more".
 Verified: 920 tests + lint green; dressing-room zoom shots of both models
 (V-shoulders vs pinched waist clearly distinct), room-scale resident reads
 slim and leggy. Exe rebuilt + self-tested.
+
+## 14. Roam round: sounds, themes, 2D scene (2026-08-19, same day)
+
+Owner list: weather sounds not all ambient; themes should customize further;
+the 2D cottage neglected vs the iso room.
+
+- [x] **Storm retune** (lib/audio.js) - the storm bed was the one channel
+  breaking the "keep noise beds dark" doctrine (lowpass 3200 at gain 0.8 -
+  the brightest, loudest bed - radio static). Now a darker, quieter,
+  gustier bed (lowpass 1400, gain 0.55, deeper LFO) with the identity in
+  one-shots: thunder plus a NEW heavier droplet layer (density 30-110ms,
+  strength 1.4 vs rain's 1.0). NOTE: tuned by doctrine + synthesis math -
+  needs the owner's ears for the final verdict.
+- [x] **Custom theme backdrop** - derivePalette(hex, surfaceHex?) lets the
+  DARK stops carry their own hue (teal accent on warm brown surfaces)
+  while their lightness stays the fixed ramp, so the legibility guarantee
+  is untouched (new pins in palette.test.js: same dark floor for any
+  backdrop; accents/text byte-identical; garbage = follow accent).
+  tasknook.customSurface (null = follow accent, key removed not stored);
+  Settings custom section gains a Backdrop row (Match accent + 6 chips).
+- [x] **2D cottage round** (delegated, reviewed): a resident sits at the
+  desk seen from behind, facing the window - hair colour + 3-bucket back
+  shape from the real hairstyle, outfit colour, on a drawn task chair,
+  spliced into the painter's order at its depth; TYPES during a focus
+  block (resident-2d-type, reduced-motion covered); gated by the SAME
+  selfInRoom the iso "In the room" checkbox uses. Plus six new 2D items:
+  radio, candle, flower vase, bunting, yarn basket, slippers (picker only
+  - default preset untouched).
+
+Verified: 931 frontend tests + lint + build green; real-app drive - 2D
+scene with the resident typing during a live focus block, backdrop chip
+recolouring the whole app with the accent held, zero console errors.
+CLAUDE.md audio + theming sections updated. Exe rebuilt + self-tested.
+
+## 15. Pets UI + the profile face (2026-08-19, same day)
+
+- [x] **One Adopt button** beside the "Your pets" title (aria-expanded pill);
+  the three species choices appear only while adopting and collapse after a
+  pick. Three always-on buttons read as a row of shopping.
+- [x] **Rehome is an X in the card corner** - still the armed two-tap guard,
+  and the FIRST tap now explains itself: the card tints danger and an
+  inline line says it sends the pet off for good and can't be undone. A
+  euphemism plus silence read as a trick.
+- [x] **Profile face redrawn** (owner: "the side model is really bad") - two
+  real defects found: (1) the soft-volume sphere gradient lights from +x,
+  which on a figure drawn facing -x lit the BACK of the skull and put the
+  whole face in shade - the gradient circle now mirrors in the side view so
+  the light lands where MODELS.md par.10 says it is ("slightly in front");
+  (2) the nose was a bolt-on wedge whose return edge cut a beak notch under
+  it - the face's front edge is now ONE continuous profile path (brow, nose,
+  under-nose step, lip hint, chin into jaw), and the mouth stroke shortened
+  (it started so far back it read as a cheek cut). Chose improving the art
+  over restricting wander directions - horizontal walks dominate a 2:1 room.
+
+Verified: 931 tests + lint + build green; dressing-room spin to profile,
+zoomed - lit face, smooth silhouette, no notch. EXE NOT REBUILT: the owner's
+app was running (locks the file); rounds 14-15 both need one rebuild once
+it's closed.

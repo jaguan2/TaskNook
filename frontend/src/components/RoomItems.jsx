@@ -136,6 +136,74 @@ function Headphones() {
   );
 }
 
+function Radio() {
+  return (
+    <g>
+      {/* antenna first so the body overlaps its root */}
+      <line x1="-14" y1="-28" x2="-2" y2="-44" stroke="#3a3142" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="-2" cy="-44" r="1.8" fill="#3a3142" />
+      <rect x="-22" y="-30" width="44" height="30" rx="6" style={tinted("#c0563f")} />
+      <rect x="-22" y="-30" width="44" height="7" rx="3.5" fill="#000" opacity="0.14" />
+      {/* speaker */}
+      <circle cx="-9" cy="-14" r="7" fill="#f7e9e2" opacity="0.85" />
+      <path d="M-13 -14 h8 M-9 -18 v8" stroke="#000" strokeWidth="1.2" opacity="0.3" strokeLinecap="round" />
+      {/* dial + knob */}
+      <rect x="5" y="-22" width="13" height="5" rx="2.5" fill="#f7e9e2" opacity="0.85" />
+      <line x1="10" y1="-21" x2="10" y2="-18" stroke="#c0563f" strokeWidth="1.5" />
+      <circle cx="11" cy="-10" r="3.5" fill="#e8b04b" />
+      <circle cx="11" cy="-10" r="3.5" fill="none" stroke="#000" opacity="0.25" />
+    </g>
+  );
+}
+
+function Candle({ time }) {
+  return (
+    <g>
+      {/* the flame's small halo breathes with the sky like the garland bulbs */}
+      <g className="animate-flicker">
+        <circle cx="0" cy="-33" r="10" fill="#ffe9b0" opacity={time.bulbGlow * 0.2} />
+        <path d="M0 -39 q4.5 5.5 0 10 q-4.5 -4.5 0 -10 z" fill="#ffd97a" />
+        <path d="M0 -35.5 q2 2.5 0 4.5 q-2 -2 0 -4.5 z" fill="#fff3d0" />
+      </g>
+      <line x1="0" y1="-26" x2="0" y2="-29.5" stroke="#5a4632" strokeWidth="1.5" strokeLinecap="round" />
+      {/* wax pillar is the tintable material; drips read via shade overlays */}
+      <rect x="-6" y="-26" width="12" height="25" rx="2.5" style={tinted("#f2e4cf")} />
+      <rect x="-6" y="-26" width="12" height="4" rx="2" fill="#000" opacity="0.12" />
+      <path d="M-6 -22 q2.5 3 0 7 z M6 -18 q-2.5 3 0 6 z" fill="#000" opacity="0.08" />
+      {/* fixed brass dish — the anchor that makes recolours read as designed */}
+      <ellipse cx="0" cy="-1" rx="11" ry="3.5" fill="#b98a5a" />
+      <ellipse cx="0" cy="-2" rx="11" ry="3" fill="#000" opacity="0.12" />
+    </g>
+  );
+}
+
+function FlowerVase() {
+  return (
+    <g>
+      {/* stems + heads sway from the vase mouth; the wrapper carries no
+          transform attribute so the animation can't drop one (the law). */}
+      <g className="room-sway">
+        <path
+          d="M-2 -22 q-7 -10 -10 -15 M0 -22 q1 -13 1 -19 M2 -22 q7 -9 9 -14"
+          stroke="#56a07c"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <ellipse cx="-12" cy="-40" rx="4" ry="5" fill="#e8a3a8" />
+        <ellipse cx="1" cy="-44" rx="4" ry="5" fill="#e8b04b" />
+        <ellipse cx="11" cy="-39" rx="4" ry="5" fill="#9b8bd6" />
+        <circle cx="-12" cy="-40" r="1.5" fill="#000" opacity="0.15" />
+        <circle cx="1" cy="-44" r="1.5" fill="#000" opacity="0.15" />
+        <circle cx="11" cy="-39" r="1.5" fill="#000" opacity="0.15" />
+      </g>
+      {/* vase drawn after so the stems disappear into it */}
+      <path d="M-9 -24 q-4 13 3 24 h12 q7 -11 3 -24 z" style={tinted("#6fb8cf")} />
+      <path d="M-9 -24 h18 l-1.5 5 h-15 z" fill="#000" opacity="0.15" />
+    </g>
+  );
+}
+
 /* ---------------- wall items ---------------- */
 
 function Frame() {
@@ -216,6 +284,39 @@ function Shelf() {
       <rect x="-18" y="-14" width="9" height="14" rx="1" fill="#e8a3a8" />
       <path d="M14 -8 q-5 0 -5 -6 q0 -5 5 -5 q5 0 5 5 q0 6 -5 6 z" fill="#56a07c" />
       <polygon points="8,-8 20,-8 19,0 9,0" fill="#c0563f" />
+    </g>
+  );
+}
+
+function Bunting() {
+  // Pennants hang from a gently sagging string; their tops sit ON the curve
+  // (hardcoded from the same quadratic, so the flags never float off it).
+  // Every other flag takes the tint; the rest alternate fixed accents, so a
+  // recolour reads as restringing the set rather than repainting one flag.
+  const flags = [
+    [-48, -3.5],
+    [-24, 0.6],
+    [0, 2],
+    [24, 0.6],
+    [48, -3.5],
+  ];
+  const fixed = ["#e8b04b", "#7faf8f"];
+  return (
+    <g>
+      <path d="M-58 -6 Q0 10 58 -6" stroke="#8a5346" strokeWidth="1.5" fill="none" />
+      {flags.map(([x, y], i) => (
+        <g key={`flag-${i}`}>
+          <polygon
+            points={`${x - 7},${y} ${x + 7},${y} ${x},${y + 15}`}
+            style={i % 2 === 0 ? tinted("#d98a93") : { fill: fixed[(i >> 1) % 2] }}
+          />
+          <polygon
+            points={`${x - 7},${y} ${x + 7},${y} ${x + 5.5},${y + 3} ${x - 5.5},${y + 3}`}
+            fill="#000"
+            opacity="0.14"
+          />
+        </g>
+      ))}
     </g>
   );
 }
@@ -326,6 +427,40 @@ function Beanbag() {
   );
 }
 
+function Basket() {
+  return (
+    <g>
+      {/* yarn + needles peek above the rim, so they draw first */}
+      <circle cx="-5" cy="-26" r="7" fill="#e8a3a8" />
+      <path d="M-10 -28 a7 7 0 0 1 9 -4" stroke="#000" strokeWidth="1.2" fill="none" opacity="0.15" />
+      <circle cx="6" cy="-25" r="6" fill="#9b8bd6" />
+      <path d="M3 -30 l11 -14 M8 -29 l10 -15" stroke="#f7e9e2" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="14" cy="-44" r="1.6" fill="#f7e9e2" />
+      <circle cx="18" cy="-44" r="1.6" fill="#f7e9e2" />
+      <path d="M-22 -24 h44 l-5 24 h-34 z" style={tinted("#b98a5a")} />
+      <path d="M-22 -24 h44 l-1.2 5 h-41.6 z" fill="#000" opacity="0.15" />
+      {/* weave: translucent overlays, so they read over any tint */}
+      <path d="M-20 -15 h40 M-18 -7 h36" stroke="#000" strokeWidth="1.5" opacity="0.12" />
+      <path d="M-12 -23 l1.5 22 M0 -23 v22 M12 -23 l-1.5 22" stroke="#000" strokeWidth="1.5" opacity="0.08" />
+    </g>
+  );
+}
+
+function Slippers() {
+  return (
+    <g>
+      {[-14, 8].map((x, i) => (
+        <g key={`slipper-${i}`} transform={`translate(${x},0) rotate(${i === 0 ? -3 : 3})`}>
+          <path d="M-10 0 q-1.5 -7 5 -8.5 h9 q7 1 6 8.5 z" style={tinted("#d98a93")} />
+          {/* fleece cuff at the opening */}
+          <ellipse cx="-4" cy="-7" rx="5.5" ry="3" fill="#f7e9e2" opacity="0.95" />
+          <path d="M-10 0 h20" stroke="#000" strokeWidth="1.5" opacity="0.2" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /* ---------------- ceiling ---------------- */
 
 const GARLAND_BULBS = [
@@ -363,12 +498,16 @@ export const ITEM_SPRITES = {
   desklamp: DeskLamp,
   cactus: Cactus,
   headphones: Headphones,
+  radio: Radio,
+  candle: Candle,
+  flowervase: FlowerVase,
   frame: Frame,
   hangplant: HangPlant,
   clock: Clock,
   poster: Poster,
   polaroids: Polaroids,
   shelf: Shelf,
+  bunting: Bunting,
   rug: Rug,
   rugstripe: RugStripe,
   monstera: Monstera,
@@ -376,5 +515,7 @@ export const ITEM_SPRITES = {
   cat: Cat,
   bookshelf: Bookshelf,
   beanbag: Beanbag,
+  basket: Basket,
+  slippers: Slippers,
   garland: Garland,
 };

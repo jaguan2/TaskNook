@@ -752,7 +752,10 @@ running `git commit` yourself.
   `applyMix`. No audio files, works offline. The mixer's channels are rain,
   storm, snow, wind, fireplace, cafe and paper (birds were replaced — page
   turns and a café suit a study nook better). The noise channels share one
-  filtered-noise engine with per-channel presets; storm schedules thunder,
+  filtered-noise engine with per-channel presets; storm schedules thunder
+  AND its own heavier droplet layer (its bed was the one that broke the
+  dark-beds rule — lowpass 3200 at gain 0.8 read as static; retuned
+  2026-08-19 to a darker, quieter bed with the identity in the one-shots),
   fireplace schedules crackles, the café murmurs under steam bursts and cup
   clinks, paper is one-shot-only page turns (no bed) — all one-shots
   route through the channel's master gain so its slider scales them.
@@ -900,10 +903,14 @@ running `git commit` yourself.
   re-tint. Presets are `[data-theme="abyss|shore|linen|walnut"]` blocks in
   `index.css`; `App.jsx` stamps `data-theme` on `<html>` (not its own root) so
   `<body>`'s gradient sees it. The `custom` scheme has **no CSS block** — 
-  `lib/palette.js`'s `derivePalette(hex)` builds the ramp from the picked
-  colour's hue/saturation and `App.jsx` sets the vars inline on `<html>`
-  (inline wins over `[data-theme]`); switching back to a preset must
+  `lib/palette.js`'s `derivePalette(hex, surfaceHex?)` builds the ramp from
+  the picked colour's hue/saturation and `App.jsx` sets the vars inline on
+  `<html>` (inline wins over `[data-theme]`); switching back to a preset must
   `removeProperty` each `PALETTE_VARS` entry or the custom colours would stick.
+  The optional second colour (`tasknook.customSurface`, null = follow accent)
+  gives the DARK stops their own hue — teal accent on warm brown surfaces —
+  while their lightness stays the fixed ramp, so no backdrop pick can break
+  the legibility guarantee (pinned in palette.test.js).
   The pick maps faithfully onto the ROSE accent (hue, saturation, and its
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees

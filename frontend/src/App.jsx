@@ -59,6 +59,7 @@ export default function App() {
     brightness,
     colorScheme,
     customColor,
+    customSurface,
     motionMode,
     roomPlacements,
     roomEditMode,
@@ -74,6 +75,7 @@ export default function App() {
     rotateIsoItem,
     setIsoItemTint,
     character,
+    selfInRoom,
     visiting,
     leaveVisit,
     moveVisitGuest,
@@ -104,14 +106,14 @@ export default function App() {
     const root = document.documentElement;
     root.setAttribute("data-theme", colorScheme);
     if (colorScheme === "custom") {
-      const vars = derivePalette(customColor);
+      const vars = derivePalette(customColor, customSurface);
       Object.entries(vars).forEach(([name, value]) =>
         root.style.setProperty(name, value)
       );
     } else {
       PALETTE_VARS.forEach((name) => root.style.removeProperty(name));
     }
-  }, [colorScheme, customColor]);
+  }, [colorScheme, customColor, customSurface]);
 
   const toggleDockPanel = (key) => {
     setOpenPanels((prev) => {
@@ -310,6 +312,17 @@ export default function App() {
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
               reduceMotion={reduceMotion}
+              /* Same booleans/hexes the iso room derives from, but passed as
+                 primitives: Cottage is memo'd, and an object built per render
+                 would churn identity on every App re-render. `selfInRoom` is
+                 the SAME truth as the iso "In the room" checkbox (a `you`
+                 placement in the iso layout), so one toggle rules both scenes. */
+              focused={running && phase === "focus"}
+              residentInRoom={selfInRoom}
+              residentSkin={character.skin}
+              residentHair={character.hair}
+              residentHairColor={character.hairColor}
+              residentOutfit={character.outfit}
             />
           )}
         </ErrorBoundary>

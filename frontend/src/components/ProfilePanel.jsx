@@ -412,30 +412,50 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
   // Rehoming is a delete of someone with a NAME — the two-tap armed "sure?"
   // guard, same grammar as every other delete of user data.
   const [armedId, arm] = useArmed();
+  // ONE Adopt button beside the title (owner, 2026-08-19: three buttons was
+  // a row of shopping); the species pills appear only while adopting.
+  const [adopting, setAdopting] = useState(false);
   return (
     <section>
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
         <PawPrint size={15} className="text-petal/70" /> Your pets
+        {/* Adopt from right here — the section is "who lives here", and going
+            via the Room panel's furniture shelf to get a PET read as shopping.
+            addIsoItem already owns the cap and no-floor refusal toasts. */}
+        <button
+          type="button"
+          onClick={() => setAdopting((a) => !a)}
+          aria-expanded={adopting}
+          className={`ml-auto rounded-full border px-3 py-1 text-xs transition ${
+            adopting
+              ? "border-glow/60 bg-glow/15 text-cream"
+              : "border-white/10 bg-white/5 text-petal hover:border-glow/50 hover:text-cream"
+          }`}
+        >
+          🐾 Adopt
+        </button>
       </p>
-      {/* Adopt from right here — the section is "who lives here", and going
-          via the Room panel's furniture shelf to get a PET read as shopping.
-          addIsoItem already owns the cap and no-floor refusal toasts. */}
-      <div className="mb-2 flex flex-wrap gap-2">
-        {[
-          ["cat", "🐈 Adopt a cat"],
-          ["dog", "🐕 Adopt a dog"],
-          ["bunny", "🐇 Adopt a rabbit"],
-        ].map(([item, label]) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => addIsoItem(item)}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-petal transition hover:border-glow/50 hover:text-cream"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {adopting && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {[
+            ["cat", "🐈 A cat"],
+            ["dog", "🐕 A dog"],
+            ["bunny", "🐇 A rabbit"],
+          ].map(([item, label]) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => {
+                addIsoItem(item);
+                setAdopting(false);
+              }}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-petal transition hover:border-glow/50 hover:text-cream"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {pets.length === 0 ? (
         <p className="text-xs text-petal/50">
           No pets yet — adopt one above and it appears in your room, ready to
@@ -448,22 +468,34 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
             return (
               <div
                 key={p.id}
-                className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2"
+                className={`relative rounded-2xl border p-2 transition ${
+                  armedId === p.id
+                    ? "border-danger/40 bg-danger/5"
+                    : "border-white/10 bg-white/5"
+                }`}
               >
-                {/* Finding a new home is a delete wearing kind words — the
-                    armed "sure?" guard applies like everywhere else. */}
+                {/* Finding a new home is a delete wearing kind words — an ✕
+                    in the card's corner (owner, 2026-08-19), still behind the
+                    armed "sure?" guard, with the first tap SAYING what this
+                    is and that it can't be undone. */}
                 <button
                   type="button"
                   onClick={() => arm(p.id, () => removeIsoItem(p.id))}
-                  title={armedId === p.id ? "Really find them a new home?" : "Find a new home"}
-                  className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${
+                  title="Find them a new home"
+                  aria-label={
                     armedId === p.id
-                      ? "bg-danger/20 text-danger"
-                      : "text-petal/50 hover:bg-white/10 hover:text-cream"
+                      ? "Tap again to find them a new home — this can't be undone"
+                      : "Find them a new home"
+                  }
+                  className={`absolute right-2 top-2 rounded-full px-1.5 py-0.5 transition ${
+                    armedId === p.id
+                      ? "bg-danger/20 text-[10px] font-bold text-danger"
+                      : "text-sm text-petal/40 hover:bg-white/10 hover:text-danger"
                   }`}
                 >
-                  {armedId === p.id ? "sure?" : "new home"}
+                  {armedId === p.id ? "sure?" : "✕"}
                 </button>
+                <div className="flex items-center gap-3">
                 <svg
                   viewBox="-9 -26 32 40"
                   className="h-14 w-12 shrink-0"
@@ -487,7 +519,7 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") e.currentTarget.blur();
                     }}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 py-1 pl-2 pr-7 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
                   />
                   <Choices
                     label="Temper"
@@ -506,6 +538,15 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
                     />
                   )}
                 </div>
+                </div>
+                {/* The first tap explains itself — "new home" is a euphemism,
+                    and a euphemism plus silence reads as a trick. */}
+                {armedId === p.id && (
+                  <p className="mt-1.5 px-1 text-[10px] leading-snug text-danger/90">
+                    This sends {p.name || "this pet"} off to a new home — it
+                    can&apos;t be undone. Tap ✕ again if you&apos;re sure.
+                  </p>
+                )}
               </div>
             );
           })}

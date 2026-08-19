@@ -69,6 +69,31 @@ describe("derivePalette — the dark-floor legibility guarantee", () => {
       }
     }
   });
+
+  // The separate backdrop hue (2026-08-19): the dark stops may take their own
+  // hue, but the legibility guarantee is lightness, and lightness never moves.
+  it.each(extremes)("a backdrop pick keeps the same dark floor for %s", (hex) => {
+    const vars = derivePalette("#4fa3e3", hex);
+    expect(lightnessOf(vars["--color-void"])).toBeLessThanOrEqual(11);
+    expect(lightnessOf(vars["--color-night"])).toBeLessThanOrEqual(16);
+    expect(lightnessOf(vars["--color-plum"])).toBeLessThanOrEqual(21);
+    expect(lightnessOf(vars["--color-wine"])).toBeLessThanOrEqual(27);
+    expect(lightnessOf(vars["--color-petal"])).toBeGreaterThanOrEqual(80);
+  });
+
+  it("the backdrop hue changes only the dark stops, and garbage means follow-accent", () => {
+    const plain = derivePalette("#4fa3e3");
+    const surfaced = derivePalette("#4fa3e3", "#6b5544");
+    // accents and text untouched…
+    for (const name of ["--color-rose", "--color-blush", "--color-petal"]) {
+      expect(surfaced[name]).toBe(plain[name]);
+    }
+    // …while the surfaces actually moved.
+    expect(surfaced["--color-night"]).not.toBe(plain["--color-night"]);
+    // Garbage (or null) backdrop = the classic one-colour behaviour, exactly.
+    expect(derivePalette("#4fa3e3", "not-a-color")).toEqual(plain);
+    expect(derivePalette("#4fa3e3", null)).toEqual(plain);
+  });
 });
 
 // --------------------------------------------------------------------------

@@ -306,6 +306,12 @@ export function StoreProvider({ children }) {
   const [customColor, setCustomColorState] = useState(
     () => normalizeHex(readStored("tasknook.customColor")) || "#d98a93"
   );
+  // The custom scheme's backdrop hue — null means "follow the accent",
+  // which is everything the one-colour custom scheme ever did. Stored
+  // separately so the two can differ (teal accent on warm brown surfaces).
+  const [customSurface, setCustomSurfaceState] = useState(() =>
+    normalizeHex(readStored("tasknook.customSurface"))
+  );
 
   // How much the room is allowed to move. "auto" follows the OS preference,
   // which is what everything did before there was a setting at all — the
@@ -1765,6 +1771,14 @@ export function StoreProvider({ children }) {
     writeStored("tasknook.customColor", hex);
     setColorScheme("custom");
   };
+  // null = follow the accent again (the key is removed, not stored as "null").
+  const setCustomSurface = (hex) => {
+    const clean = hex === null ? null : normalizeHex(hex);
+    setCustomSurfaceState(clean);
+    if (clean === null) removeStored("tasknook.customSurface");
+    else writeStored("tasknook.customSurface", clean);
+    setColorScheme("custom");
+  };
 
   // ---------- Real-world weather ----------
   useEffect(() => {
@@ -2101,6 +2115,8 @@ export function StoreProvider({ children }) {
     setColorScheme,
     customColor,
     setCustomColor,
+    customSurface,
+    setCustomSurface,
     motionMode,
     setMotionMode,
   };

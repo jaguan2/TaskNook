@@ -12,6 +12,12 @@ const MOTION_OPTIONS = [
 // One-tap starting points for the custom scheme.
 const QUICK_HUES = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"];
 
+// Backdrop hues for the custom scheme — only hue/saturation are used (the
+// dark stops keep their fixed lightness, which is the legibility guarantee),
+// so these chips are shown at a mid lightness the backdrop never actually
+// reaches. First entry is "follow the accent", the classic behaviour.
+const SURFACE_HUES = ["#6b5544", "#5d7290", "#5d7a62", "#7a5875", "#8a8494", "#8a4a4a"];
+
 // The base colour's lightness is ignored by derivePalette (only hue +
 // saturation matter), so slider edits write back at a fixed mid lightness.
 const BASE_L = 60;
@@ -56,6 +62,8 @@ export default function SettingsPanel() {
     setColorScheme,
     customColor,
     setCustomColor,
+    customSurface,
+    setCustomSurface,
     motionMode,
     setMotionMode,
   } = useStore();
@@ -246,6 +254,37 @@ export default function SettingsPanel() {
                   title={hex}
                   className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
                     customColor === hex ? "border-glow" : "border-white/25"
+                  }`}
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+
+            {/* The backdrop can carry its OWN hue — teal accent on warm brown
+                surfaces. Lightness is still the fixed dark ramp, so no pick
+                here can wash the text out. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                Backdrop
+              </span>
+              <button
+                onClick={() => setCustomSurface(null)}
+                className={`pill px-2 py-0.5 text-[10px] transition ${
+                  customSurface === null
+                    ? "bg-glow text-plum"
+                    : "bg-white/10 text-petal hover:bg-white/20"
+                }`}
+              >
+                Match accent
+              </button>
+              {SURFACE_HUES.map((hex) => (
+                <button
+                  key={hex}
+                  onClick={() => setCustomSurface(hex)}
+                  title={hex}
+                  aria-label={`Backdrop colour ${hex}`}
+                  className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
+                    customSurface === hex ? "border-glow" : "border-white/25"
                   }`}
                   style={{ backgroundColor: hex }}
                 />

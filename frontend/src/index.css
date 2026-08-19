@@ -301,6 +301,25 @@ body {
   animation-delay: var(--phase, 0s);
 }
 
+/* The flat scene's seated resident typing while a focus block runs. A cue
+   gated by the `focused` prop, not an ambient loop — there is exactly ONE
+   figure, so it takes no --phase (nothing to desynchronise from). It lives on
+   a wrapper <g> with no transform attribute; the per-arm rotations sit on
+   child elements (an animation's transform property would override the
+   attribute entirely). */
+@keyframes resident-2d-type {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.6px);
+  }
+}
+.resident-2d-type {
+  animation: resident-2d-type 0.9s ease-in-out infinite;
+}
+
 /* Sky clouds drifting across the whole viewport (SkyOverlay) */
 @keyframes sky-drift {
   from {
@@ -1289,7 +1308,8 @@ body {
     .window-rain,
     .window-snow,
     .animate-float,
-    .animate-flicker
+    .animate-flicker,
+    .resident-2d-type
   ) {
   animation: none;
 }

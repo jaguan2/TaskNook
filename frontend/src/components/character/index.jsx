@@ -463,7 +463,17 @@ export function Resident({
                 <g className="gesture-yawn">
                   <g className="gesture-look">
                     <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-                    <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+                    {/* The volume gradient FLIPS for the profile: the shared
+                        sphere lights from +x (screen right — "slightly in
+                        front" for the front view), but a profile faces -x,
+                        so unflipped it lit the BACK of the skull and put the
+                        whole face in shade — most of what read as a dirty
+                        smudge on the side view. Mirroring just the gradient
+                        circle keeps the doctrine's light where it claims to
+                        be: on the face. */}
+                    <g transform="scale(-1,1)">
+                      <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+                    </g>
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
                     <SideFace expression={ch.expression} headY={headY} skin={skin} />

@@ -45,6 +45,7 @@ export const ITEMS = {
   poster: { label: "Sunrise poster", icon: "🌄", zone: "wall", hit: { x: -22, y: -29, w: 44, h: 58 } },
   polaroids: { label: "Polaroids", icon: "📸", zone: "wall", tintable: false, hit: { x: -26, y: -18, w: 52, h: 40 } },
   shelf: { label: "Floating shelf", icon: "🪵", zone: "wall", hit: { x: -36, y: -26, w: 72, h: 32 } },
+  bunting: { label: "Bunting", icon: "🎏", zone: "wall", hit: { x: -62, y: -12, w: 124, h: 32 } },
 
   // ---- desk ----
   deskplant: { label: "Potted plant", icon: "🪴", zone: "desk", hit: { x: -20, y: -74, w: 42, h: 76 } },
@@ -55,6 +56,9 @@ export const ITEMS = {
   desklamp: { label: "Desk lamp", icon: "💡", zone: "desk", hit: { x: -56, y: -64, w: 78, h: 66 } },
   cactus: { label: "Tiny cactus", icon: "🌵", zone: "desk", hit: { x: -12, y: -34, w: 24, h: 36 } },
   headphones: { label: "Headphones", icon: "🎧", zone: "desk", hit: { x: -24, y: -22, w: 48, h: 24 } },
+  radio: { label: "Little radio", icon: "📻", zone: "desk", hit: { x: -24, y: -48, w: 48, h: 50 } },
+  candle: { label: "Lit candle", icon: "🕯️", zone: "desk", hit: { x: -13, y: -48, w: 26, h: 50 } },
+  flowervase: { label: "Flower vase", icon: "🌷", zone: "desk", hit: { x: -16, y: -52, w: 32, h: 54 } },
 
   // ---- floor ----
   rug: { label: "Round rug", icon: "🟣", zone: "floor", layer: -1, hit: { x: -110, y: -26, w: 220, h: 52 } },
@@ -64,6 +68,8 @@ export const ITEMS = {
   cat: { label: "Sleeping cat", icon: "🐈", zone: "floor", hit: { x: -30, y: -26, w: 60, h: 28 } },
   bookshelf: { label: "Bookshelf", icon: "📖", zone: "floor", hit: { x: -42, y: -104, w: 84, h: 106 } },
   beanbag: { label: "Beanbag", icon: "🫘", zone: "floor", hit: { x: -40, y: -34, w: 80, h: 36 } },
+  basket: { label: "Yarn basket", icon: "🧺", zone: "floor", hit: { x: -24, y: -46, w: 48, h: 48 } },
+  slippers: { label: "Cozy slippers", icon: "🥿", zone: "floor", hit: { x: -28, y: -14, w: 56, h: 16 } },
 
   // ---- ceiling (fixed position; can be added/removed but not dragged) ----
   garland: { label: "String lights", icon: "✨", zone: "ceiling", fixed: true, hit: { x: -304, y: -6, w: 608, h: 30 } },

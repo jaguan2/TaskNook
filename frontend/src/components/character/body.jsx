@@ -572,9 +572,20 @@ export function SideFace({ expression, headY, skin }) {
   const stroke = { fill: "none", stroke: INK, strokeWidth: 0.9, strokeLinecap: "round" };
   return (
     <>
-      {/* the nose: a soft wedge riding the circle's front edge */}
+      {/* The face's front edge as ONE continuous profile — brow, a small
+          nose, the under-nose step, a lip hint, a chin that curves back to
+          the jaw. It used to be a bolt-on nose wedge on a bare circle, and
+          the wedge's return edge cut a beak-like notch under the nose
+          (owner screenshot, 2026-08-19: "the side model is really bad").
+          A profile is a LINE, not a circle plus a bump. */}
       <path
-        d={`M ${-R + 0.5} ${headY - 0.4} q -2.4 0.4 -1.9 2.6 q 0.4 1.7 2.1 1.3 z`}
+        d={`M ${-R + 1.3} ${headY - 4.4}
+            Q ${-R - 0.2} ${headY - 2.4} ${-R + 0.1} ${headY - 0.7}
+            Q ${-R - 2.1} ${headY + 0.5} ${-R - 1.5} ${headY + 1.9}
+            Q ${-R - 1.1} ${headY + 2.6} ${-R + 0.1} ${headY + 2.6}
+            Q ${-R - 0.7} ${headY + 3.7} ${-R + 0.5} ${headY + 4.4}
+            Q ${-R + 0.2} ${headY + 5.5} ${-R + 2.1} ${headY + 6.1}
+            L ${-R + 3.2} ${headY - 3.2} Z`}
         fill={skin}
       />
       {expression === "happy" ? (
@@ -584,7 +595,9 @@ export function SideFace({ expression, headY, skin }) {
       ) : (
         <circle cx="-3.5" cy={headY + 1.9} r="0.95" fill={INK} />
       )}
-      <path d={`M-6.3 ${headY + 4.3} q0.9 0.9 1.9 0.3`} {...stroke} opacity="0.75" />
+      {/* the mouth sits ON the face, small and soft — the old longer stroke
+          started so far back it read as a cut across the cheek */}
+      <path d={`M${-R + 1.1} ${headY + 4.5} q0.75 0.55 1.6 0.2`} {...stroke} opacity="0.7" />
       <ellipse cx="-2.4" cy={headY + 3.5} rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
     </>
   );
