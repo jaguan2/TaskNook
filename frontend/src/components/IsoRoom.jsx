@@ -8,7 +8,7 @@ import {
   footOf,
   footprintFree,
   lipRuns,
-  personaCanStand,
+  personaCanSit,
   petCanStand,
   petTemper,
   seatFor,
@@ -648,7 +648,13 @@ function IsoSceneInner({
     const id = setInterval(() => {
       const wanderers = placements.filter((p) => {
         const it = ISO_ITEMS[p.item];
-        if (it?.persona) return !seatFor(p, placements);
+        // SEATED LIFE (owner decision, 2026-08-19, from the VC2 reference:
+        // "it seems like they mostly just sit down"): humans never wander.
+        // People are SETTLED — on a chair, on a rug, or standing where you
+        // set them — and only a carry moves them. The pets are the room's
+        // motion now, which reads cozier, not deader: stillness with one
+        // moving cat is a study; six pacing humans was a train platform.
+        if (it?.persona) return false;
         return !!it?.roamer;
       });
       if (!wanderers.length) return;
@@ -1500,10 +1506,11 @@ function IsoRoom({
       const g = unproject(walk.sx, walk.sy);
       const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
       // A pet's landing rule has no seat exception (there's no seated-cat
-      // drawing); a persona's walk can still end in sitting down.
+      // drawing); a persona lands on a seat or soft ground — the seated
+      // life's carry rule.
       const ok = ISO_ITEMS[walk.item]?.roamer
         ? petCanStand(at.gx, at.gy, size, placements, walk.id, walk.item)
-        : personaCanStand(at.gx, at.gy, size, placements, walk.id);
+        : personaCanSit(at.gx, at.gy, size, placements, walk.id);
       // The FIGURE follows every pointermove (imperatively, above — 60Hz of
       // React state for a 100-node sprite is exactly what this layer exists to
       // avoid); only the diamond and its legality are state, and those change a
@@ -1628,6 +1635,37 @@ function IsoRoom({
             after it, so no furniture buries either: the selection-chrome rule. */}
         {walkTarget && (
           <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
+            {/* THE SEAT GLOW (seated life): while a PERSON is in your hand,
+                every place they could settle — free seats, soft ground —
+                breathes amber, so choosing a spot is reading the room, not
+                hunting for legal tiles. Pets don't get it (they land on any
+                open floor, so lighting the whole room would say nothing). */}
+            {!ISO_ITEMS[placements.find((p) => p.id === walkTarget.id)?.item]?.roamer &&
+              placements
+                .filter((p) => {
+                  const it = ISO_ITEMS[p.item];
+                  if (!it || p.id === walkTarget.id) return false;
+                  if (it.layer === -1 && p.item !== "pond" && !it.persona) return true;
+                  if (!it.seat) return false;
+                  const others = placements.filter((o) => o.id !== walkTarget.id);
+                  return !others.some((o) => {
+                    if (!ISO_ITEMS[o.item]?.persona) return false;
+                    const s = seatFor(o, others.filter((x) => x.id !== o.id));
+                    return s && !s.soft && s.placement.id === p.id;
+                  });
+                })
+                .map((p) => (
+                  <polygon
+                    key={`glow-${p.id}`}
+                    className="room-breathe"
+                    points={floorPatch(p.gx, p.gy, ...footOf(p.item, p.rot))}
+                    fill="#ffe9b0"
+                    fillOpacity="0.14"
+                    stroke="#ffe9b0"
+                    strokeWidth="1"
+                    opacity="0.75"
+                  />
+                ))}
             <polygon
               points={floorPatch(
                 walkTarget.gx,

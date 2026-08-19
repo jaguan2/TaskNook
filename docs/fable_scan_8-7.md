@@ -1498,3 +1498,134 @@ Verified: 931 tests + lint + build green; dressing-room spin to profile,
 zoomed - lit face, smooth silhouette, no notch. EXE NOT REBUILT: the owner's
 app was running (locks the file); rounds 14-15 both need one rebuild once
 it's closed.
+
+## 16. Profile posture, pets polish, turntable (2026-08-19, same day)
+
+- [x] **The lean is fixed** (owner: "always leaning forward") - three
+  compounding causes: the side torso's chest carried 0.7px forward of the
+  hem, the head unit was shifted another 0.7 forward, and the side torso's
+  form shadow ran down the FRONT edge (contradicting the head's front-lit
+  gradient, deepening the hunch). Chest offsets halved and moved back over
+  the hips, head shift cut to 0.2, shade flipped to the back edge with the
+  glint leaning toward the face.
+- [x] **Pets X aligned** - it shares the name row now instead of floating in
+  the card corner. **Rehome confirms in a POPUP** over the card
+  (role=alertdialog): "Find [name] a new home?" + "They'll leave your room
+  for good - this can't be undone", Keep them / New home. Owner call - this
+  one outranks the armed-button grammar; useArmed dropped from the panel.
+- [x] **The stage turns itself** - quarter turn every 3.6s, pausing 7s after
+  any user drag/button, parked under reduced motion; the "drag me to spin"
+  caption is gone (the svg keeps the aria hint).
+- [x] VC2 reference notes added to MODELING_ROADMAP.md - the proportion
+  fork (chibi vs VC2 adult) is held until the owner's reference set lands.
+
+Verified: 931 tests + lint + build green; real-app drive - confirm popup
+exercised (Keep them path), turntable stepped through back/profile/front,
+upright profile confirmed at zoom.
+
+## 17. Adult proportions (2026-08-19, same day - owner decision)
+
+"We can make our characters adult proportioned as well" - the VC2 fork,
+taken.
+
+- [x] **HEAD_SCALE (0.8) in lib/body.js** - the pivot that converts the rig
+  without re-authoring a hundred assets: HEAD_R 7.3 stays the DRAWING
+  radius (all 19 hairstyles x 4 views, 7 hats, 3 glasses, both faces are
+  authored against it) and the assembly scales the finished head UNIT
+  about its own centre in the front and side views. HEAD_R_EFF (5.84) is
+  what layout uses: neck seams, height guards, shoulder ratios.
+- [x] Legs 29 -> 31, HEAD_LIFT 8.5 -> 7 (chin-to-collar gap preserved
+  against the smaller chin), HEIGHT_RANGE re-derived to [28, 34]. Lands at
+  ~4.9 heads, 47% visible leg, total ~56.8px - inside the 55-58 band, so
+  nothing seat-, tag- or camera-tuned moved.
+- [x] Guards re-derived: shoulder floor and chest-band ratio now measure
+  against HEAD_R_EFF; the clay-toy 1.55x ceiling became 2.0x (adult
+  stylized shoulders read broader against a smaller head). New pin: the
+  scale contract itself + the ~5-heads band.
+- The scale wrapper is its OWN <g> outside gesture-yawn in both views
+  (attribute transform never shares an animated element). The sleeping
+  pose keeps its bespoke drawing.
+
+Verified: 932 tests green; screenshots - dressing room front/profile read
+as adult figures, Loft standing resident and Study hall's standing+seated
+NPCs all cohesive at room scale. MODELS.md par.2 and the roadmap decision
+record updated.
+
+## 18. VC2 light + hair pass (2026-08-19, same day)
+
+The second layer of the VC2 work, on top of the adult proportions:
+
+- [x] **Hair under-layer value step** - hemShade in the shared wig()
+  composite: a soft dark crescent under each clump's lower lip, inside the
+  silhouette by construction (its far edge IS the tooth's curve). Every
+  carved style gets the reference's three-value chunky-locks read (crown
+  light / base / dark underside) from one helper; gathered styles keep
+  their matte doctrine. Texture budget line in hair.jsx updated to name it.
+- [x] **Deeper volume ramps** - sphere glint 0.14->0.17, shade 0.24->0.28;
+  cyl 0.2->0.24 and 0.14->0.18: the reference masses carry visibly soft
+  value ramps. Still translucent-neutral, still subtle-by-rule.
+- [x] **Warm rim light** - a thin GLINT arc on the head lit edge, front
+  (upper right) and profile (the face edge - the side light sits in
+  front), under the hair so it reads on cheek and jaw. The VC2
+  window-light cue.
+
+Verified: 932 tests, lint, art sheet (240 pieces - value steps visible on
+light colourways, no spills onto faces), in-app front + profile shots.
+Next VC2 layer when the owner sends character reference images: per-style
+lock chunking and the warm ambient room grade.
+
+## 19. The seated life (2026-08-19, same day - owner decision)
+
+From the VC2 reference ("it seems like they mostly just sit down"): humans
+never wander - people are SETTLED, and only a carry moves them. Pets are
+the room motion now.
+
+- [x] **Wander engine**: personas filtered out of the roam tick (one line);
+  pets untouched.
+- [x] **seatFor grows soft ground**: a layer -1 item (minus the pond) under
+  the centre resolves a floor-sit with soft: true - shared, one rug seats
+  many. Real seats win; a stool on a rug is still the stool.
+- [x] **personaCanSit** replaces personaCanStand: free seat OR soft ground;
+  bare floor only when roomHasSittingRoom says the room offers nowhere to
+  sit (the fallback that keeps every room placeable - the figure stands
+  there as a pose, not a destination).
+- [x] **freeSeatSpot + arrival seating**: toggling "In the room" and
+  arriving on a visit both SEAT you - proper seats before lie-on furniture
+  (the first cut put you straight into the Loft bed - funny once, wrong as
+  a welcome), then soft ground, then the standing fallback.
+- [x] **The seat glow**: while a person is in your hand, every free seat
+  and soft spot breathes amber - choosing a spot is reading the room.
+  Pets do not glow the room (they land anywhere, so it would say nothing).
+- [x] Hint copy: "Pick your little self up and set them on any seat".
+  Study hall NPCs were already all seated (the "standing" ones in earlier
+  screenshots were old wander offsets). CLAUDE.md walking sections
+  rewritten as the seated-life contract.
+
+Verified: 933 tests + lint green; fresh-DB drives - arrival seats you on
+the sofa, carry shows the glow on armchair/cushion/rugs, visiting Luna
+lands you seated at her study with name tags. Exe rebuilt + self-tested.
+
+## 20. Sleep pose, drop-anywhere, stronger heads, swatch fix (2026-08-19)
+
+- [x] **Sleeping pose redrawn** (owner: "does not make sense") - the whole-
+  body sausage lying ON the bed is now a body UNDER a cream blanket: head
+  on the pillow, one shoulder and an arm sleeping over the covers, hip/knee
+  rise beneath, turned-back edge at the chest. Breathe animation kept.
+- [x] **Drop anywhere** (owner) - personaCanSit allows bare floor wherever
+  furniture permits: they just STAND there. roomHasSittingRoom deleted;
+  seats/soft ground still seat, arrival still prefers a chair.
+- [x] **HEAD_SCALE 0.8 -> 0.75, HEAD_LIFT 6.7** (owner: "proportions didn't
+  change at all" - partly a stale exe, but 0.8 was also too timid; the
+  deltas-must-be-BIG lesson relearned). ~5.1 heads; chest-band ceiling
+  re-derived to 2.1x eff.
+- [x] **Swatch dialog closes on pick** (owner) - picking a colour was the
+  dialog's whole job and it used to just sit there.
+- INCIDENT, recorded so it never repeats: the owner runs a dev server on
+  :5000 with his real DB; werkzeug's reuse-address let a second server
+  share the port on Windows and one verification drive landed on HIS
+  session (a drag probe may have moved a pet/persona - position only).
+  All verification servers now bind PORT=5099+ with throwaway DBs.
+
+Verified on :5099 fresh DB: 933 tests + lint green; blanket pose
+screenshot, adult proportions at 0.75 in the preview, drop-anywhere rule
+pinned in tests. Exe rebuilt + self-tested.

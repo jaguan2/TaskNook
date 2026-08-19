@@ -48,6 +48,7 @@ import {
   footOf,
   footprintFree,
   isoPresetLayout,
+  freeSeatSpot,
   newIsoPlacement,
   nextRot,
   PET_TEMPERS,
@@ -63,6 +64,13 @@ export const useStore = () => useContext(StoreContext);
 // localStorage and both index into lookup tables in the scene components.
 const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
 const TIMES_OF_DAY = ["night", "sunset", "day"];
+
+// Which persistent HUD surfaces a viewer can dial back — "on" (default),
+// "faded" (dimmed but still there/interactive), or "hidden" (visibility:
+// hidden, same convention as the decorating chrome fade — never unmounted,
+// so nothing replays its .intro-chrome boot animation on return).
+const HUD_VIS_MODES = ["on", "faded", "hidden"];
+const DEFAULT_HUD_VISIBILITY = { timer: "on", tasks: "on", music: "on", clock: "on", chat: "on" };
 
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 
@@ -240,9 +248,25 @@ export function StoreProvider({ children }) {
   const [autoTimeOfDay, setAutoTimeOfDayState] = useState(
     () => readStored("tasknook.timeOfDay.auto") === "1"
   );
+  // Settings → "Music on startup" — default true (today's long-standing
+  // behavior: pick up where you left off). Read directly alongside musicOn's
+  // own initializer rather than depending on a separate state's init order.
+  const [autoResumeMusic, setAutoResumeMusicState] = useState(
+    () => readStored("tasknook.autoResumeMusic") !== "0"
+  );
+  const setAutoResumeMusic = useCallback((value) => {
+    setAutoResumeMusicState(value);
+    writeStored("tasknook.autoResumeMusic", value ? "1" : "0");
+  }, []);
   // Persisted, so the transport bar comes back after a relaunch cued where
   // the music stopped — closing the app shouldn't cost you your station.
-  const [musicOn, setMusicOn] = useState(() => readStored("tasknook.music.on") === "1");
+  // Gated on autoResumeMusic: with it off, a session that ended with music
+  // playing must still boot silent — "off" has to mean off, every time.
+  const [musicOn, setMusicOn] = useState(
+    () =>
+      readStored("tasknook.music.on") === "1" &&
+      readStored("tasknook.autoResumeMusic") !== "0"
+  );
 
   // ---- Real-world weather ----
   const [realWeather, setRealWeather] = useState(null);
@@ -347,6 +371,26 @@ export function StoreProvider({ children }) {
       else mq.removeListener(onChange);
     };
   }, [motionMode]);
+
+  // Per-element HUD fade/hide (Settings). Merged against the default shape
+  // rather than trusted whole — an older save (or a hand-edited one) missing
+  // a key must still yield "on" for that key, not undefined.
+  const [hudVisibility, setHudVisibilityState] = useState(() => {
+    const saved = readJSON("tasknook.hudVisibility", {});
+    const merged = { ...DEFAULT_HUD_VISIBILITY };
+    for (const key of Object.keys(DEFAULT_HUD_VISIBILITY)) {
+      if (HUD_VIS_MODES.includes(saved?.[key])) merged[key] = saved[key];
+    }
+    return merged;
+  });
+  const setHudVisibility = useCallback((key, mode) => {
+    if (!(key in DEFAULT_HUD_VISIBILITY) || !HUD_VIS_MODES.includes(mode)) return;
+    setHudVisibilityState((prev) => {
+      const next = { ...prev, [key]: mode };
+      writeJSON("tasknook.hudVisibility", next);
+      return next;
+    });
+  }, []);
 
   const [customStations, setCustomStations] = useState(() => {
     try {
@@ -696,7 +740,12 @@ export function StoreProvider({ children }) {
     if (layout.placements.length >= ISO_MAX_ITEMS) return null;
     const placement = newIsoPlacement("you", layout.placements, layout);
     if (!placement) return null; // genuinely nowhere to stand
-    return { ...layout, placements: [...layout.placements, placement] };
+    // Seated life: arriving in your room means taking a seat — the first
+    // free one (or soft ground); the spawn-on-free-floor placement above
+    // survives as the no-seat fallback.
+    const seatAt = freeSeatSpot(layout.placements, "you");
+    const seated = seatAt ? { ...placement, gx: seatAt.gx, gy: seatAt.gy } : placement;
+    return { ...layout, placements: [...layout.placements, seated] };
   }, []);
   const setSelfInRoom = useCallback(
     (on) => {
@@ -1291,7 +1340,7 @@ export function StoreProvider({ children }) {
   const hintWalk = useCallback(() => {
     if (readStored("tasknook.walkHinted") === "1") return;
     writeStored("tasknook.walkHinted", "1");
-    showToast("Drag your little self to walk around 🚶", 4000);
+    showToast("Pick your little self up and set them on any seat 🪑", 4000);
   }, [showToast]);
   // At home the hint has no arrival to hang off, so it waits for the one moment
   // it's true: booted, not visiting, not decorating (a drag means something
@@ -1352,19 +1401,14 @@ export function StoreProvider({ children }) {
     });
   }, []);
   /**
-   * Walking on your OWN island. The scene arms every persona (they're all
-   * yours, all drawn with your character), validates the tile with the same
-   * `personaCanStand` rule a visit uses, and lands here.
+   * Re-seating on your OWN island. The scene arms every persona (they're all
+   * yours, all drawn with your character), validates the landing with the
+   * same `personaCanSit` rule a visit uses — a free seat or soft ground,
+   * bare floor only when the room offers nowhere to sit — and lands here.
    *
-   * Unlike a visit, this one PERSISTS — it's `moveIsoItem`, so the walk moves
-   * that resident's home and the room saves. That's deliberate rather than
-   * convenient: a wander offset is measured from a home and dies when the home
-   * moves (the roam record's whole point), so a "temporary" walk would be
-   * undone by the next roam tick and again by any reload. Walking your little
-   * person to the sofa and finding them still there tomorrow is also just what
-   * anyone would expect. It stays inside the wander engine's rules — no void,
-   * no furniture, but a free seat is legal — so a walk order can end in sitting
-   * down at your own desk.
+   * Unlike a visit, this one PERSISTS: the carry moves that resident's home
+   * and the room saves. Finding your little person still on the sofa
+   * tomorrow is what anyone expects of the seated life.
    */
   const walkIsoPersona = useCallback((id, gx, gy) => {
     setIsoRoom((prev) => {
@@ -2084,6 +2128,8 @@ export function StoreProvider({ children }) {
     setTimeOfDay,
     musicOn,
     toggleMusic,
+    autoResumeMusic,
+    setAutoResumeMusic,
     musicStations,
     activeStationKey: resolvedStationKey,
     selectStation,
@@ -2119,6 +2165,8 @@ export function StoreProvider({ children }) {
     setCustomSurface,
     motionMode,
     setMotionMode,
+    hudVisibility,
+    setHudVisibility,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

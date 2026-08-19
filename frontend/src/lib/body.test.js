@@ -4,6 +4,8 @@ import {
   MODEL_SHAPE,
   MIN_SHOULDER,
   HEAD_R,
+  HEAD_R_EFF,
+  HEAD_SCALE,
   TORSO_H,
   TORSO_OVERLAP,
   WAIST_DROP,
@@ -27,14 +29,27 @@ describe("figure proportions", () => {
   it("no model × build produces shoulders narrower than the head", () => {
     // The top-heavy guard: fem + slim once produced a body narrower than its
     // own skull. Parametric over the real tables so a new build or model is
-    // covered the day it's added.
+    // covered the day it's added. Against the EFFECTIVE head — the radius
+    // the scaled head unit actually occupies (the adult-proportion pivot).
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
         expect(sh, `${model} × ${build}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R + 1);
+        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF + 1);
       }
     }
+  });
+
+  it("the head unit scales as one and the figure lands at ~5 heads", () => {
+    // The adult-proportion pivot's whole contract: the drawing radius never
+    // moves (every asset is authored against it), the occupied radius is
+    // the scale applied, and the finished figure sits in the adult band —
+    // VC2-adjacent, not the clay-toy 4-heads it replaced.
+    expect(HEAD_R_EFF).toBeCloseTo(HEAD_R * HEAD_SCALE, 9);
+    const height = -STAND_HEAD_Y + HEAD_R_EFF;
+    const heads = height / (HEAD_R_EFF * 2);
+    expect(heads).toBeGreaterThanOrEqual(4.5);
+    expect(heads).toBeLessThanOrEqual(5.5);
   });
 
   it("the standing figure stays leggy enough not to read squat", () => {
@@ -42,7 +57,7 @@ describe("figure proportions", () => {
     // torso's hem) must be at least 40% of total height. The pre-retune
     // 22/22 stack sat at 32%; a first fix at 37% was rejected against the
     // owner's reference art, which carries nearly half the figure as leg.
-    const height = -STAND_HEAD_Y + HEAD_R;
+    const height = -STAND_HEAD_Y + HEAD_R_EFF;
     const visibleLeg = -(STAND_TORSO_Y + TORSO_H);
     expect(visibleLeg / height).toBeGreaterThanOrEqual(0.4);
     // ...while total height stays inside the band everything seat-, wall-
@@ -54,8 +69,8 @@ describe("figure proportions", () => {
   it("seated and standing share one head lift", () => {
     // The seated 8.0 vs standing 8.5 was a hand-tuned accident, unified in
     // the retune — a pose is not allowed its own neck length.
-    expect(STAND_TORSO_Y - STAND_HEAD_Y).toBe(HEAD_LIFT);
-    expect(SEAT_TORSO_Y - SEAT_HEAD_Y).toBe(HEAD_LIFT);
+    expect(STAND_TORSO_Y - STAND_HEAD_Y).toBeCloseTo(HEAD_LIFT, 9);
+    expect(SEAT_TORSO_Y - SEAT_HEAD_Y).toBeCloseTo(HEAD_LIFT, 9);
   });
 });
 
@@ -107,13 +122,15 @@ describe("figureMetrics", () => {
   });
 
   it("the chest stays in the reference band relative to the head", () => {
-    // The owner's reference kits carry shoulders at ~1.2–1.3× the head; the
-    // pre-retune body sat at 1.6× and read chunky. Ceiling at 1.55 so a
-    // future build can be broad without re-becoming a fridge.
+    // Re-derived for the adult pivot: the clay-toy 1.55×-head ceiling was
+    // calibrated against the big chibi skull. Adult stylized figures (the
+    // VC2 reference) carry shoulders ~1.5–2× the head; the ceiling is 2.1
+    // against the EFFECTIVE head so a build can be broad without becoming
+    // a bobblehead in reverse.
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
-        expect(sh / HEAD_R, `${model} × ${build}`).toBeLessThanOrEqual(1.55);
+        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(2.1);
       }
     }
   });
@@ -144,14 +161,14 @@ describe("figureMetrics", () => {
       for (const width of WIDTH_RANGE) {
         const { sh, hem, legW } = figureMetrics({ model, width });
         expect(sh, `${model} w${width}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh / HEAD_R, `${model} w${width}`).toBeLessThanOrEqual(1.55);
+        expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(2.1);
         expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
       }
       for (const height of HEIGHT_RANGE) {
         // At the DEFAULT torso, the leg range keeps the figure leggy — the
         // original anti-squat guarantee.
         const m = figureMetrics({ model, height });
-        const total = -m.standHeadY + HEAD_R;
+        const total = -m.standHeadY + HEAD_R_EFF;
         const legShare = (m.legH - TORSO_OVERLAP) / total;
         expect(legShare, `${model} h${height}`).toBeGreaterThanOrEqual(0.4);
       }
@@ -161,7 +178,7 @@ describe("figureMetrics", () => {
       for (const height of HEIGHT_RANGE) {
         for (const torso of TORSO_RANGE) {
           const m = figureMetrics({ model, height, torso });
-          const total = -m.standHeadY + HEAD_R;
+          const total = -m.standHeadY + HEAD_R_EFF;
           const legShare = (m.legH - TORSO_OVERLAP) / total;
           expect(legShare, `${model} h${height} t${torso}`).toBeGreaterThanOrEqual(0.33);
           expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(65);

@@ -25,7 +25,8 @@ import {
   normalizeRot,
   rotationsFor,
   normalizeMask,
-  personaCanStand,
+  personaCanSit,
+  freeSeatSpot,
   seatFor,
   seatedPlacement,
   snapHalf,
@@ -960,54 +961,67 @@ describe("rotating on a drawn floor", () => {
   });
 });
 
-describe("personaCanStand — the walk-order rule", () => {
-  // Not the edit-mode drag rule (that one allows overlap) and not quite the
-  // wander rule (that one refuses ALL furniture): walking may end on a free
-  // seat, which is how a walk order becomes sitting down with your friend.
+describe("personaCanSit — the seated-life landing rule", () => {
+  // The carry may land on a free seat or soft ground; bare floor only when
+  // the room offers nowhere to sit (the no-seat fallback that keeps every
+  // room placeable). Owner decision 2026-08-19, from the VC2 reference.
   const ROOM = { w: 9, d: 7 };
   const SELF = "visit-guest-1";
 
-  it("allows open floor and refuses the void", () => {
-    expect(personaCanStand(4, 4, ROOM, [], SELF)).toBe(true);
+  it("allows standing on any clear floor and refuses the void", () => {
+    // Owner, 2026-08-19: dropping someone on bare floor just STANDS them
+    // there — no walk follows, but the spot is theirs.
+    expect(personaCanSit(4, 4, ROOM, [], SELF)).toBe(true);
     // Out of bounds (the 0.8 footprint pokes past the far edge)…
-    expect(personaCanStand(8.9, 6.9, ROOM, [], SELF)).toBe(false);
+    expect(personaCanSit(8.9, 6.9, ROOM, [], SELF)).toBe(false);
     // …and a painted-away tile.
     const masked = {
       ...ROOM,
       mask: Array.from({ length: 7 }, (_, y) => (y === 0 ? "011111111" : "111111111")),
     };
-    expect(personaCanStand(0, 0, masked, [], SELF)).toBe(false);
+    expect(personaCanSit(0, 0, masked, [], SELF)).toBe(false);
   });
 
-  it("refuses furniture but ignores rugs, personas, and itself", () => {
+  it("soft ground seats you (shared), furniture refuses, bare floor stands", () => {
+    const rug = { id: "r1", item: "rug", gx: 3, gy: 3 };
+    // Over the rug: a floor-sit — legal, and SHARED (a rug isn't a chair).
+    expect(personaCanSit(4, 4, ROOM, [rug], SELF)).toBe(true);
+    expect(
+      personaCanSit(4, 4, ROOM, [rug, { id: "o1", item: "resident", gx: 4.5, gy: 4 }], SELF)
+    ).toBe(true);
+    // Off the rug: bare floor is legal even with seats around — they stand.
+    expect(personaCanSit(1, 1, ROOM, [rug], SELF)).toBe(true);
+    // Furniture is refused everywhere.
     const bookcase = { id: "b1", item: "bookcase", gx: 4, gy: 4 };
-    expect(personaCanStand(4, 4, ROOM, [bookcase], SELF)).toBe(false);
-    expect(personaCanStand(1, 1, ROOM, [bookcase], SELF)).toBe(true);
-    // A rug is layer -1 — standing ON it is the point of a rug.
-    expect(
-      personaCanStand(4, 4, ROOM, [{ id: "r1", item: "rug", gx: 3, gy: 3 }], SELF)
-    ).toBe(true);
-    // The owner standing there doesn't block the floor (the wander engine's
-    // rule), and your OWN current placement never blocks your next step.
-    expect(
-      personaCanStand(4, 4, ROOM, [{ id: "o1", item: "resident", gx: 4, gy: 4 }], SELF)
-    ).toBe(true);
-    expect(
-      personaCanStand(2, 2, ROOM, [{ id: SELF, item: "resident", gx: 2, gy: 2 }], SELF)
-    ).toBe(true);
+    expect(personaCanSit(4, 4, ROOM, [bookcase], SELF)).toBe(false);
+    expect(personaCanSit(1, 1, ROOM, [bookcase], SELF)).toBe(true);
   });
 
   it("a free seat is legal; a seat someone else resolves onto is taken", () => {
     const stool = { id: "s1", item: "stool", gx: 4, gy: 4 };
     // Centred over the stool → seatFor will seat them there.
     expect(seatFor({ id: SELF, item: "resident", gx: 4, gy: 4 }, [stool])).toBeTruthy();
-    expect(personaCanStand(4, 4, ROOM, [stool], SELF)).toBe(true);
+    expect(personaCanSit(4, 4, ROOM, [stool], SELF)).toBe(true);
     // The owner already sits there — two people snapping to one seat centre
     // is the stacked-mug bug wearing a face.
     const owner = { id: "o1", item: "resident", gx: 4, gy: 4 };
-    expect(personaCanStand(4, 4, ROOM, [stool, owner], SELF)).toBe(false);
+    expect(personaCanSit(4, 4, ROOM, [stool, owner], SELF)).toBe(false);
     // A second, empty seat stays legal.
     const stool2 = { id: "s2", item: "stool", gx: 6, gy: 4 };
-    expect(personaCanStand(6, 4, ROOM, [stool, owner, stool2], SELF)).toBe(true);
+    expect(personaCanSit(6, 4, ROOM, [stool, owner, stool2], SELF)).toBe(true);
+  });
+
+  it("freeSeatSpot shows an arrival to a free chair, then soft ground, then null", () => {
+    const stool = { id: "s1", item: "stool", gx: 4, gy: 4 };
+    const rug = { id: "r1", item: "rug", gx: 0, gy: 0 };
+    const at = freeSeatSpot([stool, rug]);
+    // Centred over the stool: seatFor resolves a resident placed there.
+    expect(seatFor({ id: "g", item: "resident", ...at }, [stool, rug])?.placement.id).toBe("s1");
+    // Stool taken → the rug (a floor-sit) is next.
+    const owner = { id: "o1", item: "resident", gx: 4, gy: 4 };
+    const soft = freeSeatSpot([stool, rug, owner]);
+    expect(seatFor({ id: "g", item: "resident", ...soft }, [stool, rug, owner])?.soft).toBe(true);
+    // Nothing to sit on at all → null (the caller stands them up instead).
+    expect(freeSeatSpot([{ id: "b1", item: "bookcase", gx: 1, gy: 1 }])).toBe(null);
   });
 });

@@ -31,18 +31,22 @@ export function VolumeDefs({ id }) {
           cat's rear view shipped exactly that (owner screenshot,
           2026-08-19). The shadow rim carries the sphere on light masses;
           on dark ones the silhouette itself does. */}
+      {/* Ramps deepened a touch for the VC2 reference pass (2026-08-19):
+          the reference's masses carry visibly soft value ramps under warm
+          light. Still translucent, still subtle-by-rule — a figure shaded
+          much softer than its sofa reads as pasted from another kit. */}
       <radialGradient id={`${id}-sph`} cx="0.62" cy="0.3" r="0.82">
-        <stop offset="0" stopColor={GLINT} stopOpacity="0.14" />
+        <stop offset="0" stopColor={GLINT} stopOpacity="0.17" />
         <stop offset="0.4" stopColor={GLINT} stopOpacity="0" />
         <stop offset="0.68" stopColor={SHADE} stopOpacity="0" />
-        <stop offset="1" stopColor={SHADE} stopOpacity="0.24" />
+        <stop offset="1" stopColor={SHADE} stopOpacity="0.28" />
       </radialGradient>
       <linearGradient id={`${id}-cyl`} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor={SHADE} stopOpacity="0.2" />
+        <stop offset="0" stopColor={SHADE} stopOpacity="0.24" />
         <stop offset="0.3" stopColor={SHADE} stopOpacity="0" />
         <stop offset="0.6" stopColor={GLINT} stopOpacity="0" />
-        <stop offset="0.85" stopColor={GLINT} stopOpacity="0.14" />
-        <stop offset="1" stopColor={GLINT} stopOpacity="0.04" />
+        <stop offset="0.85" stopColor={GLINT} stopOpacity="0.18" />
+        <stop offset="1" stopColor={GLINT} stopOpacity="0.05" />
       </linearGradient>
     </defs>
   );

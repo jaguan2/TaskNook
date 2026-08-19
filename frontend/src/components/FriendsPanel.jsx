@@ -36,6 +36,7 @@ export default function FriendsPanel() {
     openGroupChat,
     friendship,
     showToast,
+    hudVisibility,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -262,8 +263,15 @@ export default function FriendsPanel() {
                     {whenLabel(c.lastMessage.createdAt, Date.now())}
                   </span>
                 )}
-                {c.unread > 0 && (
-                  <span className="grid h-5 min-w-[1.25rem] shrink-0 place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum">
+                {/* The Settings "Chat" visibility only quiets the unread
+                    COUNT — a Do Not Disturb for the nagging red-dot feeling,
+                    not a way to hide the thread list itself. */}
+                {c.unread > 0 && hudVisibility.chat !== "hidden" && (
+                  <span
+                    className={`grid h-5 min-w-[1.25rem] shrink-0 place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum ${
+                      hudVisibility.chat === "faded" ? "opacity-40" : ""
+                    }`}
+                  >
                     {c.unread}
                   </span>
                 )}
@@ -365,8 +373,12 @@ export default function FriendsPanel() {
                   className="pill inline-flex shrink-0 items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
                 >
                   💬 Chat
-                  {unreadByFriend[f.id] > 0 && (
-                    <span className="grid h-4 min-w-[1rem] place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum">
+                  {unreadByFriend[f.id] > 0 && hudVisibility.chat !== "hidden" && (
+                    <span
+                      className={`grid h-4 min-w-[1rem] place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum ${
+                        hudVisibility.chat === "faded" ? "opacity-40" : ""
+                      }`}
+                    >
                       {unreadByFriend[f.id]}
                     </span>
                   )}

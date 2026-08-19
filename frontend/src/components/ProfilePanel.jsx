@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
+import { useReducedMotionPref } from "../lib/motion";
 import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
-import { useArmed } from "../lib/useArmed";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
@@ -344,11 +344,17 @@ function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swat
           className="absolute z-20 w-max max-w-[10.5rem] -translate-x-1/2 rounded-xl border border-white/10 bg-plum/95 p-2.5 shadow-xl backdrop-blur-md"
           style={{ top: pop.top + 4, left: pop.left }}
         >
+          {/* Picking a colour is the dialog's whole job, so the pick also
+              DISMISSES it (owner, 2026-08-19: it used to sit there until
+              you clicked away). The tile still reopens it any time. */}
           <Swatches
             label={`${label} colour`}
             options={swatches}
             value={swatchValue}
-            onPick={onSwatch}
+            onPick={(hex) => {
+              onSwatch(hex);
+              setPop(null);
+            }}
           />
         </div>
       )}
@@ -409,9 +415,10 @@ function Swatches({ options, value, onPick, label }) {
  */
 function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
   const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
-  // Rehoming is a delete of someone with a NAME — the two-tap armed "sure?"
-  // guard, same grammar as every other delete of user data.
-  const [armedId, arm] = useArmed();
+  // Rehoming confirms in a POPUP over the card (owner, 2026-08-19 — this
+  // one outranks the app's armed-button grammar): a pet has a name, and the
+  // dialog is where there's room to say plainly that it can't be undone.
+  const [confirmId, setConfirmId] = useState(null);
   // ONE Adopt button beside the title (owner, 2026-08-19: three buttons was
   // a row of shopping); the species pills appear only while adopting.
   const [adopting, setAdopting] = useState(false);
@@ -468,33 +475,8 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
             return (
               <div
                 key={p.id}
-                className={`relative rounded-2xl border p-2 transition ${
-                  armedId === p.id
-                    ? "border-danger/40 bg-danger/5"
-                    : "border-white/10 bg-white/5"
-                }`}
+                className="relative rounded-2xl border border-white/10 bg-white/5 p-2"
               >
-                {/* Finding a new home is a delete wearing kind words — an ✕
-                    in the card's corner (owner, 2026-08-19), still behind the
-                    armed "sure?" guard, with the first tap SAYING what this
-                    is and that it can't be undone. */}
-                <button
-                  type="button"
-                  onClick={() => arm(p.id, () => removeIsoItem(p.id))}
-                  title="Find them a new home"
-                  aria-label={
-                    armedId === p.id
-                      ? "Tap again to find them a new home — this can't be undone"
-                      : "Find them a new home"
-                  }
-                  className={`absolute right-2 top-2 rounded-full px-1.5 py-0.5 transition ${
-                    armedId === p.id
-                      ? "bg-danger/20 text-[10px] font-bold text-danger"
-                      : "text-sm text-petal/40 hover:bg-white/10 hover:text-danger"
-                  }`}
-                >
-                  {armedId === p.id ? "sure?" : "✕"}
-                </button>
                 <div className="flex items-center gap-3">
                 <svg
                   viewBox="-9 -26 32 40"
@@ -505,22 +487,36 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
                   <Sprite awake facing="front" look={p.look} />
                 </svg>
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  {/* Save on BLUR, not per keystroke — every write saves the
-                      room. Keyed on the stored name so an outside change
-                      (validation trimming it) refreshes the field. */}
-                  <input
-                    key={`${p.id}:${p.name || ""}`}
-                    type="text"
-                    defaultValue={p.name || ""}
-                    placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
-                    maxLength={PET_NAME_MAX}
-                    aria-label="Pet name"
-                    onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 py-1 pl-2 pr-7 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
-                  />
+                  {/* The ✕ shares the name row so it's ALIGNED with
+                      something (owner: a corner-floated ✕ lined up with
+                      nothing). Save on BLUR, not per keystroke — every
+                      write saves the room. Keyed on the stored name so an
+                      outside change (validation trimming it) refreshes the
+                      field. */}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      key={`${p.id}:${p.name || ""}`}
+                      type="text"
+                      defaultValue={p.name || ""}
+                      placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
+                      maxLength={PET_NAME_MAX}
+                      aria-label="Pet name"
+                      onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(p.id)}
+                      title="Find them a new home"
+                      aria-label="Find them a new home"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm text-petal/40 transition hover:bg-white/10 hover:text-danger"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   <Choices
                     label="Temper"
                     options={PET_TEMPERS}
@@ -539,13 +535,44 @@ function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
                   )}
                 </div>
                 </div>
-                {/* The first tap explains itself — "new home" is a euphemism,
-                    and a euphemism plus silence reads as a trick. */}
-                {armedId === p.id && (
-                  <p className="mt-1.5 px-1 text-[10px] leading-snug text-danger/90">
-                    This sends {p.name || "this pet"} off to a new home — it
-                    can&apos;t be undone. Tap ✕ again if you&apos;re sure.
-                  </p>
+                {/* The confirm POPUP, covering just this pet's card — a
+                    euphemism plus silence reads as a trick, so the dialog
+                    names what happens and that it's permanent. */}
+                {confirmId === p.id && (
+                  <div
+                    role="alertdialog"
+                    aria-label="Find them a new home?"
+                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-night/95 p-3 text-center backdrop-blur-sm"
+                  >
+                    <p className="text-xs font-semibold text-cream">
+                      Find {p.name || `this ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`} a
+                      new home?
+                    </p>
+                    <p className="text-[10px] leading-snug text-petal/60">
+                      They&apos;ll leave your room for good — this can&apos;t be
+                      undone.
+                    </p>
+                    <div className="mt-1 flex gap-2">
+                      <button
+                        type="button"
+                        autoFocus
+                        onClick={() => setConfirmId(null)}
+                        className="rounded-full bg-white/10 px-3 py-1 text-xs text-cream transition hover:bg-white/20"
+                      >
+                        Keep them
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeIsoItem(p.id);
+                          setConfirmId(null);
+                        }}
+                        className="rounded-full bg-danger/20 px-3 py-1 text-xs font-semibold text-danger transition hover:bg-danger/30"
+                      >
+                        New home
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );
@@ -740,12 +767,31 @@ export default function ProfilePanel() {
     setPetIdentity,
     addIsoItem,
     removeIsoItem,
+    motionMode,
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
   // The stage's turntable angle — dragging the figure spins it, the button
   // advances a quarter turn.
   const [spin, setSpin] = useState(0);
+  // The turntable turns ITSELF — a slow quarter every few seconds shows all
+  // four facings unprompted (owner, 2026-08-19, replacing the caption that
+  // explained dragging). It stands down while the user is the one driving
+  // and resumes after a quiet spell; reduced motion parks it entirely.
+  const lastSpinTouch = useRef(0);
+  const reduceMotion = useReducedMotionPref(motionMode);
+  useEffect(() => {
+    if (reduceMotion) return undefined;
+    const id = setInterval(() => {
+      if (Date.now() - lastSpinTouch.current < 7000) return;
+      setSpin((a) => Math.round(a / 90) * 90 + 90);
+    }, 3600);
+    return () => clearInterval(id);
+  }, [reduceMotion]);
+  const touchSpin = (v) => {
+    lastSpinTouch.current = Date.now();
+    setSpin(v);
+  };
 
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
@@ -811,19 +857,19 @@ export default function ProfilePanel() {
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            <CharacterStage character={shown} angle={spin} onSpin={setSpin} />
+            {/* No caption — the stage turns itself, which SHOWS the views
+                instead of explaining them; dragging still works and pauses
+                the turntable (the svg keeps the full aria hint). */}
+            <CharacterStage character={shown} angle={spin} onSpin={touchSpin} />
             <button
               type="button"
-              onClick={() => setSpin((a) => Math.round(a / 90) * 90 + 90)}
+              onClick={() => touchSpin((a) => Math.round(a / 90) * 90 + 90)}
               title="Turn around"
               aria-label="Turn the character a quarter turn"
               className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-petal/80 transition hover:bg-white/20"
             >
               <RefreshCw size={13} />
             </button>
-            <span className="pointer-events-none absolute bottom-1.5 right-2.5 text-[10px] text-petal/40">
-              drag me to spin · drag the floor to move · scroll to zoom
-            </span>
           </div>
           <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
             {TABS.map((t) => (

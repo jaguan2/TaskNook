@@ -42,7 +42,7 @@ function fmtClock(d) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function TopBar() {
+export default function TopBar({ clockVisibility = "on" }) {
   const { user, musicOn, toggleMusic, weatherMode, setWeather } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
@@ -115,11 +115,22 @@ export default function TopBar() {
 
       {/* h-11, not py-2: the two round toggles are 44px and these were 40px,
           so the cluster had two different pill heights sitting side by side.
-          Same px-4 on both for an even rhythm across the row. */}
-      <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
-        <Clock3 size={16} className="text-petal/70" />
-        <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
-      </div>
+          Same px-4 on both for an even rhythm across the row. "hidden" drops
+          it from the DOM outright (not just invisible) — this pill carries no
+          .intro-chrome/persistent-state concerns of its own (TopBar's own
+          wrapper does, and TopBar itself never unmounts), so removing it lets
+          the row reflow tight instead of leaving a gap for a clock nobody
+          wants to see. */}
+      {clockVisibility !== "hidden" && (
+        <div
+          className={`glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft transition-opacity duration-300 ${
+            clockVisibility === "faded" ? "opacity-30" : "opacity-100"
+          }`}
+        >
+          <Clock3 size={16} className="text-petal/70" />
+          <span className="font-semibold tabular-nums">{fmtClock(now)}</span>
+        </div>
+      )}
 
       <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
         <span className="text-base leading-none">{user?.avatar || "🌙"}</span>

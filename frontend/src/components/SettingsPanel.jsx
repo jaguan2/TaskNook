@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MonitorCog, Palette, SunMedium, Waves, Wind } from "lucide-react";
+import { EyeOff, MonitorCog, Music2, Palette, SunMedium, Waves, Wind } from "lucide-react";
 import { useStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 
@@ -7,6 +7,22 @@ const MOTION_OPTIONS = [
   { key: "auto", label: "Auto", Icon: MonitorCog },
   { key: "full", label: "Full", Icon: Wind },
   { key: "reduced", label: "Reduced", Icon: Waves },
+];
+
+// Matches store.jsx's DEFAULT_HUD_VISIBILITY keys — a mismatched key here
+// would silently no-op the button (setHudVisibility guards against unknown
+// keys) instead of throwing, so keep the two lists in sync by hand.
+const HUD_ELEMENTS = [
+  { key: "timer", label: "Session & timer" },
+  { key: "tasks", label: "To-do list" },
+  { key: "music", label: "Music bar" },
+  { key: "clock", label: "Clock" },
+  { key: "chat", label: "Chat unread badges" },
+];
+const VIS_OPTIONS = [
+  { key: "on", label: "On" },
+  { key: "faded", label: "Faded" },
+  { key: "hidden", label: "Hidden" },
 ];
 
 // One-tap starting points for the custom scheme.
@@ -66,6 +82,10 @@ export default function SettingsPanel() {
     setCustomSurface,
     motionMode,
     setMotionMode,
+    hudVisibility,
+    setHudVisibility,
+    autoResumeMusic,
+    setAutoResumeMusic,
   } = useStore();
 
   const customSwatch = paletteSwatch(customColor);
@@ -134,6 +154,73 @@ export default function SettingsPanel() {
               <m.Icon size={13} /> {m.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Each element keeps working underneath — the timer keeps ticking,
+          music keeps playing — this only ever touches how much of it you
+          SEE. "Faded" stays clickable; "Hidden" drops out of hit-testing too
+          (see App.jsx's hudWrapClass). */}
+      <section className="space-y-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <EyeOff size={15} className="text-petal/70" /> HUD elements
+        </p>
+        <p className="text-xs text-petal/60">
+          Fade or fully hide individual pieces of the interface.
+        </p>
+        <div className="space-y-1.5">
+          {HUD_ELEMENTS.map((el) => (
+            <div key={el.key} className="flex items-center justify-between gap-2">
+              <span className="text-xs text-petal/80">{el.label}</span>
+              <div className="flex gap-1">
+                {VIS_OPTIONS.map((v) => (
+                  <button
+                    key={v.key}
+                    onClick={() => setHudVisibility(el.key, v.key)}
+                    aria-pressed={hudVisibility[el.key] === v.key}
+                    className={`pill px-2.5 py-1 text-[10px] font-semibold transition ${
+                      hudVisibility[el.key] === v.key
+                        ? "bg-glow text-plum"
+                        : "bg-white/10 text-petal hover:bg-white/20"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Off means off, every time — even a session that ended mid-song boots
+          silent (store.jsx's musicOn init + MusicDock's BOOTED_WITH_MUSIC_ON
+          both gate on this same setting, so they can't disagree). */}
+      <section className="space-y-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Music2 size={15} className="text-petal/70" /> Music on startup
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-petal/60">
+            {autoResumeMusic
+              ? "Resumes where you left off if music was playing when you last closed TaskNook."
+              : "Always starts silent — press play yourself each time."}
+          </p>
+          <button
+            onClick={() => setAutoResumeMusic(!autoResumeMusic)}
+            aria-pressed={autoResumeMusic}
+            className={`pill shrink-0 px-3 py-1.5 text-[10px] font-semibold transition ${
+              autoResumeMusic
+                ? "bg-glow text-plum"
+                : "bg-white/10 text-petal hover:bg-white/20"
+            }`}
+          >
+            {autoResumeMusic ? "On" : "Off"}
+          </button>
         </div>
       </section>
 

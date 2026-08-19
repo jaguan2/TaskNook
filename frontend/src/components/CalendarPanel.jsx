@@ -113,6 +113,14 @@ export default function CalendarPanel() {
 
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);
   const unscheduled = tasks.filter((t) => !t.scheduledDate && !t.completed);
+  // Journal: what got checked off that day. Derived client-side from the
+  // already-loaded task list (completedAt is a UTC timestamp, routed through
+  // the same local-day toISO() the calendar's own tinting uses) — unlike the
+  // "Focused on" breakdown above, this needs no backend endpoint since the
+  // data's already in the store.
+  const completedOnSelected = tasks.filter(
+    (t) => t.completed && t.completedAt && toISO(new Date(t.completedAt)) === selected
+  );
 
   const shift = (delta) => {
     let m = view.m + delta;

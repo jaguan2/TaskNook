@@ -48,6 +48,16 @@ const PANELS = {
   settings: { title: "Settings", subtitle: "Brightness & colours", Comp: SettingsPanel },
 };
 
+// "faded" stays interactive (a quieter HUD, not a hidden one); "hidden" and
+// decorating both use `invisible` so the element also drops out of
+// hit-testing, matching the pointer-events story the room-edit fade already
+// relied on.
+function hudWrapClass(hiddenByEdit, visMode) {
+  if (hiddenByEdit || visMode === "hidden") return "transition-opacity duration-300 invisible opacity-0";
+  if (visMode === "faded") return "transition-opacity duration-300 opacity-30";
+  return "transition-opacity duration-300 opacity-100";
+}
+
 export default function App() {
   const {
     booting,
@@ -61,6 +71,7 @@ export default function App() {
     customColor,
     customSurface,
     motionMode,
+    hudVisibility,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -366,7 +377,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <TopBar />
+      <TopBar clockVisibility={hudVisibility.clock} />
       <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
 
       {/* Shared error toast — top-centre (the one HUD zone nothing owns).
@@ -427,41 +438,46 @@ export default function App() {
       </AnimatePresence>
 
       {/* The HUD cards own the scene's top corners (focus card left, to-do
-          right) — exactly where wall items can now be placed — and the maker's
-          signature sits bottom-left where the decorating chip appears. So all
-          three step aside while decorating. Hidden via `visibility`, NOT
-          unmounting/display:none: those replay the .intro-chrome boot
-          animation on return (1.5s of invisible chrome), while
-          visibility:hidden also removes them from hit-testing without
-          restarting anything. Timers keep ticking in the store either way. */}
+          right) — exactly where wall items can now be placed. So each steps
+          aside while decorating, ADDITIONALLY to whatever its own Settings
+          visibility says. Hidden via `visibility`, NOT unmounting/
+          display:none: those replay the .intro-chrome boot animation on
+          return (1.5s of invisible chrome), while visibility:hidden also
+          removes them from hit-testing without restarting anything. "Faded"
+          stays interactive — it's a quieter HUD, not a hidden one. Timers
+          keep ticking in the store regardless of any of this. */}
+      <div className={hudWrapClass(roomEditMode, hudVisibility.timer)}>
+        <HudFocusCard />
+      </div>
+      <div className={hudWrapClass(roomEditMode, hudVisibility.tasks)}>
+        <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
+      </div>
+      {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
+          music keeps playing when the panel closes; hidden (not unmounted)
+          while decorating so playback survives that too and the tint picker
+          gets the bottom-centre spot. */}
+      <div className={hudWrapClass(roomEditMode, hudVisibility.music)}>
+        <MusicDock />
+      </div>
+
+      {/* rkive. — the maker's signature, same wordmark as the portfolio.
+          Sits ON the bottom rail: same bottom-6, same 44px height, so its
+          optical centre lines up with the transport bar and the clock
+          cluster instead of floating a few px below them. The visiting
+          chip borrows this exact spot, so the signature steps aside for a
+          visit the same way it does for the decorating chip. Not part of
+          the fade/hide settings — it's not a HUD element the patch notes
+          were asking to quiet down. */}
       <div
-        className={`transition-opacity duration-300 ${
+        className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
           roomEditMode ? "invisible opacity-0" : "opacity-100"
         }`}
+        style={{ visibility: visiting ? "hidden" : undefined }}
+        title="A space where I archive and share my journey, wherever it takes me."
       >
-        <HudFocusCard />
-        <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
-        {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
-            music keeps playing when the panel closes; hidden (not unmounted)
-            while decorating so playback survives that too and the tint picker
-            gets the bottom-centre spot. */}
-        <MusicDock />
-
-        {/* rkive. — the maker's signature, same wordmark as the portfolio.
-            Sits ON the bottom rail: same bottom-6, same 44px height, so its
-            optical centre lines up with the transport bar and the clock
-            cluster instead of floating a few px below them. The visiting
-            chip borrows this exact spot, so the signature steps aside for a
-            visit the same way it does for the decorating chip. */}
-        <div
-          className="intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center"
-          style={{ visibility: visiting ? "hidden" : undefined }}
-          title="A space where I archive and share my journey, wherever it takes me."
-        >
-          <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
-            rkive<span className="text-glow/70">.</span>
-          </span>
-        </div>
+        <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
+          rkive<span className="text-glow/70">.</span>
+        </span>
       </div>
 
     </div>

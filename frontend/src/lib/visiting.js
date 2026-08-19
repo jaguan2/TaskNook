@@ -16,6 +16,7 @@ import {
   findFreeSpot,
   footOf,
   footprintFree,
+  freeSeatSpot,
   isoPresetLayout,
   validateIsoLayout,
 } from "./isoRoom";
@@ -175,12 +176,16 @@ export function resolveVisitRoom(data, guest = null) {
 
   let placedGuestId = null;
   if (guest) {
-    // You arrive at the front of the room — visiting means being there,
-    // not watching a diorama.
-    const at = residentSpot(layout, placements, null, {
-      gx: layout.w / 2,
-      gy: layout.d - 1,
-    });
+    // Seated life: arriving means being shown to a seat — the first free
+    // one (or soft ground). The front-of-room stand survives as the
+    // no-seat fallback, so a seatless room still lets you in.
+    const seatAt = freeSeatSpot(placements, "resident");
+    const at =
+      seatAt ||
+      residentSpot(layout, placements, null, {
+        gx: layout.w / 2,
+        gy: layout.d - 1,
+      });
     if (at) {
       placements.push({ id: guestId, item: "resident", gx: at.gx, gy: at.gy });
       personas[guestId] = {

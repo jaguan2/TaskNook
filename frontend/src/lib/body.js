@@ -22,21 +22,35 @@
 // below are DERIVED, and retuning one constant moves everything that hangs
 // off it instead of leaving hand-copied literals behind.
 export const HEAD_R = 7.3;
+// THE ADULT-PROPORTION PIVOT (owner decision, 2026-08-19, against the
+// Virtual Cottage 2 reference: "we can make our characters adult
+// proportioned as well"). HEAD_R stays 7.3 because it is the DRAWING
+// radius — all 19 hairstyles, 7 hats, 3 glasses and both faces are
+// authored against it — and the assembly scales the finished head UNIT by
+// HEAD_SCALE about its own centre instead. One number converts the whole
+// wardrobe; re-authoring a hundred assets would convert it slower and
+// worse. Layout (neck seams, height guards, shoulder ratios) must use
+// HEAD_R_EFF — the radius the head actually OCCUPIES.
+// 0.8 was the first cut and read as "no change at all" (owner, same day) —
+// the proportion-deltas-must-be-BIG lesson, relearned once more. 0.75 is
+// where the adult read finally survives 57px.
+export const HEAD_SCALE = 0.75;
+export const HEAD_R_EFF = HEAD_R * HEAD_SCALE;
 // Legs up, torso down: at 22/22 the visible leg was 32% of the figure's
 // height and the torso a near-square 23×22 block — which is what read as
-// "chunky" however it was shaded. The owner's reference art (clay-toy 3D
-// character kits) carries nearly HALF the figure as leg over a short torso;
-// 29/17 brings the visible leg to 43% while keeping total height at ~58px
-// so nothing seat- or camera-tuned moves. A first, timid pass at 25/20
-// (37% leg) still read as the old body — proportion changes have to be big
-// enough to survive 57px, same lesson as the model deltas.
-export const LEG_H = 29;
+// "chunky" however it was shaded. The clay-toy retune took it to 29/17
+// (~43% leg, ~4 heads); the adult pivot adds two more px of leg against
+// the smaller head, landing at ~5 heads and ~47% leg with total height
+// still inside the 55–58px band everything seat- and camera-tuned assumes.
+export const LEG_H = 31;
 export const TORSO_H = 17;
 // How far the torso hem drops over the top of the legs.
 export const TORSO_OVERLAP = 4;
 // Head centre above the torso top — the neck-and-collar gap that stops the
-// head sitting directly on the shoulders.
-export const HEAD_LIFT = 8.5;
+// head sitting directly on the shoulders. Tuned WITH the head scale: the
+// chin sits at headY + HEAD_R_EFF now, so the lift shrinks alongside it or
+// the neck grows into a stalk.
+export const HEAD_LIFT = 6.7;
 // Waist depth below the torso top — 60% of the torso's height. The waist is
 // a property of the BODY, not of whatever garment happens to cover it — a
 // longer hem must never move it.
@@ -122,7 +136,7 @@ export const BUILD_SHAPE = {
 // chunky ceiling (8.4 + 2.8 = 11.2 → 1.53×). Old saves stored up to 9;
 // clampNum folds them to 8.4, which is the retune applied, not data loss.
 export const WIDTH_RANGE = [6.2, 8.4];
-export const HEIGHT_RANGE = [26, 32];
+export const HEIGHT_RANGE = [28, 34];
 export const TORSO_RANGE = [14, 20];
 
 function clampNum(value, [lo, hi], fallback) {

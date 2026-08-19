@@ -89,3 +89,35 @@ Before any commitment, build an offline spike page (not wired into the app):
 **Pass/fail is one question, answered by the owner's eye: does the mesh sit
 in the same world as the SVG furniture?** If yes → plan the full migration.
 If no → Option A was the ceiling, and it has already shipped.
+
+## VC2 reference notes (2026-08-19 - owner supplied Virtual Cottage 2 art)
+
+What the reference actually does, read off the capsule/screenshots:
+
+1. **Proportions are ADULT, not chibi** - roughly 5 heads tall, real necks,
+   long legs. TaskNook's figure is ~2.4 heads at 57px (the clay-toy kit
+   reference of the earlier retunes). These are different families: moving
+   to VC2 proportions is a re-proportion of the whole rig (seat heights,
+   hitH, walk stride, every garment), not a tune. Decide deliberately, once
+   the owner's full reference set arrives.
+2. **The shading is painterly, one warm light.** Soft two-step value ramps
+   on every mass, a warm ambient wash (sunset oranges), and rim light off
+   the window/lamp. Our equivalent lever is the soft-volume pass + toneFor
+   strengths - a "warm room light" pass (slightly warm GLINT everywhere,
+   cool SHADE) would move us closer without new geometry.
+3. **Hair is a SILHOUETTE with 2-3 interior value steps** - chunky locks,
+   a ponytail that reads at any size. Ours already follows this doctrine;
+   the gap is value steps (we have shadow wedges + one light band).
+4. **Characters are seen 3/4-back, seated, typing** - VC2's identity shot.
+   Our 2D cottage resident now does exactly this pose; the iso room's
+   seated-typing resident is the same idea.
+5. **What ports NOW without a proportion decision**: warmer light pass,
+   hair value steps, upright posture (done 2026-08-19 - the lean is fixed),
+   consistent front-lit profile (done same day).
+
+**DECIDED (2026-08-19, same day)**: the owner chose ADULT proportions ("we
+can make our characters adult proportioned as well"). Shipped via
+`HEAD_SCALE` in lib/body.js — the head unit scales about its centre so all
+authored assets ride along, legs +2px, ~5 heads at the same room height.
+The owner's additional VC2 reference images will drive the NEXT layer:
+painterly warm-light pass and hair value steps (points 2-3 above).

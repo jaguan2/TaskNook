@@ -278,18 +278,26 @@ running `git commit` yourself.
   per-placement characters + name tags: tag lifts are tuned by screenshot
   (hitH is the grab region, a head too tall), and tags share the walkers'
   per-glide clock via the same `useGlide` hook (`PersonaTag`) or they
-  teleport ahead of their person. **You can WALK AROUND a visit**:
-  `resolveVisitRoom` returns `guestId` (null when no guest could stand) and
-  your placement (`walkId={visiting.guestId}`) is grabbable outside edit
-  mode — **dragging PICKS THEM UP**: the figure lifts off the floor and
-  dangles from your cursor (`held` → the pinched-chibi pose, see below)
-  while a dashed diamond under its feet shows where it will land (amber =
-  legal, danger = refused); release calls `onWalkTo` → the store's
-  `moveVisitGuest`. The rule is `personaCanStand` in lib/isoRoom.js
-  — mask + the wander engine's furniture rule, EXCEPT a free seat is legal
-  (that's how a walk order ends in sitting with your friend; an occupied
-  seat is refused). Deliberately not the edit-drag rule: walking is
-  fiction.
+  teleport ahead of their person. **THE SEATED LIFE** (owner decision,
+  2026-08-19, from the VC2 reference: "it seems like they mostly just sit
+  down"): humans never wander — people are SETTLED, on a chair, a rug, or
+  where you set them, and only a CARRY moves them; the pets are the room's
+  motion. **You can re-seat yourself on a visit**: `resolveVisitRoom`
+  returns `guestId` (null when no guest could be placed), arrival SEATS
+  you (`freeSeatSpot` — being shown to a chair; the front-of-room stand is
+  the no-seat fallback), and your placement (`walkId={visiting.guestId}`)
+  is grabbable outside edit mode — **dragging PICKS THEM UP**: the figure
+  lifts off the floor and dangles from your cursor (`held` → the
+  pinched-chibi pose, see below) while a dashed diamond under its feet
+  shows where it will land (amber = legal, danger = refused) and every
+  free seat + soft ground BREATHES AMBER (the seat glow — choosing a spot
+  is reading the room); release calls `onWalkTo` → the store's
+  `moveVisitGuest`. The rule is `personaCanSit` in lib/isoRoom.js — a FREE
+  seat or SOFT GROUND (layer −1 minus the pond; `seatFor` resolves a
+  floor-sit with `soft: true`, shared by many, so a rug is never "taken");
+  BARE floor anywhere clear of furniture just STANDS them there (owner:
+  drop anywhere is fine — standing is a chosen spot, not a walk).
+  Deliberately not the edit-drag rule: settling is fiction.
   **And around your OWN island.** The plumbing is generic: `walkableBy` in
   IsoRoom.jsx is the ONE rule ("may this placement be walked right now?"),
   read by both the drag handler and the grab cursor so a cursor can never
@@ -302,17 +310,17 @@ running `git commit` yourself.
   "real" you is a distinction the room can't show). `onWalkTo(id, gx, gy)`
   carries the id for that reason, matching `onMoveItem`'s signature.
   The home handler is the store's `walkIsoPersona`, and unlike a visit it
-  **PERSISTS** — it moves that resident's home and the room saves. A wander
-  offset is measured from a home and dies when the home moves, so a
-  render-only walk would be undone by the next roam tick and by any reload;
-  and finding your little person still on the sofa tomorrow is what anyone
-  expects. It is its OWN updater rather than a call through to `moveIsoItem`
+  **PERSISTS** — it moves that resident's home and the room saves: finding
+  your little person still on the sofa tomorrow is what anyone expects.
+  Toggling "In the room" also SEATS you on arrival (`withSelf` prefers
+  `freeSeatSpot` over the free-tile spawn). `walkIsoPersona` is its OWN
+  updater rather than a call through to `moveIsoItem`
   so it can refuse non-personas: this is a write that happens OUTSIDE
   Decorate and must never become a route for moving furniture there.
-  The "drag your little self" hint is one toast per DEVICE
+  The "set them on any seat" hint is one toast per DEVICE
   (`tasknook.walkHinted`), shared by both rooms — it was a ref, so it fired
   every launch. At home it waits for the one moment it's true: booted, not
-  visiting, not decorating, and a persona actually standing in the room.
+  visiting, not decorating, and a persona actually placed in the room.
   **The gesture is PICK UP AND SET DOWN, not "point at a tile"** (owner
   request, 2026-08-13, with reference art: the pinched-chibi meme). Four
   things make it work, and each replaced something the marker-only version
@@ -1051,13 +1059,14 @@ running `git commit` yourself.
   little people — drop one whose CENTRE lands on an item with a `seat`
   height (stool/sofa/bench/cushion/bed) and `seatFor` seats them there at
   render time (snapped to the seat's centre, +0.15 gy so they draw in front
-  of the backrest, lifted by the seat height, sitting pose); on open floor
-  they idle-wander via a VISUAL-ONLY offset (never persisted — the stored
-  spot is home; the interval collision-checks the floor mask AND furniture
-  footprints, and pauses in edit mode; a roam record stamps the home it was
-  measured from and dies if the home moves, so a walk order can't inherit a
-  stale offset). Personas use a CSS transform +
-  transition (the glide) instead of the attribute transform others use.
+  of the backrest, lifted by the seat height, sitting pose); over SOFT
+  GROUND (layer −1 minus the pond) `seatFor` resolves a floor-sit with
+  `soft: true` — shared, so one rug seats many. **Humans never wander**
+  (the seated life, 2026-08-19): the wander interval is the PETS' engine
+  now, and a persona stays exactly where you settled them. Personas still
+  use a CSS transform + transition (the glide) instead of the attribute
+  transform others use — a carry's set-down and the pets' roaming share
+  the plumbing.
   **The glide is paced by `glideMs` (lib/motion.js): constant screen speed
   (`WALK_SPEED`), rounded to whole steps of `STEP_S`, capped in steps.** It
   was a fixed 2.6s whatever the distance, so speed varied ~4× under legs
@@ -1537,6 +1546,18 @@ running `git commit` yourself.
   begins. To hide such chrome temporarily (the HUD cards + signature step
   aside during room decorating), toggle `visibility` on a wrapper: it removes
   the element from hit-testing without restarting animations.
+  **Settings → HUD elements** (`store.jsx`'s `hudVisibility`, persisted as
+  `tasknook.hudVisibility`) reuses the exact same convention for a second,
+  user-driven reason to hide the same cards: Session/Timer, To-do list and the
+  music bar each get "on"/"faded"/"hidden" via `App.jsx`'s `hudWrapClass`
+  (faded stays interactive — only "hidden" drops `visibility`). The clock
+  (inside `TopBar`, not its own component) is the one exception — it carries
+  no persistent state or `.intro-chrome` of its own, so its "hidden" state
+  conditionally un-renders instead, letting the bottom-right cluster reflow
+  without a gap. "Chat" doesn't map to a persistent surface (TaskNook's chat
+  lives inside the Friends drawer, not a standalone window), so that toggle
+  instead fades/hides the unread-count badges in `FriendsPanel.jsx` — a
+  Do-Not-Disturb for the red dot, not a way to hide the thread list.
 - **CSS animation classes must not share an element with an SVG `transform`
   attribute** — the animation's `transform` property overrides the attribute
   entirely (the desk plant's foliage once dropped 16px into its pot this way).

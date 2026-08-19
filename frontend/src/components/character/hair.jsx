@@ -25,8 +25,13 @@
 //     locks, unequal, stopping short of every edge (lines that touch the
 //     silhouette flatten it — "grass" strands off the mass are banned);
 //     (c) a NOTCHED light band across the crown instead of a blob sheen —
-//     a blob says plastic dome, broken dashes say strands catching light.
-//     Budget stays capped: wedges + lines + band + brow and nothing else.
+//     a blob says plastic dome, broken dashes say strands catching light;
+//     (d) the UNDER-LAYER value step (VC2 reference pass, 2026-08-19): a
+//     soft dark crescent under each clump's lower lip, giving every wig
+//     the three-value read (crown light / base / dark underside) the
+//     reference's chunky locks carry.
+//     Budget stays capped: wedges + lines + band + brow + hem crescents
+//     and nothing else.
 //
 // Layers (see index.jsx): `front` draws over the head inside the gesture
 // wrappers; `length` draws before the torso so it hangs behind the body;
@@ -143,6 +148,33 @@ const flowLines = (headY, { sideX, apex }, { lines = 3, lean = 0 } = {}) => {
 };
 
 /**
+ * The UNDER-LAYER value step (VC2 reference pass, 2026-08-19): a soft dark
+ * crescent hugging each clump's lower lip, so a wig reads as THREE values —
+ * notched crown light, base, dark underside — the chunky-locks read the
+ * reference carries. Inside the silhouette by construction: each crescent's
+ * far edge is the tooth's own curve, its near edge the same curve pulled
+ * shallower, so nothing can spill onto the face. Upward cuts (negative
+ * depth) carve air, not a lock, and take no shade.
+ */
+const hemShade = (headY, { sideX, baseY }, clumps) => {
+  let x = sideX;
+  const lenses = [];
+  for (const [w, depth] of clumps) {
+    if (depth >= 1) {
+      lenses.push(
+        `M ${x} ${headY + baseY} q ${-w * 0.38} ${depth} ${-w} 0 q ${w * 0.5} ${
+          depth * 0.45
+        } ${w} 0 z`
+      );
+    }
+    x -= w;
+  }
+  return lenses.length ? (
+    <path d={lenses.join(" ")} fill="#000" opacity="0.12" />
+  ) : null;
+};
+
+/**
  * A carved wig WITH its texture pass — the standard way to draw a wig-method
  * style's mass. Slick gathered styles (bun, ponytails) skip this and keep
  * their bare path + tension lines: pulled-tight hair has no loose flow.
@@ -150,6 +182,7 @@ const flowLines = (headY, { sideX, apex }, { lines = 3, lean = 0 } = {}) => {
 const wig = (headY, color, cfg, clumps, opts = {}) => (
   <>
     <path d={wigPath(headY, cfg, clumps)} fill={color} />
+    {opts.hem !== false && hemShade(headY, cfg, clumps)}
     {notchShadows(headY, cfg, clumps, opts.notch ?? [0, clumps.length - 2])}
     {flowLines(headY, cfg, opts)}
   </>

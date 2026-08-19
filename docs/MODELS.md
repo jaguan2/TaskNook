@@ -78,9 +78,14 @@ piece so a new item sits correctly beside the existing ones.
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests
-all read that one copy): `HEAD_R` 7.3, `LEG_H` 29, standing torso at −42 and
-head at −50.5 — about 58px tall with the head a quarter of it, and the
-visible leg ~43% of the figure. It was 32%, and a figure that is two-thirds
+all read that one copy). **The figure is ADULT-proportioned** (owner
+decision, 2026-08-19, against the Virtual Cottage 2 reference): ~57px tall
+at **~5 heads**, visible leg ~47%. The mechanism is `HEAD_SCALE` (0.8):
+`HEAD_R` 7.3 stays the DRAWING radius every hair/hat/glasses/face asset is
+authored against, and the assembly scales the finished head unit about its
+own centre — one number converted the whole wardrobe. Layout code (neck
+seams, height guards, shoulder ratios) must use `HEAD_R_EFF`, the radius
+the head actually occupies; new head-adjacent art keeps authoring at 7.3. It was 32%, and a figure that is two-thirds
 torso-and-head reads squat whatever the shading; the 2026-08 "chunky" retune
 raised the legs, shortened the torso, and drew the standing legs as
 GARMENTS — tapered trousers with a cuff band ending in deliberately chunky

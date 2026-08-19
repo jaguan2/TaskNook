@@ -452,33 +452,90 @@ export function seatFor(placement, placements) {
       return { placement: other, height: seat.seat, lie: !!seat.lie };
     }
   }
+  // SOFT GROUND (seated life, 2026-08-19): a rug, cushion or blanket under
+  // the centre seats a persona cross-legged on the floor — floor-sitting is
+  // how a sparse room still offers somewhere to be, and it's peak cozy.
+  // `soft: true` tells the occupancy rule a rug seats MANY (it isn't a
+  // chair); real seats win the loop above, so a stool ON a rug still reads
+  // as the stool. The pond is water, not upholstery.
+  for (const other of placements) {
+    if (other.id === placement.id) continue;
+    const it = ISO_ITEMS[other.item];
+    if (!it || it.layer !== -1 || other.item === "pond") continue;
+    if (centreOver(placement, other)) {
+      return { placement: other, height: 1.5, lie: false, soft: true };
+    }
+  }
   return null;
 }
 
 /**
- * May a persona STAND (or sit) at gx,gy? The walk-order rule.
- *
- * Not the edit-mode drag rule (that one only refuses void tiles — decorating
- * is deliberate, overlap included) and not quite the wander rule either:
- * walking is fiction, so it refuses furniture the way the wander engine does,
- * EXCEPT that a seat under the centre is legal — landing on one is how a
- * walk order ends in sitting down (`seatFor` resolves it at render). A seat
- * someone else already resolves onto is taken: two people snapping to one
- * chair's centre is the stacked-mug bug wearing a face.
+ * The first place a newly-arriving persona should SIT: a free seat, else any
+ * soft ground, else null (the caller falls back to standing room). Returns
+ * the gx/gy that centres the persona's footprint over the spot — being shown
+ * to a chair, as arrival should feel in the seated life.
  */
-export function personaCanStand(gx, gy, layout, placements, selfId) {
+export function freeSeatSpot(placements, item = "resident") {
+  const foot = footOf(item, 0);
+  const occupied = new Set();
+  for (const p of placements) {
+    if (!ISO_ITEMS[p.item]?.persona) continue;
+    const s = seatFor(p, placements.filter((o) => o.id !== p.id));
+    if (s && !s.soft) occupied.add(s.placement.id);
+  }
+  const centreOn = (p) => {
+    const of = footOf(p.item, p.rot);
+    return { gx: p.gx + (of[0] - foot[0]) / 2, gy: p.gy + (of[1] - foot[1]) / 2 };
+  };
+  // Proper seats before lie-on furniture: the first cut took placement
+  // order, and arriving home in the Loft put you straight INTO BED — funny
+  // once, wrong as a welcome. A bed still beats the floor.
+  for (const p of placements) {
+    const it = ISO_ITEMS[p.item];
+    if (it?.seat && !it.lie && !it.persona && !occupied.has(p.id)) return centreOn(p);
+  }
+  for (const p of placements) {
+    const it = ISO_ITEMS[p.item];
+    if (it?.seat && !it.persona && !occupied.has(p.id)) return centreOn(p);
+  }
+  for (const p of placements) {
+    const it = ISO_ITEMS[p.item];
+    if (it && it.layer === -1 && p.item !== "pond" && !it.persona) return centreOn(p);
+  }
+  return null;
+}
+
+/**
+ * May a persona be SET DOWN at gx,gy? The carry-landing rule of the seated
+ * life (owner decision, 2026-08-19, from the VC2 reference — people don't
+ * pace a study, they settle where you put them):
+ *
+ *   * a FREE seat under the centre is legal (an occupied one is refused —
+ *     two people snapping to one chair's centre is the stacked-mug bug
+ *     wearing a face);
+ *   * SOFT GROUND (rug/cushion/blanket) is legal and shared — floor-sitting;
+ *   * BARE floor is legal anywhere clear of furniture — they just STAND
+ *     there (owner, same day: "it is also fine to allow users to drop the
+ *     characters anywhere and they are just standing"). Standing is a spot
+ *     you chose, not a walk — nobody moves until carried again.
+ *
+ * Still not the edit-mode drag rule (that one only refuses void tiles —
+ * decorating is deliberate, overlap included).
+ */
+export function personaCanSit(gx, gy, layout, placements, selfId) {
   const foot = footOf("resident", 0);
   if (!footprintFree(gx, gy, foot, layout)) return false;
   const others = placements.filter((p) => p.id !== selfId);
   const seat = seatFor({ id: selfId, item: "resident", gx, gy }, others);
-  if (seat) {
-    return !others.some(
-      (o) =>
-        ISO_ITEMS[o.item]?.persona &&
-        seatFor(o, others)?.placement.id === seat.placement.id
-    );
+  if (seat && !seat.soft) {
+    return !others.some((o) => {
+      if (!ISO_ITEMS[o.item]?.persona) return false;
+      const s = seatFor(o, others);
+      return s && !s.soft && s.placement.id === seat.placement.id;
+    });
   }
-  // Open floor: the wander engine's "bumped into furniture" rule.
+  // Soft ground and bare floor both refuse furniture overlap — the wander
+  // engine's "bumped into furniture" rule.
   return !others.some((o) => {
     const it = ISO_ITEMS[o.item];
     if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;

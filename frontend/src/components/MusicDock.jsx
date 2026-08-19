@@ -97,7 +97,12 @@ const COLLAPSED_KEY = "tasknook.music.collapsed";
 // the app last closed?" distinguishes the boot mount (no user gesture —
 // autoplay would be blocked, so CUE at the saved spot with ▶ armed) from a
 // station click (a real gesture that should start playing as always).
-const BOOTED_WITH_MUSIC_ON = readStored("tasknook.music.on") === "1";
+// Also gated on Settings → "Music on startup": off means boot silent even if
+// the last session ended mid-song — store.jsx's musicOn init applies the same
+// gate, so the two can't disagree about whether this launch resumes.
+const BOOTED_WITH_MUSIC_ON =
+  readStored("tasknook.music.on") === "1" &&
+  readStored("tasknook.autoResumeMusic") !== "0";
 // Only the FIRST player mount after launch may cue; later mounts are clicks.
 let bootResumeConsumed = false;
 
