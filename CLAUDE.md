@@ -518,7 +518,14 @@ running `git commit` yourself.
   heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
   BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
   and that two-material split is what makes a 5px shoe read as modelled).
-  7×7×9×5 = 2,205 silhouette combinations before any colour.
+  7 tops × 8 coats (robe joined — the raincoat's drop plus an open front and
+  a belt) × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 2,800
+  silhouette combinations before any colour — times 7 hats (trapper: ear
+  flaps past the jaw, the one hat that changes the head-to-shoulder outline)
+  and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
+  `character/scarves.jsx` registry: wrapped/loop/long, drawn TORSO-anchored
+  after the collar so a glance can't shear it off — the second accessory
+  slot, and the accent-colour one).
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
@@ -1086,7 +1093,8 @@ running `git commit` yourself.
   (≤16 chars), `temper` and `look` — lives ON its placement, because a pet IS
   a placement: two cats are two rows, and removing one takes its name along.
   The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
-  calico/siamese; `DOG_BREEDS`: golden/shiba/corgi/dalmatian — lib/isoRoom.js
+  calico/siamese/tortoiseshell; `DOG_BREEDS`: golden/shiba/corgi/dalmatian/
+  husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoRoom.js
   owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
@@ -1405,29 +1413,26 @@ running `git commit` yourself.
   no word, which reads as data loss rather than as a consequence of the action.
   They now compare placement counts and `showToast` the difference, same rule
   as the item cap.
-  **Rendered-PNG sprites**: 14 items (bed, sofa, armchair, nightstand,
-  chair, shelf, bookcase, sidetable, radio, fridge, cafetable, counter,
-  coffeecounter, tvunit) are pre-rendered isometric views from Kenney's
-  Furniture Kit (CC0 — the hand-drawn SVG versions never stopped reading as
-  stacked boxes; see `frontend/src/assets/kenney/LICENSE.txt` for the
-  file→item map). One `import.meta.glob` pulls in the whole assets/kenney
-  folder (everything there gets bundled — don't park unused renders in it);
-  each item is a manifest row of LAYERS in `IsoItems.jsx`, so renders can
-  stack (`coffeecounter` = bar + espresso machine, `tvunit` = cabinet + TV;
-  a layer's `lift` = the parent's scaled render height minus its base
-  diamond, width×0.5774 at the kit camera). All are `tintable: false` (no
-  CSS var reaches a PNG) and `noMirror: true`. Fixed recolours are done by
-  palette-remapping the committed PNGs (the bed's white duvet: remap hue
-  2–28°, sat>0.25 pixels, keep lightness order) — arbitrary live tinting
-  stays SVG-only. Fabric pieces (bed/sofa/armchair) instead offer
-  **colourway variants**: catalog `variants` maps tint-hex → render suffix
-  (`bedDouble_rose_SW.png`…), the placement's ordinary `tint` field stores
-  the chosen hex (so persistence/validation are untouched; unknown hexes
-  fall back to the default render), RoomTintPicker shows a swatch-only
-  popover for these items, and only manifest layers flagged `v` respond
-  (a composite's counter doesn't recolour with its machine). New Kenney
-  items should come from the SAME kit so the modelled style stays
-  consistent.
+  **Every sprite is hand-drawn SVG again — the Kenney PNG renders are GONE**
+  (see IsoItems.jsx's header for the paid-for verdict): the kit was TRUE
+  isometric (0.5774 base) vs this room's 2:1 dimetric (0.5), so every PNG sat
+  ~15% tall of its tile; raster blurred under the viewBox camera's zoom; and
+  a PNG can't read `--tint` (30 committed colourway files to fake four fixed
+  colours on three items). Drawing from `project()` fixes all three by
+  construction. That lesson generalises — see docs/MODELING_ROADMAP.md
+  (2026-08-19): pre-rendered sprites are ruled out for CHARACTERS too
+  (continuous body sliders + six live hex channels + per-limb CSS animation
+  each individually disqualify); the long-term "actual modelling" path is
+  runtime three.js gated behind a cohesion spike, and the shipped
+  short-term answer is the SOFT-VOLUME pass (`character/volume.jsx`) — a
+  sphere/cylinder gradient of translucent GLINT/SHADE stops under the cel
+  marks, on the resident's head and torso in every view and on every pet
+  mass. Two rules it lives by: deltas stay SUBTLE (the furniture is
+  deliberately flat, and a figure shaded much softer than its sofa reads as
+  pasted from another kit), and NEVER SVG filters (feGaussianBlur forces
+  per-frame re-rasterization under animation — the CPU bill the memo'd
+  scene exists to avoid). Gradient ids are per-instance via useId, same as
+  the print clipPath.
   **Rotation** (`rot: 0-3`, quarter turns anticlockwise; the ⟳ button cycles
   through however many the item has). ODD turns are a screen-mirror
   `scale(-1,1)` about the origin, which IS a grid transpose, so `footOf`

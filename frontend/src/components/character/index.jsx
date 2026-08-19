@@ -36,6 +36,7 @@ import {
   pantsFormOf,
 } from "./body";
 import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar } from "./garments";
+import { VolumeDefs, cylFill, sphereFill } from "./volume";
 import {
   HairBack,
   HairBehind,
@@ -45,6 +46,7 @@ import {
   HairSideLength,
 } from "./hair";
 import { Hat } from "./hats";
+import { Scarf } from "./scarves";
 
 export { HAIR_REGISTRY } from "./hair";
 export { GARMENT_REGISTRY } from "./garments";
@@ -208,7 +210,9 @@ export function Resident({
   // drawn HERE, at hip level between the hair's length and the torso — it's
   // clothing on the hips, not part of a leg.
   const skirted = !!pantsFormOf(pants).bare;
-  const skirtHem = -legH * (pants === "pleats" ? 0.42 : 0.52);
+  // The maxi's cone runs to the ankle (just clear of the shoe tops); the
+  // short skirts keep their hip-level hems.
+  const skirtHem = pants === "maxi" ? -4.5 : -legH * (pants === "pleats" ? 0.42 : 0.52);
   const view = facing || (away ? "back" : "front");
   const back = view === "back";
   // A hat REPLACES the crown hair (front + behind layers), the research
@@ -233,6 +237,7 @@ export function Resident({
     const sHem = Math.max(4.6, hem * 0.62);
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
+        <VolumeDefs id={clipId} />
         <g
           className={held ? "held-dangle" : undefined}
           style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
@@ -332,6 +337,21 @@ export function Resident({
                                   <circle key={`${dx},${dy}`} cx={dx + (row % 2) * 2} cy={torsoY + dy} r="0.95" opacity="0.85" />
                                 ))
                               )}
+                            {ch.print === "plaid" && (
+                              <>
+                                {[5.5, 11.5].map((dy) => (
+                                  <rect key={`h${dy}`} x={-sHem - 2} y={torsoY + dy} width={(sHem + 2) * 2} height="1.6" opacity="0.45" />
+                                ))}
+                                {[-3, 2].map((dx) => (
+                                  <rect key={`v${dx}`} x={dx} y={torsoY + 1} width="1.6" height="16" opacity="0.45" />
+                                ))}
+                                {[5.5, 11.5].flatMap((dy) =>
+                                  [-3, 2].map((dx) => (
+                                    <rect key={`x${dx},${dy}`} x={dx} y={torsoY + dy} width="1.6" height="1.6" opacity="0.9" />
+                                  ))
+                                )}
+                              </>
+                            )}
                           </g>
                         </>
                       )}
@@ -345,6 +365,12 @@ export function Resident({
                         coatStyle={coatStyle}
                         view="side"
                       />
+                      {/* SOFT VOLUME under the hard marks: the cylinder
+                          gradient rounds the whole dressed mass, then the
+                          crescent/glint below add the local contrast. See
+                          volume.jsx — gradient alone is airbrush, crescent
+                          alone is flat; together they model. */}
+                      <path d={body} fill={cylFill(clipId)} />
                       {/* the same ONE-light pass the front gets: form shadow
                           down the front edge (light sits behind a left-facing
                           profile), warm glint, hem occlusion */}
@@ -421,6 +447,10 @@ export function Resident({
                 <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" style={outfit} />
                 <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" fill="#fff" opacity="0.1" />
                 <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
+                {/* the scarf wraps OVER whatever the neck wears — people do
+                    wear a scarf over a turtleneck. Torso-anchored: it must
+                    not ride a glance. */}
+                <Scarf kind={ch.scarf} torsoY={torsoY} color={ch.scarfColor} view="side" />
                 {/* head-only gestures keep playing in profile; the arm ones
                     stand down — they're front-view choreography. The OUTER
                     wrapper carries the head's forward lean (an attribute
@@ -431,6 +461,7 @@ export function Resident({
                 <g className="gesture-yawn">
                   <g className="gesture-look">
                     <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+                    <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
                     <SideFace expression={ch.expression} headY={headY} skin={skin} />
@@ -446,6 +477,7 @@ export function Resident({
   }
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
+      <VolumeDefs id={clipId} />
       {/* Held: ONE wrapper for the whole body, pivoting at the top of the head
           (`center top` of the fill-box — the scruff your fingers have hold of).
           It can't share the element with the translate above, per the
@@ -513,7 +545,7 @@ export function Resident({
           {/* two pipe folds falling from the waistband — hanging cloth
               gathers where it's suspended; wedges, not lines, and
               deliberately off-symmetric */}
-          {pants === "skirt" &&
+          {(pants === "skirt" || pants === "maxi") &&
             [-0.5, 0.58].map((f) => (
               <path
                 key={f}
@@ -594,6 +626,24 @@ export function Resident({
                           />
                         ))
                       )}
+                    {/* plaid: both axes at half strength, the CROSSINGS at
+                        full — the double-density intersections are what read
+                        as plaid rather than "a grid" */}
+                    {ch.print === "plaid" && (
+                      <>
+                        {[5.5, 11.5].map((dy) => (
+                          <rect key={`h${dy}`} x={-hem - 2} y={torsoY + dy} width={(hem + 2) * 2} height="1.6" opacity="0.45" />
+                        ))}
+                        {[-4.2, 2.6].map((dx) => (
+                          <rect key={`v${dx}`} x={dx} y={torsoY + 1} width="1.6" height="16" opacity="0.45" />
+                        ))}
+                        {[5.5, 11.5].flatMap((dy) =>
+                          [-4.2, 2.6].map((dx) => (
+                            <rect key={`x${dx},${dy}`} x={dx} y={torsoY + dy} width="1.6" height="1.6" opacity="0.9" />
+                          ))
+                        )}
+                      </>
+                    )}
                   </g>
                 </>
               )}
@@ -628,6 +678,13 @@ export function Resident({
                 coatStyle={coatStyle}
                 view={back ? "back" : "front"}
               />
+              {/* SOFT VOLUME under the hard marks (volume.jsx): the cylinder
+                  gradient rounds the dressed torso as one mass; the crescent
+                  and lit shoulder below then add the local contrast. Subtle
+                  BY RULE — the furniture is deliberately flat, and a figure
+                  shaded much softer than its sofa reads as pasted from
+                  another kit. */}
+              <path d={body} fill={cylFill(clipId)} />
               {/* Volume via the ONE light (docs/MODELS.md): a form-shadow
                   CRESCENT down the whole shadow side, following the torso's
                   own curve — the garment canvas was the only unshaded surface
@@ -767,6 +824,9 @@ export function Resident({
         {/* A garment's own neck piece (the turtleneck's roll) — after the
             skin neck and the collar ellipse, or they'd paint over it. */}
         <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
+        {/* the scarf, over collar and turtleneck alike (people wear both);
+            torso-anchored so a glance can't shear it off the shoulders */}
+        <Scarf kind={ch.scarf} torsoY={torsoY} color={ch.scarfColor} view={back ? "back" : "front"} />
         {/* The head is one unit so it can move as one, and each cycle that moves
             it needs its OWN element — two animations on one element would just
             cancel. So: yawn (tilts back), rub (leans into the raised hand),
@@ -790,6 +850,9 @@ export function Resident({
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
               <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+              {/* the head is a SPHERE now, not a disc — same gradient the
+                  pets' masses carry, so every round thing models alike */}
+              <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
               {back && !hatted && (
                 <HairBack style={ch.hair} headY={headY} color={hairColor} />
               )}

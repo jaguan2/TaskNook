@@ -149,6 +149,8 @@ describe("validateCharacter", () => {
       shoes: "sneakers",
       shoeColor: DEFAULT_CHARACTER.shoeColor,
       hat: "none",
+      scarf: "none",
+      scarfColor: DEFAULT_CHARACTER.scarfColor,
       print: "none",
       width: BUILD_SHAPE.slim.halfW,
       height: LEG_H,
@@ -160,6 +162,16 @@ describe("validateCharacter", () => {
     expect(validateCharacter({ hat: "beanie" }).hat).toBe("beanie");
     expect(validateCharacter({ hat: "fedora" }).hat).toBe("none");
     expect(validateCharacter({}).hat).toBe("none");
+  });
+
+  it("scarves: keeps a real one, refuses an invented one, defaults bare-necked", () => {
+    expect(validateCharacter({ scarf: "loop" }).scarf).toBe("loop");
+    expect(validateCharacter({ scarf: "ascot" }).scarf).toBe("none");
+    expect(validateCharacter({}).scarf).toBe("none");
+    expect(validateCharacter({ scarfColor: "#c9a24b" }).scarfColor).toBe("#c9a24b");
+    expect(validateCharacter({ scarfColor: "tartan" }).scarfColor).toBe(
+      DEFAULT_CHARACTER.scarfColor
+    );
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {

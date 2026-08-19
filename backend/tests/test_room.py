@@ -447,7 +447,7 @@ def test_pet_looks_match_frontend():
     knowledge the backend deliberately doesn't have."""
     js = ISO_ROOM_JS.read_text(encoding="utf-8")
     keys = set()
-    for name in ("CAT_COATS", "DOG_BREEDS"):
+    for name in ("CAT_COATS", "DOG_BREEDS", "BUNNY_COATS"):
         block = re.search(rf"export const {name} = \[(.*?)\];", js, re.S)
         assert block, f"couldn't find {name} in {ISO_ROOM_JS} — has it moved?"
         found = set(re.findall(r"key: \"(\w+)\"", block.group(1)))

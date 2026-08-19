@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { ISO_SPRITES } from "./IsoItems";
-import { CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -22,6 +22,7 @@ import {
   HATS,
   OUTFITS,
   PANTS,
+  SCARVES,
   SHOES,
 } from "../lib/profile";
 
@@ -88,6 +89,10 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const { key } of HATS) {
       save(`hat-${key}`, <Resident character={dressed({ hat: key })} />);
     }
+    for (const { key } of SCARVES) {
+      save(`scarf-${key}`, <Resident character={dressed({ scarf: key })} />);
+      save(`scarf-${key}-side`, <Resident character={dressed({ scarf: key })} facing="side" />);
+    }
     // Every coat and breed, every pose — a pattern that only works on the
     // barrel but not the curl is exactly what side-by-side review catches.
     for (const look of CAT_COATS.map((c) => c.key)) {
@@ -103,6 +108,11 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       }
       save(`dog-${look}-held`, <Dog held look={look} />, "-44 -48 88 62");
       save(`dog-${look}-asleep`, <Dog look={look} />, "-44 -48 88 62");
+    }
+    const Bunny = ISO_SPRITES.bunny;
+    for (const look of BUNNY_COATS.map((b) => b.key)) {
+      save(`bunny-${look}-awake`, <Bunny awake look={look} />, "-44 -48 88 62");
+      save(`bunny-${look}-asleep`, <Bunny look={look} />, "-44 -48 88 62");
     }
     expect(count).toBeGreaterThan(0);
   });

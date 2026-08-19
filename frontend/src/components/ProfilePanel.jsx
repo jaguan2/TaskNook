@@ -16,6 +16,8 @@ import {
   OUTFITS,
   PANTS,
   PATTERNS,
+  SCARF_COLORS,
+  SCARVES,
   SHOES,
   SHOE_COLORS,
   TROUSER_COLORS,
@@ -215,6 +217,16 @@ function PantsIcon({ character, pants }) {
   return (
     <svg viewBox="-16 -34 32 40" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, pants }} />
+    </svg>
+  );
+}
+
+/** A scarf at your own neck — chin-to-chest close-up, in its colour. */
+function ScarfIcon({ character, scarf }) {
+  const Resident = ISO_SPRITES.resident;
+  return (
+    <svg viewBox="-16 -52 32 28" className="h-12 w-full" aria-hidden="true">
+      <Resident character={{ ...character, scarf }} />
     </svg>
   );
 }
@@ -433,7 +445,7 @@ function PetsSection({ isoRoom, setPetIdentity }) {
                       thumbnail above redraws live, so picking is trying on. */}
                   {petLooksFor(p.item) && (
                     <Choices
-                      label={p.item === "cat" ? "Coat" : "Breed"}
+                      label={p.item === "dog" ? "Breed" : "Coat"}
                       options={petLooksFor(p.item)}
                       value={p.look || petLooksFor(p.item)[0].key}
                       onPick={(look) => setPetIdentity(p.id, { look })}
@@ -942,22 +954,45 @@ export default function ProfilePanel() {
           )}
 
           {tab === "extras" && (
-            <Field label="Hat">
-              <IconGrid
-                label="Hat"
-                options={HATS}
-                value={character.hat}
-                onPick={(hat) => saveCharacter({ hat })}
-                renderIcon={(key) => (
-                  <HatIcon
-                    hat={key}
-                    hair={character.hair}
-                    hairColor={character.hairColor}
-                    skin={character.skin}
-                  />
-                )}
-              />
-            </Field>
+            <>
+              <Field label="Hat">
+                <IconGrid
+                  label="Hat"
+                  options={HATS}
+                  value={character.hat}
+                  onPick={(hat) => saveCharacter({ hat })}
+                  renderIcon={(key) => (
+                    <HatIcon
+                      hat={key}
+                      hair={character.hair}
+                      hairColor={character.hairColor}
+                      skin={character.skin}
+                    />
+                  )}
+                />
+              </Field>
+              <Field label="Scarf">
+                <IconGrid
+                  label="Scarf"
+                  options={SCARVES}
+                  value={character.scarf}
+                  onPick={(scarf) => saveCharacter({ scarf })}
+                  renderIcon={(key) => (
+                    <ScarfIcon
+                      character={
+                        key === character.scarf
+                          ? character
+                          : { ...character, scarfColor: DEFAULT_CHARACTER.scarfColor }
+                      }
+                      scarf={key}
+                    />
+                  )}
+                  swatchesFor={(key) => (key === "none" ? null : SCARF_COLORS)}
+                  swatchValue={character.scarfColor}
+                  onSwatch={(hex) => saveCharacter({ scarfColor: hex })}
+                />
+              </Field>
+            </>
           )}
         </div>
       </section>

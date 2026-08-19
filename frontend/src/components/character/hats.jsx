@@ -108,6 +108,53 @@ export const HAT_REGISTRY = {
       </>
     ),
   },
+  trapper: {
+    // The ushanka: the one hat that changes the HEAD-TO-SHOULDER outline —
+    // its ear flaps drop past the jaw, where every other hat stops at the
+    // skull. Fleece edges on the flaps are what say trapper rather than
+    // toque; the tie strings hang from the flap tips.
+    draw: ({ headY }) => (
+      <>
+        {/* ear flaps first, falling from under the dome to chin level */}
+        {[-1, 1].map((s) => (
+          <g key={s}>
+            <path
+              d={`M ${s * 8.6} ${headY - 1.6} Q ${s * 9.6} ${headY + 3.4} ${s * 7.4} ${headY + 6.2}
+                  L ${s * 4.9} ${headY + 5.4} Q ${s * 5.4} ${headY + 1} ${s * 6.2} ${headY - 2.2} z`}
+              fill="#8a5b40"
+            />
+            {/* the pale fleece lining along the flap's front edge */}
+            <path
+              d={`M ${s * 7.4} ${headY + 6.2} L ${s * 4.9} ${headY + 5.4} Q ${s * 5.2} ${headY + 3.4} ${s * 5.6} ${headY + 1.6}
+                  Q ${s * 6.6} ${headY + 3.8} ${s * 7.4} ${headY + 6.2} z`}
+              fill="#fff"
+              opacity="0.32"
+            />
+            {/* tie string */}
+            <path
+              d={`M ${s * 6.2} ${headY + 6} L ${s * 5.6} ${headY + 9}`}
+              stroke="#000"
+              strokeWidth="0.7"
+              opacity="0.3"
+              strokeLinecap="round"
+            />
+          </g>
+        ))}
+        {/* the dome, low on the brow, with a fleece front band */}
+        <path d={`M-8.4 ${headY - 1.2} a8.4 8.8 0 0 1 16.8 0 z`} fill="#8a5b40" />
+        <path
+          d={`M${-4.4} ${headY - 8.9} q4.4 -2.6 8.4 -0.6`}
+          stroke="#fff"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.13"
+        />
+        <rect x="-8.6" y={headY - 2.6} width="17.2" height="3" rx="1.5" fill="#e9dcc9" />
+        <rect x="-8.6" y={headY - 1.2} width="17.2" height="1.6" rx="0.8" fill="#000" opacity="0.12" />
+      </>
+    ),
+  },
   straw: {
     // The wide flat brim and the ribbon band; the crown stays shallow.
     draw: ({ headY }) => (

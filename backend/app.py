@@ -350,8 +350,9 @@ ISO_WALLS = ("full", "low", "none")
 # same stance as rot. Defaults ("ink", "golden") never reach the wire, but
 # they're accepted anyway so an older client's write can't 400.
 PET_LOOKS = (
-    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese",
-    "golden", "shiba", "corgi", "dalmatian",
+    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese", "tortie",
+    "golden", "shiba", "corgi", "dalmatian", "husky",
+    "cloud", "snow", "cocoa",
 )
 
 # Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same

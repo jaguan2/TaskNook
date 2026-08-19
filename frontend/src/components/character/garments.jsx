@@ -754,6 +754,93 @@ export const GARMENT_REGISTRY = {
       );
     },
   },
+  robe: {
+    // The dressing gown: the raincoat's drop-past-the-hem outline AND an
+    // open front in one garment — the inner column runs from the shawl
+    // collar all the way down into the skirt, the longest two-tone split in
+    // the set. Belted at the waist, knit finish, and the most on-theme
+    // garment a cozy study app can offer.
+    finish: KNIT,
+    cuffs: true,
+    drape: true,
+    back: ({ hem, bot, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.7} ${bot + 6} L ${-w - 0.7} ${bot + 6} z`} />
+          </g>
+          <path d={`M 0 ${bot + 1.5} L 0 ${bot + 5.8}`} stroke="#000" strokeWidth="0.9" opacity="0.18" />
+          <rect x={-w - 0.5} y={bot + 4.6} width={(w + 0.5) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+        </>
+      );
+    },
+    side: ({ hem, top, bot, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.5} ${bot + 6} L ${-w - 0.5} ${bot + 6} z`} />
+          </g>
+          <rect x={-w - 0.3} y={bot + 4.6} width={(w + 0.3) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+          {/* the front edge, and the belt's hanging tail */}
+          <path d={`M ${-w + 1.3} ${top + 4} L ${-w + 1.7} ${bot + 5.4}`} stroke="#000" strokeWidth="1" opacity="0.2" strokeLinecap="round" />
+          <path d={`M ${-w + 3.2} ${top + 12.5} L ${-w + 2.6} ${top + 18}`} stroke="#000" strokeWidth="1.6" opacity="0.2" strokeLinecap="round" />
+        </>
+      );
+    },
+    draw: ({ wa, hem, top, bot, waistY, inner, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          {/* the skirt drop, split by the opening */}
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.7} ${bot + 6} L ${-w - 0.7} ${bot + 6} z`} />
+          </g>
+          {/* the inner column: collar to skirt hem, the full-length split */}
+          <path
+            d={`M ${-3.4} ${top + 2.4} L ${3.4} ${top + 2.4} L ${1.5} ${top + 10} L ${1.5} ${bot + 5.8}
+                L ${-1.5} ${bot + 5.8} L ${-1.5} ${top + 10} Z`}
+            fill={inner}
+          />
+          {/* the near front's cast shadow onto the inner */}
+          <path
+            d={`M ${-1.5} ${top + 10} L ${-0.6} ${top + 10} L ${-0.6} ${bot + 5.6} L ${-1.5} ${bot + 5.8} Z`}
+            fill="#000"
+            opacity="0.14"
+          />
+          {/* the SHAWL COLLAR: a rolled band along both V edges, cloth
+              turned toward the light (the lapel lesson — lit fold, not
+              shadow) */}
+          <g style={outfit}>
+            <path
+              d={`M ${-4.6} ${top + 1.2} Q 0 ${top - 0.6} ${4.6} ${top + 1.2} L ${2.4} ${top + 10.5}
+                  L ${1.5} ${top + 10} L ${3} ${top + 2.6} Q 0 ${top + 1.2} ${-3} ${top + 2.6}
+                  L ${-1.5} ${top + 10} L ${-2.4} ${top + 10.5} Z`}
+            />
+          </g>
+          <path d={`M ${-4.4} ${top + 1.4} Q 0 ${top - 0.3} ${4.4} ${top + 1.4}`} stroke={GLINT} strokeWidth="0.8" fill="none" opacity="0.24" strokeLinecap="round" />
+          <path d={`M ${-2.4} ${top + 10.5} L ${-1.5} ${top + 10}`} stroke="#000" strokeWidth="0.8" opacity="0.2" strokeLinecap="round" />
+          <path d={`M ${2.4} ${top + 10.5} L ${1.5} ${top + 10}`} stroke="#000" strokeWidth="0.8" opacity="0.2" strokeLinecap="round" />
+          {/* the belt: a band at the waist with a knot and one hanging tail */}
+          <g style={outfit}>
+            <rect x={-wa - OUTER_BULK} y={waistY - 1.2} width={(wa + OUTER_BULK) * 2} height="2.6" rx="1.2" />
+          </g>
+          <rect x={-wa - OUTER_BULK} y={waistY + 0.6} width={(wa + OUTER_BULK) * 2} height="0.9" rx="0.45" fill="#000" opacity="0.18" />
+          <g style={outfit}>
+            <rect x="-1.6" y={waistY - 1.7} width="3.2" height="3.4" rx="1" />
+          </g>
+          <rect x="-1.6" y={waistY - 1.7} width="3.2" height="3.4" rx="1" fill="#000" opacity="0.12" />
+          <path d={`M ${-0.6} ${waistY + 1.6} L ${-1.2} ${waistY + 7}`} stroke="#000" strokeWidth="1.7" opacity="0.16" strokeLinecap="round" />
+          {/* the skirt's hem shadow */}
+          <rect x={-w - 0.5} y={bot + 4.6} width={(w + 0.5) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+        </>
+      );
+    },
+  },
   dress: {
     // The hem flares past the hips instead of tucking in — the strongest
     // outline change in the set, and the only one that changes where the legs

@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { SKEW, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
 import { tinted } from "../lib/tint";
 // The little people live in their own package now — hair and garment
 // REGISTRIES, the body rig, the poses. This file is the furniture.
 import { Resident, You } from "./character";
+// The pets share the characters' soft-volume gradients (volume.jsx): the
+// same sphere models a head, a haunch and a curled-up body, which is what
+// keeps every living thing in the room reading as one kit.
+import { VolumeDefs, sphereFill } from "./character/volume";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
 // renders that used to live here are gone: the kit is TRUE isometric (base
@@ -347,9 +351,12 @@ const CAT_COAT_STYLES = {
   tuxedo: { fur: "#332b3e", white: "#f7f2ea" },
   calico: { fur: "#f2e9dd", patchA: "#d0834a", patchB: "#3a3142" },
   siamese: { fur: "#e8ddc9", point: "#5b4632", eye: "#8fc3e8" },
+  // Tortoiseshell: the calico's patch system without the white — a dark base
+  // mottled in two ambers, ears split like a proper tortie.
+  tortie: { fur: "#3b3037", patchA: "#c27b3f", patchB: "#7a4a28" },
 };
 
-function CatFace({ x, y, r, asleep, fur, earL, earR, eye = "#ffe9b0", brow, muzzle, cap }) {
+function CatFace({ x, y, r, asleep, fur, earL, earR, eye = "#ffe9b0", brow, muzzle, cap, vol }) {
   const skull = fur || tinted("#3a3142");
   const earLStyle = earL ? { fill: earL } : skull;
   const earRStyle = earR ? { fill: earR } : skull;
@@ -359,6 +366,8 @@ function CatFace({ x, y, r, asleep, fur, earL, earR, eye = "#ffe9b0", brow, muzz
       {/* a calico's colour cap over one side of the skull — before the ears
           so their wedges stay crisp on top of it */}
       {cap && <ellipse cx={x - r * 0.42} cy={y - r * 0.5} rx={r * 0.68} ry={r * 0.56} fill={cap} opacity="0.92" />}
+      {/* the skull is a sphere — same volume gradient as every round mass */}
+      {vol && <circle cx={x} cy={y} r={r} fill={vol} />}
       <ellipse cx={x - 2} cy={y - r * 0.4} rx={r * 0.6} ry={r * 0.34} fill="#fff" opacity="0.09" />
       {/* ears: outer wedge on the skull, pink inner wedge inside it */}
       <polygon points={`${x - r * 0.8},${y - r * 0.6} ${x - r * 0.5},${y - r * 1.75} ${x + r * 0.05},${y - r * 0.8}`} style={earLStyle} />
@@ -424,7 +433,12 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
   const fur = C ? { fill: C.fur } : tinted("#3a3142");
   const tail = C ? C.point || C.fur : "var(--tint, #3a3142)";
   const legFill = C?.point ? { fill: C.point } : fur;
-  const face = catFaceProps(C);
+  // Per-instance volume gradient (ids are document-global; a room holds many
+  // cats). Every major mass gets the sphere — the marks paint UNDER it, so
+  // stripes and patches curve with the body instead of sitting on it.
+  const vid = useId();
+  const vol = sphereFill(vid);
+  const face = { ...catFaceProps(C), vol };
   // A tabby's tail rings: the pose's own tail path re-stroked with a dash,
   // so every pose gets rings without owning ring artwork.
   const rings = (d, w) =>
@@ -441,6 +455,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
     const tailD = "M5.6 -8 q4.4 8 1 13 q-2.2 3.2 -5.4 1.6";
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
         <g
           className="held-dangle"
           style={{ transformBox: "fill-box", transformOrigin: "center top" }}
@@ -476,6 +491,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
               <ellipse cx="3.8" cy="-11.5" rx="4" ry="5.2" fill={C.patchB} opacity="0.92" />
             </>
           )}
+          <ellipse cx="0" cy="-16" rx="8.4" ry="13.5" fill={vol} />
           <ellipse cx="-2.4" cy="-21" rx="4.4" ry="7.5" fill="#fff" opacity="0.08" />
           <ellipse cx="0" cy="-7" rx="6.2" ry="4.4" fill="#000" opacity="0.14" />
           {/* front legs pinned tight to the chest by the hold */}
@@ -498,6 +514,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
     const tailD = "M7 -13 q9 -3 7 -16";
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
         <g className="tail-sway">
           <path d={tailD} fill="none" stroke={tail} strokeWidth="4" strokeLinecap="round" />
           {rings(tailD, 4)}
@@ -537,14 +554,35 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
                 <ellipse cx="5.8" cy="-14.5" rx="3.6" ry="3.4" fill={C.patchB} opacity="0.92" />
               </>
             ))}
-          <ellipse cx="0" cy="-19.5" rx="6.6" ry="3" fill="#fff" opacity="0.09" />
+          <ellipse cx="0" cy="-16" rx="10" ry="8.5" fill={vol} />
+          {/* fur grain: a few unequal tapered strokes that stop short of
+              every edge — the hair texture doctrine, on fur */}
+          <g stroke="#000" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.11">
+            <path d="M-7.2 -18.5 q1.3 2.2 0.5 4.2" />
+            <path d="M6.8 -17.5 q1.2 2 0.4 3.8" />
+          </g>
+          <path d="M-1.5 -21.5 q1.2 1.8 0.5 3.4" stroke="#fff" strokeWidth="0.9" fill="none" opacity="0.07" strokeLinecap="round" />
           <ellipse cx="0" cy="-11" rx="8.5" ry="3" fill="#000" opacity="0.16" />
           {rear ? (
             <g>
+              {/* THE BACK READ (owner, 2026-08-19: "so we actually know it's
+                  the back"): from behind a cat is two haunch MOUNDS with the
+                  tail rising between them and a spine crease running up to
+                  the neck — without them the rear was a face-less front. */}
+              <ellipse cx="-4.3" cy="-11.5" rx="4.6" ry="3.9" style={fur} />
+              <ellipse cx="4.3" cy="-11.5" rx="4.6" ry="3.9" style={fur} />
+              <ellipse cx="-4.3" cy="-11.5" rx="4.6" ry="3.9" fill={vol} />
+              <ellipse cx="4.3" cy="-11.5" rx="4.6" ry="3.9" fill={vol} />
+              <path d="M0 -13.6 L0 -8.4" stroke="#000" strokeWidth="1.1" opacity="0.2" strokeLinecap="round" />
+              <path d="M0 -20.5 L0 -14.5" stroke="#000" strokeWidth="0.9" opacity="0.1" strokeLinecap="round" />
+              {/* the tail's root, knotting it into the body */}
+              <ellipse cx="6.6" cy="-13" rx="2.3" ry="1.9" style={fur} />
               <circle cx="0" cy="-27" r="7.6" style={fur} />
               {/* the calico cap shows from behind too */}
               {C?.patchA && <ellipse cx="-2.6" cy="-30" rx="4.4" ry="3.6" fill={C.patchA} opacity="0.92" />}
-              <ellipse cx="-1.8" cy="-30" rx="4.2" ry="2.4" fill="#fff" opacity="0.08" />
+              <circle cx="0" cy="-27" r="7.6" fill={vol} />
+              {/* the nape crease — the skull sits ON the shoulders */}
+              <path d="M-3.4 -20.6 q3.4 1.6 6.8 0" stroke="#000" strokeWidth="0.9" fill="none" opacity="0.16" strokeLinecap="round" />
               <polygon points="-6.2,-31.5 -4,-38.5 -0.4,-32.6" style={C?.point ? { fill: C.point } : C?.patchA ? { fill: C.patchA } : fur} />
               <g className="ear-twitch">
                 <polygon points="2.4,-32.6 6.6,-37.4 7,-31" style={C?.point ? { fill: C.point } : C?.patchA ? { fill: C.patchB } : fur} />
@@ -569,6 +607,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
     const tailD = "M16 -22 q11 -3 8 -17";
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
         {/* The far pair, on the trot's diagonal clocks: rear rides A with the
             NEAR front leg, front rides B — leg-trot's fore-aft sweep replaced
             leg-step's vertical piston here, the same pedalling-not-walking
@@ -605,6 +644,9 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
               <ellipse cx="-7" cy="-19.5" rx="4.8" ry="4.4" fill={C.patchB} opacity="0.92" />
             </>
           )}
+          {/* the two masses each round off — haunch first, then the barrel */}
+          <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" fill={vol} />
+          <ellipse cx="-1" cy="-18" rx="17" ry="9" fill={vol} />
           <ellipse cx="-3" cy="-22" rx="10" ry="4" fill="#fff" opacity="0.09" />
           <ellipse cx="-1" cy="-12.5" rx="15" ry="3.6" fill="#000" opacity="0.16" />
           {/* the near pair joins the diagonals: front on A, rear on B */}
@@ -630,6 +672,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
   const tailD = "M14 -3 q13 1 14 -8 q1 -8 -7 -9";
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+      <VolumeDefs id={vid} />
       {/* the tail wraps AROUND the curl and is drawn first, so the body sits
           on top of it — that overlap is what sells "curled up" */}
       <g className="tail-flick">
@@ -652,6 +695,9 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
             <ellipse cx="14" cy="-6" rx="5" ry="4" fill={C.patchB} opacity="0.92" />
           </>
         )}
+        {/* the curl is one soft loaf — the volume rounds it as a single mass */}
+        <ellipse cx="0" cy="-7" rx="22" ry="11.5" fill={vol} />
+        <ellipse cx="9" cy="-12" rx="12" ry="9" fill={vol} opacity="0.7" />
         <ellipse cx="8" cy="-15" rx="7" ry="3.4" fill="#fff" opacity="0.07" />
         <ellipse cx="-3" cy="-11" rx="12" ry="4.5" fill="#fff" opacity="0.07" />
         <ellipse cx="0" cy="-2.5" rx="20" ry="5.5" fill="#000" opacity="0.2" />
@@ -4202,9 +4248,12 @@ const DOG_BREED_STYLES = {
   shiba: { fur: "#d97f4e", cream: "#f6ead8", ears: "point", tail: "curl", brows: true, socks: true },
   corgi: { fur: "#dd9b58", cream: "#f7f2ea", ears: "big", tail: "nub", blaze: true, socks: true, leg: 0.6, longer: true },
   dalmatian: { fur: "#f2eee7", ears: "folded", earColor: "#312a3b", tail: "thin", spots: "#312a3b" },
+  // Husky: the shiba's silhouette (pricked ears, curled tail) in wolf grey,
+  // with the white face blaze + brows that say sled dog rather than shiba.
+  husky: { fur: "#8d90a0", cream: "#f4f2f5", ears: "point", tail: "curl", blaze: true, brows: true, socks: true },
 };
 
-function DogHead({ x, y, r, asleep, fur, cream = "#f2e7dc", ears = "folded", earColor, blaze, brows, spots }) {
+function DogHead({ x, y, r, asleep, fur, cream = "#f2e7dc", ears = "folded", earColor, blaze, brows, spots, vol }) {
   const skull = fur || tinted("#c98a4b");
   const earStyle = earColor ? { fill: earColor } : skull;
   return (
@@ -4212,6 +4261,8 @@ function DogHead({ x, y, r, asleep, fur, cream = "#f2e7dc", ears = "folded", ear
       <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} style={skull} />
       {/* a dalmatian's one skull spot — over the crown, before the ears */}
       {spots && <ellipse cx={x + r * 0.34} cy={y - r * 0.5} rx={r * 0.3} ry={r * 0.24} fill={spots} opacity="0.9" />}
+      {/* the skull models as a sphere, marks curving with it */}
+      {vol && <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} fill={vol} />}
       {ears === "folded" && (
         <>
           {/* folded ears hang beside the skull rather than standing up */}
@@ -4300,6 +4351,9 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
   // The lighter front: chest + belly + tail tip. The dalmatian opts out — a
   // cream chest on a white dog is dirt, not marking.
   const cream = B ? B.cream || null : "#f2e7dc";
+  // Per-instance soft-volume gradient, same as the cat's.
+  const vid = useId();
+  const vol = sphereFill(vid);
   const headProps = {
     fur,
     cream: cream || "#fbf8f2",
@@ -4308,6 +4362,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
     blaze: B?.blaze,
     brows: B?.brows,
     spots: B?.spots,
+    vol,
   };
   const tailKind = B?.tail || "plume";
   // Every pose declares its tail as (plume-path, curl-path, nub-path,
@@ -4348,6 +4403,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
     const legH = B?.leg ? 8 : 10.5;
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
         <g
           className="held-dangle"
           style={{ transformBox: "fill-box", transformOrigin: "center top" }}
@@ -4368,6 +4424,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
           <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" style={fur} />
           {spots([[-3.4, -20.5, 2.4], [3.4, -12.5, 2.2], [1, -25, 1.8]])}
           {cream && <ellipse cx="0" cy="-11" rx="5.6" ry="6.8" fill={cream} opacity="0.5" />}
+          <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" fill={vol} />
           <ellipse cx="-2.4" cy="-20" rx="4.6" ry="6.5" fill="#fff" opacity="0.08" />
           {[-6.8, 2.6].map((x) => (
             <g key={x}>
@@ -4393,6 +4450,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
     const drop = 13 - legH;
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
         <g transform={drop ? `translate(0, ${drop})` : undefined}>
           <g className="tail-sway">
             {tailArt({
@@ -4418,12 +4476,14 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
             <ellipse cx="0" cy="-15" rx={B?.longer ? 11.5 : 10.5} ry="8" style={fur} />
             {spots([[-4.5, -17, 2.3], [4.2, -13, 2.1]])}
             {!rear && cream && <ellipse cx="0" cy="-12.5" rx="6" ry="4.4" fill={cream} opacity="0.5" />}
+            <ellipse cx="0" cy="-15" rx={B?.longer ? 11.5 : 10.5} ry="8" fill={vol} />
             <ellipse cx="0" cy="-18.5" rx="6.8" ry="2.8" fill="#fff" opacity="0.09" />
             <ellipse cx="0" cy="-10.5" rx="8.6" ry="2.8" fill="#000" opacity="0.16" />
             {rear ? (
               <g>
                 <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" style={fur} />
                 {B?.spots && <ellipse cx="1.8" cy="-28" rx="2.2" ry="1.8" fill={B.spots} opacity="0.9" />}
+                <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" fill={vol} />
                 <ellipse cx="-1.6" cy="-27.6" rx="4.2" ry="2.2" fill="#fff" opacity="0.08" />
                 {(B?.ears || "folded") === "folded" ? (
                   <>
@@ -4470,6 +4530,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
     const drop = 14 - legH;
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
         {/* Far pair on the trot's diagonal clocks (rear with the near front
             leg) — leg-trot's fore-aft sweep, not leg-step's piston. */}
         {[
@@ -4490,6 +4551,9 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
             {spots([[2, -22.5, 2.5], [9.5, -16.5, 2.2], [-7, -14.5, 2.1], [-11, -21.5, 2.3]])}
             {/* cream chest + belly shadow */}
             {cream && <ellipse cx="-9" cy="-15" rx="8" ry="5" fill={cream} opacity="0.5" />}
+            {/* haunch and barrel round off as two soft masses */}
+            <ellipse cx={B?.longer ? 7 : 6} cy="-19" rx="11" ry="9" fill={vol} />
+            <ellipse cx="-3" cy="-18" rx={B?.longer ? 18 : 16} ry="8.5" fill={vol} />
             <ellipse cx="-2" cy="-12" rx="14" ry="3.4" fill="#000" opacity="0.16" />
             {/* the near pair joins the diagonals: front on A, rear on B */}
             <g className={moving ? "leg-trot-a" : undefined}>
@@ -4523,6 +4587,7 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
   }
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+      <VolumeDefs id={vid} />
       <g className="tail-flick">
         {tailArt({
           plume: "M13 -4 q14 2 15 -8",
@@ -4536,6 +4601,8 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
         <ellipse cx="8" cy="-11" rx="11" ry="8" style={fur} />
         {spots([[4, -13.5, 2.4], [12, -7.5, 2.2], [-4, -8, 2]])}
         {cream && <ellipse cx="-6" cy="-9" rx="12" ry="5" fill={cream} opacity="0.4" />}
+        <ellipse cx="0" cy="-7" rx="21" ry="10.5" fill={vol} />
+        <ellipse cx="8" cy="-11" rx="11" ry="8" fill={vol} opacity="0.7" />
         <ellipse cx="0" cy="-2.5" rx="19" ry="5" fill="#000" opacity="0.2" />
         <DogHead x={-14} y={-12} r={8} asleep {...headProps} />
         {/* muzzle resting on the front paws — the pose that reads as content */}
@@ -4546,8 +4613,19 @@ function Dog({ awake = false, moving = false, facing = "side", held = false, loo
   );
 }
 
-function Bunny({ awake = false, moving = false }) {
+// Bunny coats — smaller set than the cat's, same contract: "cloud" is the
+// classic lilac-grey and stays tintable; the named coats paint fixed fur.
+const BUNNY_COATS = {
+  snow: { fur: "#f7f2ea", earInner: 0.65 },
+  cocoa: { fur: "#a9805d", belly: "#e9dcc9" },
+};
+
+function Bunny({ awake = false, moving = false, look }) {
   const c = project(0.35, 0.3);
+  const B = BUNNY_COATS[look] || null;
+  const fur = B ? { fill: B.fur } : tinted("#d9d2e4");
+  const vid = useId();
+  const vol = sphereFill(vid);
   // `twitch` puts the flick on an INNER group: the outer <g> carries the
   // rotate attribute, and an animation sharing that element would override it
   // (the standard SVG trap). An upright ear pivots at its base, so the stock
@@ -4556,8 +4634,8 @@ function Bunny({ awake = false, moving = false }) {
   const ear = (x, tilt, dark, twitch) => (
     <g transform={`rotate(${tilt} ${x} ${awake ? -20 : -9})`}>
       <g className={twitch ? "ear-twitch" : undefined}>
-        <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={tinted("#d9d2e4")} />
-        <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : 0.5} />
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={fur} />
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : B?.earInner || 0.5} />
         {dark && <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} fill="#000" opacity="0.18" />}
       </g>
     </g>
@@ -4567,18 +4645,22 @@ function Bunny({ awake = false, moving = false }) {
     // The bounce is a hop, so it only plays while actually moving.
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
+        <VolumeDefs id={vid} />
         {ear(-4.5, -14, true)}
         {ear(3.5, 12, false, true)}
         <g className={moving ? "resident-type" : undefined}>
-          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={tinted("#d9d2e4")} />
-          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={tinted("#d9d2e4")} />
+          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={fur} />
+          {B?.belly && <ellipse cx="0" cy="-6" rx="5.2" ry="4.6" fill={B.belly} opacity="0.85" />}
+          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" fill={vol} />
+          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={fur} />
+          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" fill={vol} />
           <ellipse cx="-2" cy="-18" rx="4" ry="2.4" fill="#fff" opacity="0.2" />
           <circle cx="-3.4" cy="-16.5" r="1.15" fill="#2b2350" />
           <circle cx="2.6" cy="-16.8" r="1.15" fill="#2b2350" />
           <ellipse cx="-0.4" cy="-13.8" rx="1.1" ry="0.8" fill="#e8a3a8" />
           {/* forepaws tucked to the chest */}
-          <ellipse cx="-3.5" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
-          <ellipse cx="3" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
+          <ellipse cx="-3.5" cy="-6" rx="2.6" ry="3.4" style={fur} />
+          <ellipse cx="3" cy="-6" rx="2.6" ry="3.4" style={fur} />
         </g>
         <ellipse cx="0" cy="-1" rx="10" ry="3.4" fill="#000" opacity="0.16" />
         <circle cx="9" cy="-6" r="3.4" fill="#f7e9e2" opacity="0.85" />
@@ -4588,11 +4670,14 @@ function Bunny({ awake = false, moving = false }) {
   // Loafed: legs folded away, ears laid back along the spine.
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
+      <VolumeDefs id={vid} />
       {ear(6, 62, true)}
       {ear(7.5, 78, false)}
       <g className="cat-breathe">
-        <ellipse cx="0" cy="-6" rx="13" ry="7.5" style={tinted("#d9d2e4")} />
-        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" style={tinted("#d9d2e4")} />
+        <ellipse cx="0" cy="-6" rx="13" ry="7.5" style={fur} />
+        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" style={fur} />
+        <ellipse cx="0" cy="-6" rx="13" ry="7.5" fill={vol} />
+        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" fill={vol} opacity="0.7" />
         <ellipse cx="-3" cy="-9.5" rx="7" ry="3" fill="#fff" opacity="0.18" />
         <ellipse cx="0" cy="-2" rx="12" ry="3.6" fill="#000" opacity="0.18" />
         <path d="M-11.4 -8.8 q1.4 1.3 2.8 0" fill="none" stroke="#2b2350" strokeWidth="1" strokeLinecap="round" opacity="0.8" />

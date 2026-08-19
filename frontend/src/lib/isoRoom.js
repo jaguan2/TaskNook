@@ -543,15 +543,22 @@ export const CAT_COATS = [
   { key: "tuxedo", label: "Tuxedo" },
   { key: "calico", label: "Calico" },
   { key: "siamese", label: "Siamese" },
+  { key: "tortie", label: "Tortoiseshell" },
 ];
 export const DOG_BREEDS = [
   { key: "golden", label: "Golden" },
   { key: "shiba", label: "Shiba" },
   { key: "corgi", label: "Corgi" },
   { key: "dalmatian", label: "Dalmatian" },
+  { key: "husky", label: "Husky" },
 ];
-/** The look list an item's pets choose from, or null (the rabbit has one look). */
-export const PET_LOOKS = { cat: CAT_COATS, dog: DOG_BREEDS };
+export const BUNNY_COATS = [
+  { key: "cloud", label: "Cloud" },
+  { key: "snow", label: "Snow" },
+  { key: "cocoa", label: "Cocoa" },
+];
+/** The look list an item's pets choose from, or null for a one-look species. */
+export const PET_LOOKS = { cat: CAT_COATS, dog: DOG_BREEDS, bunny: BUNNY_COATS };
 export const petLooksFor = (item) => PET_LOOKS[item] || null;
 /** True only for a NON-DEFAULT look this species actually has — what gets stored. */
 export const isStorableLook = (item, key) => {

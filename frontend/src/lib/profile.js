@@ -202,6 +202,32 @@ export const HATS = [
   { key: "bucket", label: "Bucket hat" },
   { key: "beret", label: "Beret" },
   { key: "straw", label: "Sun hat" },
+  // The ushanka: ear flaps past the jaw — the one hat that changes the
+  // head-to-shoulder outline rather than just the crown.
+  { key: "trapper", label: "Trapper hat" },
+];
+
+/**
+ * Scarves — the second accessory slot (artwork in character/scarves.jsx,
+ * same both-ways key contract as hats). At the neck it reads in every facing
+ * and composes with every top, coat and hat — one slot that multiplies
+ * against the whole wardrobe. Unlike hats a scarf carries its OWN colour:
+ * it's the accent-colour accessory, the same argument that got shoes theirs.
+ */
+export const SCARVES = [
+  { key: "none", label: "None" },
+  { key: "wrapped", label: "Wrapped" },
+  { key: "loop", label: "Loop" },
+  { key: "long", label: "Long" },
+];
+
+export const SCARF_COLORS = [
+  { key: "cherry", hex: "#8e3a3f" },
+  { key: "mustard", hex: "#c9a24b" },
+  { key: "moss", hex: "#4e6b4a" },
+  { key: "denim", hex: "#3f5a7a" },
+  { key: "cream", hex: "#e9dcc9" },
+  { key: "plum", hex: "#6b4a6e" },
 ];
 
 /**
@@ -263,6 +289,9 @@ export const COATS = [
   // Raincoat: the LONGEST layer in the set — its shell drops straight past
   // the hem to mid-thigh, the one coat that changes where the legs start.
   { key: "raincoat", label: "Raincoat" },
+  // Robe: the raincoat's drop AND an open front — the inner column runs from
+  // collar into the skirt, a full-length two-tone split. Peak cozy.
+  { key: "robe", label: "Robe" },
 ];
 
 /**
@@ -286,6 +315,10 @@ export const PANTS = [
   { key: "jorts", label: "Jorts" },
   { key: "skirt", label: "Skirt" },
   { key: "pleats", label: "Pleated skirt" },
+  // The maxi drops the cone to the ANKLE — the whole lower half becomes one
+  // cloth mass with only shoes peeking, the biggest lower-body outline
+  // change since the skirt itself.
+  { key: "maxi", label: "Maxi skirt" },
 ];
 
 /**
@@ -326,6 +359,9 @@ export const PATTERNS = [
   { key: "stripes", label: "Stripes" },
   { key: "chest", label: "Chest stripe" },
   { key: "dots", label: "Dots" },
+  // Both axes crossing, with the intersections doubled to full opacity —
+  // the crossings are what read as plaid rather than "a grid".
+  { key: "plaid", label: "Plaid" },
 ];
 
 export const TROUSER_COLORS = [
@@ -382,6 +418,8 @@ export const DEFAULT_CHARACTER = {
   shoes: "sneakers",
   shoeColor: "#2b2350",
   hat: "none",
+  scarf: "none",
+  scarfColor: "#8e3a3f",
   print: "none",
   expression: "calm",
   build: "average",
@@ -393,6 +431,7 @@ export const DEFAULT_CHARACTER = {
 const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
 const HAT_KEYS = new Set(HATS.map((h) => h.key));
+const SCARF_KEYS = new Set(SCARVES.map((s) => s.key));
 const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
 const COAT_KEYS = new Set(COATS.map((c) => c.key));
@@ -476,6 +515,8 @@ export function validateCharacter(raw) {
     shoes: pickKey(c.shoes, SHOE_KEYS, DEFAULT_CHARACTER.shoes),
     shoeColor: pickHex(c.shoeColor, DEFAULT_CHARACTER.shoeColor),
     hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
+    scarf: pickKey(c.scarf, SCARF_KEYS, DEFAULT_CHARACTER.scarf),
+    scarfColor: pickHex(c.scarfColor, DEFAULT_CHARACTER.scarfColor),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,

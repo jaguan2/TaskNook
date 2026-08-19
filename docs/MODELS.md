@@ -401,3 +401,30 @@ which is most of why clothes read flatter than the body wearing them.
   verified; the art sheet renders tops and coats in three colourways
   (mid/dark/light), because single-colourway review is exactly how the
   first too-faint mark set shipped.
+
+## 11. Soft volume (2026-08-19)
+
+The "actual modelling" pass (decision record: docs/MODELING_ROADMAP.md).
+`character/volume.jsx` defines two reusable gradients — a SPHERE (off-centre
+radial: highlight biased up toward screen right, cool core shadow at the
+lower-left rim) and a CYLINDER (horizontal linear: shaded left edge, lit band
+just inside the right edge, easing off at the very edge — the ease is what
+separates a cylinder from a box). They draw UNDER the hard cel marks: on the
+resident's head and torso in every view, and on every pet mass (`vol` prop
+on CatFace/DogHead, overlay ellipses on the body masses).
+
+Rules, each load-bearing:
+
+- **Translucent neutral stops only** (GLINT/SHADE with opacity, never a
+  solid mid-tone) — the same recolour bargain as every crescent.
+- **Subtle by rule.** The furniture is deliberately flat three-tone; a
+  figure shaded much softer than its sofa reads as pasted from another kit.
+  Gradient + crescent together model; either alone fails differently.
+- **Per-instance ids** via useId — SVG ids are document-global and one room
+  renders many bodies (the print-clipPath lesson).
+- **Marks paint under the volume**, so stripes and patches curve with the
+  body instead of sitting on it; crisp features (eyes, nose, whiskers) stay
+  ON TOP.
+- **Never SVG filters** (feGaussianBlur/feDropShadow): they force
+  filter-region re-rasterization every animation frame — gradients are free
+  GPU paint servers, filters are the CPU bill the memo'd scene avoids.

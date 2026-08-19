@@ -290,6 +290,9 @@ const PANTS_FORM = {
   jorts: { shorts: true, turnup: true, stitch: true },
   skirt: { bare: true },
   pleats: { bare: true },
+  // The maxi's legs are entirely covered — bare wiring, with the assembly
+  // extending its flare cone to the ankle.
+  maxi: { bare: true },
 };
 export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
 
