@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
-import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS } from "../lib/isoRoom";
+import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
@@ -404,7 +404,7 @@ function PetsSection({ isoRoom, setPetIdentity }) {
                   aria-hidden="true"
                   style={p.tint ? { "--tint": p.tint } : undefined}
                 >
-                  <Sprite awake facing="front" />
+                  <Sprite awake facing="front" look={p.look} />
                 </svg>
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {/* Save on BLUR, not per keystroke — every write saves the
@@ -429,6 +429,16 @@ function PetsSection({ isoRoom, setPetIdentity }) {
                     value={p.temper || "mellow"}
                     onPick={(temper) => setPetIdentity(p.id, { temper })}
                   />
+                  {/* The look — coat pattern for cats, breed for dogs. The
+                      thumbnail above redraws live, so picking is trying on. */}
+                  {petLooksFor(p.item) && (
+                    <Choices
+                      label={p.item === "cat" ? "Coat" : "Breed"}
+                      options={petLooksFor(p.item)}
+                      value={p.look || petLooksFor(p.item)[0].key}
+                      onPick={(look) => setPetIdentity(p.id, { look })}
+                    />
+                  )}
                 </div>
               </div>
             );

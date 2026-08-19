@@ -501,6 +501,27 @@ describe("ambient loops are desynchronised per item", () => {
     expect(0.25).toBe(Number(period) / 2);
   });
 
+  it("the animals' trot is a cue on diagonal clocks, not a phased loop", () => {
+    // leg-trot replaced leg-step in the SIDE poses: a fore-aft sweep from the
+    // shoulder/hip (the same pedalling-not-walking fix the residents' stride
+    // made), with diagonal pairs sharing a clock. Cue rules apply — it starts
+    // when a glide starts, so NO --phase; and the B diagonal must sit half a
+    // cycle behind with a NEGATIVE delay, so the alternation is already under
+    // way on the first frame.
+    const a = css.match(/\.leg-trot-a \{([^}]*)\}/)[1];
+    const b = css.match(/\.leg-trot-b \{([^}]*)\}/)[1];
+    expect(a).not.toContain("--phase");
+    expect(b).not.toContain("--phase");
+    const period = Number(a.match(/animation: leg-trot ([\d.]+)s/)[1]);
+    expect(b).toContain(`animation-delay: -${period / 2}s`);
+    // The trot sweeps from the top of the leg, or it's a windscreen wiper
+    // about its own centre.
+    for (const body of [a, b]) {
+      expect(body).toContain("transform-origin: center top");
+      expect(body).toContain("infinite");
+    }
+  });
+
   it("a flame and the pool it casts share one clock", () => {
     // flame-dance ran 1.5s while pool-flicker ran 2.6s: the candle guttered
     // while its own cast light sat steady, which is what made the pools read

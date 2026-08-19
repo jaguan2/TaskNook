@@ -52,6 +52,7 @@ import {
   nextRot,
   PET_TEMPERS,
   cleanPetName,
+  isStorableLook,
   validateIsoLayout,
 } from "./lib/isoRoom";
 
@@ -1401,6 +1402,12 @@ export function StoreProvider({ children }) {
           : undefined;
         if (temper) next.temper = temper;
         else delete next.temper;
+      }
+      // The coat/breed rides the same identity write — default (first entry)
+      // is stored implicitly, so picking it back just deletes the key.
+      if ("look" in patch) {
+        if (isStorableLook(cur.item, patch.look)) next.look = patch.look;
+        else delete next.look;
       }
       return {
         ...prev,

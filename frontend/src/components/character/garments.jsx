@@ -592,6 +592,168 @@ export const GARMENT_REGISTRY = {
       </>
     ),
   },
+  vest: {
+    // The sweater vest: knit over the shirt, and the first garment whose
+    // SLEEVES belong to the layer underneath — the assembly paints the arms
+    // in the INNER colour (profile.js `sleeves: "inner"`), so the split this
+    // earns its slot with is torso-vs-arms, one no other top has. On the
+    // torso: the shirt's collar wings above a ribbed V, armhole ribbing
+    // where knit gives way to shirt sleeve, and a sweater hem.
+    finish: KNIT,
+    draw: ({ sh, hem, top, bot, inner }) => (
+      <>
+        {/* the shirt's collar wings, poking out above the V */}
+        <path d={`M ${-4.2} ${top + 0.4} L ${-0.4} ${top + 2.6} L ${-4.8} ${top + 4.2} z`} fill={inner} />
+        <path d={`M ${4.2} ${top + 0.4} L ${0.4} ${top + 2.6} L ${4.8} ${top + 4.2} z`} fill={inner} />
+        {/* the V-notch shows the shirt */}
+        <path d={`M ${-3} ${top + 1} L 0 ${top + 6.6} L ${3} ${top + 1} z`} fill={inner} />
+        {/* ribbed V edging */}
+        <path d={`M ${-3.5} ${top + 0.9} L 0 ${top + 7}`} stroke="#000" strokeWidth="1.1" opacity="0.24" strokeLinecap="round" fill="none" />
+        <path d={`M ${3.5} ${top + 0.9} L 0 ${top + 7}`} stroke="#000" strokeWidth="1.1" opacity="0.24" strokeLinecap="round" fill="none" />
+        {/* armhole ribbing — where the knit stops and the shirt sleeve starts */}
+        <path d={`M ${-sh + 1} ${top + 2} Q ${-sh + 2.8} ${top + 4.5} ${-sh + 1.8} ${top + 7.5}`} stroke="#000" strokeWidth="1" opacity="0.2" fill="none" strokeLinecap="round" />
+        <path d={`M ${sh - 1} ${top + 2} Q ${sh - 2.8} ${top + 4.5} ${sh - 1.8} ${top + 7.5}`} stroke="#000" strokeWidth="1" opacity="0.2" fill="none" strokeLinecap="round" />
+        {/* ribbed hem, sweater-style */}
+        <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
+        {[-hem + 3.2, -hem + 5.6, hem - 5.6, hem - 3.2].map((x) => (
+          <path key={x} d={`M ${x} ${bot - 2.1} L ${x} ${bot - 0.3}`} stroke="#000" strokeWidth="0.7" opacity="0.26" strokeLinecap="round" />
+        ))}
+      </>
+    ),
+    back: ({ sh, hem, top, bot }) => (
+      <>
+        {/* armholes read from behind too; the V is a front story */}
+        <path d={`M ${-sh + 1} ${top + 2} Q ${-sh + 2.8} ${top + 4.5} ${-sh + 1.8} ${top + 7.5}`} stroke="#000" strokeWidth="1" opacity="0.2" fill="none" strokeLinecap="round" />
+        <path d={`M ${sh - 1} ${top + 2} Q ${sh - 2.8} ${top + 4.5} ${sh - 1.8} ${top + 7.5}`} stroke="#000" strokeWidth="1" opacity="0.2" fill="none" strokeLinecap="round" />
+        <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
+      </>
+    ),
+    side: ({ top, hem, bot }) => (
+      <>
+        {/* the armhole edge is the vest's whole story seen side-on */}
+        <path d={`M ${-1.2} ${top + 1.8} Q ${1.4} ${top + 4.5} ${0.4} ${top + 8}`} stroke="#000" strokeWidth="1" opacity="0.2" fill="none" strokeLinecap="round" />
+        <rect x={-hem + 1.2} y={bot - 2.3} width={(hem - 1.2) * 2} height="2.3" fill="#000" opacity="0.15" />
+      </>
+    ),
+  },
+  varsity: {
+    // The varsity jacket: a coat whose SLEEVES are the second colour — the
+    // classic wool-body / leather-arms split (the assembly wires the arms to
+    // the inner colour). The shell keeps the coat colour; the ribbed collar
+    // and hem borrow the SLEEVE colour, which is what ties the two halves
+    // into one garment; a snap placket closes it down the middle.
+    finish: CRISP,
+    cuffs: true,
+    back: ({ hem, bot, inner, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        <rect x={-(hem + OUTER_BULK) + 1.4} y={bot + OUTER_BULK - 2.3} width={(hem + OUTER_BULK - 1.4) * 2} height="2.3" rx="1.1" fill={inner} opacity="0.92" />
+      </>
+    ),
+    side: ({ hem, top, bot, inner, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        {/* the front edge, and the ribbed hem in the sleeve colour */}
+        <path d={`M ${-hem + 1.2} ${top + 3.8} L ${-hem + 1.6} ${bot + 0.6}`} stroke="#000" strokeWidth="1" opacity="0.2" strokeLinecap="round" />
+        <rect x={-(hem + OUTER_BULK) + 1.2} y={bot + OUTER_BULK - 2.3} width={(hem + OUTER_BULK - 1.2) * 2} height="2.3" rx="1.1" fill={inner} opacity="0.92" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, inner, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        {/* ribbed hem band in the sleeve colour, with knit ticks */}
+        <rect x={-(hem + OUTER_BULK) + 1.4} y={bot + OUTER_BULK - 2.3} width={(hem + OUTER_BULK - 1.4) * 2} height="2.3" rx="1.1" fill={inner} opacity="0.92" />
+        {[-hem + 2.6, -hem + 5, hem - 5, hem - 2.6].map((x) => (
+          <path key={x} d={`M ${x} ${bot + OUTER_BULK - 2}` + ` L ${x} ${bot + OUTER_BULK - 0.4}`} stroke="#000" strokeWidth="0.7" opacity="0.3" strokeLinecap="round" />
+        ))}
+        {/* ribbed collar band at the neckline */}
+        <path d={`M ${-3.9} ${top + 0.5} Q 0 ${top + 3.2} ${3.9} ${top + 0.5} L ${3.4} ${top + 2.6} Q 0 ${top + 5} ${-3.4} ${top + 2.6} z`} fill={inner} opacity="0.92" />
+        {/* the snap placket: centre seam + three snaps in fixed neutral */}
+        <path d={`M 0 ${top + 4.4} L 0 ${bot + OUTER_BULK - 2.4}`} stroke="#000" strokeWidth="0.9" opacity="0.26" />
+        {[7.5, 11, 14.5].map((dy) => (
+          <circle key={dy} cx="0" cy={top + dy} r="0.7" fill="#000" opacity="0.45" />
+        ))}
+        {/* the chest patch — the little felt letter block, in the trim colour */}
+        <rect x={-sh + 1.8} y={top + 6.2} width="3" height="3.2" rx="0.7" fill={inner} opacity="0.9" />
+        <rect x={-sh + 1.8} y={top + 6.2} width="3" height="3.2" rx="0.7" fill="#000" opacity="0.12" />
+      </>
+    ),
+  },
+  raincoat: {
+    // The raincoat: the LONGEST layer in the set — the shell keeps falling
+    // past the hem in one straight drop, the one coat that changes where the
+    // legs start reading from (the dress rule, on a coat). A storm flap
+    // across the chest, patch-flap pockets, and the sheeniest finish in the
+    // registry: wet nylon models by highlight.
+    finish: { shade: 0.17, glint: 0.22 },
+    drape: true,
+    back: ({ hem, top, bot, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.7} ${bot + 6.5} L ${-w - 0.7} ${bot + 6.5} z`} />
+          </g>
+          {/* the centre vent, and the skirt's own hem shadow */}
+          <path d={`M 0 ${bot + 2} L 0 ${bot + 6.3}`} stroke="#000" strokeWidth="0.9" opacity="0.2" />
+          <rect x={-w - 0.5} y={bot + 5.1} width={(w + 0.5) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+          {/* the yoke seam rain rolls off */}
+          <path d={`M ${-w + 1.2} ${top + 5} Q 0 ${top + 7} ${w - 1.2} ${top + 5}`} stroke="#000" strokeWidth="0.8" opacity="0.16" fill="none" />
+        </>
+      );
+    },
+    side: ({ hem, top, bot, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.5} ${bot + 6.5} L ${-w - 0.5} ${bot + 6.5} z`} />
+          </g>
+          <rect x={-w - 0.3} y={bot + 5.1} width={(w + 0.3) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+          {/* front edge + the near pocket's flap */}
+          <path d={`M ${-w + 1.4} ${top + 4.5} L ${-w + 1.8} ${bot + 5.8}`} stroke="#000" strokeWidth="1" opacity="0.2" strokeLinecap="round" />
+          <path d={`M ${-w + 3} ${bot - 3.5} L ${-w + 7} ${bot - 3.5} L ${-w + 6.7} ${bot - 1.9} L ${-w + 3.3} ${bot - 1.9} z`} fill="#000" opacity="0.14" />
+        </>
+      );
+    },
+    draw: ({ wa, hem, top, bot, waistY, outfit, shell }) => {
+      const w = hem + OUTER_BULK;
+      return (
+        <>
+          <g style={outfit}>{shell()}</g>
+          {/* the drop below the hem — a raincoat's whole outline story */}
+          <g style={outfit}>
+            <path d={`M ${-w + 0.3} ${bot} L ${w - 0.3} ${bot} L ${w + 0.7} ${bot + 6.5} L ${-w - 0.7} ${bot + 6.5} z`} />
+          </g>
+          <rect x={-w - 0.5} y={bot + 5.1} width={(w + 0.5) * 2} height="1.5" rx="0.7" fill="#000" opacity="0.15" />
+          {/* the storm flap: a yoke seam with the light catching above it */}
+          <path d={`M ${-w + 1.2} ${top + 5.6} Q 0 ${top + 7.6} ${w - 1.2} ${top + 5.6}`} stroke="#000" strokeWidth="0.9" opacity="0.18" fill="none" />
+          <path d={`M ${-w + 1.6} ${top + 4.6} Q 0 ${top + 6.6} ${w - 1.6} ${top + 4.6}`} stroke={GLINT} strokeWidth="0.8" opacity="0.24" fill="none" />
+          {/* the closed placket, buttons hidden under it (it's a rain seam) */}
+          <path d={`M 0 ${top + 3} L 0 ${bot + 5.6}`} stroke="#000" strokeWidth="0.9" opacity="0.2" />
+          {/* two patch pockets with flaps, low where hands actually go */}
+          {[-1, 1].map((s) => (
+            <g key={s}>
+              <path
+                d={`M ${s * (wa - 1.2) - 2} ${waistY + 3.4} L ${s * (wa - 1.2) + 2} ${waistY + 3.4} L ${s * (wa - 1.2) + 1.8} ${waistY + 5} L ${s * (wa - 1.2) - 1.8} ${waistY + 5} z`}
+                fill="#000"
+                opacity="0.16"
+              />
+              <path
+                d={`M ${s * (wa - 1.2) - 2} ${waistY + 3.5} L ${s * (wa - 1.2) + 2} ${waistY + 3.5}`}
+                stroke={GLINT}
+                strokeWidth="0.6"
+                opacity="0.2"
+                strokeLinecap="round"
+              />
+            </g>
+          ))}
+        </>
+      );
+    },
+  },
   dress: {
     // The hem flares past the hips instead of tucking in — the strongest
     // outline change in the set, and the only one that changes where the legs

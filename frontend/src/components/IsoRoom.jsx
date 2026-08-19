@@ -458,7 +458,7 @@ const PlacedItem = memo(function PlacedItem({
           // Animals are DRAWN in profile — that's their walking pose — so
           // "side" is their default; a vertical-dominant glide turns them
           // toward or away from the camera the same way it turns a person.
-          <Sprite awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} />
+          <Sprite awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} look={p.look} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
             {/* rot 2/3 are the AWAY-facing pair, and they're a
@@ -496,7 +496,7 @@ function HeldFigure({ walk, character, personaInfo, label }) {
   const Sprite = ISO_SPRITES[walk.item];
   if (!item || !Sprite) return null;
   const sprite = (
-    <Sprite held character={item.self ? character : personaInfo?.character} />
+    <Sprite held character={item.self ? character : personaInfo?.character} look={walk.look} />
   );
   return (
     <g style={walk.tint ? { "--tint": walk.tint } : undefined}>

@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { ISO_SPRITES } from "./IsoItems";
+import { CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -87,12 +88,22 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const { key } of HATS) {
       save(`hat-${key}`, <Resident character={dressed({ hat: key })} />);
     }
-    for (const f of ["side", "front", "back"]) {
-      save(`cat-${f}`, <Cat awake facing={f} />, "-44 -48 88 62");
-      save(`dog-${f}`, <Dog awake facing={f} />, "-44 -48 88 62");
+    // Every coat and breed, every pose — a pattern that only works on the
+    // barrel but not the curl is exactly what side-by-side review catches.
+    for (const look of CAT_COATS.map((c) => c.key)) {
+      for (const f of ["side", "front", "back"]) {
+        save(`cat-${look}-${f}`, <Cat awake facing={f} look={look} />, "-44 -48 88 62");
+      }
+      save(`cat-${look}-held`, <Cat held look={look} />, "-44 -48 88 62");
+      save(`cat-${look}-asleep`, <Cat look={look} />, "-44 -48 88 62");
     }
-    save(`cat-held`, <Cat held />, "-44 -48 88 62");
-    save(`dog-held`, <Dog held />, "-44 -48 88 62");
+    for (const look of DOG_BREEDS.map((b) => b.key)) {
+      for (const f of ["side", "front", "back"]) {
+        save(`dog-${look}-${f}`, <Dog awake facing={f} look={look} />, "-44 -48 88 62");
+      }
+      save(`dog-${look}-held`, <Dog held look={look} />, "-44 -48 88 62");
+      save(`dog-${look}-asleep`, <Dog look={look} />, "-44 -48 88 62");
+    }
     expect(count).toBeGreaterThan(0);
   });
 });

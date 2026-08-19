@@ -526,6 +526,40 @@ export const cleanPetName = (raw) =>
   typeof raw === "string" ? raw.trim().slice(0, PET_NAME_MAX) : "";
 
 /**
+ * PET LOOKS — coat patterns for cats, breeds for dogs. Purely visual: the
+ * sprite reads the key and draws that fur (IsoItems.jsx owns the artwork,
+ * exactly as it owns which items have four rotations); the wander engine
+ * never looks at it. Per-species lists because a calico dog isn't a thing.
+ * The FIRST entry of each list is the classic drawing and is stored
+ * implicitly — same contract as temper's "mellow" — so every pet that
+ * exists today keeps its exact look. Keys from both lists are mirrored in
+ * backend app.py (`PET_LOOKS`), the same both-languages drift contract as
+ * PET_TEMPERS/ISO_ENVS (test_room.py parses this block).
+ */
+export const CAT_COATS = [
+  { key: "ink", label: "Ink" },
+  { key: "ginger", label: "Ginger" },
+  { key: "greytabby", label: "Grey tabby" },
+  { key: "tuxedo", label: "Tuxedo" },
+  { key: "calico", label: "Calico" },
+  { key: "siamese", label: "Siamese" },
+];
+export const DOG_BREEDS = [
+  { key: "golden", label: "Golden" },
+  { key: "shiba", label: "Shiba" },
+  { key: "corgi", label: "Corgi" },
+  { key: "dalmatian", label: "Dalmatian" },
+];
+/** The look list an item's pets choose from, or null (the rabbit has one look). */
+export const PET_LOOKS = { cat: CAT_COATS, dog: DOG_BREEDS };
+export const petLooksFor = (item) => PET_LOOKS[item] || null;
+/** True only for a NON-DEFAULT look this species actually has — what gets stored. */
+export const isStorableLook = (item, key) => {
+  const looks = PET_LOOKS[item];
+  return !!looks && looks.some((l, i) => l.key === key && i > 0);
+};
+
+/**
  * Where a persona is actually drawn once they've been seated, and how deep.
  * Render-time only: the stored gx/gy never changes, so persistence, validation
  * and the drag engine know nothing about it.
@@ -1044,6 +1078,9 @@ export function validateIsoLayout(raw) {
       ISO_ITEMS[p.item].roamer && PET_TEMPERS.some((t) => t.key === p.temper && t.key !== "mellow")
         ? p.temper
         : undefined;
+    // The look (coat pattern / breed) follows the temper contract exactly:
+    // pets only, per-species whitelist, default stored implicitly.
+    const look = isStorableLook(p.item, p.look) ? p.look : undefined;
     clean.push({
       id,
       item: p.item,
@@ -1053,6 +1090,7 @@ export function validateIsoLayout(raw) {
       ...(tint && { tint }),
       ...(name && { name }),
       ...(temper && { temper }),
+      ...(look && { look }),
     });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }

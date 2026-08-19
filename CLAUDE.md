@@ -504,8 +504,12 @@ running `git commit` yourself.
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
-  (`OUTFITS`: sweater/tee/button-up/overalls/dress/turtleneck, coloured by
-  `outfit`), a COAT over it (`COATS`: none/hoodie/jacket/cardigan/puffer,
+  (`OUTFITS`: sweater/tee/button-up/overalls/dress/turtleneck/sweater vest,
+  coloured by
+  `outfit`; the vest's ARMS paint in the inner colour via `sleeves: "inner"`
+  — a torso-vs-arms split no other top has), a COAT over it (`COATS`:
+  none/hoodie/jacket/cardigan/puffer/varsity/raincoat — the varsity shares
+  the vest's contrast-sleeve wiring, the raincoat drops past the hem,
   its own `coatColor` — the open fronts show the TOP through the opening,
   which is what makes two slots read as two garments), and BOTTOMS
   (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
@@ -514,7 +518,7 @@ running `git commit` yourself.
   heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
   BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
   and that two-material split is what makes a 5px shoe read as modelled).
-  6×5×9×5 = 1,350 silhouette combinations before any colour.
+  7×7×9×5 = 2,205 silhouette combinations before any colour.
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
@@ -1079,8 +1083,22 @@ running `git commit` yourself.
   `petCanStand` (the persona rule WITHOUT the seat exception: there's no
   seated-pet drawing), and the store's `walkIsoPersona` accepts
   persona-or-roamer, still refusing furniture. A pet's IDENTITY — `name`
-  (≤16 chars) and `temper` — lives ON its placement, because a pet IS a
-  placement: two cats are two rows, and removing one takes its name along.
+  (≤16 chars), `temper` and `look` — lives ON its placement, because a pet IS
+  a placement: two cats are two rows, and removing one takes its name along.
+  The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
+  calico/siamese; `DOG_BREEDS`: golden/shiba/corgi/dalmatian — lib/isoRoom.js
+  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoItems.jsx
+  the artwork, same catalog-vs-artwork split as rotations): purely visual,
+  default stored implicitly, per-species whitelist on the client, one flat
+  `PET_LOOKS` whitelist in app.py (bounded-not-knowing, same stance as rot;
+  drift-guarded in test_room.py). The classic drawings stay tintable; named
+  looks paint FIXED palettes — a teal calico isn't a calico. Breeds change
+  SILHOUETTE, not just palette (corgi: 60% legs with the body dropped to
+  meet them — the drop rides a wrapper INSIDE the animated group, per the
+  attribute-vs-animation rule). Animals' SIDE poses trot on `leg-trot`, a
+  fore-aft sweep on DIAGONAL pairs (near-front with far-rear) — the same
+  pedalling-not-walking fix the residents' stride made; front/back facings
+  keep the `leg-step` piston, since legs seen end-on lift, not sweep.
   `PET_TEMPERS` (mellow default/curious/sleepy, lib/isoRoom.js) reaches
   the wander engine as three numbers — move chance per tick, soft-spot
   stickiness, drift range — so a curious pet ranges the room and won't

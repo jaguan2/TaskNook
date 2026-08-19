@@ -5,6 +5,12 @@ shot is the built SPA talking to the Flask API, with tasks and focus sessions
 created through the actual REST endpoints, and rooms applied by clicking the
 same preset buttons you would. 1600×1000 WebP.
 
+Regenerate them with `frontend/scripts/screenshots.mjs` — the capture pipeline
+is committed rather than rebuilt from scratch each time, and its header carries
+the traps (cache-busting, re-enabling the Page domain after a navigation, and
+running the backend against a throwaway `TASKNOOK_DB` so focus minutes don't
+accumulate between runs).
+
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
 ## Rooms
@@ -52,6 +58,5 @@ both the weather and the hour.
 | | |
 |---|---|
 | ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, five ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
-| ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Progress](18-progress.webp) **Progress** — goal ring, focus time, 18-week heatmap, break nudge |
-| ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and what each one went on | ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix |
-| ![Settings](21-settings.webp) **Settings** — colour schemes, brightness, motion | |
+| ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and a breakdown of what each one went on |
+| ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, brightness, motion |

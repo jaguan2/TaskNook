@@ -16,7 +16,7 @@
 import { useId } from "react";
 import { SKEW, project } from "../../lib/iso";
 import { tinted, toneFor } from "../../lib/tint";
-import { DEFAULT_CHARACTER, MOODS, garmentOf } from "../../lib/profile";
+import { DEFAULT_CHARACTER, MOODS, coatOf, garmentOf } from "../../lib/profile";
 import { HEAD_R, figureMetrics, torsoGeom } from "../../lib/body";
 import {
   Arm,
@@ -181,8 +181,17 @@ export function Resident({
   const coatStyle = tinted(ch.coatColor || "#8a5346");
   const sleeveShort = !coatWorn && wornGarment.sleeves === "short";
   const sleeveBulk = coatWorn ? (ch.coat === "puffer" ? 1.6 : 0.9) : 0;
-  // The arm's sleeve is painted by whatever's outermost.
-  const armStyle = coatWorn ? coatStyle : outfit;
+  // The arm's sleeve is painted by whatever's outermost — except the
+  // `sleeves: "inner"` garments, whose whole point is arms in the SECOND
+  // colour: the vest's shirt sleeves, the varsity's leather arms.
+  const sleevesInner = coatWorn
+    ? coatOf(ch.coat).sleeves === "inner"
+    : wornGarment.sleeves === "inner";
+  const armStyle = sleevesInner
+    ? { fill: ch.inner || "#f2e9dd" }
+    : coatWorn
+    ? coatStyle
+    : outfit;
   // THE LIGHT, resolved once for the whole figure: the OUTERMOST layer's
   // registry entry declares its finish (how strongly the shared form shadow
   // and highlight land — knit is matte, nylon sheens), its cuffs, and

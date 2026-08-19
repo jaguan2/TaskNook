@@ -1236,3 +1236,41 @@ vocabulary), not more articulation.
 - Future: a visited owner's typing could follow THEIR npcActivity instead
   of your timer; presence could gate the door hint ("come back after
   their block").
+## 8. Pet looks + wardrobe round (2026-08-18)
+
+- [x] **Cat coats** — `CAT_COATS` (lib/isoRoom.js): ink (classic, still
+  tintable), ginger, grey tabby, tuxedo, calico, siamese. Artwork is a
+  palette + at most two mark systems per coat applied to all four poses
+  (`CAT_COAT_STYLES` in IsoItems.jsx); tabby tail rings are the pose's own
+  tail path re-stroked with a dash, so every pose gets rings for free.
+- [x] **Dog breeds** — `DOG_BREEDS`: golden (classic), shiba (pricked ears,
+  curled tail, cream mask/socks), corgi (60% legs + body drop, radar ears,
+  blaze, nub tail), dalmatian (white, spots, dark folded ears). Corgi's
+  drop rides a wrapper INSIDE the animated group (attribute transform can't
+  share an element with the trot bounce).
+- [x] **Plumbing** — `look` rides the placement like `temper` (default
+  implicit, per-species whitelist client-side, flat `PET_LOOKS` whitelist in
+  app.py — bounded-not-knowing, same as rot). Round-trip + both-languages
+  drift guard in test_room.py; picker rows in ProfilePanel's Pets section
+  (live thumbnail redraws as you pick).
+- [x] **Trot upgrade** — `leg-trot` (index.css): animals' side poses now
+  SWEEP fore-aft from the shoulder/hip on DIAGONAL pairs (near-front with
+  far-rear), replacing leg-step's vertical piston — the same
+  pedalling-not-walking fix the residents' stride made. Front/back facings
+  keep the piston (legs seen end-on lift, they don't sweep). Cue rules: no
+  --phase, negative counter-delay; pinned in motion.test.js.
+- [x] **Wardrobe** — `vest` (top): knit over the shirt, arms painted in the
+  INNER colour (`sleeves: "inner"` — a torso-vs-arms split no other top
+  has). `varsity` (coat): contrast sleeves + ribbed trims in the sleeve
+  colour + snap placket + chest patch. `raincoat` (coat): shell drops
+  ~6.5px past the hem (the dress rule on a coat), storm flap, patch-flap
+  pockets, sheeniest finish in the registry. All three pass the palette
+  lint; art sheet renders them in three colourways.
+- Verified: 902 frontend + 207 backend tests green, lint clean, build
+  clean; art-sheet review of all 30 cat + 20 dog fixtures; real-app
+  screenshots (throwaway TASKNOOK_DB) — all six coats + four breeds in one
+  room, vest + varsity on the resident, zero console errors.
+- Future: pet looks in the Room panel's add-picker (today the picker
+  spawns the default and you restyle in Profile); husky/tortoiseshell if
+  the sets want growing; breed-aware wander tuning (a corgi covers less
+  floor per glide).

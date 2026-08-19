@@ -344,6 +344,16 @@ ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
 # default"; the frontend stores it only when it actually overrides.
 ISO_WALLS = ("full", "low", "none")
 
+# Pet looks — coat patterns (cats) and breeds (dogs); mirrors CAT_COATS +
+# DOG_BREEDS in lib/isoRoom.js, one flat whitelist because which species a
+# look belongs to is catalog (frontend) knowledge — this only bounds values,
+# same stance as rot. Defaults ("ink", "golden") never reach the wire, but
+# they're accepted anyway so an older client's write can't 400.
+PET_LOOKS = (
+    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese",
+    "golden", "shiba", "corgi", "dalmatian",
+)
+
 # Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same
 # both-languages contract). "mellow" is the default and stored implicitly,
 # but a client sending it explicitly is legal.
@@ -781,6 +791,11 @@ def register_routes(app):
                 if temper not in PET_TEMPERS:
                     return None, False
                 entry["temper"] = temper
+            look = p.get("look")
+            if look is not None:
+                if look not in PET_LOOKS:
+                    return None, False
+                entry["look"] = look
             clean.append(entry)
         return clean, True
 

@@ -231,6 +231,10 @@ export const OUTFITS = [
   // Turtleneck = the collar swallows the neck (the one garment that changes
   // the NECK line, via the registry's `collar` slot).
   { key: "turtleneck", label: "Turtleneck" },
+  // Sweater vest: knit over the shirt, and the first top whose SLEEVES belong
+  // to the layer underneath — `sleeves: "inner"` paints the arms in the inner
+  // colour, a torso-vs-arms split no other garment has.
+  { key: "vest", label: "Sweater vest", sleeves: "inner", inner: true },
 ];
 
 /**
@@ -252,6 +256,13 @@ export const COATS = [
   { key: "jacket", label: "Jacket" },
   { key: "cardigan", label: "Cardigan" },
   { key: "puffer", label: "Puffer" },
+  // Varsity: the coat whose SLEEVES are the second colour — the classic wool
+  // body / leather arms split, via the same `sleeves: "inner"` wiring as the
+  // vest. Ribbed trims in the sleeve colour tie the two halves together.
+  { key: "varsity", label: "Varsity", sleeves: "inner" },
+  // Raincoat: the LONGEST layer in the set — its shell drops straight past
+  // the hem to mid-thigh, the one coat that changes where the legs start.
+  { key: "raincoat", label: "Raincoat" },
 ];
 
 /**
@@ -262,8 +273,8 @@ export const COATS = [
  * shin, the wide leg drops as a straight column, joggers taper to an elastic
  * cuff, skirts replace the trouser legs with bare legs under a flare.
  * Khakis are trousers in a khaki COLOUR — that's what TROUSER_COLORS is for.
- * With six tops, five coats and nine bottoms the wardrobe is 270 silhouette
- * combinations before a single colour is picked.
+ * With seven tops, seven coats and nine bottoms the wardrobe is 441
+ * silhouette combinations before a single colour is picked.
  */
 export const PANTS = [
   { key: "trousers", label: "Trousers" },

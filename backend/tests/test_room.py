@@ -367,13 +367,22 @@ def test_iso_round_trips_every_quarter_turn(client, auth, rot):
 
 
 def test_iso_pet_identity_round_trips(client, auth):
-    """A pet's name and temper ride its placement — the backend bounds the
-    values (same stance as rot) and hands them back intact."""
+    """A pet's name, temper and look ride its placement — the backend bounds
+    the values (same stance as rot) and hands them back intact."""
     iso = {
         "w": 9,
         "d": 7,
         "placements": [
-            {"id": "p1", "item": "cat", "gx": 2, "gy": 3, "name": "Mochi", "temper": "curious"}
+            {
+                "id": "p1",
+                "item": "cat",
+                "gx": 2,
+                "gy": 3,
+                "name": "Mochi",
+                "temper": "curious",
+                "look": "calico",
+            },
+            {"id": "p2", "item": "dog", "gx": 5, "gy": 4, "look": "corgi"},
         ],
     }
     assert (
@@ -383,6 +392,8 @@ def test_iso_pet_identity_round_trips(client, auth):
     saved = client.get("/api/room", headers=auth).get_json()["iso"]
     assert saved["placements"][0]["name"] == "Mochi"
     assert saved["placements"][0]["temper"] == "curious"
+    assert saved["placements"][0]["look"] == "calico"
+    assert saved["placements"][1]["look"] == "corgi"
 
 
 @pytest.mark.parametrize(
@@ -394,6 +405,8 @@ def test_iso_pet_identity_round_trips(client, auth):
         ("name", 7),
         ("temper", "feral"),
         ("temper", 3),
+        ("look", "tortoiseshell"),
+        ("look", 5),
     ],
 )
 def test_iso_rejects_malformed_pet_identity(client, auth, field, value):
@@ -421,6 +434,28 @@ def test_pet_tempers_match_frontend():
     from app import PET_TEMPERS
 
     assert keys == set(PET_TEMPERS)
+
+
+@pytest.mark.skipif(
+    not pathlib.Path(__file__).resolve().parents[2].joinpath("frontend").exists(),
+    reason="frontend sources not present",
+)
+def test_pet_looks_match_frontend():
+    """CAT_COATS + DOG_BREEDS mirror app.py's flat PET_LOOKS whitelist — the
+    same both-languages drift contract as PET_TEMPERS/ISO_ENVS. One flat set
+    on the backend, because which species a look belongs to is catalog
+    knowledge the backend deliberately doesn't have."""
+    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    keys = set()
+    for name in ("CAT_COATS", "DOG_BREEDS"):
+        block = re.search(rf"export const {name} = \[(.*?)\];", js, re.S)
+        assert block, f"couldn't find {name} in {ISO_ROOM_JS} — has it moved?"
+        found = set(re.findall(r"key: \"(\w+)\"", block.group(1)))
+        assert found, f"found {name} but parsed no keys out of it"
+        keys |= found
+    from app import PET_LOOKS
+
+    assert keys == set(PET_LOOKS)
 
 
 def test_legacy_list_config_still_readable(app, client, auth):

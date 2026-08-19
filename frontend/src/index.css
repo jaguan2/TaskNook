@@ -441,6 +441,46 @@ body {
   animation-delay: calc(var(--phase, 0s) + 0.25s);
 }
 
+/* ---- the trot: what an ANIMAL's legs do mid-glide, seen side-on --------
+   The same graduation the residents' walk made — a fore-aft SWEEP from the
+   shoulder/hip instead of leg-step's vertical piston — in quadruped
+   proportions: shorter, quicker, and with DIAGONAL pairs sharing a clock
+   (near-front strides with far-rear), which is what a trot IS. Same cue
+   rules as the walk classes: starts when the glide starts, so no --phase;
+   the B diagonal's delay is negative so the alternation is already under
+   way on the first frame. The front/back facings keep the piston — legs
+   seen end-on alternate LIFT, they don't visibly sweep. */
+@keyframes leg-trot {
+  0% {
+    transform: rotate(11deg) translateY(0);
+    animation-timing-function: linear;
+  }
+  /* stance runs a touch past half, same double-support logic as the stride */
+  58% {
+    transform: rotate(-11deg) translateY(0);
+    animation-timing-function: ease-in;
+  }
+  /* swing: quick off the toe, easing into the next contact, lifted to clear */
+  80% {
+    transform: rotate(-1deg) translateY(-1.5px);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: rotate(11deg) translateY(0);
+  }
+}
+.leg-trot-a {
+  animation: leg-trot 0.5s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+.leg-trot-b {
+  animation: leg-trot 0.5s linear infinite;
+  animation-delay: -0.25s;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+
 /* ---- the walk: what a RESIDENT does mid-glide -------------------------
    A stiff clay-toy stride, not the animals' trot. Three rules, each learned
    from the version before it:
@@ -1222,6 +1262,8 @@ body {
     .resident-type,
     .leg-step-a,
     .leg-step-b,
+    .leg-trot-a,
+    .leg-trot-b,
     .leg-stride-a,
     .leg-stride-b,
     .walk-bob,
