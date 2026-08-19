@@ -9,6 +9,8 @@ import {
   footprintFree,
   lipRuns,
   personaCanStand,
+  petCanStand,
+  petTemper,
   seatFor,
   seatedPlacement,
   snapHalf,
@@ -303,7 +305,12 @@ function useGlide(x, y, active) {
  */
 const walkableBy = (p, { editMode, walkId, walkPersonas }) =>
   !editMode &&
-  (walkPersonas ? !!ISO_ITEMS[p.item]?.persona : walkId != null && p.id === walkId);
+  // At home (`walkPersonas`) the PETS are yours too — a cat you can't pick
+  // up in your own room reads as someone else's cat (owner request,
+  // 2026-08-18). While visiting, only your guest placement (`walkId`) walks.
+  (walkPersonas
+    ? !!(ISO_ITEMS[p.item]?.persona || ISO_ITEMS[p.item]?.roamer)
+    : walkId != null && p.id === walkId);
 
 // One placed item, memo'd on its own: a roam tick (every ~3.5s with a pet in
 // the room) or a selection change re-renders only the rows whose RESOLVED
@@ -433,6 +440,7 @@ const PlacedItem = memo(function PlacedItem({
               seatH={p._seat || 0}
               activity={activity}
               moving={glide.moving}
+              facing={p._facing || "front"}
               // Only YOU wear the profile's character and think
               // thoughts. Passing them to every persona turned a
               // table of four into four copies of the same person.
@@ -447,7 +455,10 @@ const PlacedItem = memo(function PlacedItem({
             />
           </g>
         ) : item.roamer ? (
-          <Sprite awake={!!p._awake} moving={glide.moving} />
+          // Animals are DRAWN in profile — that's their walking pose — so
+          // "side" is their default; a vertical-dominant glide turns them
+          // toward or away from the camera the same way it turns a person.
+          <Sprite awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} look={p.look} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
             {/* rot 2/3 are the AWAY-facing pair, and they're a
@@ -471,20 +482,21 @@ const PlacedItem = memo(function PlacedItem({
 });
 
 /**
- * The figure in your hand. Only personas are ever walkable, so this draws the
- * one sprite kind — and it's deliberately NOT PlacedItem: no glide (you're
- * carrying them, not sending them), no contact shadow (there's no ground under
- * their feet), no grab target, and no wander offset. What it does keep is the
- * placement's own tint and the per-placement character a visited room supplies,
- * or the person in your hand would change clothes on the way across the room.
+ * The figure in your hand — a persona, or one of your PETS (both walkable at
+ * home now). Deliberately NOT PlacedItem: no glide (you're carrying them, not
+ * sending them), no contact shadow (there's no ground under their feet), no
+ * grab target, and no wander offset. What it does keep is the placement's own
+ * tint and the per-placement character a visited room supplies, or the person
+ * in your hand would change clothes on the way across the room. `label` rides
+ * above the body — a visited guest's name, or the pet's, if they have one.
  */
-function HeldFigure({ walk, character, personaInfo }) {
+function HeldFigure({ walk, character, personaInfo, label }) {
   if (!walk) return null;
   const item = ISO_ITEMS[walk.item];
   const Sprite = ISO_SPRITES[walk.item];
   if (!item || !Sprite) return null;
   const sprite = (
-    <Sprite held character={item.self ? character : personaInfo?.character} />
+    <Sprite held character={item.self ? character : personaInfo?.character} look={walk.look} />
   );
   return (
     <g style={walk.tint ? { "--tint": walk.tint } : undefined}>
@@ -492,6 +504,21 @@ function HeldFigure({ walk, character, personaInfo }) {
           face, and flipping them because your pointer drifted left would be a
           twitch, not a turn. */}
       {(walk.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+      {label && (
+        <text
+          textAnchor="middle"
+          y={item.roamer ? -30 : -64}
+          fontSize="11"
+          fontWeight="600"
+          fill="#f2e9dd"
+          stroke="#1d0f1f"
+          strokeWidth="2.6"
+          paintOrder="stroke"
+          opacity="0.92"
+        >
+          {label}
+        </text>
+      )}
     </g>
   );
 }
@@ -633,17 +660,27 @@ function IsoSceneInner({
       // furniture no tick ever approved.
       const cur = rec && rec.hx === p.gx && rec.hy === p.gy ? rec : { dx: 0, dy: 0 };
       const f = footOf(p.item, p.rot);
-      // Cat rule: once curled up on a rug, mostly stay there.
+      const isPet = !!ISO_ITEMS[p.item].roamer;
+      // A pet's TEMPER tunes the engine, never replaces it: how often a tick
+      // actually moves them, how sticky a soft spot is once they've curled
+      // up, and how far from home they drift. Personas keep the classic
+      // numbers (petTemper() of undefined is mellow = the classic numbers).
+      const temper = petTemper(p.temper);
+      if (isPet && Math.random() > temper.chance) return;
+      // Cat rule: once curled up on a rug, mostly stay there — how mostly is
+      // the personality (a sleepy cat barely leaves; a curious one won't
+      // settle).
       if (
-        ISO_ITEMS[p.item].roamer &&
+        isPet &&
         overSoftSpot(placements, p.gx + cur.dx, p.gy + cur.dy, f) &&
-        Math.random() < 0.8
+        Math.random() < temper.stay
       ) {
         return;
       }
+      const range = isPet ? temper.range : 1.5;
       const next = {
-        dx: Math.max(-1.5, Math.min(1.5, cur.dx + (Math.random() * 2 - 1))),
-        dy: Math.max(-1.5, Math.min(1.5, cur.dy + (Math.random() * 2 - 1))),
+        dx: Math.max(-range, Math.min(range, cur.dx + (Math.random() * 2 - 1))),
+        dy: Math.max(-range, Math.min(range, cur.dy + (Math.random() * 2 - 1))),
       };
       const gx = p.gx + next.dx;
       const gy = p.gy + next.dy;
@@ -656,9 +693,27 @@ function IsoSceneInner({
         return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
       });
       if (blocked) return; // bumped into furniture — stay put
+      // Which way is this glide going on SCREEN? Up-screen means walking away
+      // (the back view); down-screen toward the camera (the front); and a
+      // HORIZONTAL-dominant move shows the PROFILE — which in a 2:1 dimetric
+      // room is every single-axis grid walk, so profiles carry most of the
+      // wandering. A tiny shuffle keeps the previous facing, so nobody spins
+      // on a 1px step.
+      const ddx = next.dx - cur.dx;
+      const ddy = next.dy - cur.dy;
+      const sdx = (ddx - ddy) * (TILE_W / 2);
+      const sdy = (ddx + ddy) * (TILE_H / 2);
+      const facing =
+        Math.hypot(sdx, sdy) < 2.5
+          ? cur.facing || "front"
+          : Math.abs(sdy) > Math.abs(sdx) * 0.6
+          ? sdy < 0
+            ? "back"
+            : "front"
+          : "side";
       roamRef.current = {
         ...roamRef.current,
-        [p.id]: { ...next, hx: p.gx, hy: p.gy },
+        [p.id]: { ...next, facing, hx: p.gx, hy: p.gy },
       };
       setRoamTick((t) => t + 1);
     }, 3500);
@@ -689,7 +744,7 @@ function IsoSceneInner({
       // `_hx`/`_hy` carry the STORED square through, because gx/gy no longer
       // hold it. The ambience phase has to come from something that doesn't
       // move, or every step restarts the sprite's animations.
-      return { ...p, gx, gy, _hx: p.gx, _hy: p.gy, _awake: awake };
+      return { ...p, gx, gy, _hx: p.gx, _hy: p.gy, _awake: awake, _facing: off?.facing };
     }
     // Small objects rest on whatever surface they're over — same trick as
     // seating, and equally render-only. The +0.1 gy nudge puts them a hair
@@ -707,7 +762,7 @@ function IsoSceneInner({
     // resolved position and knows when a glide is actually in flight.
     const off = roamOffset(p);
     return off
-      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy }
+      ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _facing: off.facing }
       : p;
   });
   const ordered = sortIso(effective);
@@ -1444,7 +1499,11 @@ function IsoRoom({
       applyHeld();
       const g = unproject(walk.sx, walk.sy);
       const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
-      const ok = personaCanStand(at.gx, at.gy, size, placements, walk.id);
+      // A pet's landing rule has no seat exception (there's no seated-cat
+      // drawing); a persona's walk can still end in sitting down.
+      const ok = ISO_ITEMS[walk.item]?.roamer
+        ? petCanStand(at.gx, at.gy, size, placements, walk.id, walk.item)
+        : personaCanStand(at.gx, at.gy, size, placements, walk.id);
       // The FIGURE follows every pointermove (imperatively, above — 60Hz of
       // React state for a 100-node sprite is exactly what this layer exists to
       // avoid); only the diamond and its legality are state, and those change a
@@ -1598,6 +1657,10 @@ function IsoRoom({
                 walk={walkRef.current}
                 character={character}
                 personaInfo={personas ? personas[walkTarget.id] : null}
+                label={
+                  personas?.[walkTarget.id]?.label ??
+                  placements.find((p) => p.id === walkTarget.id)?.name
+                }
               />
             </g>
           </g>

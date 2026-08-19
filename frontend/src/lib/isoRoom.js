@@ -311,7 +311,8 @@ export const ISO_ITEMS = {
   // again when the figure got its proper proportions and the cloud went with
   // the taller head.
   you: { label: "You", icon: "🙋", foot: [0.8, 0.8], hitH: 84, persona: true, self: true, unique: true },
-  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 61, persona: true },
+  // hitH covers the TALLEST slider combo (long legs + long torso ≈ 64px).
+  resident: { label: "Resident", icon: "🧍", foot: [0.8, 0.8], hitH: 66, persona: true },
   // ---- more pets: same roamer engine as the cat, different silhouettes ----
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
   bunny: { label: "Rabbit", icon: "🐇", foot: [0.7, 0.6], hitH: 26, roamer: true },
@@ -482,6 +483,88 @@ export function personaCanStand(gx, gy, layout, placements, selfId) {
     );
   });
 }
+
+/**
+ * May a PET be set down at gx,gy? Same open-floor rule as a persona's walk
+ * order but WITHOUT the seat exception — there's no seated-cat drawing, so a
+ * pet dropped on a chair would float at cushion depth. Rugs stay legal (layer
+ * −1 doesn't block), which is where a cat wants to be anyway.
+ */
+export function petCanStand(gx, gy, layout, placements, selfId, item) {
+  const foot = footOf(item, 0);
+  if (!footprintFree(gx, gy, foot, layout)) return false;
+  return !placements.some((o) => {
+    if (o.id === selfId) return false;
+    const it = ISO_ITEMS[o.item];
+    if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
+    const of = footOf(o.item, o.rot);
+    return (
+      gx < o.gx + of[0] && o.gx < gx + foot[0] && gy < o.gy + of[1] && o.gy < gy + foot[1]
+    );
+  });
+}
+
+/**
+ * PET TEMPERS — how a pet's personality reaches the wander engine. Three
+ * numbers each: `chance` (how often a roam tick actually moves them),
+ * `stay` (how sticky a soft spot is once they've curled up on it) and
+ * `range` (how far from home they drift). Mellow is the default and matches
+ * the engine's classic behaviour, so an unnamed pet acts exactly as pets
+ * always did. The keys are mirrored in backend app.py (`PET_TEMPERS`) —
+ * same both-languages contract as ISO_ENVS.
+ */
+export const PET_TEMPERS = [
+  { key: "mellow", label: "Mellow", chance: 1, stay: 0.8, range: 1.5 },
+  { key: "curious", label: "Curious", chance: 1, stay: 0.4, range: 2.6 },
+  { key: "sleepy", label: "Sleepy", chance: 0.3, stay: 0.96, range: 0.8 },
+];
+export const petTemper = (key) =>
+  PET_TEMPERS.find((t) => t.key === key) || PET_TEMPERS[0];
+// A pet's name: short, trimmed, and never just whitespace.
+export const PET_NAME_MAX = 16;
+export const cleanPetName = (raw) =>
+  typeof raw === "string" ? raw.trim().slice(0, PET_NAME_MAX) : "";
+
+/**
+ * PET LOOKS — coat patterns for cats, breeds for dogs. Purely visual: the
+ * sprite reads the key and draws that fur (IsoItems.jsx owns the artwork,
+ * exactly as it owns which items have four rotations); the wander engine
+ * never looks at it. Per-species lists because a calico dog isn't a thing.
+ * The FIRST entry of each list is the classic drawing and is stored
+ * implicitly — same contract as temper's "mellow" — so every pet that
+ * exists today keeps its exact look. Keys from both lists are mirrored in
+ * backend app.py (`PET_LOOKS`), the same both-languages drift contract as
+ * PET_TEMPERS/ISO_ENVS (test_room.py parses this block).
+ */
+export const CAT_COATS = [
+  { key: "ink", label: "Ink" },
+  { key: "ginger", label: "Ginger" },
+  { key: "greytabby", label: "Grey tabby" },
+  { key: "tuxedo", label: "Tuxedo" },
+  { key: "calico", label: "Calico" },
+  { key: "siamese", label: "Siamese" },
+  { key: "tortie", label: "Tortoiseshell" },
+];
+export const DOG_BREEDS = [
+  { key: "golden", label: "Golden" },
+  { key: "shiba", label: "Shiba" },
+  { key: "corgi", label: "Corgi" },
+  { key: "dalmatian", label: "Dalmatian" },
+  { key: "husky", label: "Husky" },
+];
+export const BUNNY_COATS = [
+  { key: "cloud", label: "Cloud" },
+  { key: "snow", label: "Snow" },
+  { key: "cocoa", label: "Cocoa" },
+];
+/** The look list an item's pets choose from, or null for a one-look species. */
+export const PET_LOOKS = { cat: CAT_COATS, dog: DOG_BREEDS, bunny: BUNNY_COATS };
+export const petLooksFor = (item) => PET_LOOKS[item] || null;
+/** True only for a NON-DEFAULT look this species actually has — what gets stored. */
+export const isStorableLook = (item, key) => {
+  const looks = PET_LOOKS[item];
+  return !!looks && looks.some((l, i) => l.key === key && i > 0);
+};
 
 /**
  * Where a persona is actually drawn once they've been seated, and how deep.
@@ -993,7 +1076,29 @@ export function validateIsoLayout(raw) {
       if (unique.has(p.item)) continue;
       unique.add(p.item);
     }
-    clean.push({ id, item: p.item, gx, gy, ...(rot && { rot }), ...(tint && { tint }) });
+    // Pet identity rides the placement (a pet IS a placement): a short name
+    // and a temper, both validated here so a hand-edited blob can't smuggle
+    // in an essay or an unknown personality. Pets only — furniture with a
+    // name is a bug wearing a collar.
+    const name = ISO_ITEMS[p.item].roamer ? cleanPetName(p.name) : "";
+    const temper =
+      ISO_ITEMS[p.item].roamer && PET_TEMPERS.some((t) => t.key === p.temper && t.key !== "mellow")
+        ? p.temper
+        : undefined;
+    // The look (coat pattern / breed) follows the temper contract exactly:
+    // pets only, per-species whitelist, default stored implicitly.
+    const look = isStorableLook(p.item, p.look) ? p.look : undefined;
+    clean.push({
+      id,
+      item: p.item,
+      gx,
+      gy,
+      ...(rot && { rot }),
+      ...(tint && { tint }),
+      ...(name && { name }),
+      ...(temper && { temper }),
+      ...(look && { look }),
+    });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }
   return {
@@ -1017,8 +1122,13 @@ export const ISO_PRESETS = {
   loft: {
     label: "Loft",
     icon: "⭐",
-    // L-shaped attic: the front-right corner is cut away.
-    size: { w: 10, d: 8, cuts: [{ corner: "front", cw: 4, cd: 3 }] },
+    // A full 10×8 rectangle. It used to cut a 4×3 notch out of the front corner
+    // for an L-shaped attic, but this is the preset a fresh install opens on —
+    // the first thing anyone sees shouldn't be a room with a bite taken out of
+    // it, and the floor plan is a drag-to-draw grid, so anyone who wants the L
+    // can paint it back in two strokes. Removing a cut only ADDS floor, so no
+    // placement can be stranded by this.
+    size: { w: 10, d: 8 },
     items: [
       // Rebuilt: the first version left the dresser, the standing mirror, the
       // guitar, the vinyl crate AND the floor lamp adrift in open floor, which

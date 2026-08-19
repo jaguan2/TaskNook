@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   focusStreak,
   focusSummary,
-  focusWeeks,
   intensityOf,
   intensityScale,
 } from "./stats";
@@ -97,39 +96,6 @@ describe("intensity is relative to your own history", () => {
       expect(level).toBeGreaterThanOrEqual(last);
       last = level;
     }
-  });
-});
-
-describe("focusWeeks", () => {
-  it("lays out Monday-first columns ending with this week", () => {
-    const cols = focusWeeks({}, TODAY, 3);
-    expect(cols).toHaveLength(3);
-    expect(cols.every((c) => c.length === 7)).toBe(true);
-    // Every column starts on a Monday.
-    for (const col of cols) {
-      expect(new Date(`${col[0].iso}T00:00:00`).getDay()).toBe(1);
-    }
-    // Today sits in the last column (Tuesday → index 1).
-    expect(cols[2][1].iso).toBe(TODAY);
-  });
-
-  it("marks days after today as future, not as zero-focus", () => {
-    // "You did nothing on Friday" is a lie when it's Wednesday.
-    const cols = focusWeeks({}, TODAY, 1);
-    expect(cols[0].filter((d) => d.future).map((d) => d.iso)).toEqual([
-      "2026-03-11",
-      "2026-03-12",
-      "2026-03-13",
-      "2026-03-14",
-      "2026-03-15",
-    ]);
-    expect(cols[0][1].future).toBe(false); // today itself is not the future
-  });
-
-  it("carries the minutes through", () => {
-    const cols = focusWeeks({ [TODAY]: 42 }, TODAY, 1);
-    expect(cols[0][1].minutes).toBe(42);
-    expect(cols[0][0].minutes).toBe(0);
   });
 });
 

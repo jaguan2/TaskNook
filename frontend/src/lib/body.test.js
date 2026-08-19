@@ -10,6 +10,7 @@ import {
   HEAD_LIFT,
   WIDTH_RANGE,
   HEIGHT_RANGE,
+  TORSO_RANGE,
   STAND_TORSO_Y,
   STAND_HEAD_Y,
   SEAT_TORSO_Y,
@@ -136,12 +137,24 @@ describe("figureMetrics", () => {
         expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
       }
       for (const height of HEIGHT_RANGE) {
+        // At the DEFAULT torso, the leg range keeps the figure leggy — the
+        // original anti-squat guarantee.
         const m = figureMetrics({ model, height });
         const total = -m.standHeadY + HEAD_R;
         const legShare = (m.legH - TORSO_OVERLAP) / total;
         expect(legShare, `${model} h${height}`).toBeGreaterThanOrEqual(0.4);
-        // The tall end must stay inside the resident's hit region.
-        expect(total, `${model} h${height}`).toBeLessThanOrEqual(61);
+      }
+      // Legs and torso are separate axes now, and a deliberately long torso
+      // is a chosen proportion — so the extremes get a looser floor (the
+      // anti-toddler line) and a ceiling inside the resident's hit region.
+      for (const height of HEIGHT_RANGE) {
+        for (const torso of TORSO_RANGE) {
+          const m = figureMetrics({ model, height, torso });
+          const total = -m.standHeadY + HEAD_R;
+          const legShare = (m.legH - TORSO_OVERLAP) / total;
+          expect(legShare, `${model} h${height} t${torso}`).toBeGreaterThanOrEqual(0.33);
+          expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(65);
+        }
       }
     }
   });

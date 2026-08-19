@@ -10,6 +10,7 @@ import sqlite3
 import pytest
 
 from app import create_app
+from models import db
 from schema import BASELINE_REVISION, MAX_BACKUPS, SchemaError, _head_revision
 
 
@@ -56,8 +57,13 @@ def revision(db_path):
 def make_pre_migrations(db_path):
     """Rewind a freshly-booted DB into a true pre-migrations install: the
     schema exactly as it stood at the baseline (later columns removed), with
-    no alembic_version table at all. Every migration that ADDS a column must
-    drop it here, or this stops modelling a real legacy install."""
+    no alembic_version table at all. Every migration that ADDS a column — or a
+    TABLE — must undo it here, or this stops modelling a real legacy install."""
+    # Tables added after the baseline. Children before parents: the FKs point
+    # the other way, and a legacy install had none of these.
+    sql(db_path, "DROP TABLE message")
+    sql(db_path, "DROP TABLE conversation_member")
+    sql(db_path, "DROP TABLE conversation")
     sql(db_path, "ALTER TABLE user DROP COLUMN room_config")
     sql(db_path, "ALTER TABLE user DROP COLUMN unlocked")
     sql(db_path, "ALTER TABLE user DROP COLUMN profile")
@@ -74,7 +80,13 @@ def backups(tmp_path):
     return sorted(p.name for p in tmp_path.glob("*.bak"))
 
 
-APP_TABLES = {"user", "task", "token", "focus_session", "friendships"}
+# DERIVED from the models, not hand-listed: this was a literal set of five
+# names, and adding the chat tables silently stopped it meaning "all of the
+# app's tables" — `test_stamped_but_empty_database_recovers` then dropped only
+# some of them, left the database non-empty, and stopped testing the recovery
+# path it is named after. The obligation is "every table the app declares", so
+# say that instead of restating it.
+APP_TABLES = set(db.metadata.tables)
 
 
 # --------------------------------------------------------------------------- #

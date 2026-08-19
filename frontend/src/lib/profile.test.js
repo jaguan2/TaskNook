@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H, TORSO_H } from "./body";
 import {
   MBTI_TYPES,
   MODELS,
   ZODIAC,
   DEFAULT_CHARACTER,
   HAIR_STYLES,
+  OUTFITS,
   isMbti,
   parseBirthDate,
   zodiacFor,
@@ -131,13 +132,98 @@ describe("validateCharacter", () => {
       build: "slim",
     };
     // width/height weren't stored, so they fill in from the BUILD and the
-    // classic leg — a pre-slider "slim" save keeps its slim silhouette.
+    // classic leg — a pre-slider "slim" save keeps its slim silhouette. The
+    // wardrobe axes fill in the same way: a character saved before garments
+    // existed still validates to the plain sweater over plum trousers it drew
+    // at the time, which is the whole reason the character is a JSON blob and
+    // not columns.
     expect(validateCharacter(chosen)).toEqual({
       ...chosen,
       skin: "#8d5524",
+      garment: "sweater",
+      coat: "none",
+      coatColor: DEFAULT_CHARACTER.coatColor,
+      inner: DEFAULT_CHARACTER.inner,
+      trouser: DEFAULT_CHARACTER.trouser,
+      pants: "trousers",
+      shoes: "sneakers",
+      shoeColor: DEFAULT_CHARACTER.shoeColor,
+      hat: "none",
+      scarf: "none",
+      scarfColor: DEFAULT_CHARACTER.scarfColor,
+      print: "none",
       width: BUILD_SHAPE.slim.halfW,
       height: LEG_H,
+      torso: TORSO_H,
     });
+  });
+
+  it("hats: keeps a real one, refuses an invented one, defaults bare-headed", () => {
+    expect(validateCharacter({ hat: "beanie" }).hat).toBe("beanie");
+    expect(validateCharacter({ hat: "fedora" }).hat).toBe("none");
+    expect(validateCharacter({}).hat).toBe("none");
+  });
+
+  it("scarves: keeps a real one, refuses an invented one, defaults bare-necked", () => {
+    expect(validateCharacter({ scarf: "loop" }).scarf).toBe("loop");
+    expect(validateCharacter({ scarf: "ascot" }).scarf).toBe("none");
+    expect(validateCharacter({}).scarf).toBe("none");
+    expect(validateCharacter({ scarfColor: "#c9a24b" }).scarfColor).toBe("#c9a24b");
+    expect(validateCharacter({ scarfColor: "tartan" }).scarfColor).toBe(
+      DEFAULT_CHARACTER.scarfColor
+    );
+  });
+
+  it("the wardrobe: keeps a real garment, refuses an invented one", () => {
+    expect(validateCharacter({ garment: "tee" }).garment).toBe("tee");
+    expect(validateCharacter({ garment: "spacesuit" }).garment).toBe("sweater");
+    expect(validateCharacter({ garment: 7 }).garment).toBe("sweater");
+    // Trousers and the second colour are hexes, normalised like every other.
+    expect(validateCharacter({ trouser: "#3F5A7A" }).trouser).toBe("#3f5a7a");
+    expect(validateCharacter({ trouser: "not a colour" }).trouser).toBe(
+      DEFAULT_CHARACTER.trouser
+    );
+    expect(validateCharacter({ inner: "#ABCDEF" }).inner).toBe("#abcdef");
+  });
+
+  it("one-slot-era coats migrate into the coat slot, colours intact", () => {
+    // A save from before the wardrobe split stored "jacket" as the garment,
+    // its shell colour in `outfit` and the shirt showing through the opening
+    // in `inner`. The migration must keep drawing the same pixels: the coat
+    // keeps its colour, the opening's colour becomes the top's.
+    const legacy = validateCharacter({
+      garment: "jacket",
+      outfit: "#c4767f",
+      inner: "#f2d3bb",
+    });
+    expect(legacy.coat).toBe("jacket");
+    expect(legacy.coatColor).toBe("#c4767f");
+    expect(legacy.garment).toBe("tee");
+    expect(legacy.outfit).toBe("#f2d3bb");
+    // An explicit coat wins — the legacy path only fires when none was stored.
+    const modern = validateCharacter({ garment: "tee", coat: "hoodie", coatColor: "#3f5a7a" });
+    expect(modern.coat).toBe("hoodie");
+    expect(modern.coatColor).toBe("#3f5a7a");
+    // And the bottoms: a real style holds, junk falls back to trousers.
+    expect(validateCharacter({ pants: "jorts" }).pants).toBe("jorts");
+    expect(validateCharacter({ pants: "kilt" }).pants).toBe("trousers");
+    // Shoes too.
+    expect(validateCharacter({ shoes: "heels" }).shoes).toBe("heels");
+    expect(validateCharacter({ shoes: "crocs" }).shoes).toBe("sneakers");
+    expect(validateCharacter({ shoeColor: "#A97C50" }).shoeColor).toBe("#a97c50");
+  });
+
+  it("every garment in the catalogue is actually reachable", () => {
+    // The panel offers exactly this list, so a key here that the validator
+    // rejects would be a button that silently does nothing.
+    for (const o of OUTFITS) {
+      expect(validateCharacter({ garment: o.key }).garment).toBe(o.key);
+      expect(o.label).toBeTruthy();
+    }
+    // A garment earns its slot by changing the outline or the two-tone split;
+    // the ones that layer must declare it, or the panel won't offer the second
+    // colour and half the garment renders in a colour nobody chose.
+    expect(OUTFITS.filter((o) => o.inner).length).toBeGreaterThan(0);
   });
 
   it("body sliders: clamps width/height, rejects junk, defaults width from the build", () => {

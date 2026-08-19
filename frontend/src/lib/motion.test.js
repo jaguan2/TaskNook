@@ -14,6 +14,24 @@ import {
   systemPrefersReduced,
 } from "./motion";
 
+/**
+ * Every sprite source that draws a room's inhabitants, concatenated. The
+ * character moved out of IsoItems.jsx into its own package (the registry
+ * refactor), but for these SOURCE scans the two are one body of artwork —
+ * the pins don't care which file a gesture gate lives in, only that it
+ * exists somewhere in the sprites.
+ */
+const spriteSources = () =>
+  [
+    "src/components/IsoItems.jsx",
+    "src/components/character/index.jsx",
+    "src/components/character/body.jsx",
+    "src/components/character/hair.jsx",
+    "src/components/character/garments.jsx",
+  ]
+    .map((p) => readFileSync(resolve(process.cwd(), p), "utf8"))
+    .join("\n");
+
 /** Pretend the OS does (or doesn't) ask for reduced motion. */
 function systemSays(reduce) {
   vi.stubGlobal("matchMedia", (q) => ({
@@ -285,14 +303,15 @@ describe("the walk shares one clock", () => {
     // Contralateral. The NEAR arm rides leg A's clock and leg A is the FAR leg,
     // so same-suffix ≠ same side — that opposition is the single strongest read
     // of a gait, and the first cut of the walk had no arm swing at all.
-    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+    const items = spriteSources();
     const far = items.indexOf('className={moving ? "walk-arm-b" : undefined}');
-    const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}');
     expect(far).toBeGreaterThan(-1);
-    expect(near).toBeGreaterThan(-1);
-    // The far arm is drawn first (it's behind the torso), so its class appears
-    // first — which is what makes "far = b" checkable at all.
-    expect(far).toBeLessThan(near);
+    // The far arm is drawn first (it's behind the torso), so within the FRONT
+    // assembly its class appears before the near arm's — the profile assembly
+    // (one visible arm, on the near clock) sits earlier in the file, so the
+    // near class is searched from the far one onward.
+    const near = items.indexOf('className={moving ? "walk-arm-a" : undefined}', far);
+    expect(near).toBeGreaterThan(far);
     // Both arm keyframes swing the same arc in opposite phase; one shared
     // keyframe + a delay is what guarantees they can't drift apart.
     expect((css.match(/@keyframes walk-arm \{/g) || []).length).toBe(1);
@@ -349,10 +368,11 @@ describe("the walk shares one clock", () => {
     // Drag-and-drop lifts the character off the floor, so every cue that says
     // "my feet are on something" has to go: the limbs hang from their joints and
     // the body swings from the scruff of the neck.
-    const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
-    // Four limbs, each on its OWN wrapper — sharing an element with a walk class
-    // would let the animation silently eat the offset.
-    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(4);
+    const items = spriteSources();
+    // Every limb on its OWN wrapper — sharing an element with a walk class
+    // would let the animation silently eat the offset. Four limbs in the front
+    // pose plus the profile's three visible ones (two legs, one arm).
+    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(7);
     expect(items).toMatch(/transformOrigin: "center top"/);
     // The swing is a cue, so no --phase (it starts when you pick someone up),
     // and it pivots where the fingers are: the top of the head.
@@ -394,7 +414,7 @@ describe("the walk shares one clock", () => {
 describe("ambient loops are desynchronised per item", () => {
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
-  const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+  const items = spriteSources();
   const roomItems = readFileSync(resolve(process.cwd(), "src/components/RoomItems.jsx"), "utf8");
 
   it("a wanderer's phase comes from its stored square, not the one it walked to", () => {
@@ -479,6 +499,27 @@ describe("ambient loops are desynchronised per item", () => {
     // Half of the shared 0.5s period, or they aren't opposed.
     const period = a.match(/animation: leg-step ([\d.]+)s/)[1];
     expect(0.25).toBe(Number(period) / 2);
+  });
+
+  it("the animals' trot is a cue on diagonal clocks, not a phased loop", () => {
+    // leg-trot replaced leg-step in the SIDE poses: a fore-aft sweep from the
+    // shoulder/hip (the same pedalling-not-walking fix the residents' stride
+    // made), with diagonal pairs sharing a clock. Cue rules apply — it starts
+    // when a glide starts, so NO --phase; and the B diagonal must sit half a
+    // cycle behind with a NEGATIVE delay, so the alternation is already under
+    // way on the first frame.
+    const a = css.match(/\.leg-trot-a \{([^}]*)\}/)[1];
+    const b = css.match(/\.leg-trot-b \{([^}]*)\}/)[1];
+    expect(a).not.toContain("--phase");
+    expect(b).not.toContain("--phase");
+    const period = Number(a.match(/animation: leg-trot ([\d.]+)s/)[1]);
+    expect(b).toContain(`animation-delay: -${period / 2}s`);
+    // The trot sweeps from the top of the leg, or it's a windscreen wiper
+    // about its own centre.
+    for (const body of [a, b]) {
+      expect(body).toContain("transform-origin: center top");
+      expect(body).toContain("infinite");
+    }
   });
 
   it("a flame and the pool it casts share one clock", () => {
@@ -613,7 +654,7 @@ describe("ambient loops are desynchronised per item", () => {
 // wrong are both invisible in a code review, so they're pinned here.
 describe("idle gestures read as occasional, not as a loop", () => {
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
-  const items = readFileSync(resolve(process.cwd(), "src/components/IsoItems.jsx"), "utf8");
+  const items = spriteSources();
   const GESTURES = [
     "gesture-look", "gesture-yawn", "gesture-yawn-mouth",
     "gesture-stretch", "gesture-rub", "gesture-rub-head",

@@ -39,7 +39,14 @@ export default function Drawer({
         right: `min(calc(1rem + ${offset}px), calc(100vw - min(92vw, 400px) - 0.5rem))`,
         zIndex,
       }}
-      className="absolute flex w-[min(92vw,400px)] flex-col rounded-3xl glass shadow-soft"
+      /* z-30 puts the panel above the HUD it overlaps. It carried NO z-index,
+         so it sat at z-auto under the to-do list (z-20) — and since the drawer
+         is draggable and the list is pinned top-right, any panel moved near
+         that corner had task rows and "+ New Task" printing straight through
+         its header. Below the toast (z-50) and the clock cluster's popovers
+         (z-40) on purpose: those are answers to something you just did, and
+         must stay on top of the panel that prompted them. */
+      className="absolute z-30 flex w-[min(92vw,400px)] flex-col rounded-3xl glass shadow-soft"
     >
       <header
         onPointerDown={(e) => dragControls.start(e)}

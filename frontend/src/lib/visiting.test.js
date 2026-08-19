@@ -4,6 +4,7 @@ import {
   NPC_HOME_KEYS,
   deriveNpcCharacter,
   npcActivity,
+  npcDailyStats,
   resolveVisitRoom,
 } from "./visiting";
 import { ISO_PRESETS, footOf, footprintFree, seatFor, validateIsoLayout } from "./isoRoom";
@@ -239,5 +240,84 @@ describe("npcActivity — the friends list's presence line", () => {
         npcActivity(name, t).minutesLeft !== npcActivity("luna", t).minutesLeft
     );
     expect(differ).toBe(true);
+  });
+});
+
+describe("npcDailyStats — the friends list's daily numbers", () => {
+  // Local-time instants, because the function buckets by the LOCAL day —
+  // the same convention as the rest of the app.
+  const at = (day, hour, minute = 0) => new Date(2026, 7, day, hour, minute).getTime();
+
+  it("is deterministic, and stable across the panel's 30s tick", () => {
+    for (const name of BOTS) {
+      const t = at(10, 14);
+      expect(npcDailyStats(name, t)).toEqual(npcDailyStats(name, t));
+      expect(npcDailyStats(name, t + 30000)).toEqual(npcDailyStats(name, t));
+    }
+  });
+
+  it("keeps every number honest: done never exceeds total, minutes back the count", () => {
+    for (const name of BOTS) {
+      for (let day = 1; day <= 14; day += 1) {
+        for (const hour of [6, 10, 15, 22]) {
+          const s = npcDailyStats(name, at(day, hour));
+          expect(s.tasksTotal).toBeGreaterThanOrEqual(2);
+          expect(s.tasksTotal).toBeLessThanOrEqual(6);
+          expect(s.tasksDone).toBeGreaterThanOrEqual(0);
+          expect(s.tasksDone).toBeLessThanOrEqual(s.tasksTotal);
+          // Each finished task cost at least 20 focus minutes, so the two
+          // readouts on the row can never contradict each other.
+          expect(s.focusMinutes).toBeGreaterThanOrEqual(s.tasksDone * 20);
+        }
+      }
+    }
+  });
+
+  it("the day only moves forward — minutes and count tick up, the list holds still", () => {
+    for (const name of BOTS) {
+      let prev = npcDailyStats(name, at(10, 0));
+      const total = prev.tasksTotal;
+      for (let m = 10; m <= 24 * 60 - 1; m += 10) {
+        const cur = npcDailyStats(name, at(10, 0, m));
+        expect(cur.tasksTotal).toBe(total);
+        expect(cur.focusMinutes).toBeGreaterThanOrEqual(prev.focusMinutes);
+        expect(cur.tasksDone).toBeGreaterThanOrEqual(prev.tasksDone);
+        prev = cur;
+      }
+    }
+  });
+
+  it("dawn is a blank slate, evening has a day behind it", () => {
+    for (const name of BOTS) {
+      const dawn = npcDailyStats(name, at(10, 5));
+      expect(dawn.focusMinutes).toBe(0);
+      expect(dawn.tasksDone).toBe(0);
+      const evening = npcDailyStats(name, at(10, 23));
+      expect(evening.focusMinutes).toBeGreaterThan(0);
+      expect(evening.tasksDone).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("rolls a fresh list per day — that's the whole point", () => {
+    // Across a fortnight the workload must actually vary, or the daily
+    // reroll is theater about theater.
+    for (const name of BOTS) {
+      const totals = new Set();
+      for (let day = 1; day <= 14; day += 1) {
+        totals.add(npcDailyStats(name, at(day, 12)).tasksTotal);
+      }
+      expect(totals.size).toBeGreaterThan(1);
+    }
+  });
+
+  it("some evenings end with the list unfinished — four bots on 100% every night read as bots", () => {
+    let unfinished = 0;
+    for (const name of BOTS) {
+      for (let day = 1; day <= 14; day += 1) {
+        const s = npcDailyStats(name, at(day, 23, 30));
+        if (s.tasksDone < s.tasksTotal) unfinished += 1;
+      }
+    }
+    expect(unfinished).toBeGreaterThan(0);
   });
 });

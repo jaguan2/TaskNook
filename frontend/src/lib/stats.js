@@ -71,41 +71,11 @@ export function intensityOf(minutes, scale) {
 }
 
 /**
- * The last `weeks` calendar weeks as Monday-first columns of 7 local days,
- * ending with the week containing `todayISO`.
- *
- * Columns rather than rows because that's how a year of days fits a panel:
- * 7 tall, as many weeks wide as there's room for.
- */
-export function focusWeeks(sessionDays, todayISO, weeks = 15) {
-  const end = parseISO(todayISO);
-  // Walk back to the Monday of this week, then back `weeks - 1` more.
-  const mondayOffset = (end.getDay() + 6) % 7;
-  const start = parseISO(todayISO);
-  start.setDate(start.getDate() - mondayOffset - (weeks - 1) * 7);
-  const out = [];
-  for (let w = 0; w < weeks; w += 1) {
-    const col = [];
-    for (let d = 0; d < 7; d += 1) {
-      const day = new Date(start);
-      day.setDate(start.getDate() + w * 7 + d);
-      const iso = toISO(day);
-      col.push({
-        iso,
-        minutes: (sessionDays || {})[iso] || 0,
-        // Days after today are drawn as empty slots, not as zero-focus days —
-        // "you did nothing on Friday" is a lie when it's Wednesday.
-        future: day > end,
-      });
-    }
-    out.push(col);
-  }
-  return out;
-}
-
-/**
  * Headline numbers for a history view: your best day, this week's total, and how
- * that compares with the seven days before it.
+ * that compares with the seven days before it. Shown under the calendar's month
+ * grid — the grid itself is the history (it shades every day by intensity), so
+ * there is no separate heatmap. One existed, in the retired Progress panel;
+ * it restated the same days the calendar was already drawing.
  *
  * `deltaPct` is null rather than 0 when last week was empty — "up 0%" and "your
  * first week" are different things, and dividing by zero says the wrong one.

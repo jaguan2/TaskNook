@@ -38,12 +38,14 @@ TaskNook/
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   ├── room.js       # freeform decoration model: catalog, zones, presets
 │       │   ├── profile.js    # who you are + how your resident is drawn (pure)
+│       │   ├── chat.js       # what a bot says back, and when (pure)
 │       │   └── iso.js        # isometric projection math (Sims-style room seed)
 │       └── components/   # Cottage (SVG scene + drag engine), RoomItems
 │                         #   (item sprites), HudFocusCard (top-left timer/
 │                         #   stopwatch), HudTasks (top-right to-do), TopBar
 │                         #   (bottom-right clock/toggles cluster — the name
 │                         #   is historical), Dock, Drawer, *Panel.jsx,
+│                         #   ChatThread (one open conversation),
 │                         #   WeatherOverlay, RoomTintPicker
 └── docs/preview.png      # README screenshot
 ```
@@ -229,8 +231,8 @@ running `git commit` yourself.
   PROXIES `/api`), and a wildcard `Access-Control-Allow-Origin` would let
   any web page in any browser drive the localhost API with the well-known
   local-account credentials. Don't add flask-cors back.
-- **Models**: `User`, `Task`, `FocusSession`, `Token`, plus a `friendships`
-  association table. `User.profile` and `User.character` are JSON blobs, not
+- **Models**: `User`, `Task`, `FocusSession`, `Token`, `Conversation`,
+  `ConversationMember`, `Message`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
   columns per field — same bargain as `room_config`/`unlocked`, and the whole
   point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
@@ -345,12 +347,99 @@ running `git commit` yourself.
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses
-  jittering. A visit is otherwise a
+  jittering. The row's NUMBERS are simulated too (`npcDailyStats`, same
+  file): the API's seeded rows never change, so every bot showed "0m
+  focused" forever beside a presence line claiming they were mid-block. It
+  rolls 2–6 tasks per LOCAL day, picks how much of the list finishes (not
+  always 100% — that would read as bots), and ticks focus minutes up
+  through waking hours; the done-count is DERIVED from the minutes (each
+  finished task costs 20–40 of them), so the two readouts can never
+  disagree. **Friendship** (`lib/friendship.js` + `tasknook.friendship`):
+  a per-device bond tally per bot — points per message sent, per visit,
+  per minute spent in their room (a store interval while `visiting`) — read
+  as five levels shown as a rose bar on the friend row. Mostly cosmetic BY
+  DESIGN (a reason to interact, not a grind; rewards are a noted-later in
+  docs/visiting_friends_plan.md), except that level 4+ additively widens
+  the chat reply pools (`CLOSE_LINES` in lib/chat.js — bond is passed at
+  reply-FIRE time, and low bond can never produce a close line; the
+  asymmetry is the tweak). The tally lives client-side like the check-in
+  marker — the server never hears of it. A visit is otherwise a
   read-only scene swap — drawers close on arrival, Decorate is disabled
   with a hint, the chip (and Escape, ahead of everything else) leads home —
   and `activity` still flows, so starting a focus block means studying
   together. A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
   answer. Your own door is set in ProfilePanel (PUT `/api/visit-access`).
+- **Chatting with friends** (simulated social, same contract as visiting):
+  three tables — `Conversation` (`is_group` STORED, not inferred from the
+  member count, because a group left with two people is still a group),
+  `ConversationMember` (a model rather than a plain association table like
+  `friendships`, because membership carries `last_read_at` — a TIMESTAMP, so
+  the unread count is derived from the messages and can't drift out of step
+  with them) and `Message`. Endpoints: GET/POST `/api/chats`, GET/POST
+  `/api/chats/<id>/messages`, POST `/api/chats/<id>/read`, DELETE
+  `/api/chats/<id>`. A one-to-one is **idempotent** ("message Luna" is a
+  place, not an event); a group is deliberately not (two groups with the
+  same people is a thing people want). Someone else's thread is a **404, not
+  a 403** — it shouldn't confirm it exists.
+  **THE SEAM**: `POST /messages` accepts a `senderId` naming any member, which
+  is how a bot replies — `lib/chat.js` owns the words, the server just stores
+  them (the same division of labour as `lib/visiting.js`). Safe only because
+  every member is a row in your own SQLite file. The endpoint's doc-comment is
+  the contract: **that field must go before this is served beyond localhost**,
+  or a client can forge messages from anyone it shares a thread with.
+  **There is deliberately NO end-to-end encryption, and adding a label saying
+  otherwise would be a false claim** — both "ends" are the same local database
+  and the key would sit on the same disk. E2E becomes real (and worth the key
+  management) only if messages ever cross a network.
+  `lib/chat.js` is the pure model: `botReply` ties replies to **`npcActivity`**
+  — a bot mid-focus-block answers briefly and late ("mid-block — back in 12m",
+  and the number is the SAME one the presence line shows two rows up), one on a
+  break chats, an idle one natters; `replyDelayMs` makes the WAIT the feature
+  the way `KNOCK_WAIT_MS` does; `groupResponders` picks at most two, and
+  usually not whoever is working, because four bots answering every line is a
+  machine gun. All deterministic from (username, text, clock, seed) so the
+  tests can pin an exact reply at an exact instant.
+  **You PICK what to say — an RPG menu, not a text box** (owner decision,
+  2026-08-14). The bots' replies are canned, so a free-text field promises a
+  conversation they can't have: you write something thoughtful and get a
+  non-sequitur. `dialogueOptions(username, now, {theirTurn})` offers three
+  lines chosen by what the bot is DOING (`MENU` per npcActivity state) and
+  `replyToOption` answers the OPTION rather than the words on the button —
+  the intent is already known, so nothing is inferred and the regexes can't
+  read it differently. "Thanks" only appears when the last line is theirs.
+  `OPTION_LABEL` is both the button text and the body posted as you, so what
+  you clicked is what appears in the thread. Typed text still works through
+  `botReply`; both entry points funnel into ONE `replyFor`, so they can't
+  drift into telling different stories. The menu re-derives off the 30s
+  timestamp tick, so a friend finishing a block mid-thread starts offering
+  different things to say.
+  **Bots message YOU, twice over.** `dailyCheckIn(usernames, dayKey)` is one
+  unprompted hello a day — one, not one per friend, because four threads
+  opening every morning is a notification pile — pure in the date, scheduled
+  into waking hours (08:00–21:00) so it lands while you're there rather than
+  waiting for you. The store's `deliverCheckIn` owns the only impure half
+  ("has it happened?"), marked per device in `tasknook.chat.checkin` and
+  claimed BEFORE the write so two overlapping ticks can't both send it; a
+  failed send releases the day. And the break nudge now also arrives as a
+  friend noticing (`breakNudgeLine` + `nudgeSpeaker`, which picks whoever
+  ISN'T mid-block — a reminder to rest, delivered by someone deep in a focus
+  block, is the one voice that shouldn't give it). That is IN ADDITION to the
+  toast, deliberately: a chat message can sit unread behind a closed drawer,
+  and a health nudge that's easy to miss isn't one. Both unprompted paths go
+  through `botSays`, which opens the thread (idempotent) and posts as the
+  friend.
+  **The reply timers live in the STORE, not the panel** — same lesson as the
+  knock: a reply owed by a drawer that has closed never arrives. Verified by
+  driving the real app: close the drawer mid-wait and the answer still lands,
+  as an unread badge. Chats are NOT part of `refreshAll` (only the Friends
+  panel reads them; every task tick would otherwise pay for it), and an open
+  thread keeps its messages in LOCAL state — the store hands them back through
+  the `onMessages` callback rather than re-rendering every context consumer for
+  a line nobody else can see.
+  **`clean_id` is not `clean_int`**: ids go through the strict one, because
+  `clean_int` CLAMPS into range — right for a duration, and wrong for an
+  identifier, where `memberIds: [0]` came back as `1` and opened a thread with
+  whoever user #1 happened to be. Caught by the chat tests; pinned by one.
 - **Ordering algorithms** live in `lib/algorithms.js` as pure
   `(tasks, context) => orderedTasks` functions (the `context` arg only matters for
   `random`). Completed tasks always sink to the bottom.
@@ -364,22 +453,29 @@ running `git commit` yourself.
 - **Two time windows in `/api/stats`, don't mix them.** `tasksTotal` /
   `tasksDone` / `completion` describe the **current list** — a standing to-do
   list isn't recreated each morning — while `tasksDoneToday` and
-  `focusMinutesToday` are bucketed by the LOCAL day. ProgressPanel labels them
-  accordingly ("List completion" vs "Done today"); it used to say "Today's
-  completion" over lifetime counts, so a task finished a year ago read as
-  today's progress and the bar never moved. `local_day_start_utc()` in
+  `focusMinutesToday` are bucketed by the LOCAL day. TaskPanel labels them
+  accordingly ("List completion" over the bar, "· N today" in its sub-line); a
+  heading once said "Today's completion" over lifetime counts, so a task
+  finished a year ago read as today's progress and the bar never moved.
+  **There is deliberately no Progress panel** (dissolved 2026-08-16, owner
+  call): it mostly mirrored what the scene chip and the calendar already
+  showed. Goal config + list completion live in TaskPanel now; the history
+  summary lives under the calendar's month grid. `local_day_start_utc()` in
   `app.py` is how the day boundary reaches a naive-UTC `completed_at` column.
 - **Focus history is SHOWN, not just collected.** `sessionDays` holds full
   per-day minutes; the calendar used to reduce it to one flat tint, so five
-  minutes and five hours looked identical, and ProgressPanel was 100% today-only
-  — months of data behind a boolean. Both now shade by `intensityOf`/
-  `intensityScale` (`lib/stats.js`), whose scale is the TERTILES OF YOUR OWN
-  non-zero days: a fixed scale would leave a 20-minute-a-day habit on the palest
-  step forever. ProgressPanel also draws an 18-week heatmap plus best-day /
-  this-week / vs-last-week (`focusWeeks`, `focusSummary`). Days after today are
-  drawn as empty slots, never as zero-focus days — "you did nothing on Friday" is
-  a lie when it's Wednesday — and `deltaPct` is `null` rather than 0 when last
-  week was empty, because "up 0%" and "your first week" are different statements.
+  minutes and five hours looked identical — months of data behind a boolean.
+  It shades by `intensityOf`/`intensityScale` (`lib/stats.js`), whose scale is
+  the TERTILES OF YOUR OWN non-zero days: a fixed scale would leave a
+  20-minute-a-day habit on the palest step forever. The month grid IS the
+  history view — under it sits the headline line (days focused / best day /
+  this week / vs last week, `focusSummary`). A separate 18-week heatmap
+  (`focusWeeks`) existed in the Progress panel and restated the same days the
+  calendar was already shading; both are gone. `deltaPct` is `null` rather
+  than 0 when last week was empty, because "up 0%" and "your first week" are
+  different statements. The calendar deliberately does NOT read `useTimer` for
+  live minutes — redrawing a month grid at 1Hz to warm one number is the
+  wrong trade; the line updates when a block logs.
 - **Calendar activity marking**: `GET /api/sessions/days` aggregates focus
   minutes per day (`{day: minutes}`), fetched into `store.jsx`'s `sessionDays`
   as part of `refreshAll()`. `CalendarPanel.jsx` unions that with days derived
@@ -401,12 +497,146 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, outfit, expression, and body width/height sliders — `build`
+  hair + colour, **a wardrobe**, expression, and body width/height sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
-  frontend change with no migration. The character drives the `resident` sprite
+  frontend change with no migration.
+  **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
+  (`OUTFITS`: sweater/tee/button-up/overalls/dress/turtleneck/sweater vest,
+  coloured by
+  `outfit`; the vest's ARMS paint in the inner colour via `sleeves: "inner"`
+  — a torso-vs-arms split no other top has), a COAT over it (`COATS`:
+  none/hoodie/jacket/cardigan/puffer/varsity/raincoat — the varsity shares
+  the vest's contrast-sleeve wiring, the raincoat drops past the hem,
+  its own `coatColor` — the open fronts show the TOP through the opening,
+  which is what makes two slots read as two garments), and BOTTOMS
+  (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
+  pleated skirt, coloured by `trouser`; khakis are trousers in a khaki
+  colour), plus SHOES (`SHOES` + `shoeColor`: sneakers, loafers, boots,
+  heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
+  BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
+  and that two-material split is what makes a 5px shoe read as modelled).
+  7 tops × 8 coats (robe joined — the raincoat's drop plus an open front and
+  a belt) × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 2,800
+  silhouette combinations before any colour — times 7 hats (trapper: ear
+  flaps past the jaw, the one hat that changes the head-to-shoulder outline)
+  and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
+  `character/scarves.jsx` registry: wrapped/loop/long, drawn TORSO-anchored
+  after the collar so a glance can't shear it off — the second accessory
+  slot, and the accent-colour one).
+  **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
+  research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
+  slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
+  overlay pair (never pure black/white — those wash out), strengths scaled
+  by the garment colour's luminance (`toneFor` in lib/tint.js) so near-black
+  and cream picks still model. The form crescent, lit shoulder, chin shadow
+  and hem-onto-bottoms band are drawn once in character/index.jsx over
+  whatever is worn; a registry entry adds only its signature marks plus
+  `finish` (matte knit vs sheeny nylon), `cuffs`, `drape` (opts out of the
+  hem band: dress, cardigan). Fixed anchors the tint never touches — shoe
+  soles, `STITCH` denim ochre, `BRASS` buckles — are what make recolours
+  read as designed. `character/palette.test.jsx` lints every garment's
+  paints against the allowed set (mutation-verified), and the art sheet
+  renders tops/coats in three colourways, because single-colourway review
+  is how the first too-faint mark set shipped. In the panel,
+  COLOUR IS A SMALL DIALOG: tapping a tile in any picker grid selects it and
+  pops a compact swatch card anchored AT that tile (IconGrid's `swatchesFor`;
+  owner, twice — the first cut was a full-width strip). Unselected tiles
+  render in the classic DEFAULT colours and only the selected tile wears
+  your pick — a wall of tiles repainting per swatch tap read as glitching.
+  There are no standalone colour rows left.
+  **The owner designs artwork themselves via `npm run art`**
+  (frontend/scripts/art-sheet.mjs + the SHEET_DIR-gated
+  artsheet.fixtures.test.jsx): renders every character piece side by side
+  to frontend/art-sheet/index.html (gitignored). docs/CONTRIBUTING_ART.md
+  is the guide — coordinate system, registry formats, the review loop. Keep
+  that doc current when a registry's shape changes. What a
+  bottom does to the leg drawing lives in `PANTS_FORM` (character/body.jsx)
+  — shorts end the cloth at the knee, skirts render BARE legs with the
+  flare drawn by the assembly at hip level, the rest are marks (crease,
+  turn-up, elastic cuff). One-slot-era saves that stored "hoodie" as the
+  garment MIGRATE in `validateCharacter` (coat keeps its colour, the
+  opening's colour becomes the top's — same pixels); everything else falls
+  back to the classic sweater-over-plum so a pre-wardrobe save still
+  validates to exactly what it drew before — the JSON blob's whole point.
+  **The figure has THREE FACINGS** — front, PROFILE, back (`facing` prop;
+  `away` survives as the boolean). The profile is its own drawing: nose,
+  one eye, one arm, forward-bent knees, toe-forward shoes; hair carries
+  `side`/`sideLength` registry slots (a generic `sideWigPath` covers new
+  styles) and garments an optional `side` (without one a garment draws
+  NOTHING side-on — reusing the front paints collars across a half-width
+  body). The wander engine picks facing from the SCREEN direction of each
+  glide — horizontal-dominant shows the profile, which in a 2:1 room is
+  every single-axis walk — and the cat/dog take the same `facing` prop
+  (their trot IS the profile; front/back are their own compact drawings).
+  The profile stage spins through front → profile → back → mirrored
+  profile; dragging the FIGURE spins, dragging the floor PANS (the iso
+  room's own grammar), wheel zooms, double-click recenters.
+  **THE RULE FOR ADDING A GARMENT: it earns a slot only if it changes the
+  OUTLINE or the TWO-TONE SPLIT.** The figure is 57px; a recoloured tee and a
+  recoloured sweater are the same sprite, so options that differ only in name
+  are catalogue padding you cannot see. The nine shipped ones each clear it —
+  a hood, a flared hem, bare forearms (`sleeves: "short"`, which the arm reads
+  directly), an open jacket front vs a cardigan's V, dungaree straps, a
+  turtleneck's swallowed neck, a puffer's quilted bulk. Every garment draws
+  OVER the unchanged torso path, so a new one can't break the silhouette
+  rules the body already satisfies. **The same rule governs HAIR** (19
+  styles): rendering the set side by side is what showed `buzz` and `short`
+  were one silhouette wearing two names — that's the bar. **Hair carries a
+  TEXTURE PASS** (2026-08-17, Roblox-UGC/stylized-hair research — doctrine
+  in hair.jsx's header): every carved wig gets shadow wedges tucked into
+  its hem notches, 2–3 unequal tapered flow lines that stop short of every
+  edge, and a NOTCHED crown light band instead of a blob sheen (the
+  assembly's generic sheen ellipse is gone — stacked on the band it read
+  as a smudge); coil styles use C-arc curl marks instead of straight lines,
+  and gathered styles (bun, ponytails) stay matte with tension lines. Buns
+  and ponies also carry real `back` views now — the default dome erased
+  them on a resident walking away.
+  **The character's artwork lives in `components/character/`** — split out of
+  IsoItems.jsx (which keeps the furniture) because the character is the
+  fastest-growing artwork in the app. The package follows the drawing's real
+  seams: `body.jsx` (legs, face, palette, the held-pose helper), `hair.jsx`
+  and `garments.jsx` (REGISTRIES — see below), `index.jsx` (Resident/You
+  assembly, poses, animation gates). lib/body.js stays the geometry, and
+  lib/profile.js stays the vocabulary.
+  **A style is ONE registry entry, not switch cases.** `HAIR_REGISTRY`: an
+  entry may provide `behind` (crown volume, rides head turns), `length`
+  (past the jaw, behind the body, must clear the SHOULDER) and `front` (the
+  hairline; nothing past the eye line — omit it for the default cap).
+  `GARMENT_REGISTRY`: `draw` (over the torso; a `shell(scale)` ctx helper
+  gives outer layers their proud outline + hem under-shadow) and `collar`
+  (rendered AFTER the body's neck — the one spot `draw` can't reach, and how
+  the turtleneck exists). `HAT_REGISTRY` (`character/hats.jsx`, catalog
+  `HATS` in profile.js) is the first ACCESSORY slot: a hat REPLACES the
+  crown hair layers (front + behind + sheen) — drawn over the full dome it
+  reads as a balloon on a wig — while LENGTH keeps falling from under the
+  rim, which is what makes it read as worn over a hairstyle. The Profile
+  panel's hair and hat pickers render REAL worn previews (`HairIcon`/
+  `HatIcon` — the style's actual layers on a head, in the user's colours),
+  so the icon can never drift from the artwork; the character preview above
+  them uses a FIXED frame with a drawn floor, never a fitted bounding box —
+  auto-fit re-zoomed every body to the same apparent size, which made the
+  width/height sliders look dead. Hairstyle accuracy is research-backed:
+  each cut's front-view signatures live as comments on its registry entry
+  (two block = brow-grazing fringe over BARE sides; wolf = tall jagged
+  crown; buzz = a hairline band, not a crescent — a crescent reads as
+  balding). The framework applies the shared physics —
+  `HAIR_LIFT` (masses ride 1.2px off the skull, with a brow shadow: hair on
+  the skull's own radius is a decal), `OUTER_BULK` (worn layers are bigger
+  than the body, sleeves thicken via `outer: true`) — so a new entry gets
+  the 3D read for free. `IsoItems.test.jsx` pins registry keys against the
+  profile catalog BOTH ways, and renders every style × both models with
+  distinct markup — a picker key with no artwork is a failing test, not a
+  silent default cap. Two traps, both hit:
+  `tinted()` (now `lib/tint.js`, shared with the furniture) returns `{fill}`
+  and NOT `color`, so `currentColor` inside a garment silently resolves to
+  inherited cream — pass the outfit style in; and a garment whose panel is
+  the OUTFIT colour vanishes into the torso it sits on (the dungarees' bib
+  had to become the inner colour to read at all). Judge new entries on a
+  contact sheet of the whole set, never one at a time.
+  The character drives the `resident` sprite
   in the iso room; a placement's own `tint` still overrides the profile outfit,
   so one differently-dressed resident stays possible. Birth dates are parsed
   from LOCAL parts, never `new Date(str)` — that reads a bare date as UTC and
@@ -423,7 +653,7 @@ running `git commit` yourself.
   subtree and only context consumers update. There are **two** hooks, and
   picking the wrong one undoes the whole thing:
   `useTimer()` is everything including `remaining`/`elapsed` (HudFocusCard
-  and ProgressPanel — they display the clock, so ticking is correct), while
+  and TaskPanel — they display live minutes, so ticking is correct), while
   `useTimerStatus()` is a memoised `{running, phase, timerMode}` for
   components that merely REACT to a session. `App` must use the status hook:
   reading the full context there puts App back on a 1Hz re-render and drags
@@ -451,12 +681,14 @@ running `git commit` yourself.
   mode/presets/pomodoro tucked behind the
   `⚙` expander, and a chromeless daily-goal/streak chip underneath
   (`🎯 focused/goal · 🔥 streak` — goal lives in `tasknook.dailyGoal`, streak
-  math is `lib/stats.js`'s pure `focusStreak`, configured in ProgressPanel).
-  The chip and ProgressPanel show `focusMinutesLive` = the DB's completed
+  math is `lib/stats.js`'s pure `focusStreak`, configured in TaskPanel's
+  goal-ring section).
+  The chip and TaskPanel show `focusMinutesLive` = the DB's completed
   sessions + the CURRENT running block's minutes — without the live part the
   app reads as "not tracking me" (user feedback).
-  **Break nudge** (`lib/breaks.js`, toggle in ProgressPanel,
-  `tasknook.breakNudge`): after `BREAK_NUDGE_MINUTES` (120) of unbroken
+  **Break nudge** (`lib/breaks.js`, toggle in TaskPanel beside the goal —
+  the goal pushes, this says when to stop — `tasknook.breakNudge`): after
+  `BREAK_NUDGE_MINUTES` (120) of unbroken
   PRESENCE, a 60s toast suggests standing up. The trigger is neither of the
   two obvious things, and both were tried:
   **focus-timer seconds is too narrow** — plenty of studying happens with a
@@ -849,7 +1081,45 @@ running `git commit` yourself.
   memo'd scene only re-renders on start/stop, not per tick). Items with
   `roamer: true` (the cat) share the wander engine with cat rules: awake
   walking pose while out roaming; once its spot overlaps any `layer:-1`
-  item (rug/blanket) it curls up asleep and mostly stays (80% per tick).
+  item (rug/blanket) it curls up asleep and mostly stays — how mostly is
+  the TEMPER now (see below).
+  **PETS are yours to pick up and to name** (owner request, 2026-08-18).
+  At home, `walkableBy` arms roamers alongside personas: dragging a cat or
+  dog picks it up (each has a real `held` scruff-hold drawing — stretched
+  body, dangling hind legs — pinned by IsoItems.test), the landing rule is
+  `petCanStand` (the persona rule WITHOUT the seat exception: there's no
+  seated-pet drawing), and the store's `walkIsoPersona` accepts
+  persona-or-roamer, still refusing furniture. A pet's IDENTITY — `name`
+  (≤16 chars), `temper` and `look` — lives ON its placement, because a pet IS
+  a placement: two cats are two rows, and removing one takes its name along.
+  The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
+  calico/siamese/tortoiseshell; `DOG_BREEDS`: golden/shiba/corgi/dalmatian/
+  husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoRoom.js
+  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoItems.jsx
+  the artwork, same catalog-vs-artwork split as rotations): purely visual,
+  default stored implicitly, per-species whitelist on the client, one flat
+  `PET_LOOKS` whitelist in app.py (bounded-not-knowing, same stance as rot;
+  drift-guarded in test_room.py). The classic drawings stay tintable; named
+  looks paint FIXED palettes — a teal calico isn't a calico. Breeds change
+  SILHOUETTE, not just palette (corgi: 60% legs with the body dropped to
+  meet them — the drop rides a wrapper INSIDE the animated group, per the
+  attribute-vs-animation rule). Animals' SIDE poses trot on `leg-trot`, a
+  fore-aft sweep on DIAGONAL pairs (near-front with far-rear) — the same
+  pedalling-not-walking fix the residents' stride made; front/back facings
+  keep the `leg-step` piston, since legs seen end-on lift, not sweep.
+  `PET_TEMPERS` (mellow default/curious/sleepy, lib/isoRoom.js) reaches
+  the wander engine as three numbers — move chance per tick, soft-spot
+  stickiness, drift range — so a curious pet ranges the room and won't
+  settle while a sleepy one barely leaves its spot; "mellow" is stored
+  implicitly (the env/walls contract) and the key list is mirrored in
+  app.py's `PET_TEMPERS` (both-languages drift guard in test_room.py,
+  which also pins the name/temper round-trip — the backend bounds the
+  values without knowing which items are pets, same stance as `rot`).
+  The **Pets section lives in the Profile panel** ("who you are, and who
+  lives here"): one row per placed pet — real sprite thumbnail, name field
+  (saves on blur), temper pills. The name shows above the pet while you
+  carry it (HeldFigure's `label`, which also restored the carried guest's
+  tag on visits).
   **Things on tables**: an item marked `stacks` whose centre lands on one with
   a `surface` height renders lifted onto it (`surfaceFor` →
   `stackedPlacement`) — render-time only, same as seating, so persistence and
@@ -1143,29 +1413,26 @@ running `git commit` yourself.
   no word, which reads as data loss rather than as a consequence of the action.
   They now compare placement counts and `showToast` the difference, same rule
   as the item cap.
-  **Rendered-PNG sprites**: 14 items (bed, sofa, armchair, nightstand,
-  chair, shelf, bookcase, sidetable, radio, fridge, cafetable, counter,
-  coffeecounter, tvunit) are pre-rendered isometric views from Kenney's
-  Furniture Kit (CC0 — the hand-drawn SVG versions never stopped reading as
-  stacked boxes; see `frontend/src/assets/kenney/LICENSE.txt` for the
-  file→item map). One `import.meta.glob` pulls in the whole assets/kenney
-  folder (everything there gets bundled — don't park unused renders in it);
-  each item is a manifest row of LAYERS in `IsoItems.jsx`, so renders can
-  stack (`coffeecounter` = bar + espresso machine, `tvunit` = cabinet + TV;
-  a layer's `lift` = the parent's scaled render height minus its base
-  diamond, width×0.5774 at the kit camera). All are `tintable: false` (no
-  CSS var reaches a PNG) and `noMirror: true`. Fixed recolours are done by
-  palette-remapping the committed PNGs (the bed's white duvet: remap hue
-  2–28°, sat>0.25 pixels, keep lightness order) — arbitrary live tinting
-  stays SVG-only. Fabric pieces (bed/sofa/armchair) instead offer
-  **colourway variants**: catalog `variants` maps tint-hex → render suffix
-  (`bedDouble_rose_SW.png`…), the placement's ordinary `tint` field stores
-  the chosen hex (so persistence/validation are untouched; unknown hexes
-  fall back to the default render), RoomTintPicker shows a swatch-only
-  popover for these items, and only manifest layers flagged `v` respond
-  (a composite's counter doesn't recolour with its machine). New Kenney
-  items should come from the SAME kit so the modelled style stays
-  consistent.
+  **Every sprite is hand-drawn SVG again — the Kenney PNG renders are GONE**
+  (see IsoItems.jsx's header for the paid-for verdict): the kit was TRUE
+  isometric (0.5774 base) vs this room's 2:1 dimetric (0.5), so every PNG sat
+  ~15% tall of its tile; raster blurred under the viewBox camera's zoom; and
+  a PNG can't read `--tint` (30 committed colourway files to fake four fixed
+  colours on three items). Drawing from `project()` fixes all three by
+  construction. That lesson generalises — see docs/MODELING_ROADMAP.md
+  (2026-08-19): pre-rendered sprites are ruled out for CHARACTERS too
+  (continuous body sliders + six live hex channels + per-limb CSS animation
+  each individually disqualify); the long-term "actual modelling" path is
+  runtime three.js gated behind a cohesion spike, and the shipped
+  short-term answer is the SOFT-VOLUME pass (`character/volume.jsx`) — a
+  sphere/cylinder gradient of translucent GLINT/SHADE stops under the cel
+  marks, on the resident's head and torso in every view and on every pet
+  mass. Two rules it lives by: deltas stay SUBTLE (the furniture is
+  deliberately flat, and a figure shaded much softer than its sofa reads as
+  pasted from another kit), and NEVER SVG filters (feGaussianBlur forces
+  per-frame re-rasterization under animation — the CPU bill the memo'd
+  scene exists to avoid). Gradient ids are per-instance via useId, same as
+  the print clipPath.
   **Rotation** (`rot: 0-3`, quarter turns anticlockwise; the ⟳ button cycles
   through however many the item has). ODD turns are a screen-mirror
   `scale(-1,1)` about the origin, which IS a grid transpose, so `footOf`
@@ -1288,9 +1555,10 @@ running `git commit` yourself.
   (`IsoItems.test.jsx` renders every catalog entry in both orientations).
 - Backend: `cd backend && python -m pytest tests -q` — the schema/upgrade
   guarantees (`test_schema.py`), the room layout contract (`test_room.py`),
-  task groups + routines (`test_tasks.py`), and the rest of the API
-  (`test_api.py`: auth, the two time windows in `/api/stats`, sessions,
-  reorder, friend-graph symmetry, and the JSON error/404 contract).
+  task groups + routines (`test_tasks.py`), chat threads (`test_chat.py`:
+  membership, one-to-one idempotence, unread, and the sender seam), and the
+  rest of the API (`test_api.py`: auth, the two time windows in `/api/stats`,
+  sessions, reorder, friend-graph symmetry, and the JSON error/404 contract).
   `pip install -r requirements-dev.txt` first.
   Two things to remember when adding tests here: **demo seeding has already
   run** (the 4 cottage-dwellers own tasks, sessions and friendships, and every

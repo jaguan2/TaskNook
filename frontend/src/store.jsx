@@ -8,12 +8,26 @@ import {
   useMemo,
 } from "react";
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
-import { readJSON, readStored, writeStored } from "./lib/storage";
+import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
+import { toISO } from "./lib/dates";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
+import {
+  MESSAGE_MAX,
+  botReply,
+  breakNudgeLine,
+  dailyCheckIn,
+  groupResponders,
+  nudgeSpeaker,
+  replyDelayMs,
+  replyToOption,
+} from "./lib/chat";
+// One unprompted message a day, marked per device. See `deliverCheckIn`.
+const CHECKIN_KEY = "tasknook.chat.checkin";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
@@ -36,6 +50,9 @@ import {
   isoPresetLayout,
   newIsoPlacement,
   nextRot,
+  PET_TEMPERS,
+  cleanPetName,
+  isStorableLook,
   validateIsoLayout,
 } from "./lib/isoRoom";
 
@@ -56,6 +73,16 @@ const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 // The two "lofi ... radio" LIVE streams were removed 2026-07 — they refused
 // to play in the embedded player (user-verified), while regular videos and
 // playlists work fine.
+// SPOTIFY stations behave differently from YouTube ones, and the difference is
+// a trade, not an upgrade: the embed brings its own transport, so you can skip
+// between tracks on an album (which a single YouTube video can't do) — but
+// Spotify's embed keeps playback to itself, so TaskNook's own bar can't drive
+// it and won't show a position, and an embed plays 30-second PREVIEWS unless
+// the listener is signed in to Spotify Premium in that browser. That's why the
+// YouTube version of the same set stays in the list rather than being replaced:
+// one plays in full for everyone, the other is skippable.
+// An `artist` link deliberately isn't accepted (`lib/spotify.js`) — only
+// playlist/album/track/show/episode have an embed that plays.
 const BUILT_IN_STATIONS = [
   { provider: "youtube", id: "4xDzrJKXOOY", label: "synthwave radio 🌃" },
   { provider: "youtube", id: "foEjHAkrIDA", label: "secret cafe r&b ☕" },
@@ -66,6 +93,12 @@ const BUILT_IN_STATIONS = [
     kind: "playlist",
     id: "PLwzQP2wCE5w5_L9yjomQyX2CMFa0T-pw_",
     label: "homework music 📝",
+  },
+  {
+    provider: "spotify",
+    kind: "album",
+    id: "1c5jK2Zo2yKEHGmSedVbwE",
+    label: "secret cafe r&b ☕ (skippable)",
   },
 ];
 
@@ -247,7 +280,8 @@ export function StoreProvider({ children }) {
   });
 
   // ---- Daily goal ----
-  // Target focus minutes per day; drives the goal ring + streak in Progress.
+  // Target focus minutes per day; drives the goal ring + streak in the Tasks
+  // panel and the chip under the focus card.
   const [dailyGoal, setDailyGoalState] = useState(() => {
     const saved = Number(readStored("tasknook.dailyGoal"));
     return saved >= 15 && saved <= 960 ? saved : 120;
@@ -701,10 +735,20 @@ export function StoreProvider({ children }) {
   // directly.
   const profileRef = useRef(profile);
   const characterRef = useRef(character);
+  // Who YOU are, for code that runs on a timer: a scheduled bot reply has to
+  // know which members are "the others", and the closure that scheduled it may
+  // be several renders stale by the time it fires.
+  const userRef = useRef(user);
+  // Same reason: the check-in and the break nudge both fire from timers and
+  // need the CURRENT friend list, not whichever one was in scope when the
+  // interval was created.
+  const friendsRef = useRef(friends);
   useEffect(() => {
     profileRef.current = profile;
     characterRef.current = character;
-  }, [profile, character]);
+    userRef.current = user;
+    friendsRef.current = friends;
+  }, [profile, character, user, friends]);
   const roomSaveTimer = useRef(null);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
@@ -881,6 +925,7 @@ export function StoreProvider({ children }) {
         showToast("Couldn't load your data — is the backend running? 🌧️")
       );
   }, [user, refreshAll, showToast]);
+
 
   // Reconcile the room with the server once signed in: the DB copy wins (it
   // survives cleared browser storage); if the DB has none yet, adopt this
@@ -1181,6 +1226,46 @@ export function StoreProvider({ children }) {
       applyTimeOfDay(timeOfDayNow());
     }
   };
+  // ---------- Friendship (simulated social) ----------
+  // The bond tally: username → points. lib/friendship.js owns what points are
+  // worth and what the levels mean; this owns only the impure half — the
+  // per-device tally in localStorage, and WHEN points accrue (a message sent,
+  // a door stepped through, minutes spent in a friend's room). Per-device
+  // rather than a DB column for the same reason the check-in marker is: the
+  // whole feature is client-side theater, and the server never hears of it.
+  const [friendship, setFriendship] = useState(() => {
+    const saved = readJSON("tasknook.friendship", {});
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+    const clean = {};
+    for (const [name, pts] of Object.entries(saved)) {
+      const n = clampBond(pts);
+      if (n > 0) clean[name] = n;
+    }
+    return clean;
+  });
+  // Persisted by effect, not inside the updater — updaters must stay pure
+  // (StrictMode double-invokes them; same rule the dock's toggle follows).
+  useEffect(() => {
+    writeJSON("tasknook.friendship", friendship);
+  }, [friendship]);
+  const addBond = useCallback((username, points) => {
+    if (!username || !points) return;
+    setFriendship((prev) => ({
+      ...prev,
+      [username]: clampBond((prev[username] || 0) + points),
+    }));
+  }, []);
+  // Read inside reply timers, which fire long after the closure that made
+  // them — same staleness rule as userRef/friendsRef.
+  const friendshipRef = useRef(friendship);
+  useEffect(() => {
+    friendshipRef.current = friendship;
+  }, [friendship]);
+  const bondLevelOf = useCallback(
+    (username) => levelFor(friendshipRef.current[username] || 0).level,
+    []
+  );
+
   // ---------- Visiting friends' rooms (simulated social) ----------
   // The scene swap is all this owns: fetch what the friend has stored, let
   // lib/visiting derive the rest (their home, their look, you as the guest),
@@ -1227,6 +1312,9 @@ export function StoreProvider({ children }) {
         }),
       });
       hintWalk();
+      // Showing up is how friendship starts; staying accrues by the minute
+      // (the effect below).
+      addBond(data.username, BOND_POINTS.visit);
       return true;
     } catch (err) {
       showToast(`Couldn't visit — ${err.message}`);
@@ -1276,14 +1364,54 @@ export function StoreProvider({ children }) {
     setIsoRoom((prev) => {
       const cur = prev.placements.find((p) => p.id === id);
       // Its own updater rather than a call through to `moveIsoItem`, for the
-      // persona check: this is a write that happens OUTSIDE Decorate, so it
-      // must never become a route for moving furniture there. `prev` is the
-      // only honest place to ask what the id refers to.
-      if (!cur || !ISO_ITEMS[cur.item]?.persona) return prev;
+      // living-things check: this is a write that happens OUTSIDE Decorate,
+      // so it must never become a route for moving furniture there. Personas
+      // AND pets (roamers) qualify — carrying your cat somewhere is the same
+      // gesture as carrying your little self. `prev` is the only honest
+      // place to ask what the id refers to.
+      const it = cur && ISO_ITEMS[cur.item];
+      if (!cur || !(it?.persona || it?.roamer)) return prev;
       if (cur.gx === gx && cur.gy === gy) return prev;
       return {
         ...prev,
         placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+      };
+    });
+  }, []);
+  /**
+   * A pet's identity — name and temper — living ON its placement, because a
+   * pet IS a placement: two cats are two rows, each with its own name, and
+   * deleting the cat deletes the name with it. Refuses non-pets for the same
+   * reason walkIsoPersona refuses furniture. Values are cleaned here AND in
+   * validation (`cleanPetName` / the temper whitelist), so a bad write can't
+   * survive either path; "mellow" is the default and stored implicitly.
+   */
+  const setPetIdentity = useCallback((id, patch) => {
+    setIsoRoom((prev) => {
+      const cur = prev.placements.find((p) => p.id === id);
+      if (!cur || !ISO_ITEMS[cur.item]?.roamer) return prev;
+      const next = { ...cur };
+      if ("name" in patch) {
+        const name = cleanPetName(patch.name);
+        if (name) next.name = name;
+        else delete next.name;
+      }
+      if ("temper" in patch) {
+        const temper = PET_TEMPERS.some((t) => t.key === patch.temper && t.key !== "mellow")
+          ? patch.temper
+          : undefined;
+        if (temper) next.temper = temper;
+        else delete next.temper;
+      }
+      // The coat/breed rides the same identity write — default (first entry)
+      // is stored implicitly, so picking it back just deletes the key.
+      if ("look" in patch) {
+        if (isStorableLook(cur.item, patch.look)) next.look = patch.look;
+        else delete next.look;
+      }
+      return {
+        ...prev,
+        placements: prev.placements.map((p) => (p.id === id ? next : p)),
       };
     });
   }, []);
@@ -1306,6 +1434,258 @@ export function StoreProvider({ children }) {
     }, KNOCK_WAIT_MS);
   };
   const leaveVisit = useCallback(() => setVisiting(null), []);
+
+  // Time TOGETHER is the slow, honest way the bond grows: one point per
+  // minute spent in a friend's room, however you spend it — studying
+  // together counts by simply being there, like real libraries. Keyed on the
+  // username so a new visit restarts the clock, and the interval dies with
+  // the visit (leaving mid-minute earns nothing, which is what a minute
+  // means).
+  useEffect(() => {
+    const username = visiting?.friend?.username;
+    if (!username) return undefined;
+    const id = setInterval(() => addBond(username, BOND_POINTS.minuteTogether), 60_000);
+    return () => clearInterval(id);
+  }, [visiting?.friend?.username, addBond]);
+
+  // ---- chat ------------------------------------------------------------ //
+  //
+  // The bots' replies are SCHEDULED, and — exactly like the knock above — the
+  // timers live here rather than in the panel. A reply owed by a drawer that
+  // has since closed never arrives, and "the bots always answer" is the whole
+  // illusion. Every pending timer is tracked so the provider can clear them on
+  // unmount instead of setting state into a dead tree.
+  const [chats, setChats] = useState([]);
+  const replyTimers = useRef(new Set());
+  useEffect(() => {
+    const timers = replyTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const refreshChats = useCallback(async () => {
+    try {
+      setChats(await api.listChats());
+    } catch (err) {
+      // A read, and a background one at that — the panel shows what it has.
+      console.error("Couldn't load chats:", err);
+    }
+  }, []);
+
+  /** Open (or reopen) the thread with one friend. Idempotent server-side. */
+  const openChatWith = async (friend) => {
+    try {
+      const chat = await api.openChat([friend.id]);
+      await refreshChats();
+      return chat;
+    } catch (err) {
+      showToast(`Couldn't open the chat — ${err.message}`);
+      return null;
+    }
+  };
+
+  const openGroupChat = async (friendIds, title) => {
+    try {
+      const chat = await api.openChat(friendIds, {
+        isGroup: true,
+        title: title?.trim() || undefined,
+      });
+      await refreshChats();
+      return chat;
+    } catch (err) {
+      showToast(`Couldn't start the group — ${err.message}`);
+      return null;
+    }
+  };
+
+  /**
+   * Say something, then let whoever is around answer.
+   *
+   * `onMessages` is handed the fresh list after each write so an open thread
+   * repaints without polling — the reply may land long after the send
+   * resolved, which is the point of scheduling it.
+   */
+  const sendChatMessage = async (chat, body, onMessages, optionId = null) => {
+    const text = body.trim().slice(0, MESSAGE_MAX);
+    if (!text || !chat) return;
+    try {
+      await api.sendMessage(chat.id, text);
+      onMessages?.(await api.chatMessages(chat.id));
+      refreshChats();
+    } catch (err) {
+      showToast(`Couldn't send — ${err.message}`);
+      return;
+    }
+
+    // Who replies: the one friend, or a couple of the group who are free.
+    const others = (chat.members || []).filter((m) => m.id !== userRef.current?.id);
+    if (!others.length) return;
+    // Saying something to someone is the cheapest brick in the friendship —
+    // everyone who heard you gets it, which makes a group line worth more in
+    // total but no more per person.
+    others.forEach((m) => addBond(m.username, BOND_POINTS.message));
+    const now = Date.now();
+    const seed = Date.now() % 1000;
+    const speaking = chat.isGroup
+      ? groupResponders(others.map((m) => m.username), text, now, seed)
+      : [others[0].username];
+
+    speaking.forEach((username, i) => {
+      const friend = others.find((m) => m.username === username);
+      if (!friend) return;
+      // Stagger a group so two people don't answer in the same instant.
+      const delay = replyDelayMs(username, now, seed + i) + i * 900;
+      const timer = setTimeout(async () => {
+        replyTimers.current.delete(timer);
+        try {
+          // A picked option answers the OPTION, not the words on the button:
+          // the intent is already known, so there's nothing to infer from the
+          // text and no chance of the regexes reading it differently. The bond
+          // level is read at FIRE time, not send time — the message that's
+          // being answered may itself have tipped a level.
+          const bond = bondLevelOf(username);
+          const reply = optionId
+            ? replyToOption(username, optionId, Date.now(), seed + i, bond)
+            : botReply(username, text, Date.now(), seed + i, bond);
+          await api.sendMessage(chat.id, reply, friend.id);
+          onMessages?.(await api.chatMessages(chat.id));
+          refreshChats();
+        } catch {
+          // A reply that fails is a bot who didn't answer — no toast for a
+          // message the user never asked to send.
+        }
+      }, delay);
+      replyTimers.current.add(timer);
+    });
+  };
+
+  /**
+   * A bot opens a thread and says something you didn't prompt.
+   *
+   * The one place an unprompted message is written, shared by the daily
+   * check-in and the break nudge. Opening the thread is idempotent server-side,
+   * so "message you" works whether or not you've ever spoken.
+   */
+  const botSays = useCallback(
+    async (friend, body) => {
+      try {
+        const chat = await api.openChat([friend.id]);
+        await api.sendMessage(chat.id, body, friend.id);
+        refreshChats();
+        return true;
+      } catch {
+        // Unprompted and cosmetic: a failure here is a friend who didn't
+        // happen to message, not something to interrupt anyone about.
+        return false;
+      }
+    },
+    [refreshChats]
+  );
+
+  /**
+   * A friend noticing you've been at it too long.
+   *
+   * Deliberately IN ADDITION to the toast, not instead of it: a chat message
+   * can sit unread behind a closed drawer, and a health nudge that's easy to
+   * miss isn't one. The toast interrupts; this is the warm version that's
+   * still there when you come back.
+   */
+  const nudgeFromFriend = useCallback(
+    async (spanLabel) => {
+      const list = friendsRef.current || [];
+      if (!list.length) return;
+      const speaker = nudgeSpeaker(list.map((f) => f.username), Date.now());
+      const friend = list.find((f) => f.username === speaker);
+      if (friend) await botSays(friend, breakNudgeLine(speaker, spanLabel, Date.now() % 997));
+    },
+    [botSays]
+  );
+
+  /**
+   * The day's unprompted hello, delivered once.
+   *
+   * `dailyCheckIn` decides who and when from the date alone; this only decides
+   * whether it has HAPPENED, which is the one part that can't be pure. The
+   * marker is per-device localStorage rather than a DB flag: the message itself
+   * is already a durable row, and a second device would rightly get its own.
+   *
+   * Nothing fires before the appointed minute, so opening the app at 08:00
+   * doesn't collect a message timed for the afternoon — it arrives while you're
+   * there, which is the whole point of it being unprompted.
+   */
+  const deliverCheckIn = useCallback(async () => {
+    const list = friendsRef.current || [];
+    if (!list.length) return;
+    const today = toISO(new Date());
+    if (readStored(CHECKIN_KEY) === today) return;
+    const plan = dailyCheckIn(list.map((f) => f.username), today);
+    if (!plan) return;
+    const nowDate = new Date();
+    if (nowDate.getHours() * 60 + nowDate.getMinutes() < plan.minute) return;
+    const friend = list.find((f) => f.username === plan.username);
+    if (!friend) return;
+    // Claim the day BEFORE the write: two ticks overlapping on a slow request
+    // would otherwise both send it.
+    writeStored(CHECKIN_KEY, today);
+    const ok = await botSays(friend, plan.text);
+    if (!ok) removeStored(CHECKIN_KEY); // let a failed day try again
+  }, [botSays]);
+
+  // Checked on a slow timer as well as on arrival: the app is left open for
+  // hours at a time (it's half ambient furniture), so the appointed minute
+  // usually passes while you're already looking at it.
+  //
+  // Waits for the FRIENDS, not just for boot. `setBooting(false)` fires the
+  // moment the local account is authenticated, which is several requests before
+  // `refreshAll` has loaded anyone to hear from — so this ran against an empty
+  // list, bailed, and (having no dependency on `friends`) never re-ran. The
+  // check-in then had to wait out the 5-minute interval, and a launch shorter
+  // than that dropped the day's message entirely. Found by driving the real app
+  // with the clock shifted past the scheduled minute; the unit tests couldn't
+  // see it, because the bug was in WHEN the pure function gets called.
+  // `friends.length` rather than `friends`: refreshAll hands back a new array
+  // every time, which would tear down and rebuild the interval on every tick.
+  useEffect(() => {
+    if (booting || !user || !friends.length) return undefined;
+    deliverCheckIn();
+    const id = setInterval(deliverCheckIn, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [booting, user, friends.length, deliverCheckIn]);
+
+  const markChatRead = useCallback(
+    async (chatId) => {
+      try {
+        await api.markChatRead(chatId);
+        refreshChats();
+      } catch {
+        /* unread badges are not worth a toast */
+      }
+    },
+    [refreshChats]
+  );
+
+  const deleteChat = async (chatId) => {
+    try {
+      await api.deleteChat(chatId);
+      await refreshChats();
+      return true;
+    } catch (err) {
+      showToast(`Couldn't delete the chat — ${err.message}`);
+      return false;
+    }
+  };
+
+  // Chats load on their own rather than inside refreshAll: the list is only
+  // read by the Friends panel and its unread badge, and every task tick would
+  // otherwise pay for it — the same reasoning that split refreshTasks out.
+  // Declared HERE, below refreshChats: a dependency array is evaluated during
+  // render, so referencing it further up the body is a temporal-dead-zone
+  // ReferenceError that blanks the whole app on boot.
+  useEffect(() => {
+    if (user) refreshChats();
+  }, [user, refreshChats]);
   // Your own door. Matters the day friends can really visit; today it's a
   // preference the bots politely respect.
   const setVisitAccess = async (value) => {
@@ -1622,6 +2002,17 @@ export function StoreProvider({ children }) {
     dailyGoal,
     setDailyGoal,
 
+    // chat
+    chats,
+    refreshChats,
+    openChatWith,
+    nudgeFromFriend,
+    openGroupChat,
+    sendChatMessage,
+    markChatRead,
+    deleteChat,
+    friendship,
+
     // room decoration
     roomPlacements,
     roomEditMode,
@@ -1658,6 +2049,7 @@ export function StoreProvider({ children }) {
     leaveVisit,
     moveVisitGuest,
     walkIsoPersona,
+    setPetIdentity,
     setVisitAccess,
     applyIsoPreset,
     selfInRoom,

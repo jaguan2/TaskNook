@@ -79,11 +79,16 @@ export default function MusicPanel() {
           </button>
         </div>
 
-        <p className="rounded-xl bg-white/5 px-3 py-2.5 text-center text-xs text-petal/60">
-          {musicOn
-            ? "Playing in the bar at the bottom of the screen — it keeps going when this panel closes."
-            : "Pick a station below to start a stream of cozy beats."}
-        </p>
+        {/* Only the EMPTY state gets a sentence. Once something is playing, the
+            highlighted station below and the transport bar on screen already say
+            so — a paragraph explaining that the bar exists is filler, and it was
+            the biggest block in the panel. "Idle chrome shows nothing rather
+            than placeholder text" (docs/DESIGN.md). */}
+        {!musicOn && (
+          <p className="rounded-xl bg-white/5 px-3 py-2.5 text-center text-xs text-petal/60">
+            Pick a station below to start a stream of cozy beats.
+          </p>
+        )}
 
         <div className="flex flex-wrap gap-1.5">
           {musicStations.map((s) => (

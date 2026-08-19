@@ -1236,3 +1236,75 @@ vocabulary), not more articulation.
 - Future: a visited owner's typing could follow THEIR npcActivity instead
   of your timer; presence could gate the door hint ("come back after
   their block").
+## 8. Pet looks + wardrobe round (2026-08-18)
+
+- [x] **Cat coats** — `CAT_COATS` (lib/isoRoom.js): ink (classic, still
+  tintable), ginger, grey tabby, tuxedo, calico, siamese. Artwork is a
+  palette + at most two mark systems per coat applied to all four poses
+  (`CAT_COAT_STYLES` in IsoItems.jsx); tabby tail rings are the pose's own
+  tail path re-stroked with a dash, so every pose gets rings for free.
+- [x] **Dog breeds** — `DOG_BREEDS`: golden (classic), shiba (pricked ears,
+  curled tail, cream mask/socks), corgi (60% legs + body drop, radar ears,
+  blaze, nub tail), dalmatian (white, spots, dark folded ears). Corgi's
+  drop rides a wrapper INSIDE the animated group (attribute transform can't
+  share an element with the trot bounce).
+- [x] **Plumbing** — `look` rides the placement like `temper` (default
+  implicit, per-species whitelist client-side, flat `PET_LOOKS` whitelist in
+  app.py — bounded-not-knowing, same as rot). Round-trip + both-languages
+  drift guard in test_room.py; picker rows in ProfilePanel's Pets section
+  (live thumbnail redraws as you pick).
+- [x] **Trot upgrade** — `leg-trot` (index.css): animals' side poses now
+  SWEEP fore-aft from the shoulder/hip on DIAGONAL pairs (near-front with
+  far-rear), replacing leg-step's vertical piston — the same
+  pedalling-not-walking fix the residents' stride made. Front/back facings
+  keep the piston (legs seen end-on lift, they don't sweep). Cue rules: no
+  --phase, negative counter-delay; pinned in motion.test.js.
+- [x] **Wardrobe** — `vest` (top): knit over the shirt, arms painted in the
+  INNER colour (`sleeves: "inner"` — a torso-vs-arms split no other top
+  has). `varsity` (coat): contrast sleeves + ribbed trims in the sleeve
+  colour + snap placket + chest patch. `raincoat` (coat): shell drops
+  ~6.5px past the hem (the dress rule on a coat), storm flap, patch-flap
+  pockets, sheeniest finish in the registry. All three pass the palette
+  lint; art sheet renders them in three colourways.
+- Verified: 902 frontend + 207 backend tests green, lint clean, build
+  clean; art-sheet review of all 30 cat + 20 dog fixtures; real-app
+  screenshots (throwaway TASKNOOK_DB) — all six coats + four breeds in one
+  room, vest + varsity on the resident, zero console errors.
+- Future: pet looks in the Room panel's add-picker (today the picker
+  spawns the default and you restyle in Profile); husky/tortoiseshell if
+  the sets want growing; breed-aware wander tuning (a corgi covers less
+  floor per glide).
+
+## 9. The modelling round (2026-08-19)
+
+- [x] **Soft-volume pass** — `character/volume.jsx`: a sphere + cylinder
+  gradient (translucent GLINT/SHADE stops, per-instance useId ids) under the
+  existing cel marks, on the resident's head + torso (front AND profile) and
+  every pet mass. Deltas kept subtle so the flat furniture stays kin;
+  research verdict: gradients are free GPU paint, SVG filters are banned
+  (per-frame re-raster under animation).
+- [x] **Modelling roadmap** — docs/MODELING_ROADMAP.md: pre-rendered sprites
+  RULED OUT (sliders + 6 hex channels + per-limb CSS animation each
+  disqualify; the Kenney lesson generalises); runtime three.js is the honest
+  long-term path with the hybrid occlusion seam as the killer risk; the gate
+  is a 3–5 day throwaway spike (character walking BETWEEN two billboard
+  sprites, owner's eye decides cohesion).
+- [x] **Pet looks round 2** — tortoiseshell cat (calico's patch system minus
+  the white), husky (shiba silhouette in wolf grey + blaze + brows), and the
+  bunny's first coats (cloud/snow/cocoa). PET_LOOKS gains `bunny`;
+  whitelists + drift guard extended.
+- [x] **Wardrobe round 2** (agent-ranked slate; polo REJECTED — tee/shirt
+  hybrid ambiguous at 57px): trapper hat (ear flaps past the jaw — the one
+  hat that changes the head-to-shoulder outline), maxi skirt (`skirtHem`
+  drops to ankle), robe coat (raincoat's drop + full-length open front +
+  belt), plaid print (crossings at double density), and the SCARF SLOT —
+  second accessory registry (`character/scarves.jsx`: wrapped/loop/long ×
+  three views, own `scarfColor`, panel IconGrid with worn previews,
+  both-ways key pin).
+- Verified: 905 frontend tests green (one round-trip test taught the new
+  scarf fields), art sheet at 232 pieces, real-app screenshots on a
+  throwaway DB (pet showroom + robe/scarf + plaid/maxi/trapper), zero
+  console errors. Exe rebuilt + self-tested.
+- Next: glasses accessory slot (agent rank 5), tank top (needs assembly
+  bare-shoulder wiring), cape (arm suppression), the three.js spike when
+  the owner wants to spend the days.

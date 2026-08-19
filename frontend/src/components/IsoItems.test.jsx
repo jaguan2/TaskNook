@@ -2,8 +2,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
+import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
+import { SCARF_REGISTRY } from "./character/scarves";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { DEFAULT_CHARACTER, HAIR_STYLES, MODELS } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -68,6 +70,14 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(() => draw(<Sprite seated />)).not.toThrow();
       expect(() => draw(<Sprite seated activity="focus" />)).not.toThrow();
       expect(() => draw(<Sprite moving />)).not.toThrow();
+      // Turned away: the back of the head replaces the face — it must render
+      // AND actually differ (a back view identical to the front would mean
+      // the away prop is wired to nothing).
+      const front = draw(<Sprite />).container.innerHTML;
+      cleanup();
+      const back = draw(<Sprite away />).container.innerHTML;
+      cleanup();
+      expect(back).not.toBe(front);
     }
   });
 
@@ -127,6 +137,55 @@ describe("the isometric catalog and its artwork agree", () => {
       const character = { ...DEFAULT_CHARACTER, model, hair };
       expect(() => draw(<Resident character={character} />)).not.toThrow();
       expect(() => draw(<Resident character={character} seated seatH={19} />)).not.toThrow();
+    });
+
+    it("the registries and the profile catalog agree, both ways", () => {
+      // The registry refactor's whole point: a style is ONE self-contained
+      // entry, and this is the structural guard — a picker key with no
+      // artwork, or artwork no picker can reach, is now a failing test
+      // instead of a silent default cap (hair) or a bare torso (garment).
+      expect(Object.keys(HAIR_REGISTRY).sort()).toEqual(
+        HAIR_STYLES.map((h) => h.key).sort()
+      );
+      // The registry backs BOTH wardrobe slots: every top and every real
+      // coat ("none" is an absence, not artwork).
+      expect(Object.keys(GARMENT_REGISTRY).sort()).toEqual(
+        [...OUTFITS.map((o) => o.key), ...COATS.filter((c) => c.key !== "none").map((c) => c.key)].sort()
+      );
+      expect(Object.keys(HAT_REGISTRY).sort()).toEqual(HATS.map((h) => h.key).sort());
+      expect(Object.keys(SCARF_REGISTRY).sort()).toEqual(SCARVES.map((s) => s.key).sort());
+    });
+
+    it("every scarf renders, and each draws its own geometry", () => {
+      const seen = new Map();
+      for (const { key } of SCARVES) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, scarf: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}"`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
+    });
+
+    it("every hat renders, and each draws its own geometry", () => {
+      const seen = new Map();
+      for (const { key } of HATS) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, hat: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}"`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
     });
 
     it("every hair style draws its own geometry", () => {
@@ -190,6 +249,137 @@ describe("the isometric catalog and its artwork agree", () => {
           `${key}: ${p.item} asks for ${p.tint}`
         ).toContain(p.tint);
       }
+    }
+  });
+});
+
+describe("the profile view and the wardrobe slots", () => {
+  afterEach(cleanup);
+  const Resident = ISO_SPRITES.resident;
+  // Render a set of variants and insist every one draws its OWN geometry —
+  // the same distinct-markup guard the hats and hair fronts already live
+  // under. A key whose drawing collapses into another's is catalogue padding.
+  const allDistinct = (labelOf, nodes) => {
+    const seen = new Map();
+    for (const [key, node] of nodes) {
+      const { container } = draw(node);
+      const html = container.innerHTML;
+      expect(
+        seen.has(html),
+        `${labelOf} "${key}" draws identically to "${seen.get(html)}"`
+      ).toBe(false);
+      seen.set(html, key);
+      cleanup();
+    }
+  };
+
+  it("front, profile and back are three different drawings", () => {
+    allDistinct(
+      "facing",
+      ["front", "side", "back"].map((facing) => [
+        facing,
+        <Resident key={facing} character={DEFAULT_CHARACTER} facing={facing} />,
+      ])
+    );
+  });
+
+  it("every hair style draws its own PROFILE, on both models", () => {
+    for (const model of MODELS.map((m) => m.key)) {
+      allDistinct(
+        `${model} profile hair`,
+        HAIR_STYLES.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, model, hair: key }}
+            facing="side"
+          />,
+        ])
+      );
+    }
+  });
+
+  it("every bottom draws its own legs, front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      allDistinct(
+        `${facing} bottoms`,
+        PANTS.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, pants: key }}
+            facing={facing}
+          />,
+        ])
+      );
+    }
+  });
+
+  it("every coat layers its own artwork over the same top", () => {
+    allDistinct(
+      "coat",
+      COATS.map(({ key }) => [
+        key,
+        <Resident
+          key={key}
+          character={{ ...DEFAULT_CHARACTER, garment: "tee", coat: key }}
+        />,
+      ])
+    );
+  });
+
+  it("the seated pose survives every bottom", () => {
+    for (const { key } of PANTS) {
+      expect(() =>
+        draw(
+          <Resident
+            character={{ ...DEFAULT_CHARACTER, pants: key }}
+            seated
+            seatH={19}
+          />
+        )
+      ).not.toThrow();
+      cleanup();
+    }
+  });
+
+  it("every shoe draws its own feet, front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      allDistinct(
+        `${facing} shoes`,
+        SHOES.map(({ key }) => [
+          key,
+          <Resident
+            key={key}
+            character={{ ...DEFAULT_CHARACTER, shoes: key }}
+            facing={facing}
+          />,
+        ])
+      );
+    }
+  });
+
+  it("the cat and the dog have real front and back views", () => {
+    for (const pet of ["cat", "dog"]) {
+      const Sprite = ISO_SPRITES[pet];
+      allDistinct(
+        pet,
+        ["side", "front", "back"].map((facing) => [
+          facing,
+          <Sprite key={facing} awake facing={facing} />,
+        ])
+      );
+    }
+  });
+
+  it("the cat and the dog have a real held pose (pets are carryable)", () => {
+    for (const pet of ["cat", "dog"]) {
+      const Sprite = ISO_SPRITES[pet];
+      const held = draw(<Sprite held />).container.innerHTML;
+      const front = draw(<Sprite awake facing="front" />).container.innerHTML;
+      // Its own drawing, not the front pose with a class on it.
+      expect(held).not.toBe(front);
+      expect(held).toContain("held-dangle");
     }
   });
 });

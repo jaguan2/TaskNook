@@ -305,6 +305,27 @@ describe("validateIsoLayout", () => {
     expect(out.placements[1].tint).toBeUndefined();
   });
 
+  it("keeps a pet's name and temper, cleans bad ones, refuses them on furniture", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "a", item: "cat", gx: 2, gy: 2, name: "  Mochi  ", temper: "curious" },
+        // "mellow" is the default and stored implicitly, like env "room"
+        { id: "b", item: "dog", gx: 5, gy: 2, temper: "mellow" },
+        { id: "c", item: "cat", gx: 2, gy: 5, name: "x".repeat(40), temper: "feral" },
+        { id: "d", item: "stool", gx: 6, gy: 5, name: "Chair-kun", temper: "curious" },
+      ],
+    });
+    expect(out.placements[0].name).toBe("Mochi");
+    expect(out.placements[0].temper).toBe("curious");
+    expect(out.placements[1].temper).toBeUndefined();
+    expect(out.placements[2].name).toHaveLength(16);
+    expect(out.placements[2].temper).toBeUndefined();
+    expect(out.placements[3].name).toBeUndefined();
+    expect(out.placements[3].temper).toBeUndefined();
+  });
+
   it("wraps an out-of-range rot into the item's real facings", () => {
     // A sofa has four (it ships a back view), so 7 wraps to 3 rather than
     // being thrown away. A picture frame has two whatever you write.
@@ -879,11 +900,23 @@ describe("you, in the room", () => {
 // `clampIsoPlacement` is bounds-only by design, so the caller has to check —
 // which `newIsoPlacement` does and `rotateIsoItem` didn't.
 describe("rotating on a drawn floor", () => {
-  // The shipped default room is L-shaped, which is why this was reachable
-  // without anyone painting a custom floor.
-  const loft = validateIsoLayout(isoPresetLayout(DEFAULT_ISO_PRESET));
+  // An L-shaped floor drawn HERE rather than borrowed from whichever preset is
+  // currently the default. It used to use the shipped default, which was
+  // L-shaped — so the day the default became a plain rectangle these tests
+  // failed for a reason that had nothing to do with rotation. What they need is
+  // *a* non-rectangular room, and that's a fixture, not a product decision.
+  const loft = validateIsoLayout({
+    w: 10,
+    d: 8,
+    mask: Array.from({ length: 8 }, (_, y) =>
+      // The same bite the Loft used to carry: a 4×3 notch out of the front
+      // corner, i.e. the last three rows lose their last four columns.
+      y >= 5 ? "111111" + "0000" : "1111111111"
+    ),
+    placements: [],
+  });
 
-  it("the default room really is non-rectangular", () => {
+  it("the fixture really is non-rectangular", () => {
     expect(loft.mask.join("")).toMatch(/0/);
   });
 

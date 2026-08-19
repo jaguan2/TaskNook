@@ -1,15 +1,13 @@
-import { useEffect, useState } from "react";
-import { TILE_H, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
-import { DEFAULT_CHARACTER, MOODS } from "../lib/profile";
-import {
-  HEAD_R,
-  LEG_H,
-  SEAT_TORSO_Y,
-  SEAT_HEAD_Y,
-  figureMetrics,
-  torsoGeom,
-  farColor,
-} from "../lib/body";
+import { useEffect, useId, useState } from "react";
+import { SKEW, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
+import { tinted } from "../lib/tint";
+// The little people live in their own package now — hair and garment
+// REGISTRIES, the body rig, the poses. This file is the furniture.
+import { Resident, You } from "./character";
+// The pets share the characters' soft-volume gradients (volume.jsx): the
+// same sphere models a head, a haunch and a curled-up body, which is what
+// keeps every living thing in the room reading as one kit.
+import { VolumeDefs, sphereFill } from "./character/volume";
 
 // Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
 // renders that used to live here are gone: the kit is TRUE isometric (base
@@ -26,8 +24,6 @@ import {
 // works because the projection is linear. Main materials use
 // `var(--tint, <classic colour>)` exactly like the flat room's sprites.
 
-const SKEW = (Math.atan(TILE_H / TILE_W) * 180) / Math.PI;
-const tinted = (fallback) => ({ fill: `var(--tint, ${fallback})` });
 
 /**
  * Fringe strands along one edge of a rug. `axis` is the grid axis the edge
@@ -335,22 +331,68 @@ function FloorLamp() {
 // the back leg — without it a curled cat is just an oval), a muzzle with a
 // nose and whiskers, pink inner ears, and a belly shadow so it sits ON the
 // floor rather than hovering over it.
-function CatFace({ x, y, r, asleep }) {
+//
+// CAT COATS (lib/isoRoom.js CAT_COATS owns the vocabulary; this owns the
+// artwork — the same catalog-vs-artwork split as rotations). A coat is a
+// PALETTE plus at most two mark systems, applied to every pose:
+//   fur / chest  — the base and the lighter front (chest, muzzle, paws)
+//   mark+stripes — tabby: a few tapering barrel stripes, forehead lines, and
+//                  a RINGED tail (the same tail path re-stroked with a dash —
+//                  pose-proof, since every pose already declares its tail)
+//   patches      — calico: white base, two big colour patches per pose and a
+//                  cap over one ear; ears in the two patch colours
+//   point        — siamese: cream body, dark ears/muzzle/legs/tail, blue eyes
+// "ink" is null: the classic drawing, still tintable via --tint (a tabby you
+// could re-tint solid teal wouldn't be a tabby, so patterned coats paint
+// fixed palettes and ignore the tint picker).
+const CAT_COAT_STYLES = {
+  ginger: { fur: "#d0834a", mark: "#9e5c2b", chest: "#f4e8d8", stripes: true },
+  greytabby: { fur: "#8d8a99", mark: "#57545f", chest: "#e9e6ef", stripes: true },
+  tuxedo: { fur: "#332b3e", white: "#f7f2ea" },
+  calico: { fur: "#f2e9dd", patchA: "#d0834a", patchB: "#3a3142" },
+  siamese: { fur: "#e8ddc9", point: "#5b4632", eye: "#8fc3e8" },
+  // Tortoiseshell: the calico's patch system without the white — a dark base
+  // mottled in two ambers, ears split like a proper tortie.
+  tortie: { fur: "#3b3037", patchA: "#c27b3f", patchB: "#7a4a28" },
+};
+
+function CatFace({ x, y, r, asleep, fur, earL, earR, eye = "#ffe9b0", brow, muzzle, cap, vol }) {
+  const skull = fur || tinted("#3a3142");
+  const earLStyle = earL ? { fill: earL } : skull;
+  const earRStyle = earR ? { fill: earR } : skull;
   return (
     <g>
-      <circle cx={x} cy={y} r={r} style={tinted("#3a3142")} />
+      <circle cx={x} cy={y} r={r} style={skull} />
+      {/* a calico's colour cap over one side of the skull — before the ears
+          so their wedges stay crisp on top of it */}
+      {cap && <ellipse cx={x - r * 0.42} cy={y - r * 0.5} rx={r * 0.68} ry={r * 0.56} fill={cap} opacity="0.92" />}
+      {/* the skull is a sphere — same volume gradient as every round mass */}
+      {vol && <circle cx={x} cy={y} r={r} fill={vol} />}
       <ellipse cx={x - 2} cy={y - r * 0.4} rx={r * 0.6} ry={r * 0.34} fill="#fff" opacity="0.09" />
       {/* ears: outer wedge on the skull, pink inner wedge inside it */}
-      <polygon points={`${x - r * 0.8},${y - r * 0.6} ${x - r * 0.5},${y - r * 1.75} ${x + r * 0.05},${y - r * 0.8}`} style={tinted("#3a3142")} />
+      <polygon points={`${x - r * 0.8},${y - r * 0.6} ${x - r * 0.5},${y - r * 1.75} ${x + r * 0.05},${y - r * 0.8}`} style={earLStyle} />
       <polygon points={`${x - r * 0.62},${y - r * 0.75} ${x - r * 0.48},${y - r * 1.36} ${x - r * 0.17},${y - r * 0.87}`} fill="#e8a3a8" opacity="0.5" />
       {/* The near ear flicks. Outer wedge and pink inner in one group, or the
           lining would stay put while the ear moved out from under it. */}
       <g className="ear-twitch">
-        <polygon points={`${x + r * 0.3},${y - r * 0.85} ${x + r * 1.1},${y - r * 1.2} ${x + r * 0.86},${y - r * 0.35}`} style={tinted("#3a3142")} />
+        <polygon points={`${x + r * 0.3},${y - r * 0.85} ${x + r * 1.1},${y - r * 1.2} ${x + r * 0.86},${y - r * 0.35}`} style={earRStyle} />
         <polygon points={`${x + r * 0.44},${y - r * 0.84} ${x + r * 0.87},${y - r * 1.03} ${x + r * 0.74},${y - r * 0.58}`} fill="#e8a3a8" opacity="0.5" />
       </g>
-      {/* muzzle */}
-      <ellipse cx={x - r * 0.25} cy={y + r * 0.45} rx={r * 0.6} ry={r * 0.4} fill="#fff" opacity="0.1" />
+      {/* tabby forehead lines — the "M" every tabby wears, three short strokes */}
+      {brow && (
+        <g stroke={brow} strokeWidth="1" opacity="0.8" fill="none" strokeLinecap="round">
+          <path d={`M${x - r * 0.3} ${y - r * 0.55} q 0.5 -${r * 0.28} 0 -${r * 0.5}`} />
+          <path d={`M${x} ${y - r * 0.6} q 0.3 -${r * 0.3} 0 -${r * 0.55}`} />
+          <path d={`M${x + r * 0.3} ${y - r * 0.55} q -0.5 -${r * 0.28} 0 -${r * 0.5}`} />
+        </g>
+      )}
+      {/* muzzle — solid for the coats that paint one (tuxedo white, siamese
+          mask), the classic translucent hint otherwise */}
+      {muzzle ? (
+        <ellipse cx={x - r * 0.25} cy={y + r * 0.45} rx={r * 0.62} ry={r * 0.42} fill={muzzle} opacity="0.95" />
+      ) : (
+        <ellipse cx={x - r * 0.25} cy={y + r * 0.45} rx={r * 0.6} ry={r * 0.4} fill="#fff" opacity="0.1" />
+      )}
       <path d={`M${x - r * 0.32} ${y + r * 0.22} l${r * 0.18} ${r * 0.16} l${r * 0.18} ${-r * 0.16} z`} fill="#e8a3a8" opacity="0.85" />
       {asleep ? (
         <>
@@ -359,8 +401,8 @@ function CatFace({ x, y, r, asleep }) {
         </>
       ) : (
         <>
-          <ellipse cx={x - r * 0.42} cy={y - r * 0.02} rx={r * 0.15} ry={r * 0.2} fill="#ffe9b0" />
-          <ellipse cx={x + r * 0.42} cy={y - r * 0.06} rx={r * 0.15} ry={r * 0.2} fill="#ffe9b0" />
+          <ellipse cx={x - r * 0.42} cy={y - r * 0.02} rx={r * 0.15} ry={r * 0.2} fill={eye} />
+          <ellipse cx={x + r * 0.42} cy={y - r * 0.06} rx={r * 0.15} ry={r * 0.2} fill={eye} />
         </>
       )}
       {/* whiskers */}
@@ -374,10 +416,185 @@ function CatFace({ x, y, r, asleep }) {
   );
 }
 
-function Cat({ awake = false, moving = false }) {
+/** The face props a coat implies, shared by every pose. */
+function catFaceProps(C) {
+  if (!C) return {};
+  if (C.point) return { earL: C.point, earR: C.point, eye: C.eye, muzzle: C.point };
+  if (C.white) return { muzzle: C.white };
+  if (C.patchA) return { earL: C.patchA, earR: C.patchB, cap: C.patchA };
+  return { brow: C.mark };
+}
+
+function Cat({ awake = false, moving = false, facing = "side", held = false, look }) {
   const c = project(0.6, 0.4);
+  // The coat: null = the classic tintable ink cat; anything else paints its
+  // own fixed palette (see CAT_COAT_STYLES above).
+  const C = CAT_COAT_STYLES[look] || null;
+  const fur = C ? { fill: C.fur } : tinted("#3a3142");
+  const tail = C ? C.point || C.fur : "var(--tint, #3a3142)";
+  const legFill = C?.point ? { fill: C.point } : fur;
+  // Per-instance volume gradient (ids are document-global; a room holds many
+  // cats). Every major mass gets the sphere — the marks paint UNDER it, so
+  // stripes and patches curve with the body instead of sitting on it.
+  const vid = useId();
+  const vol = sphereFill(vid);
+  const face = { ...catFaceProps(C), vol };
+  // A tabby's tail rings: the pose's own tail path re-stroked with a dash,
+  // so every pose gets rings without owning ring artwork.
+  const rings = (d, w) =>
+    C?.stripes && (
+      <path d={d} fill="none" stroke={C.mark} strokeWidth={w} strokeLinecap="butt" strokeDasharray="2.6 3.4" opacity="0.85" />
+    );
   // Ground shadows come from the scene now (one soft ellipse per item), so
   // the poses draw only the cat.
+  // Picked up (pets are carryable at home, same gesture as the personas):
+  // the classic scruff-hold — the body STRETCHES long, hind legs dangling
+  // off the bottom, front legs pinned up by the hold, tail hanging with a
+  // last curl. Same held-dangle swing as a carried person.
+  if (held) {
+    const tailD = "M5.6 -8 q4.4 8 1 13 q-2.2 3.2 -5.4 1.6";
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
+        <g
+          className="held-dangle"
+          style={{ transformBox: "fill-box", transformOrigin: "center top" }}
+        >
+          {/* hind legs first, hanging limp below the body */}
+          {[-5, 1.2].map((x, i) => (
+            <g key={x}>
+              <rect x={x} y="-6" width="4.2" height="10" rx="2.1" style={legFill} />
+              {C?.white && <rect x={x} y="1" width="4.2" height="3.2" rx="1.6" fill={C.white} opacity="0.95" />}
+              <rect x={x} y="-6" width="4.2" height="10" rx="2.1" fill="#000" opacity={i ? 0.1 : 0.22} />
+            </g>
+          ))}
+          {/* the tail hangs and curls at the tip */}
+          <path d={tailD} fill="none" stroke={tail} strokeWidth="3.6" strokeLinecap="round" />
+          {rings(tailD, 3.6)}
+          {/* the stretched body — a picked-up cat is longer than it has any
+              right to be */}
+          <ellipse cx="0" cy="-16" rx="8.4" ry="13.5" style={fur} />
+          {/* the coat's marks ride the stretched barrel */}
+          {(C?.chest || C?.white) && (
+            <ellipse cx="0" cy="-13.5" rx="3.8" ry="9.5" fill={C.chest || C.white} opacity="0.92" />
+          )}
+          {C?.stripes && (
+            <g stroke={C.mark} strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.85">
+              <path d="M-7 -23 q7 2.4 14 0" />
+              <path d="M-7.6 -17 q7.6 2.6 15.2 0" />
+              <path d="M-6.6 -11 q6.6 2.4 13.2 0" />
+            </g>
+          )}
+          {C?.patchA && (
+            <>
+              <ellipse cx="-3.2" cy="-23.5" rx="4.6" ry="5.8" fill={C.patchA} opacity="0.92" />
+              <ellipse cx="3.8" cy="-11.5" rx="4" ry="5.2" fill={C.patchB} opacity="0.92" />
+            </>
+          )}
+          <ellipse cx="0" cy="-16" rx="8.4" ry="13.5" fill={vol} />
+          <ellipse cx="-2.4" cy="-21" rx="4.4" ry="7.5" fill="#fff" opacity="0.08" />
+          <ellipse cx="0" cy="-7" rx="6.2" ry="4.4" fill="#000" opacity="0.14" />
+          {/* front legs pinned tight to the chest by the hold */}
+          {[-6.2, 2.4].map((x) => (
+            <g key={x}>
+              <rect x={x} y="-27" width="3.8" height="9.5" rx="1.9" style={legFill} />
+              {C?.white && <rect x={x} y="-20.5" width="3.8" height="3" rx="1.5" fill={C.white} opacity="0.95" />}
+            </g>
+          ))}
+          <CatFace x={0} y={-33.5} r={7.6} asleep={false} fur={fur} {...face} />
+        </g>
+      </g>
+    );
+  }
+  // The prowl pose IS the profile; a vertical-dominant glide turns the cat
+  // toward the camera (face + chest, tail curling up behind) or away (the
+  // back of the skull — ears, no face). Same facing economy as the people.
+  if (awake && facing !== "side") {
+    const rear = facing === "back";
+    const tailD = "M7 -13 q9 -3 7 -16";
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
+        <g className="tail-sway">
+          <path d={tailD} fill="none" stroke={tail} strokeWidth="4" strokeLinecap="round" />
+          {rings(tailD, 4)}
+        </g>
+        {[
+          ["leg-step-b", 3.2],
+          ["leg-step-a", -7.8],
+        ].map(([cls, x]) => (
+          <g key={x} className={moving ? cls : undefined}>
+            <rect x={x} y="-13" width="4.6" height="14" rx="2.3" style={legFill} />
+            {C?.white && <rect x={x} y="-2.2" width="4.6" height="3.2" rx="1.6" fill={C.white} opacity="0.95" />}
+            <rect x={x} y="-13" width="4.6" height="14" rx="2.3" fill="#000" opacity="0.24" />
+          </g>
+        ))}
+        <g className={moving ? "resident-type" : undefined}>
+          {/* the body end-on: one compact mass, chest lit, belly falling away */}
+          <ellipse cx="0" cy="-16" rx="10" ry="8.5" style={fur} />
+          {/* coat marks, front only — a chest is a front story */}
+          {!rear && (C?.chest || C?.white) && (
+            <ellipse cx="0" cy="-13" rx="4.8" ry="4.4" fill={C.chest || C.white} opacity="0.92" />
+          )}
+          {C?.stripes && (
+            <g stroke={C.mark} strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.85">
+              <path d="M-8.2 -19.5 q2.4 3 0 6.2" />
+              <path d="M8.2 -19.5 q-2.4 3 0 6.2" />
+            </g>
+          )}
+          {C?.patchA &&
+            (rear ? (
+              <>
+                <ellipse cx="-4.2" cy="-17" rx="4.2" ry="4" fill={C.patchB} opacity="0.92" />
+                <ellipse cx="5" cy="-14.5" rx="3.8" ry="3.6" fill={C.patchA} opacity="0.92" />
+              </>
+            ) : (
+              <>
+                <ellipse cx="-5.4" cy="-17" rx="4" ry="3.8" fill={C.patchA} opacity="0.92" />
+                <ellipse cx="5.8" cy="-14.5" rx="3.6" ry="3.4" fill={C.patchB} opacity="0.92" />
+              </>
+            ))}
+          <ellipse cx="0" cy="-16" rx="10" ry="8.5" fill={vol} />
+          {/* fur grain: a few unequal tapered strokes that stop short of
+              every edge — the hair texture doctrine, on fur */}
+          <g stroke="#000" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.11">
+            <path d="M-7.2 -18.5 q1.3 2.2 0.5 4.2" />
+            <path d="M6.8 -17.5 q1.2 2 0.4 3.8" />
+          </g>
+          <path d="M-1.5 -21.5 q1.2 1.8 0.5 3.4" stroke="#fff" strokeWidth="0.9" fill="none" opacity="0.07" strokeLinecap="round" />
+          <ellipse cx="0" cy="-11" rx="8.5" ry="3" fill="#000" opacity="0.16" />
+          {rear ? (
+            <g>
+              {/* THE BACK READ (owner, 2026-08-19: "so we actually know it's
+                  the back"): from behind a cat is two haunch MOUNDS with the
+                  tail rising between them and a spine crease running up to
+                  the neck — without them the rear was a face-less front. */}
+              <ellipse cx="-4.3" cy="-11.5" rx="4.6" ry="3.9" style={fur} />
+              <ellipse cx="4.3" cy="-11.5" rx="4.6" ry="3.9" style={fur} />
+              <ellipse cx="-4.3" cy="-11.5" rx="4.6" ry="3.9" fill={vol} />
+              <ellipse cx="4.3" cy="-11.5" rx="4.6" ry="3.9" fill={vol} />
+              <path d="M0 -13.6 L0 -8.4" stroke="#000" strokeWidth="1.1" opacity="0.2" strokeLinecap="round" />
+              <path d="M0 -20.5 L0 -14.5" stroke="#000" strokeWidth="0.9" opacity="0.1" strokeLinecap="round" />
+              {/* the tail's root, knotting it into the body */}
+              <ellipse cx="6.6" cy="-13" rx="2.3" ry="1.9" style={fur} />
+              <circle cx="0" cy="-27" r="7.6" style={fur} />
+              {/* the calico cap shows from behind too */}
+              {C?.patchA && <ellipse cx="-2.6" cy="-30" rx="4.4" ry="3.6" fill={C.patchA} opacity="0.92" />}
+              <circle cx="0" cy="-27" r="7.6" fill={vol} />
+              {/* the nape crease — the skull sits ON the shoulders */}
+              <path d="M-3.4 -20.6 q3.4 1.6 6.8 0" stroke="#000" strokeWidth="0.9" fill="none" opacity="0.16" strokeLinecap="round" />
+              <polygon points="-6.2,-31.5 -4,-38.5 -0.4,-32.6" style={C?.point ? { fill: C.point } : C?.patchA ? { fill: C.patchA } : fur} />
+              <g className="ear-twitch">
+                <polygon points="2.4,-32.6 6.6,-37.4 7,-31" style={C?.point ? { fill: C.point } : C?.patchA ? { fill: C.patchB } : fur} />
+              </g>
+            </g>
+          ) : (
+            <CatFace x={0} y={-27} r={7.6} asleep={false} fur={fur} {...face} />
+          )}
+        </g>
+      </g>
+    );
+  }
   if (awake) {
     // On the prowl: body up on legs, head high, tail curled skyward. The far
     // legs are drawn first and darkened, so the four of them read as depth
@@ -387,61 +604,106 @@ function Cat({ awake = false, moving = false }) {
     // which is true almost always once a wanderer has wandered, so a cat
     // standing perfectly still trotted in place indefinitely. Now the legs
     // step and the body bounces only while a glide is actually in flight.
+    const tailD = "M16 -22 q11 -3 8 -17";
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+        <VolumeDefs id={vid} />
+        {/* The far pair, on the trot's diagonal clocks: rear rides A with the
+            NEAR front leg, front rides B — leg-trot's fore-aft sweep replaced
+            leg-step's vertical piston here, the same pedalling-not-walking
+            fix the residents' stride made. */}
         {[
-          ["leg-step-b", 7],
-          ["leg-step-a", -12],
+          ["leg-trot-a", 7],
+          ["leg-trot-b", -12],
         ].map(([cls, x]) => (
           <g key={x} className={moving ? cls : undefined}>
-            <rect x={x} y="-15" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
+            <rect x={x} y="-15" width="4.6" height="16" rx="2.3" style={legFill} />
+            {C?.white && <rect x={x} y="-2.4" width="4.6" height="3.4" rx="1.7" fill={C.white} opacity="0.75" />}
             <rect x={x} y="-15" width="4.6" height="16" rx="2.3" fill="#000" opacity="0.28" />
           </g>
         ))}
         <g className={moving ? "resident-type" : undefined}>
           {/* haunch, then barrel — the two-mass body of a walking cat */}
-          <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" style={tinted("#3a3142")} />
-          <ellipse cx="-1" cy="-18" rx="17" ry="9" style={tinted("#3a3142")} />
+          <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" style={fur} />
+          <ellipse cx="-1" cy="-18" rx="17" ry="9" style={fur} />
+          {/* the coat's marks lie on the two masses */}
+          {(C?.chest || C?.white) && (
+            <ellipse cx="-13" cy="-15.5" rx="4.6" ry="5" fill={C.chest || C.white} opacity="0.92" />
+          )}
+          {C?.stripes && (
+            <g stroke={C.mark} strokeWidth="1.7" fill="none" strokeLinecap="round" opacity="0.85">
+              <path d="M-6.5 -25.5 q1.8 4 0 7.5" />
+              <path d="M0 -26 q1.8 4.2 0 8" />
+              <path d="M6 -25.5 q1.8 4.2 0 8" />
+              <path d="M11 -27 q2.6 4.5 1 8" />
+            </g>
+          )}
+          {C?.patchA && (
+            <>
+              <ellipse cx="8.5" cy="-21" rx="6" ry="5.4" fill={C.patchA} opacity="0.92" />
+              <ellipse cx="-7" cy="-19.5" rx="4.8" ry="4.4" fill={C.patchB} opacity="0.92" />
+            </>
+          )}
+          {/* the two masses each round off — haunch first, then the barrel */}
+          <ellipse cx="8" cy="-20" rx="10.5" ry="9.5" fill={vol} />
+          <ellipse cx="-1" cy="-18" rx="17" ry="9" fill={vol} />
           <ellipse cx="-3" cy="-22" rx="10" ry="4" fill="#fff" opacity="0.09" />
           <ellipse cx="-1" cy="-12.5" rx="15" ry="3.6" fill="#000" opacity="0.16" />
-          <rect x="-9.5" y="-16" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
-          <rect x="9.5" y="-16" width="4.6" height="16" rx="2.3" style={tinted("#3a3142")} />
-          <CatFace x={-15} y={-27} r={7.6} asleep={false} />
+          {/* the near pair joins the diagonals: front on A, rear on B */}
+          <g className={moving ? "leg-trot-a" : undefined}>
+            <rect x="-9.5" y="-16" width="4.6" height="16" rx="2.3" style={legFill} />
+            {C?.white && <rect x="-9.5" y="-3" width="4.6" height="3.4" rx="1.7" fill={C.white} opacity="0.95" />}
+          </g>
+          <g className={moving ? "leg-trot-b" : undefined}>
+            <rect x="9.5" y="-16" width="4.6" height="16" rx="2.3" style={legFill} />
+            {C?.white && <rect x="9.5" y="-3" width="4.6" height="3.4" rx="1.7" fill={C.white} opacity="0.95" />}
+          </g>
+          <CatFace x={-15} y={-27} r={7.6} asleep={false} fur={fur} {...face} />
         </g>
-        <path
-          className="tail-sway"
-          d="M16 -22 q11 -3 8 -17"
-          fill="none"
-          style={{ stroke: "var(--tint, #3a3142)" }}
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
+        <g className="tail-sway">
+          <path d={tailD} fill="none" stroke={tail} strokeWidth="4" strokeLinecap="round" />
+          {rings(tailD, 4)}
+        </g>
       </g>
     );
   }
   // Curled up asleep: the body breathes slowly from the belly, and once in a
   // long while the tail flicks (rarity is charm).
+  const tailD = "M14 -3 q13 1 14 -8 q1 -8 -7 -9";
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.85)`}>
+      <VolumeDefs id={vid} />
       {/* the tail wraps AROUND the curl and is drawn first, so the body sits
           on top of it — that overlap is what sells "curled up" */}
-      <path
-        className="tail-flick"
-        d="M14 -3 q13 1 14 -8 q1 -8 -7 -9"
-        fill="none"
-        style={{ stroke: "var(--tint, #3a3142)" }}
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
+      <g className="tail-flick">
+        <path d={tailD} fill="none" stroke={tail} strokeWidth="5" strokeLinecap="round" />
+        {rings(tailD, 5)}
+      </g>
       <g className="cat-breathe">
-        <ellipse cx="0" cy="-7" rx="22" ry="11.5" style={tinted("#3a3142")} />
-        <ellipse cx="9" cy="-12" rx="12" ry="9" style={tinted("#3a3142")} />
+        <ellipse cx="0" cy="-7" rx="22" ry="11.5" style={fur} />
+        <ellipse cx="9" cy="-12" rx="12" ry="9" style={fur} />
+        {C?.stripes && (
+          <g stroke={C.mark} strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.85">
+            <path d="M2 -16.5 q2.6 4.5 0 8.5" />
+            <path d="M9 -18.5 q2.8 4.5 0.4 9" />
+            <path d="M16 -15.5 q2.4 4 0.6 7.5" />
+          </g>
+        )}
+        {C?.patchA && (
+          <>
+            <ellipse cx="5" cy="-13.5" rx="5.6" ry="4.6" fill={C.patchA} opacity="0.92" />
+            <ellipse cx="14" cy="-6" rx="5" ry="4" fill={C.patchB} opacity="0.92" />
+          </>
+        )}
+        {/* the curl is one soft loaf — the volume rounds it as a single mass */}
+        <ellipse cx="0" cy="-7" rx="22" ry="11.5" fill={vol} />
+        <ellipse cx="9" cy="-12" rx="12" ry="9" fill={vol} opacity="0.7" />
         <ellipse cx="8" cy="-15" rx="7" ry="3.4" fill="#fff" opacity="0.07" />
         <ellipse cx="-3" cy="-11" rx="12" ry="4.5" fill="#fff" opacity="0.07" />
         <ellipse cx="0" cy="-2.5" rx="20" ry="5.5" fill="#000" opacity="0.2" />
-        <CatFace x={-14} y={-13} r={8.2} asleep />
+        <CatFace x={-14} y={-13} r={8.2} asleep fur={fur} {...face} />
         {/* front paws tucked under the chin */}
-        <ellipse cx="-8" cy="-3.6" rx="5" ry="2.8" style={tinted("#3a3142")} />
+        <ellipse cx="-8" cy="-3.6" rx="5" ry="2.8" style={C?.white ? { fill: C.white } : C?.point ? { fill: C.point } : fur} />
         <ellipse cx="-8" cy="-4.2" rx="4.4" ry="2.2" fill="#fff" opacity="0.08" />
       </g>
     </g>
@@ -2891,756 +3153,6 @@ function Flowerbed() {
   );
 }
 
-// The resident: a little person. `seated` swaps the pose — the scene decides
-// by checking whether they were dropped onto something with a seat. `moving`
-// is true mid-glide: the legs step in counter-phase so they walk, not skate.
-const SKIN = "#edc39e";
-const HAIR = "#3a3142";
-// Eyes and mouth are drawn in a fixed dark ink, NOT in the hair colour. They
-// used to share it, which was invisible while hair was always near-black —
-// but pick honey or mint in the profile and a face drawn in it disappears.
-const INK = "#3a3142";
-const TROUSER = "#4a3a5b";
-// the far leg, so the two read as depth rather than one wide blob — derived
-// rather than hand-tuned, so the pairing survives the trousers ever becoming
-// user-colourable
-const TROUSER_FAR = farColor(TROUSER);
-const SHOE = "#2b2350";
-const SHOE_FAR = "#221c40";
-
-/**
- * One seated leg: thigh forward to the knee, shin down to the floor.
- *
- * Drawn as round-capped strokes rather than boxes. The pose used to be two
- * axis-aligned rects stacked vertically, which is geometrically just a
- * shorter straight leg — a standing figure sunk into the seat, not a sitting
- * one. A joint you can actually see is the entire difference.
- *
- * `ankle` comes from the seat's height (the sprite is lifted by it, so the
- * floor sits at +seatH here) so the feet land on the floor instead of
- * dangling at cushion level.
- */
-// The knee sits BELOW the torso's bottom edge and outside its width — a thigh
-// tucked behind the body is a thigh nobody can see, which is how you end up
-// back at a straight leg.
-const SEAT_KNEE_Y = 5;
-const SEAT_KNEE_X = 8.5;
-
-function SeatedLeg({ side, ankle, thighW = 7.5, shinW = 6.5, far = false }) {
-  const knee = side * SEAT_KNEE_X;
-  const cloth = far ? TROUSER_FAR : TROUSER;
-  return (
-    <g>
-      <path
-        d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
-        stroke={cloth}
-        strokeWidth={thighW}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
-        stroke={cloth}
-        strokeWidth={shinW}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <ellipse cx={knee} cy={ankle + 1.4} rx="4.8" ry="2.4" fill={far ? SHOE_FAR : SHOE} />
-    </g>
-  );
-}
-
-/**
- * One standing trouser leg: a garment, not a stick. It tapers from the hip
- * to a cuff just above the shoe — the cuff's shade band is what makes the
- * hem read as a hem — and ends in a deliberately CHUNKY shoe. In the
- * reference art the oversized rounded shoe carries half the toy-like read;
- * drawn to scale it disappears into the trouser leg.
- *
- * `legW` comes from figureMetrics so the build axis thickens both trouser
- * and shoe together when limb deltas land.
- */
-function StandingLeg({ side, legW = 5.6, legH = LEG_H, far = false }) {
-  const cx = side * 4;
-  const hipW = legW / 2 + 0.4;
-  const ankW = legW / 2 - 0.2;
-  return (
-    <g>
-      <path
-        d={`M ${cx - hipW} ${-legH} L ${cx + hipW} ${-legH} L ${cx + ankW} ${-2.2}
-            Q ${cx + ankW} ${-1.4} ${cx + ankW - 0.8} ${-1.4}
-            L ${cx - ankW + 0.8} ${-1.4} Q ${cx - ankW} ${-1.4} ${cx - ankW} ${-2.2} Z`}
-        fill={far ? TROUSER_FAR : TROUSER}
-      />
-      <rect x={cx - ankW} y={-4.6} width={ankW * 2} height="1.7" fill="#000" opacity="0.14" />
-      {/* nudged outward for stance; the light catch keeps the shoe reading
-          as its own shape rather than a wider ankle */}
-      <ellipse cx={cx + side * 0.5} cy="0.3" rx="4.9" ry="2.5" fill={far ? SHOE_FAR : SHOE} />
-      <ellipse cx={cx + side * 0.7} cy="-1" rx="3.3" ry="1" fill="#fff" opacity={far ? 0.08 : 0.12} />
-    </g>
-  );
-}
-
-/**
- * The resident. Small enough that only the silhouette carries, so what got
- * added over the first pass is all outline work: shoes distinct from trouser
- * legs, a bent knee when seated (a seated figure without one is a person
- * standing in a hole), a neck, shoulders wider than the waist, hands on the
- * ends of the arms, and a face that actually has an expression.
- */
-/**
- * Hair that falls BEHIND the head — drawn before the face so the head circle
- * paints over it. Only the styles with mass behind the skull have one; the
- * rest return null rather than an empty <g>, so the common case costs nothing.
- */
-/**
- * Hair mass that belongs BEHIND THE WHOLE FIGURE — drawn before the torso, so
- * length falls behind the shoulders instead of lying on them.
- *
- * This split is the fix for hair "showing up in front". Every style used to put
- * its length in HairFront, which paints after the head: side pieces swept down
- * past the jaw and closed around the face, so all six read as a hood or a
- * headscarf rather than hair. Length now goes behind, and only a hairline and
- * the odd deliberate strand go in front.
- */
-function HairBehind({ style, headY, color }) {
-  switch (style) {
-    case "curly":
-      return <ellipse cx="0" cy={headY - 1} rx="9.2" ry="8.4" fill={color} />;
-    case "messy":
-      return <ellipse cx="0" cy={headY - 1.4} rx="8.6" ry="7.8" fill={color} />;
-    case "ponytail":
-      // The gathering knot lives HERE, not in HairLength: it sits on the
-      // skull, and this layer rides the gesture wrappers, so it moves with a
-      // glance or a yawn. In the static layer it stayed pinned while the head
-      // shifted 2-3px around it — hair visibly sliding off the crown.
-      return (
-        <>
-          <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-          <circle cx="-1" cy={headY - 6.8} r="3.1" fill={color} />
-        </>
-      );
-    case "braids":
-      // Same rule as the ponytail knot: the gathered roots at the skull's
-      // sides belong to the head and turn with it; only the plaits hang back.
-      return (
-        <>
-          <ellipse cx="0" cy={headY - 0.8} rx="8" ry="7.5" fill={color} />
-          {[-1, 1].map((s) => (
-            <circle key={s} cx={s * 6.6} cy={headY + 1} r="2.3" fill={color} />
-          ))}
-        </>
-      );
-    case "bun":
-      // High enough to break the skull's silhouette; tucked behind it was a
-      // nub you couldn't tell from short hair.
-      return <circle cx="0" cy={headY - 8.6} r="4.4" fill={color} />;
-    default:
-      return null;
-  }
-}
-
-/**
- * Hair LENGTH — drawn before the torso, so it falls behind the body.
- *
- * Separate from HairBehind because of where each sits in the DOM: HairBehind
- * lives inside the head's gesture wrappers, which paint after the torso, so
- * anything long put there lay ON the chest as a bib. A bob and a long style
- * both drop past the jaw, and past the jaw is the body's territory.
- *
- * Not inside the gesture wrappers, so it doesn't swing with a head turn —
- * which is right: hair down your back barely moves when you glance sideways.
- */
-function HairLength({ style, headY, color }) {
-  switch (style) {
-    case "long":
-      // Must clear the SHOULDER, not just the head. At ±11.4 it sat inside a
-      // masc shoulder (up to 12.6) and the torso swallowed everything below the
-      // jaw, so long hair rendered as a bob. It flares wider than any body.
-      return (
-        <path
-          d={`M-9 ${headY - 3} q-6 15 -5.4 25 l28.8 0 q0.6 -10 -5.4 -25 z`}
-          fill={color}
-        />
-      );
-    case "bob":
-      // Stops at the jaw and flicks OUT, which is what makes a bob a bob — and
-      // the flick has to reach past the shoulder to be seen at all.
-      return (
-        <path
-          d={`M-8.6 ${headY - 3} q-5 9 -4.6 13.4 l26.4 0 q0.4 -4.4 -4.6 -13.4 z`}
-          fill={color}
-        />
-      );
-    case "ponytail":
-      // The tail hangs to ONE SIDE. Centred it was drawn before both the head
-      // (r 7.3) and the torso and disappeared entirely behind them — the style
-      // rendered as short hair with a small nub above the crown.
-      // Only the TAIL. Its gathering knot is HairBehind's (it sits on the
-      // skull and must move with it); the path starts inside the knot's
-      // radius so a turned head never opens a gap at the join.
-      return (
-        <path
-          d={`M-2.2 ${headY - 7} q-9 6 -9.6 15 q-0.4 4.4 2.6 5.2 q3 0.6 3.4 -3.6 q0.6 -7.6 7 -12.4 z`}
-          fill={color}
-        />
-      );
-    case "braids":
-      // Only the hanging plaits — the gathered roots are HairBehind's. The
-      // strands start a touch below them, still under their cover, so the
-      // moving anchor always overlaps the static plait top.
-      return (
-        <>
-          {[-1, 1].map((s) => (
-            <g key={s}>
-              <path
-                d={`M${s * 6.6} ${headY + 2.5} q${s * 3} 6.5 ${s * 1.4} 12.5`}
-                stroke={color}
-                strokeWidth="3.6"
-                strokeLinecap="round"
-                fill="none"
-              />
-              {/* the knots that separate a braid from a rope */}
-              {[5, 9.5, 13].map((dy) => (
-                <circle key={dy} cx={s * (6.8 + dy * 0.16)} cy={headY + 1 + dy} r="2.2" fill={color} />
-              ))}
-            </g>
-          ))}
-        </>
-      );
-    default:
-      return null;
-  }
-}
-
-/**
- * The hairline, drawn over the skull.
- *
- * THE RULE, and the whole reason the hair looked like a headscarf: this may
- * cover the CROWN and stop at the temples. Nothing here descends past the eye
- * line (headY + 2) at the sides of the face. Length is HairBehind's job.
- *
- * The old cap swept from ear to ear along the head's equator and every style
- * then added side pieces running down to headY + 9…13 — well past the chin at a
- * 7.3px head radius — which closed the face into a hood.
- */
-function HairFront({ style, headY, color }) {
-  const R = HEAD_R;
-  // A hairline sits ABOVE the equator and dips lower at the temples than at the
-  // centre, leaving forehead visible — that gap is what reads as a face.
-  const cap = (
-    <path
-      d={`M${-R} ${headY - 0.4} a${R} ${R} 0 0 1 ${R * 2} 0 q-1.4 -1.2 -3.4 -1.1 q-3.6 -3.4 -8.2 -0.9 q-1.6 0.8 -2.4 2 z`}
-      fill={color}
-    />
-  );
-  // Temple pieces: they STOP just below the eye line, framing rather than
-  // enclosing. Any longer and the hood is back.
-  const temples = (
-    <>
-      <path d={`M${-R + 0.2} ${headY - 1.4} q-1.5 2.6 -0.7 4.4 q-1.7 -1.6 -1.3 -4.2 z`} fill={color} />
-      <path d={`M${R - 0.2} ${headY - 1.4} q1.5 2.6 0.7 4.4 q1.7 -1.6 1.3 -4.2 z`} fill={color} />
-    </>
-  );
-
-  switch (style) {
-    case "buzz":
-      // Close-cropped: hugs the skull, hairline high, no temple pieces at all.
-      return (
-        <path
-          d={`M${-R + 0.3} ${headY - 1.2} a${R - 0.3} ${R - 0.3} 0 0 1 ${(R - 0.3) * 2} 0 q-2.8 -2.8 -${R - 0.3} -2.8 q-4.2 0 -${R - 0.3} 2.8 z`}
-          fill={color}
-        />
-      );
-    case "messy":
-      // A few tufts breaking the dome — the only style allowed above the crown.
-      return (
-        <>
-          {cap}
-          {temples}
-          {[
-            [-4.6, -1.4],
-            [-0.8, -2.6],
-            [3.4, -1.8],
-          ].map(([cx, dy]) => (
-            <path
-              key={cx}
-              d={`M${cx} ${headY - R + 1} q${dy} -3.4 ${dy * 1.6} -1.2 q-0.4 1.6 -${Math.abs(dy) * 0.5} 2.4 z`}
-              fill={color}
-            />
-          ))}
-        </>
-      );
-    case "curly":
-      // Overlapping circles read as volume; a single lumpy path reads as a
-      // badly drawn cap. All of them stay on the crown.
-      return (
-        <>
-          {[
-            [-5.6, -3.4, 3.2],
-            [-2.0, -5.4, 3.3],
-            [1.8, -5.4, 3.3],
-            [5.2, -3.4, 3.2],
-            [6.6, -0.6, 2.6],
-            [-6.8, -0.6, 2.6],
-          ].map(([cx, dy, r]) => (
-            <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
-          ))}
-        </>
-      );
-    case "bob":
-      // A bob's fringe is its signature: a straight edge across the brow.
-      return (
-        <>
-          {cap}
-          <path d={`M${-R} ${headY - 1.6} q${R} 2.4 ${R * 2} 0 l0 -2 l${-R * 2} 0 z`} fill={color} />
-          {temples}
-        </>
-      );
-    default:
-      return (
-        <>
-          {cap}
-          {temples}
-        </>
-      );
-  }
-}
-
-/** Eyes and mouth. Expression is the cheapest personality per pixel here. */
-function Face({ expression, headY }) {
-  const stroke = {
-    fill: "none",
-    stroke: INK,
-    strokeWidth: 0.9,
-    strokeLinecap: "round",
-  };
-  if (expression === "happy")
-    return (
-      <>
-        {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
-        <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
-        <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
-        <path d={`M-2.4 ${headY + 4.6} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
-      </>
-    );
-  if (expression === "sleepy")
-    return (
-      <>
-        <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
-        <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
-        <ellipse cx="0" cy={headY + 5} rx="1" ry="1.3" fill={INK} opacity="0.7" />
-      </>
-    );
-  return (
-    <>
-      <circle cx="-2.9" cy={headY + 2} r="0.95" fill={INK} />
-      <circle cx="2.9" cy={headY + 2} r="0.95" fill={INK} />
-      <path d={`M-1.9 ${headY + 4.7} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
-    </>
-  );
-}
-
-// The body's numbers — half-widths, limb thicknesses, the torso curve, the
-// standing/seated anchors and their learned-from history — live in
-// lib/body.js, so the sprite, the panel previews and the node-env geometry
-// tests all read one copy.
-
-/**
- * A limb going limp while its owner dangles: a few degrees off vertical from
- * the joint at its top, dead still.
- *
- * Always on its OWN wrapper, never on the element carrying a walk class — an
- * animation and a transform can't share an element (the animation wins outright
- * and the offset is silently lost). `held` and `moving` happen to be mutually
- * exclusive, but structure beats an invariant a reader has to go and verify.
- * The CSS property rather than the attribute, so `transform-origin` definitely
- * applies to it.
- */
-const hangLimb = (held, deg) =>
-  held
-    ? {
-        transform: `rotate(${deg}deg)`,
-        transformBox: "fill-box",
-        transformOrigin: "center top",
-      }
-    : undefined;
-
-function Resident({
-  seated = false,
-  lying = false,
-  seatH = 0,
-  // What the timer is doing: "focus" | "break" | null. One string rather than a
-  // pair of booleans, because the states are mutually exclusive and two flags
-  // can be set at once; it also still changes rarely, which is what the memo'd
-  // scene needs.
-  activity = null,
-  moving = false,
-  // Dangling from your cursor mid drag-and-drop. Limbs go limp and the whole
-  // body swings from the scruff of the neck — the pinched-chibi pose, which is
-  // the entire point of picking someone up rather than pointing at a tile.
-  held = false,
-  character,
-}) {
-  const c = project(0.4, 0.4);
-  // The character is validated at the store boundary, but this sprite is also
-  // rendered by panel previews and tests, so it stands alone with the classic
-  // resident as its default.
-  const ch = character || DEFAULT_CHARACTER;
-  const skin = ch.skin || SKIN;
-  const hairColor = ch.hairColor || HAIR;
-  // The sweater stays the placement's --tint when one is set, falling back to
-  // the profile's outfit colour. That ordering is deliberate: your profile
-  // dresses every resident, and tinting ONE of them still overrides it.
-  const outfit = tinted(ch.outfit || "#7faf8f");
-  // Shoulder/waist/hem half-widths for this model × build. The ARMS and the
-  // collar hang off the same `sh` the body actually has — placed from the
-  // build's half-width alone, the narrower `fem` shoulders left both arms
-  // floating in a gap beside the chest.
-  const { sh, wa, hem, legW, thighW, shinW, legH, standTorsoY, standHeadY } =
-    figureMetrics(ch);
-  // Lying down is its own drawing, not a squashed sitting pose: dropped on a
-  // bed the resident used to perch bolt upright on the duvet.
-  if (lying) {
-    return (
-      <g transform={`translate(${c.x}, ${c.y})`}>
-        <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
-          {/* body along the bed, knees slightly raised */}
-          <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
-          {/* Lit along the top, falling away underneath — the same two-tone
-              treatment the standing figure got. Without it this pose stayed
-              the one flat-green shape it always was while the other two
-              picked up volume. */}
-          <rect x="-19" y="-10.4" width="32" height="4" rx="2" fill="#fff" opacity="0.12" />
-          <rect x="-20" y="-5" width="34" height="6" rx="3" fill="#000" opacity="0.12" />
-          <ellipse cx="12" cy="-9" rx="8" ry="6" style={outfit} />
-          {/* arm resting on top of the covers */}
-          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={outfit} />
-          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" fill="#fff" opacity="0.1" />
-          <circle cx="1" cy="-11.7" r="2.4" fill={skin} />
-          {/* head on the pillow, eyes closed whatever the waking expression.
-              A collar at the neck end so the head doesn't read as set down
-              beside the body. */}
-          <ellipse cx="-16.5" cy="-11.5" rx="3.2" ry="4.4" style={outfit} />
-          <circle cx="-23" cy="-13" r={HEAD_R} fill={skin} />
-          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={hairColor} />
-          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
-        </g>
-      </g>
-    );
-  }
-  // Seated, the body rests ON the seat, so the torso's bottom edge belongs at
-  // the seat line (sinking a px into the cushion), not hovering above it —
-  // and low enough that the thighs emerge from under it rather than behind it.
-  const torsoY = seated ? SEAT_TORSO_Y : standTorsoY;
-  const headY = seated ? SEAT_HEAD_Y : standHeadY;
-  // The floor is at +seatH (the scene lifts a seated resident by exactly
-  // that), less a couple of px so the sole meets it instead of sinking
-  // through. The floor keeps a low cushion from reducing the shin to a stub.
-  const ankle = Math.max(SEAT_KNEE_Y + 6, seatH - 2);
-  // Hands are on a keyboard, so the arms have a job and the idle gestures don't
-  // get them. The head is free either way — someone yawning at their desk is
-  // exactly the point.
-  const typing = activity === "focus" && seated;
-  // A break used to be indistinguishable from idle in the room: the phase
-  // reached the app and stopped at the thought bubble. Now they put the keyboard
-  // down, pick up a mug and stretch — the one moment the room should notice.
-  const resting = activity === "break";
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      {/* Held: ONE wrapper for the whole body, pivoting at the top of the head
-          (`center top` of the fill-box — the scruff your fingers have hold of).
-          It can't share the element with the translate above, per the
-          attribute-vs-animation rule, so it's its own <g>. */}
-      <g
-        className={held ? "held-dangle" : undefined}
-        style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
-      >
-      {seated ? (
-        <>
-          <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} far />
-          <SeatedLeg side={1} ankle={ankle} thighW={thighW} shinW={shinW} />
-        </>
-      ) : (
-        <>
-          {/* Legs run the full LEG_H — at 15px they were stubs under a long
-              torso, which is most of what made the figure read as a toddler.
-              The far one uses the depth colours the seated pose already had
-              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block.
-              While moving they SCISSOR from the hip — a stiff clay-toy stride,
-              swing fore-and-aft, not the old vertical piston that hopped each
-              trouser leg straight up and read as pedalling in place. */}
-          {/* Held, the legs hang: a few degrees apart from the hip, dead
-              still. Feet that stay parallel and level read as standing on
-              something, which is the one thing they must not read as when
-              there's no floor under them. */}
-          <g className={moving ? "leg-stride-a" : undefined}>
-            <g style={hangLimb(held, -5)}>
-              <StandingLeg side={-1} legW={legW} legH={legH} far />
-            </g>
-          </g>
-          <g className={moving ? "leg-stride-b" : undefined}>
-            <g style={hangLimb(held, 6)}>
-              <StandingLeg side={1} legW={legW} legH={legH} />
-            </g>
-          </g>
-        </>
-      )}
-      {/* Everything above the hips moves as ONE mass while walking — a bob (one
-          per step) and a lean onto the planted foot (one per stride), the Animal
-          Crossing waddle. TWO wrappers for the two clocks: both animate
-          `transform`, and two animations on one element cancel — which is also
-          why these sit outside body-breathe. HairLength rides inside, or long
-          hair would shear off the rolling head. */}
-      <g className={moving ? "walk-bob" : undefined}>
-      <g className={moving ? "walk-roll" : undefined}>
-      {/* Before the torso: length falls behind the body, not onto the chest. */}
-      <HairLength style={ch.hair} headY={headY} color={hairColor} />
-      <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
-        {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
-            it was the same width top to bottom, which is what made the body
-            read as a pill with a head on it rather than a person. */}
-        {(() => {
-          const { body, band } = torsoGeom({ sh, wa, hem, top: torsoY });
-          return (
-            <>
-              <path d={body} style={outfit} />
-              {/* Volume the same way every box in the catalog gets it: the top
-                  faces the light, the lower body falls away. The character was
-                  the one object in the room with a single flat tone, which is
-                  most of why it looked lifeless beside furniture that has
-                  three. */}
-              <ellipse cx="0" cy={torsoY + 3.5} rx={sh - 1.5} ry="4.6" fill="#fff" opacity="0.13" />
-              <path d={band} fill="#000" opacity="0.14" />
-            </>
-          );
-        })()}
-        {/* arms — they type when a focus block is running and they're seated,
-            and otherwise stretch or reach up to rub an eye. The gesture
-            wrappers are OUTSIDE the typing class and the rub is INSIDE it:
-            two animations fighting over one element's transform would cancel,
-            whereas nested ones compose. Typing wins outright though — hands on
-            a keyboard are already the animation, and arms stretching mid-keystroke
-            reads as a glitch rather than as a person. */}
-        <g className={resting ? "break-stretch" : undefined}>
-          {/* Gestures stand down mid-stride, the same way they yield to typing:
-              an arm reaching overhead while the legs scissor reads as a glitch,
-              and both animations would be fighting the swing below. */}
-          <g className={typing || moving || held ? undefined : "gesture-stretch"}>
-            <g className={typing ? "resident-type" : undefined}>
-              {/* The FAR arm carries leg B's clock, so it opposes the far leg
-                  (which is A) — contralateral swing, the thing that separates
-                  walking from being wheeled along. */}
-              <g className={moving ? "walk-arm-b" : undefined}>
-                <g style={hangLimb(held, -7)}>
-                <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
-                <rect x={-sh - 3.4} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#000" opacity="0.16" />
-                <circle cx={-sh - 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
-                </g>
-              </g>
-              {/* The eye-rub is suppressed on a break because this hand is
-                  holding something: at 186° the mug would come up over the face
-                  upside down. */}
-              <g className={moving ? "walk-arm-a" : undefined}>
-              <g className={typing || resting || moving || held ? undefined : "gesture-rub"}>
-              <g style={hangLimb(held, 8)}>
-                <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" style={outfit} />
-                {/* the near arm catches the light instead of vanishing into the
-                    torso it shares a colour with */}
-                <rect x={sh - 1.6} y={torsoY + 5} width="5" height="12" rx="2.5" fill="#fff" opacity="0.1" />
-                <circle cx={sh + 0.9} cy={torsoY + 17.5} r="2.5" fill={skin} />
-                {/* The mug lives INSIDE the arm, so it tracks the hand through
-                    every gesture for free — it rises with a stretch instead of
-                    hanging in the air where the hand used to be. Same palette as
-                    the catalog mug so the two read as the same object. */}
-                {resting && (
-                  <g transform={`translate(${sh + 0.9}, ${torsoY + 19.4})`}>
-                    <rect x="-2.6" y="-3.4" width="5.2" height="4.6" rx="0.6" fill="#f2e9dd" />
-                    <rect x="-2.6" y="-1.2" width="5.2" height="2.4" rx="0.6" fill="#000" opacity="0.14" />
-                    <path d="M2.6 -2.6 q2 0.8 0 2.6" fill="none" stroke="#f2e9dd" strokeWidth="0.9" />
-                    <ellipse cx="0" cy="-3.4" rx="2.6" ry="1.1" fill="#f7f2ea" />
-                    <ellipse cx="0" cy="-3.4" rx="1.7" ry="0.7" fill="#5a3a24" />
-                    <g className="steam-puff">
-                      <ellipse cx="0" cy="-6.4" rx="1.1" ry="1.9" fill="#fff" opacity="0.32" />
-                    </g>
-                  </g>
-                )}
-              </g>
-              </g>
-              </g>
-            </g>
-          </g>
-        </g>
-        {/* Neck, then a collar sitting on the shoulders. The head used to
-            meet the torso directly, which is a large part of why the figure
-            read as a bundle rather than a body — the neck is short, but the
-            collar is what actually sells it. It reaches from under the chin to
-            just inside the torso top so no pose can leave a gap. */}
-        <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill={skin} />
-        <rect
-          x="-2.6"
-          y={headY + HEAD_R - 1}
-          width="5.2"
-          height={torsoY - headY - HEAD_R + 4}
-          fill="#000"
-          opacity="0.16"
-        />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" style={outfit} />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" fill="#fff" opacity="0.1" />
-        {/* The head is one unit so it can move as one, and each cycle that moves
-            it needs its OWN element — two animations on one element would just
-            cancel. So: yawn (tilts back), rub (leans into the raised hand),
-            glance (turns). Everything inside keeps its own attribute transform
-            (the crown sheen has one) — the rule is only that an animation may
-            not share an ELEMENT with one. The neck and collar stay outside, so
-            a turning head turns against a body that doesn't. */}
-        <g className="gesture-yawn">
-          {/* Both halves of the rub take the same gate, `moving` included: the
-              arm half stands down mid-stride, and a head leaning into a hand
-              that isn't raised is worse than no gesture at all. The yawn and
-              the glance above are head-only and keep playing — yawning on the
-              way across the room is fine. */}
-          <g className={typing || resting || moving || held ? undefined : "gesture-rub-head"}>
-            <g className="gesture-look">
-              {/* Inside the gesture wrappers on purpose: hair turns with the
-                  head. Behind the face is what matters, not behind the body. */}
-              <HairBehind style={ch.hair} headY={headY} color={hairColor} />
-              <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-              <HairFront style={ch.hair} headY={headY} color={hairColor} />
-              {/* A sheen on the crown. The hair is the biggest single shape on the
-                  figure and it was one flat colour, so it read as a helmet — this is
-                  the same white light-catch the shoulders and the boxes get, aimed
-                  up-right at the light. */}
-              <ellipse
-                cx="2.4"
-                cy={headY - 4.1}
-                rx="3.1"
-                ry="1.6"
-                fill="#fff"
-                opacity="0.16"
-                transform={`rotate(-22 2.4 ${headY - 4.1})`}
-              />
-              <Face expression={ch.expression} headY={headY} />
-              <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-              <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-              {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
-                  keyframes outrank while they run but which takes over the moment
-                  they don't — so under reduced motion the mouth is simply shut,
-                  rather than a character left permanently gaping. */}
-              <ellipse
-                className="gesture-yawn-mouth"
-                cx="0"
-                cy={headY + 5.1}
-                rx="1.9"
-                ry="2.5"
-                fill={INK}
-                opacity="0"
-              />
-            </g>
-          </g>
-        </g>
-      </g>
-      </g>
-      </g>
-      </g>
-    </g>
-  );
-}
-
-/**
- * The little cloud over your character's head, the way The Sims does it: a
- * puff of thought with one readable icon in it.
- *
- * Drawn ABOVE the resident's head and inside the same group, so when they're
- * seated (and the whole sprite is lifted by the seat height) the bubble rides
- * up with them instead of hanging in the air where they used to stand.
- *
- * One icon, no text — at room scale a word would be unreadable, and the whole
- * point is that you can tell at a glance from across the room.
- */
-function ThoughtBubble({ mood, x = 10, y = -58, mirrored = false }) {
-  const icon = MOODS[mood];
-  if (!icon) return null;
-  return (
-    // The attribute transform goes on a WRAPPER and the animation on the
-    // child: a CSS animation's `transform` property overrides an SVG
-    // `transform` attribute outright, so with both on one element the offset
-    // was thrown away and the cloud rendered on the character's chest.
-    // (docs/MODELS.md §6 — third time this has bitten.)
-    //
-    // On an odd rotation the scene mirrors the whole persona, which would
-    // hand you a backwards book and a mug with the handle on the wrong side —
-    // lit from the left while the rest of the room is lit from the right.
-    // Flipping again here cancels it, and the negated offset keeps the cloud
-    // on the same side of the head on SCREEN.
-    <g
-      transform={mirrored ? `translate(${-x},${y}) scale(-1,1)` : `translate(${x},${y})`}
-      aria-hidden="true"
-    >
-      {/* keyed by mood so switching book → mug REMOUNTS this group and the
-          pop plays again; without it React swapped the icon in place and the
-          transition passed by unannounced */}
-      <g key={mood} className="thought-pop">
-      {/* the two trailing puffs, smallest nearest the head */}
-      <circle cx="-9" cy="12" r="1.5" fill="#f7f2ea" opacity="0.85" />
-      <circle cx="-6" cy="7.5" r="2.3" fill="#f7f2ea" opacity="0.92" />
-      {/* the cloud: four overlapping ellipses rather than one, so the outline
-          is lumpy the way a thought bubble should be */}
-      <ellipse cx="0" cy="-1" rx="11" ry="7.5" fill="#f7f2ea" />
-      <ellipse cx="-7.5" cy="1" rx="5.5" ry="4.5" fill="#f7f2ea" />
-      <ellipse cx="7.5" cy="1" rx="5.5" ry="4.5" fill="#f7f2ea" />
-      <ellipse cx="-1" cy="-6" rx="7" ry="5" fill="#f7f2ea" />
-      {icon === "book" ? (
-        // an open book: two leaves either side of a spine
-        <g>
-          <path d="M-6 -1.5 q3 -2.2 5.4 0 l0 5 q-2.4 -1.8 -5.4 0 z" fill="#5b6b9b" />
-          <path d="M6 -1.5 q-3 -2.2 -5.4 0 l0 5 q2.4 -1.8 5.4 0 z" fill="#7f8fc0" />
-          <rect x="-0.5" y="-2.4" width="1" height="6.4" rx="0.5" fill="#3a3142" opacity="0.55" />
-        </g>
-      ) : (
-        // a mug, with steam — the same read as the `mug` catalog item
-        <g>
-          <rect x="-4" y="-2.5" width="7.5" height="6" rx="1.2" fill="#c9847e" />
-          <path d="M3.5 -1 q3 1 0 3.4" fill="none" stroke="#c9847e" strokeWidth="1.4" />
-          <ellipse cx="-0.25" cy="-2.5" rx="3.75" ry="1.3" fill="#f2e2cf" />
-          <path d="M-1.5 -5.5 q1.5 -1.6 0 -3.2" fill="none" stroke="#cbb6a0" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
-        </g>
-      )}
-      </g>
-    </g>
-  );
-}
-
-/**
- * You — the resident drawn with the character from your profile, and the only
- * one that thinks. Everyone else in the room stays generic on purpose.
- */
-function You({ mood, mirrored = false, ...rest }) {
-  // The cloud hangs just above the head — and the head is somewhere different
-  // in each pose. One fixed offset left it a whole head-height clear of a
-  // SEATED character, which is the pose this feature exists for (you only
-  // type while sitting), and stranded over the headboard when lying down.
-  // Anchored to the body's head positions (plus a per-pose clearance) so a
-  // proportion retune — or this character's own height slider — moves the
-  // cloud with the skull instead of leaving it at a height the head no
-  // longer reaches. Lying keeps its fixed spot — that pose's head is its
-  // own drawing.
-  const { standHeadY } = figureMetrics(rest.character);
-  const spot = rest.lying
-    ? { x: -14, y: -30 }
-    : rest.seated
-    ? { x: 10, y: SEAT_HEAD_Y - 17 }
-    : { x: 10, y: standHeadY - 15.5 };
-  return (
-    <g>
-      <Resident {...rest} />
-      <ThoughtBubble mood={mood} x={spot.x} y={spot.y} mirrored={mirrored} />
-    </g>
-  );
-}
-
 // ---- newer decorations -------------------------------------------------- //
 
 function Fireplace() {
@@ -4723,23 +4235,95 @@ function Sheepskin() {
 // distinct SILHOUETTE, since at this size that's all you get — the dog is long
 // and low with a plumed tail, the rabbit is a vertical teardrop with ears.
 
-function DogHead({ x, y, r, asleep }) {
+// DOG BREEDS (lib/isoRoom.js DOG_BREEDS owns the vocabulary). A breed earns
+// its slot the way every model does — by changing the SILHOUETTE: the shiba's
+// pricked triangle ears and tail curled in a tight loop, the corgi's stub legs
+// under a long body with oversized upright ears, the dalmatian's spots on
+// white with dark folded ears. "golden" is null: the classic caramel drawing,
+// still tintable via --tint; the named breeds paint fixed palettes (a lime
+// dalmatian isn't a dalmatian).
+//   ears: "folded" | "point" | "big"    tail: "plume" | "curl" | "nub" | "thin"
+//   leg:  leg-height scale — the corgi's whole read; the body drops to match
+const DOG_BREED_STYLES = {
+  shiba: { fur: "#d97f4e", cream: "#f6ead8", ears: "point", tail: "curl", brows: true, socks: true },
+  corgi: { fur: "#dd9b58", cream: "#f7f2ea", ears: "big", tail: "nub", blaze: true, socks: true, leg: 0.6, longer: true },
+  dalmatian: { fur: "#f2eee7", ears: "folded", earColor: "#312a3b", tail: "thin", spots: "#312a3b" },
+  // Husky: the shiba's silhouette (pricked ears, curled tail) in wolf grey,
+  // with the white face blaze + brows that say sled dog rather than shiba.
+  husky: { fur: "#8d90a0", cream: "#f4f2f5", ears: "point", tail: "curl", blaze: true, brows: true, socks: true },
+};
+
+function DogHead({ x, y, r, asleep, fur, cream = "#f2e7dc", ears = "folded", earColor, blaze, brows, spots, vol }) {
+  const skull = fur || tinted("#c98a4b");
+  const earStyle = earColor ? { fill: earColor } : skull;
   return (
     <g>
-      <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} style={tinted("#c98a4b")} />
-      {/* folded ears hang beside the skull rather than standing up */}
-      <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} style={tinted("#c98a4b")} />
-      <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} fill="#000" opacity="0.22" />
-      {/* The near ear flicks while awake — same "alive and listening" signal
-          as the cat's, but a folded ear HANGS, so it takes the top-hinged
-          variant: bottom-origin would swing the attachment point, not the tip.
-          Ear + its shade in one group, or the shading stays behind. */}
-      <g className={asleep ? undefined : "ear-twitch-hanging"}>
-        <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} style={tinted("#c98a4b")} />
-        <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} fill="#000" opacity="0.12" />
-      </g>
+      <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} style={skull} />
+      {/* a dalmatian's one skull spot — over the crown, before the ears */}
+      {spots && <ellipse cx={x + r * 0.34} cy={y - r * 0.5} rx={r * 0.3} ry={r * 0.24} fill={spots} opacity="0.9" />}
+      {/* the skull models as a sphere, marks curving with it */}
+      {vol && <ellipse cx={x} cy={y} rx={r} ry={r * 0.88} fill={vol} />}
+      {ears === "folded" && (
+        <>
+          {/* folded ears hang beside the skull rather than standing up */}
+          <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} style={earStyle} />
+          <ellipse cx={x - r * 0.85} cy={y + r * 0.1} rx={r * 0.32} ry={r * 0.6} fill="#000" opacity={earColor ? 0.1 : 0.22} />
+          {/* The near ear flicks while awake — same "alive and listening"
+              signal as the cat's, but a folded ear HANGS, so it takes the
+              top-hinged variant: bottom-origin would swing the attachment
+              point, not the tip. Ear + its shade in one group, or the shading
+              stays behind. */}
+          <g className={asleep ? undefined : "ear-twitch-hanging"}>
+            <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} style={earStyle} />
+            <ellipse cx={x + r * 0.85} cy={y + r * 0.05} rx={r * 0.3} ry={r * 0.58} fill="#000" opacity="0.12" />
+          </g>
+        </>
+      )}
+      {ears === "point" && (
+        <>
+          {/* the shiba's pricked triangles — cat geometry, chunkier */}
+          <polygon points={`${x - r * 0.9},${y - r * 0.45} ${x - r * 0.55},${y - r * 1.55} ${x - r * 0.02},${y - r * 0.7}`} style={earStyle} />
+          <polygon points={`${x - r * 0.7},${y - r * 0.62} ${x - r * 0.52},${y - r * 1.2} ${x - r * 0.24},${y - r * 0.76}`} fill={cream} opacity="0.55" />
+          <g className={asleep ? undefined : "ear-twitch"}>
+            <polygon points={`${x + r * 0.22},${y - r * 0.72} ${x + r * 0.95},${y - r * 1.3} ${x + r * 0.92},${y - r * 0.3}`} style={earStyle} />
+            <polygon points={`${x + r * 0.4},${y - r * 0.74} ${x + r * 0.82},${y - r * 1.05} ${x + r * 0.78},${y - r * 0.52}`} fill={cream} opacity="0.55" />
+          </g>
+        </>
+      )}
+      {ears === "big" && (
+        <>
+          {/* the corgi's radar dishes: upright, oversized, rounded — a third
+              of the whole head's read */}
+          <g transform={`rotate(-14 ${x - r * 0.72} ${y - r * 0.9})`}>
+            <ellipse cx={x - r * 0.72} cy={y - r * 0.9} rx={r * 0.42} ry={r * 0.82} style={earStyle} />
+            <ellipse cx={x - r * 0.72} cy={y - r * 0.78} rx={r * 0.24} ry={r * 0.52} fill="#e8a3a8" opacity="0.4" />
+          </g>
+          <g transform={`rotate(12 ${x + r * 0.76} ${y - r * 0.86})`}>
+            <g className={asleep ? undefined : "ear-twitch"}>
+              <ellipse cx={x + r * 0.76} cy={y - r * 0.86} rx={r * 0.4} ry={r * 0.8} style={earStyle} />
+              <ellipse cx={x + r * 0.76} cy={y - r * 0.74} rx={r * 0.22} ry={r * 0.5} fill="#e8a3a8" opacity="0.4" />
+            </g>
+          </g>
+        </>
+      )}
+      {/* the corgi's white blaze up the middle of the face, under eyes + nose */}
+      {blaze && (
+        <path
+          d={`M${x - r * 0.3} ${y + r * 0.75} Q ${x - r * 0.22} ${y - r * 0.4} ${x - r * 0.12} ${y - r * 0.82}
+              L ${x + r * 0.2} ${y - r * 0.78} Q ${x + r * 0.06} ${y - r * 0.35} ${x + r * 0.16} ${y + r * 0.75} z`}
+          fill={cream}
+          opacity="0.9"
+        />
+      )}
       {/* cream muzzle + black nose: the two marks that say "dog" fastest */}
-      <ellipse cx={x - r * 0.1} cy={y + r * 0.5} rx={r * 0.62} ry={r * 0.42} fill="#f2e7dc" opacity="0.85" />
+      <ellipse cx={x - r * 0.1} cy={y + r * 0.5} rx={r * 0.62} ry={r * 0.42} fill={cream} opacity="0.85" />
+      {/* the shiba's cream brow dots — the mask's smallest, most readable part */}
+      {brows && (
+        <>
+          <circle cx={x - r * 0.42} cy={y - r * 0.4} r={r * 0.13} fill={cream} opacity="0.9" />
+          <circle cx={x + r * 0.44} cy={y - r * 0.44} r={r * 0.13} fill={cream} opacity="0.9" />
+        </>
+      )}
       <ellipse cx={x - r * 0.28} cy={y + r * 0.34} rx={r * 0.18} ry={r * 0.13} fill="#2b2350" />
       {asleep ? (
         <>
@@ -4757,60 +4341,291 @@ function DogHead({ x, y, r, asleep }) {
   );
 }
 
-function Dog({ awake = false, moving = false }) {
+function Dog({ awake = false, moving = false, facing = "side", held = false, look }) {
   const c = project(0.55, 0.35);
-  if (awake) {
-    // Same `moving` gate as the cat: trot only while a glide is in flight.
+  // The breed: null = the classic tintable golden; anything else paints its
+  // own fixed palette and silhouette (see DOG_BREED_STYLES above).
+  const B = DOG_BREED_STYLES[look] || null;
+  const fur = B ? { fill: B.fur } : tinted("#c98a4b");
+  const furStroke = B ? B.fur : "var(--tint, #c98a4b)";
+  // The lighter front: chest + belly + tail tip. The dalmatian opts out — a
+  // cream chest on a white dog is dirt, not marking.
+  const cream = B ? B.cream || null : "#f2e7dc";
+  // Per-instance soft-volume gradient, same as the cat's.
+  const vid = useId();
+  const vol = sphereFill(vid);
+  const headProps = {
+    fur,
+    cream: cream || "#fbf8f2",
+    ears: B?.ears || "folded",
+    earColor: B?.earColor,
+    blaze: B?.blaze,
+    brows: B?.brows,
+    spots: B?.spots,
+    vol,
+  };
+  const tailKind = B?.tail || "plume";
+  // Every pose declares its tail as (plume-path, curl-path, nub-path,
+  // thin-path) and this picks + strokes the right one. The plume gets the
+  // cream highlight riding in the same group; the curl gets a cream inner
+  // arc (a shiba's tail shows its pale underside in the loop); the rest are
+  // solid.
+  const tailArt = ({ plume, curl, nub, thin }) => {
+    if (tailKind === "curl")
+      return (
+        <>
+          <path d={curl} fill="none" stroke={furStroke} strokeWidth="4.6" strokeLinecap="round" />
+          {cream && <path d={curl} fill="none" stroke={cream} strokeWidth="1.7" strokeLinecap="round" opacity="0.5" />}
+        </>
+      );
+    if (tailKind === "nub")
+      return <path d={nub} fill="none" stroke={furStroke} strokeWidth="4.2" strokeLinecap="round" />;
+    if (tailKind === "thin")
+      return <path d={thin} fill="none" stroke={furStroke} strokeWidth="3.2" strokeLinecap="round" />;
+    return (
+      <>
+        <path d={plume} fill="none" stroke={furStroke} strokeWidth="5.5" strokeLinecap="round" />
+        {cream && <path d={plume} fill="none" stroke={cream} strokeWidth="2" strokeLinecap="round" opacity="0.35" />}
+      </>
+    );
+  };
+  const spots = (list) =>
+    B?.spots && (
+      <g fill={B.spots} opacity="0.9">
+        {list.map(([x, y, rx, ry]) => (
+          <ellipse key={`${x},${y}`} cx={x} cy={y} rx={rx} ry={ry ?? rx * 0.8} />
+        ))}
+      </g>
+    );
+  // Carried: same scruff-hold dangle as the cat, in dog proportions — a
+  // rounder body, the folded ears hanging with gravity, tail down.
+  if (held) {
+    const legH = B?.leg ? 8 : 10.5;
     return (
       <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
+        <g
+          className="held-dangle"
+          style={{ transformBox: "fill-box", transformOrigin: "center top" }}
+        >
+          {[-5.4, 1.4].map((x, i) => (
+            <g key={x}>
+              <rect x={x} y="-5" width="4.6" height={legH} rx="2.3" style={fur} />
+              {B?.socks && <rect x={x} y={-5 + legH - 3} width="4.6" height="3" rx="1.5" fill={cream} opacity="0.95" />}
+              <rect x={x} y="-5" width="4.6" height={legH} rx="2.3" fill="#000" opacity={i ? 0.1 : 0.24} />
+            </g>
+          ))}
+          {tailArt({
+            plume: "M5.4 -7 q4 7 1.4 11.5",
+            curl: "M4.6 -9 a3.8 3.8 0 1 1 4.6 -3",
+            nub: "M5 -8 q1.6 2 1 4",
+            thin: "M5.4 -7 q4 7 1.4 11.5",
+          })}
+          <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" style={fur} />
+          {spots([[-3.4, -20.5, 2.4], [3.4, -12.5, 2.2], [1, -25, 1.8]])}
+          {cream && <ellipse cx="0" cy="-11" rx="5.6" ry="6.8" fill={cream} opacity="0.5" />}
+          <ellipse cx="0" cy="-15" rx="9.4" ry="12.5" fill={vol} />
+          <ellipse cx="-2.4" cy="-20" rx="4.6" ry="6.5" fill="#fff" opacity="0.08" />
+          {[-6.8, 2.6].map((x) => (
+            <g key={x}>
+              <rect x={x} y="-25.5" width="4.2" height="9" rx="2.1" style={fur} />
+              {B?.socks && <rect x={x} y="-19.5" width="4.2" height="3" rx="1.5" fill={cream} opacity="0.95" />}
+            </g>
+          ))}
+          <DogHead x={0} y={-31.5} r={7.8} asleep={false} {...headProps} />
+        </g>
+      </g>
+    );
+  }
+  // Same facing economy as the cat: the trot is the profile, and turning
+  // toward/away from the camera is its own compact drawing.
+  if (awake && facing !== "side") {
+    const rear = facing === "back";
+    // The corgi: legs at 60%, and everything above them drops by the
+    // difference — same silhouette trick as the side view. The drop rides a
+    // WRAPPER inside the animated group (an attribute transform can't share
+    // an element with the trot bounce).
+    const legH = B?.leg ? 13 * B.leg : 13;
+    const legY = 1 - legH;
+    const drop = 13 - legH;
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
+        <g transform={drop ? `translate(0, ${drop})` : undefined}>
+          <g className="tail-sway">
+            {tailArt({
+              plume: "M5 -13 q8 -1 7 -14",
+              curl: "M4.5 -14 a4.2 4.2 0 1 1 5.2 -3.2",
+              nub: "M5 -13 q2.4 -0.8 3 -2.6",
+              thin: "M5 -13 q7 0 8 -11",
+            })}
+          </g>
+        </g>
         {[
-          ["leg-step-b", 8],
-          ["leg-step-a", -11],
+          ["leg-step-b", 3.6],
+          ["leg-step-a", -8.4],
         ].map(([cls, x]) => (
           <g key={x} className={moving ? cls : undefined}>
-            <rect x={x} y="-13" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
-            <rect x={x} y="-13" width="4.8" height="14" rx="2.4" fill="#000" opacity="0.3" />
+            <rect x={x} y={legY} width="4.8" height={legH} rx="2.4" style={fur} />
+            {B?.socks && <rect x={x} y={1 - 3.2} width="4.8" height="3.2" rx="1.6" fill={cream} opacity="0.95" />}
+            <rect x={x} y={legY} width="4.8" height={legH} rx="2.4" fill="#000" opacity="0.26" />
           </g>
         ))}
         <g className={moving ? "resident-type" : undefined}>
-          <ellipse cx="6" cy="-19" rx="11" ry="9" style={tinted("#c98a4b")} />
-          <ellipse cx="-3" cy="-18" rx="16" ry="8.5" style={tinted("#c98a4b")} />
-          {/* cream chest + belly shadow */}
-          <ellipse cx="-9" cy="-15" rx="8" ry="5" fill="#f2e7dc" opacity="0.5" />
-          <ellipse cx="-2" cy="-12" rx="14" ry="3.4" fill="#000" opacity="0.16" />
-          <rect x="-9" y="-14" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
-          <rect x="10" y="-14" width="4.8" height="14" rx="2.4" style={tinted("#c98a4b")} />
-          <DogHead x={-16} y={-26} r={7.8} asleep={false} />
+          <g transform={drop ? `translate(0, ${drop})` : undefined}>
+            <ellipse cx="0" cy="-15" rx={B?.longer ? 11.5 : 10.5} ry="8" style={fur} />
+            {spots([[-4.5, -17, 2.3], [4.2, -13, 2.1]])}
+            {!rear && cream && <ellipse cx="0" cy="-12.5" rx="6" ry="4.4" fill={cream} opacity="0.5" />}
+            <ellipse cx="0" cy="-15" rx={B?.longer ? 11.5 : 10.5} ry="8" fill={vol} />
+            <ellipse cx="0" cy="-18.5" rx="6.8" ry="2.8" fill="#fff" opacity="0.09" />
+            <ellipse cx="0" cy="-10.5" rx="8.6" ry="2.8" fill="#000" opacity="0.16" />
+            {rear ? (
+              <g>
+                <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" style={fur} />
+                {B?.spots && <ellipse cx="1.8" cy="-28" rx="2.2" ry="1.8" fill={B.spots} opacity="0.9" />}
+                <ellipse cx="0" cy="-25" rx="7.8" ry="6.9" fill={vol} />
+                <ellipse cx="-1.6" cy="-27.6" rx="4.2" ry="2.2" fill="#fff" opacity="0.08" />
+                {(B?.ears || "folded") === "folded" ? (
+                  <>
+                    <ellipse cx="-6.4" cy="-24.6" rx="2.5" ry="4.6" style={B?.earColor ? { fill: B.earColor } : fur} />
+                    <ellipse cx="-6.4" cy="-24.6" rx="2.5" ry="4.6" fill="#000" opacity={B?.earColor ? 0.1 : 0.22} />
+                    <g className="ear-twitch-hanging">
+                      <ellipse cx="6.4" cy="-24.9" rx="2.4" ry="4.5" style={B?.earColor ? { fill: B.earColor } : fur} />
+                      <ellipse cx="6.4" cy="-24.9" rx="2.4" ry="4.5" fill="#000" opacity="0.12" />
+                    </g>
+                  </>
+                ) : B.ears === "point" ? (
+                  <>
+                    <polygon points="-7,-28.5 -4.6,-36 -0.8,-29.8" style={fur} />
+                    <g className="ear-twitch">
+                      <polygon points="1.6,-29.8 5.2,-35.6 6.8,-28.3" style={fur} />
+                    </g>
+                  </>
+                ) : (
+                  <>
+                    <g transform="rotate(-14 -5.6 -31)">
+                      <ellipse cx="-5.6" cy="-31" rx="3.2" ry="6.2" style={fur} />
+                    </g>
+                    <g transform="rotate(12 5.9 -30.7)">
+                      <g className="ear-twitch">
+                        <ellipse cx="5.9" cy="-30.7" rx="3.1" ry="6" style={fur} />
+                      </g>
+                    </g>
+                  </>
+                )}
+              </g>
+            ) : (
+              <DogHead x={0} y={-25} r={7.8} asleep={false} {...headProps} />
+            )}
+          </g>
+        </g>
+      </g>
+    );
+  }
+  if (awake) {
+    // Same `moving` gate as the cat: trot only while a glide is in flight.
+    // Corgi geometry: legs at 60% height, the whole upper body dropping to
+    // meet them, and a slightly longer barrel — long-and-low is the breed.
+    const legH = B?.leg ? 14 * B.leg : 14;
+    const drop = 14 - legH;
+    return (
+      <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
+        <VolumeDefs id={vid} />
+        {/* Far pair on the trot's diagonal clocks (rear with the near front
+            leg) — leg-trot's fore-aft sweep, not leg-step's piston. */}
+        {[
+          ["leg-trot-a", 8],
+          ["leg-trot-b", -11],
+        ].map(([cls, x]) => (
+          <g key={x} className={moving ? cls : undefined}>
+            <rect x={x} y={1 - legH} width="4.8" height={legH} rx="2.4" style={fur} />
+            {B?.socks && <rect x={x} y={1 - 3.4} width="4.8" height="3.4" rx="1.7" fill={cream} opacity="0.75" />}
+            <rect x={x} y={1 - legH} width="4.8" height={legH} rx="2.4" fill="#000" opacity="0.3" />
+          </g>
+        ))}
+        <g className={moving ? "resident-type" : undefined}>
+          <g transform={drop ? `translate(0, ${drop})` : undefined}>
+            <ellipse cx={B?.longer ? 7 : 6} cy="-19" rx="11" ry="9" style={fur} />
+            <ellipse cx="-3" cy="-18" rx={B?.longer ? 18 : 16} ry="8.5" style={fur} />
+            {/* the coat's body marks, on the two masses */}
+            {spots([[2, -22.5, 2.5], [9.5, -16.5, 2.2], [-7, -14.5, 2.1], [-11, -21.5, 2.3]])}
+            {/* cream chest + belly shadow */}
+            {cream && <ellipse cx="-9" cy="-15" rx="8" ry="5" fill={cream} opacity="0.5" />}
+            {/* haunch and barrel round off as two soft masses */}
+            <ellipse cx={B?.longer ? 7 : 6} cy="-19" rx="11" ry="9" fill={vol} />
+            <ellipse cx="-3" cy="-18" rx={B?.longer ? 18 : 16} ry="8.5" fill={vol} />
+            <ellipse cx="-2" cy="-12" rx="14" ry="3.4" fill="#000" opacity="0.16" />
+            {/* the near pair joins the diagonals: front on A, rear on B */}
+            <g className={moving ? "leg-trot-a" : undefined}>
+              <rect x="-9" y={-drop - legH} width="4.8" height={legH} rx="2.4" style={fur} />
+              {B?.socks && <rect x="-9" y={-drop - 3.4} width="4.8" height="3.4" rx="1.7" fill={cream} opacity="0.95" />}
+            </g>
+            <g className={moving ? "leg-trot-b" : undefined}>
+              <rect x="10" y={-drop - legH} width="4.8" height={legH} rx="2.4" style={fur} />
+              {B?.socks && <rect x="10" y={-drop - 3.4} width="4.8" height="3.4" rx="1.7" fill={cream} opacity="0.95" />}
+            </g>
+            <DogHead x={-16} y={-26} r={7.8} asleep={false} {...headProps} />
+          </g>
         </g>
         {/* the plume: a thick curl over the back, the dog's whole read at range.
             Both strokes go in ONE swaying group so the cream highlight travels
-            with the tail instead of staying behind on the old path. */}
-        <g className="tail-sway">
-          <path d="M15 -23 q12 -2 10 -13" fill="none" style={{ stroke: "var(--tint, #c98a4b)" }} strokeWidth="5.5" strokeLinecap="round" />
-          <path d="M15 -23 q12 -2 10 -13" fill="none" stroke="#f2e7dc" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+            with the tail instead of staying behind on the old path. The other
+            breeds swap their own tails in: the shiba's tight loop, the corgi's
+            nub, the dalmatian's thin taper. */}
+        <g transform={drop ? `translate(0, ${drop})` : undefined}>
+          <g className="tail-sway">
+            {tailArt({
+              plume: "M15 -23 q12 -2 10 -13",
+              curl: "M13 -25 a4.8 4.8 0 1 1 5.6 -3.6",
+              nub: "M15 -22.5 q2.8 -0.6 3.6 -3",
+              thin: "M15 -23 q11 1 12.5 -9",
+            })}
+          </g>
         </g>
       </g>
     );
   }
   return (
     <g transform={`translate(${c.x}, ${c.y}) scale(0.9)`}>
-      <path className="tail-flick" d="M13 -4 q14 2 15 -8" fill="none" style={{ stroke: "var(--tint, #c98a4b)" }} strokeWidth="5.5" strokeLinecap="round" />
+      <VolumeDefs id={vid} />
+      <g className="tail-flick">
+        {tailArt({
+          plume: "M13 -4 q14 2 15 -8",
+          curl: "M12 -6 a4.4 4.4 0 1 1 5.4 -3.4",
+          nub: "M13 -4 q2.6 -0.4 3.4 -2.4",
+          thin: "M13 -4 q12 2 13.5 -7.5",
+        })}
+      </g>
       <g className="cat-breathe">
-        <ellipse cx="0" cy="-7" rx="21" ry="10.5" style={tinted("#c98a4b")} />
-        <ellipse cx="8" cy="-11" rx="11" ry="8" style={tinted("#c98a4b")} />
-        <ellipse cx="-6" cy="-9" rx="12" ry="5" fill="#f2e7dc" opacity="0.4" />
+        <ellipse cx="0" cy="-7" rx="21" ry="10.5" style={fur} />
+        <ellipse cx="8" cy="-11" rx="11" ry="8" style={fur} />
+        {spots([[4, -13.5, 2.4], [12, -7.5, 2.2], [-4, -8, 2]])}
+        {cream && <ellipse cx="-6" cy="-9" rx="12" ry="5" fill={cream} opacity="0.4" />}
+        <ellipse cx="0" cy="-7" rx="21" ry="10.5" fill={vol} />
+        <ellipse cx="8" cy="-11" rx="11" ry="8" fill={vol} opacity="0.7" />
         <ellipse cx="0" cy="-2.5" rx="19" ry="5" fill="#000" opacity="0.2" />
-        <DogHead x={-14} y={-12} r={8} asleep />
+        <DogHead x={-14} y={-12} r={8} asleep {...headProps} />
         {/* muzzle resting on the front paws — the pose that reads as content */}
-        <ellipse cx="-9" cy="-3.4" rx="5.4" ry="2.8" style={tinted("#c98a4b")} />
-        <ellipse cx="-9" cy="-4" rx="4.6" ry="2.2" fill="#f2e7dc" opacity="0.35" />
+        <ellipse cx="-9" cy="-3.4" rx="5.4" ry="2.8" style={B?.socks ? { fill: cream } : fur} />
+        <ellipse cx="-9" cy="-4" rx="4.6" ry="2.2" fill={cream || "#fbf8f2"} opacity="0.35" />
       </g>
     </g>
   );
 }
 
-function Bunny({ awake = false, moving = false }) {
+// Bunny coats — smaller set than the cat's, same contract: "cloud" is the
+// classic lilac-grey and stays tintable; the named coats paint fixed fur.
+const BUNNY_COATS = {
+  snow: { fur: "#f7f2ea", earInner: 0.65 },
+  cocoa: { fur: "#a9805d", belly: "#e9dcc9" },
+};
+
+function Bunny({ awake = false, moving = false, look }) {
   const c = project(0.35, 0.3);
+  const B = BUNNY_COATS[look] || null;
+  const fur = B ? { fill: B.fur } : tinted("#d9d2e4");
+  const vid = useId();
+  const vol = sphereFill(vid);
   // `twitch` puts the flick on an INNER group: the outer <g> carries the
   // rotate attribute, and an animation sharing that element would override it
   // (the standard SVG trap). An upright ear pivots at its base, so the stock
@@ -4819,8 +4634,8 @@ function Bunny({ awake = false, moving = false }) {
   const ear = (x, tilt, dark, twitch) => (
     <g transform={`rotate(${tilt} ${x} ${awake ? -20 : -9})`}>
       <g className={twitch ? "ear-twitch" : undefined}>
-        <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={tinted("#d9d2e4")} />
-        <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : 0.5} />
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} style={fur} />
+        <ellipse cx={x} cy={awake ? -27 : -12} rx="1.5" ry={awake ? 7 : 4.2} fill="#e8a3a8" opacity={dark ? 0.25 : B?.earInner || 0.5} />
         {dark && <ellipse cx={x} cy={awake ? -27 : -12} rx="2.9" ry={awake ? 9.5 : 6} fill="#000" opacity="0.18" />}
       </g>
     </g>
@@ -4830,18 +4645,22 @@ function Bunny({ awake = false, moving = false }) {
     // The bounce is a hop, so it only plays while actually moving.
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
+        <VolumeDefs id={vid} />
         {ear(-4.5, -14, true)}
         {ear(3.5, 12, false, true)}
         <g className={moving ? "resident-type" : undefined}>
-          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={tinted("#d9d2e4")} />
-          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={tinted("#d9d2e4")} />
+          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" style={fur} />
+          {B?.belly && <ellipse cx="0" cy="-6" rx="5.2" ry="4.6" fill={B.belly} opacity="0.85" />}
+          <ellipse cx="0" cy="-8" rx="9.5" ry="8.5" fill={vol} />
+          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" style={fur} />
+          <ellipse cx="-0.5" cy="-16" rx="7" ry="6.2" fill={vol} />
           <ellipse cx="-2" cy="-18" rx="4" ry="2.4" fill="#fff" opacity="0.2" />
           <circle cx="-3.4" cy="-16.5" r="1.15" fill="#2b2350" />
           <circle cx="2.6" cy="-16.8" r="1.15" fill="#2b2350" />
           <ellipse cx="-0.4" cy="-13.8" rx="1.1" ry="0.8" fill="#e8a3a8" />
           {/* forepaws tucked to the chest */}
-          <ellipse cx="-3.5" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
-          <ellipse cx="3" cy="-6" rx="2.6" ry="3.4" style={tinted("#d9d2e4")} />
+          <ellipse cx="-3.5" cy="-6" rx="2.6" ry="3.4" style={fur} />
+          <ellipse cx="3" cy="-6" rx="2.6" ry="3.4" style={fur} />
         </g>
         <ellipse cx="0" cy="-1" rx="10" ry="3.4" fill="#000" opacity="0.16" />
         <circle cx="9" cy="-6" r="3.4" fill="#f7e9e2" opacity="0.85" />
@@ -4851,11 +4670,14 @@ function Bunny({ awake = false, moving = false }) {
   // Loafed: legs folded away, ears laid back along the spine.
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
+      <VolumeDefs id={vid} />
       {ear(6, 62, true)}
       {ear(7.5, 78, false)}
       <g className="cat-breathe">
-        <ellipse cx="0" cy="-6" rx="13" ry="7.5" style={tinted("#d9d2e4")} />
-        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" style={tinted("#d9d2e4")} />
+        <ellipse cx="0" cy="-6" rx="13" ry="7.5" style={fur} />
+        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" style={fur} />
+        <ellipse cx="0" cy="-6" rx="13" ry="7.5" fill={vol} />
+        <ellipse cx="-8" cy="-8.5" rx="6.5" ry="5.6" fill={vol} opacity="0.7" />
         <ellipse cx="-3" cy="-9.5" rx="7" ry="3" fill="#fff" opacity="0.18" />
         <ellipse cx="0" cy="-2" rx="12" ry="3.6" fill="#000" opacity="0.18" />
         <path d="M-11.4 -8.8 q1.4 1.3 2.8 0" fill="none" stroke="#2b2350" strokeWidth="1" strokeLinecap="round" opacity="0.8" />

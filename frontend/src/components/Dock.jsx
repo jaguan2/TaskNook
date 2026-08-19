@@ -8,7 +8,6 @@ import {
   Menu,
   Settings,
   Sofa,
-  TrendingUp,
   UserRound,
   Users,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { readStored, writeStored } from "../lib/storage";
 const ITEMS = [
   { key: "tasks", Icon: ClipboardList, label: "Tasks" },
   { key: "calendar", Icon: CalendarDays, label: "Calendar" },
-  { key: "progress", Icon: TrendingUp, label: "Progress" },
   { key: "friends", Icon: Users, label: "Friends" },
   { key: "music", Icon: Headphones, label: "Sounds" },
   { key: "weather", Icon: CloudSun, label: "Weather" },

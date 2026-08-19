@@ -16,15 +16,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (
     AVATAR_MAX,
+    CHAT_TITLE_MAX,
+    Conversation,
+    ConversationMember,
     DISPLAY_NAME_MAX,
     FocusSession,
     GROUP_NAME_MAX,
+    MESSAGE_MAX,
+    Message,
     TASK_NAME_MAX,
     TASK_NOTES_MAX,
     Task,
     Token,
     USERNAME_MAX,
     User,
+    _utc_iso,
     db,
     utcnow,
 )
@@ -289,6 +295,23 @@ def clean_int(value, lo, hi, default=None):
     return lo if value < lo else hi if value > hi else value
 
 
+def clean_id(value):
+    """A row id, or None for anything that isn't one.
+
+    Deliberately NOT `clean_int`, which CLAMPS into range: that is right for a
+    duration (a huge number carries a clear intent — "as long as you like") and
+    actively wrong for an identifier, where `0` would come back as `1` and
+    quietly address whoever user #1 happens to be. Found by the chat tests
+    doing exactly that: `memberIds: [0]` opened a thread with a real friend.
+
+    Strict about type, too — ids come from our own client as JSON numbers, so
+    there is no reason to accept "3" and every reason not to guess.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 1 <= value <= 2**31 - 1 else None
+
+
 def clean_str(v, limit):
     """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
     return ("" if v is None else str(v)).strip()[:limit]
@@ -320,6 +343,22 @@ ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
 # both-languages contract as ISO_ENVS above. Absent means "the floor's
 # default"; the frontend stores it only when it actually overrides.
 ISO_WALLS = ("full", "low", "none")
+
+# Pet looks — coat patterns (cats) and breeds (dogs); mirrors CAT_COATS +
+# DOG_BREEDS in lib/isoRoom.js, one flat whitelist because which species a
+# look belongs to is catalog (frontend) knowledge — this only bounds values,
+# same stance as rot. Defaults ("ink", "golden") never reach the wire, but
+# they're accepted anyway so an older client's write can't 400.
+PET_LOOKS = (
+    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese", "tortie",
+    "golden", "shiba", "corgi", "dalmatian", "husky",
+    "cloud", "snow", "cocoa",
+)
+
+# Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same
+# both-languages contract). "mellow" is the default and stored implicitly,
+# but a client sending it explicitly is legal.
+PET_TEMPERS = ("mellow", "curious", "sleepy")
 
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
@@ -737,6 +776,27 @@ def register_routes(app):
                     return None, False
                 if rot:
                     entry["rot"] = rot
+            # Pet identity: a NAME and a TEMPER ride the placement (pets ARE
+            # placements). Same bounded-not-knowing stance as rot: which items
+            # are pets is catalog (frontend) knowledge, so this only bounds the
+            # values — the client's validateIsoLayout strips them from
+            # non-pets on read. PET_TEMPERS mirrors lib/isoRoom.js (the
+            # both-languages contract, like ISO_ENVS).
+            name = p.get("name")
+            if name is not None:
+                if not (isinstance(name, str) and 0 < len(name.strip()) <= 16):
+                    return None, False
+                entry["name"] = name.strip()
+            temper = p.get("temper")
+            if temper is not None:
+                if temper not in PET_TEMPERS:
+                    return None, False
+                entry["temper"] = temper
+            look = p.get("look")
+            if look is not None:
+                if look not in PET_LOOKS:
+                    return None, False
+                entry["look"] = look
             clean.append(entry)
         return clean, True
 
@@ -1045,6 +1105,251 @@ def register_routes(app):
             if friend.friends.filter_by(id=user.id).first():
                 friend.friends.remove(user)
             db.session.commit()
+        return jsonify({"ok": True})
+
+    # ---- chat ----------------------------------------------------------- #
+    #
+    # Threads with the seeded bots. The same simulated-social contract as
+    # visiting: the server STORES messages and enforces membership, while the
+    # replies themselves are written by the client (lib/chat.js owns the
+    # vocabulary, the way lib/visiting.js owns the bots' homes). See
+    # `post_message` for the seam and what a multi-user future must change.
+
+    def _membership(user, chat_id):
+        """The viewer's membership row, or None if it isn't their thread."""
+        return ConversationMember.query.filter_by(
+            conversation_id=chat_id, user_id=user.id
+        ).first()
+
+    def _chat_payload(chat, viewer_id, members_by_chat, last_by_chat, unread_by_chat):
+        return {
+            "id": chat.id,
+            "title": chat.title,
+            "isGroup": chat.is_group,
+            "members": [m.public_dict() for m in members_by_chat.get(chat.id, [])],
+            "lastMessage": (
+                last_by_chat[chat.id].to_dict() if chat.id in last_by_chat else None
+            ),
+            "unread": unread_by_chat.get(chat.id, 0),
+            "createdAt": _utc_iso(chat.created_at),
+        }
+
+    @app.get("/api/chats")
+    @require_auth
+    def list_chats(user):
+        """Every thread the viewer is in, newest activity first.
+
+        Three grouped queries rather than per-thread lookups — the same lesson
+        `/api/friends` already learned, and a chat list is the screen most
+        likely to grow.
+        """
+        rows = (
+            db.session.query(Conversation, ConversationMember.last_read_at)
+            .join(ConversationMember, ConversationMember.conversation_id == Conversation.id)
+            .filter(ConversationMember.user_id == user.id)
+            .all()
+        )
+        chats = [row[0] for row in rows]
+        read_at = {row[0].id: row[1] for row in rows}
+        ids = [c.id for c in chats]
+
+        members_by_chat = {}
+        if ids:
+            for chat_id, member in (
+                db.session.query(ConversationMember.conversation_id, User)
+                .join(User, User.id == ConversationMember.user_id)
+                .filter(ConversationMember.conversation_id.in_(ids))
+                .all()
+            ):
+                members_by_chat.setdefault(chat_id, []).append(member)
+
+        last_by_chat = {}
+        unread_by_chat = {}
+        if ids:
+            for msg in (
+                Message.query.filter(Message.conversation_id.in_(ids))
+                .order_by(Message.created_at, Message.id)
+                .all()
+            ):
+                last_by_chat[msg.conversation_id] = msg
+                seen = read_at.get(msg.conversation_id)
+                # Your own lines are never unread, and a thread you have never
+                # opened counts everything but yourself.
+                if msg.sender_id != user.id and (seen is None or msg.created_at > seen):
+                    unread_by_chat[msg.conversation_id] = (
+                        unread_by_chat.get(msg.conversation_id, 0) + 1
+                    )
+
+        payload = [
+            _chat_payload(c, user.id, members_by_chat, last_by_chat, unread_by_chat)
+            for c in chats
+        ]
+        payload.sort(
+            key=lambda c: (c["lastMessage"] or {}).get("createdAt") or c["createdAt"] or "",
+            reverse=True,
+        )
+        return jsonify(payload)
+
+    @app.post("/api/chats")
+    @require_auth
+    def create_chat(user):
+        """Open a thread with friends.
+
+        A one-to-one is IDEMPOTENT — asking twice returns the thread you
+        already have rather than a second empty copy of it, because "message
+        Luna" is a place, not an event. Groups are not: two groups with the
+        same people are a thing people genuinely want.
+        """
+        data = json_body()
+        raw_ids = data.get("memberIds")
+        if not isinstance(raw_ids, list):
+            return jsonify({"error": "memberIds must be a list"}), 400
+        # Only friends, only once each, never yourself twice.
+        friend_ids = {f.id for f in user.friends}
+        wanted = []
+        for value in raw_ids[:50]:
+            member_id = clean_id(value)
+            if member_id is None or member_id == user.id or member_id in wanted:
+                continue
+            if member_id not in friend_ids:
+                return jsonify({"error": "You can only chat with friends"}), 400
+            wanted.append(member_id)
+        if not wanted:
+            return jsonify({"error": "Pick someone to talk to"}), 400
+
+        is_group = len(wanted) > 1 or bool(data.get("isGroup"))
+        title = clean_str(data.get("title"), CHAT_TITLE_MAX) or None
+
+        if not is_group:
+            # Find an existing one-to-one with exactly these two people.
+            other = wanted[0]
+            mine = db.session.query(ConversationMember.conversation_id).filter_by(
+                user_id=user.id
+            )
+            theirs = db.session.query(ConversationMember.conversation_id).filter_by(
+                user_id=other
+            )
+            existing = (
+                Conversation.query.filter(
+                    Conversation.is_group.is_(False),
+                    Conversation.id.in_(mine),
+                    Conversation.id.in_(theirs),
+                )
+                .order_by(Conversation.id)
+                .first()
+            )
+            if existing:
+                return jsonify(_one_chat(existing, user)), 200
+
+        chat = Conversation(title=title if is_group else None, is_group=is_group)
+        db.session.add(chat)
+        db.session.flush()
+        for member_id in [user.id, *wanted]:
+            db.session.add(
+                ConversationMember(conversation_id=chat.id, user_id=member_id)
+            )
+        db.session.commit()
+        return jsonify(_one_chat(chat, user)), 201
+
+    def _one_chat(chat, viewer):
+        members = [m.user for m in chat.members]
+        last = chat.messages.order_by(Message.created_at.desc(), Message.id.desc()).first()
+        return {
+            "id": chat.id,
+            "title": chat.title,
+            "isGroup": chat.is_group,
+            "members": [m.public_dict() for m in members],
+            "lastMessage": last.to_dict() if last else None,
+            "unread": 0,
+            "createdAt": _utc_iso(chat.created_at),
+        }
+
+    @app.get("/api/chats/<int:chat_id>/messages")
+    @require_auth
+    def list_messages(user, chat_id):
+        if not _membership(user, chat_id):
+            return jsonify({"error": "Not found"}), 404
+        limit = clean_int(request.args.get("limit"), 1, 500, 200)
+        rows = (
+            Message.query.filter_by(conversation_id=chat_id)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return jsonify([m.to_dict() for m in reversed(rows)])
+
+    @app.post("/api/chats/<int:chat_id>/messages")
+    @require_auth
+    def post_message(user, chat_id):
+        """Add a line to a thread.
+
+        `senderId` may name ANY member, not just the viewer — that is how the
+        bots reply, since their words are the frontend's to choose (lib/chat.js,
+        the same division of labour as lib/visiting.js). It is safe here for
+        exactly the reason the visiting gate is: every member is a row in the
+        caller's own local database, and there is no second machine.
+
+        THE CONTRACT FOR A MULTI-USER FUTURE: this field must go before this
+        endpoint is served beyond localhost. A client that can pick its own
+        sender can forge messages from anyone it shares a thread with.
+        """
+        if not _membership(user, chat_id):
+            return jsonify({"error": "Not found"}), 404
+        data = json_body()
+        body = clean_str(data.get("body"), MESSAGE_MAX)
+        if not body:
+            return jsonify({"error": "Message cannot be empty"}), 400
+
+        sender_id = user.id
+        raw_sender = data.get("senderId")
+        if raw_sender is not None:
+            candidate = clean_id(raw_sender)
+            if candidate is None or not _is_member(chat_id, candidate):
+                return jsonify({"error": "Sender is not in this chat"}), 400
+            sender_id = candidate
+
+        msg = Message(conversation_id=chat_id, sender_id=sender_id, body=body)
+        db.session.add(msg)
+        # Sending is reading: your own line must not come back as unread, and
+        # you were plainly looking at the thread when you wrote it.
+        if sender_id == user.id:
+            member = _membership(user, chat_id)
+            member.last_read_at = utcnow().replace(tzinfo=None)
+        db.session.commit()
+        return jsonify(msg.to_dict()), 201
+
+    def _is_member(chat_id, user_id):
+        return (
+            ConversationMember.query.filter_by(
+                conversation_id=chat_id, user_id=user_id
+            ).first()
+            is not None
+        )
+
+    @app.post("/api/chats/<int:chat_id>/read")
+    @require_auth
+    def mark_chat_read(user, chat_id):
+        member = _membership(user, chat_id)
+        if not member:
+            return jsonify({"error": "Not found"}), 404
+        member.last_read_at = utcnow().replace(tzinfo=None)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.delete("/api/chats/<int:chat_id>")
+    @require_auth
+    def delete_chat(user, chat_id):
+        """Leave and delete a thread.
+
+        Single-user app: the thread is only ever in your database, so leaving
+        it and deleting it are the same act. The cascade takes the messages
+        and the other memberships with it.
+        """
+        if not _membership(user, chat_id):
+            return jsonify({"error": "Not found"}), 404
+        chat = db.session.get(Conversation, chat_id)
+        db.session.delete(chat)
+        db.session.commit()
         return jsonify({"ok": True})
 
 

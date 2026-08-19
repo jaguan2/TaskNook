@@ -2,8 +2,12 @@
 
 How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
-is the authority on the *models* — the 131 sprites in
-`frontend/src/components/IsoItems.jsx`.
+is the authority on the *models* — the furniture sprites in
+`frontend/src/components/IsoItems.jsx` and the character package in
+`frontend/src/components/character/` (body rig, hair and garment REGISTRIES,
+pose assembly — split out because the character is the fastest-growing
+artwork, and a style there is one self-contained registry entry rather than
+switch cases).
 
 These are rules, not preferences. Most were paid for: every "learned from"
 note below is a sprite that shipped wrong and had to be redrawn.
@@ -114,12 +118,49 @@ Two rules that come out of it:
   way), because a fixed darker hue only matches the one colour it was tuned
   against. The near arm gets a white catch so it doesn't vanish into a torso
   it shares a colour with.
+- **Limbs are SEGMENTS meeting at joints** (owner call, 2026-08-16 — this
+  revises the old "a bend is invisible noise" line). The way Roblox split R6
+  limbs into R15 parts: an arm is upper + forearm meeting at an elbow, a
+  standing leg is thigh + shin meeting at a knee, and the joint reads from
+  the SEAM — the width step and the angle change — not from anatomical
+  detail. Rest poses are Sims-soft: the elbow bows slightly out and returns
+  to the hand, the knee sits a hair off the hip-ankle line; a limb is never
+  a straight column. **Each limb is ONE CONTINUOUS POLYLINE bent at the
+  joint, washed ONCE** — never per-segment capsules with per-segment washes:
+  where round caps overlap, translucent layers double into lens-shaped blobs
+  and the limb reads as sausage links (v2 shipped exactly that; the owner's
+  in-app screenshot caught it). Joint creases go on the INSIDE of the bend
+  and faint (centred, they read as stains). Each limb stays ONE `<g>` so the
+  walk/gesture/held wrappers rotate it whole; a short sleeve ends AT the
+  elbow, which is what makes bare forearms read. **Parts NEST, and one light
+  runs through them** (owner: "it should look like one cohesive piece"): a
+  limb's root is buried INSIDE the part it hangs from — the shoulder starts
+  within the torso outline, the hip under the hem — with a faint occlusion
+  crease where they meet, and every limb carries the same outer-light /
+  inner-shade edge treatment. A capsule started beside the torso leaves a
+  step at the armpit and reads as a part from a different kit. Hair
+  masses carry the same three-tone treatment as every box (`volumeFor` in
+  `character/hair.jsx`): lit upper curve, shadowed underside — one flat
+  colour is a decal whatever its outline.
 
-**Hair is THREE layers, and the split is load-bearing.** `HairFront` may cover
-the crown and stop at the temples — **nothing in it descends past the eye line**
-(`headY + 2`). `HairBehind` is crown volume, drawn before the head circle but
-inside the gesture wrappers so it turns with a head turn. `HairLength` is
-everything that falls past the jaw, drawn **before the torso**.
+**Hair is built with the WIG METHOD** (researched 2026-08-16; the previous
+cap-plus-temple-tabs construction was the textbook amateur tell — assembled
+pieces instead of one mass). A style is one `HAIR_REGISTRY` entry
+(`character/hair.jsx`) drawn with the kit: **one inflated closed silhouette**
+(`wigPath` — a dome hugging the skull low and growing toward the crown,
+carved into 3–6 VARIED round teeth; even teeth read as a comb; a
+negative-depth tooth carves the curtains' parting notch), **back masses in
+the SHADOW TONE** (`farColor` — the cheapest depth move there is), and an
+interior budget of at most three marks (the `brow` shadow, one crown `shine`,
+the odd anchored line). Same-tone shapes may compose freely — a seam only
+exists where tones meet. The kit THROWS if a style's clumps don't close its
+own outline. Layers: `front` (over the head, inside the gesture wrappers),
+`length` (behind the torso), `back` (replaces everything when the figure
+turns away — see the `away` prop). Garments mirror the scheme in
+`GARMENT_REGISTRY`: outer layers draw a `shell` BIGGER than the body with an
+under-shadow at the hem (`OUTER_BULK`), a `collar` slot renders after the
+body's own neck, and a `back` slot serves the turned-away view (the hoodie's
+hood hangs down it). Registry keys are pinned against the catalog both ways.
 
 **Learned from:** every style once put its length in `HairFront`, which paints
 after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —
@@ -191,7 +232,8 @@ hundred flat boxes looks *worse* than uniform.
 - Main material: `var(--tint, <fallback>)` via the `tinted()` helper.
 - **Shading is translucent BLACK; highlights are translucent WHITE.** Never a
   fixed darker hue — the user can tint almost anything, and a hard-coded shade
-  only works for the colour you happened to pick.
+  only works for the colour you happened to pick. (The CHARACTER refines this
+  pair to cool-dark/warm-light — see §10; furniture keeps plain #000/#fff.)
 - Items with no sensible single material opt out with `tintable: false`
   (6 of 131 — screens, the Kenney PNG renders, multi-coloured things like a
   stack of books).
@@ -273,3 +315,116 @@ thing is recognisable.
 - [ ] Reviewed on a contact sheet, then in a room
 - [ ] **Not** added to a preset room by default — see `docs/DESIGN.md`; presets
       are deliberately kept clean at ~15 pieces and are not a shop window
+
+## 9. The profile view (2026-08-17)
+
+Personas draw THREE facings — front, profile, back — plus mirrors; animals
+draw profile (their walking pose), front and back. Rules the profile round
+established:
+
+- **A profile is its own drawing, never a squeezed front.** Torso narrows to
+  ~0.6× and is an ASYMMETRIC S, not the symmetric `torsoGeom` slab (a slab
+  read as a plank — owner, 2026-08-17): the chest carries forward above the
+  waist, the belly tucks in below it, the seat sits back at the hem — each
+  deviation under a px. The head unit leans 0.7px forward with the chest,
+  or it reads as a slump. Both legs stand near the centre line (near a
+  half-step ahead of far); knees bend FORWARD; shoes point where the body
+  faces (long toe, stub heel); ONE arm shows, hanging at the centre line
+  with the elbow bowed back (`Arm` with a tiny `sh` does this for free) and
+  casting a soft shadow onto the torso behind it — without one the sleeve
+  reads as a stripe painted down the body; the face is `SideFace` — the
+  nose bump breaking the skull's front edge is the single mark that says
+  "side view".
+- **Profile hair is the wig method in profile space.** `sideWigPath` walks
+  fringe tip → over the inflated crown → down the BACK of the skull → carved
+  forward along the nape → up the cheek. Styles override `side` (and
+  `sideLength` for masses hanging behind the shoulders — never reuse the
+  symmetric front `length`, half of it would cross the face). High-rim cuts
+  (two block, undercut) need a LEVEL bottom edge — the generic's cheek dip
+  painted a blindfold across the eyes.
+- **Bottoms are `PANTS_FORM` entries** (body.jsx): geometry flags
+  (shorts/bare/slim/wide/straight) plus marks (crease, turn-up, cuffBand).
+  Skirt kinds render bare legs; the flare is the ASSEMBLY's, drawn at hip
+  level under the torso.
+- **Coats are the same registry with the colours rewired**: shell in
+  `coatColor`, opening shows the top's colour. A coat's `side` must run its
+  opening sliver to the shell's own front edge, or it reads as a stripe.
+- **Shoes are a slot** (`FrontShoe`/`SideShoe`, switched on `SHOES` kinds):
+  the classic chunky oval IS the sneaker; each other kind is an outline
+  change (boot shaft, heel spike + lifted arch) or one mark (loafer band,
+  Mary Jane strap). Boots draw after the trouser, so legs tuck in for free.
+- **Facing comes from the screen direction of a glide** (IsoRoom's roam
+  tick): vertical-dominant → front/back, otherwise profile. In a 2:1 room
+  every single-axis grid walk is horizontal-dominant, so profiles carry most
+  of the wandering — which is exactly why they exist.
+
+## 10. The wardrobe's light (2026-08-17)
+
+Research-backed doctrine (cel-shading + fashion-flat practice, adapted to
+user-picked colours). The torso was the only unshaded surface on the figure,
+which is most of why clothes read flatter than the body wearing them.
+
+- **ONE light: above, slightly in front, from screen RIGHT.** Every form
+  shadow and highlight on the figure answers to it — hair sheen, torso
+  crescent, both arms (lit on their screen-right edge, NOT their outer
+  edges), both legs. A mark that disagrees reads as a part from another kit.
+- **Three paints, one module** (`character/body.jsx`): `SHADE` (#221638,
+  cool violet-dark) for FORM shadow — translucent black scales a colour
+  toward grey, a cool dark keeps it alive with less value drop; `GLINT`
+  (#fff3e0, warm off-white) for highlights — pure white reads as chalk;
+  neutral `#000` stays for CREVICES (under a hem, inside a pocket mouth,
+  armpits — occlusion is airless, not cool). All translucent, so any picker
+  colour survives.
+- **The assembly casts the light, the registry declares the fabric.** The
+  form-shadow crescent, lit shoulder, chin shadow and hem-onto-bottoms band
+  are drawn ONCE in `character/index.jsx`, over whatever is worn — a new
+  garment models correctly with zero shading code. A registry entry declares
+  `finish: {shade, glint}` (knit is matte, nylon sheens — material is an
+  axis separate from colour), `cuffs: true` (ribbed wrist), and
+  `drape: true` (cloth hangs past the hem → the hem band stands down:
+  dress, cardigan).
+- **Luminance-adaptive strengths** (`toneFor` in lib/tint.js): on near-black
+  fills the shadow dies, so the highlight carries the form; on cream, the
+  reverse. Multiply every form mark by the matching factor.
+- **Occlusion at EVERY overlap** — under the chin, under the hood, under the
+  top's hem onto the trousers, a coat's edge onto the shirt, the sleeve hem
+  at the elbow. These 1–2px dark bands are the highest-value marks per pixel
+  and read at any scale.
+- **Folds: two per figure, at real gather points only** (a skirt's waist),
+  drawn as tapering SHADOW WEDGES, never stroked lines, never symmetric.
+  Everything else stays smooth — a taut plane at 57px has no folds.
+- **Fixed anchors the tint never touches**: shoe soles, `STITCH` ochre
+  topstitch (denim's one defining mark), `BRASS` dungaree buckles. A small
+  fixed material is what makes a recolour look designed.
+- **Guards**: `character/palette.test.jsx` lints every garment's paints
+  against the allowed set (colour slots + anchors + overlays) — mutation
+  verified; the art sheet renders tops and coats in three colourways
+  (mid/dark/light), because single-colourway review is exactly how the
+  first too-faint mark set shipped.
+
+## 11. Soft volume (2026-08-19)
+
+The "actual modelling" pass (decision record: docs/MODELING_ROADMAP.md).
+`character/volume.jsx` defines two reusable gradients — a SPHERE (off-centre
+radial: highlight biased up toward screen right, cool core shadow at the
+lower-left rim) and a CYLINDER (horizontal linear: shaded left edge, lit band
+just inside the right edge, easing off at the very edge — the ease is what
+separates a cylinder from a box). They draw UNDER the hard cel marks: on the
+resident's head and torso in every view, and on every pet mass (`vol` prop
+on CatFace/DogHead, overlay ellipses on the body masses).
+
+Rules, each load-bearing:
+
+- **Translucent neutral stops only** (GLINT/SHADE with opacity, never a
+  solid mid-tone) — the same recolour bargain as every crescent.
+- **Subtle by rule.** The furniture is deliberately flat three-tone; a
+  figure shaded much softer than its sofa reads as pasted from another kit.
+  Gradient + crescent together model; either alone fails differently.
+- **Per-instance ids** via useId — SVG ids are document-global and one room
+  renders many bodies (the print-clipPath lesson).
+- **Marks paint under the volume**, so stripes and patches curve with the
+  body instead of sitting on it; crisp features (eyes, nose, whiskers) stay
+  ON TOP.
+- **Never SVG filters** (feGaussianBlur/feDropShadow): they force
+  filter-region re-rasterization every animation frame — gradients are free
+  GPU paint servers, filters are the CPU bill the memo'd scene avoids.

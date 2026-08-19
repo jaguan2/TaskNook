@@ -15,7 +15,7 @@
  * Everything here is a pure function so it can be tested in the fast `node`
  * environment; nothing touches the DOM, the store, or `localStorage`.
  */
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, TORSO_RANGE, LEG_H, TORSO_H } from "./body";
 
 // --------------------------------------------------------------------------- //
 // MBTI
@@ -162,6 +162,215 @@ export const HAIR_STYLES = [
   { key: "bun", label: "Bun" },
   { key: "curly", label: "Curly" },
   { key: "braids", label: "Braids" },
+  // Added after rendering all nine side by side: `buzz` and `short` were the
+  // same silhouette at 57px, and nothing in the set was shaved-sided, coiled,
+  // or two-tailed. Same rule as the wardrobe — a style earns a slot by changing
+  // the OUTLINE, not by having a different name.
+  { key: "undercut", label: "Undercut" },
+  { key: "afro", label: "Afro" },
+  { key: "pigtails", label: "Pigtails" },
+  // Cuts people actually ask for by name. Both clear the outline rule on their
+  // own terms: the two block has a STEP in its silhouette (long top over
+  // cropped sides), the wolf carries its mass above the crown and breaks up at
+  // the nape — neither is a smooth cap, which is what the rest of the short
+  // end of the set already had covered.
+  { key: "twoblock", label: "Two block" },
+  { key: "wolf", label: "Wolf cut" },
+  // The registry round (see components/character/hair.jsx — a style is one
+  // self-contained entry now). Same bar as ever, outline first: curtains =
+  // the centre-part notch; mullet = a square nape curtain under a clean cap;
+  // space buns = two crown buns; locs = thick clean ropes past the jaw;
+  // high pony = the tail whipping UP off the crown.
+  { key: "curtains", label: "Curtains" },
+  { key: "mullet", label: "Mullet" },
+  { key: "spacebuns", label: "Space buns" },
+  { key: "locs", label: "Locs" },
+  { key: "highpony", label: "High pony" },
+];
+
+/**
+ * Hats — the first ACCESSORY slot, orthogonal to hair and garments (the
+ * Roblox lesson: accessories are where variety gets cheap). Artwork lives in
+ * components/character/hats.jsx (HAT_REGISTRY, same both-ways key contract
+ * as hair). "none" is a real catalog entry, not an absence — the picker
+ * needs a button for bare-headed.
+ */
+export const HATS = [
+  { key: "none", label: "None" },
+  { key: "beanie", label: "Beanie" },
+  { key: "cap", label: "Cap" },
+  { key: "bucket", label: "Bucket hat" },
+  { key: "beret", label: "Beret" },
+  { key: "straw", label: "Sun hat" },
+  // The ushanka: ear flaps past the jaw — the one hat that changes the
+  // head-to-shoulder outline rather than just the crown.
+  { key: "trapper", label: "Trapper hat" },
+];
+
+/**
+ * Scarves — the second accessory slot (artwork in character/scarves.jsx,
+ * same both-ways key contract as hats). At the neck it reads in every facing
+ * and composes with every top, coat and hat — one slot that multiplies
+ * against the whole wardrobe. Unlike hats a scarf carries its OWN colour:
+ * it's the accent-colour accessory, the same argument that got shoes theirs.
+ */
+export const SCARVES = [
+  { key: "none", label: "None" },
+  { key: "wrapped", label: "Wrapped" },
+  { key: "loop", label: "Loop" },
+  { key: "long", label: "Long" },
+];
+
+export const SCARF_COLORS = [
+  { key: "cherry", hex: "#8e3a3f" },
+  { key: "mustard", hex: "#c9a24b" },
+  { key: "moss", hex: "#4e6b4a" },
+  { key: "denim", hex: "#3f5a7a" },
+  { key: "cream", hex: "#e9dcc9" },
+  { key: "plum", hex: "#6b4a6e" },
+];
+
+/**
+ * The wardrobe. `outfit` was a lone hex for years, so every resident in the app
+ * wore the same sweater in a different colour — nine hairstyles against one
+ * garment.
+ *
+ * THE RULE FOR ADDING ONE: a garment earns a slot only if it changes the
+ * OUTLINE or the TWO-TONE SPLIT. The figure is 57px tall; a recoloured t-shirt
+ * and a recoloured sweater are the same sprite, so "more options" that differ
+ * only in name is catalogue padding you can't see. Each of these changes the
+ * silhouette (a hood, a flared hem, bare forearms) or splits the torso into two
+ * colours (an open jacket, straps over a shirt).
+ *
+ * `sleeves: "short"` bares the forearm, which the arm drawing reads directly.
+ * `inner` marks the garments that show a second colour underneath.
+ */
+export const OUTFITS = [
+  { key: "sweater", label: "Sweater" },
+  { key: "tee", label: "T-shirt", sleeves: "short" },
+  // Button-up: collar wings + placket + buttons — the neck-and-centre marks
+  // are what separate a shirt from a tee at this size.
+  { key: "shirt", label: "Button-up" },
+  { key: "overalls", label: "Overalls", inner: true },
+  { key: "dress", label: "Dress", sleeves: "short" },
+  // Cardigan/turtleneck notes live with their entries below and in COATS.
+  // Turtleneck = the collar swallows the neck (the one garment that changes
+  // the NECK line, via the registry's `collar` slot).
+  { key: "turtleneck", label: "Turtleneck" },
+  // Sweater vest: knit over the shirt, and the first top whose SLEEVES belong
+  // to the layer underneath — `sleeves: "inner"` paints the arms in the inner
+  // colour, a torso-vs-arms split no other garment has.
+  { key: "vest", label: "Sweater vest", sleeves: "inner", inner: true },
+];
+
+/**
+ * The OUTER layer — a real second slot, not more entries in one list (owner
+ * call, 2026-08-17: "change clothing into inner and outer shirts"). A coat is
+ * WORN OVER whatever top you picked, with its own colour: hoodie over a tee,
+ * cardigan over a dress. The one-slot era's outer garments migrate in
+ * `validateCharacter` — see the legacy note there. "none" is a real catalog
+ * entry: the picker needs a button for shirtsleeves.
+ *
+ * Every coat draws its shell one step proud of the torso and thickens the
+ * sleeves to match — layers have thickness, or they read as a print. The
+ * open ones (jacket's parallel panel, cardigan's V) show the TOP through the
+ * opening, which is what makes two slots read as two garments.
+ */
+export const COATS = [
+  { key: "none", label: "None" },
+  { key: "hoodie", label: "Hoodie" },
+  { key: "jacket", label: "Jacket" },
+  { key: "cardigan", label: "Cardigan" },
+  { key: "puffer", label: "Puffer" },
+  // Varsity: the coat whose SLEEVES are the second colour — the classic wool
+  // body / leather arms split, via the same `sleeves: "inner"` wiring as the
+  // vest. Ribbed trims in the sleeve colour tie the two halves together.
+  { key: "varsity", label: "Varsity", sleeves: "inner" },
+  // Raincoat: the LONGEST layer in the set — its shell drops straight past
+  // the hem to mid-thigh, the one coat that changes where the legs start.
+  { key: "raincoat", label: "Raincoat" },
+  // Robe: the raincoat's drop AND an open front — the inner column runs from
+  // collar into the skirt, a full-length two-tone split. Peak cozy.
+  { key: "robe", label: "Robe" },
+];
+
+/**
+ * Bottom STYLES (owner call, same day: "various pants options… dress pants,
+ * khaki, shorts, skirts, jorts"). Same slot rule as everything else — each
+ * earns its place with an outline change or a distinct MARK the leg drawing
+ * renders (a crease, a turn-up, an ankle cuff): shorts and jorts bare the
+ * shin, the wide leg drops as a straight column, joggers taper to an elastic
+ * cuff, skirts replace the trouser legs with bare legs under a flare.
+ * Khakis are trousers in a khaki COLOUR — that's what TROUSER_COLORS is for.
+ * With seven tops, seven coats and nine bottoms the wardrobe is 441
+ * silhouette combinations before a single colour is picked.
+ */
+export const PANTS = [
+  { key: "trousers", label: "Trousers" },
+  { key: "dress", label: "Dress pants" },
+  { key: "jeans", label: "Jeans" },
+  { key: "joggers", label: "Joggers" },
+  { key: "wide", label: "Wide leg" },
+  { key: "shorts", label: "Shorts" },
+  { key: "jorts", label: "Jorts" },
+  { key: "skirt", label: "Skirt" },
+  { key: "pleats", label: "Pleated skirt" },
+  // The maxi drops the cone to the ANKLE — the whole lower half becomes one
+  // cloth mass with only shoes peeking, the biggest lower-body outline
+  // change since the skirt itself.
+  { key: "maxi", label: "Maxi skirt" },
+];
+
+/**
+ * Shoes (owner call, 2026-08-17: "right now it kind of just looks like two
+ * circles"). The classic chunky shoe IS the sneaker; the others each change
+ * the outline or carry the one mark that names them — a loafer sits low with
+ * its instep band, boots grow a shaft up the ankle, heels lift on a spike
+ * (the profile view is where they really read), Mary Janes strap across.
+ * `SHOE_FORM` in character/body.jsx owns what each does to the drawing.
+ */
+export const SHOES = [
+  { key: "sneakers", label: "Sneakers" },
+  { key: "loafers", label: "Loafers" },
+  { key: "boots", label: "Boots" },
+  { key: "heels", label: "Heels" },
+  { key: "maryjanes", label: "Mary Janes" },
+];
+
+export const SHOE_COLORS = [
+  { key: "ink", hex: "#2b2350" },
+  { key: "black", hex: "#26232b" },
+  { key: "brown", hex: "#5b3a29" },
+  { key: "tan", hex: "#a97c50" },
+  { key: "cream", hex: "#d9cbb2" },
+  { key: "cherry", hex: "#8e3a3f" },
+];
+
+// Trousers were a hard-coded constant, so the whole lower half of every
+// resident was the same colour — half the figure, none of it yours.
+/**
+ * Prints on the torso — a garment is more than a solid colour (owner call).
+ * Drawn in the INNER colour, clipped to the torso path, under whatever the
+ * garment layers on top; each earns its slot by being tellable from the
+ * others at 57px, same bar as everything else.
+ */
+export const PATTERNS = [
+  { key: "none", label: "Plain" },
+  { key: "stripes", label: "Stripes" },
+  { key: "chest", label: "Chest stripe" },
+  { key: "dots", label: "Dots" },
+  // Both axes crossing, with the intersections doubled to full opacity —
+  // the crossings are what read as plaid rather than "a grid".
+  { key: "plaid", label: "Plaid" },
+];
+
+export const TROUSER_COLORS = [
+  { key: "plum", hex: "#4a3a5b" },
+  { key: "denim", hex: "#3f5a7a" },
+  { key: "charcoal", hex: "#3a3a42" },
+  { key: "clay", hex: "#8a5a44" },
+  { key: "moss", hex: "#4e6b4a" },
+  { key: "cream", hex: "#c8b394" },
 ];
 
 export const HAIR_COLORS = [
@@ -197,14 +406,43 @@ export const DEFAULT_CHARACTER = {
   hair: "short",
   hairColor: "#3a3142",
   outfit: "#7faf8f",
+  // The classic resident wore a plain sweater over plum trousers, so those are
+  // the defaults — an existing room looks identical until someone picks
+  // something else.
+  garment: "sweater",
+  coat: "none",
+  coatColor: "#8a5346",
+  inner: "#f2e9dd",
+  trouser: "#4a3a5b",
+  pants: "trousers",
+  shoes: "sneakers",
+  shoeColor: "#2b2350",
+  hat: "none",
+  scarf: "none",
+  scarfColor: "#8e3a3f",
+  print: "none",
   expression: "calm",
   build: "average",
   width: BUILD_SHAPE.average.halfW,
   height: LEG_H,
+  torso: TORSO_H,
 };
 
 const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
+const HAT_KEYS = new Set(HATS.map((h) => h.key));
+const SCARF_KEYS = new Set(SCARVES.map((s) => s.key));
+const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
+const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
+const COAT_KEYS = new Set(COATS.map((c) => c.key));
+const PANTS_KEYS = new Set(PANTS.map((p) => p.key));
+const SHOE_KEYS = new Set(SHOES.map((s) => s.key));
+// The one-slot era stored these in `garment`; they're coats now.
+const LEGACY_COATS = new Set(["hoodie", "jacket", "cardigan", "puffer"]);
+/** The garment's own rules, for the sprite: sleeve length and whether it layers. */
+export const garmentOf = (key) => OUTFITS.find((o) => o.key === key) || OUTFITS[0];
+/** The coat worn over it, "none" included. */
+export const coatOf = (key) => COATS.find((c) => c.key === key) || COATS[0];
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
 
@@ -241,12 +479,45 @@ function pickNum(value, [lo, hi], fallback) {
 export function validateCharacter(raw) {
   const c = raw && typeof raw === "object" ? raw : {};
   const build = pickKey(c.build, BUILD_KEYS, DEFAULT_CHARACTER.build);
+  // Legacy one-slot saves: "hoodie" in the garment slot becomes the coat,
+  // KEEPING its colour — and the shirt in a jacket's opening keeps the colour
+  // it used to show (the old `inner`), so a migrated character draws the same
+  // pixels it always did. Only fires when no explicit coat was ever stored.
+  let garment = pickKey(c.garment, GARMENT_KEYS, DEFAULT_CHARACTER.garment);
+  let coat = pickKey(c.coat, COAT_KEYS, DEFAULT_CHARACTER.coat);
+  let outfit = pickHex(c.outfit, DEFAULT_CHARACTER.outfit);
+  let coatColor = pickHex(c.coatColor, DEFAULT_CHARACTER.coatColor);
+  if (
+    typeof c.garment === "string" &&
+    LEGACY_COATS.has(c.garment) &&
+    !(typeof c.coat === "string" && COAT_KEYS.has(c.coat))
+  ) {
+    coat = c.garment;
+    coatColor = outfit;
+    garment = "tee";
+    outfit = pickHex(c.inner, DEFAULT_CHARACTER.inner);
+  }
   return {
     model: pickKey(c.model, MODEL_KEYS, DEFAULT_CHARACTER.model),
     skin: pickHex(c.skin, DEFAULT_CHARACTER.skin),
     hair: pickKey(c.hair, HAIR_KEYS, DEFAULT_CHARACTER.hair),
     hairColor: pickHex(c.hairColor, DEFAULT_CHARACTER.hairColor),
-    outfit: pickHex(c.outfit, DEFAULT_CHARACTER.outfit),
+    outfit,
+    // New axes fall back to the classic look, so every character saved before
+    // the wardrobe existed still validates to exactly what it drew before —
+    // the same bargain the JSON blob buys everywhere else (no migration).
+    garment,
+    coat,
+    coatColor,
+    inner: pickHex(c.inner, DEFAULT_CHARACTER.inner),
+    trouser: pickHex(c.trouser, DEFAULT_CHARACTER.trouser),
+    pants: pickKey(c.pants, PANTS_KEYS, DEFAULT_CHARACTER.pants),
+    shoes: pickKey(c.shoes, SHOE_KEYS, DEFAULT_CHARACTER.shoes),
+    shoeColor: pickHex(c.shoeColor, DEFAULT_CHARACTER.shoeColor),
+    hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
+    scarf: pickKey(c.scarf, SCARF_KEYS, DEFAULT_CHARACTER.scarf),
+    scarfColor: pickHex(c.scarfColor, DEFAULT_CHARACTER.scarfColor),
+    print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,
     // Width defaults from the BUILD, not from a fixed number — a pre-slider
@@ -254,6 +525,9 @@ export function validateCharacter(raw) {
     // average the first time it round-trips through here.
     width: pickNum(c.width, WIDTH_RANGE, BUILD_SHAPE[build].halfW),
     height: pickNum(c.height, HEIGHT_RANGE, LEG_H),
+    // Legs and torso are separate axes; pre-split saves had no torso and
+    // keep the classic one.
+    torso: pickNum(c.torso, TORSO_RANGE, TORSO_H),
   };
 }
 
