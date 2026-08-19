@@ -1629,3 +1629,40 @@ lands you seated at her study with name tags. Exe rebuilt + self-tested.
 Verified on :5099 fresh DB: 933 tests + lint green; blanket pose
 screenshot, adult proportions at 0.75 in the preview, drop-anywhere rule
 pinned in tests. Exe rebuilt + self-tested.
+
+## 21. Model enhancement: hair length scale, the ear, lock chunking (2026-08-19)
+
+Continuing the VC2 model pass. Reviewed the full 240-piece art sheet at 4x
+zoom (deviceScaleFactor screenshots per tile - the grid hides everything);
+three real defects surfaced and were fixed:
+
+- [x] **Hanging hair rode outside the head-unit scale.** Since the
+  adult-proportion pivot (HEAD_SCALE 0.75), the front view's `HairLength`
+  and the profile's `HairSideLength` still rendered against the FULL-SIZE
+  head - every falling mass (long, braids, pigtails, locs...) jutted ~25%
+  wide of the shrunken dome and read as a ghost cape behind the shoulders.
+  `HairBack` was already inside the wrapper (back view was never wrong).
+  Both sites now ride the same
+  `translate(0, headY*(1-HEAD_SCALE)) scale(HEAD_SCALE)` unit as the dome
+  they hang from.
+- [x] **The profile has an EAR now** - a profile skull without one reads as
+  an egg (VC2 reference). Mid-skull, slightly aft: skin ellipse + a faint
+  plane wash + one helix curve, drawn BEFORE HairSide so wigs tuck over it
+  (long hair hides it, a buzz shows it - both correct).
+- [x] **The long style's curtains got the lock-chunking texture pass** (the
+  noted-later item): they were the one markless mass left in the set -
+  solid fills with no value steps, which is most of why they read as
+  translucent against the plum backdrop (ink hair is nearly the backdrop's
+  value; texture is what separates them). Each curtain now carries a hem
+  crescent (the under-layer value step every wig hem has) and one tapered
+  flow line stopping short of both edges; the profile's fall strand gets
+  the same hem step.
+
+Looked at and deliberately left: the shorts turn-up band and the limb edge
+tones read slightly glassy at 4x but correct at real scale - not worth
+destabilizing reviewed marks.
+
+Verified: art sheet re-rendered and re-zoomed (curtains hug the head, oak
+braids solid, buzz profile shows the ear), real-app drive on :5099
+throwaway DB (long hair front + auto-rotate to profile in the dressing
+room), 933 tests + lint + build green. Exe rebuilt + self-tested.

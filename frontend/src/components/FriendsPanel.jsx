@@ -18,6 +18,13 @@ const ACTIVITY_LINE = {
   break: () => "☕ on a break",
   idle: () => "🪴 pottering about",
 };
+// A quiet dot by default; the row that says what it means only on hover
+// (`.hover-reveal`, same convention as the row's own delete control — touch
+// devices have no hover, so it stays legible there). There's no real privacy
+// question to gate this behind: every "friend" here is a simulated bot row
+// in your own local SQLite file, not another person's live session, so this
+// is purely a decluttering choice, not an opt-in.
+const ACTIVITY_DOT = { focus: "bg-glow", break: "bg-sage", idle: "bg-petal/40" };
 
 export default function FriendsPanel() {
   // The knock timer lives in the STORE, not here — this drawer closes for
@@ -407,9 +414,16 @@ export default function FriendsPanel() {
                 </div>
                 {(() => {
                   const a = npcActivity(f.username, now);
+                  const line = ACTIVITY_LINE[a.state](a.minutesLeft);
                   return (
-                    <span className="shrink-0 text-right text-[11px] text-petal/60">
-                      {ACTIVITY_LINE[a.state](a.minutesLeft)}
+                    <span
+                      className="flex shrink-0 items-center gap-1.5 text-right text-[11px] text-petal/60"
+                      title={line}
+                    >
+                      <span className="hover-reveal whitespace-nowrap">{line}</span>
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_DOT[a.state]}`}
+                      />
                     </span>
                   );
                 })()}

@@ -126,6 +126,9 @@ The backend is bundled **file-by-file, never as a whole folder** — an
 `--add-data "backend;backend"` would publish your local `tasknook.db` and its
 backups inside the committed binary.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
+`desktop.py` also exposes a `DesktopApi` (pywebview `js_api`) for the
+frontend's Always On Top toggle — see Widget Mode / Always On Top under
+"Focus timer" below for the full frontend↔desktop contract.
 
 **Single instance**: `desktop.py`'s `claim_single_instance()` takes an
 OS-level lock on `%LOCALAPPDATA%\TaskNook\tasknook.lock` **before importing
@@ -355,7 +358,15 @@ running `git commit` yourself.
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses
-  jittering. The row's NUMBERS are simulated too (`npcDailyStats`, same
+  jittering. **The line itself is HOVER-REVEALED** (`FriendsPanel.jsx`'s
+  `.hover-reveal`, same convention as the row's own delete control — touch
+  devices have no hover, so it stays legible there): a small always-visible
+  dot (`ACTIVITY_DOT`) carries the state at a glance, and the row's own
+  `title` attribute mirrors the text for a native tooltip fallback. There is
+  deliberately no opt-in "share my session" setting gating this — every
+  "friend" here is a simulated bot row in your own local SQLite file, not
+  another person's live session, so it's purely a decluttering choice, not a
+  privacy one. The row's NUMBERS are simulated too (`npcDailyStats`, same
   file): the API's seeded rows never change, so every bot showed "0m
   focused" forever beside a presence line claiming they were mid-block. It
   rolls 2–6 tasks per LOCAL day, picks how much of the list finishes (not
@@ -502,6 +513,12 @@ running `git commit` yourself.
   "Untitled block": `timer.jsx` used to substitute the literals `"Focus"` and
   `"Stopwatch"`, which made untitled time split across two rows that looked
   like tasks you had named. Rows logged before that fix still carry them.
+  **Checked tasks show up too**, as their own "Completed" list beside "Focused
+  on" — but derived CLIENT-SIDE (`CalendarPanel`'s `completedOnSelected`
+  filters the already-loaded `tasks` by `completedAt` routed through the same
+  local-day `toISO()` the month grid's own tinting uses), not through a new
+  endpoint: unlike per-session focus minutes, completed tasks are already
+  sitting in the store.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
@@ -744,6 +761,47 @@ running `git commit` yourself.
   a single ☰ button (`tasknook.dockCollapsed`) and its top is
   `max(172px, calc(50% - 220px))` — clamped so a centred column can never
   climb into the focus card's corner on short windows.
+  **Widget Mode** (`store.jsx`'s `widgetMode`, `tasknook.widgetMode`,
+  toggled from the icon beside the clock in `TopBar.jsx`) collapses the app
+  to just the already-draggable `HudFocusCard`, floating over the plain
+  themed backdrop — meant to sit alongside other work, not replace the
+  cottage, so everything else (scene, weather/sky overlays, TopBar, Dock,
+  drawers, HudTasks, MusicDock, the signature) folds away too. **It is a
+  visibility toggle in `App.jsx`, never a separate early return** — the
+  first cut rendered widget mode as its own `if (widgetMode) return (...)`
+  branch with a fresh `<HudFocusCard />`, which unmounted the real one and
+  remounted a new instance carrying `.intro-chrome` — replaying its 1.5s
+  boot delay on every single toggle, exactly the trap this file's
+  `.intro-chrome` gotcha (below) warns about. The fix is the same pattern
+  `hudWrapClass` already uses elsewhere: one persistent `HudFocusCard`
+  outside the hidden region, and `hudWrapClass(roomEditMode || widgetMode,
+  ...)` for `HudTasks`/`MusicDock` (so music keeps playing, just out of
+  sight) — except the focus card's OWN wrapper ignores `widgetMode`
+  entirely and stays force-visible, since showing it is the whole point and
+  it should override even a Settings "Hidden" for Session & timer while
+  active. MusicDock and the toast (failed writes are never silent, widget
+  or not) are deliberately untouched by the hidden region. Exits: a
+  dedicated Minimize2 button (top-right, mounted only while active — a
+  plain button with no persistent state, unlike the timer card, so
+  mount/unmount costs nothing) and Escape, which checks `widgetMode` FIRST
+  in App's keydown handler, ahead of leaving a visit or closing a panel,
+  since none of those states are even reachable while it's on.
+  **Always On Top** pairs with it, desktop-only: `desktop.py`'s
+  `DesktopApi` class is passed as pywebview's `js_api` at `create_window()`
+  (its `window` attribute is set right after, since the Api instance has to
+  exist before that call), exposing `set_always_on_top(value)` to the
+  frontend as `window.pywebview.api.set_always_on_top(...)` — a real
+  Promise-returning call straight through to `Window.on_top`'s runtime
+  setter (confirmed against the installed pywebview version; no restart
+  needed). `lib/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
+  it, `onDesktopApiReady()` listens for pywebview's `pywebviewready` event
+  (the bridge injects asynchronously, so it may not exist yet on first
+  render even inside the real desktop window). `TopBar.jsx` only renders the
+  Pin toggle once detected — a plain browser tab never gets
+  `window.pywebview` at all, and there's no OS window for a tab to pin
+  anyway. The preference persists (`tasknook.alwaysOnTop`) and re-applies
+  once the bridge comes ready, so a relaunch comes back pinned exactly as
+  left, same reasoning as the music bar's own resume-on-boot.
   **Design north star (user preference)**: VC2's UI — prefer chromeless
   on-scene elements (HUD text, small pills, bottom bars, popovers) over new
   drawers/dialogs; panels are for infrequent configuration.
@@ -859,6 +917,13 @@ running `git commit` yourself.
   `{provider, id, kind?}` station, persisted to `localStorage`
   (`tasknook.music.custom` / `tasknook.music.station`). No API keys or fees involved
   on either side.
+  **Settings → "Music on startup"** (`store.jsx`'s `autoResumeMusic`,
+  `tasknook.autoResumeMusic`, default on) gates the resume-on-boot behaviour
+  above: with it off, a launch always starts silent even when the previous
+  session ended mid-song. Both places that read "was music on when the app
+  last closed" — `musicOn`'s own `useState` initializer in store.jsx and
+  MusicDock's module-level `BOOTED_WITH_MUSIC_ON` — check this same flag, so
+  they can't disagree about whether a given launch resumes.
 - **Ambience conflicts**: manually picking a weather visual or time of day
   while "Match my real weather" is on turns auto-match OFF (the user's pick
   wins; auto-match's internal appliers bypass this). The iso room takes
@@ -1558,6 +1623,12 @@ running `git commit` yourself.
   lives inside the Friends drawer, not a standalone window), so that toggle
   instead fades/hides the unread-count badges in `FriendsPanel.jsx` — a
   Do-Not-Disturb for the red dot, not a way to hide the thread list.
+  **Widget Mode hit this same trap for real**: its first cut rendered as a
+  separate `if (widgetMode) return (...)` branch in `App.jsx` with its own
+  fresh `<HudFocusCard />`, which unmounted the real one and replayed the
+  1.5s delay on every toggle — the card was invisible for a beat and a half
+  every time widget mode turned on. Fixed the same way: one persistent
+  `HudFocusCard` outside a hidden region, never a second mount.
 - **CSS animation classes must not share an element with an SVG `transform`
   attribute** — the animation's `transform` property overrides the attribute
   entirely (the desk plant's foliage once dropped 16px into its pot this way).

@@ -262,6 +262,28 @@ export default function CalendarPanel() {
         </div>
       )}
 
+      {/* Journal: checked tasks for the selected day. */}
+      {completedOnSelected.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
+            Completed
+          </p>
+          <div className="space-y-1.5">
+            {completedOnSelected.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2"
+              >
+                <span className="text-sage">✓</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-cream/80 line-through decoration-cream/40">
+                  {t.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Scheduled on selected day */}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">

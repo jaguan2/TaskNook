@@ -194,6 +194,31 @@ def serve(port):
         fatal(f"TaskNook couldn't start its server on port {port}: {exc}")
 
 
+class DesktopApi:
+    """Exposed to the frontend as `window.pywebview.api.*` (pywebview's js_api
+    bridge — every method here is callable from JS and returns a Promise).
+    Only reachable from the packaged/native window; the dev server and any
+    plain browser tab never see `window.pywebview` at all, so the frontend
+    treats its absence as "not running as the desktop app" rather than an
+    error. `window` is attached after create_window() returns the Window
+    object, since the Api instance has to exist before that call to be
+    passed in as js_api.
+    """
+
+    def __init__(self):
+        self.window = None
+
+    def set_always_on_top(self, value):
+        """Backs Widget Mode's "Always On Top" toggle. `Window.on_top` is a
+        real runtime-settable property (confirmed against this pywebview
+        version) — setting it calls straight through to the platform GUI
+        toolkit's own always-on-top flag, no restart needed."""
+        if self.window is None:
+            return False
+        self.window.on_top = bool(value)
+        return self.window.on_top
+
+
 def open_in_browser(url):
     """Fallback when no native window is available: open a browser tab and keep
     the server process alive."""
@@ -251,13 +276,16 @@ def main():
         return open_in_browser(url)
 
     try:
-        webview.create_window(
+        api = DesktopApi()
+        window = webview.create_window(
             "TaskNook",
             url,
             width=1200,
             height=820,
             min_size=(900, 640),
+            js_api=api,
         )
+        api.window = window
         # private_mode=False + an explicit storage_path: without these,
         # pywebview defaults to an incognito-style session that throws away
         # localStorage (settings, the auth token, everything) on every close.

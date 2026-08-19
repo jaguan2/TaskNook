@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sofa } from "lucide-react";
+import { Minimize2, Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
@@ -72,6 +72,8 @@ export default function App() {
     customSurface,
     motionMode,
     hudVisibility,
+    widgetMode,
+    setWidgetMode,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -150,6 +152,13 @@ export default function App() {
       // guard as the iso room's Delete shortcut now — the two were separate
       // copies that disagreed, and the shorter one was the dangerous one.
       if (isTypingTarget(e.target)) return;
+      // Widget Mode outranks everything else here — none of the states below
+      // are even reachable while it's on (there's no scene, no dock, no
+      // panels to escape out of), so this is the only exit that matters.
+      if (widgetMode) {
+        setWidgetMode(false);
+        return;
+      }
       // Leaving a friend's room outranks everything — you can't be
       // decorating while visiting, and closing panels from inside a visit
       // would strand you there with less UI.
@@ -171,7 +180,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit]);
+  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit, widgetMode, setWidgetMode]);
 
   // Arriving somewhere closes the drawers — you visited to SEE the room, and
   // the Friends panel would be covering half of it — and EXITS decorating.
@@ -225,6 +234,13 @@ export default function App() {
       // app into one composited layer that re-rasterizes every paint.
       style={brightness === 1 ? undefined : { filter: `brightness(${brightness})` }}
     >
+      {/* Widget Mode hides the scene, TopBar, Dock and drawers behind the
+          same visibility convention as everything else — never unmounted,
+          since HudFocusCard (kept OUTSIDE this wrapper, below) must stay
+          mounted throughout: unmounting it would replay its .intro-chrome
+          boot delay (1.5s of invisible UI) on every single toggle, which is
+          exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
+      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
@@ -379,6 +395,7 @@ export default function App() {
 
       <TopBar clockVisibility={hudVisibility.clock} />
       <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
+      </div>
 
       {/* Shared error toast — top-centre (the one HUD zone nothing owns).
           Outside the decorating visibility wrapper: failures matter in every
@@ -410,6 +427,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
+      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       <AnimatePresence>
         {openPanels.map(({ key, pinned }, i) => {
           const Def = PANELS[key];
@@ -436,6 +454,7 @@ export default function App() {
           );
         })}
       </AnimatePresence>
+      </div>
 
       {/* The HUD cards own the scene's top corners (focus card left, to-do
           right) — exactly where wall items can now be placed. So each steps
@@ -445,20 +464,41 @@ export default function App() {
           return (1.5s of invisible chrome), while visibility:hidden also
           removes them from hit-testing without restarting anything. "Faded"
           stays interactive — it's a quieter HUD, not a hidden one. Timers
-          keep ticking in the store regardless of any of this. */}
-      <div className={hudWrapClass(roomEditMode, hudVisibility.timer)}>
+          keep ticking in the store regardless of any of this.
+          The focus card ALONE ignores widgetMode here — Widget Mode's whole
+          point is showing it, so it overrides even a Settings "Hidden" for
+          Session & timer while active; everything else below still folds
+          away via hudWrapClass(roomEditMode || widgetMode, ...). */}
+      <div className={widgetMode ? "opacity-100 transition-opacity duration-300" : hudWrapClass(roomEditMode, hudVisibility.timer)}>
         <HudFocusCard />
       </div>
-      <div className={hudWrapClass(roomEditMode, hudVisibility.tasks)}>
+      <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.tasks)}>
         <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
       </div>
       {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
           music keeps playing when the panel closes; hidden (not unmounted)
           while decorating so playback survives that too and the tint picker
-          gets the bottom-centre spot. */}
-      <div className={hudWrapClass(roomEditMode, hudVisibility.music)}>
+          gets the bottom-centre spot. Same story in Widget Mode — the music
+          keeps playing, only the bar itself steps out of sight. */}
+      <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.music)}>
         <MusicDock />
       </div>
+
+      {/* Widget Mode's own exit control — a plain button, not .intro-chrome,
+          so mounting it only while widgetMode is on (rather than fading a
+          permanent one) costs nothing and needs no extra state. Escape does
+          the same thing (App's keydown handler, checked before every other
+          Escape behaviour). */}
+      {widgetMode && (
+        <button
+          onClick={() => setWidgetMode(false)}
+          title="Exit Widget Mode"
+          aria-label="Exit Widget Mode"
+          className="pill glass absolute right-4 top-4 z-40 grid h-9 w-9 place-items-center text-cream shadow-soft hover:bg-white/10"
+        >
+          <Minimize2 size={15} />
+        </button>
+      )}
 
       {/* rkive. — the maker's signature, same wordmark as the portfolio.
           Sits ON the bottom rail: same bottom-6, same 44px height, so its
@@ -470,7 +510,7 @@ export default function App() {
           were asking to quiet down. */}
       <div
         className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
-          roomEditMode ? "invisible opacity-0" : "opacity-100"
+          roomEditMode || widgetMode ? "invisible opacity-0" : "opacity-100"
         }`}
         style={{ visibility: visiting ? "hidden" : undefined }}
         title="A space where I archive and share my journey, wherever it takes me."

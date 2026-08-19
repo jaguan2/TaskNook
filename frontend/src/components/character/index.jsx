@@ -260,7 +260,13 @@ export function Resident({
           </g>
           <g className={moving ? "walk-bob" : undefined}>
             <g className={moving ? "walk-roll" : undefined}>
-              <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
+              {/* Length masses ride the SAME head-unit scale as the dome they
+                  hang from (lib/body.js HEAD_SCALE) — left unscaled after the
+                  adult-proportion pivot they jutted ~25% wide of the shrunken
+                  head and read as a ghost cape behind the shoulders. */}
+              <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
+                <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
+              </g>
               {skirted && (
                 <g>
                   <path
@@ -497,6 +503,21 @@ export function Resident({
                       fill="none"
                       opacity="0.2"
                     />
+                    {/* the EAR — a profile skull without one reads as an egg
+                        (VC2 reference pass). Mid-skull, slightly aft of
+                        centre, BEFORE the hair so a wig tucks over it; a
+                        faint plane wash plus one helix curve is all an ear
+                        is at this scale. */}
+                    <ellipse cx="1.1" cy={headY + 1.9} rx="1.6" ry="2" fill={skin} />
+                    <ellipse cx="1.1" cy={headY + 1.9} rx="1.6" ry="2" fill="#000" opacity="0.07" />
+                    <path
+                      d={`M 1.9 ${headY + 0.7} a 1.6 1.8 0 0 0 -1.4 1.9`}
+                      stroke="#000"
+                      strokeWidth="0.7"
+                      strokeLinecap="round"
+                      fill="none"
+                      opacity="0.22"
+                    />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
                     <SideFace expression={ch.expression} headY={headY} skin={skin} />
@@ -562,8 +583,13 @@ export function Resident({
           hair would shear off the rolling head. */}
       <g className={moving ? "walk-bob" : undefined}>
       <g className={moving ? "walk-roll" : undefined}>
-      {/* Before the torso: length falls behind the body, not onto the chest. */}
-      <HairLength style={ch.hair} headY={headY} color={hairColor} />
+      {/* Before the torso: length falls behind the body, not onto the chest.
+          Inside the head-unit scale (lib/body.js HEAD_SCALE) so the sheets
+          stay welded to the dome they hang from — unscaled after the adult-
+          proportion pivot they jutted ~25% wide of the head. */}
+      <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
+        <HairLength style={ch.hair} headY={headY} color={hairColor} />
+      </g>
       {/* The skirt flare, over the bare legs and under the torso's hem.
           Standing only — seated, the cloth already drapes the lap via the
           leg drawing. */}

@@ -8,8 +8,16 @@ import {
   CloudSun,
   Leaf,
   Music2,
+  Pin,
+  PictureInPicture2,
 } from "lucide-react";
 import { useStore } from "../store";
+import { readStored, writeStored } from "../lib/storage";
+import {
+  hasDesktopApi,
+  onDesktopApiReady,
+  setAlwaysOnTop as applyAlwaysOnTop,
+} from "../lib/desktop";
 
 // Historically the top bar — now the BOTTOM-RIGHT corner cluster (clock,
 // ambient toggles, account), Virtual Cottage-style. The top corners belong to
@@ -43,9 +51,38 @@ function fmtClock(d) {
 }
 
 export default function TopBar({ clockVisibility = "on" }) {
-  const { user, musicOn, toggleMusic, weatherMode, setWeather } = useStore();
+  const { user, musicOn, toggleMusic, weatherMode, setWeather, widgetMode, setWidgetMode } =
+    useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
+
+  // Always On Top only exists inside the packaged desktop window (pywebview's
+  // js_api bridge) — undetectable until it's injected, so this starts closed
+  // and flips open once `pywebviewready` fires. A plain browser tab never
+  // gets it, which is correct: there's no OS window for a tab to pin.
+  const [desktopReady, setDesktopReady] = useState(() => hasDesktopApi());
+  const [alwaysOnTop, setAlwaysOnTopState] = useState(
+    () => readStored("tasknook.alwaysOnTop") === "1"
+  );
+  useEffect(() => {
+    if (desktopReady) return undefined;
+    return onDesktopApiReady(() => setDesktopReady(hasDesktopApi()));
+  }, [desktopReady]);
+  // Re-apply a saved "on" preference once the bridge exists, so a relaunch
+  // (esp. paired with Widget Mode) comes back pinned exactly as left —
+  // same reasoning as musicOn's resume-on-boot.
+  useEffect(() => {
+    if (desktopReady && alwaysOnTop) applyAlwaysOnTop(true);
+    // Only on the desktopReady transition, not every alwaysOnTop toggle —
+    // toggleAlwaysOnTop below already applies those directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desktopReady]);
+  const toggleAlwaysOnTop = async () => {
+    const next = !alwaysOnTop;
+    setAlwaysOnTopState(next);
+    writeStored("tasknook.alwaysOnTop", next ? "1" : "0");
+    await applyAlwaysOnTop(next);
+  };
   // The trigger mirrors the active option — including Clear, which used to
   // fall through to the rain icon and read as "rain is on".
   const WeatherIcon = (
@@ -112,6 +149,27 @@ export default function TopBar({ clockVisibility = "on" }) {
           </>
         )}
       </div>
+
+      {/* Widget Mode: collapses the whole app to just the floating focus
+          card — meant to sit beside other work, not replace the cottage.
+          Works in a browser tab too, unlike Always On Top beside it. */}
+      <IconToggle
+        active={widgetMode}
+        onClick={() => setWidgetMode(!widgetMode)}
+        title="Widget Mode"
+      >
+        <PictureInPicture2 size={17} />
+      </IconToggle>
+
+      {/* Always On Top: desktop-only (pywebview js_api bridge) — pairs with
+          Widget Mode to keep the timer visible over other windows while you
+          work. Hidden entirely outside the packaged app; there's no OS
+          window for a browser tab to pin. */}
+      {desktopReady && (
+        <IconToggle active={alwaysOnTop} onClick={toggleAlwaysOnTop} title="Always On Top">
+          <Pin size={17} />
+        </IconToggle>
+      )}
 
       {/* h-11, not py-2: the two round toggles are 44px and these were 40px,
           so the cluster had two different pill heights sitting side by side.

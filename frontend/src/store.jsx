@@ -268,6 +268,19 @@ export function StoreProvider({ children }) {
       readStored("tasknook.autoResumeMusic") !== "0"
   );
 
+  // Widget Mode: the whole app collapses to just the (already-draggable)
+  // focus card floating over a plain backdrop — meant to sit alongside other
+  // work, not replace the cottage. Persisted like dockCollapsed/musicOn,
+  // since leaving it on and relaunching (esp. paired with Always On Top on
+  // desktop) is the exact use case.
+  const [widgetMode, setWidgetModeState] = useState(
+    () => readStored("tasknook.widgetMode") === "1"
+  );
+  const setWidgetMode = useCallback((value) => {
+    setWidgetModeState(value);
+    writeStored("tasknook.widgetMode", value ? "1" : "0");
+  }, []);
+
   // ---- Real-world weather ----
   const [realWeather, setRealWeather] = useState(null);
   const [weatherStatus, setWeatherStatus] = useState("idle"); // idle | loading | ready | error
@@ -2130,6 +2143,8 @@ export function StoreProvider({ children }) {
     toggleMusic,
     autoResumeMusic,
     setAutoResumeMusic,
+    widgetMode,
+    setWidgetMode,
     musicStations,
     activeStationKey: resolvedStationKey,
     selectStation,

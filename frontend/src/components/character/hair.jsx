@@ -416,6 +416,12 @@ export const HAIR_REGISTRY = {
           d={`M 5.4 ${headY - 3.6} q 3.6 9.2 2.4 21.6 q -2.6 1.4 -4.6 0.4 q 1.6 -12.4 -1 -18.6 z`}
           fill={color}
         />
+        {/* the same hem value step the front curtains carry */}
+        <path
+          d={`M 8.3 ${headY + 20.8} q -3.2 2.2 -7.4 1.5 q 3.9 1.5 7.7 -0.7 z`}
+          fill="#000"
+          opacity="0.13"
+        />
       </>
     ),
     side: ({ headY, color }) => (
@@ -432,12 +438,32 @@ export const HAIR_REGISTRY = {
           fill={farColor(color)}
         />
         {[-1, 1].map((s) => (
-          <path
-            key={s}
-            d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
-                q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
-            fill={color}
-          />
+          <g key={s}>
+            <path
+              d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
+                  q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
+              fill={color}
+            />
+            {/* the texture pass the curtains were missing — the one flat,
+                markless mass left in the set read as a cape, not hair: a
+                hem crescent (the under-layer value step every other wig
+                carries) and one tapered flow line following the fall,
+                stopping short of both edges per the doctrine above. */}
+            <path
+              d={`M${s * 11.4} ${headY + 18.6} q${-s * 1.6} 2 ${-s * 4.2} 1.7
+                  q${s * 2.5} 0.9 ${s * 4.3} -0.7 z`}
+              fill="#000"
+              opacity="0.13"
+            />
+            <path
+              d={`M${s * 9.4} ${headY + 2.4} q${s * 1.5} 7.6 ${s * 1} 14.4`}
+              stroke="#000"
+              strokeWidth="0.8"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.11"
+            />
+          </g>
         ))}
       </>
     ),
