@@ -109,9 +109,10 @@ body {
 }
 
 /* App chrome (top bar, dock, focus timer) holds back while the opening
-   window zoom-out plays, then fades in. Runs once per page load. */
+   picture-frame push-in plays (App.jsx's scene wrapper: a 2.6s hold-then-
+   zoom), then fades in as the camera settles. Runs once per page load. */
 .intro-chrome {
-  animation: chrome-in 0.9s ease 1.5s backwards;
+  animation: chrome-in 0.9s ease 2.1s backwards;
 }
 @keyframes chrome-in {
   from {

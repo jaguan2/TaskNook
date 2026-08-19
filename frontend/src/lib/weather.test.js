@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCurrentWeather, formatPopulation, searchPlaces } from "./weather";
+import {
+  fetchCurrentWeather,
+  formatPopulation,
+  nextRandomWeather,
+  RANDOM_WEATHER_INTERVAL_MS,
+  searchPlaces,
+} from "./weather";
 
 /** Reply to the next fetch with this JSON body. */
 function respond(body, ok = true) {
@@ -99,6 +105,48 @@ describe("formatPopulation", () => {
     expect(formatPopulation(0)).toBe("");
     expect(formatPopulation(undefined)).toBe("");
     expect(formatPopulation(NaN)).toBe("");
+  });
+});
+
+describe("nextRandomWeather", () => {
+  it("picks deterministically from an injected RNG", () => {
+    // rand()=0 always lands on the first entry in the table for that state.
+    expect(nextRandomWeather("off", () => 0)).toBe("off");
+    // rand() just under 1 lands on the last-weighted entry — for "off" that's
+    // "snow" (storm carries zero weight there, so it can never be picked).
+    expect(nextRandomWeather("off", () => 0.999999)).toBe("snow");
+  });
+
+  it("never jumps a clear sky straight to a storm", () => {
+    // "off" -> "storm" has zero weight in the transition table — real
+    // weather doesn't go from clear to a thunderstorm in one step.
+    for (let i = 0; i < 50; i++) {
+      expect(nextRandomWeather("off", () => i / 50)).not.toBe("storm");
+    }
+  });
+
+  it("eases a storm toward rain rather than clearing it instantly", () => {
+    // "storm" -> "off" has zero weight — a storm's most likely next step is
+    // easing into rain, not vanishing outright.
+    for (let i = 0; i < 50; i++) {
+      expect(nextRandomWeather("storm", () => i / 50)).not.toBe("off");
+    }
+  });
+
+  it("never rolls the seasonal leaves mode — that stays a manual pick", () => {
+    for (let i = 0; i < 20; i++) {
+      expect(nextRandomWeather("cloudy", () => i / 20)).not.toBe("leaves");
+    }
+  });
+
+  it("falls back to the 'off' table for an unrecognised mode", () => {
+    expect(nextRandomWeather("leaves", () => 0)).toBe("off");
+  });
+});
+
+describe("RANDOM_WEATHER_INTERVAL_MS", () => {
+  it("is thirty minutes", () => {
+    expect(RANDOM_WEATHER_INTERVAL_MS).toBe(30 * 60 * 1000);
   });
 });
 

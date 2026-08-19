@@ -46,6 +46,42 @@ function describeCode(code, isDay) {
   };
 }
 
+// Settings → "Random weather": an offline, no-forecast way to have the
+// scene's weather drift on its own, the way real weather does — conditions
+// persist and drift through neighbours rather than jumping between extremes
+// (clear rarely goes straight to storm; a storm eases back into rain before
+// clearing). Weights are relative, not percentages. `leaves` is excluded —
+// same reasoning as auto-match: it's a season, not a forecast, so it's
+// yours to set by hand.
+const WEATHER_TRANSITIONS = {
+  off: { off: 5, cloudy: 3, rain: 1, snow: 1, storm: 0 },
+  cloudy: { off: 2, cloudy: 4, rain: 2, snow: 1, storm: 1 },
+  rain: { off: 1, cloudy: 3, rain: 3, snow: 0, storm: 2 },
+  snow: { off: 1, cloudy: 2, rain: 0, snow: 4, storm: 0 },
+  storm: { off: 0, cloudy: 1, rain: 3, snow: 0, storm: 2 },
+};
+
+/**
+ * One weighted step from `current` toward its next condition. `rand` is
+ * injectable (defaults to `Math.random`) purely so tests can pin an exact
+ * roll — the transition table itself is what actually encodes "like real
+ * life"; the RNG is just the die.
+ */
+export function nextRandomWeather(current, rand = Math.random) {
+  const table = WEATHER_TRANSITIONS[current] || WEATHER_TRANSITIONS.off;
+  const entries = Object.entries(table);
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = rand() * total;
+  for (const [mode, weight] of entries) {
+    if (roll < weight) return mode;
+    roll -= weight;
+  }
+  return current;
+}
+
+// How long one condition holds before the next roll.
+export const RANDOM_WEATHER_INTERVAL_MS = 30 * 60 * 1000;
+
 export function locateBrowser(timeout = 8000) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {

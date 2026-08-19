@@ -926,7 +926,11 @@ running `git commit` yourself.
   they can't disagree about whether a given launch resumes.
 - **Ambience conflicts**: manually picking a weather visual or time of day
   while "Match my real weather" is on turns auto-match OFF (the user's pick
-  wins; auto-match's internal appliers bypass this). The iso room takes
+  wins; auto-match's internal appliers bypass this) — and turns "Random
+  weather" off too, the same rule, since a manual pick has to win over every
+  automatic source of `weatherMode`. Enabling auto-match or random weather
+  each switches the other off as well; only one may drive the sky. The iso
+  room takes
   `timeOfDay` too (`ISO_TIME`: window sky/orb + string-light brightness) —
   don't let a new scene hardcode night again. **Time of day has to reach the
   BACKDROP and the room's own surfaces**, not just the window: `SkyOverlay`'s
@@ -954,6 +958,25 @@ running `git commit` yourself.
   local/offline. "Match my real weather" (`autoMatchWeather` in `store.jsx`) maps
   the fetched WMO weather code to `weatherMode` and the sunrise/sunset window to
   `timeOfDay` (`night`/`sunset`/`day`), refreshing every 15 minutes while enabled.
+  **"Random weather"** (`autoRandomWeather` in `store.jsx`, `tasknook.weather.random`)
+  is its offline sibling: no location, no forecast, just `weatherMode` drifting
+  on its own every `RANDOM_WEATHER_INTERVAL_MS` (30 minutes, `lib/weather.js`)
+  via `nextRandomWeather`'s weighted transition table — conditions persist and
+  drift through neighbours rather than jumping between extremes (clear can't
+  roll straight to storm; a storm eases back to rain before it can clear), the
+  same "like real life" reasoning VC2's own weather draws on. `leaves` is
+  excluded from the rotation, same rule as auto-match: it's a season, not a
+  forecast, so it stays a manual pick. All three ways of driving `weatherMode`
+  (manual pick, auto-match, random) are mutually exclusive — turning one on
+  switches the other two off, the same triangle `autoTimeOfDay` already forms
+  with auto-match. Unlike `autoTimeOfDay`'s effect, the roll schedule persists
+  its next-fire time (`tasknook.weather.random.nextRollAt`) across reloads: the
+  clock doesn't pause when the app is closed, so reopening past a scheduled
+  roll catches up immediately rather than waiting out a stale timer — same
+  reasoning as the music bar's resume-on-boot. A `weatherModeRef` feeds the
+  roll its current condition without putting `weatherMode` itself in the
+  effect's deps, which would otherwise tear down and reschedule the timer on
+  every single roll.
 - **Dates**: format dates with **local** parts, not `toISOString()` (which is UTC
   and shifts the day for negative-UTC users). See `toISO()` in `CalendarPanel.jsx`.
   The backend buckets focus time by local `date.today()` for "today" stats.
@@ -1607,10 +1630,15 @@ running `git commit` yourself.
 - Vite proxies `/api` to `:5000` in dev (see `vite.config.js`), so the frontend
   always uses **relative** `/api/...` URLs — don't hardcode `http://localhost:5000`.
 - **Never unmount (or `display:none`) chrome that carries `.intro-chrome`** —
-  remounting replays its boot animation: 1.5s of invisible UI before the fade
-  begins. To hide such chrome temporarily (the HUD cards + signature step
-  aside during room decorating), toggle `visibility` on a wrapper: it removes
-  the element from hit-testing without restarting animations.
+  remounting replays its boot animation: 2.1s of invisible UI before the fade
+  begins (timed to the opening picture-frame push-in — the boot shows the
+  room as a framed picture hanging on the night sky, holds a beat, then the
+  camera pushes through the frame; the frame bands live inside App.jsx's
+  scene-scaling wrapper, sized to land exactly offscreen at scale 1, and
+  unmount on completion). To hide such chrome temporarily (the HUD cards +
+  signature step aside during room decorating), toggle `visibility` on a
+  wrapper: it removes the element from hit-testing without restarting
+  animations.
   **Settings → HUD elements** (`store.jsx`'s `hudVisibility`, persisted as
   `tasknook.hudVisibility`) reuses the exact same convention for a second,
   user-driven reason to hide the same cards: Session/Timer, To-do list and the

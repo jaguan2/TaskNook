@@ -58,9 +58,12 @@ export const SHOE_FAR = "#221c40";
  */
 // The knee sits BELOW the torso's bottom edge and outside its width — a thigh
 // tucked behind the body is a thigh nobody can see, which is how you end up
-// back at a straight leg.
+// back at a straight leg. But only just outside: 8.5 splayed the knees
+// nearly a shoulder-width past the hips, a sofa manspread the VC2 reference
+// never does — its seated figures keep the knees roughly under the
+// shoulders (retuned 2026-08-19, judged seated on the Loft sofa).
 export const SEAT_KNEE_Y = 5;
-export const SEAT_KNEE_X = 8.5;
+export const SEAT_KNEE_X = 6.9;
 
 // The classic pair keeps its hand-tuned far tone byte-exact; any other
 // colour derives one, same rule as the trousers.
@@ -381,12 +384,21 @@ export function StandingLeg({
   // Shorts: the cloth stops just past the knee; the shin below is skin.
   const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
   const clothD = form.shorts ? upper : bent;
-  const line = (d, paint, width, opacity) => (
+  // Edge tones ride a TRIMMED copy of the path with FLAT caps: a round cap
+  // sticks a half-circle of wash past each end, which at 4x read as light
+  // blobs floating at the ankle and hip — the "glass tube" look (VC2
+  // reference pass, 2026-08-19). Flush ends tucked inside the cloth are
+  // what let a translucent stroke read as form instead of cellophane.
+  const bentEdge = (off) =>
+    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${cx + off} ${-3.6}`;
+  const upperEdge = (off) => `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y + 0.8}`;
+  const edgeD = form.shorts ? upperEdge : bentEdge;
+  const line = (d, paint, width, opacity, cap = "round") => (
     <path
       d={d}
       stroke={paint}
       strokeWidth={width}
-      strokeLinecap="round"
+      strokeLinecap={cap}
       strokeLinejoin="round"
       fill="none"
       opacity={opacity}
@@ -398,7 +410,7 @@ export function StandingLeg({
     return (
       <g>
         {line(bent(0), skinTone, legW - 0.5)}
-        {line(bent(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08)}
+        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08, "butt")}
         <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
         <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} far={far} />
       </g>
@@ -409,14 +421,15 @@ export function StandingLeg({
     <g>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
-      {/* Every box in the catalog carries three tones: one lit edge, one
-          falling away — each a single stroke riding the same bent path.
-          Translucent overlays in the shared light pair (SHADE/GLINT), scaled
-          by the trouser colour's luminance so near-black denim still models. */}
-      {line(clothD(w / 4), GLINT, w / 2.9, far ? 0.05 : 0.11 * tone.glint)}
-      {line(clothD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade)}
+      {/* ONE shade down the away-from-light edge and nothing else — the
+          trousers used to also carry a GLINT stripe, and a light bar down
+          the middle of a dark leg is what made every pair read as a glass
+          tube (VC2 reference: trousers are a matte mass; the lit read
+          belongs to the torso and the knee's crease). Luminance-scaled so
+          near-black denim still models. */}
+      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade, "butt")}
       {/* dress pants press a CREASE down the front of each leg */}
-      {form.crease && line(clothD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint)}
+      {form.crease && line(edgeD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint, "butt")}
       {/* the crease inside the bend — the knee's only mark */}
       <ellipse
         cx={K.x - side * 1.2}
@@ -495,12 +508,18 @@ export function SideLeg({
     `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
   const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
   const clothD = form.shorts ? upper : bent;
-  const line = (d, paint, width, opacity) => (
+  // Trimmed flat-capped copies for the edge tones — same de-glassing rule
+  // as StandingLeg: round caps stick wash blobs past the hem.
+  const bentEdge = (off) =>
+    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${cx + off} ${-3.6}`;
+  const upperEdge = (off) => `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y + 0.8}`;
+  const edgeD = form.shorts ? upperEdge : bentEdge;
+  const line = (d, paint, width, opacity, cap = "round") => (
     <path
       d={d}
       stroke={paint}
       strokeWidth={width}
-      strokeLinecap="round"
+      strokeLinecap={cap}
       strokeLinejoin="round"
       fill="none"
       opacity={opacity}
@@ -512,7 +531,7 @@ export function SideLeg({
     return (
       <g>
         {line(bent(0), skinTone, legW - 0.5)}
-        {line(bent(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08)}
+        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08, "butt")}
         <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
         {shoe}
       </g>
@@ -523,9 +542,10 @@ export function SideLeg({
     <g>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
-      {line(clothD(w / 4), GLINT, w / 2.9, far ? 0.05 : 0.11 * tone.glint)}
-      {line(clothD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade)}
-      {form.crease && line(clothD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint)}
+      {/* shade only, flush-capped — the glint stripe made glass tubes of
+          the trousers (same call as StandingLeg) */}
+      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade, "butt")}
+      {form.crease && line(edgeD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint, "butt")}
       {/* the crease sits BEHIND the knee in profile — inside the bend */}
       <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.8" fill="#000" opacity="0.11" />
       {form.stitch && (
@@ -658,12 +678,12 @@ export function Arm({
   const whole = `M ${S.x} ${S.y} L ${E.x} ${E.y} L ${H.x} ${H.y}`;
   const upper = `M ${S.x} ${S.y} L ${E.x} ${E.y}`;
   const w = 4.3 + bulk;
-  const line = (d, paint, width, opacity) => (
+  const line = (d, paint, width, opacity, cap = "round") => (
     <path
       d={d}
       stroke={paint}
       strokeWidth={width}
-      strokeLinecap="round"
+      strokeLinecap={cap}
       strokeLinejoin="round"
       fill="none"
       opacity={opacity}
@@ -693,8 +713,11 @@ export function Arm({
           from opposite sides of the room. The far arm still takes the overall
           depth wash on top (its whole limb falls away), same rule as the far
           trouser leg. */}
-      {edges && line(`M ${S.x + w / 4} ${S.y + 1} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 1}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint)}
-      {edges && line(`M ${S.x - w / 4} ${S.y + 1.4} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 1}`, SHADE, w / 2.9, 0.13 * tone.shade)}
+      {/* flush flat caps, tucked inside both ends — round caps stuck wash
+          blobs past the shoulder and wrist (the glass-tube read, same
+          de-glassing pass as the legs) */}
+      {edges && line(`M ${S.x + w / 4} ${S.y + 2.4} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 2}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint, "butt")}
+      {edges && line(`M ${S.x - w / 4} ${S.y + 2.6} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 2}`, SHADE, w / 2.9, 0.13 * tone.shade, "butt")}
       {/* a short sleeve's HEM — the crossbar is what makes the bare forearm
           read as a hemline rather than a glitch in the sleeve */}
       {shortSleeve && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}

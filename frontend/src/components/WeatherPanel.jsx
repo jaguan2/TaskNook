@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
+import { Clock, Dice5, Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { formatPopulation } from "../lib/weather";
@@ -23,6 +23,8 @@ export default function WeatherPanel() {
     searchWeatherCity,
     autoMatchWeather,
     toggleAutoMatchWeather,
+    autoRandomWeather,
+    toggleRandomWeather,
     timeOfDay,
     setTimeOfDay,
     weatherMode,
@@ -169,6 +171,34 @@ export default function WeatherPanel() {
         <p className="text-xs text-petal/60">
           Automatically sets the cottage's weather ambience and time of day to
           match what's actually happening outside, refreshing every 15 minutes.
+        </p>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Random weather: the offline sibling of auto-match above — no
+          location, no forecast, just conditions that drift on their own
+          instead of sitting fixed until you change them. Mutually exclusive
+          with auto-match and a manual pick, same as everything else that
+          owns weatherMode. */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+            <Dice5 size={15} className="text-petal/70" /> Random weather
+          </p>
+          <button
+            onClick={toggleRandomWeather}
+            className={`pill px-3 py-1 text-xs font-semibold ${
+              autoRandomWeather ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
+            }`}
+          >
+            {autoRandomWeather ? "On" : "Off"}
+          </button>
+        </div>
+        <p className="text-xs text-petal/60">
+          Lets the weather drift on its own — like real life — changing every
+          30 minutes. No location or internet needed; time of day is
+          untouched, so this pairs fine with "Follow my clock" below.
         </p>
       </section>
 

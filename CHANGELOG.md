@@ -13,6 +13,38 @@ project already uses.
 
 ---
 
+## 2026-08-19 (night)
+
+Built with Claude Code.
+
+**ADJUSTED**
+- **README de-emojified.** Dropped the decorative emoji throughout —
+  section headers, the Features table's leading icon column, the ordering-
+  algorithm and roadmap bullets, and the footer — since a themed emoji on
+  every heading and table row is a well-known tell of AI-generated docs.
+  Kept the handful that are genuinely functional (⚙, ⟳, ↻) since those name
+  real on-screen buttons rather than decorate the text. TOC anchors updated
+  to match the de-emojified headings.
+
+## 2026-08-19 (evening)
+
+Built with Claude Code.
+
+**NEW**
+- **Random weather.** A third way to drive the scene's weather, alongside a
+  manual pick and "Match my real weather" — `weatherMode` now drifts on its
+  own every 30 minutes, no location or internet required. Conditions ease
+  through neighbours rather than jumping between extremes (clear weather
+  can't roll straight into a storm; a storm eases back to rain before it can
+  clear), the same "like real life" framing the real-weather match already
+  uses. The seasonal "falling leaves" mode stays a manual-only pick, same
+  reasoning as auto-match. All three ways of setting `weatherMode` are
+  mutually exclusive — turning one on switches the other two off.
+  Time of day is untouched, so this pairs cleanly with "Follow my clock."
+  The roll schedule persists its next-fire time across reloads, so closing
+  the app doesn't pause the clock — reopening past a due roll catches up
+  immediately instead of waiting out a stale timer.
+
 ## 2026-08-19 (afternoon)
 
 Built with Claude Code, continuing the day's character-modeling work below.

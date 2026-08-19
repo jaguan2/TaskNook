@@ -1666,3 +1666,61 @@ Verified: art sheet re-rendered and re-zoomed (curtains hug the head, oak
 braids solid, buzz profile shows the ear), real-app drive on :5099
 throwaway DB (long hair front + auto-rotate to profile in the dressing
 room), 933 tests + lint + build green. Exe rebuilt + self-tested.
+
+## 22. The picture-frame opening (2026-08-19, owner request)
+
+"Zoom in on the house's picture frame to make it seem like we are peering
+into the room."
+
+- [x] **The boot animation is reversed and framed.** It used to start
+  zoomed into the window and pull BACK - the same move in the wrong
+  direction. Now the room opens as a framed picture hanging on the night
+  (the sky overlay's stars and moon around it), holds for a beat, then the
+  camera pushes THROUGH the frame into the room.
+- The frame is three CSS border bands (wood, warm lip, paper mat) INSIDE
+  the scene's scaling wrapper, every band outside inset 0 - so at scale 1
+  their inner edges land exactly at the viewport edge and the frame sweeps
+  past the screen by geometry, with nothing to fade and no timing to tune.
+  It unmounts on animation complete (`introDone`), leaving zero nodes.
+- Keyframes carry the hold (scale [0.34, 0.34, 1], times [0, 0.3, 1],
+  2.6s ease-in-out); opacity fades in during the hold so the picture is
+  fully there before the push. Reduced motion keeps the plain 0.6s fade -
+  no frame, no zoom, same as before.
+- `.intro-chrome` delay retimed 1.5s -> 2.1s so the HUD fades in as the
+  camera settles instead of mid-flight.
+
+Verified by four timed screenshots against the real app on :5099
+(throwaway DB): the framed hold, mid-push, the landing (frame fully
+offscreen, no edge slivers), and settled chrome. 933 tests + lint green.
+Exe rebuilt + self-tested.
+
+## 23. The VC2 convergence loop (2026-08-19, owner request)
+
+"Feedback loop with yourself on model design until we get something closer
+to Virtual Cottage 2's design." Method: render the 240-piece art sheet ->
+zoom tiles at 4x -> name the single worst gap vs the VC2 reference ->
+fix it -> re-render. Three iterations this round (on top of s.21's hair
+scale / ear / lock chunking, which the same loop surfaced):
+
+- [x] **Iter 1 - de-glassed the limbs.** The trousers carried a GLINT
+  stripe down the middle of each leg plus SHADE edging, all round-capped -
+  the caps stuck half-circles of wash past the ankle and hip, and the
+  stripe made every pair read as a glass tube. VC2 trousers are a matte
+  mass. The leg glint is GONE (front + side + bare/skirt legs); the
+  remaining shade edge rides a TRIMMED path with flat butt caps, tucked
+  inside the cloth at both ends. Arms keep their pair but flush-capped
+  and trimmed the same way. `line()` in Arm/StandingLeg/SideLeg takes a
+  cap parameter; edge tones use `edgeD`, cloth keeps its rounded hem.
+- [x] **Iter 2 - evened the front legs.** The straight-on standing figure
+  painted its left leg in the far-depth tone (borrowed from the seated
+  pose) - at 4x it read as two different trousers. Standing legs never
+  overlap, so the gap between them is all the separation needed; the far
+  split stays where thighs genuinely stack (seated, profile).
+- [x] **Iter 3 - the VC2 sit.** SEAT_KNEE_X 8.5 -> 6.9: knees splayed
+  nearly a shoulder-width past the hips (sofa manspread); the reference's
+  seated figures keep knees under the shoulders. Judged seated on the
+  Loft sofa at zoom - relaxed, feet together, reads like the reference.
+
+Verified per iteration on the art sheet, plus a real-app drive (:5099,
+throwaway DB) zoomed onto the seated resident. 939 tests + lint green.
+Exe rebuilt + self-tested.

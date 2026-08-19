@@ -109,6 +109,9 @@ export default function App() {
   // Resolved once here and threaded down: the setting wins over the OS
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
+  // The opening picture-frame push-in has finished — the frame layers are
+  // pure intro chrome and unmount once they've flown past the edges.
+  const [introDone, setIntroDone] = useState(false);
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
@@ -246,22 +249,51 @@ export default function App() {
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
       <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
 
-      {/* Centerpiece cottage. On first open we start zoomed right into the
-          window and pull back to reveal the room — like stepping back from
-          peeking through it. The transform origin sits roughly on the window
-          within the centred SVG; UI chrome fades in afterwards via the
-          .intro-chrome CSS delay. */}
+      {/* Centerpiece cottage. On open the room hangs on the night like a
+          framed picture — a beat to take it in, then the camera pushes
+          THROUGH the frame into the room (owner request, 2026-08-19: "like
+          we are peering into the room"; it used to pull back from the
+          window, the same move in the wrong direction). The frame layers
+          live INSIDE this scaling wrapper, sized so their inner edges land
+          exactly at the viewport edge at scale 1 — they sweep past the
+          screen by geometry, no fade to time. Keyframe times give the hold;
+          UI chrome fades in as the camera settles (.intro-chrome delay). */}
       <motion.div
         className="absolute inset-0 grid place-items-center"
-        style={{ transformOrigin: "48% 36%" }}
-        initial={reduceMotion ? { opacity: 0 } : { scale: 3, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{
-          duration: reduceMotion ? 0.6 : 2.2,
-          ease: [0.16, 1, 0.3, 1],
-          opacity: { duration: reduceMotion ? 0.6 : 0.9, ease: "easeOut" },
-        }}
+        initial={reduceMotion ? { opacity: 0 } : { scale: 0.34, opacity: 0 }}
+        animate={reduceMotion ? { opacity: 1 } : { scale: [0.34, 0.34, 1], opacity: [0, 1, 1] }}
+        transition={
+          reduceMotion
+            ? { duration: 0.6 }
+            : {
+                duration: 2.6,
+                times: [0, 0.3, 1],
+                ease: [0.65, 0, 0.25, 1],
+                opacity: { duration: 2.6, times: [0, 0.22, 1], ease: "easeOut" },
+              }
+        }
+        onAnimationComplete={() => setIntroDone(true)}
       >
+        {/* The picture frame: wood band, a warmer inner lip, a paper mat.
+            Every band sits OUTSIDE inset 0, so at rest the whole frame is
+            just past the viewport edge — nothing to clean up but nodes,
+            which unmount once the push-in completes. aria-hidden: it's
+            scenery, and it's gone in three seconds. */}
+        {!introDone && !reduceMotion && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-20">
+            <div
+              className="absolute"
+              style={{
+                inset: "-6vmax",
+                border: "4.6vmax solid #4a3527",
+                borderRadius: "1vmax",
+                boxShadow: "0 1.5vmax 6vmax rgba(0,0,0,0.5)",
+              }}
+            />
+            <div className="absolute" style={{ inset: "-2.3vmax", border: "0.9vmax solid #6f523c" }} />
+            <div className="absolute" style={{ inset: "-1.5vmax", border: "1.5vmax solid #e7d9c0" }} />
+          </div>
+        )}
         {/* The scene gets its OWN boundary. It's the most failure-prone thing
             in the app (thousands of SVG nodes generated from editable layout
             data), and it's also the most disposable: if the room can't draw,

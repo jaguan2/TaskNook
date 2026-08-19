@@ -32,7 +32,13 @@ import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } f
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
 import { resolveMusicLink, stationKey } from "./lib/musicLink";
-import { locateBrowser, searchPlaces, fetchCurrentWeather } from "./lib/weather";
+import {
+  locateBrowser,
+  searchPlaces,
+  fetchCurrentWeather,
+  nextRandomWeather,
+  RANDOM_WEATHER_INTERVAL_MS,
+} from "./lib/weather";
 import {
   MAX_ITEMS,
   newPlacement,
@@ -294,6 +300,13 @@ export function StoreProvider({ children }) {
   const [autoMatchWeather, setAutoMatchWeather] = useState(
     () => readStored("tasknook.weather.automatch") === "1"
   );
+  // Weather that drifts on its own, like the real thing — no location, no
+  // network, unlike "Match my real weather" above. Owns weatherMode the same
+  // way auto-match and a manual pick do, so all three stay mutually
+  // exclusive: only one thing may be driving the sky at a time.
+  const [autoRandomWeather, setAutoRandomWeather] = useState(
+    () => readStored("tasknook.weather.random") === "1"
+  );
   const weatherCoordsRef = useRef(
     (() => {
       try {
@@ -307,6 +320,11 @@ export function StoreProvider({ children }) {
     })()
   );
   const autoMatchRef = useRef(autoMatchWeather);
+  // So a random-weather roll (fired from inside a setTimeout) always steps
+  // from the CURRENT condition, not one captured when the effect last ran —
+  // without pulling weatherMode into that effect's deps, which would tear
+  // down and restart the whole schedule on every roll.
+  const weatherModeRef = useRef(weatherMode);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
       const saved = readJSON("tasknook.weather.presets", []);
@@ -1272,6 +1290,9 @@ export function StoreProvider({ children }) {
   };
   const setWeather = (nextMode) => {
     if (autoMatchRef.current) setAutoMatchWeather(false);
+    // A hand-picked condition has to switch random weather off too, or the
+    // next scheduled roll silently overwrites it a half hour later.
+    setAutoRandomWeather(false);
     applyWeatherVisual(nextMode);
   };
   const setTimeOfDay = (mode) => {
@@ -1920,7 +1941,19 @@ export function StoreProvider({ children }) {
     // otherwise its 15-minute refresh and the clock tick take turns overwriting
     // each other's value.
     if (next) setAutoTimeOfDay(false);
+    // And it owns weatherMode, same axis random weather drives — the two
+    // refreshes would otherwise fight over the sky.
+    if (next) setAutoRandomWeather(false);
     setAutoMatchWeather(next);
+  };
+
+  // Turning random weather on hands weatherMode to the drift schedule below;
+  // auto-match (which also owns weatherMode) has to stand down for the same
+  // reason it stands down for a manual pick.
+  const toggleRandomWeather = () => {
+    const next = !autoRandomWeather;
+    if (next && autoMatchRef.current) setAutoMatchWeather(false);
+    setAutoRandomWeather(next);
   };
 
   // While the clock is driving the scene, re-check it. A minute is far finer
@@ -1949,6 +1982,35 @@ export function StoreProvider({ children }) {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoMatchWeather]);
+
+  useEffect(() => {
+    weatherModeRef.current = weatherMode;
+  }, [weatherMode]);
+
+  useEffect(() => {
+    writeStored("tasknook.weather.random", autoRandomWeather ? "1" : "0");
+  }, [autoRandomWeather]);
+
+  // Random weather: a condition holds for RANDOM_WEATHER_INTERVAL_MS (30
+  // minutes), then steps to a new one via nextRandomWeather's weighted
+  // transitions. `nextRollAt` persists across reloads — closing the app
+  // doesn't pause the clock, so reopening past a scheduled roll catches up
+  // immediately instead of waiting out a stale timer, the same reasoning
+  // the music bar's resume-on-boot already follows.
+  useEffect(() => {
+    if (!autoRandomWeather) return undefined;
+    let timer;
+    const roll = () => {
+      applyWeatherVisual(nextRandomWeather(weatherModeRef.current));
+      const at = Date.now() + RANDOM_WEATHER_INTERVAL_MS;
+      writeStored("tasknook.weather.random.nextRollAt", String(at));
+      timer = setTimeout(roll, RANDOM_WEATHER_INTERVAL_MS);
+    };
+    const savedAt = Number(readStored("tasknook.weather.random.nextRollAt"));
+    const remaining = savedAt > 0 ? savedAt - Date.now() : 0;
+    timer = setTimeout(roll, Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [autoRandomWeather]);
 
   const setStation = (key) => {
     setActiveStationKey(key);
@@ -2159,6 +2221,8 @@ export function StoreProvider({ children }) {
     weatherPlaces,
     chooseWeatherPlace,
     autoMatchWeather,
+    autoRandomWeather,
+    toggleRandomWeather,
     autoTimeOfDay,
     setAutoTimeOfDay,
     toggleAutoMatchWeather,

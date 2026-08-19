@@ -554,8 +554,12 @@ export function Resident({
         <>
           {/* Legs run the full LEG_H — at 15px they were stubs under a long
               torso, which is most of what made the figure read as a toddler.
-              The far one uses the depth colours the seated pose already had
-              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block.
+              BOTH legs wear the same tone: this is a straight-on front view,
+              and the old far-leg depth split (borrowed from the seated pose,
+              where thighs genuinely overlap) dressed one leg darker than the
+              other — at 4x it read as two different trousers (VC2 pass,
+              2026-08-19). Standing legs never overlap, so the gap between
+              them is all the separation the eye needs.
               While moving they SCISSOR from the hip — a stiff clay-toy stride,
               swing fore-and-aft, not the old vertical piston that hopped each
               trouser leg straight up and read as pedalling in place. */}
@@ -565,7 +569,7 @@ export function Resident({
               there's no floor under them. */}
           <g className={moving ? "leg-stride-a" : undefined}>
             <g style={hangLimb(held, -5)}>
-              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} far />
+              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
             </g>
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
