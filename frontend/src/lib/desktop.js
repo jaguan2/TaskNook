@@ -19,3 +19,19 @@ export async function setAlwaysOnTop(value) {
   if (!hasDesktopApi()) return false;
   return window.pywebview.api.set_always_on_top(value);
 }
+
+export function hasDesktopWidgetApi() {
+  return typeof window !== "undefined" && !!window.pywebview?.api?.set_widget_mode;
+}
+
+export async function setDesktopWidgetMode(value) {
+  if (!hasDesktopWidgetApi()) return false;
+  try {
+    return await window.pywebview.api.set_widget_mode(value);
+  } catch (error) {
+    // A native-window failure must not take down the timer UI. Web mode still
+    // works, and desktop users retain the in-page compact fallback.
+    console.error("Could not resize TaskNook for Widget Mode:", error);
+    return false;
+  }
+}

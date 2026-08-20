@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../lib/time";
-import { motion, useDragControls } from "framer-motion";
+import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { Check, ChevronUp, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { storeIsOpen } from "../lib/unlocks";
 import { useArmed } from "../lib/useArmed";
+import { shouldDismissAtEdge } from "../lib/widgetDrag";
 
 const BREAK_PRESETS = [3, 5, 10];
 const ROUND_PRESETS = [2, 3, 4, 6];
@@ -19,7 +20,7 @@ const fmt = (seconds) => formatClock(seconds, { padMinutes: true });
 // round pips, the time, a thin progress bar, and ✕ ▶/⏸ ✓ — with everything
 // else (mode, presets, pomodoro plan) tucked behind the ⚙ expander. The task
 // name appears centred above only when there IS one; no idle filler text.
-export default function HudFocusCard() {
+export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
   // This card IS the clock, so it's the one component that should re-render
   // every second — it reads the full timer context on purpose.
   const {
@@ -47,6 +48,24 @@ export default function HudFocusCard() {
   const { activeTask, sessionDays, dailyGoal, unlockBalance } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
+  const cardRef = useRef(null);
+  // The card remains mounted when Settings hides it, so an edge dismissal
+  // must also reset its retained motion values. Otherwise restoring "Session
+  // & timer" would reveal it at the same unreachable off-screen position.
+  const dragX = useMotionValue(0);
+  const dragY = useMotionValue(0);
+
+  // The full options drawer is intentionally absent from the small native
+  // shell: it cannot fit without turning the widget back into an app window.
+  // Returning to the cottage restores the control in its collapsed state.
+  useEffect(() => {
+    if (!compact) return;
+    setExpanded(false);
+    // A card dragged around the full cottage keeps motion values even while
+    // mounted. The small window has no room for that old offset, so centre it.
+    dragX.set(0);
+    dragY.set(0);
+  }, [compact, dragX, dragY]);
 
   // ✕ discards the block (nothing is logged), so once there's real progress
   // on the clock it arms first — the app-wide two-tap rhythm (lib/useArmed).
@@ -84,13 +103,27 @@ export default function HudFocusCard() {
     // z-30: when the ⚙ options are expanded on a short window the panel may
     // reach the dock's territory — it should overlay it like a dropdown, not
     // slide underneath.
-    <div className="intro-chrome pointer-events-none absolute left-6 top-6 z-30">
+    <div
+      className={`intro-chrome pointer-events-none absolute z-30 ${
+        compact
+          ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          : "left-6 top-6"
+      }`}
+    >
       <motion.div
-        drag
+        ref={cardRef}
+        drag={!compact}
         dragListener={false}
         dragControls={dragControls}
         dragMomentum={false}
         dragElastic={0}
+        style={{ x: dragX, y: dragY }}
+        onDragEnd={() => {
+          if (!shouldDismissAtEdge(cardRef.current?.getBoundingClientRect())) return;
+          dragX.set(0);
+          dragY.set(0);
+          onEdgeDismiss?.();
+        }}
         className="pointer-events-auto flex w-[13.5rem] flex-col items-center"
       >
         {heading && (
@@ -100,11 +133,13 @@ export default function HudFocusCard() {
         )}
 
         <div className="glass w-full rounded-2xl px-4 pb-3 pt-2 shadow-soft">
-          <div
-            onPointerDown={(e) => dragControls.start(e)}
-            title="Drag to move"
-            className="mx-auto mb-1 h-1.5 w-10 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
-          />
+          {!compact && (
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              title="Drag to move"
+              className="mx-auto mb-1 h-1.5 w-10 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
+            />
+          )}
 
           {/* pomodoro round pips */}
           {!stopwatch && pomodoro.enabled && (
@@ -213,21 +248,23 @@ export default function HudFocusCard() {
                 <Check size={15} />
               </button>
             )}
-            <button
-              onClick={() => setExpanded((e) => !e)}
-              title="Timer options"
-              aria-label="Timer options"
-              aria-expanded={expanded}
-              className={`pill grid h-8 w-8 place-items-center transition ${
-                expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
-              }`}
-            >
-              {expanded ? <ChevronUp size={15} /> : <Settings2 size={14} />}
-            </button>
+            {!compact && (
+              <button
+                onClick={() => setExpanded((e) => !e)}
+                title="Timer options"
+                aria-label="Timer options"
+                aria-expanded={expanded}
+                className={`pill grid h-8 w-8 place-items-center transition ${
+                  expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
+                }`}
+              >
+                {expanded ? <ChevronUp size={15} /> : <Settings2 size={14} />}
+              </button>
+            )}
           </div>
 
           {/* options, tucked away by default */}
-          {expanded && (
+          {expanded && !compact && (
             <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
               <div className="flex justify-center gap-1">
                 {[

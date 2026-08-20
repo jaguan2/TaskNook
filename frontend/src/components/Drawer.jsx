@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { motion, useDragControls } from "framer-motion";
 import { Pin, X } from "lucide-react";
+import { shouldDismissAtEdge } from "../lib/widgetDrag";
 
 export default function Drawer({
   title,
@@ -13,15 +15,20 @@ export default function Drawer({
   children,
 }) {
   const dragControls = useDragControls();
+  const drawerRef = useRef(null);
 
   return (
     <motion.aside
+      ref={drawerRef}
       key="drawer"
       drag
       dragListener={false}
       dragControls={dragControls}
       dragMomentum={false}
       dragElastic={0}
+      onDragEnd={() => {
+        if (shouldDismissAtEdge(drawerRef.current?.getBoundingClientRect())) onClose();
+      }}
       onPointerDownCapture={onPointerDownCapture}
       initial={{ x: 420, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
@@ -50,6 +57,7 @@ export default function Drawer({
     >
       <header
         onPointerDown={(e) => dragControls.start(e)}
+        title="Drag to move · drag almost off-screen to close"
         className="flex cursor-grab items-start justify-between border-b border-white/10 px-5 py-4 active:cursor-grabbing"
       >
         <div>

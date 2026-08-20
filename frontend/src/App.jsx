@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Minimize2, Sofa } from "lucide-react";
+import { Maximize2, Sofa } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
+import { onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
@@ -72,6 +73,7 @@ export default function App() {
     customSurface,
     motionMode,
     hudVisibility,
+    setHudVisibility,
     widgetMode,
     setWidgetMode,
     roomPlacements,
@@ -120,6 +122,16 @@ export default function App() {
   // The new 8% zoom is deliberately cheap enough for dense rooms; only an
   // explicit reduced-motion preference turns the entrance into a fade.
   const quietIntro = reduceMotion;
+
+  // In the packaged app Widget Mode also changes the OS window itself. The
+  // bridge arrives asynchronously, so apply immediately when available and
+  // once more on `pywebviewready` for a persisted mode during startup. In a
+  // browser this safely remains a compact in-page timer view.
+  useEffect(() => {
+    const apply = () => setDesktopWidgetMode(widgetMode);
+    apply();
+    return onDesktopApiReady(apply);
+  }, [widgetMode]);
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
@@ -467,7 +479,13 @@ export default function App() {
           Session & timer while active; everything else below still folds
           away via hudWrapClass(roomEditMode || widgetMode, ...). */}
       <div className={widgetMode ? "opacity-100 transition-opacity duration-300" : hudWrapClass(roomEditMode, hudVisibility.timer)}>
-        <HudFocusCard />
+        <HudFocusCard
+          compact={widgetMode}
+          onEdgeDismiss={() => {
+            setHudVisibility("timer", "hidden");
+            if (widgetMode) setWidgetMode(false);
+          }}
+        />
       </div>
       <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.tasks)}>
         <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
@@ -481,7 +499,7 @@ export default function App() {
         <MusicDock />
       </div>
 
-      {/* Widget Mode's own exit control — a plain button, not .intro-chrome,
+      {/* Widget Mode's own expand/exit control — a plain button, not .intro-chrome,
           so mounting it only while widgetMode is on (rather than fading a
           permanent one) costs nothing and needs no extra state. Escape does
           the same thing (App's keydown handler, checked before every other
@@ -493,7 +511,7 @@ export default function App() {
           aria-label="Exit Widget Mode"
           className="pill glass absolute right-4 top-4 z-40 grid h-9 w-9 place-items-center text-cream shadow-soft hover:bg-white/10"
         >
-          <Minimize2 size={15} />
+          <Maximize2 size={15} />
         </button>
       )}
 

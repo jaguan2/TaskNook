@@ -149,6 +149,13 @@ def find_free_port():
 # though the underlying browser profile is being persisted correctly.
 DEFAULT_PORT = 39217
 
+# Widget Mode is a real native-window mode, not merely a frontend visibility
+# toggle. The minimum has to permit this size: pywebview applies `min_size` to
+# the OS window at creation and a later resize cannot go below it.
+NORMAL_WINDOW_SIZE = (1200, 820)
+NORMAL_MIN_SIZE = (900, 640)
+WIDGET_WINDOW_SIZE = (300, 260)
+
 
 def get_port():
     if os.environ.get("PORT"):
@@ -207,6 +214,24 @@ class DesktopApi:
 
     def __init__(self):
         self.window = None
+        self._widget_mode = False
+        self._normal_bounds = None
+        self._normal_was_maximized = False
+        self._is_maximized = False
+        self._window_lock = threading.Lock()
+
+    def attach_window(self, window):
+        """Finish the circular Window↔API setup and track maximize state."""
+        self.window = window
+
+        def maximized():
+            self._is_maximized = True
+
+        def restored():
+            self._is_maximized = False
+
+        window.events.maximized += maximized
+        window.events.restored += restored
 
     def set_always_on_top(self, value):
         """Backs Widget Mode's "Always On Top" toggle. `Window.on_top` is a
@@ -217,6 +242,55 @@ class DesktopApi:
             return False
         self.window.on_top = bool(value)
         return self.window.on_top
+
+    def set_widget_mode(self, value):
+        """Resize the native app around the timer and restore it exactly.
+
+        The frontend still owns which React surfaces render. This method owns
+        only OS-window geometry/title, keeping web mode fully supported. Bounds
+        are captured once on entry; moving the small widget never overwrites
+        the full app's remembered home.
+        """
+        if self.window is None:
+            return False
+        enabled = bool(value)
+        with self._window_lock:
+            if enabled == self._widget_mode:
+                return True
+
+            if enabled:
+                self._normal_bounds = {
+                    "x": self.window.x,
+                    "y": self.window.y,
+                    "width": self.window.width,
+                    "height": self.window.height,
+                }
+                self._normal_was_maximized = self._is_maximized
+                if self._is_maximized:
+                    self.window.restore()
+                self.window.resize(*WIDGET_WINDOW_SIZE)
+                self.window.set_title("TaskNook Timer")
+            else:
+                bounds = self._normal_bounds
+                self.window.restore()
+                if bounds:
+                    # Normal mode keeps the application's established usable
+                    # floor even though the creation-time minimum must permit
+                    # the much smaller widget shell.
+                    width = max(NORMAL_MIN_SIZE[0], bounds["width"])
+                    height = max(NORMAL_MIN_SIZE[1], bounds["height"])
+                    self.window.resize(width, height)
+                    self.window.move(bounds["x"], bounds["y"])
+                else:
+                    self.window.resize(*NORMAL_WINDOW_SIZE)
+                self.window.set_title("TaskNook")
+                if self._normal_was_maximized:
+                    self.window.maximize()
+                self._normal_bounds = None
+                self._normal_was_maximized = False
+
+            self._widget_mode = enabled
+            return True
 
 
 def open_in_browser(url):
@@ -280,12 +354,15 @@ def main():
         window = webview.create_window(
             "TaskNook",
             url,
-            width=1200,
-            height=820,
-            min_size=(900, 640),
+            width=NORMAL_WINDOW_SIZE[0],
+            height=NORMAL_WINDOW_SIZE[1],
+            # Widget Mode temporarily needs a much smaller native shell. The
+            # API restores normal geometry on exit; this creation-time minimum
+            # is the hard floor enforced by the platform toolkit.
+            min_size=WIDGET_WINDOW_SIZE,
             js_api=api,
         )
-        api.window = window
+        api.attach_window(window)
         # private_mode=False + an explicit storage_path: without these,
         # pywebview defaults to an incognito-style session that throws away
         # localStorage (settings, the auth token, everything) on every close.
