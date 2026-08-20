@@ -7,7 +7,6 @@ import {
   CloudSnow,
   CloudSun,
   Leaf,
-  Music2,
   Pin,
   PictureInPicture2,
 } from "lucide-react";
@@ -51,8 +50,7 @@ function fmtClock(d) {
 }
 
 export default function TopBar({ clockVisibility = "on" }) {
-  const { user, musicOn, toggleMusic, weatherMode, setWeather, widgetMode, setWidgetMode } =
-    useStore();
+  const { user, weatherMode, setWeather, widgetMode, setWidgetMode } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
 
@@ -104,10 +102,6 @@ export default function TopBar({ clockVisibility = "on" }) {
 
   return (
     <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">
-      <IconToggle active={musicOn} onClick={toggleMusic} title="Music on/off" slashWhenOff>
-        <Music2 size={18} />
-      </IconToggle>
-
       <div className="relative">
         <button
           title="Weather ambience"

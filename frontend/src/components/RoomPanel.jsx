@@ -1,20 +1,22 @@
-import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Boxes, Check, Eraser, Sofa } from "lucide-react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
-import { project, floorPatch } from "../lib/iso";
+import { project, floorPatch, floorPoints } from "../lib/iso";
 import {
   ISO_ENVS,
   ISO_ENV_KEYS,
   ISO_ITEMS,
   ISO_ITEM_GROUPS,
+  ISO_LIGHTING,
+  ISO_LIGHTING_KEYS,
   ISO_PRESETS,
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
   cutsToMask,
   envHasWalls,
-  WALL_MODES,
+  partitionKey,
   seatFor,
   seatedPlacement,
   stackedPlacement,
@@ -93,6 +95,7 @@ function IsoPresetPreviewInner({ preset }) {
   const { w, d } = preset.size;
   const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
   const size = { w, d, ...(mask && { mask }) };
+  const shapedFloor = mask?.some((row) => row.includes("0"));
   const grass = preset.size.env === "garden";
   // Seat personas before sorting, exactly as the scene does — otherwise the
   // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
@@ -121,17 +124,25 @@ function IsoPresetPreviewInner({ preset }) {
       className="h-24 w-full"
       aria-hidden="true"
     >
-      {Array.from({ length: d }, (_, ty) =>
-        Array.from({ length: w }, (_, tx) =>
-          tileOn(size, tx, ty) ? (
-            <polygon
-              key={`${tx}-${ty}`}
-              points={floorPatch(tx, ty, 1, 1)}
-              fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
-              opacity="0.8"
-            />
-          ) : null
+      {shapedFloor ? (
+        Array.from({ length: d }, (_, ty) =>
+          Array.from({ length: w }, (_, tx) =>
+            tileOn(size, tx, ty) ? (
+              <polygon
+                key={`${tx}-${ty}`}
+                points={floorPatch(tx, ty, 1, 1)}
+                fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+                opacity="0.8"
+              />
+            ) : null
+          )
         )
+      ) : (
+        <polygon
+          points={floorPoints(w, d)}
+          fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+          opacity="0.8"
+        />
       )}
       {items.map((p) => {
         const item = ISO_ITEMS[p.item];
@@ -210,26 +221,33 @@ export default function RoomPanel() {
     addIsoItem,
     setIsoSize,
     setIsoTile,
+    setIsoPartition,
+    resetIsoPartitions,
     resetIsoShape,
     setIsoEnv,
-    setIsoWalls,
+    setIsoLighting,
     applyIsoPreset,
     unlocked,
     unlockItem,
     unlockBalance,
   } = useStore();
   const isoEnv = isoRoom.env || "room";
-  // The effective walls: the layout's own override, else the floor's default.
-  const isoWalls = WALL_MODES.includes(isoRoom.walls)
-    ? isoRoom.walls
-    : ISO_ENVS[isoEnv].walls;
   // Floor-plan painting: pointerdown picks add/remove from the first tile,
   // dragging applies it to every tile crossed (the Sims floor-tool feel).
   const [paintMode, setPaintMode] = useState(null);
+  const [planTool, setPlanTool] = useState("floor");
+  // Expensive editors mount only after the user asks for them. The earlier
+  // IntersectionObserver pass still created an effect + observer for every
+  // one of ~150 previews on drawer-open, which was enough to stall WebView2.
+  const [floorPlanOpen, setFloorPlanOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogGroupOpen, setCatalogGroupOpen] = useState(null);
+  const [catalogQuery, setCatalogQuery] = useState("");
   // Clearing the room destroys an arrangement outright — armed like a delete.
   const [armedId, arm] = useArmed();
   const maskRows =
     isoRoom.mask || Array.from({ length: isoRoom.d }, () => "1".repeat(isoRoom.w));
+  const partitionKeys = useMemo(() => new Set(isoRoom.partitions || []), [isoRoom.partitions]);
 
   const counts = roomPlacements.reduce((acc, p) => {
     acc[p.item] = (acc[p.item] || 0) + 1;
@@ -239,6 +257,17 @@ export default function RoomPanel() {
     acc[p.item] = (acc[p.item] || 0) + 1;
     return acc;
   }, {});
+  const visibleItemGroups = useMemo(() => {
+    const query = catalogQuery.trim().toLocaleLowerCase();
+    return ISO_ITEM_GROUPS.map((group) => ({
+      ...group,
+      keys: group.keys.filter((key) => {
+        if (ISO_ITEMS[key].wall && !envHasWalls(isoEnv, isoRoom.walls)) return false;
+        return !query || ISO_ITEMS[key].label.toLocaleLowerCase().includes(query);
+      }),
+    })).filter((group) => group.keys.length);
+  }, [catalogQuery, isoEnv, isoRoom.walls]);
+  const visibleItemCount = visibleItemGroups.reduce((total, group) => total + group.keys.length, 0);
 
   // While VISITING, the whole panel stands down — not just the Decorate
   // toggle. The review caught the trap a per-button gate leaves open: every
@@ -347,8 +376,8 @@ export default function RoomPanel() {
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>
             </div>
-            {/* The floor picker — each material is an env under the hood and
-                brings its walls along (stone = low rail, grass = open air). */}
+            {/* The floor picker also sets the exterior shell. Interior rooms
+                are drawn explicitly in the floor-plan editor below. */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
                 floor
@@ -367,91 +396,173 @@ export default function RoomPanel() {
                 </button>
               ))}
               <span className="w-full text-[10px] text-petal/40">
-                Each floor sets a walls default — stone a low rail, grass open
-                air — and the row below overrides it.
+                Each floor sets its exterior edge; draw interior walls in the floor plan.
               </span>
             </div>
-            {/* Walls, decoupled from the floor: grass with full walls is a
-                courtyard, boards with none is a stage — neither needs its
-                own env to exist. Turning walls off drops wall decor (the
-                store toasts the count, same as reshaping). */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                walls
+                light
               </span>
-              {[
-                { key: "full", label: "🧱 Full" },
-                { key: "low", label: "🚧 Low rail" },
-                { key: "none", label: "🌅 Open air" },
-              ].map((mode) => (
+              {ISO_LIGHTING_KEYS.map((key) => (
                 <button
-                  key={mode.key}
-                  onClick={() => setIsoWalls(mode.key)}
+                  key={key}
+                  onClick={() => setIsoLighting(key)}
                   className={`pill px-2.5 py-0.5 text-[11px] font-semibold transition ${
-                    isoWalls === mode.key
+                    (isoRoom.lighting || "natural") === key
                       ? "bg-glow text-plum"
                       : "bg-white/10 text-petal hover:bg-white/20"
                   }`}
                 >
-                  {mode.label}
+                  {ISO_LIGHTING[key].label}
                 </button>
               ))}
+              <span className="w-full text-[10px] text-petal/40">
+                Candlelight breathes gently; reduced-motion mode keeps it still.
+              </span>
             </div>
-            {/* floor plan: drag across the grid to draw any shape */}
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                  floor plan — drag to draw
-                </span>
-                {isoRoom.mask && (
-                  <button
-                    onClick={resetIsoShape}
-                    className="text-[11px] font-semibold text-glow/80 hover:text-glow"
-                  >
-                    ⟲ Full rectangle
-                  </button>
-                )}
-              </div>
-              <div
-                className="grid touch-none select-none rounded-lg bg-white/5 p-1"
-                style={{
-                  gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
-                  // hairline gaps up to ~24 wide; beyond that the gaps would
-                  // eat the (tiny) cells
-                  gap: isoRoom.w > 24 ? 0 : 1,
-                }}
-                onPointerUp={() => setPaintMode(null)}
-                onPointerLeave={() => setPaintMode(null)}
+            {/* A 48×48 plan is 2,304 interactive cells. Keep that DOM out of
+                the drawer until somebody is actually reshaping the floor. */}
+            <div className="rounded-xl bg-white/5">
+              <button
+                type="button"
+                onClick={() => setFloorPlanOpen((open) => !open)}
+                aria-expanded={floorPlanOpen}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
               >
-                {maskRows.map((row, y) =>
-                  row.split("").map((c, x) => (
-                    <div
-                      key={`${x}-${y}`}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        // Touch gives the first cell implicit pointer capture,
-                        // which swallows the enter events drag-painting needs.
-                        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-                          e.currentTarget.releasePointerCapture(e.pointerId);
-                        }
-                        const on = c !== "1";
-                        setPaintMode(on);
-                        setIsoTile(x, y, on);
-                      }}
-                      onPointerEnter={() => {
-                        if (paintMode !== null) setIsoTile(x, y, paintMode);
-                      }}
-                      className={`aspect-square cursor-crosshair rounded-[2px] transition-colors ${
-                        c === "1" ? "bg-glow/70" : "bg-white/10 hover:bg-white/20"
-                      }`}
-                    />
-                  ))
-                )}
-              </div>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-petal/60">
+                    Floor plan
+                  </span>
+                  <span className="block text-[10px] text-petal/40">
+                    {isoRoom.w}×{isoRoom.d} · open to reshape
+                  </span>
+                </span>
+                <ChevronDown
+                  size={15}
+                  className={`shrink-0 text-petal/50 transition-transform ${floorPlanOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {floorPlanOpen && (
+                <div className="border-t border-white/10 p-2.5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                      Drag to draw
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {isoRoom.partitions?.length > 0 && (
+                        <button
+                          onClick={resetIsoPartitions}
+                          className="text-[10px] font-semibold text-petal/55 hover:text-danger"
+                        >
+                          Clear walls
+                        </button>
+                      )}
+                      {isoRoom.mask && (
+                        <button
+                          onClick={resetIsoShape}
+                          className="text-[10px] font-semibold text-glow/80 hover:text-glow"
+                        >
+                          ⟲ Full floor
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mb-2 grid grid-cols-3 gap-1" role="group" aria-label="Floor-plan tool">
+                    {[
+                      { key: "floor", label: "Floor" },
+                      { key: "wall-h", label: "Wall ↔" },
+                      { key: "wall-v", label: "Wall ↕" },
+                    ].map((tool) => (
+                      <button
+                        key={tool.key}
+                        type="button"
+                        onClick={() => {
+                          setPlanTool(tool.key);
+                          setPaintMode(null);
+                        }}
+                        aria-pressed={planTool === tool.key}
+                        className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition ${
+                          planTool === tool.key
+                            ? "bg-glow text-plum"
+                            : "bg-white/5 text-petal/60 hover:bg-white/10"
+                        }`}
+                      >
+                        {tool.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div
+                    className="grid touch-none select-none rounded-lg bg-white/5 p-1"
+                    style={{
+                      gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
+                      // hairline gaps up to ~24 wide; beyond that the gaps would
+                      // eat the (tiny) cells
+                      gap: isoRoom.w > 24 ? 0 : 1,
+                    }}
+                    onPointerUp={() => setPaintMode(null)}
+                    onPointerLeave={() => setPaintMode(null)}
+                  >
+                    {maskRows.map((row, y) =>
+                      row.split("").map((c, x) => {
+                        const hKey = partitionKey("gy", y + 1, x);
+                        const vKey = partitionKey("gx", x + 1, y);
+                        const applyPartition = (plane, on) => {
+                          const at = plane === "gy" ? y + 1 : x + 1;
+                          const from = plane === "gy" ? x : y;
+                          if (at >= (plane === "gy" ? isoRoom.d : isoRoom.w)) return;
+                          setIsoPartition(plane, at, from, on);
+                        };
+                        return (
+                          <div
+                            key={`${x}-${y}`}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              // Touch gives the first cell implicit pointer capture,
+                              // which swallows the enter events drag-painting needs.
+                              if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+                                e.currentTarget.releasePointerCapture(e.pointerId);
+                              }
+                              if (planTool === "floor") {
+                                const on = c !== "1";
+                                setPaintMode({ kind: "floor", on });
+                                setIsoTile(x, y, on);
+                                return;
+                              }
+                              const plane = planTool === "wall-h" ? "gy" : "gx";
+                              const key = plane === "gy" ? hKey : vKey;
+                              const on = !partitionKeys.has(key);
+                              setPaintMode({ kind: "partition", plane, on });
+                              applyPartition(plane, on);
+                            }}
+                            onPointerEnter={() => {
+                              if (!paintMode) return;
+                              if (paintMode.kind === "floor") setIsoTile(x, y, paintMode.on);
+                              else applyPartition(paintMode.plane, paintMode.on);
+                            }}
+                            className={`relative aspect-square cursor-crosshair rounded-[2px] transition-colors ${
+                              c === "1" ? "bg-glow/70" : "bg-white/10 hover:bg-white/20"
+                            }`}
+                          >
+                            {y < isoRoom.d - 1 && partitionKeys.has(hKey) && (
+                              <span className="pointer-events-none absolute -bottom-px left-0 z-10 h-[3px] w-full rounded-full bg-amber" />
+                            )}
+                            {x < isoRoom.w - 1 && partitionKeys.has(vKey) && (
+                              <span className="pointer-events-none absolute -right-px top-0 z-10 h-full w-[3px] rounded-full bg-amber" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                  <p className="mt-2 text-[10px] text-petal/45">
+                    Pick a wall direction, then drag across tile edges. Start on an existing wall to erase it.
+                  </p>
+                </div>
+              )}
             </div>
             <p className="text-xs text-petal/50">
-              A {isoRoom.w}×{isoRoom.d} floor — resize with the sliders, then
-              paint tiles away above for L-shapes, courtyards, anything.
+              A {isoRoom.w}×{isoRoom.d} floor — resize it, shape the floor, and
+              divide it into rooms with drawn walls.
               Furniture stays on the drawn floor. Scroll to zoom, drag empty
               space to look around, double-click to recenter.
             </p>
@@ -469,7 +580,9 @@ export default function RoomPanel() {
           scale has nothing left to scale — same reason the iso camera
           replaced it there. */}
 
-      {/* Iso presets — each button is a live miniature of the room it applies */}
+      {/* Iso presets: always-visible, one-click previews. The floor in each
+          miniature is a single polygon for rectangular rooms, so restoring
+          the visual grid does not restore the old thousand-tile DOM cost. */}
       {isoPreview && (
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
@@ -479,7 +592,9 @@ export default function RoomPanel() {
             {ISO_PRESET_KEYS.map((key) => (
               <button
                 key={key}
+                type="button"
                 onClick={() => applyIsoPreset(key)}
+                title={`Use ${ISO_PRESETS[key].label}`}
                 className="rounded-xl bg-white/5 p-2 text-left transition hover:bg-white/15"
               >
                 <IsoPresetPreview preset={ISO_PRESETS[key]} />
@@ -490,8 +605,7 @@ export default function RoomPanel() {
             ))}
           </div>
           <p className="mt-2 text-xs text-petal/50">
-            Presets replace the current layout (floor size included) — then
-            tweak from there.
+            One click replaces the current layout (floor size included) — then tweak from there.
           </p>
         </section>
       )}
@@ -499,89 +613,139 @@ export default function RoomPanel() {
       {/* Iso furniture (its own catalog while the iso room is active) */}
       {isoPreview && (
         <section>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-            Furniture
-          </p>
-          {/* Sectioned, not one 93-item scroll: past about thirty entries a
-              flat grid stops being browsable and you can no longer tell what
-              the catalog even contains. A section whose every item is wall
-              decor disappears entirely outdoors rather than leaving a heading
-              over nothing. */}
-          <div className="space-y-3">
-            {ISO_ITEM_GROUPS.map((group) => {
-              const keys = group.keys.filter(
-                (key) => !(ISO_ITEMS[key].wall && !envHasWalls(isoEnv, isoRoom.walls))
-              );
-              if (!keys.length) return null;
-              return (
-                <div key={group.label}>
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-petal/40">
-                    {group.label}
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {keys.map((key) => {
-                      // Locked pieces stay VISIBLE, greyed with their price on
-                      // them — hiding them would mean nobody knows there's
-                      // anything to earn, which is the whole point of the
-                      // currency. Affordable ones light up.
-                      const locked = !owns(unlocked, key);
-                      const affordable = locked && unlockBalance >= costOf(key);
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => (locked ? unlockItem(key) : addIsoItem(key))}
-                          title={
-                            locked
-                              ? `${costOf(key)} focused minutes unlocks the ${ISO_ITEMS[key].label.toLowerCase()}`
-                              : `Add ${ISO_ITEMS[key].label.toLowerCase()}`
-                          }
-                          className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
-                            affordable
-                              ? "bg-glow/15 hover:bg-glow/25"
-                              : "bg-white/5 hover:bg-white/15"
-                          }`}
-                        >
-                          <span className={locked && !affordable ? "opacity-40 grayscale" : ""}>
-                            <IsoItemPreview itemKey={key} />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span
-                              className={`block truncate text-xs font-medium ${
-                                locked ? "text-petal/70" : "text-cream"
-                              }`}
-                            >
-                              {ISO_ITEMS[key].label}
-                            </span>
-                            {locked ? (
-                              <span
-                                className={`text-[10px] ${
-                                  affordable ? "font-semibold text-glow" : "text-petal/50"
+          <button
+            type="button"
+            onClick={() => setCatalogOpen((open) => !open)}
+            aria-expanded={catalogOpen}
+            className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span>
+              <span className="block text-xs font-semibold uppercase tracking-wide text-petal/60">
+                Furniture
+              </span>
+              <span className="block text-[10px] text-petal/40">
+                Browse by category · sprites load one category at a time
+              </span>
+            </span>
+            <ChevronDown
+              size={15}
+              className={`shrink-0 text-petal/50 transition-transform ${catalogOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {catalogOpen && (
+            <>
+              <label className="relative mb-2 block min-w-0">
+                <Search
+                  size={13}
+                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-petal/45"
+                />
+                <input
+                  type="search"
+                  value={catalogQuery}
+                  onChange={(e) => setCatalogQuery(e.target.value)}
+                  placeholder="Find furniture"
+                  aria-label="Search furniture"
+                  className="w-full rounded-full border border-white/10 bg-white/5 py-1.5 pl-8 pr-3 text-xs text-cream outline-none placeholder:text-petal/35 focus:border-glow/50"
+                />
+              </label>
+              {/* A closed category is text only. This makes opening Room O(1)
+                  in catalog size and caps mounted SVGs at one category instead
+                  of letting every future decoration slow down today's app. */}
+              <div className="space-y-1.5">
+                {visibleItemGroups.map((group) => {
+                  const { keys } = group;
+                  const expanded = catalogGroupOpen === group.label;
+                  return (
+                    <div key={group.label} className="rounded-xl bg-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setCatalogGroupOpen(expanded ? null : group.label)}
+                        aria-expanded={expanded}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                      >
+                        <span className="text-[11px] font-semibold text-petal/70">
+                          {group.label}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-petal/40">
+                          {keys.length}
+                          <ChevronDown
+                            size={13}
+                            className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                          />
+                        </span>
+                      </button>
+                      {expanded && (
+                        <div className="grid grid-cols-2 gap-1.5 border-t border-white/10 p-1.5">
+                          {keys.map((key) => {
+                            // Locked pieces stay VISIBLE, greyed with their price on
+                            // them — hiding them would mean nobody knows there's
+                            // anything to earn, which is the whole point of the
+                            // currency. Affordable ones light up.
+                            const locked = !owns(unlocked, key);
+                            const affordable = locked && unlockBalance >= costOf(key);
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => (locked ? unlockItem(key) : addIsoItem(key))}
+                                title={
+                                  locked
+                                    ? `${costOf(key)} focused minutes unlocks the ${ISO_ITEMS[key].label.toLowerCase()}`
+                                    : `Add ${ISO_ITEMS[key].label.toLowerCase()}`
+                                }
+                                className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
+                                  affordable
+                                    ? "bg-glow/15 hover:bg-glow/25"
+                                    : "bg-white/5 hover:bg-white/15"
                                 }`}
                               >
-                                {affordable ? `🔓 unlock · ${costOf(key)}m` : `🔒 ${costOf(key)}m`}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-petal/50">
-                                {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
-                                <span className="hover-reveal text-glow/80 transition">
-                                  + add
+                                <span className={locked && !affordable ? "opacity-40 grayscale" : ""}>
+                                  <IsoItemPreview itemKey={key} />
                                 </span>
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-xs text-petal/50">
-            Tap a placed item for its controls: ⟳ mirrors it to face the other
-            way (wall decor hops to the other wall), 🎨 recolours, ✕ puts it
-            away.
-          </p>
+                                <span className="min-w-0 flex-1">
+                                  <span
+                                    className={`block truncate text-xs font-medium ${
+                                      locked ? "text-petal/70" : "text-cream"
+                                    }`}
+                                  >
+                                    {ISO_ITEMS[key].label}
+                                  </span>
+                                  {locked ? (
+                                    <span
+                                      className={`text-[10px] ${
+                                        affordable ? "font-semibold text-glow" : "text-petal/50"
+                                      }`}
+                                    >
+                                      {affordable ? `🔓 unlock · ${costOf(key)}m` : `🔒 ${costOf(key)}m`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-petal/50">
+                                      {isoCounts[key] ? `${isoCounts[key]} placed · ` : ""}
+                                      <span className="hover-reveal text-glow/80 transition">
+                                        + add
+                                      </span>
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {visibleItemGroups.length === 0 && (
+                  <p className="rounded-xl bg-white/5 px-3 py-5 text-center text-xs text-petal/55">
+                    No furniture matches “{catalogQuery.trim()}”.
+                  </p>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-petal/50">
+                {visibleItemCount} pieces available. Tap a placed item for its controls:
+                ⟳ mirrors it, 🎨 recolours, ✕ puts it away.
+              </p>
+            </>
+          )}
         </section>
       )}
 

@@ -943,11 +943,14 @@ and a handful of design-grammar drifts in newer UI.
   `<span id>` caption + `aria-labelledby` on the group; keep `<label>` only
   for single inputs (Name, Bio, Birthday).
 
-- [ ] **2.4 WIP: "1 minutes" in the focus journal** — `breaks.js:77-83`
+- [x] **2.4 WIP: "1 minutes" in the focus journal** — `breaks.js:77-83`
   pluralizes hours but not minutes (`` `${m} minutes` ``), and its docstring
   says it exists to word the *break-nudge threshold*, where the value is never
   1. The journal borrowed it (`CalendarPanel.jsx:191`, `:210`), so a 1-minute
   session reads "1 minutes". Fold into 2.5.
+
+  **DONE 2026-08-20.** `formatSpan(1)` now returns "1 minute", pinned by the
+  formatter test.
 
 - [ ] **2.5 WIP: two duration vocabularies inside one panel** — CalendarPanel
   already has compact `spanFor` ("2h 5m") for day-cell tooltips at `:89-94`,
@@ -957,7 +960,7 @@ and a handful of design-grammar drifts in newer UI.
   "surfaces can't disagree" reasoning `formatSpan` itself was built on —
   used by CalendarPanel, ProgressPanel and the break nudge.
 
-- [ ] **2.6 WIP: the journal section flickers out on same-day refetch** —
+- [x] **2.6 WIP: the journal section flickers out on same-day refetch** —
   `CalendarPanel.jsx:38-55`. The effect runs `setJournal(null)`
   unconditionally, including when `selectedMinutes` changes — finishing a
   block with the panel open, the exact case that dep was added for. The
@@ -968,11 +971,17 @@ and a handful of design-grammar drifts in newer UI.
   `selectedMinutes === 0` cannot have entries (server refuses sub-minute
   sessions), so skip the guaranteed-empty fetch entirely.
 
-- [ ] **2.7 WIP: long task names break the day view's older rows** — the new
+  **DONE 2026-08-20.** Same-day totals retain the current journal until the
+  replacement arrives; zero-minute days resolve locally without a request.
+
+- [x] **2.7 WIP: long task names break the day view's older rows** — the new
   journal rows correctly truncate (`min-w-0 flex-1 truncate`), but the
   pre-existing "Planned for" (`CalendarPanel.jsx:241`) and "Unscheduled"
   (`:269`) rows beside them don't — a long name pushes "Unschedule"/"+ add"
   out of the row. Give them the same classes.
+
+  **DONE 2026-08-20.** Both older row types now use the same min-width,
+  truncation, and non-shrinking action layout as the journal rows.
 
 - [ ] **2.8 Decide: legacy `"Focus"`/`"Stopwatch"` rows now read as fake task
   names** — `timer.jsx` correctly sends `taskName: null` now, but every

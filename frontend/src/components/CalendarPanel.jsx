@@ -47,7 +47,13 @@ export default function CalendarPanel() {
 
   useEffect(() => {
     let live = true;
-    setJournal(null);
+    setJournal((current) => (current?.day === selected ? current : null));
+    if (selectedMinutes === 0) {
+      setJournal({ day: selected, entries: [], total: 0 });
+      return () => {
+        live = false;
+      };
+    }
     api
       .sessionDay(selected)
       // A failed lookup leaves the section absent rather than showing an error
@@ -55,7 +61,7 @@ export default function CalendarPanel() {
       .then((data) => live && setJournal(data))
       .catch((err) => {
         console.error("Failed to load the day's focus:", err);
-        if (live) setJournal({ entries: [], total: 0 });
+        if (live) setJournal({ day: selected, entries: [], total: 0 });
       });
     return () => {
       // The day can change faster than the network answers; without this a
@@ -302,14 +308,14 @@ export default function CalendarPanel() {
             {scheduled.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2"
               >
-                <span className={`text-sm text-cream ${t.completed ? "line-through opacity-60" : ""}`}>
+                <span className={`min-w-0 flex-1 truncate text-sm text-cream ${t.completed ? "line-through opacity-60" : ""}`}>
                   {t.name}
                 </span>
                 <button
                   onClick={() => editTask(t.id, { scheduledDate: null })}
-                  className="text-xs text-petal/60 hover:text-danger"
+                  className="shrink-0 text-xs text-petal/60 hover:text-danger"
                 >
                   Unschedule
                 </button>
@@ -332,8 +338,8 @@ export default function CalendarPanel() {
                 onClick={() => editTask(t.id, { scheduledDate: selected })}
                 className="flex w-full items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-left transition hover:bg-white/10"
               >
-                <span className="text-sm text-cream">{t.name}</span>
-                <span className="text-xs text-glow">+ add to {selected.slice(5)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-cream">{t.name}</span>
+                <span className="shrink-0 text-xs text-glow">+ add to {selected.slice(5)}</span>
               </button>
             ))}
           </div>

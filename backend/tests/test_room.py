@@ -335,6 +335,59 @@ def test_iso_roundtrips_a_rotation(client, auth):
     assert "rot" not in saved["placements"][0]
 
 
+def test_iso_roundtrips_wall_finishes_and_lighting(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "wallColors": {"left": "#aa6655", "right": "#554477"},
+        "lighting": "golden",
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+def test_iso_roundtrips_drawn_interior_walls(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "partitions": ["gx:4:5", "gy:3:1", "gy:3:2"],
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+@pytest.mark.parametrize(
+    "partitions",
+    [
+        "gy:2:1",
+        ["gy:0:1"],
+        ["gx:9:1"],
+        ["diagonal:2:1"],
+        ["gy:2:1:extra"],
+        ["gy:02:1"],
+    ],
+)
+def test_iso_rejects_malformed_drawn_walls(client, auth, partitions):
+    iso = {"w": 9, "d": 7, "partitions": partitions, "placements": []}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"wallColors": {"left": "red"}},
+        {"wallColors": {"ceiling": "#ffffff"}},
+        {"wallColors": ["#ffffff"]},
+        {"lighting": "disco"},
+    ],
+)
+def test_iso_rejects_malformed_room_atmosphere(client, auth, patch):
+    iso = {"w": 9, "d": 7, "placements": [], **patch}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
 @pytest.mark.parametrize("bad_rot", [4, -1, True, "1", 1.0])
 def test_iso_rejects_malformed_rotations(client, auth, bad_rot):
     """Rotation is quarter turns 0-3. `True` is excluded deliberately: it's an

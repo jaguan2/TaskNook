@@ -88,7 +88,6 @@ export default function App() {
     rotateIsoItem,
     setIsoItemTint,
     character,
-    selfInRoom,
     visiting,
     leaveVisit,
     moveVisitGuest,
@@ -109,9 +108,18 @@ export default function App() {
   // Resolved once here and threaded down: the setting wins over the OS
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
-  // The opening picture-frame push-in has finished — the frame layers are
-  // pure intro chrome and unmount once they've flown past the edges.
-  const [introDone, setIntroDone] = useState(false);
+  // Continuously animating a dense SVG scene can monopolise WebView2's UI
+  // thread on integrated/disabled GPUs. Large home AND visited rooms use the
+  // calm static treatment automatically; smaller rooms keep all authored
+  // motion unless the user's reduced-motion setting says otherwise.
+  const activeIsoLayout = visiting?.layout || (isoPreview ? isoRoom : null);
+  const heavyScene =
+    activeIsoLayout &&
+    (activeIsoLayout.w * activeIsoLayout.d > 120 || activeIsoLayout.placements.length > 48);
+  const sceneReduceMotion = reduceMotion || !!heavyScene;
+  // The new 8% zoom is deliberately cheap enough for dense rooms; only an
+  // explicit reduced-motion preference turns the entrance into a fade.
+  const quietIntro = reduceMotion;
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
@@ -241,7 +249,7 @@ export default function App() {
           same visibility convention as everything else — never unmounted,
           since HudFocusCard (kept OUTSIDE this wrapper, below) must stay
           mounted throughout: unmounting it would replay its .intro-chrome
-          boot delay (1.5s of invisible UI) on every single toggle, which is
+          boot entrance on every single toggle, which is
           exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
       <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
@@ -249,51 +257,19 @@ export default function App() {
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
       <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
 
-      {/* Centerpiece cottage. On open the room hangs on the night like a
-          framed picture — a beat to take it in, then the camera pushes
-          THROUGH the frame into the room (owner request, 2026-08-19: "like
-          we are peering into the room"; it used to pull back from the
-          window, the same move in the wrong direction). The frame layers
-          live INSIDE this scaling wrapper, sized so their inner edges land
-          exactly at the viewport edge at scale 1 — they sweep past the
-          screen by geometry, no fade to time. Keyframe times give the hold;
-          UI chrome fades in as the camera settles (.intro-chrome delay). */}
+      {/* Centerpiece cottage. A short, direct zoom establishes the room
+          without the old picture-frame/window sequence or its long hold.
+          Reduced-motion mode uses a fade only. */}
       <motion.div
         className="absolute inset-0 grid place-items-center"
-        initial={reduceMotion ? { opacity: 0 } : { scale: 0.34, opacity: 0 }}
-        animate={reduceMotion ? { opacity: 1 } : { scale: [0.34, 0.34, 1], opacity: [0, 1, 1] }}
+        initial={quietIntro ? { opacity: 0 } : { scale: 0.92, opacity: 0 }}
+        animate={quietIntro ? { opacity: 1 } : { scale: 1, opacity: 1 }}
         transition={
-          reduceMotion
-            ? { duration: 0.6 }
-            : {
-                duration: 2.6,
-                times: [0, 0.3, 1],
-                ease: [0.65, 0, 0.25, 1],
-                opacity: { duration: 2.6, times: [0, 0.22, 1], ease: "easeOut" },
-              }
+          quietIntro
+            ? { duration: 0.35, ease: "easeOut" }
+            : { duration: 0.75, ease: [0.22, 1, 0.36, 1] }
         }
-        onAnimationComplete={() => setIntroDone(true)}
       >
-        {/* The picture frame: wood band, a warmer inner lip, a paper mat.
-            Every band sits OUTSIDE inset 0, so at rest the whole frame is
-            just past the viewport edge — nothing to clean up but nodes,
-            which unmount once the push-in completes. aria-hidden: it's
-            scenery, and it's gone in three seconds. */}
-        {!introDone && !reduceMotion && (
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-20">
-            <div
-              className="absolute"
-              style={{
-                inset: "-6vmax",
-                border: "4.6vmax solid #4a3527",
-                borderRadius: "1vmax",
-                boxShadow: "0 1.5vmax 6vmax rgba(0,0,0,0.5)",
-              }}
-            />
-            <div className="absolute" style={{ inset: "-2.3vmax", border: "0.9vmax solid #6f523c" }} />
-            <div className="absolute" style={{ inset: "-1.5vmax", border: "1.5vmax solid #e7d9c0" }} />
-          </div>
-        )}
         {/* The scene gets its OWN boundary. It's the most failure-prone thing
             in the app (thousands of SVG nodes generated from editable layout
             data), and it's also the most disposable: if the room can't draw,
@@ -333,7 +309,7 @@ export default function App() {
               timeOfDay={timeOfDay}
               activity={running ? phase : null}
               character={character}
-              reduceMotion={reduceMotion}
+              reduceMotion={sceneReduceMotion}
               personas={visiting.personas}
               saveView={false}
               walkId={visiting.guestId ?? null}
@@ -350,7 +326,7 @@ export default function App() {
               activity={running ? phase : null}
               character={character}
               mood={mood}
-              reduceMotion={reduceMotion}
+              reduceMotion={sceneReduceMotion}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
@@ -371,17 +347,6 @@ export default function App() {
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
               reduceMotion={reduceMotion}
-              /* Same booleans/hexes the iso room derives from, but passed as
-                 primitives: Cottage is memo'd, and an object built per render
-                 would churn identity on every App re-render. `selfInRoom` is
-                 the SAME truth as the iso "In the room" checkbox (a `you`
-                 placement in the iso layout), so one toggle rules both scenes. */
-              focused={running && phase === "focus"}
-              residentInRoom={selfInRoom}
-              residentSkin={character.skin}
-              residentHair={character.hair}
-              residentHairColor={character.hairColor}
-              residentOutfit={character.outfit}
             />
           )}
         </ErrorBoundary>

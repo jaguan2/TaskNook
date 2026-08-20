@@ -67,85 +67,6 @@ const TIME_PRESETS = {
   },
 };
 
-/* ---------------- the resident, from behind ---------------- */
-// Which back-of-head silhouette a stored hairstyle reads as at this scale.
-// Deliberately NOT the 19 registry drawings: seen from behind at ~30px of
-// head, a wolf cut and an afro are both "hair to the nape", so the scene
-// keeps three shapes (short cap / to the shoulders / down the back) plus a
-// bun knob. New styles fall back to "short" — a cap is never wrong.
-const HAIR_BACK_LONG = new Set(["long", "braids", "locs", "ponytail", "highpony", "pigtails"]);
-const HAIR_BACK_MEDIUM = new Set(["bob", "curly", "afro", "wolf", "mullet", "messy"]);
-const hairBackShape = (hair) =>
-  HAIR_BACK_LONG.has(hair) ? "long" : HAIR_BACK_MEDIUM.has(hair) ? "medium" : "short";
-
-// The chair's floor contact in scene coordinates — also the depth the figure
-// occupies for painter's ordering (placements above it draw behind, ones
-// below draw in front).
-const RESIDENT_X = 290;
-export const RESIDENT_Y = 428;
-
-/**
- * You, seated at the desk with your back to the camera, facing the window.
- * Drawn from the character's colours only (hair/outfit/skin hexes + the hair
- * key bucketed above) — the full character artwork belongs to the iso room.
- * The chair is part of this drawing: the flat scene never had one, because
- * the camera IS the sitter; now that somebody visible sits here, they need
- * something to sit on. `pointerEvents: none` so in decorate mode the figure
- * never eats a drag aimed at an item behind it.
- */
-function CottageResident({ skin, hair, hairColor, outfit, focused }) {
-  const shape = hairBackShape(hair);
-  return (
-    <g transform={`translate(${RESIDENT_X},${RESIDENT_Y})`} style={{ pointerEvents: "none" }}>
-      {/* chair base + stem + seat */}
-      <ellipse cx="0" cy="-2" rx="20" ry="5" fill="#3a3142" />
-      <line x1="0" y1="-4" x2="0" y2="-68" stroke="#3a3142" strokeWidth="5" />
-      <ellipse cx="0" cy="-70" rx="24" ry="7" fill="#4a3a6b" />
-      {/* neck before the torso so the collar covers its base */}
-      <rect x="-6" y="-172" width="12" height="26" rx="4" fill={skin} />
-      {/* torso in the outfit colour, one soft side-shade (translucent black,
-          the same rule the item sprites follow, so it reads over any colour) */}
-      <rect x="-23" y="-158" width="46" height="90" rx="17" fill={outfit} />
-      <rect x="9" y="-152" width="13" height="80" rx="6" fill="#000" opacity="0.1" />
-      {/* arms: the wrapper carries the typing animation and NO transform
-          attribute — the per-arm rotations live on children (the law: a CSS
-          animation and an SVG transform attribute can't share an element). */}
-      <g className={focused ? "resident-2d-type" : undefined}>
-        <g transform="rotate(8 -25 -148)">
-          <rect x="-31" y="-152" width="10" height="46" rx="5" fill={outfit} />
-          <rect x="-31" y="-152" width="10" height="46" rx="5" fill="#000" opacity="0.14" />
-        </g>
-        <g transform="rotate(-8 25 -148)">
-          <rect x="21" y="-152" width="10" height="46" rx="5" fill={outfit} />
-          <rect x="21" y="-152" width="10" height="46" rx="5" fill="#000" opacity="0.14" />
-        </g>
-      </g>
-      {/* low backrest OVER the lower torso/arms — the chair sits between the
-          camera and the sitter, which is what "from behind" means here */}
-      <rect x="-27" y="-112" width="54" height="46" rx="10" fill="#4a3a6b" stroke="rgba(0,0,0,0.28)" />
-      <rect x="-27" y="-112" width="54" height="9" rx="4.5" fill="#000" opacity="0.15" />
-      {/* hair length falls over collar (and, when long, over the chair back) */}
-      {shape === "medium" && (
-        <path d="M-14 -178 Q-18 -158 -14 -142 L14 -142 Q18 -158 14 -178 Z" fill={hairColor} />
-      )}
-      {shape === "long" && (
-        <path d="M-15 -178 Q-19 -148 -16 -104 L16 -104 Q19 -148 15 -178 Z" fill={hairColor} />
-      )}
-      {/* back of the head is all hair; the nape shadow keeps it from reading
-          as a flat disc */}
-      <circle cx="0" cy="-184" r="16" fill={hairColor} />
-      <path d="M-11 -172 q11 7 22 0" stroke="#000" strokeWidth="2" fill="none" opacity="0.15" />
-      {hair === "bun" && <circle cx="0" cy="-203" r="6.5" fill={hairColor} />}
-      {hair === "spacebuns" && (
-        <>
-          <circle cx="-10" cy="-199" r="5.5" fill={hairColor} />
-          <circle cx="10" cy="-199" r="5.5" fill={hairColor} />
-        </>
-      )}
-    </g>
-  );
-}
-
 // A cozy lofi-style desk by a rainy night window. The structure (walls,
 // window, desk, monitor) is a fixed shell; the decor is `room` — freeform
 // placements the user arranges in edit mode by dragging. Hand-built SVG so it
@@ -160,17 +81,6 @@ function Cottage({
   onTintItem,
   // resolved by App from the Motion setting + the OS preference
   reduceMotion = false,
-  // a focus block is running — the seated resident types
-  focused = false,
-  // The resident: gated by the SAME store truth as the iso room's "In the
-  // room" checkbox (a `you` placement in the iso layout), so one toggle
-  // governs both scenes. Passed as primitives, never the character object —
-  // Cottage is memo'd and an identity-churning object would undo that.
-  residentInRoom = false,
-  residentSkin = "#edc39e",
-  residentHair = "short",
-  residentHairColor = "#3a3142",
-  residentOutfit = "#7faf8f",
 }) {
   const [flash, setFlash] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -350,29 +260,7 @@ function Cottage({
     );
   };
 
-  // The resident isn't a placement, so it can't ride sortForRender — instead
-  // it's spliced into the painter's order at the chair's depth. Rugs
-  // (layer -1) stay behind it whatever their y: they're flat on the floor,
-  // and the figure sits ON the floor. ONE flat keyed array, not two mapped
-  // runs, deliberately: React preserves a keyed sibling across reorders
-  // within a single array, so an item dragged across the resident's depth
-  // line keeps its element (two arrays would remount it mid-drag and replay
-  // the pop-in spring).
-  const behindResident = (p) => (ITEMS[p.item].layer || 0) < 0 || p.y <= RESIDENT_Y;
-  const sceneChildren = [
-    ...ordered.filter(behindResident).map(renderPlacement),
-    residentInRoom && (
-      <CottageResident
-        key="__resident"
-        skin={residentSkin}
-        hair={residentHair}
-        hairColor={residentHairColor}
-        outfit={residentOutfit}
-        focused={focused}
-      />
-    ),
-    ...ordered.filter((p) => !behindResident(p)).map(renderPlacement),
-  ];
+  const sceneChildren = ordered.map(renderPlacement);
 
   return (
     <div

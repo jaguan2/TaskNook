@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes iso-light-breathe {
+  0%, 100% { opacity: 0.1; }
+  45% { opacity: 0.16; }
+  55% { opacity: 0.13; }
+}
+
+.iso-light-breathe {
+  animation: iso-light-breathe 5.5s ease-in-out infinite;
+}
+
 /* Zyzol (OFL, Szymon Furjan — furjandesign.com) — self-hosted, not on Google
    Fonts. Display face for headings/titles only; body/UI text stays Quicksand.
    See assets/fonts/zyzol/OFL.txt for the license. */
@@ -108,11 +118,9 @@ body {
   overflow: hidden;
 }
 
-/* App chrome (top bar, dock, focus timer) holds back while the opening
-   picture-frame push-in plays (App.jsx's scene wrapper: a 2.6s hold-then-
-   zoom), then fades in as the camera settles. Runs once per page load. */
+/* App chrome follows the room's short opening zoom, once per page load. */
 .intro-chrome {
-  animation: chrome-in 0.9s ease 2.1s backwards;
+  animation: chrome-in 0.55s ease 0.25s backwards;
 }
 @keyframes chrome-in {
   from {
@@ -124,8 +132,8 @@ body {
    setting OR the OS preference, so there's no flash of movement and no second
    copy of these selector lists to keep in sync. */
 :root[data-motion="reduced"] .intro-chrome {
-  animation-duration: 0.4s;
-  animation-delay: 0.3s;
+  animation-duration: 0.3s;
+  animation-delay: 0.1s;
 }
 
 /* Hover-revealed row controls (deletes, drag handles, quick actions): tucked
@@ -300,25 +308,6 @@ body {
 .room-breathe {
   animation: room-breathe 6s ease-in-out infinite;
   animation-delay: var(--phase, 0s);
-}
-
-/* The flat scene's seated resident typing while a focus block runs. A cue
-   gated by the `focused` prop, not an ambient loop — there is exactly ONE
-   figure, so it takes no --phase (nothing to desynchronise from). It lives on
-   a wrapper <g> with no transform attribute; the per-arm rotations sit on
-   child elements (an animation's transform property would override the
-   attribute entirely). */
-@keyframes resident-2d-type {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(1.6px);
-  }
-}
-.resident-2d-type {
-  animation: resident-2d-type 0.9s ease-in-out infinite;
 }
 
 /* Sky clouds drifting across the whole viewport (SkyOverlay) */
@@ -1262,6 +1251,7 @@ body {
     .room-sway-hanging,
     .room-twinkle,
     .room-breathe,
+    .iso-light-breathe,
     .gesture-look,
     .gesture-yawn,
     .gesture-yawn-mouth,
@@ -1309,8 +1299,7 @@ body {
     .window-rain,
     .window-snow,
     .animate-float,
-    .animate-flicker,
-    .resident-2d-type
+    .animate-flicker
   ) {
   animation: none;
 }

@@ -57,6 +57,7 @@ import {
   freeSeatSpot,
   newIsoPlacement,
   nextRot,
+  partitionKey,
   PET_TEMPERS,
   cleanPetName,
   isStorableLook,
@@ -708,6 +709,16 @@ export function StoreProvider({ children }) {
       reshapeIso({ walls }, (n, s) => `Nothing to hang ${n} wall ${s} on without walls 🖼️`),
     [reshapeIso]
   );
+  const setIsoWallColor = useCallback((side, color) => {
+    if (!["left", "right"].includes(side)) return;
+    setIsoRoom((prev) => validateIsoLayout({
+      ...prev,
+      wallColors: { ...prev.wallColors, [side]: color },
+    }));
+  }, []);
+  const setIsoLighting = useCallback((lighting) => {
+    setIsoRoom((prev) => validateIsoLayout({ ...prev, lighting }));
+  }, []);
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
   const setIsoTile = useCallback(
     // Outside the updater like the others — doubly important here, because
@@ -742,6 +753,23 @@ export function StoreProvider({ children }) {
     },
     [showToast]
   );
+  const setIsoPartition = useCallback((plane, at, from, on) => {
+    if (!["gx", "gy"].includes(plane)) return;
+    const prev = isoRef.current;
+    const key = partitionKey(plane, at, from);
+    const nextKeys = new Set(prev.partitions || []);
+    if (on) nextKeys.add(key);
+    else nextKeys.delete(key);
+    const next = validateIsoLayout({ ...prev, partitions: [...nextKeys] });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
+  const resetIsoPartitions = useCallback(() => {
+    const prev = isoRef.current;
+    const next = validateIsoLayout({ ...prev, partitions: undefined });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
   const resetIsoShape = useCallback(
     () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
     []
@@ -2172,9 +2200,13 @@ export function StoreProvider({ children }) {
     setIsoItemTint,
     setIsoSize,
     setIsoTile,
+    setIsoPartition,
+    resetIsoPartitions,
     resetIsoShape,
     setIsoEnv,
     setIsoWalls,
+    setIsoWallColor,
+    setIsoLighting,
     visiting,
     visitFriend,
     knockFriend,

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
+import { ChevronDown, PawPrint, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
-import { useReducedMotionPref } from "../lib/motion";
 import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
@@ -53,18 +52,16 @@ const TABS = [
 ];
 
 /**
- * The dressing-room stage: drag sideways to SPIN the figure (a four-step
- * turntable — front, mirrored side-read, back, mirrored back; with two real
- * drawings plus their mirrors, quarter turns are the honest rotation), and
- * scroll to zoom. The frame stays FIXED per zoom level — it never refits to
- * the figure, because auto-fit is what once zoomed every slider change away.
+ * The dressing-room stage has the two useful views: front and back. The side
+ * model did not meet the quality bar, so it is never offered or reached by an
+ * automatic turntable. Drag pans and the wheel zooms; the frame stays fixed
+ * per zoom level so a slider change never resets the camera.
  */
-function CharacterStage({ character, angle, onSpin }) {
+function CharacterStage({ character, facing }) {
   const Resident = ISO_SPRITES.resident;
   const [zoom, setZoom] = useState(1.35);
-  // The camera can MOVE now, not just zoom: dragging the empty stage pans
-  // the view (the iso room's own grammar — drag-on-empty-space pans), while
-  // dragging the FIGURE spins it. Double-click brings the camera home.
+  // The camera can MOVE now, not just zoom: dragging the stage pans the view
+  // (the iso room's own grammar). Double-click brings the camera home.
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef(null);
   const dragRef = useRef(null);
@@ -81,11 +78,6 @@ function CharacterStage({ character, angle, onSpin }) {
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
   }, []);
-  const q = ((Math.round(angle / 90) % 4) + 4) % 4;
-  // Three real drawings plus one mirror: front, the PROFILE, back, and the
-  // profile mirrored — an honest turntable now that a side view exists.
-  const facing = q === 0 ? "front" : q === 2 ? "back" : "side";
-  const mirrored = q === 3;
   // Zoom scales the window, anchored a little above the figure's middle so
   // zooming in walks up toward the face rather than the floor.
   const w = 46 / zoom;
@@ -102,47 +94,33 @@ function CharacterStage({ character, angle, onSpin }) {
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label="Preview of your character — drag the figure to spin, drag the floor to move, scroll to zoom"
+      aria-label={`${facing === "back" ? "Back" : "Front"} view of your character — drag to move and scroll to zoom`}
       onPointerDown={(e) => {
-        // Hit-testing decides the gesture: the figure spins, everything
-        // else pans.
-        const spin = !!e.target.closest?.("[data-figure]");
         dragRef.current = {
           x: e.clientX,
           y: e.clientY,
-          a: angle,
           px: pan.x,
           py: pan.y,
-          spin,
         };
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
       onPointerMove={(e) => {
         const d = dragRef.current;
         if (!d) return;
-        if (d.spin) {
-          onSpin(d.a + (e.clientX - d.x) * 1.1);
-        } else {
-          // Pointer pixels → viewBox units, so the scene sticks to the
-          // cursor at every zoom. Clamped so the figure can't be lost.
-          const rect = svgRef.current?.getBoundingClientRect();
-          const k = rect ? w / rect.width : 0.15;
-          setPan({
-            x: Math.max(-26, Math.min(26, d.px - (e.clientX - d.x) * k)),
-            y: Math.max(-58, Math.min(58, d.py - (e.clientY - d.y) * k)),
-          });
-        }
+        // Pointer pixels → viewBox units, so the scene sticks to the cursor
+        // at every zoom. Clamped so the figure can't be lost.
+        const rect = svgRef.current?.getBoundingClientRect();
+        const k = rect ? w / rect.width : 0.15;
+        setPan({
+          x: Math.max(-26, Math.min(26, d.px - (e.clientX - d.x) * k)),
+          y: Math.max(-58, Math.min(58, d.py - (e.clientY - d.y) * k)),
+        });
       }}
       onPointerUp={() => {
-        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
-        // Settle on a clean quarter — a figure left mid-twist looks stuck.
-        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
       }}
       onPointerCancel={() => {
-        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
-        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
       }}
       onDoubleClick={() => {
         setPan({ x: 0, y: 0 });
@@ -153,7 +131,7 @@ function CharacterStage({ character, angle, onSpin }) {
           shadow belongs under the FEET at ~y12, not at the origin where it
           floated at shin height. */}
       <ellipse cx="0" cy="12" rx="15" ry="2.5" fill="#000" opacity="0.18" />
-      <g transform={mirrored ? "scale(-1,1)" : undefined} data-figure>
+      <g>
         <Resident character={character} facing={facing} />
       </g>
     </svg>
@@ -767,32 +745,10 @@ export default function ProfilePanel() {
     setPetIdentity,
     addIsoItem,
     removeIsoItem,
-    motionMode,
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
-  // The stage's turntable angle — dragging the figure spins it, the button
-  // advances a quarter turn.
-  const [spin, setSpin] = useState(0);
-  // The turntable turns ITSELF — a slow quarter every few seconds shows all
-  // four facings unprompted (owner, 2026-08-19, replacing the caption that
-  // explained dragging). It stands down while the user is the one driving
-  // and resumes after a quiet spell; reduced motion parks it entirely.
-  const lastSpinTouch = useRef(0);
-  const reduceMotion = useReducedMotionPref(motionMode);
-  useEffect(() => {
-    if (reduceMotion) return undefined;
-    const id = setInterval(() => {
-      if (Date.now() - lastSpinTouch.current < 7000) return;
-      setSpin((a) => Math.round(a / 90) * 90 + 90);
-    }, 3600);
-    return () => clearInterval(id);
-  }, [reduceMotion]);
-  const touchSpin = (v) => {
-    lastSpinTouch.current = Date.now();
-    setSpin(v);
-  };
-
+  const [characterFacing, setCharacterFacing] = useState("front");
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
   // get a cursor that jumps to the end of the line mid-word.
@@ -857,19 +813,28 @@ export default function ProfilePanel() {
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            {/* No caption — the stage turns itself, which SHOWS the views
-                instead of explaining them; dragging still works and pauses
-                the turntable (the svg keeps the full aria hint). */}
-            <CharacterStage character={shown} angle={spin} onSpin={touchSpin} />
-            <button
-              type="button"
-              onClick={() => touchSpin((a) => Math.round(a / 90) * 90 + 90)}
-              title="Turn around"
-              aria-label="Turn the character a quarter turn"
-              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-petal/80 transition hover:bg-white/20"
+            <CharacterStage character={shown} facing={characterFacing} />
+            <div
+              className="absolute right-2 top-2 flex rounded-full bg-plum/75 p-0.5 backdrop-blur-sm"
+              role="group"
+              aria-label="Character preview view"
             >
-              <RefreshCw size={13} />
-            </button>
+              {["front", "back"].map((facing) => (
+                <button
+                  key={facing}
+                  type="button"
+                  onClick={() => setCharacterFacing(facing)}
+                  aria-pressed={characterFacing === facing}
+                  className={`rounded-full px-2 py-1 text-[10px] font-semibold capitalize transition ${
+                    characterFacing === facing
+                      ? "bg-glow text-plum"
+                      : "text-petal/70 hover:bg-white/10 hover:text-cream"
+                  }`}
+                >
+                  {facing}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
             {TABS.map((t) => (

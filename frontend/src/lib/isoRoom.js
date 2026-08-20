@@ -103,6 +103,13 @@ export const envOf = (key) => ISO_ENVS[key] || ISO_ENVS.room;
 // none is a stage, and neither needed a new env to exist. Mirrored in
 // app.py's ISO_WALLS (same both-languages contract as ISO_ENVS).
 export const WALL_MODES = ["full", "low", "none"];
+export const ISO_LIGHTING = {
+  natural: { label: "Natural", color: "#ffe8c2", opacity: 0.08 },
+  golden: { label: "Golden hour", color: "#ffb45e", opacity: 0.16 },
+  candle: { label: "Candlelit", color: "#ff8a4c", opacity: 0.13 },
+  moonlit: { label: "Moonlit", color: "#7f9ee8", opacity: 0.12 },
+};
+export const ISO_LIGHTING_KEYS = Object.keys(ISO_LIGHTING);
 
 /** Can wall decor hang here? Full-height walls only. The layout's own
  *  `walls` override beats the floor's default. */
@@ -793,7 +800,27 @@ export function tileOn(size, x, y) {
   return size.mask[y]?.[x] === "1";
 }
 
-/** Is a whole footprint on floor (in bounds, every overlapped tile on)? */
+/** Does a footprint cross any user-drawn interior wall segment? */
+function crossesPartition(gx, gy, foot, size) {
+  if (!Array.isArray(size.partitions) || !size.partitions.length) return false;
+  const right = gx + foot[0];
+  const front = gy + foot[1];
+  for (const key of size.partitions) {
+    if (typeof key !== "string") continue;
+    const [plane, atRaw, fromRaw, extra] = key.split(":");
+    const at = Number(atRaw);
+    const from = Number(fromRaw);
+    if (extra !== undefined || !Number.isInteger(at) || !Number.isInteger(from)) continue;
+    if (plane === "gy") {
+      if (gy < at && front > at && gx < from + 1 && right > from) return true;
+    } else if (plane === "gx") {
+      if (gx < at && right > at && gy < from + 1 && front > from) return true;
+    }
+  }
+  return false;
+}
+
+/** Is a whole footprint on floor and clear of drawn interior walls? */
 export function footprintFree(gx, gy, foot, size) {
   if (gx < 0 || gy < 0 || gx + foot[0] > size.w || gy + foot[1] > size.d) return false;
   const x1 = Math.ceil(gx + foot[0]) - 1;
@@ -803,7 +830,7 @@ export function footprintFree(gx, gy, foot, size) {
       if (!tileOn(size, x, y)) return false;
     }
   }
-  return true;
+  return !crossesPartition(gx, gy, foot, size);
 }
 
 /** Front-lip edges (the floor slab's viewer-facing rim) — correct for ANY
@@ -883,6 +910,67 @@ export function wallRuns(size) {
     ...mergeWallRuns(backY, "gy", size.w),
     ...mergeWallRuns(backX, "gx", size.d),
   ].sort((a, b) => a.at - b.at);
+}
+
+/** One user-drawn interior wall unit. `gy:at:from` spans one tile along gx;
+ *  `gx:at:from` spans one tile along gy. Outer walls remain environment
+ *  architecture, so partitions are restricted to lines strictly inside the
+ *  floor and require floor on both sides. */
+export const partitionKey = (plane, at, from) => `${plane}:${at}:${from}`;
+
+export function normalizePartitions(raw, size) {
+  if (!Array.isArray(raw)) return [];
+  const clean = new Set();
+  for (const value of raw) {
+    if (typeof value !== "string") continue;
+    const [plane, atRaw, fromRaw, extra] = value.split(":");
+    if (extra !== undefined || !["gx", "gy"].includes(plane)) continue;
+    const at = Number(atRaw);
+    const from = Number(fromRaw);
+    if (!Number.isInteger(at) || !Number.isInteger(from)) continue;
+    const valid =
+      plane === "gy"
+        ? at > 0 && at < size.d && from >= 0 && from < size.w &&
+          tileOn(size, from, at - 1) && tileOn(size, from, at)
+        : at > 0 && at < size.w && from >= 0 && from < size.d &&
+          tileOn(size, at - 1, from) && tileOn(size, at, from);
+    if (valid) clean.add(partitionKey(plane, at, from));
+  }
+  return [...clean].sort();
+}
+
+/** Merge adjacent wall units into planes so a long drawn wall is one SVG
+ * polygon rather than one polygon per floor cell. */
+export function partitionRuns(size) {
+  const units = normalizePartitions(size.partitions, size).map((key) => {
+    const [plane, at, from] = key.split(":");
+    return { plane, at: Number(at), from: Number(from) };
+  });
+  const groups = new Map();
+  for (const unit of units) {
+    const key = `${unit.plane}:${unit.at}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(unit.from);
+  }
+  const runs = [];
+  for (const [key, values] of groups) {
+    const [plane, atRaw] = key.split(":");
+    const sorted = [...values].sort((a, b) => a - b);
+    let start = sorted[0];
+    let end = start + 1;
+    for (const from of sorted.slice(1)) {
+      if (from === end) end += 1;
+      else {
+        runs.push({ plane, at: Number(atRaw), from: start, to: end, partition: true });
+        start = from;
+        end = from + 1;
+      }
+    }
+    if (start !== undefined) {
+      runs.push({ plane, at: Number(atRaw), from: start, to: end, partition: true });
+    }
+  }
+  return runs.sort((a, b) => a.at - b.at || a.from - b.from);
 }
 
 /** The longest wall run sitting on the ORIGINAL wall line (gy 0 for the
@@ -1093,6 +1181,7 @@ export function validateIsoLayout(raw) {
   const w = clampIsoSize(raw.w);
   const d = clampIsoSize(raw.d);
   const mask = normalizeMask(raw.mask, w, d) ?? cutsToMask(raw.cuts, w, d);
+  const partitions = normalizePartitions(raw.partitions, { w, d, ...(mask && { mask }) });
   // "room" is the default and stored implicitly.
   const env = ISO_ENV_KEYS.includes(raw.env) && raw.env !== "room" ? raw.env : undefined;
   // Walls are stored only when they OVERRIDE the floor's default — same
@@ -1101,7 +1190,25 @@ export function validateIsoLayout(raw) {
     WALL_MODES.includes(raw.walls) && raw.walls !== envOf(env).walls
       ? raw.walls
       : undefined;
-  const size = { w, d, ...(env && { env }), ...(walls && { walls }), ...(mask && { mask }) };
+  const wallColors = {};
+  for (const side of ["left", "right"]) {
+    if (typeof raw.wallColors?.[side] === "string" && TINT_RE.test(raw.wallColors[side])) {
+      wallColors[side] = raw.wallColors[side];
+    }
+  }
+  const lighting = ISO_LIGHTING_KEYS.includes(raw.lighting) && raw.lighting !== "natural"
+    ? raw.lighting
+    : undefined;
+  const size = {
+    w,
+    d,
+    ...(env && { env }),
+    ...(walls && { walls }),
+    ...(mask && { mask }),
+    ...(partitions.length && { partitions }),
+    ...(Object.keys(wallColors).length && { wallColors }),
+    ...(lighting && { lighting }),
+  };
   const seen = new Set();
   const unique = new Set();
   const clean = [];
@@ -1169,6 +1276,9 @@ export function validateIsoLayout(raw) {
     ...(env && { env }),
     ...(walls && { walls }),
     ...(mask && { mask }),
+    ...(partitions.length && { partitions }),
+    ...(Object.keys(wallColors).length && { wallColors }),
+    ...(lighting && { lighting }),
     placements: clean,
   };
 }
@@ -1181,6 +1291,66 @@ export function validateIsoLayout(raw) {
  *  corners; the centre stays walkable. Coordinates must be half-snapped and
  *  in-bounds as written — the preset test asserts clamp-stability. */
 export const ISO_PRESETS = {
+  home: {
+    label: "Shared home",
+    icon: "🏡",
+    size: {
+      w: 14,
+      d: 11,
+      env: "room",
+      wallColors: { left: "#9b5b4b", right: "#733f3d" },
+      lighting: "golden",
+      mask: [
+        "11111111111111", "11111111111111", "11111111111111",
+        "11111111111111", "11111111111111", "11111111111111",
+        "11111111111111", "11111111111111", "11111111111111",
+        "11111111111111", "11111111111111",
+      ],
+    },
+    items: [
+      // Bedroom, screened from the shared work/living space.
+      { item: "bed", gx: 11.5, gy: 0, tint: "#b85f54" },
+      { item: "nightstand", gx: 10.5, gy: 0 },
+      { item: "wardrobe", gx: 12.5, gy: 3.5, tint: "#6b4630" },
+      { item: "screen", gx: 9.5, gy: 3 },
+      // Two-person study, modeled after the reference's communal desk zone.
+      { item: "desk", gx: 3, gy: 0, tint: "#a86d45" },
+      { item: "laptop", gx: 3.5, gy: 0 },
+      { item: "deskchair", gx: 4, gy: 1.5, tint: "#b86b62" },
+      { item: "resident", gx: 4, gy: 1.5 },
+      { item: "desk", gx: 6, gy: 0, tint: "#a86d45" },
+      { item: "laptop", gx: 6.5, gy: 0 },
+      { item: "deskchair", gx: 7, gy: 1.5, tint: "#c58c70" },
+      { item: "resident", gx: 7, gy: 1.5, tint: "#7f9ec9" },
+      // Living room at the centre, with a clear circulation lane around it.
+      { item: "persianrug", gx: 3.5, gy: 4, tint: "#9b4e42" },
+      { item: "sofa", gx: 3, gy: 4, rot: 1, tint: "#6e7560" },
+      { item: "coffeetable", gx: 5, gy: 4.5, rot: 1 },
+      { item: "armchair", gx: 5.5, gy: 3, tint: "#c4775f" },
+      { item: "tvunit", gx: 0, gy: 4.5, rot: 1 },
+      { item: "floorlamp", gx: 3, gy: 7 },
+      // Functional kitchen and dining corner.
+      { item: "fridge", gx: 13, gy: 6 },
+      { item: "sink", gx: 13, gy: 7.5, rot: 1 },
+      { item: "oven", gx: 13, gy: 9, rot: 1 },
+      { item: "counter", gx: 11.5, gy: 10, tint: "#80686f" },
+      { item: "counter", gx: 10.5, gy: 10, tint: "#80686f" },
+      { item: "diningtable", gx: 7.5, gy: 8 },
+      { item: "chair", gx: 8, gy: 7 },
+      { item: "chair", gx: 8, gy: 9.5, rot: 2 },
+      // Vertical detail and greenery make the large shell feel occupied.
+      { item: "bookcase", gx: 0, gy: 0 },
+      { item: "hangplant", gx: 2, gy: 0, tint: "#56805d" },
+      { item: "poster", gx: 5, gy: 0, tint: "#c65f52" },
+      { item: "corkboard", gx: 8, gy: 0 },
+      { item: "neon", gx: 0, gy: 7.5, rot: 1, tint: "#d87b8f" },
+      { item: "sconce", gx: 10, gy: 0, tint: "#d49a61" },
+      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#bd705f" },
+      { item: "monstera", gx: 0.5, gy: 9.5 },
+      { item: "plant", gx: 12, gy: 9.5 },
+      { item: "dog", gx: 6, gy: 6.5, look: "husky" },
+    ],
+  },
   loft: {
     label: "Loft",
     icon: "⭐",
@@ -1625,7 +1795,12 @@ export function isoPresetLayout(key) {
     w: preset.size.w,
     d: preset.size.d,
     ...(preset.size.env && { env: preset.size.env }),
+    ...(preset.size.walls && { walls: preset.size.walls }),
+    ...(preset.size.mask && { mask: [...preset.size.mask] }),
+    ...(preset.size.partitions && { partitions: [...preset.size.partitions] }),
     ...(preset.size.cuts && { cuts: preset.size.cuts.map((c) => ({ ...c })) }),
+    ...(preset.size.wallColors && { wallColors: { ...preset.size.wallColors } }),
+    ...(preset.size.lighting && { lighting: preset.size.lighting }),
     placements: preset.items.map((p) => ({ ...p, id: makeId() })),
   };
 }

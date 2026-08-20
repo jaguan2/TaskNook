@@ -832,6 +832,22 @@ def register_routes(app):
                 if walls not in ISO_WALLS:
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["walls"] = walls
+            wall_colors = iso.get("wallColors")
+            if wall_colors is not None:
+                if not isinstance(wall_colors, dict) or set(wall_colors) - {"left", "right"}:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                clean_wall_colors = {}
+                for side, color in wall_colors.items():
+                    if not _hex_color(color):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    clean_wall_colors[side] = color
+                if clean_wall_colors:
+                    stored["iso"]["wallColors"] = clean_wall_colors
+            lighting = iso.get("lighting")
+            if lighting is not None:
+                if lighting not in ("natural", "golden", "candle", "moonlit"):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["lighting"] = lighting
             # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
             # at least one floor tile.
             mask = iso.get("mask")
@@ -847,6 +863,39 @@ def register_routes(app):
                 ):
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["mask"] = mask
+            # User-drawn interior wall units. The frontend additionally drops
+            # segments that no longer have floor on both sides after a reshape;
+            # the API pins the compact representation and its room bounds.
+            partitions = iso.get("partitions")
+            if partitions is not None:
+                if not isinstance(partitions, list) or len(partitions) > 2 * w * depth:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                clean_partitions = []
+                seen_partitions = set()
+                for key in partitions:
+                    if not isinstance(key, str):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    parts = key.split(":")
+                    if len(parts) != 3 or parts[0] not in ("gx", "gy"):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    try:
+                        at, start = int(parts[1]), int(parts[2])
+                    except ValueError:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    canonical = f"{parts[0]}:{at}:{start}"
+                    if canonical != key:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    valid = (
+                        0 < at < (depth if parts[0] == "gy" else w)
+                        and 0 <= start < (w if parts[0] == "gy" else depth)
+                    )
+                    if not valid:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    if canonical not in seen_partitions:
+                        seen_partitions.add(canonical)
+                        clean_partitions.append(canonical)
+                if clean_partitions:
+                    stored["iso"]["partitions"] = sorted(clean_partitions)
             # Optional corner cuts (irregular floors). The frontend owns the
             # geometry rules; here we only pin the shape and sizes.
             cuts = iso.get("cuts")

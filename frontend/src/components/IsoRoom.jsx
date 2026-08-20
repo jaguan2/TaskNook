@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
+  ISO_LIGHTING,
   clampIsoPlacement,
   envOf,
   WALL_MODES,
@@ -9,6 +10,7 @@ import {
   footprintFree,
   lipRuns,
   personaCanSit,
+  partitionRuns,
   petCanStand,
   petTemper,
   seatFor,
@@ -611,10 +613,11 @@ function IsoSceneInner({
   // through a drag or a pan and again on every roam tick. On a 48×48 lot that is
   // thousands of tiles walked repeatedly for a value that hasn't changed since
   // the room was last resized. `wallRuns` alone was being called four times.
-  const { floorClip, wallRunList, lipRunList, leftSeg, rightSeg } = useMemo(
+  const { floorClip, wallRunList, partitionRunList, lipRunList, leftSeg, rightSeg } = useMemo(
     () => ({
       floorClip: floorClipRuns(size),
       wallRunList: wallRuns(size),
+      partitionRunList: partitionRuns(size),
       lipRunList: lipRuns(size),
       leftSeg: wallSegment("left", size),
       rightSeg: wallSegment("right", size),
@@ -628,6 +631,7 @@ function IsoSceneInner({
   // The layout's own walls override (user-picked) beats the floor's default.
   const walls = WALL_MODES.includes(size.walls) ? size.walls : env.walls;
   const wallH = walls === "full" ? WALL_H : walls === "low" ? LOW_WALL_H : 0;
+  const lighting = ISO_LIGHTING[size.lighting] || ISO_LIGHTING.natural;
 
   // Personas: seated ones snap onto their seat (slightly forward so they
   // draw in front of the backrest, lifted by the seat height); standing ones
@@ -784,12 +788,12 @@ function IsoSceneInner({
             <stop offset="1" style={{ stopColor: tod.wash }} stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-plum))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-night))" }} stopOpacity="0.72" />
           </linearGradient>
           <linearGradient id="isoWallR" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-night))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-night))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-void))" }} stopOpacity="0.7" />
           </linearGradient>
           <linearGradient id="isoFloor" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
@@ -849,6 +853,16 @@ function IsoSceneInner({
         </defs>
 
         <ellipse cx="320" cy="250" rx="430" ry="330" fill="url(#isoAmbient)" />
+        <ellipse
+          cx="320"
+          cy="250"
+          rx="430"
+          ry="330"
+          fill={lighting.color}
+          opacity={lighting.opacity}
+          className={size.lighting === "candle" && !reduceMotion ? "iso-light-breathe" : undefined}
+          pointerEvents="none"
+        />
 
         <g transform={`translate(${cx}, ${cy})`}>
           {/* ---------- walls (cut-aware: main walls plus the inner planes
@@ -1120,6 +1134,36 @@ function IsoSceneInner({
               );
             })}
           </g>
+
+          {/* User-drawn room dividers. Adjacent units are merged before this
+              render, so a ten-tile wall is three polygons, not thirty DOM
+              nodes. They intentionally sit below movable furniture: editing
+              remains legible even when a piece straddles a new divider. */}
+          {partitionRunList.map((run, i) => {
+            const a =
+              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
+            const b =
+              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
+            return (
+              <g key={`partition-${i}`}>
+                <polygon
+                  points={`${a.x},${a.y - WALL_H} ${b.x},${b.y - WALL_H} ${b.x},${b.y} ${a.x},${a.y}`}
+                  fill={run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)"}
+                  opacity="0.96"
+                />
+                <polygon
+                  points={`${a.x},${a.y - WALL_H - 5} ${b.x},${b.y - WALL_H - 5} ${b.x},${b.y - WALL_H} ${a.x},${a.y - WALL_H}`}
+                  fill="rgb(var(--color-petal))"
+                  opacity="0.28"
+                />
+                <polygon
+                  points={`${a.x},${a.y - 8} ${b.x},${b.y - 8} ${b.x},${b.y} ${a.x},${a.y}`}
+                  fill="#fff"
+                  opacity="0.08"
+                />
+              </g>
+            );
+          })}
 
           {/* ---------- placed items ---------- */}
           {ordered.map((p) => (

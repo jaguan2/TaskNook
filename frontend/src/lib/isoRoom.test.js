@@ -25,6 +25,9 @@ import {
   normalizeRot,
   rotationsFor,
   normalizeMask,
+  normalizePartitions,
+  partitionKey,
+  partitionRuns,
   personaCanSit,
   freeSeatSpot,
   seatFor,
@@ -893,6 +896,71 @@ describe("you, in the room", () => {
     // second self would put your face on someone else too.
     const selves = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].self);
     expect(selves).toEqual(["you"]);
+  });
+});
+
+describe("room atmosphere", () => {
+  it("keeps independent wall colours and a known lighting mood", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      wallColors: { left: "#aa6655", right: "#554477" },
+      lighting: "golden",
+      placements: [],
+    });
+    expect(out.wallColors).toEqual({ left: "#aa6655", right: "#554477" });
+    expect(out.lighting).toBe("golden");
+  });
+
+  it("keeps only interior walls with floor on both sides and merges long runs", () => {
+    const size = {
+      w: 5,
+      d: 4,
+      partitions: [
+        partitionKey("gy", 2, 0),
+        partitionKey("gy", 2, 1),
+        partitionKey("gy", 2, 2),
+        partitionKey("gx", 3, 1),
+        "gy:0:0", // exterior line — the environment owns it
+        "nope",
+      ],
+    };
+    expect(normalizePartitions(size.partitions, size)).toHaveLength(4);
+    expect(partitionRuns(size)).toEqual([
+      { plane: "gy", at: 2, from: 0, to: 3, partition: true },
+      { plane: "gx", at: 3, from: 1, to: 2, partition: true },
+    ]);
+  });
+
+  it("drops a partition when reshaping removes the floor beside it", () => {
+    const out = validateIsoLayout({
+      w: 3,
+      d: 3,
+      mask: ["111", "101", "111"],
+      partitions: ["gy:1:0", "gy:1:1", "gx:1:2"],
+      placements: [],
+    });
+    expect(out.partitions).toEqual(["gx:1:2", "gy:1:0"]);
+  });
+
+  it("keeps furniture on one side of a drawn wall", () => {
+    const room = { w: 5, d: 4, partitions: ["gy:2:1", "gx:3:0"] };
+    expect(footprintFree(1, 1, [1, 2], room)).toBe(false);
+    expect(footprintFree(2, 0, [2, 1], room)).toBe(false);
+    expect(footprintFree(1, 0, [1, 1], room)).toBe(true);
+    expect(footprintFree(1, 2, [1, 1], room)).toBe(true);
+  });
+
+  it("drops malformed finishes instead of poisoning a saved room", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      wallColors: { left: "red", right: "#123456", ceiling: "#ffffff" },
+      lighting: "disco",
+      placements: [],
+    });
+    expect(out.wallColors).toEqual({ right: "#123456" });
+    expect(out.lighting).toBeUndefined();
   });
 });
 
