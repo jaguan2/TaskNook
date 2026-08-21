@@ -358,6 +358,20 @@ def test_iso_roundtrips_drawn_interior_walls(client, auth):
     assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
 
 
+def test_iso_roundtrips_passable_arches_and_resolves_duplicate_edges(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "partitions": ["gx:4:1", "gx:4:2"],
+        "arches": ["gx:4:2", "gx:4:3"],
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]
+    assert saved["partitions"] == ["gx:4:1"]
+    assert saved["arches"] == ["gx:4:2", "gx:4:3"]
+
+
 @pytest.mark.parametrize(
     "partitions",
     [
@@ -371,6 +385,12 @@ def test_iso_roundtrips_drawn_interior_walls(client, auth):
 )
 def test_iso_rejects_malformed_drawn_walls(client, auth, partitions):
     iso = {"w": 9, "d": 7, "partitions": partitions, "placements": []}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
+@pytest.mark.parametrize("arches", ["gy:2:1", ["gy:0:1"], ["arch:2:1"], ["gy:02:1"]])
+def test_iso_rejects_malformed_arches(client, auth, arches):
+    iso = {"w": 9, "d": 7, "arches": arches, "placements": []}
     assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
 
 

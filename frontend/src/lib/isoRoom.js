@@ -111,10 +111,12 @@ export const ISO_LIGHTING = {
 };
 export const ISO_LIGHTING_KEYS = Object.keys(ISO_LIGHTING);
 
-/** Can wall decor hang here? Full-height walls only. The layout's own
- *  `walls` override beats the floor's default. */
-export const envHasWalls = (key, walls) =>
-  (WALL_MODES.includes(walls) ? walls : envOf(key).walls) === "full";
+/** Resolve the shell independently from the floor material. */
+export const wallModeOf = (key, walls) =>
+  WALL_MODES.includes(walls) ? walls : envOf(key).walls;
+
+/** Can wall decor hang here? Full-height walls only. */
+export const envHasWalls = (key, walls) => wallModeOf(key, walls) === "full";
 
 const TINT_RE = /^#[0-9a-f]{6}$/i;
 
@@ -151,6 +153,7 @@ export const ISO_ITEMS = {
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, surface: 24 },
   chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19, backView: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
+  plantshelf: { label: "Plant display", icon: "🌿", foot: [1.5, 0.6], hitH: 74 },
   bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
   sidetable: { label: "Side table", icon: "🗃️", foot: [1.2, 0.5], hitH: 32, surface: 28 },
   // The set and the laptop are separate placeables as well as parts of the
@@ -384,7 +387,7 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Plants & greenery",
-    keys: ["monstera", "palm", "fern", "snakeplant", "plant", "cactus", "succulent",
+    keys: ["plantshelf", "monstera", "palm", "fern", "snakeplant", "plant", "cactus", "succulent",
       "orchid", "bonsai", "flowers", "flowerbed", "terrarium"],
   },
   {
@@ -912,6 +915,14 @@ export function wallRuns(size) {
   ].sort((a, b) => a.at - b.at);
 }
 
+/** Full-height walls define the room's two original back axes. A later step
+ *  in an asymmetric silhouette is a cutaway edge: keeping it low prevents a
+ *  recessed wing from becoming a second facade that appears to fall into the
+ *  surrounding void. */
+export function exteriorWallHeight(run, fullHeight) {
+  return run.at > 0 ? Math.min(fullHeight, 48) : fullHeight;
+}
+
 /** One user-drawn interior wall unit. `gy:at:from` spans one tile along gx;
  *  `gx:at:from` spans one tile along gy. Outer walls remain environment
  *  architecture, so partitions are restricted to lines strictly inside the
@@ -971,6 +982,25 @@ export function partitionRuns(size) {
     }
   }
   return runs.sort((a, b) => a.at - b.at || a.from - b.from);
+}
+
+/** Renderable interior architecture. Solid wall units merge independently
+ * from passable arch units, so dragging the Arch tool across several edges
+ * produces one generous opening instead of a row of narrow arches. */
+export function partitionPieces(size) {
+  const arches = normalizePartitions(size.arches, size);
+  const archSet = new Set(arches);
+  const walls = partitionRuns({
+    ...size,
+    partitions: normalizePartitions(size.partitions, size).filter((key) => !archSet.has(key)),
+  });
+  const archRuns = partitionRuns({ ...size, partitions: arches }).map((run) => ({
+    ...run,
+    arch: true,
+  }));
+  return [...walls, ...archRuns].sort(
+    (a, b) => a.at - b.at || a.from - b.from || Number(a.arch) - Number(b.arch)
+  );
 }
 
 /** The longest wall run sitting on the ORIGINAL wall line (gy 0 for the
@@ -1103,6 +1133,16 @@ export function isoDepth(p) {
   return p.gx + f[0] + p.gy + f[1];
 }
 
+const placementDepth = (p) => (Number.isFinite(p._depth) ? p._depth : isoDepth(p));
+
+const placementLayer = (p) => {
+  // Unknown items are skipped by the renderer — but the SORT runs first, so
+  // an unguarded lookup here would throw before that guard gets a chance.
+  const item = ISO_ITEMS[p.item];
+  if (!item) return 0;
+  return item.wall ? -2 : item.layer || 0;
+};
+
 /** Painter's order: wall decor first (it hangs behind everything), then flat
  *  rugs, then by the front corner's depth. */
 export function sortIso(placements) {
@@ -1114,21 +1154,90 @@ export function sortIso(placements) {
   // toward the viewer, which is only ever enough when the seat is about the
   // person's own size (a stool). Riders now inherit their host's depth plus an
   // epsilon, so they sort just in front of it without moving off the cushion.
-  const depth = (p) => (Number.isFinite(p._depth) ? p._depth : isoDepth(p));
-  const layer = (p) => {
-    // Unknown items are skipped by the renderer — but the SORT runs first, so
-    // an unguarded lookup here threw before that guard ever got a chance, and
-    // took the whole scene down with it.
-    const item = ISO_ITEMS[p.item];
-    if (!item) return 0;
-    return item.wall ? -2 : item.layer || 0;
-  };
   return [...placements].sort(
     (a, b) =>
-      layer(a) - layer(b) ||
-      depth(a) - depth(b) ||
+      placementLayer(a) - placementLayer(b) ||
+      placementDepth(a) - placementDepth(b) ||
       String(a.id).localeCompare(String(b.id))
   );
+}
+
+/** Put opaque interior walls into the same painter's order as furniture.
+ *  A run's near end is its front corner, matching `isoDepth` for an item.
+ *  This is the cutaway-room rule: furniture beyond a divider paints first
+ *  and is hidden by it, while furniture closer to the viewer paints later. */
+export function sortIsoScene(placements, partitions = []) {
+  return [
+    ...placements.map((placement) => ({
+      kind: "item",
+      key: `item:${placement.id}`,
+      placement,
+      layer: placementLayer(placement),
+      depth: placementDepth(placement),
+      tie: 1,
+    })),
+    ...partitions.map((partition, index) => ({
+      kind: "partition",
+      key: `partition:${partition.plane}:${partition.at}:${partition.from}:${index}`,
+      partition,
+      layer: 0,
+      depth: partition.at + partition.to,
+      // At an exact depth tie, the item is on the viewer's side of the wall.
+      tie: 0,
+    })),
+  ].sort(
+    (a, b) =>
+      a.layer - b.layer ||
+      a.depth - b.depth ||
+      a.tie - b.tie ||
+      a.key.localeCompare(b.key)
+  );
+}
+
+/** Connected furniture footprints for the floor-plan editor. Coordinates are
+ *  expanded to every touched tile because placements may sit on half-steps.
+ *  Keeping each placement intact lets the UI draw a bed as one 2x3 block
+ *  instead of six unrelated occupancy marks. */
+export function occupiedIsoFootprints(placements = [], size = {}) {
+  const maxX = Number.isFinite(size.w) ? size.w : Infinity;
+  const maxY = Number.isFinite(size.d) ? size.d : Infinity;
+  return placements.flatMap((placement, index) => {
+    const item = ISO_ITEMS[placement.item];
+    if (!item || item.wall) return [];
+    const [fw, fd] = footOf(placement.item, placement.rot);
+    const x0 = Math.max(0, Math.floor(placement.gx));
+    const y0 = Math.max(0, Math.floor(placement.gy));
+    const x1 = Math.min(maxX, Math.ceil(placement.gx + fw));
+    const y1 = Math.min(maxY, Math.ceil(placement.gy + fd));
+    if (x1 <= x0 || y1 <= y0) return [];
+    return [{
+      id: placement.id || `${placement.item}-${index}`,
+      item: placement.item,
+      label: item.label,
+      icon: item.icon,
+      x: x0,
+      y: y0,
+      w: x1 - x0,
+      d: y1 - y0,
+    }];
+  });
+}
+
+/** Tile lookup used for warnings and accessible descriptions. Wall decor is
+ *  excluded because it hangs above the plan rather than using a floor tile. */
+export function occupiedIsoTiles(placements = []) {
+  const occupied = new Map();
+  for (const footprint of occupiedIsoFootprints(placements)) {
+    for (let y = footprint.y; y < footprint.y + footprint.d; y++) {
+      for (let x = footprint.x; x < footprint.x + footprint.w; x++) {
+        const key = `${x}:${y}`;
+        const labels = occupied.get(key) || [];
+        if (!labels.includes(footprint.label)) labels.push(footprint.label);
+        occupied.set(key, labels);
+      }
+    }
+  }
+  return occupied;
 }
 
 let idCounter = 0;
@@ -1181,7 +1290,13 @@ export function validateIsoLayout(raw) {
   const w = clampIsoSize(raw.w);
   const d = clampIsoSize(raw.d);
   const mask = normalizeMask(raw.mask, w, d) ?? cutsToMask(raw.cuts, w, d);
-  const partitions = normalizePartitions(raw.partitions, { w, d, ...(mask && { mask }) });
+  const boundarySize = { w, d, ...(mask && { mask }) };
+  const arches = normalizePartitions(raw.arches, boundarySize);
+  const archSet = new Set(arches);
+  // An opening wins if hand-edited/legacy data names the same edge twice.
+  // Live editor actions maintain the same invariant before validation.
+  const partitions = normalizePartitions(raw.partitions, boundarySize)
+    .filter((key) => !archSet.has(key));
   // "room" is the default and stored implicitly.
   const env = ISO_ENV_KEYS.includes(raw.env) && raw.env !== "room" ? raw.env : undefined;
   // Walls are stored only when they OVERRIDE the floor's default — same
@@ -1206,6 +1321,7 @@ export function validateIsoLayout(raw) {
     ...(walls && { walls }),
     ...(mask && { mask }),
     ...(partitions.length && { partitions }),
+    ...(arches.length && { arches }),
     ...(Object.keys(wallColors).length && { wallColors }),
     ...(lighting && { lighting }),
   };
@@ -1277,6 +1393,7 @@ export function validateIsoLayout(raw) {
     ...(walls && { walls }),
     ...(mask && { mask }),
     ...(partitions.length && { partitions }),
+    ...(arches.length && { arches }),
     ...(Object.keys(wallColors).length && { wallColors }),
     ...(lighting && { lighting }),
     placements: clean,
@@ -1298,57 +1415,68 @@ export const ISO_PRESETS = {
       w: 14,
       d: 11,
       env: "room",
-      wallColors: { left: "#9b5b4b", right: "#733f3d" },
+      wallColors: { left: "#ae7982", right: "#976f7c" },
       lighting: "golden",
+      // The reference is not a rectangle decorated into zones: its silhouette
+      // does the work. A recessed sleeping wing occupies the back-left and the
+      // kitchen projects from the right. The extension begins one row AFTER
+      // the bedroom threshold: putting both edges on gy 3 made their walls
+      // merge into one impossible diagonal in isometric projection. The old
+      // opposite front-left cut also added a wall return that appeared to sink
+      // into missing floor, so the shared room now keeps that usable floor.
       mask: [
-        "11111111111111", "11111111111111", "11111111111111",
-        "11111111111111", "11111111111111", "11111111111111",
+        "11111111110000", "11111111110000", "11111111110000",
+        "11111111110000", "11111111111111", "11111111111111",
         "11111111111111", "11111111111111", "11111111111111",
         "11111111111111", "11111111111111",
       ],
+      // The threshold belongs only to the recessed sleeping wing. Two narrow
+      // piers and one generous opening stop at gx 7, so the asymmetric shell—
+      // not a room-wide divider—separates the apartment's zones.
+      partitions: ["gy:3:0", "gy:3:6"],
+      arches: ["gy:3:1", "gy:3:2", "gy:3:3", "gy:3:4", "gy:3:5"],
     },
     items: [
-      // Bedroom, screened from the shared work/living space.
-      { item: "bed", gx: 11.5, gy: 0, tint: "#b85f54" },
-      { item: "nightstand", gx: 10.5, gy: 0 },
-      { item: "wardrobe", gx: 12.5, gy: 3.5, tint: "#6b4630" },
-      { item: "screen", gx: 9.5, gy: 3 },
-      // Two-person study, modeled after the reference's communal desk zone.
-      { item: "desk", gx: 3, gy: 0, tint: "#a86d45" },
-      { item: "laptop", gx: 3.5, gy: 0 },
-      { item: "deskchair", gx: 4, gy: 1.5, tint: "#b86b62" },
-      { item: "resident", gx: 4, gy: 1.5 },
-      { item: "desk", gx: 6, gy: 0, tint: "#a86d45" },
-      { item: "laptop", gx: 6.5, gy: 0 },
-      { item: "deskchair", gx: 7, gy: 1.5, tint: "#c58c70" },
-      { item: "resident", gx: 7, gy: 1.5, tint: "#7f9ec9" },
-      // Living room at the centre, with a clear circulation lane around it.
-      { item: "persianrug", gx: 3.5, gy: 4, tint: "#9b4e42" },
-      { item: "sofa", gx: 3, gy: 4, rot: 1, tint: "#6e7560" },
-      { item: "coffeetable", gx: 5, gy: 4.5, rot: 1 },
-      { item: "armchair", gx: 5.5, gy: 3, tint: "#c4775f" },
-      { item: "tvunit", gx: 0, gy: 4.5, rot: 1 },
-      { item: "floorlamp", gx: 3, gy: 7 },
-      // Functional kitchen and dining corner.
-      { item: "fridge", gx: 13, gy: 6 },
-      { item: "sink", gx: 13, gy: 7.5, rot: 1 },
-      { item: "oven", gx: 13, gy: 9, rot: 1 },
-      { item: "counter", gx: 11.5, gy: 10, tint: "#80686f" },
-      { item: "counter", gx: 10.5, gy: 10, tint: "#80686f" },
-      { item: "diningtable", gx: 7.5, gy: 8 },
-      { item: "chair", gx: 8, gy: 7 },
-      { item: "chair", gx: 8, gy: 9.5, rot: 2 },
-      // Vertical detail and greenery make the large shell feel occupied.
-      { item: "bookcase", gx: 0, gy: 0 },
-      { item: "hangplant", gx: 2, gy: 0, tint: "#56805d" },
-      { item: "poster", gx: 5, gy: 0, tint: "#c65f52" },
-      { item: "corkboard", gx: 8, gy: 0 },
-      { item: "neon", gx: 0, gy: 7.5, rot: 1, tint: "#d87b8f" },
-      { item: "sconce", gx: 10, gy: 0, tint: "#d49a61" },
+      // Recessed sleeping wing, entirely behind the partition line at gy 3.
+      { item: "bed", gx: 0.5, gy: 0, tint: "#8d7897" },
+      { item: "nightstand", gx: 3, gy: 0, tint: "#d2a075" },
+      { item: "wardrobe", gx: 4, gy: 0, tint: "#77576f" },
+      { item: "bookshelf", gx: 7.5, gy: 0, tint: "#ba9879" },
+      { item: "runner", gx: 3.5, gy: 2, tint: "#b88491" },
+      { item: "floorlamp", gx: 3, gy: 1.5, tint: "#d6a77e" },
+      // Work zone faces the broad arch, like the desk centred in the reference.
+      { item: "desk", gx: 5, gy: 3.5, tint: "#c39a75" },
+      { item: "laptop", gx: 5.5, gy: 3.5 },
+      { item: "deskchair", gx: 6, gy: 5, tint: "#b47c92" },
+      { item: "resident", gx: 6, gy: 5 },
+      // Main living room stays open around one clear circulation lane.
+      { item: "persianrug", gx: 2.5, gy: 5.5, tint: "#a9788e" },
+      { item: "sofa", gx: 3, gy: 7, tint: "#78648d" },
+      { item: "coffeetable", gx: 4.5, gy: 6, tint: "#c39a75" },
+      { item: "armchair", gx: 6, gy: 6, tint: "#c5828c" },
+      { item: "tvunit", gx: 0, gy: 4.5, rot: 1, tint: "#77576f" },
+      { item: "floorlamp", gx: 1.5, gy: 5.5, tint: "#d6a77e" },
+      { item: "dog", gx: 7, gy: 7, look: "husky" },
+      // Projecting kitchen wing and the dining transition into it.
+      { item: "counter", gx: 10.5, gy: 4, tint: "#c4a287" },
+      { item: "microwave", gx: 10.5, gy: 4 },
+      { item: "sink", gx: 12.5, gy: 4, tint: "#c4a287" },
+      { item: "oven", gx: 12.5, gy: 5, tint: "#8d7897" },
+      { item: "fridge", gx: 13, gy: 6, tint: "#7c6a91" },
+      { item: "stripedrug", gx: 10.5, gy: 7.5, tint: "#8d7897" },
+      { item: "counter", gx: 11.5, gy: 9.5, tint: "#c4a287" },
+      { item: "counter", gx: 10.5, gy: 9.5, tint: "#c4a287" },
+      { item: "diningtable", gx: 7.5, gy: 8.5, tint: "#c39a75" },
+      { item: "chair", gx: 8, gy: 8, tint: "#9c7890" },
+      { item: "chair", gx: 8, gy: 10, rot: 2, tint: "#9c7890" },
+      // Wall detail follows the asymmetric shell rather than filling every run.
+      { item: "bigwindow", gx: 5.5, gy: 0 },
+      { item: "poster", gx: 3.5, gy: 0, tint: "#c7788b" },
+      { item: "hangplant", gx: 8.5, gy: 0, tint: "#668069" },
+      { item: "neon", gx: 0, gy: 5.5, rot: 1, tint: "#d887a4" },
       { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#bd705f" },
-      { item: "monstera", gx: 0.5, gy: 9.5 },
-      { item: "plant", gx: 12, gy: 9.5 },
-      { item: "dog", gx: 6, gy: 6.5, look: "husky" },
+      { item: "monstera", gx: 3.5, gy: 9.5 },
+      { item: "plant", gx: 12.5, gy: 9.5 },
     ],
   },
   loft: {
@@ -1360,7 +1488,12 @@ export const ISO_PRESETS = {
     // it, and the floor plan is a drag-to-draw grid, so anyone who wants the L
     // can paint it back in two strokes. Removing a cut only ADDS floor, so no
     // placement can be stranded by this.
-    size: { w: 10, d: 8 },
+    size: {
+      w: 10,
+      d: 8,
+      wallColors: { left: "#6f566e", right: "#4b425d" },
+      lighting: "golden",
+    },
     items: [
       // Rebuilt: the first version left the dresser, the standing mirror, the
       // guitar, the vinyl crate AND the floor lamp adrift in open floor, which
@@ -1381,6 +1514,7 @@ export const ISO_PRESETS = {
       // needs a wall to lean on, so it goes in the gap between the aquarium
       // and the bed's nightstand.
       { item: "guitar", gx: 6, gy: 0 },
+      { item: "screen", gx: 6.5, gy: 3 },
       // ---- LOUNGE: an L-group, both seats addressing the table -----------
       // `rot` is a MIRROR, not a rotation — there are only two facings, so a
       // true face-to-face across the table can't be expressed. An L works
@@ -1409,9 +1543,8 @@ export const ISO_PRESETS = {
       // Overhead, above the lounge group — the left wall's one free run,
       // between the built-in window and the mirror.
       { item: "pendant", gx: 0, gy: 4.5, rot: 1, tint: "#3a3142" },
-      // The window the attic deserves, and a screen to curtain off the bed.
+      // The window the attic deserves, inside the new bedroom bay.
       { item: "bigwindow", gx: 7.5, gy: 0 },
-      { item: "screen", gx: 6.5, gy: 3 },
     ],
   },
   classic: {
@@ -1463,10 +1596,15 @@ export const ISO_PRESETS = {
   cabin: {
     label: "Cozy cabin",
     icon: "🪵",
-    size: { w: 9, d: 8 },
+    size: {
+      w: 9,
+      d: 8,
+      wallColors: { left: "#765242", right: "#59423b" },
+      lighting: "candle",
+    },
     items: [
       // The hearth end: fire, the fleece in front of it, the dog asleep on it.
-      { item: "fireplace", gx: 3.5, gy: 0 },
+      { item: "fireplace", gx: 3, gy: 0 },
       { item: "sheepskin", gx: 3, gy: 1 },
       { item: "dog", gx: 3.5, gy: 1.5 },
       // sleeping end
@@ -1529,7 +1667,13 @@ export const ISO_PRESETS = {
   cafeteria: {
     label: "Corner café",
     icon: "🥐",
-    size: { w: 10, d: 7, env: "cafe" },
+    size: {
+      w: 10,
+      d: 7,
+      env: "cafe",
+      wallColors: { left: "#8d5947", right: "#68433f" },
+      lighting: "golden",
+    },
     items: [
       // a way in, then the bar along the back — four pieces reading as one run
       { item: "doorway", gx: 0.5, gy: 0 },
@@ -1565,6 +1709,72 @@ export const ISO_PRESETS = {
       { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
       // green in the far corner
       { item: "monstera", gx: 9, gy: 6 },
+    ],
+  },
+  // A working little nursery rather than a generic green room: merchandise
+  // climbs both walls, two island tables hold the small pots, and the checkout
+  // run faces the open central aisle. The tile floor and deep green walls come
+  // from the supplied shop reference; the warm timber keeps it in TaskNook's
+  // softer palette instead of turning the room into a garden centre warehouse.
+  plantshop: {
+    label: "Plant shop",
+    icon: "🪴",
+    size: {
+      w: 12,
+      d: 9,
+      env: "cafe",
+      wallColors: { left: "#58735f", right: "#3f5d52" },
+      lighting: "natural",
+    },
+    items: [
+      // Storefront and identity: a side entrance keeps the back wall free for
+      // two tall windows and the displays that need their light.
+      { item: "doorway", gx: 0, gy: 0.5, rot: 1, tint: "#6e8b72" },
+      { item: "bigwindow", gx: 1, gy: 0 },
+      { item: "bigwindow", gx: 4.5, gy: 0 },
+      { item: "menuboard", gx: 7, gy: 0, tint: "#466b54" },
+      { item: "hangplant", gx: 9.5, gy: 0, tint: "#5f8b63" },
+
+      // Six merchandise racks form an L around the perimeter. They are one
+      // movable fixture each, so the preset stays pleasant to edit despite
+      // looking densely stocked.
+      { item: "plantshelf", gx: 7, gy: 0.5, tint: "#6c5d46" },
+      { item: "plantshelf", gx: 8.5, gy: 0.5, tint: "#6c5d46" },
+      { item: "plantshelf", gx: 10, gy: 0.5, tint: "#6c5d46" },
+      { item: "plantshelf", gx: 0, gy: 3, rot: 1, tint: "#6c5d46" },
+      { item: "plantshelf", gx: 0, gy: 4.5, rot: 1, tint: "#6c5d46" },
+      { item: "plantshelf", gx: 0, gy: 6, rot: 1, tint: "#6c5d46" },
+
+      // Two low display islands, with each small plant landing on the real
+      // tabletop surface. The rug distinguishes the browsing zone from the
+      // checkout lane without blocking circulation.
+      { item: "stripedrug", gx: 3, gy: 2.5, tint: "#6d946d" },
+      { item: "diningtable", gx: 3.5, gy: 3, tint: "#9a7959" },
+      { item: "succulent", gx: 3.5, gy: 3, tint: "#c7775b" },
+      { item: "orchid", gx: 4.5, gy: 3, tint: "#a87591" },
+      { item: "seedtray", gx: 4, gy: 3.5, tint: "#6d946d" },
+      { item: "diningtable", gx: 6.5, gy: 5, tint: "#9a7959" },
+      { item: "bonsai", gx: 6.5, gy: 5, tint: "#b76b50" },
+      { item: "plant", gx: 7.5, gy: 5.5, tint: "#d09a64" },
+      { item: "wateringcan", gx: 7, gy: 5, tint: "#6b8f87" },
+
+      // Checkout across the front-left, with the staff side kept clear.
+      { item: "barcounter", gx: 1.5, gy: 7.5, tint: "#9a7959" },
+      { item: "barcounter", gx: 2.5, gy: 7.5, tint: "#9a7959" },
+      { item: "barcounter", gx: 3.5, gy: 7.5, tint: "#9a7959" },
+      { item: "succulent", gx: 1.5, gy: 7.5, tint: "#c7775b" },
+      { item: "till", gx: 2.5, gy: 7.5 },
+      { item: "resident", gx: 2.5, gy: 6.5, tint: "#d8b477" },
+
+      // The bigger specimens anchor corners and make the stock vary in height.
+      { item: "palm", gx: 10.5, gy: 2.5, tint: "#5f8b63" },
+      { item: "snakeplant", gx: 8.5, gy: 2, tint: "#d09a64" },
+      { item: "sidetable", gx: 9, gy: 4.5, tint: "#6c5d46" },
+      { item: "terrarium", gx: 9, gy: 4.5 },
+      { item: "resident", gx: 9, gy: 6, tint: "#8a7396" },
+      { item: "fern", gx: 6, gy: 7.5, tint: "#b76b50" },
+      { item: "fern", gx: 8, gy: 7.5, tint: "#d09a64" },
+      { item: "monstera", gx: 10.5, gy: 7.5, tint: "#b76b50" },
     ],
   },
   // A READING room: bookcases wall to wall, one long table down the middle,
@@ -1798,6 +2008,7 @@ export function isoPresetLayout(key) {
     ...(preset.size.walls && { walls: preset.size.walls }),
     ...(preset.size.mask && { mask: [...preset.size.mask] }),
     ...(preset.size.partitions && { partitions: [...preset.size.partitions] }),
+    ...(preset.size.arches && { arches: [...preset.size.arches] }),
     ...(preset.size.cuts && { cuts: preset.size.cuts.map((c) => ({ ...c })) }),
     ...(preset.size.wallColors && { wallColors: { ...preset.size.wallColors } }),
     ...(preset.size.lighting && { lighting: preset.size.lighting }),

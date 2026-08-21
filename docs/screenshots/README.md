@@ -16,16 +16,17 @@ The README's hero image is `../preview.png` — the same capture, as PNG.
 ## Rooms
 
 Each is a one-click preset: floor size, shape, environment and furniture all
-replaced together. They're kept deliberately clean — around fifteen pieces —
-so a room reads as somewhere you could sit rather than as a showroom. Your
-own resident is dropped in from the picker and sat down where a person would
+replaced together. Personal rooms stay deliberately clean, while functional
+public spaces use denser fixtures where the activity calls for them. Your own
+resident is dropped in from the picker and sat down where a person would
 actually sit; the communal rooms come with people already in them.
 
 | | |
 |---|---|
-| ![Loft](01-loft-night.webp) **Loft** — the default. An L-shaped attic at night: sofa and aquarium one side, bed behind a screen the other. | ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. |
-| ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. | ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. |
-| ![Corner café](05-corner-cafe.webp) **Corner café** — a bar run under the menu board, tables across the open floor, someone already served. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a pond to sit by, a hammock, and the cat on a blanket. |
+| ![Shared home](28-shared-home.webp) **Shared home** — an asymmetric apartment with recessed sleeping and projecting kitchen wings around a shared living/work room. | ![Loft](01-loft-night.webp) **Loft** — the default. A compact open attic with a screened sleeping corner. |
+| ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. | ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. |
+| ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. | ![Corner café](05-corner-cafe.webp) **Corner café** — an open bar run under the menu board, with tables across the floor. |
+| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a pond to sit by, a hammock, and the cat on a blanket. |
 | ![Terrace](07-terrace.webp) **Terrace** — waist-high balustrade instead of walls, flagstones, string lights at sunset. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
 | ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — the seasonal one: maples, a half-raked leaf pile, pumpkins by the hay bale. | |
 
@@ -46,6 +47,7 @@ both the weather and the hour.
 |---|---|
 | ![Your character](22-character.webp) **Your character** — two models, nine hairstyles, skin/hair/outfit colours, expression, body sliders, and who's allowed to visit. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
 | ![Furniture](24-furniture.webp) **Furniture** — 130-odd pieces in themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
+| ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 
 ## Friends & visiting
 

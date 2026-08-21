@@ -863,16 +863,20 @@ def register_routes(app):
                 ):
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["mask"] = mask
-            # User-drawn interior wall units. The frontend additionally drops
-            # segments that no longer have floor on both sides after a reshape;
-            # the API pins the compact representation and its room bounds.
-            partitions = iso.get("partitions")
-            if partitions is not None:
-                if not isinstance(partitions, list) or len(partitions) > 2 * w * depth:
+            # User-drawn interior wall units and passable arch spans share the
+            # same compact edge grammar. The frontend additionally drops edges
+            # that no longer have floor on both sides after a reshape; the API
+            # pins their representation and room bounds. An arch wins if a
+            # hand-edited client names the same edge in both collections.
+            for field in ("partitions", "arches"):
+                edges = iso.get(field)
+                if edges is None:
+                    continue
+                if not isinstance(edges, list) or len(edges) > 2 * w * depth:
                     return jsonify({"error": "Invalid room layout"}), 400
-                clean_partitions = []
-                seen_partitions = set()
-                for key in partitions:
+                clean_edges = []
+                seen_edges = set()
+                for key in edges:
                     if not isinstance(key, str):
                         return jsonify({"error": "Invalid room layout"}), 400
                     parts = key.split(":")
@@ -891,11 +895,20 @@ def register_routes(app):
                     )
                     if not valid:
                         return jsonify({"error": "Invalid room layout"}), 400
-                    if canonical not in seen_partitions:
-                        seen_partitions.add(canonical)
-                        clean_partitions.append(canonical)
-                if clean_partitions:
-                    stored["iso"]["partitions"] = sorted(clean_partitions)
+                    if canonical not in seen_edges:
+                        seen_edges.add(canonical)
+                        clean_edges.append(canonical)
+                if clean_edges:
+                    stored["iso"][field] = sorted(clean_edges)
+            if "arches" in stored["iso"] and "partitions" in stored["iso"]:
+                arch_edges = set(stored["iso"]["arches"])
+                solid_edges = [
+                    key for key in stored["iso"]["partitions"] if key not in arch_edges
+                ]
+                if solid_edges:
+                    stored["iso"]["partitions"] = solid_edges
+                else:
+                    stored["iso"].pop("partitions")
             # Optional corner cuts (irregular floors). The frontend owns the
             # geometry rules; here we only pin the shape and sizes.
             cuts = iso.get("cuts")

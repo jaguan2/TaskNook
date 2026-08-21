@@ -16,17 +16,25 @@ import {
   ISO_SIZE_MAX,
   cutsToMask,
   envHasWalls,
+  occupiedIsoFootprints,
+  occupiedIsoTiles,
   partitionKey,
+  partitionPieces,
   seatFor,
   seatedPlacement,
   stackedPlacement,
   surfaceFor,
   sortIso,
+  sortIsoScene,
   tileOn,
+  wallModeOf,
+  wallRuns,
 } from "../lib/isoRoom";
 import { costOf, owns } from "../lib/unlocks";
 import { ITEM_SPRITES } from "./RoomItems";
 import { ISO_SPRITES } from "./IsoItems";
+import ExteriorWall from "./ExteriorWall";
+import PartitionWall from "./PartitionWall";
 
 // One catalog entry, drawn at postage-stamp size — the SAME sprite the scene
 // will place. The iso picker used to show the catalog's emoji (🛏️ for a bed),
@@ -81,6 +89,22 @@ function IsoItemPreviewInner({ itemKey }) {
 
 const IsoItemPreview = memo(IsoItemPreviewInner);
 
+// Adjacent furniture needs separate silhouettes in the plan. A stable tone
+// derived from the placement id avoids a rainbow that changes when another
+// item is added or the array is reordered.
+const FOOTPRINT_TONES = [
+  "border-cream/80 bg-plum/80",
+  "border-cream/80 bg-wine/80",
+  "border-cream/80 bg-rose/80",
+  "border-cream/80 bg-sage/80",
+];
+
+function footprintTone(id) {
+  let hash = 0;
+  for (const char of String(id)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return FOOTPRINT_TONES[hash % FOOTPRINT_TONES.length];
+}
+
 // A preset button IS the room in miniature: the same sprites the scene
 // renders, drawn over the preset's floor at postage-stamp size — emoji pills
 // told you nothing about what you'd get (user feedback).
@@ -94,7 +118,13 @@ const IsoItemPreview = memo(IsoItemPreviewInner);
 function IsoPresetPreviewInner({ preset }) {
   const { w, d } = preset.size;
   const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
-  const size = { w, d, ...(mask && { mask }) };
+  const size = {
+    w,
+    d,
+    ...(mask && { mask }),
+    ...(preset.size.partitions && { partitions: preset.size.partitions }),
+    ...(preset.size.arches && { arches: preset.size.arches }),
+  };
   const shapedFloor = mask?.some((row) => row.includes("0"));
   const grass = preset.size.env === "garden";
   // Seat personas before sorting, exactly as the scene does — otherwise the
@@ -115,15 +145,58 @@ function IsoPresetPreviewInner({ preset }) {
       return { ...p, ...seatedPlacement(p, seat) };
     })
   );
+  const previewWallMode = wallModeOf(preset.size.env, preset.size.walls);
+  const previewWallH = previewWallMode === "full" ? 100 : previewWallMode === "low" ? 30 : 0;
+  const shellRuns = previewWallH ? wallRuns(size) : [];
+  const sceneLayers = sortIsoScene(items, partitionPieces(size));
+  const wallColor = (plane) =>
+    plane === "gy"
+      ? preset.size.wallColors?.right || "rgb(var(--color-night))"
+      : preset.size.wallColors?.left || "rgb(var(--color-plum))";
+  const previewItem = (p, key) => {
+    const item = ISO_ITEMS[p.item];
+    const Sprite = ISO_SPRITES[p.item];
+    if (!item || !Sprite) return null;
+    const at = project(p.gx, p.gy);
+    const sprite = item.persona ? (
+      <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
+        <Sprite seated={!!p._seat} seatH={p._seat || 0} />
+      </g>
+    ) : (
+      <Sprite
+        rot={(p.rot || 0) % 2}
+        back={(p.rot || 0) >= 2}
+        variant={item.variants?.[p.tint]}
+      />
+    );
+    return (
+      <g
+        key={key}
+        transform={`translate(${at.x},${at.y})`}
+        style={p.tint ? { "--tint": p.tint } : undefined}
+      >
+        {(p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+      </g>
+    );
+  };
   const L = project(0, d);
   const R = project(w, 0);
   const F = project(w, d);
   return (
     <svg
-      viewBox={`${L.x - 6} -104 ${R.x - L.x + 12} ${F.y + 118}`}
+      viewBox={`${L.x - 6} -118 ${R.x - L.x + 12} ${F.y + 132}`}
       className="h-24 w-full"
       aria-hidden="true"
     >
+      {shellRuns.map((run, index) => (
+        <ExteriorWall
+          key={`shell-${index}`}
+          run={run}
+          height={previewWallH}
+          fill={wallColor(run.plane)}
+          compact
+        />
+      ))}
       {shapedFloor ? (
         Array.from({ length: d }, (_, ty) =>
           Array.from({ length: w }, (_, tx) =>
@@ -144,32 +217,18 @@ function IsoPresetPreviewInner({ preset }) {
           opacity="0.8"
         />
       )}
-      {items.map((p) => {
-        const item = ISO_ITEMS[p.item];
-        const Sprite = ISO_SPRITES[p.item];
-        if (!item || !Sprite) return null;
-        const at = project(p.gx, p.gy);
-        const sprite = item.persona ? (
-          <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-            <Sprite seated={!!p._seat} seatH={p._seat || 0} />
-          </g>
-        ) : (
-          <Sprite
-            rot={(p.rot || 0) % 2}
-            back={(p.rot || 0) >= 2}
-            variant={item.variants?.[p.tint]}
-          />
-        );
-        return (
-          <g
-            key={p.id}
-            transform={`translate(${at.x},${at.y})`}
-            style={p.tint ? { "--tint": p.tint } : undefined}
-          >
-            {(p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
-          </g>
-        );
-      })}
+      {sceneLayers.map((layer) =>
+        layer.kind === "partition"
+          ? (
+              <PartitionWall
+                key={layer.key}
+                run={layer.partition}
+                fill={wallColor(layer.partition.plane)}
+                compact
+              />
+            )
+          : previewItem(layer.placement, layer.key)
+      )}
     </svg>
   );
 }
@@ -222,6 +281,7 @@ export default function RoomPanel() {
     setIsoSize,
     setIsoTile,
     setIsoPartition,
+    setIsoArch,
     resetIsoPartitions,
     resetIsoShape,
     setIsoEnv,
@@ -248,6 +308,15 @@ export default function RoomPanel() {
   const maskRows =
     isoRoom.mask || Array.from({ length: isoRoom.d }, () => "1".repeat(isoRoom.w));
   const partitionKeys = useMemo(() => new Set(isoRoom.partitions || []), [isoRoom.partitions]);
+  const archKeys = useMemo(() => new Set(isoRoom.arches || []), [isoRoom.arches]);
+  const occupiedTiles = useMemo(
+    () => occupiedIsoTiles(isoRoom.placements),
+    [isoRoom.placements]
+  );
+  const occupiedFootprints = useMemo(
+    () => occupiedIsoFootprints(isoRoom.placements, { w: isoRoom.w, d: isoRoom.d }),
+    [isoRoom.placements, isoRoom.w, isoRoom.d]
+  );
 
   const counts = roomPlacements.reduce((acc, p) => {
     acc[p.item] = (acc[p.item] || 0) + 1;
@@ -449,7 +518,7 @@ export default function RoomPanel() {
                       Drag to draw
                     </span>
                     <span className="flex items-center gap-2">
-                      {isoRoom.partitions?.length > 0 && (
+                      {(isoRoom.partitions?.length > 0 || isoRoom.arches?.length > 0) && (
                         <button
                           onClick={resetIsoPartitions}
                           className="text-[10px] font-semibold text-petal/55 hover:text-danger"
@@ -467,11 +536,13 @@ export default function RoomPanel() {
                       )}
                     </span>
                   </div>
-                  <div className="mb-2 grid grid-cols-3 gap-1" role="group" aria-label="Floor-plan tool">
+                  <div className="mb-2 grid grid-cols-5 gap-1" role="group" aria-label="Floor-plan tool">
                     {[
                       { key: "floor", label: "Floor" },
                       { key: "wall-h", label: "Wall ↔" },
                       { key: "wall-v", label: "Wall ↕" },
+                      { key: "arch-h", label: "Arch ↔" },
+                      { key: "arch-v", label: "Arch ↕" },
                     ].map((tool) => (
                       <button
                         key={tool.key}
@@ -491,6 +562,10 @@ export default function RoomPanel() {
                       </button>
                     ))}
                   </div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] text-petal/55">
+                    <span className="h-2.5 w-4 rounded-[3px] border border-cream/70 bg-plum/80" />
+                    Filled shapes show each item's full footprint.
+                  </div>
                   <div
                     className="grid touch-none select-none rounded-lg bg-white/5 p-1"
                     style={{
@@ -504,13 +579,15 @@ export default function RoomPanel() {
                   >
                     {maskRows.map((row, y) =>
                       row.split("").map((c, x) => {
+                        const occupants = occupiedTiles.get(`${x}:${y}`) || [];
                         const hKey = partitionKey("gy", y + 1, x);
                         const vKey = partitionKey("gx", x + 1, y);
-                        const applyPartition = (plane, on) => {
+                        const applyBoundary = (kind, plane, on) => {
                           const at = plane === "gy" ? y + 1 : x + 1;
                           const from = plane === "gy" ? x : y;
                           if (at >= (plane === "gy" ? isoRoom.d : isoRoom.w)) return;
-                          setIsoPartition(plane, at, from, on);
+                          if (kind === "arch") setIsoArch(plane, at, from, on);
+                          else setIsoPartition(plane, at, from, on);
                         };
                         return (
                           <div
@@ -528,17 +605,23 @@ export default function RoomPanel() {
                                 setIsoTile(x, y, on);
                                 return;
                               }
-                              const plane = planTool === "wall-h" ? "gy" : "gx";
+                              const kind = planTool.startsWith("arch") ? "arch" : "partition";
+                              const plane = planTool.endsWith("h") ? "gy" : "gx";
                               const key = plane === "gy" ? hKey : vKey;
-                              const on = !partitionKeys.has(key);
-                              setPaintMode({ kind: "partition", plane, on });
-                              applyPartition(plane, on);
+                              const keys = kind === "arch" ? archKeys : partitionKeys;
+                              const on = !keys.has(key);
+                              setPaintMode({ kind, plane, on });
+                              applyBoundary(kind, plane, on);
                             }}
                             onPointerEnter={() => {
                               if (!paintMode) return;
                               if (paintMode.kind === "floor") setIsoTile(x, y, paintMode.on);
-                              else applyPartition(paintMode.plane, paintMode.on);
+                              else applyBoundary(paintMode.kind, paintMode.plane, paintMode.on);
                             }}
+                            title={`Tile ${x + 1}, ${y + 1}${
+                              occupants.length ? ` — occupied by ${occupants.join(", ")}` : ""
+                            }`}
+                            data-occupied={occupants.length ? "true" : undefined}
                             className={`relative aspect-square cursor-crosshair rounded-[2px] transition-colors ${
                               c === "1" ? "bg-glow/70" : "bg-white/10 hover:bg-white/20"
                             }`}
@@ -549,13 +632,37 @@ export default function RoomPanel() {
                             {x < isoRoom.w - 1 && partitionKeys.has(vKey) && (
                               <span className="pointer-events-none absolute -right-px top-0 z-10 h-full w-[3px] rounded-full bg-amber" />
                             )}
+                            {y < isoRoom.d - 1 && archKeys.has(hKey) && (
+                              <span className="pointer-events-none absolute -bottom-[2px] left-[12%] z-20 h-[5px] w-[76%] rounded-t-full border-x-2 border-t-2 border-cream" />
+                            )}
+                            {x < isoRoom.w - 1 && archKeys.has(vKey) && (
+                              <span className="pointer-events-none absolute -right-[2px] top-[12%] z-20 h-[76%] w-[5px] rounded-l-full border-y-2 border-l-2 border-cream" />
+                            )}
                           </div>
                         );
                       })
                     )}
+                    {occupiedFootprints.map((footprint) => (
+                      <span
+                        key={footprint.id}
+                        aria-hidden="true"
+                        data-footprint={footprint.item}
+                        className={`pointer-events-none z-[5] m-px grid min-h-0 min-w-0 place-items-center overflow-hidden rounded-[4px] border shadow-sm ${footprintTone(footprint.id)}`}
+                        style={{
+                          gridColumn: `${footprint.x + 1} / span ${footprint.w}`,
+                          gridRow: `${footprint.y + 1} / span ${footprint.d}`,
+                        }}
+                      >
+                        {footprint.w * footprint.d >= 4 && (
+                          <span className="max-w-full truncate px-1 text-[8px] font-bold leading-none text-cream/90">
+                            {footprint.label}
+                          </span>
+                        )}
+                      </span>
+                    ))}
                   </div>
                   <p className="mt-2 text-[10px] text-petal/45">
-                    Pick a wall direction, then drag across tile edges. Start on an existing wall to erase it.
+                    Draw solid walls or passable arch openings along tile edges. Start on the same type to erase it.
                   </p>
                 </div>
               )}

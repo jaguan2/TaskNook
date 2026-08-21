@@ -758,15 +758,41 @@ export function StoreProvider({ children }) {
     const prev = isoRef.current;
     const key = partitionKey(plane, at, from);
     const nextKeys = new Set(prev.partitions || []);
-    if (on) nextKeys.add(key);
+    const nextArches = new Set(prev.arches || []);
+    if (on) {
+      nextKeys.add(key);
+      nextArches.delete(key);
+    }
     else nextKeys.delete(key);
-    const next = validateIsoLayout({ ...prev, partitions: [...nextKeys] });
+    const next = validateIsoLayout({
+      ...prev,
+      partitions: [...nextKeys],
+      arches: [...nextArches],
+    });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
+  const setIsoArch = useCallback((plane, at, from, on) => {
+    if (!["gx", "gy"].includes(plane)) return;
+    const prev = isoRef.current;
+    const key = partitionKey(plane, at, from);
+    const nextArches = new Set(prev.arches || []);
+    const nextWalls = new Set(prev.partitions || []);
+    if (on) {
+      nextArches.add(key);
+      nextWalls.delete(key);
+    } else nextArches.delete(key);
+    const next = validateIsoLayout({
+      ...prev,
+      partitions: [...nextWalls],
+      arches: [...nextArches],
+    });
     isoRef.current = next;
     setIsoRoom(next);
   }, []);
   const resetIsoPartitions = useCallback(() => {
     const prev = isoRef.current;
-    const next = validateIsoLayout({ ...prev, partitions: undefined });
+    const next = validateIsoLayout({ ...prev, partitions: undefined, arches: undefined });
     isoRef.current = next;
     setIsoRoom(next);
   }, []);
@@ -2201,6 +2227,7 @@ export function StoreProvider({ children }) {
     setIsoSize,
     setIsoTile,
     setIsoPartition,
+    setIsoArch,
     resetIsoPartitions,
     resetIsoShape,
     setIsoEnv,

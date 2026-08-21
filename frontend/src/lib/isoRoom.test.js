@@ -13,6 +13,7 @@ import {
   blocksSpawn,
   cutsToMask,
   defaultIsoLayout,
+  exteriorWallHeight,
   footprintsOverlap,
   findFreeSpot,
   footOf,
@@ -26,7 +27,10 @@ import {
   rotationsFor,
   normalizeMask,
   normalizePartitions,
+  occupiedIsoFootprints,
+  occupiedIsoTiles,
   partitionKey,
+  partitionPieces,
   partitionRuns,
   personaCanSit,
   freeSeatSpot,
@@ -34,9 +38,11 @@ import {
   seatedPlacement,
   snapHalf,
   sortIso,
+  sortIsoScene,
   stackedPlacement,
   surfaceFor,
   validateIsoLayout,
+  wallModeOf,
   wallRuns,
 } from "./isoRoom";
 import { ISO_SPRITES } from "../components/IsoItems";
@@ -224,6 +230,45 @@ describe("render ordering", () => {
     ]);
     expect(out.map((p) => p.item)).toEqual(["frame", "rug"]);
   });
+
+  it("interleaves an opaque divider between furniture behind and in front", () => {
+    const layers = sortIsoScene(
+      [
+        { id: "far", item: "stool", gx: 0, gy: 0 },
+        { id: "near", item: "stool", gx: 6, gy: 5 },
+      ],
+      [{ plane: "gy", at: 2, from: 0, to: 3 }]
+    );
+    expect(layers.map((layer) => layer.kind === "item" ? layer.placement.id : "wall"))
+      .toEqual(["far", "wall", "near"]);
+  });
+});
+
+describe("floor-plan occupancy", () => {
+  it("keeps each item as one connected, clipped footprint", () => {
+    const footprints = occupiedIsoFootprints([
+      { id: "bed", item: "bed", gx: 0.5, gy: 0 },
+      { id: "wall", item: "frame", gx: 0, gy: 0 },
+      { id: "edge", item: "rug", gx: 3, gy: 3 },
+    ], { w: 4, d: 4 });
+
+    expect(footprints).toEqual([
+      expect.objectContaining({ id: "bed", label: "Bed", x: 0, y: 0, w: 3, d: 3 }),
+      expect.objectContaining({ id: "edge", label: "Round rug", x: 3, y: 3, w: 1, d: 1 }),
+    ]);
+  });
+
+  it("marks every tile touched by fractional and multi-tile furniture", () => {
+    const occupied = occupiedIsoTiles([
+      { id: "a", item: "stool", gx: 0.5, gy: 0.5 },
+      { id: "b", item: "rug", gx: 2, gy: 1 },
+      { id: "c", item: "frame", gx: 0, gy: 0 },
+    ]);
+    expect([...occupied.keys()]).toContain("0:0");
+    expect([...occupied.keys()]).toContain("1:1");
+    expect(occupied.get("2:1")).toContain("Round rug");
+    expect([...occupied.values()].flat()).not.toContain("Frame");
+  });
 });
 
 describe("newIsoPlacement", () => {
@@ -399,6 +444,12 @@ describe("floor masks (drawn shapes)", () => {
     expect(wallRuns(back)).toHaveLength(4);
     expect(lipRuns({ w: 10, d: 8 })).toHaveLength(2);
     expect(lipRuns(L_ROOM)).toHaveLength(4);
+  });
+
+  it("keeps original walls tall but turns recessed silhouette steps into cutaways", () => {
+    expect(exteriorWallHeight({ plane: "gy", at: 0 }, 118)).toBe(118);
+    expect(exteriorWallHeight({ plane: "gy", at: 4 }, 118)).toBe(48);
+    expect(exteriorWallHeight({ plane: "gx", at: 3 }, 42)).toBe(42);
   });
 
   // A wall stands 118px tall and its face shows through the void it faces, so
@@ -579,6 +630,13 @@ describe("personas", () => {
 });
 
 describe("environments", () => {
+  it("resolves default and per-room wall modes", () => {
+    expect(wallModeOf("room")).toBe("full");
+    expect(wallModeOf("terrace")).toBe("low");
+    expect(wallModeOf("garden")).toBe("none");
+    expect(wallModeOf("garden", "full")).toBe("full");
+  });
+
   it("keeps a known env, defaults junk to room (implicit)", () => {
     expect(validateIsoLayout({ w: 9, d: 7, env: "garden", placements: [] }).env).toBe("garden");
     expect(validateIsoLayout({ w: 9, d: 7, env: "space", placements: [] }).env).toBeUndefined();
@@ -600,6 +658,20 @@ describe("environments", () => {
 });
 
 describe("presets", () => {
+  it("ships the plant shop as a stocked, functional retail room", () => {
+    const shop = ISO_PRESETS.plantshop;
+    const keys = shop.items.map((p) => p.item);
+    const greenery = new Set([
+      "plantshelf", "monstera", "palm", "fern", "snakeplant", "plant",
+      "succulent", "orchid", "bonsai", "terrarium", "seedtray", "wateringcan",
+      "hangplant",
+    ]);
+    expect(shop.size.env).toBe("cafe");
+    expect(keys.filter((key) => key === "plantshelf")).toHaveLength(6);
+    expect(keys.filter((key) => greenery.has(key)).length).toBeGreaterThanOrEqual(18);
+    expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
+  });
+
   it("every preset is valid by its own rules and fits its own floor", () => {
     for (const key of ISO_PRESET_KEYS) {
       const layout = isoPresetLayout(key);
@@ -910,6 +982,54 @@ describe("room atmosphere", () => {
     });
     expect(out.wallColors).toEqual({ left: "#aa6655", right: "#554477" });
     expect(out.lighting).toBe("golden");
+  });
+
+  it("reserves the designed arch for the asymmetric multi-room home", () => {
+    const layout = isoPresetLayout("home");
+    expect(layout.mask).toBeTruthy();
+    expect(layout.partitions?.length).toBeGreaterThan(0);
+    expect(layout.arches?.length).toBeGreaterThan(0);
+    expect(normalizePartitions(layout.partitions, layout)).toEqual(
+      [...layout.partitions].sort()
+    );
+    expect(normalizePartitions(layout.arches, layout)).toEqual([...layout.arches].sort());
+    for (const key of ["loft", "cafeteria"]) {
+      expect(isoPresetLayout(key).arches, `${key} should stay open-plan`).toBeUndefined();
+    }
+    for (const key of ["garden", "terrace", "fall"]) {
+      expect(isoPresetLayout(key).partitions, `${key} should stay open-air`).toBeUndefined();
+    }
+  });
+
+  it("renders explicit arch openings separately and merges adjacent spans", () => {
+    const pieces = partitionPieces({
+      w: 5,
+      d: 4,
+      partitions: ["gx:2:0", "gx:2:3"],
+      arches: ["gx:2:1", "gx:2:2"],
+    });
+    expect(pieces).toContainEqual({
+      plane: "gx",
+      at: 2,
+      from: 1,
+      to: 3,
+      partition: true,
+      arch: true,
+    });
+  });
+
+  it("keeps arches passable and lets them win over duplicate solid edges", () => {
+    const out = validateIsoLayout({
+      w: 4,
+      d: 4,
+      partitions: ["gy:2:1", "gy:2:2"],
+      arches: ["gy:2:1"],
+      placements: [],
+    });
+    expect(out.arches).toEqual(["gy:2:1"]);
+    expect(out.partitions).toEqual(["gy:2:2"]);
+    expect(footprintFree(1, 1, [1, 2], out)).toBe(true);
+    expect(footprintFree(2, 1, [1, 2], out)).toBe(false);
   });
 
   it("keeps only interior walls with floor on both sides and merges long runs", () => {

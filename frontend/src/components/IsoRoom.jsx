@@ -5,21 +5,21 @@ import {
   ISO_LIGHTING,
   clampIsoPlacement,
   envOf,
-  WALL_MODES,
   footOf,
   footprintFree,
   lipRuns,
   personaCanSit,
-  partitionRuns,
+  partitionPieces,
   petCanStand,
   petTemper,
   seatFor,
   seatedPlacement,
   snapHalf,
-  sortIso,
+  sortIsoScene,
   stackedPlacement,
   surfaceFor,
   tileOn,
+  wallModeOf,
   wallRuns,
   wallSegment,
 } from "../lib/isoRoom";
@@ -28,6 +28,8 @@ import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
+import ExteriorWall from "./ExteriorWall";
+import PartitionWall from "./PartitionWall";
 import RoomTintPicker from "./RoomTintPicker";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
@@ -46,7 +48,6 @@ import RoomTintPicker from "./RoomTintPicker";
 // A balustrade rather than a wall: high enough to enclose a terrace, low
 // enough that you still read it as outdoors.
 const LOW_WALL_H = 30;
-
 
 /**
  * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
@@ -617,7 +618,7 @@ function IsoSceneInner({
     () => ({
       floorClip: floorClipRuns(size),
       wallRunList: wallRuns(size),
-      partitionRunList: partitionRuns(size),
+      partitionRunList: partitionPieces(size),
       lipRunList: lipRuns(size),
       leftSeg: wallSegment("left", size),
       rightSeg: wallSegment("right", size),
@@ -629,7 +630,7 @@ function IsoSceneInner({
   // from one number instead of from a scatter of `outdoors` checks.
   const env = envOf(size.env);
   // The layout's own walls override (user-picked) beats the floor's default.
-  const walls = WALL_MODES.includes(size.walls) ? size.walls : env.walls;
+  const walls = wallModeOf(size.env, size.walls);
   const wallH = walls === "full" ? WALL_H : walls === "low" ? LOW_WALL_H : 0;
   const lighting = ISO_LIGHTING[size.lighting] || ISO_LIGHTING.natural;
 
@@ -775,7 +776,7 @@ function IsoSceneInner({
       ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _facing: off.facing }
       : p;
   });
-  const ordered = sortIso(effective);
+  const sceneLayers = sortIsoScene(effective, partitionRunList);
   const selectedPlacement =
     editMode && selectedId ? effective.find((p) => p.id === selectedId) : null;
 
@@ -789,11 +790,11 @@ function IsoSceneInner({
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-plum))" }} />
-            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-night))" }} stopOpacity="0.72" />
+            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-night))" }} />
           </linearGradient>
           <linearGradient id="isoWallR" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-night))" }} />
-            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-void))" }} stopOpacity="0.7" />
+            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-void))" }} />
           </linearGradient>
           <linearGradient id="isoFloor" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
@@ -868,67 +869,15 @@ function IsoSceneInner({
           {/* ---------- walls (cut-aware: main walls plus the inner planes
               that step around a cut corner) ---------- */}
           {wallH > 0 &&
-            wallRunList.map((run, i) => {
-            const a =
-              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
-            const b =
-              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
-            return (
-              <g key={`wall-${i}`}>
-                <polygon
-                  points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill={run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)"}
-                />
-                <polygon
-                  points={`${a.x},${a.y - wallH - 6} ${b.x},${b.y - wallH - 6} ${b.x},${b.y - wallH} ${a.x},${a.y - wallH}`}
-                  style={{
-                    fill: `rgb(var(--color-petal) / ${run.plane === "gy" ? 0.22 : 0.35})`,
-                  }}
-                />
-                {/* Panelling: one seam per tile along the run. Subtle on
-                    purpose — wall decor hangs on this surface, so it wants
-                    texture, not pattern. */}
-                {Array.from({ length: Math.max(0, Math.ceil(run.to - run.from) - 1) }, (_, k) => {
-                  const at = run.from + k + 1;
-                  const q = run.plane === "gy" ? project(at, run.at) : project(run.at, at);
-                  return (
-                    <line
-                      key={`panel-${k}`}
-                      x1={q.x}
-                      y1={q.y - wallH}
-                      x2={q.x}
-                      y2={q.y}
-                      stroke="#000"
-                      strokeWidth="1"
-                      opacity="0.09"
-                    />
-                  );
-                })}
-                {/* Skirting and a picture rail. Two bands is all it takes for
-                    a wall to stop being a coloured plane — the references have
-                    them and it was the cheapest gap to close. */}
-                <polygon
-                  points={`${a.x},${a.y - 9} ${b.x},${b.y - 9} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill="#fff"
-                  opacity={run.plane === "gy" ? 0.06 : 0.09}
-                />
-                <polygon
-                  points={`${a.x},${a.y - wallH * 0.62} ${b.x},${b.y - wallH * 0.62} ${b.x},${
-                    b.y - wallH * 0.62 + 3
-                  } ${a.x},${a.y - wallH * 0.62 + 3}`}
-                  fill="#000"
-                  opacity="0.14"
-                />
-                {tod.lift && (
-                  <polygon
-                    points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
-                    fill={tod.lift}
-                    opacity={tod.liftOpacity * (run.plane === "gy" ? 0.75 : 1)}
-                  />
-                )}
-              </g>
-            );
-          })}
+            wallRunList.map((run, i) => (
+              <ExteriorWall
+                key={`wall-${i}`}
+                run={run}
+                height={wallH}
+                lift={tod.lift}
+                liftOpacity={tod.liftOpacity}
+              />
+            ))}
           {/* The seam where the two walls meet. It only exists if the back
               corner is actually floor — this used to test `size.cuts`, which
               validation converts to a `mask` long before the scene sees it, so
@@ -1135,51 +1084,28 @@ function IsoSceneInner({
             })}
           </g>
 
-          {/* User-drawn room dividers. Adjacent units are merged before this
-              render, so a ten-tile wall is three polygons, not thirty DOM
-              nodes. They intentionally sit below movable furniture: editing
-              remains legible even when a piece straddles a new divider. */}
-          {partitionRunList.map((run, i) => {
-            const a =
-              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
-            const b =
-              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
+          {/* Opaque dividers and furniture share painter order: a wall hides
+              what is behind it without burying furniture on the near side. */}
+          {sceneLayers.map((layer) => {
+            if (layer.kind === "partition") {
+              return <PartitionWall key={layer.key} run={layer.partition} />;
+            }
+            const p = layer.placement;
             return (
-              <g key={`partition-${i}`}>
-                <polygon
-                  points={`${a.x},${a.y - WALL_H} ${b.x},${b.y - WALL_H} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill={run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)"}
-                  opacity="0.96"
-                />
-                <polygon
-                  points={`${a.x},${a.y - WALL_H - 5} ${b.x},${b.y - WALL_H - 5} ${b.x},${b.y - WALL_H} ${a.x},${a.y - WALL_H}`}
-                  fill="rgb(var(--color-petal))"
-                  opacity="0.28"
-                />
-                <polygon
-                  points={`${a.x},${a.y - 8} ${b.x},${b.y - 8} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill="#fff"
-                  opacity="0.08"
-                />
-              </g>
+              <PlacedItem
+                key={layer.key}
+                p={p}
+                editMode={editMode}
+                activity={activity}
+                character={character}
+                mood={mood}
+                reduceMotion={reduceMotion}
+                onStartDrag={onStartDrag}
+                personaInfo={personas ? personas[p.id] : null}
+                walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
+              />
             );
           })}
-
-          {/* ---------- placed items ---------- */}
-          {ordered.map((p) => (
-            <PlacedItem
-              key={p.id}
-              p={p}
-              editMode={editMode}
-              activity={activity}
-              character={character}
-              mood={mood}
-              reduceMotion={reduceMotion}
-              onStartDrag={onStartDrag}
-              personaInfo={personas ? personas[p.id] : null}
-              walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
-            />
-          ))}
 
           {/* Name tags for a visited room's people — after the furniture so
               nothing buries a name (the selection-chrome rule), and OUTSIDE

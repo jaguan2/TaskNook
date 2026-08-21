@@ -2546,6 +2546,74 @@ function Shelf() {
     </g>
   );
 }
+
+/** A nursery-style merchandise rack: open timber frame, three shallow trays,
+ * and enough different leaf silhouettes to read as inventory at room scale.
+ * The plants are built into the fixture deliberately—placing twelve separate
+ * pots on one rack would cost twelve scene nodes, twelve drag targets, and a
+ * lot of fiddly overlap for something users expect to move as one display. */
+function PlantShelf() {
+  const W = 1.5;
+  const D = 0.6;
+  const H = 68;
+  const levels = [13, 34, 55];
+  const pots = [
+    [3, -15, "#c96f52", "round"], [14, -15, "#d6a55f", "spike"], [26, -15, "#8d7897", "round"],
+    [6, -36, "#d49a7a", "trail"], [19, -36, "#b86755", "round"], [29, -36, "#d6a55f", "spike"],
+    [4, -57, "#8d7897", "spike"], [16, -57, "#c96f52", "round"], [28, -57, "#d49a7a", "trail"],
+  ];
+
+  return (
+    <g>
+      {levels.map((lift) => (
+        <g key={lift} transform={`translate(0,${-lift})`}>
+          <TintedBox gx={0} gy={0} dx={W} dy={D} h={3} fallback="#7c664d" dark={0.38} mid={0.22} />
+        </g>
+      ))}
+      {[0.04, W - 0.12].map((gx) =>
+        [0.04, D - 0.12].map((gy) => (
+          <TintedBox
+            key={`${gx}-${gy}`}
+            gx={gx}
+            gy={gy}
+            dx={0.08}
+            dy={0.08}
+            h={H}
+            fallback="#695943"
+            dark={0.42}
+            mid={0.25}
+          />
+        ))
+      )}
+      <g transform={`translate(${project(0, D).x},${project(0, D).y}) skewY(${SKEW})`}>
+        {pots.map(([x, base, color, leaf]) => (
+          <g key={`${x}-${base}`}>
+            <path d={`M${x} ${base - 7} h7 l-1 7 h-5 z`} fill={color} />
+            <path d={`M${x} ${base - 7} h7 l-0.35 2 h-6.3 z`} fill="#fff" opacity="0.13" />
+            <rect x={x - 0.5} y={base - 8.5} width="8" height="2.2" rx="0.7" fill={color} />
+            {leaf === "spike" ? (
+              <>
+                <path d={`M${x + 3.5} ${base - 8} q-4 -12 -1 -15 q4 6 1 15 z`} fill="#3f7655" />
+                <path d={`M${x + 4} ${base - 8} q5 -11 7 -8 q0 6 -7 8 z`} fill="#5d936a" />
+              </>
+            ) : leaf === "trail" ? (
+              <>
+                <path d={`M${x + 3.5} ${base - 8} q-1 -11 4 -13 q4 5 -4 13 z`} fill="#4f8f6a" />
+                <path d={`M${x + 6} ${base - 7} q6 3 4 10 q-5 -1 -4 -10 z`} fill="#6ba878" />
+              </>
+            ) : (
+              <>
+                <ellipse cx={x + 1.5} cy={base - 13} rx="3" ry="6" fill="#4f8f6a" transform={`rotate(-35 ${x + 1.5} ${base - 13})`} />
+                <ellipse cx={x + 6} cy={base - 14} rx="3" ry="6.5" fill="#6ba878" transform={`rotate(32 ${x + 6} ${base - 14})`} />
+                <ellipse cx={x + 3.7} cy={base - 17} rx="3" ry="6" fill="#3f7655" />
+              </>
+            )}
+          </g>
+        ))}
+      </g>
+    </g>
+  );
+}
 // The wide sibling of Bookshelf, in the same idiom: a carcass with the books
 // drawn on its front face through the skew, which is what gives it depth
 // without needing a second drawing.
@@ -5401,6 +5469,7 @@ export const ISO_SPRITES = {
   nightstand: Nightstand,
   chair: Chair,
   shelf: Shelf,
+  plantshelf: PlantShelf,
   bookcase: Bookcase,
   sidetable: SideTable,
   radio: Radio,
