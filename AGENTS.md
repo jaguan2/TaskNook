@@ -37,11 +37,15 @@ TaskNook/
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   ├── room.js       # freeform decoration model: catalog, zones, presets
+│       │   ├── isoRoom.js    # isometric geometry, placement, validation, registry API
+│       │   ├── isoPresets.js # ready-made isometric room data
 │       │   ├── profile.js    # who you are + how your resident is drawn (pure)
 │       │   ├── chat.js       # what a bot says back, and when (pure)
 │       │   └── iso.js        # isometric projection math (Sims-style room seed)
-│       └── components/   # Cottage (SVG scene + drag engine), RoomItems
-│                         #   (item sprites), HudFocusCard (top-left timer/
+│       └── components/   # Cottage/IsoRoom scene engines; RoomItems/IsoItems
+│                         #   sprite registries; IsoFloorSurface, IsoRoomPreviews,
+│                         #   IsoItemPrimitives and themed sprite-family modules;
+│                         #   HudFocusCard (top-left timer/
 │                         #   stopwatch), HudTasks (top-right to-do), TopBar
 │                         #   (bottom-right clock/toggles cluster — the name
 │                         #   is historical), Dock, Drawer, *Panel.jsx,
@@ -1397,9 +1401,12 @@ running `git commit` yourself.
   Model in `lib/isoRoom.js` (footprints, half-tile snapping,
   depth sort by front corner, validation), projection in `lib/iso.js` (2:1
   dimetric; `project`/`unproject` are exact inverses — that's what makes
-  grid-dragging work), sprites in `IsoItems.jsx` (drawn for a footprint at
-  grid (0,0); linear projection makes them relocatable by translate), scene +
-  drag engine in `IsoRoom.jsx`.
+  grid-dragging work), preset data in `lib/isoPresets.js`, and sprites
+  registered in `IsoItems.jsx` (large themed families belong in their own
+  `Iso*Items.jsx` modules; every sprite is drawn for a footprint at grid
+  (0,0), and linear projection makes it relocatable by translate). Floor
+  materials live in `IsoFloorSurface.jsx`, picker thumbnails in
+  `IsoRoomPreviews.jsx`, and the scene + drag engine in `IsoRoom.jsx`.
   Screens share one helper: `ScreenFace` draws the glass inset into its
   bezel plus a hint of a picture, and the television, the TV unit's set and
   the monitor all call it — the unit's set was visibly plainer than the
@@ -1418,7 +1425,7 @@ running `git commit` yourself.
   reference, the shared helpers and the standard face opacities all live in
   `docs/MODELS.md` now rather than being restated here.
   **Detail lives in the shared helpers first.** Nearly every piece is built
-  from `TintedBox`, so its contact shading — a short dark band where each box
+  from `IsoItemPrimitives.jsx`'s `TintedBox`, so its contact shading — a short dark band where each box
   meets whatever it stands on — gives the WHOLE catalog weight from one edit;
   without it a box looks pasted onto the floor rather than resting on it. Same
   reasoning for `RugGround` (ground + inset lighter field, so the border is an

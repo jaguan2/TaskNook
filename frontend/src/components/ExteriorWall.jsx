@@ -33,10 +33,19 @@ export default function ExteriorWall({
         points={`${coords(topA)} ${coords(topB)} ${coords(b)} ${coords(a)}`}
         fill={faceFill}
       />
+      {/* A translucent plaster wash keeps custom colours intact while taking
+          the hard, diagrammatic edge off large wall fields. One flat polygon
+          is intentionally cheaper than a filter on every wall run. */}
+      <polygon
+        data-wall-soft-wash="true"
+        points={`${coords(topA)} ${coords(topB)} ${coords(b)} ${coords(a)}`}
+        fill="rgb(var(--color-petal))"
+        opacity={run.plane === "gy" ? 0.07 : 0.09}
+      />
       <polygon
         points={`${topA.x},${topA.y - cap} ${topB.x},${topB.y - cap} ${coords(topB)} ${coords(topA)}`}
         style={{
-          fill: `rgb(var(--color-void) / ${run.plane === "gy" ? 0.48 : 0.62})`,
+          fill: `rgb(var(--color-void) / ${run.plane === "gy" ? 0.42 : 0.52})`,
         }}
       />
 
@@ -52,9 +61,9 @@ export default function ExteriorWall({
               y1={point.y - wallH}
               x2={point.x}
               y2={point.y}
-              stroke="#000"
+              stroke="rgb(var(--color-night))"
               strokeWidth="1"
-              opacity="0.09"
+              opacity="0.055"
             />
           );
         }
@@ -62,8 +71,8 @@ export default function ExteriorWall({
 
       <polygon
         points={`${a.x},${a.y - base} ${b.x},${b.y - base} ${coords(b)} ${coords(a)}`}
-        fill="#fff"
-        opacity={run.plane === "gy" ? 0.06 : 0.09}
+        fill="rgb(var(--color-petal))"
+        opacity={run.plane === "gy" ? 0.07 : 0.1}
       />
 
       {cutaway ? (
@@ -75,7 +84,7 @@ export default function ExteriorWall({
             fill="none"
             stroke="rgb(var(--color-void))"
             strokeWidth={compact ? 2.5 : 4}
-            opacity="0.34"
+            opacity="0.24"
           />
           {[a, b].map((point, index) => (
             <line
@@ -86,13 +95,13 @@ export default function ExteriorWall({
               y2={point.y}
               stroke="rgb(var(--color-void))"
               strokeWidth={compact ? 3 : 5}
-              opacity="0.68"
+              opacity="0.52"
             />
           ))}
           <polyline
             points={`${coords(topA)} ${coords(topB)}`}
             fill="none"
-            stroke="rgb(var(--color-cream))"
+            stroke="rgb(var(--color-petal))"
             strokeWidth={compact ? 1 : 1.5}
             opacity="0.34"
           />
@@ -102,8 +111,8 @@ export default function ExteriorWall({
           points={`${a.x},${a.y - wallH * 0.62} ${b.x},${b.y - wallH * 0.62} ${b.x},${
             b.y - wallH * 0.62 + 3
           } ${a.x},${a.y - wallH * 0.62 + 3}`}
-          fill="#000"
-          opacity="0.14"
+          fill="rgb(var(--color-night))"
+          opacity="0.09"
         />
       )}
 

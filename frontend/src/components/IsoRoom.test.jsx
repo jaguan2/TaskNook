@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
+import { WALL_H } from "../lib/iso";
 import { resolveVisitRoom } from "../lib/visiting";
 import { validateCharacter } from "../lib/profile";
 
@@ -71,6 +72,98 @@ describe("IsoRoom while visiting", () => {
       />
     );
     expect(grabCursors(container).length).toBe(1);
+  });
+});
+
+describe("IsoRoom interior architecture", () => {
+  it("layers a soft glow behind a full-height room window", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 6, d: 6, env: "room", walls: "full" }} placements={[]} saveView={false} />
+    );
+
+    const glow = container.querySelector('[data-window-glow="true"]');
+    expect(glow).toBeTruthy();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeTruthy();
+    const wallY = glow
+      .getAttribute("points")
+      .trim()
+      .split(/\s+/)
+      .map((point) => Number(point.split(",")[1]));
+    expect(Math.min(...wallY)).toBeGreaterThanOrEqual(-WALL_H);
+  });
+
+  it("does not leave window light floating in an open room", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{ w: 6, d: 6, env: "room", walls: "none" }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+
+    expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+  });
+
+  it("does not draw a window past the end of an asymmetric wall run", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{
+          w: 6,
+          d: 6,
+          env: "room",
+          walls: "full",
+          mask: ["111111", "111111", "111111", "011111", "011111", "011111"],
+        }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+
+    expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+  });
+
+  it("makes window light stronger by day than at night", () => {
+    const props = {
+      size: { w: 6, d: 6, env: "room", walls: "full" },
+      placements: [],
+      saveView: false,
+    };
+    const { container, rerender } = render(<IsoRoom {...props} timeOfDay="night" />);
+    const night = Number(
+      container.querySelector('[data-window-floor-light="true"] polygon').getAttribute("opacity"),
+    );
+    rerender(<IsoRoom {...props} timeOfDay="day" />);
+    const day = Number(
+      container.querySelector('[data-window-floor-light="true"] polygon').getAttribute("opacity"),
+    );
+
+    expect(day).toBeGreaterThan(night);
+  });
+
+  it("batches a maximum-size board floor into a bounded number of SVG nodes", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 48, d: 48, env: "room" }} placements={[]} saveView={false} />
+    );
+    const surface = container.querySelector('[data-floor-surface="boards"]');
+
+    expect(surface).toBeTruthy();
+    expect(surface.children.length).toBeLessThanOrEqual(50);
+    expect(surface.querySelectorAll("path")).toHaveLength(2);
+  });
+
+  it("renders a drawn divider at the exterior roof height", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{ w: 5, d: 4, partitions: ["gy:2:1", "gy:2:2"] }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+    const wall = container.querySelector('[data-partition-style="wall"]');
+
+    expect(Number(wall.dataset.wallHeight)).toBe(WALL_H);
   });
 });
 

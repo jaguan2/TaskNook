@@ -1,9 +1,8 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
-import { project, floorPatch, floorPoints } from "../lib/iso";
 import {
   ISO_ENVS,
   ISO_ENV_KEYS,
@@ -14,80 +13,15 @@ import {
   ISO_PRESETS,
   ISO_PRESET_KEYS,
   ISO_SIZE_MAX,
-  cutsToMask,
   envHasWalls,
   occupiedIsoFootprints,
   occupiedIsoTiles,
   partitionKey,
-  partitionPieces,
-  seatFor,
-  seatedPlacement,
-  stackedPlacement,
-  surfaceFor,
-  sortIso,
-  sortIsoScene,
-  tileOn,
-  wallModeOf,
-  wallRuns,
 } from "../lib/isoRoom";
 import { costOf, owns } from "../lib/unlocks";
 import { ITEM_SPRITES } from "./RoomItems";
-import { ISO_SPRITES } from "./IsoItems";
-import ExteriorWall from "./ExteriorWall";
-import PartitionWall from "./PartitionWall";
+import { IsoItemPreview, IsoPresetPreview } from "./IsoRoomPreviews";
 
-// One catalog entry, drawn at postage-stamp size — the SAME sprite the scene
-// will place. The iso picker used to show the catalog's emoji (🛏️ for a bed),
-// which is exactly the piece of the app where you most want to see what you're
-// about to get, and the only browser that didn't show it (the flat room's
-// picker has drawn real sprites all along).
-/**
- * One catalog sprite in the picker.
- *
- * memo'd because RoomPanel calls useStore(), so every store change re-rendered
- * all ~132 of these — and the panel is on screen whenever you're decorating,
- * since "Decorate" is toggled from inside it. Its props are a single string, so
- * the comparison is free and always correct.
- */
-function IsoItemPreviewInner({ itemKey }) {
-  const item = ISO_ITEMS[itemKey];
-  const Sprite = ISO_SPRITES[itemKey];
-  const gRef = useRef(null);
-  const [box, setBox] = useState(null);
-
-  // Measure, don't guess. Every sprite is drawn around its own origin with
-  // wildly different extents — a wall clock hangs ~100px above the floor line,
-  // a rug is flat around it, a tree is 128 tall — so no single hand-written
-  // viewBox frames them all. getBBox is exact and runs once per item.
-  useLayoutEffect(() => {
-    const measured = gRef.current?.getBBox?.();
-    if (measured && measured.width > 0 && measured.height > 0) setBox(measured);
-  }, [itemKey]);
-
-  if (!item || !Sprite) return null;
-  const pad = 4;
-  const viewBox = box
-    ? `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`
-    : "-40 -100 80 110"; // one frame's worth, before the measurement lands
-
-  return (
-    // No local <defs>: url(#lampPool) / url(#isoSky) / url(#isoShadow) resolve
-    // document-wide to IsoRoom's, which is mounted behind this panel whenever
-    // this section is visible (same trick as the flat room's ItemPreview).
-    <svg
-      viewBox={viewBox}
-      preserveAspectRatio="xMidYMid meet"
-      className="h-9 w-9 shrink-0"
-      aria-hidden="true"
-    >
-      <g ref={gRef}>
-        <Sprite />
-      </g>
-    </svg>
-  );
-}
-
-const IsoItemPreview = memo(IsoItemPreviewInner);
 
 // Adjacent furniture needs separate silhouettes in the plan. A stable tone
 // derived from the placement id avoids a rainbow that changes when another
@@ -104,136 +38,6 @@ function footprintTone(id) {
   for (const char of String(id)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return FOOTPRINT_TONES[hash % FOOTPRINT_TONES.length];
 }
-
-// A preset button IS the room in miniature: the same sprites the scene
-// renders, drawn over the preset's floor at postage-stamp size — emoji pills
-// told you nothing about what you'd get (user feedback).
-/**
- * A whole-room thumbnail for one preset.
- *
- * Also memo'd, and it earns it more than the item previews: each of the eleven
- * draws w×d floor polygons and resolves seating and stacking for ~15 placements.
- * `preset` is a module-level constant object, so the identity is stable.
- */
-function IsoPresetPreviewInner({ preset }) {
-  const { w, d } = preset.size;
-  const mask = preset.size.cuts ? cutsToMask(preset.size.cuts, w, d) : preset.size.mask;
-  const size = {
-    w,
-    d,
-    ...(mask && { mask }),
-    ...(preset.size.partitions && { partitions: preset.size.partitions }),
-    ...(preset.size.arches && { arches: preset.size.arches }),
-  };
-  const shapedFloor = mask?.some((row) => row.includes("0"));
-  const grass = preset.size.env === "garden";
-  // Seat personas before sorting, exactly as the scene does — otherwise the
-  // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
-  // the depth sort orders them from the wrong spot.
-  const placed = preset.items.map((p, i) => ({ ...p, id: `pv${i}` }));
-  const items = sortIso(
-    placed.map((p) => {
-      if (ISO_ITEMS[p.item]?.stacks) {
-        // Same for things on tables, or the thumbnail shows the mug on the
-        // floor beside the desk it's meant to be standing on.
-        const on = surfaceFor(p, placed);
-        return on ? { ...p, ...stackedPlacement(p, on) } : p;
-      }
-      if (!ISO_ITEMS[p.item]?.persona) return p;
-      const seat = seatFor(p, placed);
-      if (!seat) return p;
-      return { ...p, ...seatedPlacement(p, seat) };
-    })
-  );
-  const previewWallMode = wallModeOf(preset.size.env, preset.size.walls);
-  const previewWallH = previewWallMode === "full" ? 100 : previewWallMode === "low" ? 30 : 0;
-  const shellRuns = previewWallH ? wallRuns(size) : [];
-  const sceneLayers = sortIsoScene(items, partitionPieces(size));
-  const wallColor = (plane) =>
-    plane === "gy"
-      ? preset.size.wallColors?.right || "rgb(var(--color-night))"
-      : preset.size.wallColors?.left || "rgb(var(--color-plum))";
-  const previewItem = (p, key) => {
-    const item = ISO_ITEMS[p.item];
-    const Sprite = ISO_SPRITES[p.item];
-    if (!item || !Sprite) return null;
-    const at = project(p.gx, p.gy);
-    const sprite = item.persona ? (
-      <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-        <Sprite seated={!!p._seat} seatH={p._seat || 0} />
-      </g>
-    ) : (
-      <Sprite
-        rot={(p.rot || 0) % 2}
-        back={(p.rot || 0) >= 2}
-        variant={item.variants?.[p.tint]}
-      />
-    );
-    return (
-      <g
-        key={key}
-        transform={`translate(${at.x},${at.y})`}
-        style={p.tint ? { "--tint": p.tint } : undefined}
-      >
-        {(p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
-      </g>
-    );
-  };
-  const L = project(0, d);
-  const R = project(w, 0);
-  const F = project(w, d);
-  return (
-    <svg
-      viewBox={`${L.x - 6} -118 ${R.x - L.x + 12} ${F.y + 132}`}
-      className="h-24 w-full"
-      aria-hidden="true"
-    >
-      {shellRuns.map((run, index) => (
-        <ExteriorWall
-          key={`shell-${index}`}
-          run={run}
-          height={previewWallH}
-          fill={wallColor(run.plane)}
-          compact
-        />
-      ))}
-      {shapedFloor ? (
-        Array.from({ length: d }, (_, ty) =>
-          Array.from({ length: w }, (_, tx) =>
-            tileOn(size, tx, ty) ? (
-              <polygon
-                key={`${tx}-${ty}`}
-                points={floorPatch(tx, ty, 1, 1)}
-                fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
-                opacity="0.8"
-              />
-            ) : null
-          )
-        )
-      ) : (
-        <polygon
-          points={floorPoints(w, d)}
-          fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
-          opacity="0.8"
-        />
-      )}
-      {sceneLayers.map((layer) =>
-        layer.kind === "partition"
-          ? (
-              <PartitionWall
-                key={layer.key}
-                run={layer.partition}
-                fill={wallColor(layer.partition.plane)}
-                compact
-              />
-            )
-          : previewItem(layer.placement, layer.key)
-      )}
-    </svg>
-  );
-}
-
-const IsoPresetPreview = memo(IsoPresetPreviewInner);
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
 const PREVIEW_TIME = { lampGlow: 0.55, screenGlow: 0.4, bulbGlow: 0.95 };
@@ -566,18 +370,20 @@ export default function RoomPanel() {
                     <span className="h-2.5 w-4 rounded-[3px] border border-cream/70 bg-plum/80" />
                     Filled shapes show each item's full footprint.
                   </div>
-                  <div
-                    className="grid touch-none select-none rounded-lg bg-white/5 p-1"
-                    style={{
-                      gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
-                      // hairline gaps up to ~24 wide; beyond that the gaps would
-                      // eat the (tiny) cells
-                      gap: isoRoom.w > 24 ? 0 : 1,
-                    }}
-                    onPointerUp={() => setPaintMode(null)}
-                    onPointerLeave={() => setPaintMode(null)}
-                  >
-                    {maskRows.map((row, y) =>
+                  <div className="relative rounded-lg bg-white/5 p-1">
+                    <div
+                      data-floor-plan-layer="cells"
+                      className="grid touch-none select-none"
+                      style={{
+                        gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
+                        // Hairline gaps up to ~24 wide; beyond that the gaps
+                        // would eat the tiny cells.
+                        gap: isoRoom.w > 24 ? 0 : 1,
+                      }}
+                      onPointerUp={() => setPaintMode(null)}
+                      onPointerLeave={() => setPaintMode(null)}
+                    >
+                      {maskRows.map((row, y) =>
                       row.split("").map((c, x) => {
                         const occupants = occupiedTiles.get(`${x}:${y}`) || [];
                         const hKey = partitionKey("gy", y + 1, x);
@@ -641,25 +447,40 @@ export default function RoomPanel() {
                           </div>
                         );
                       })
-                    )}
-                    {occupiedFootprints.map((footprint) => (
-                      <span
-                        key={footprint.id}
-                        aria-hidden="true"
-                        data-footprint={footprint.item}
-                        className={`pointer-events-none z-[5] m-px grid min-h-0 min-w-0 place-items-center overflow-hidden rounded-[4px] border shadow-sm ${footprintTone(footprint.id)}`}
-                        style={{
-                          gridColumn: `${footprint.x + 1} / span ${footprint.w}`,
-                          gridRow: `${footprint.y + 1} / span ${footprint.d}`,
-                        }}
-                      >
-                        {footprint.w * footprint.d >= 4 && (
-                          <span className="max-w-full truncate px-1 text-[8px] font-bold leading-none text-cream/90">
-                            {footprint.label}
-                          </span>
-                        )}
-                      </span>
-                    ))}
+                      )}
+                    </div>
+                    {/* A separate explicit grid is essential here. Mixing
+                        these positioned spans into the auto-placed cell grid
+                        makes CSS Grid reserve their areas first and pushes
+                        editable cells into extra rows in a real browser. */}
+                    <div
+                      aria-hidden="true"
+                      data-floor-plan-layer="footprints"
+                      className="pointer-events-none absolute inset-1 z-[5] grid"
+                      style={{
+                        gridTemplateColumns: `repeat(${isoRoom.w}, 1fr)`,
+                        gridTemplateRows: `repeat(${isoRoom.d}, 1fr)`,
+                        gap: isoRoom.w > 24 ? 0 : 1,
+                      }}
+                    >
+                      {occupiedFootprints.map((footprint) => (
+                        <span
+                          key={footprint.id}
+                          data-footprint={footprint.item}
+                          className={`m-px grid min-h-0 min-w-0 place-items-center overflow-hidden rounded-[4px] border shadow-sm ${footprintTone(footprint.id)}`}
+                          style={{
+                            gridColumn: `${footprint.x + 1} / span ${footprint.w}`,
+                            gridRow: `${footprint.y + 1} / span ${footprint.d}`,
+                          }}
+                        >
+                          {footprint.w * footprint.d >= 4 && (
+                            <span className="max-w-full truncate px-1 text-[8px] font-bold leading-none text-cream/90">
+                              {footprint.label}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <p className="mt-2 text-[10px] text-petal/45">
                     Draw solid walls or passable arch openings along tile edges. Start on the same type to erase it.

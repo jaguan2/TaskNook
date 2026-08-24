@@ -30,7 +30,7 @@ describe("figure proportions", () => {
     // The top-heavy guard: fem + slim once produced a body narrower than its
     // own skull. Parametric over the real tables so a new build or model is
     // covered the day it's added. Against the EFFECTIVE head — the radius
-    // the scaled head unit actually occupies (the adult-proportion pivot).
+    // the finished illustrated head actually occupies.
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
@@ -40,16 +40,16 @@ describe("figure proportions", () => {
     }
   });
 
-  it("the head unit scales as one and the figure lands at ~5 heads", () => {
-    // The adult-proportion pivot's whole contract: the drawing radius never
-    // moves (every asset is authored against it), the occupied radius is
-    // the scale applied, and the finished figure sits in the adult band —
-    // VC2-adjacent, not the clay-toy 4-heads it replaced.
+  it("the head unit scales as one and the figure lands near four heads", () => {
+    // The drawing radius never moves (every asset is authored against it),
+    // and the whole unit scales together. VC2's soft figures read at roughly
+    // four heads, with the hair silhouette doing far more work than facial
+    // detail at room scale.
     expect(HEAD_R_EFF).toBeCloseTo(HEAD_R * HEAD_SCALE, 9);
     const height = -STAND_HEAD_Y + HEAD_R_EFF;
     const heads = height / (HEAD_R_EFF * 2);
-    expect(heads).toBeGreaterThanOrEqual(4.5);
-    expect(heads).toBeLessThanOrEqual(5.5);
+    expect(heads).toBeGreaterThanOrEqual(3.75);
+    expect(heads).toBeLessThanOrEqual(4.35);
   });
 
   it("the standing figure stays leggy enough not to read squat", () => {
@@ -63,7 +63,7 @@ describe("figure proportions", () => {
     // ...while total height stays inside the band everything seat-, wall-
     // and camera-tuned was built against.
     expect(height).toBeGreaterThan(55);
-    expect(height).toBeLessThan(58);
+    expect(height).toBeLessThanOrEqual(59);
   });
 
   it("seated and standing share one head lift", () => {
@@ -122,11 +122,8 @@ describe("figureMetrics", () => {
   });
 
   it("the chest stays in the reference band relative to the head", () => {
-    // Re-derived for the adult pivot: the clay-toy 1.55×-head ceiling was
-    // calibrated against the big chibi skull. Adult stylized figures (the
-    // VC2 reference) carry shoulders ~1.5–2× the head; the ceiling is 2.1
-    // against the EFFECTIVE head so a build can be broad without becoming
-    // a bobblehead in reverse.
+    // Broad builds may still be broad, but the torso must not overwhelm the
+    // generous illustrated head that carries the character's identity.
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });

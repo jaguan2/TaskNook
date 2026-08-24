@@ -744,8 +744,17 @@ export function Arm({
         fill="none"
         opacity="0.1"
       />
-      <circle cx={H.x} cy={H.y} r="2.5" fill={skin} />
-      {far && <circle cx={H.x} cy={H.y} r="2.5" fill="#000" opacity="0.12" />}
+      {/* A softly tapered mitten rather than a perfect ball. At room scale
+          separate fingers become noise, but a thumb-side bump keeps the hand
+          from reading as another joint capsule. */}
+      <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill={skin} />
+      <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill={skin} />
+      {far && (
+        <>
+          <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill="#000" opacity="0.12" />
+          <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill="#000" opacity="0.12" />
+        </>
+      )}
     </g>
   );
 }
@@ -774,7 +783,8 @@ export function Face({ expression, headY }) {
         {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
         <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
-        <path d={`M-2.4 ${headY + 4.6} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
+        <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
+        <path d={`M-2.4 ${headY + 4.8} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
       </>
     );
   if (expression === "sleepy")
@@ -782,14 +792,16 @@ export function Face({ expression, headY }) {
       <>
         <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
-        <ellipse cx="0" cy={headY + 5} rx="1" ry="1.3" fill={INK} opacity="0.7" />
+        <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
+        <ellipse cx="0" cy={headY + 5.2} rx="1" ry="1.3" fill={INK} opacity="0.7" />
       </>
     );
   return (
     <>
       <circle cx="-2.9" cy={headY + 2} r="0.95" fill={INK} />
       <circle cx="2.9" cy={headY + 2} r="0.95" fill={INK} />
-      <path d={`M-1.9 ${headY + 4.7} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
+      <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
+      <path d={`M-1.9 ${headY + 4.9} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
     </>
   );
 }

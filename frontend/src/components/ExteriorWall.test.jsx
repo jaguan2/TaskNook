@@ -15,7 +15,9 @@ const renderWall = (run, height = 118) =>
 describe("ExteriorWall", () => {
   it("keeps an original wall full height", () => {
     const { container } = renderWall({ plane: "gy", at: 0, from: 0, to: 4 });
-    expect(container.querySelector('[data-exterior-wall="full"]')).toBeTruthy();
+    const wall = container.querySelector('[data-exterior-wall="full"]');
+    expect(wall).toBeTruthy();
+    expect(wall.querySelector('[data-wall-soft-wash="true"]')).toBeTruthy();
   });
 
   it("finishes a recessed wall as a low cutaway with two end posts", () => {

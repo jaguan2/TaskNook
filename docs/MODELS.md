@@ -78,15 +78,18 @@ piece so a new item sits correctly beside the existing ones.
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests
-all read that one copy). **The figure is ADULT-proportioned** (owner
-decision, 2026-08-19, against the Virtual Cottage 2 reference): ~57px tall
-at **~5 heads**, visible leg ~47%. The mechanism is `HEAD_SCALE` (0.8):
+all read that one copy). **The figure uses the soft, illustrated proportions
+of the Virtual Cottage 2 references**: ~58px tall at **~4 heads**, visible leg
+~47%. The mechanism is `HEAD_SCALE` (1):
 `HEAD_R` 7.3 stays the DRAWING radius every hair/hat/glasses/face asset is
 authored against, and the assembly scales the finished head unit about its
-own centre — one number converted the whole wardrobe. Layout code (neck
+own centre — one number retunes the whole wardrobe. Layout code (neck
 seams, height guards, shoulder ratios) must use `HEAD_R_EFF`, the radius
-the head actually occupies; new head-adjacent art keeps authoring at 7.3. It was 32%, and a figure that is two-thirds
-torso-and-head reads squat whatever the shading; the 2026-08 "chunky" retune
+the head actually occupies; new head-adjacent art keeps authoring at 7.3. An
+earlier 0.75 scale made the character's most expressive silhouette disappear
+beside the furniture; the supplied rear and seated references made that
+mismatch especially clear. The long-leg rebuild still prevents the original
+squat read: the 2026-08 "chunky" retune
 raised the legs, shortened the torso, and drew the standing legs as
 GARMENTS — tapered trousers with a cuff band ending in deliberately chunky
 shoes (the owner's clay-toy reference kits carry nearly half the figure as

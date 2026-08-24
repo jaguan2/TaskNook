@@ -239,8 +239,33 @@ describe("render ordering", () => {
       ],
       [{ plane: "gy", at: 2, from: 0, to: 3 }]
     );
-    expect(layers.map((layer) => layer.kind === "item" ? layer.placement.id : "wall"))
-      .toEqual(["far", "wall", "near"]);
+    const order = layers.map((layer) => layer.kind === "item" ? layer.placement.id : "wall");
+    expect(order[0]).toBe("far");
+    expect(order.at(-1)).toBe("near");
+    expect(order.filter((value) => value === "wall")).toHaveLength(3);
+  });
+
+  it("sorts each part of a long solid divider at its local depth", () => {
+    const layers = sortIsoScene(
+      [
+        { id: "far-left", item: "stool", gx: 0, gy: 0 },
+        { id: "near-left", item: "stool", gx: 0, gy: 2.2 },
+        { id: "far-right", item: "stool", gx: 7, gy: 0 },
+        { id: "near-right", item: "stool", gx: 7, gy: 2.2 },
+      ],
+      [{ plane: "gy", at: 2, from: 0, to: 8 }]
+    );
+    const indexOfItem = (id) => layers.findIndex(
+      (layer) => layer.kind === "item" && layer.placement.id === id
+    );
+    const indexOfWall = (from) => layers.findIndex(
+      (layer) => layer.kind === "partition" && layer.partition.from === from
+    );
+
+    expect(indexOfItem("far-left")).toBeLessThan(indexOfWall(0));
+    expect(indexOfWall(0)).toBeLessThan(indexOfItem("near-left"));
+    expect(indexOfItem("far-right")).toBeLessThan(indexOfWall(7));
+    expect(indexOfWall(7)).toBeLessThan(indexOfItem("near-right"));
   });
 });
 
@@ -544,6 +569,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [0, 1]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeGreaterThan(isoDepth(sofa));
+      expect(out._facing, `rot ${rot}`).toBe("back");
       expect(sortIso([{ ...sofa }, { ...out, id: "p", item: "resident" }]).map((x) => x.id)).toEqual(
         ["s", "p"]
       );
@@ -555,6 +581,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [2, 3]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeLessThan(isoDepth(sofa));
+      expect(out._facing, `rot ${rot}`).toBe("front");
       expect(sortIso([{ ...out, id: "p", item: "resident" }, { ...sofa }]).map((x) => x.id)).toEqual(
         ["p", "s"]
       );
@@ -578,6 +605,15 @@ describe("a sitter is placed by which way the seat faces", () => {
     );
     expect(out._seat).toBe(18);
     expect(out._lie).toBe(true);
+  });
+
+  it("does not invent a facing direction from a rug's rotation", () => {
+    const rug = { id: "r", item: "roundrug", gx: 1, gy: 1, rot: 0 };
+    const out = seatedPlacement(
+      { id: "p", item: "resident", gx: 1, gy: 1 },
+      { placement: rug, height: 1.5, lie: false, soft: true }
+    );
+    expect(out._facing).toBe("front");
   });
 });
 
@@ -984,16 +1020,11 @@ describe("room atmosphere", () => {
     expect(out.lighting).toBe("golden");
   });
 
-  it("reserves the designed arch for the asymmetric multi-room home", () => {
+  it("keeps the asymmetric shared home open-plan", () => {
     const layout = isoPresetLayout("home");
     expect(layout.mask).toBeTruthy();
-    expect(layout.partitions?.length).toBeGreaterThan(0);
-    expect(layout.arches?.length).toBeGreaterThan(0);
-    expect(normalizePartitions(layout.partitions, layout)).toEqual(
-      [...layout.partitions].sort()
-    );
-    expect(normalizePartitions(layout.arches, layout)).toEqual([...layout.arches].sort());
-    for (const key of ["loft", "cafeteria"]) {
+    for (const key of ["home", "loft", "cafeteria"]) {
+      expect(isoPresetLayout(key).partitions, `${key} should stay open-plan`).toBeUndefined();
       expect(isoPresetLayout(key).arches, `${key} should stay open-plan`).toBeUndefined();
     }
     for (const key of ["garden", "terrace", "fall"]) {

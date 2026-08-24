@@ -29,6 +29,7 @@ import { readStored, writeStored } from "../lib/storage";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import ExteriorWall from "./ExteriorWall";
+import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
 import PartitionWall from "./PartitionWall";
 import RoomTintPicker from "./RoomTintPicker";
 
@@ -48,6 +49,10 @@ import RoomTintPicker from "./RoomTintPicker";
 // A balustrade rather than a wall: high enough to enclose a terrace, low
 // enough that you still read it as outdoors.
 const LOW_WALL_H = 30;
+const WINDOW_FRAME_FROM = 1.1;
+const WINDOW_FRAME_LENGTH = 2.4;
+const WINDOW_GLOW_FROM = 0.35;
+const WINDOW_GLOW_LENGTH = 3.5;
 
 /**
  * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
@@ -64,133 +69,6 @@ function overSoftSpot(placements, gx, gy, f) {
     return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
   });
 }
-
-/**
- * The painted floor as horizontal RUNS: `[gx, gy, length]` per unbroken stretch.
- *
- * Only the clip path wants this. It needs the same AREA, not the individual
- * tiles, and emitting one polygon per tile made it 2,304 nodes on a 48×48 lot —
- * for a shape that is usually a plain rectangle — with FOUR groups referencing
- * it, so the browser resolved that region four times over. Merging by row is the
- * same trick `lipRuns` uses, and it takes a rectangle to one polygon per row.
- */
-function floorClipRuns(size) {
-  const runs = [];
-  for (let ty = 0; ty < size.d; ty++) {
-    let start = -1;
-    // One past the end so a run reaching the far edge is still closed.
-    for (let tx = 0; tx <= size.w; tx++) {
-      const on = tx < size.w && tileOn(size, tx, ty);
-      if (on && start < 0) start = tx;
-      if (!on && start >= 0) {
-        runs.push([start, ty, tx - start]);
-        start = -1;
-      }
-    }
-  }
-  return runs;
-}
-
-/**
- * The floor's MATERIAL, drawn over its colour gradient and clipped to the
- * painted tiles.
- *
- * A flat gradient reads as a coloured plane, not a floor — it's the largest
- * surface on screen and it was the thing most obviously missing next to the
- * references. Grain is cheap: every line here is one `<line>` in grid space,
- * and `project()` puts it on the right plane for free.
- *
- * Everything is derived from the tile index, never Math.random — the scene
- * re-renders and a reshuffling floor would crawl.
- *
- * memo'd because `stone` is a w·d nested loop (2,304 polygons on a big terrace)
- * and `boards`/`tiles` are hundreds of lines. All three props are scalars, so the
- * comparison is exact and free.
- */
-function FloorSurfaceInner({ w, d, style }) {
-  const line = (key, x1, y1, x2, y2, stroke, width, opacity) => {
-    const a = project(x1, y1);
-    const b = project(x2, y2);
-    return (
-      <line
-        key={key}
-        x1={a.x}
-        y1={a.y}
-        x2={b.x}
-        y2={b.y}
-        stroke={stroke}
-        strokeWidth={width}
-        opacity={opacity}
-      />
-    );
-  };
-
-  if (style === "grass") {
-    // Mown stripes: the only thing a lawn needs to stop reading as felt.
-    const out = [];
-    for (let t = 0; t < d; t += 2) {
-      out.push(
-        <polygon
-          key={`mow-${t}`}
-          points={floorPatch(0, t, w, 1)}
-          fill="#ffffff"
-          opacity="0.045"
-        />
-      );
-    }
-    return <g>{out}</g>;
-  }
-
-  if (style === "stone") {
-    // Flagstones: one inset slab per tile, its size nudged by the tile index
-    // so the joints wander instead of forming a grid.
-    const out = [];
-    for (let ty = 0; ty < d; ty++) {
-      for (let tx = 0; tx < w; tx++) {
-        const j = ((tx * 7 + ty * 13) % 5) / 100; // 0 … 0.04
-        out.push(
-          <polygon
-            key={`slab-${tx}-${ty}`}
-            points={floorPatch(tx + 0.06 + j, ty + 0.06 - j, 0.88 - j, 0.88 + j)}
-            fill="#ffffff"
-            opacity={0.05 + (((tx * 3 + ty * 5) % 4) / 100)}
-          />
-        );
-      }
-    }
-    return <g>{out}</g>;
-  }
-
-  if (style === "tiles") {
-    const out = [];
-    for (let t = 0.5; t < d; t += 0.5) {
-      out.push(line(`h${t}`, 0, t, w, t, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
-    }
-    for (let t = 0.5; t < w; t += 0.5) {
-      out.push(line(`v${t}`, t, 0, t, d, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
-    }
-    return <g>{out}</g>;
-  }
-
-  // boards: planks running along +gx, half a tile wide, with staggered end
-  // joints in a brick bond — a plain set of parallel lines reads as corduroy.
-  const out = [];
-  let row = 0;
-  for (let t = 0.5; t < d; t += 0.5, row++) {
-    out.push(line(`seam${t}`, 0, t, w, t, "#000", 0.9, 0.2));
-  }
-  row = 0;
-  for (let t = 0; t < d; t += 0.5, row++) {
-    const stagger = (row % 2) * 1.25;
-    for (let gx = stagger; gx < w; gx += 2.5) {
-      if (gx <= 0) continue;
-      out.push(line(`j${t}-${gx}`, gx, t, gx, Math.min(d, t + 0.5), "#000", 0.7, 0.16));
-    }
-  }
-  return <g>{out}</g>;
-}
-
-const FloorSurface = memo(FloorSurfaceInner);
 
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;
@@ -237,9 +115,9 @@ const ISO_TIME = {
   // every colour the user picked). Without it the backdrop brightened but the
   // room stayed pitch dark inside it, which read as a night room cut out and
   // pasted onto a day sky.
-  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1 },
-  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7 },
-  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19, glow: 0.25 },
+  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1, windowLight: 0.12 },
+  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7, windowLight: 0.68 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#c5a4ad", washOpacity: 0.38, lift: "#f0d0c5", liftOpacity: 0.14, glow: 0.25, windowLight: 0.78 },
 };
 
 /**
@@ -633,6 +511,15 @@ function IsoSceneInner({
   const walls = wallModeOf(size.env, size.walls);
   const wallH = walls === "full" ? WALL_H : walls === "low" ? LOW_WALL_H : 0;
   const lighting = ISO_LIGHTING[size.lighting] || ISO_LIGHTING.natural;
+  // Wall glow, frame and floor projection are three parts of one window. Keep
+  // the eligibility rule in one place so a shaped/low-wall room can never
+  // gain a floating light patch after one branch changes independently.
+  const hasWindow =
+    env.window &&
+    walls === "full" &&
+    d >= 5 &&
+    leftSeg.from <= WINDOW_GLOW_FROM &&
+    leftSeg.to >= WINDOW_GLOW_FROM + WINDOW_GLOW_LENGTH;
 
   // Personas: seated ones snap onto their seat (slightly forward so they
   // draw in front of the backrest, lifted by the seat height); standing ones
@@ -789,12 +676,12 @@ function IsoSceneInner({
             <stop offset="1" style={{ stopColor: tod.wash }} stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-plum))" }} />
-            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-night))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-blush))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-rose))" }} />
           </linearGradient>
           <linearGradient id="isoWallR" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-night))" }} />
-            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-void))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-rose))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-wine))" }} />
           </linearGradient>
           <linearGradient id="isoFloor" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
@@ -831,6 +718,16 @@ function IsoSceneInner({
             <stop offset="0" stopColor="#ffe9b0" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="isoWindowGlow">
+            <stop offset="0" stopColor="#ffd9a4" stopOpacity="0.42" />
+            <stop offset="0.58" stopColor="#ffc987" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#ffc987" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="isoWindowFloorLight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#fff3ca" stopOpacity="0.38" />
+            <stop offset="0.52" stopColor="#ffd68d" stopOpacity="0.2" />
+            <stop offset="1" stopColor="#ffc276" stopOpacity="0" />
+          </linearGradient>
           {/* soft contact shadow under every grounded item — one gradient,
               no filters (a 48×48 lot can hold dozens of these) */}
           {/* Floor vignette: clear in the middle, darker toward the rim. A big
@@ -840,7 +737,7 @@ function IsoSceneInner({
           <radialGradient id="isoVignette">
             <stop offset="0.45" stopColor="#000" stopOpacity="0" />
             <stop offset="0.8" stopColor="#000" stopOpacity="0.07" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.13" />
           </radialGradient>
           <radialGradient id="isoShadow">
             <stop offset="0" stopColor="#000" stopOpacity="0.32" />
@@ -890,15 +787,23 @@ function IsoSceneInner({
               and only at full height (a window poking above a low rail, or
               floating in open air, is nonsense the walls override made
               possible) */}
-          {env.window && walls === "full" && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
+          {hasWindow && (
             <>
-              <polygon points={wallRect("left", 1.1, 2.4, 28, 70)} fill="#46396f" />
+              {/* A broad local glow is the cozy cue; the window frame remains
+                  crisp because it is painted on top. The wall-sized polygon
+                  clips the gradient without introducing an SVG filter. */}
+              <polygon
+                data-window-glow="true"
+                points={wallRect("left", WINDOW_GLOW_FROM, WINDOW_GLOW_LENGTH, 0, WALL_H)}
+                fill="url(#isoWindowGlow)"
+                opacity={tod.windowLight}
+              />
+              <polygon points={wallRect("left", WINDOW_FRAME_FROM, WINDOW_FRAME_LENGTH, 28, 70)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 34, 58)} fill="url(#isoSky)" />
               <circle cx={project(0, 2.3).x} cy={project(0, 2.3).y - 74} r="7" fill={tod.orb} />
               <polygon points={wallRect("left", 2.24, 0.12, 34, 58)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 60, 3.5)} fill="#46396f" />
               <polygon points={wallRect("left", 1.05, 2.5, 24, 5)} fill="#8a5346" />
-              <polygon points={floorPatch(0.15, 1.0, 2.4, 2.4)} fill="#ffe9b0" opacity="0.06" />
             </>
           )}
 
@@ -983,6 +888,24 @@ function IsoSceneInner({
               fill="url(#isoVignette)"
             />
           </g>
+          {/* Window light belongs on TOP of the floor. This used to live with
+              the wall window above, where the later floor sheet painted over
+              it completely. Two projected shapes give the room a readable
+              pool and brighter inner shaft without SVG filters. */}
+          {hasWindow && (
+            <g data-window-floor-light="true" clipPath="url(#isoFloorClip)" pointerEvents="none">
+              <polygon
+                points={floorPatch(0.15, 1.0, 2.5, 2.55)}
+                fill="url(#isoWindowFloorLight)"
+                opacity={tod.windowLight}
+              />
+              <polygon
+                points={floorPatch(0.42, 1.28, 1.55, 1.72)}
+                fill="#fff0bd"
+                opacity={tod.windowLight * 0.07}
+              />
+            </g>
+          )}
           {/* The tile grid is a placement aid: it belongs while you're
               decorating and nowhere else, now that the floor has a grain of
               its own to read.
@@ -1088,7 +1011,15 @@ function IsoSceneInner({
               what is behind it without burying furniture on the near side. */}
           {sceneLayers.map((layer) => {
             if (layer.kind === "partition") {
-              return <PartitionWall key={layer.key} run={layer.partition} />;
+              return (
+                <PartitionWall
+                  key={layer.key}
+                  run={layer.partition}
+                  height={WALL_H}
+                  lift={tod.lift}
+                  liftOpacity={tod.liftOpacity}
+                />
+              );
             }
             const p = layer.placement;
             return (

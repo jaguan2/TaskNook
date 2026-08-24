@@ -95,8 +95,15 @@ describe("RoomPanel progressive rendering", () => {
     expect(occupied[0].getAttribute("title")).toMatch(/occupied by stool/i);
     const footprint = container.querySelector('[data-footprint="stool"]');
     expect(footprint).toBeTruthy();
+    expect(floorCells(container)).toHaveLength(9);
     expect(footprint.style.gridColumn).toBe("1 / span 2");
     expect(footprint.style.gridRow).toBe("1 / span 2");
+    expect(footprint.closest('[data-floor-plan-layer]')?.dataset.floorPlanLayer).toBe(
+      "footprints",
+    );
+    expect(
+      floorCells(container)[0].closest('[data-floor-plan-layer]')?.dataset.floorPlanLayer,
+    ).toBe("cells");
 
     store.isoRoom = { w: 9, d: 7, env: "room", placements: [] };
   });

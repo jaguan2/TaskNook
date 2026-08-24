@@ -10,8 +10,8 @@
  *
  * The rules this file encodes were paid for — the history lives in
  * docs/MODELS.md §2 "Persona proportions". The short version: the figure is
- * ~58px tall with the head a quarter of it (toddler proportion was the first
- * shipped bug), silhouette deltas must be BIG to read at this size (±1.5px is
+ * ~58px tall with a deliberately generous illustrated head, silhouette
+ * deltas must be BIG to read at this size (±1.5px is
  * documented invisible), and no combination of axes may produce shoulders
  * narrower than the head.
  */
@@ -22,19 +22,16 @@
 // below are DERIVED, and retuning one constant moves everything that hangs
 // off it instead of leaving hand-copied literals behind.
 export const HEAD_R = 7.3;
-// THE ADULT-PROPORTION PIVOT (owner decision, 2026-08-19, against the
-// Virtual Cottage 2 reference: "we can make our characters adult
-// proportioned as well"). HEAD_R stays 7.3 because it is the DRAWING
-// radius — all 19 hairstyles, 7 hats, 3 glasses and both faces are
-// authored against it — and the assembly scales the finished head UNIT by
-// HEAD_SCALE about its own centre instead. One number converts the whole
-// wardrobe; re-authoring a hundred assets would convert it slower and
-// worse. Layout (neck seams, height guards, shoulder ratios) must use
-// HEAD_R_EFF — the radius the head actually OCCUPIES.
-// 0.8 was the first cut and read as "no change at all" (owner, same day) —
-// the proportion-deltas-must-be-BIG lesson, relearned once more. 0.75 is
-// where the adult read finally survives 57px.
-export const HEAD_SCALE = 0.75;
+// HEAD_R stays 7.3 because all hairstyles, hats, glasses and faces are
+// authored against it. The earlier adult-proportion pass scaled that whole
+// unit down to 0.75; reviewed beside the supplied Virtual Cottage 2 captures,
+// that was precisely the wrong direction. Their people read through a large,
+// soft head and a strong hair silhouette, especially in the seated rear view.
+// The long-leg rebuild already solved the original toddler problem, so the
+// head can now render at its authored size without making the body squat.
+// Keep the scale constant even at 1: it remains the single wardrobe-wide
+// tuning point, and layout code still consumes HEAD_R_EFF.
+export const HEAD_SCALE = 1;
 export const HEAD_R_EFF = HEAD_R * HEAD_SCALE;
 // Legs up, torso down: at 22/22 the visible leg was 32% of the figure's
 // height and the torso a near-square 23×22 block — which is what read as
@@ -233,8 +230,9 @@ export function torsoGeom({ sh, wa, hem, top, bot = top + TORSO_H, waistY = top 
   // data. Three decimals is 1/1000px — far below anything visible.
   const n = (v) => +v.toFixed(3);
   const body = `M ${n(-sh)} ${n(top + 7)}
-            Q ${n(-sh)} ${n(top + 0.5)} ${n(-sh + 3.5)} ${n(top)}
-            L ${n(sh - 3.5)} ${n(top)} Q ${n(sh)} ${n(top + 0.5)} ${n(sh)} ${n(top + 7)}
+            Q ${n(-sh)} ${n(top + 1)} ${n(-sh + 3.8)} ${n(top)}
+            Q 0 ${n(top - 1.15)} ${n(sh - 3.8)} ${n(top)}
+            Q ${n(sh)} ${n(top + 1)} ${n(sh)} ${n(top + 7)}
             Q ${n(wa)} ${n(waistY)} ${n(hem)} ${n(bot - 3)}
             Q ${n(hem)} ${n(bot)} ${n(hem - 3)} ${n(bot)}
             L ${n(-hem + 3)} ${n(bot)} Q ${n(-hem)} ${n(bot)} ${n(-hem)} ${n(bot - 3)}

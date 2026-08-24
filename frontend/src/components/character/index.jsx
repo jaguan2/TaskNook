@@ -797,6 +797,19 @@ export function Resident({
                   opacity="0.14"
                 />
               )}
+              {/* One quiet ink contour reunites the garment, coat and body
+                  into a single illustrated silhouette. The reference figures
+                  use strong outside shapes and very little interior detail;
+                  without this final pass our layered clothes read as parts
+                  assembled on a mannequin. */}
+              <path
+                d={body}
+                fill="none"
+                stroke={INK}
+                strokeWidth="1.05"
+                strokeLinejoin="round"
+                opacity="0.24"
+              />
             </>
           );
         })()}
@@ -923,7 +936,15 @@ export function Resident({
               {!hatted && !back && (
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
-              <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+              <circle
+                cx="0"
+                cy={headY}
+                r={HEAD_R}
+                fill={skin}
+                stroke={INK}
+                strokeWidth="1"
+                opacity="1"
+              />
               {/* the head is a SPHERE now, not a disc — same gradient the
                   pets' masses carry, so every round thing models alike */}
               <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
