@@ -347,6 +347,24 @@ def test_iso_roundtrips_wall_finishes_and_lighting(client, auth):
     assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
 
 
+def test_iso_roundtrips_frontend_layout_version(client, auth):
+    iso = {**ISO, "version": 2}
+    assert (
+        client.put("/api/room", json={"placements": LAYOUT, "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+@pytest.mark.parametrize("version", [0, 65, True, "2", 2.0])
+def test_iso_rejects_malformed_layout_version(client, auth, version):
+    iso = {**ISO, "version": version}
+    assert (
+        client.put("/api/room", json={"placements": LAYOUT, "iso": iso}, headers=auth).status_code
+        == 400
+    )
+
+
 def test_iso_roundtrips_drawn_interior_walls(client, auth):
     iso = {
         "w": 9,

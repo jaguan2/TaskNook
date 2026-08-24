@@ -255,9 +255,11 @@ export function StoreProvider({ children }) {
   const [autoTimeOfDay, setAutoTimeOfDayState] = useState(
     () => readStored("tasknook.timeOfDay.auto") === "1"
   );
-  // Settings → "Music on startup" — default true (today's long-standing
-  // behavior: pick up where you left off). Read directly alongside musicOn's
-  // own initializer rather than depending on a separate state's init order.
+  // Settings → "Music on startup" — default true. This restores the transport
+  // and saved position, but MusicDock deliberately waits for Play before it
+  // creates an external YouTube/Spotify renderer; startup itself stays local
+  // and responsive. Read directly alongside musicOn's own initializer rather
+  // than depending on a separate state's init order.
   const [autoResumeMusic, setAutoResumeMusicState] = useState(
     () => readStored("tasknook.autoResumeMusic") !== "0"
   );
@@ -265,7 +267,7 @@ export function StoreProvider({ children }) {
     setAutoResumeMusicState(value);
     writeStored("tasknook.autoResumeMusic", value ? "1" : "0");
   }, []);
-  // Persisted, so the transport bar comes back after a relaunch cued where
+  // Persisted, so the transport bar comes back after a relaunch showing where
   // the music stopped — closing the app shouldn't cost you your station.
   // Gated on autoResumeMusic: with it off, a session that ended with music
   // playing must still boot silent — "off" has to mean off, every time.

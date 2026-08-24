@@ -822,6 +822,18 @@ def register_routes(app):
             if not iso_ok:
                 return jsonify({"error": "Invalid room layout"}), 400
             stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
+            # Frontend layout migrations use this small JSON version to make
+            # one-time geometry repairs without continually overriding later
+            # user choices. It is metadata, not a database-schema version.
+            version = iso.get("version")
+            if version is not None:
+                if not (
+                    isinstance(version, int)
+                    and not isinstance(version, bool)
+                    and 1 <= version <= 64
+                ):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["version"] = version
             env = iso.get("env")
             if env is not None:
                 if env not in ISO_ENVS:

@@ -132,7 +132,14 @@ backups inside the committed binary.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
 `desktop.py` also exposes a `DesktopApi` (pywebview `js_api`) for the
 frontend's Always On Top toggle — see Widget Mode / Always On Top under
-"Focus timer" below for the full frontend↔desktop contract.
+"Focus timer" below for the full frontend↔desktop contract. **That bridge may
+only have its intended callable methods as public attributes.** pywebview
+recursively walks every public object while generating `window.pywebview.api`;
+storing its native `Window` as public `api.window` made launch traverse the
+entire circular WinForms/WebView2 accessibility and COM graph, producing
+recursion/cross-thread errors and sometimes a permanently "Not Responding"
+window. Keep native state private (`_window`, `_attach_window`) and update the
+bridge-surface regression test if an intentional JS method is added.
 
 **Single instance**: `desktop.py`'s `claim_single_instance()` takes an
 OS-level lock on `%LOCALAPPDATA%\TaskNook\tasknook.lock` **before importing

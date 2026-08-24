@@ -320,7 +320,15 @@ async function main() {
   // ---- rooms ----
   for (const [n, name, preset, amb] of ROOMS) {
     if (!want(n)) continue;
-    await page.setStorage({ ...ambient(amb), "tasknook.isoView": "" });
+    // Room screenshots are specifically the isometric preset gallery. Make
+    // that mode explicit: a previous interactive run may have persisted the
+    // flat-room toggle, which made every iso preset label disappear and left
+    // a partial capture run reporting MISSING after its first room.
+    await page.setStorage({
+      ...ambient(amb),
+      "tasknook.isoView": "",
+      "tasknook.isoPreview": "1",
+    });
     await page.load();
     await page.clickText("Room", { exact: true });
     await sleep(1400);

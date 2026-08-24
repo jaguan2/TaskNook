@@ -39,11 +39,22 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     const save = (name, node, viewBox = "-32 -60 64 78") => {
       writeFileSync(
         `${DIR}/${name}.svg`,
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${renderToStaticMarkup(node)}</svg>`
+        renderToStaticMarkup(
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox}>
+            {node}
+          </svg>
+        )
       );
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    // Pose review belongs beside wardrobe review: this catches a bed model
+    // drifting back into a generic blanket/body that ignores customization.
+    save(
+      "pose-lying",
+      <Resident character={dressed({ hair: "bob", garment: "sweater" })} lying />,
+      "-48 -50 96 88"
+    );
     for (const { key } of HAIR_STYLES) {
       save(`hair-front-${key}`, <Resident character={dressed({ hair: key })} />);
       // A light colourway too — the texture pass (flow lines, notch wedges,

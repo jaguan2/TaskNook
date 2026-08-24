@@ -5,6 +5,7 @@ import {
   ISO_ITEMS,
   ISO_ITEM_GROUPS,
   ISO_ITEM_KEYS,
+  ISO_LAYOUT_VERSION,
   ISO_MAX_ITEMS,
   ISO_PRESET_KEYS,
   ISO_PRESETS,
@@ -569,7 +570,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [0, 1]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeGreaterThan(isoDepth(sofa));
-      expect(out._facing, `rot ${rot}`).toBe("back");
+      expect(out._facing, `rot ${rot}`).toBe("front");
       expect(sortIso([{ ...sofa }, { ...out, id: "p", item: "resident" }]).map((x) => x.id)).toEqual(
         ["s", "p"]
       );
@@ -581,7 +582,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [2, 3]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeLessThan(isoDepth(sofa));
-      expect(out._facing, `rot ${rot}`).toBe("front");
+      expect(out._facing, `rot ${rot}`).toBe("back");
       expect(sortIso([{ ...out, id: "p", item: "resident" }, { ...sofa }]).map((x) => x.id)).toEqual(
         ["p", "s"]
       );
@@ -614,6 +615,28 @@ describe("a sitter is placed by which way the seat faces", () => {
       { placement: rug, height: 1.5, lie: false, soft: true }
     );
     expect(out._facing).toBe("front");
+  });
+});
+
+describe("layout migrations", () => {
+  const workstation = {
+    w: 9,
+    d: 7,
+    placements: [
+      { id: "screen", item: "computer", gx: 3.5, gy: 0 },
+      { id: "chair", item: "deskchair", gx: 4, gy: 1.5 },
+    ],
+  };
+
+  it("repairs legacy desk chairs whose backrest blocks the computer", () => {
+    const out = validateIsoLayout(workstation);
+    expect(out.version).toBe(ISO_LAYOUT_VERSION);
+    expect(out.placements.find((p) => p.id === "chair").rot).toBe(2);
+  });
+
+  it("preserves a user's rotation after the workstation migration", () => {
+    const out = validateIsoLayout({ ...workstation, version: ISO_LAYOUT_VERSION });
+    expect(out.placements.find((p) => p.id === "chair").rot).toBeUndefined();
   });
 });
 
@@ -706,6 +729,23 @@ describe("presets", () => {
     expect(keys.filter((key) => key === "plantshelf")).toHaveLength(6);
     expect(keys.filter((key) => greenery.has(key)).length).toBeGreaterThanOrEqual(18);
     expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
+  });
+
+  it("turns every back-wall desk chair toward its computer", () => {
+    // Every shipped workstation currently has its screen/desk up-room and
+    // its chair down-room. Rot 2 puts the chair back behind the sitter; rot 0
+    // wedges that backrest between the resident and the screen.
+    for (const key of ISO_PRESET_KEYS) {
+      const items = ISO_PRESETS[key].items;
+      const terminals = items.filter((p) => p.item === "computer" || p.item === "laptop");
+      for (const chair of items.filter((p) => p.item === "deskchair")) {
+        const terminal = terminals.find(
+          (p) => Math.abs(p.gx - chair.gx) <= 2 && p.gy < chair.gy
+        );
+        expect(terminal, `${key}: desk chair has no screen up-room`).toBeTruthy();
+        expect(chair.rot, `${key}: desk chair backrest faces its screen`).toBe(2);
+      }
+    }
   });
 
   it("every preset is valid by its own rules and fits its own floor", () => {

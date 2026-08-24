@@ -118,50 +118,33 @@ export function Resident({
     seatTorsoY,
     seatHeadY,
   } = figureMetrics(ch);
-  // Lying down is its own drawing, not a squashed sitting pose: dropped on a
-  // bed the resident used to perch bolt upright on the duvet.
+  // Keep sleeping literal: the SAME complete character lies flat along the
+  // mattress. The bespoke blanket/body drawing this replaces had become a
+  // second character model (missing most wardrobe detail, with one oversized
+  // arm and a body-shaped duvet), and no amount of small tuning made it read
+  // naturally. Reusing the standing figure preserves their actual hair,
+  // clothes and proportions without maintaining another anatomy system.
   if (lying) {
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
-        {/* A bed's long axis is a DIAGONAL on screen, and its head end is the
-            one with the pillows. This pose was drawn flat along screen-x with
-            the head at -x, which put the sleeper across the mattress at ~27° to
-            it AND head-down at the foot of the bed, feet on the pillows.
-            One wrapper fixes both: `scale(-1,1)` swaps the ends, then
-            `rotate(-SKEW)` lays the body along the bed. SKEW is the projection's
-            own angle (atan(TILE_H / TILE_W)) — the same number every wall sprite
-            skews by — so the body follows the mattress exactly rather than by
-            eye. Its own <g>: the breathe animation below can't share an element
-            with a transform attribute. */}
-        <g transform={`rotate(${-SKEW}) scale(-1,1)`}>
-        <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
-          {/* UNDER the covers now (owner, 2026-08-19: the whole-body sausage
-              lying ON the bed "does not make sense" — it read as a
-              caterpillar). The body is two gentle bumps beneath a cream
-              blanket that matches the bed's own bedding; only the head, one
-              shoulder and an arm sleeping over the covers show. */}
-          <rect x="-16" y="-12" width="31" height="11" rx="5" fill="#f2e9dd" />
-          {/* the body under it: a hip/knee rise, and its soft shadow */}
-          <ellipse cx="5" cy="-11.6" rx="8" ry="3.4" fill="#f2e9dd" />
-          <path d="M -2 -11.6 q 4.5 -2.8 10 -0.5" stroke="#000" strokeWidth="0.9" fill="none" opacity="0.1" />
-          <rect x="-15" y="-11" width="29" height="3" rx="1.5" fill="#fff" opacity="0.13" />
-          <rect x="-16" y="-5.4" width="31" height="4.4" rx="2.2" fill="#000" opacity="0.13" />
-          {/* the turned-back edge of the covers at the chest */}
-          <rect x="-16.6" y="-12.7" width="4.4" height="11.7" rx="2.2" fill="#fff" opacity="0.35" />
-          <path d="M -12.2 -12.6 L -12.2 -1.1" stroke="#000" strokeWidth="0.8" opacity="0.1" />
-          {/* collar, one shoulder, and an arm resting OVER the blanket */}
-          <ellipse cx="-17.6" cy="-11.6" rx="2.9" ry="3.6" style={outfit} />
-          <ellipse cx="-14.8" cy="-12" rx="3.6" ry="3" style={outfit} />
-          <rect x="-14.8" y="-13.5" width="12.6" height="4.4" rx="2.2" style={outfit} />
-          <rect x="-14.8" y="-13.5" width="12.6" height="4.4" rx="2.2" fill="#fff" opacity="0.1" />
-          <circle cx="-1.6" cy="-11.3" r="2.3" fill={skin} />
-          {/* head on the pillow, eyes closed whatever the waking expression */}
-          <circle cx="-23" cy="-13" r={HEAD_R} fill={skin} />
-          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={hairColor} />
-          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
-        </g>
+        {/* The bed's long grid axis projects down-left at SKEW degrees. A
+            standing figure grows upward from its feet, so rotating it by
+            90-SKEW points its head toward the pillows. The small down-left
+            offset puts the feet toward the footboard; scale keeps every body
+            slider and hat inside the mattress. Cancel the nested Resident's
+            own standard floor anchor before applying the bed transform. */}
+        <g transform={`translate(-16, 8) rotate(${90 - SKEW}) scale(0.78)`}>
+          {/* Animation gets a separate wrapper: CSS transform animations
+              override an SVG transform attribute when both occupy one node,
+              which would silently stand the sleeper back up. */}
+          <g
+            className="body-breathe"
+            style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          >
+            <g transform={`translate(${-c.x}, ${-c.y})`}>
+              <Resident character={{ ...ch, expression: "sleepy" }} facing="front" />
+            </g>
+          </g>
         </g>
       </g>
     );

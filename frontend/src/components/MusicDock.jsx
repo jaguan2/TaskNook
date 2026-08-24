@@ -94,12 +94,18 @@ const RESUME_KEY = "tasknook.music.resume";
 // device exactly like `tasknook.dockCollapsed`.
 const COLLAPSED_KEY = "tasknook.music.collapsed";
 // Read at module load, before any toggle can change it: "was music on when
-// the app last closed?" distinguishes the boot mount (no user gesture —
-// autoplay would be blocked, so CUE at the saved spot with ▶ armed) from a
+// the app last closed?" distinguishes the boot mount (no user gesture) from a
 // station click (a real gesture that should start playing as always).
 // Also gated on Settings → "Music on startup": off means boot silent even if
 // the last session ended mid-song — store.jsx's musicOn init applies the same
 // gate, so the two can't disagree about whether this launch resumes.
+//
+// Importantly, a boot resume does NOT create the external player yet. Doing so
+// made every launch start YouTube/Spotify, WebView2 networking, a media
+// renderer and GPU work at the same moment as the SVG room. Apart from wasting
+// hundreds of MB for a CUED (not playing) track, a stuck embed could make the
+// native window permanently "Not Responding". The saved title/time still draw
+// immediately; the first Play click initializes media and resumes in one step.
 const BOOTED_WITH_MUSIC_ON =
   readStored("tasknook.music.on") === "1" &&
   readStored("tasknook.autoResumeMusic") !== "0";
@@ -161,6 +167,11 @@ export default function MusicDock() {
   });
   const playerRef = useRef(null);
   const holderRef = useRef(null);
+  // A session that boots with its transport visible stays entirely local until
+  // the user asks to play. A session that starts with music off can initialize
+  // on its later explicit toggle, which is already a user action.
+  const [mediaRequested, setMediaRequested] = useState(() => !BOOTED_WITH_MUSIC_ON);
+  const startOnReadyRef = useRef(false);
   const volumeRef = useRef(volume);
   volumeRef.current = volume;
   const skipStreakRef = useRef(0);
@@ -169,9 +180,27 @@ export default function MusicDock() {
   const isYouTube = station?.provider === "youtube";
   const isPlaylist = isYouTube && station?.kind === "playlist";
   const key = station ? stationKey(station) : null;
+  const previousKeyRef = useRef(key);
+
+  // Choosing/stepping to another station is an explicit playback request. It
+  // must wake a player that was deliberately deferred at boot, including when
+  // the choice came from the Sounds panel rather than this transport bar.
+  useEffect(() => {
+    if (previousKeyRef.current === key) return;
+    previousKeyRef.current = key;
+    startOnReadyRef.current = true;
+    setMediaRequested(true);
+  }, [key]);
 
   useEffect(() => {
-    if (!musicOn || !station || station.provider !== "youtube") return undefined;
+    if (
+      !musicOn ||
+      !mediaRequested ||
+      !station ||
+      station.provider !== "youtube"
+    ) {
+      return undefined;
+    }
     // Captured once: the cleanup must clear the SAME node the player mounted
     // into, not whatever the ref points at by teardown time.
     const holder = holderRef.current;
@@ -240,18 +269,21 @@ export default function MusicDock() {
         events: {
           onReady: (e) => {
             e.target.setVolume(volumeRef.current);
+            const startNow = startOnReadyRef.current;
+            startOnReadyRef.current = false;
             if (resume) {
-              // CUE, don't play: the bar shows the saved track and time,
-              // and the first ▶ press resumes from exactly there.
+              // A deferred boot player is born FROM the first Play click, so
+              // resume and start in this same step. The cue branch remains as
+              // a defensive fallback for any future non-interactive preload.
               if (station.kind === "playlist") {
-                e.target.cuePlaylist({
+                e.target[startNow ? "loadPlaylist" : "cuePlaylist"]({
                   list: station.id,
                   listType: "playlist",
                   index: resume.index > 0 ? resume.index : 0,
                   startSeconds: Math.max(0, resume.t),
                 });
               } else {
-                e.target.cueVideoById({
+                e.target[startNow ? "loadVideoById" : "cueVideoById"]({
                   videoId: station.id,
                   startSeconds: Math.max(0, resume.t),
                 });
@@ -357,13 +389,15 @@ export default function MusicDock() {
       if (holder) holder.innerHTML = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [musicOn, key]);
+  }, [musicOn, key, mediaRequested]);
 
   if (!musicOn || !station) return null;
 
   const index = musicStations.findIndex((s) => stationKey(s) === key);
   const stepStation = (delta) => {
     const next = musicStations[(index + delta + musicStations.length) % musicStations.length];
+    startOnReadyRef.current = true;
+    setMediaRequested(true);
     selectStation(next);
   };
   // ⏮⏭ move through the playlist's tracks; for single-video stations they
@@ -378,7 +412,14 @@ export default function MusicDock() {
   };
   const togglePlay = () => {
     const p = playerRef.current;
-    if (!p?.playVideo) return;
+    if (!p?.playVideo) {
+      // First click after launch: initialize the external player lazily. Its
+      // onReady handler consumes this flag and starts/resumes immediately, so
+      // this never becomes a confusing two-click Play button.
+      startOnReadyRef.current = true;
+      setMediaRequested(true);
+      return;
+    }
     if (playing) p.pauseVideo();
     else p.playVideo();
   };
@@ -429,11 +470,12 @@ export default function MusicDock() {
           >
             <SkipBack size={13} />
           </button>
-          {isYouTube && !unavailable && !streamError && (
+          {((isYouTube && !unavailable && !streamError) ||
+            (station.provider === "spotify" && !mediaRequested)) && (
             <button
               onClick={togglePlay}
-              title={playing ? "Pause" : "Play"}
-              aria-label={playing ? "Pause" : "Play"}
+              title={playing ? "Pause" : mediaRequested ? "Play" : "Load player"}
+              aria-label={playing ? "Pause" : mediaRequested ? "Play" : "Load player"}
               className="pill grid h-8 w-8 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
             >
               {playing ? <Pause size={14} /> : <Play size={14} />}
@@ -448,7 +490,7 @@ export default function MusicDock() {
             <SkipForward size={13} />
           </button>
 
-          {station.provider === "spotify" ? (
+          {station.provider === "spotify" && mediaRequested ? (
             <iframe
               key={key}
               title="Spotify player"

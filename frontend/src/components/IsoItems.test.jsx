@@ -236,6 +236,28 @@ describe("the isometric catalog and its artwork agree", () => {
       };
       expect(htmlFor("masc")).not.toBe(htmlFor("fem"));
     });
+
+    it("the bed pose lies down the complete customized resident", () => {
+      const htmlFor = (hair) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, hair }} lying />
+        );
+        const html = container.innerHTML;
+        expect(
+          [...container.querySelectorAll("g[transform]")].some((node) =>
+            node.getAttribute("transform").includes("rotate(")
+          ),
+          "the bed pose is not rotated flat"
+        ).toBe(true);
+        cleanup();
+        return html;
+      };
+
+      // The discarded sleeper was a second, generic body drawing: changing
+      // the resident's hair did nothing. A bed pose must remain the same
+      // customized person users created, merely laid along the mattress.
+      expect(htmlFor("bob")).not.toBe(htmlFor("buzz"));
+    });
   });
 
   it("roamers render awake and asleep", () => {

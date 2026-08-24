@@ -8,6 +8,9 @@ import { createIsoPresets } from "./isoPresets";
 export const ISO_SIZE_MIN = 3;
 export const ISO_SIZE_MAX = 48;
 export const DEFAULT_ISO_SIZE = { w: 9, d: 7 };
+// Versioned because normalization occasionally needs to repair an old saved
+// arrangement without forever overriding choices the user makes afterward.
+export const ISO_LAYOUT_VERSION = 2;
 // Raised from 60 for group rooms: a study hall with four tables, sixteen
 // chairs, people in them and shelving along two walls lands around 75, and 60
 // silently truncated it. Room SIZE was never the constraint — the floor has
@@ -667,16 +670,15 @@ export function seatedPlacement(persona, seat) {
     gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
     _seat: seat.height,
     _lie: seat.lie,
-    // The sitter turns WITH the seat. Rot 0/1 expose the occupant in front
-    // of the far backrest, so they look toward that backrest (away from us);
-    // rot 2/3 reverse both the depth ordering and the body view. Previously
-    // every settled person stayed front-facing, even at a desk, which is why
-    // the room read as a paper doll posed in front of furniture rather than
-    // somebody using it.
+    // The sitter faces AWAY from the backrest. Rot 0/1 put the backrest on
+    // the far edge, so the resident faces us; rot 2/3 put it on the near edge,
+    // so the resident faces into the room. Keeping this coupled to the real
+    // backrest position prevents the impossible desk pose where the chair's
+    // back sits between the person and their computer.
     // Rugs and cushions are shared soft ground, not directional furniture;
     // their stored `rot` describes the textile, not where a floor-sitter is
     // looking. Keep those residents welcomingly front-facing.
-    _facing: seat.soft ? "front" : away ? "front" : "back",
+    _facing: seat.soft ? "front" : away ? "back" : "front",
     _depth: isoDepth(seat.placement) + (away ? -0.01 : 0.01),
   };
 }
@@ -1355,6 +1357,8 @@ export function validateIsoLayout(raw) {
   const seen = new Set();
   const unique = new Set();
   const clean = [];
+  const migrateDeskFacing = raw.version !== ISO_LAYOUT_VERSION;
+  const rawPlacements = Array.isArray(raw.placements) ? raw.placements : [];
   for (const p of Array.isArray(raw.placements) ? raw.placements : []) {
     if (!p || typeof p !== "object") continue;
     if (!ISO_ITEMS[p.item]) continue;
@@ -1366,7 +1370,27 @@ export function validateIsoLayout(raw) {
     // normalizeRot folds a half turn back to a facing this item can actually
     // be DRAWN in — a saved rot 2 on something with no back view would
     // otherwise render upside down. `true` is a legacy shape for rot 1.
-    const rot = normalizeRot(p.item, p.rot === true ? 1 : p.rot);
+    let rot = normalizeRot(p.item, p.rot === true ? 1 : p.rot);
+    // Saved presets from before layout v2 placed every back-wall desk chair
+    // at rot 0. That puts its backrest between the resident and a screen
+    // directly up-room. Repair that recognizable workstation once; versioned
+    // layouts keep the user's rotation exactly as chosen.
+    if (
+      migrateDeskFacing &&
+      p.item === "deskchair" &&
+      rot === 0 &&
+      rawPlacements.some(
+        (other) =>
+          (other?.item === "computer" || other?.item === "laptop") &&
+          Number.isFinite(other.gx) &&
+          Number.isFinite(other.gy) &&
+          other.gy < p.gy &&
+          p.gy - other.gy <= 3 &&
+          Math.abs(other.gx - p.gx) <= 2
+      )
+    ) {
+      rot = 2;
+    }
     // Wall decor needs a full-height wall to hang on — outdoors, on a
     // low rail, or when the user turned the walls off, there isn't one.
     if (ISO_ITEMS[p.item].wall && !envHasWalls(env, walls)) continue;
@@ -1414,6 +1438,7 @@ export function validateIsoLayout(raw) {
     if (clean.length >= ISO_MAX_ITEMS) break;
   }
   return {
+    version: ISO_LAYOUT_VERSION,
     w,
     d,
     ...(env && { env }),
@@ -1444,6 +1469,7 @@ export const DEFAULT_ISO_PRESET = "loft";
 export function isoPresetLayout(key) {
   const preset = ISO_PRESETS[key] || ISO_PRESETS[DEFAULT_ISO_PRESET];
   return {
+    version: ISO_LAYOUT_VERSION,
     w: preset.size.w,
     d: preset.size.d,
     ...(preset.size.env && { env: preset.size.env }),

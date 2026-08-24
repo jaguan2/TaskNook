@@ -207,22 +207,31 @@ class DesktopApi:
     Only reachable from the packaged/native window; the dev server and any
     plain browser tab never see `window.pywebview` at all, so the frontend
     treats its absence as "not running as the desktop app" rather than an
-    error. `window` is attached after create_window() returns the Window
-    object, since the Api instance has to exist before that call to be
-    passed in as js_api.
+    error. `_window` is attached after create_window() returns the Window
+    object, since the Api instance has to exist before that call to be passed
+    in as js_api. It MUST stay private: pywebview recursively exposes every
+    public object on `js_api`. A public `window` field made it walk the entire
+    WinForms/WebView2 object graph at startup, including circular accessibility
+    and COM objects, which could permanently wedge the native UI thread.
     """
 
+    _EXPOSED_METHODS = frozenset({"set_always_on_top", "set_widget_mode"})
+
     def __init__(self):
-        self.window = None
+        self._window = None
         self._widget_mode = False
         self._normal_bounds = None
         self._normal_was_maximized = False
         self._is_maximized = False
         self._window_lock = threading.Lock()
 
-    def attach_window(self, window):
-        """Finish the circular Window↔API setup and track maximize state."""
-        self.window = window
+    def _attach_window(self, window):
+        """Finish the circular Window↔API setup and track maximize state.
+
+        Private by design: only the two `set_*` methods below are JavaScript
+        API. Page code must not be able to rerun native-window setup.
+        """
+        self._window = window
 
         def maximized():
             self._is_maximized = True
@@ -233,15 +242,27 @@ class DesktopApi:
         window.events.maximized += maximized
         window.events.restored += restored
 
+        # This is a launch-safety invariant, not merely API tidiness.
+        # pywebview recursively walks every public attribute when it generates
+        # `window.pywebview.api`; exposing a native object can block startup.
+        public = {name for name in dir(self) if not name.startswith("_")}
+        unexpected = public - self._EXPOSED_METHODS
+        if unexpected:
+            raise RuntimeError(
+                "Unsafe public desktop bridge surface: "
+                + ", ".join(sorted(unexpected))
+            )
+
     def set_always_on_top(self, value):
         """Backs Widget Mode's "Always On Top" toggle. `Window.on_top` is a
         real runtime-settable property (confirmed against this pywebview
         version) — setting it calls straight through to the platform GUI
         toolkit's own always-on-top flag, no restart needed."""
-        if self.window is None:
+        window = self._window
+        if window is None:
             return False
-        self.window.on_top = bool(value)
-        return self.window.on_top
+        window.on_top = bool(value)
+        return window.on_top
 
     def set_widget_mode(self, value):
         """Resize the native app around the timer and restore it exactly.
@@ -251,7 +272,8 @@ class DesktopApi:
         are captured once on entry; moving the small widget never overwrites
         the full app's remembered home.
         """
-        if self.window is None:
+        window = self._window
+        if window is None:
             return False
         enabled = bool(value)
         with self._window_lock:
@@ -260,32 +282,32 @@ class DesktopApi:
 
             if enabled:
                 self._normal_bounds = {
-                    "x": self.window.x,
-                    "y": self.window.y,
-                    "width": self.window.width,
-                    "height": self.window.height,
+                    "x": window.x,
+                    "y": window.y,
+                    "width": window.width,
+                    "height": window.height,
                 }
                 self._normal_was_maximized = self._is_maximized
                 if self._is_maximized:
-                    self.window.restore()
-                self.window.resize(*WIDGET_WINDOW_SIZE)
-                self.window.set_title("TaskNook Timer")
+                    window.restore()
+                window.resize(*WIDGET_WINDOW_SIZE)
+                window.set_title("TaskNook Timer")
             else:
                 bounds = self._normal_bounds
-                self.window.restore()
+                window.restore()
                 if bounds:
                     # Normal mode keeps the application's established usable
                     # floor even though the creation-time minimum must permit
                     # the much smaller widget shell.
                     width = max(NORMAL_MIN_SIZE[0], bounds["width"])
                     height = max(NORMAL_MIN_SIZE[1], bounds["height"])
-                    self.window.resize(width, height)
-                    self.window.move(bounds["x"], bounds["y"])
+                    window.resize(width, height)
+                    window.move(bounds["x"], bounds["y"])
                 else:
-                    self.window.resize(*NORMAL_WINDOW_SIZE)
-                self.window.set_title("TaskNook")
+                    window.resize(*NORMAL_WINDOW_SIZE)
+                window.set_title("TaskNook")
                 if self._normal_was_maximized:
-                    self.window.maximize()
+                    window.maximize()
                 self._normal_bounds = None
                 self._normal_was_maximized = False
 
@@ -362,7 +384,7 @@ def main():
             min_size=WIDGET_WINDOW_SIZE,
             js_api=api,
         )
-        api.attach_window(window)
+        api._attach_window(window)
         # private_mode=False + an explicit storage_path: without these,
         # pywebview defaults to an incognito-style session that throws away
         # localStorage (settings, the auth token, everything) on every close.

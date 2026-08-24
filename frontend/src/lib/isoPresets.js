@@ -44,7 +44,9 @@ export function createIsoPresets(defaultIsoSize) {
       // Work zone sits between the sleeping and living areas.
       { item: "desk", gx: 5, gy: 3.5, tint: "#c39a75" },
       { item: "laptop", gx: 5.5, gy: 3.5 },
-      { item: "deskchair", gx: 6, gy: 5, tint: "#b47c92" },
+      // Turned around: its backrest belongs behind the resident, not wedged
+      // between them and the laptop.
+      { item: "deskchair", gx: 6, gy: 5, rot: 2, tint: "#b47c92" },
       { item: "resident", gx: 6, gy: 5 },
       // Main living room stays open around one clear circulation lane.
       { item: "persianrug", gx: 2.5, gy: 5.5, tint: "#a9788e" },
@@ -157,7 +159,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "desk", gx: 3, gy: 0 },
       { item: "computer", gx: 3.5, gy: 0 },
       { item: "mug", gx: 5, gy: 0.5 },
-      { item: "deskchair", gx: 4, gy: 1.5 },
+      { item: "deskchair", gx: 4, gy: 1.5, rot: 2 },
       { item: "frame", gx: 1, gy: 0 },
       { item: "wallclock", gx: 4.5, gy: 0 },
       { item: "wallshelf", gx: 6, gy: 0 },
@@ -416,7 +418,7 @@ export function createIsoPresets(defaultIsoSize) {
       // ---- a writing corner, tucked out of the middle ----------------------
       { item: "desk", gx: 6.5, gy: 6.5 },
       { item: "computer", gx: 7, gy: 6.5 },
-      { item: "deskchair", gx: 7.5, gy: 8 },
+      { item: "deskchair", gx: 7.5, gy: 8, rot: 2 },
       // ---- stacks on the floor: the tell that someone actually works here --
       { item: "bookstack", gx: 1, gy: 6.5 },
       { item: "bookstack", gx: 2, gy: 7.5 },
@@ -591,4 +593,3 @@ export function createIsoPresets(defaultIsoSize) {
   },
   };
 }
-
