@@ -291,11 +291,15 @@ const PANTS_FORM = {
   wide: { wide: 2.4, straight: true },
   shorts: { shorts: true },
   jorts: { shorts: true, turnup: true, stitch: true },
-  skirt: { bare: true },
-  pleats: { bare: true },
+  skirt: { bare: true, skirt: true },
+  pleats: { bare: true, skirt: true },
   // The maxi's legs are entirely covered — bare wiring, with the assembly
   // extending its flare cone to the ankle.
-  maxi: { bare: true },
+  maxi: { bare: true, skirt: true },
+  // Internal to the model-aware swimwear top: bare legs with no skirt flare.
+  // It is not a picker bottom because choosing Swimwear applies the complete
+  // cut in one action.
+  swim: { bare: true, bareThigh: true },
 };
 export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
 
@@ -318,12 +322,13 @@ export function SeatedLeg({
   // skin. The wide leg thickens both segments.
   const form = pantsFormOf(pants);
   const bareShin = form.shorts || form.bare;
+  const thighPaint = form.bareThigh ? (far ? farColor(skin) : skin) : cloth;
   const extra = (form.wide || 0) * 0.75 + (form.slim || 0);
   return (
     <g>
       <path
         d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
-        stroke={cloth}
+        stroke={thighPaint}
         strokeWidth={thighW + extra}
         strokeLinecap="round"
         fill="none"

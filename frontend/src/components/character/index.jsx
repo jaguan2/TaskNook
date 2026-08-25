@@ -194,11 +194,16 @@ export function Resident({
   const cuff = !!outerEntry.cuffs;
   const drape = !!outerEntry.drape;
   const trouser = ch.trouser || TROUSER;
-  const pants = ch.pants || "trousers";
+  // Swimwear is a complete look rather than a top worn over office trousers:
+  // the masc cut brings swim shorts; the fem one-piece leaves the legs bare.
+  // The saved pants choice is untouched and returns when another top is worn.
+  const pants = ch.garment === "swim"
+    ? ch.model === "fem" ? "swim" : "shorts"
+    : ch.pants || "trousers";
   // The skirt kinds: the legs render bare (see PANTS_FORM) and the flare is
   // drawn HERE, at hip level between the hair's length and the torso — it's
   // clothing on the hips, not part of a leg.
-  const skirted = !!pantsFormOf(pants).bare;
+  const skirted = !!pantsFormOf(pants).skirt;
   // The maxi's cone runs to the ankle (just clear of the shoe tops); the
   // short skirts keep their hip-level hems.
   const skirtHem = pants === "maxi" ? -4.5 : -legH * (pants === "pleats" ? 0.42 : 0.52);
@@ -356,7 +361,7 @@ export function Resident({
                         </>
                       )}
                       <g style={outfit}>
-                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} view="side" />
+                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} model={ch.model} view="side" />
                       </g>
                       <Coat
                         kind={ch.coat}
@@ -714,6 +719,7 @@ export function Resident({
                   waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
+                  model={ch.model}
                   view={back ? "back" : "front"}
                 />
               </g>

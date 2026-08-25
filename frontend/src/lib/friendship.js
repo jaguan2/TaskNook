@@ -6,9 +6,9 @@
  * together — saying something in a chat, stepping through a door, minutes
  * spent in the same room — and the level read off them warms the dialogue
  * and fills a small bar in the Friends panel. Mostly cosmetic, deliberately:
- * it's a reason to interact, not a grind with rewards. (If rewards ever
- * come — outfits, decorations gifted at high levels — that's noted in
- * docs/visiting_friends_plan.md, not built.)
+ * it's a reason to interact, not a grind with rewards. Tangible rewards are
+ * deliberately not built; add them only if the social loop grows beyond its
+ * current cosmetic purpose.
  *
  * Same division of labour as the rest of the simulation: this file owns the
  * vocabulary (points, thresholds, labels), the store owns the impure half

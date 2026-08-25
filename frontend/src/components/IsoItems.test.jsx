@@ -376,6 +376,19 @@ describe("the profile view and the wardrobe slots", () => {
     );
   });
 
+  it("cuts swimwear differently for the two character models", () => {
+    const markup = (model) => {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, model, garment: "swim", coat: "none" }} />
+      );
+      const html = container.innerHTML;
+      cleanup();
+      return html;
+    };
+
+    expect(markup("masc")).not.toBe(markup("fem"));
+  });
+
   it("the seated pose survives every bottom", () => {
     for (const { key } of PANTS) {
       expect(() =>

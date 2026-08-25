@@ -107,6 +107,8 @@ const ROOMS = [
   ["09", "autumn-yard", "Autumn yard", { weather: "off", time: "sunset" }],
   ["28", "shared-home", "Shared home", { weather: "off", time: "sunset" }],
   ["30", "plant-shop", "Plant shop", { weather: "off", time: "day" }],
+  ["31", "winter-yard", "Winter yard", { weather: "snow", time: "night" }],
+  ["32", "poolside", "Poolside", { weather: "off", time: "day" }],
 ];
 
 // The weather set is deliberately ONE room in five conditions, so the only

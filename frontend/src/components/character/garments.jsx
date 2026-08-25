@@ -156,6 +156,43 @@ export const GARMENT_REGISTRY = {
       />
     ),
   },
+  swim: {
+    finish: CRISP,
+    back: ({ hem, bot, model, outfit }) => model === "fem" ? (
+      <>
+        <path d={`M ${-hem + 1} ${bot - 5} Q 0 ${bot - 1} ${hem - 1} ${bot - 5}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.18" />
+        <path d={`M ${-hem + 1.4} ${bot - 1} L ${-hem + 3} ${bot + 4} L 0 ${bot + 1.8} L ${hem - 3} ${bot + 4} L ${hem - 1.4} ${bot - 1} Z`} style={outfit} />
+      </>
+    ) : (
+      <path d={`M ${-hem + 1.4} ${bot - 4} Q 0 ${bot - 1.4} ${hem - 1.4} ${bot - 4}`} fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.28" />
+    ),
+    side: ({ hem, top, bot, model, outfit }) => model === "fem" ? (
+      <>
+        <path d={`M ${-2.8} ${top + 1} Q 0 ${top + 5} ${2.4} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M ${-hem + 1.2} ${bot - 1} L ${-hem + 2.7} ${bot + 4} L ${hem - 2.2} ${bot + 1.5} L ${hem - 1.1} ${bot - 1} Z`} style={outfit} />
+      </>
+    ) : (
+      <>
+        <path d={`M ${-3} ${top + 1} Q 0 ${top + 3.4} ${2.8} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.1" opacity="0.18" />
+        <path d={`M ${-hem + 1.2} ${top + 8} L ${hem - 1.2} ${top + 8}`} stroke="#fff" strokeWidth="1.2" opacity="0.25" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, model, outfit }) => model === "fem" ? (
+      <>
+        {/* One-piece: sweetheart straps above a small hip panel. */}
+        <path d={`M ${-sh + 2} ${top + 1} L ${-4} ${top + 6} Q 0 ${top + 3} 4 ${top + 6} L ${sh - 2} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.35" opacity="0.22" />
+        <path d={`M ${-hem + 1.2} ${bot - 1} L ${-hem + 3} ${bot + 4.4} L 0 ${bot + 2} L ${hem - 3} ${bot + 4.4} L ${hem - 1.2} ${bot - 1} Z`} style={outfit} />
+        <path d={`M ${-hem + 3} ${bot + 4.4} Q 0 ${bot + 1} ${hem - 3} ${bot + 4.4}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.16" />
+      </>
+    ) : (
+      <>
+        {/* Surf top: high crew neck, shoulder panels and a chest seam. */}
+        <path d={`M -4 ${top + 0.8} Q 0 ${top + 3} 4 ${top + 0.8}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M ${-sh + 1} ${top + 2} L -4 ${top + 7} M ${sh - 1} ${top + 2} L 4 ${top + 7}`} fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.28" />
+        <path d={`M ${-hem + 1.4} ${top + 9} L ${hem - 1.4} ${top + 9}`} stroke="#fff" strokeWidth="1.2" opacity="0.25" />
+      </>
+    ),
+  },
   shirt: {
     // Pressed cotton holds its plane — the jacket's crisp finish, and
     // buttoned cuffs where knitwear wears ribbing.
@@ -957,13 +994,13 @@ const viewDraw = (entry, view) => {
  * "side"); garments whose artwork is symmetric (overalls' straps, the
  * puffer's seams) simply draw the same both ways.
  */
-export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, view = "front" }) {
+export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, model = "masc", view = "front" }) {
   const entry = GARMENT_REGISTRY[kind];
   if (!entry) return null;
   // waistY arrives from the body's own metrics (the torso is user-tunable
   // now); the WAIST_DROP default keeps previews and tests that don't pass
   // one on the classic figure.
-  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit };
+  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit, model };
   ctx.shell = shellFor(ctx);
   const drawFn = viewDraw(entry, view);
   return drawFn ? drawFn(ctx) : null;

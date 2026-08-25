@@ -1,3 +1,5 @@
+import { createIsoSeasonalPresets } from "./isoSeasonalPresets";
+
 /**
  * Ready-made isometric rooms.
  *
@@ -14,7 +16,7 @@ export function createIsoPresets(defaultIsoSize) {
       w: 14,
       d: 11,
       env: "room",
-      wallColors: { left: "#ae7982", right: "#976f7c" },
+      wallColors: { left: "#9f756b", right: "#765d65" },
       lighting: "golden",
       // The reference is not a rectangle decorated into zones: its silhouette
       // does the work. A recessed sleeping wing occupies the back-left and the
@@ -37,6 +39,7 @@ export function createIsoPresets(defaultIsoSize) {
       // Recessed sleeping wing, entirely behind the partition line at gy 3.
       { item: "bed", gx: 0.5, gy: 0, tint: "#8d7897" },
       { item: "nightstand", gx: 3, gy: 0, tint: "#d2a075" },
+      { item: "tablelamp", gx: 3, gy: 0, tint: "#d7a56f" },
       { item: "wardrobe", gx: 4, gy: 0, tint: "#77576f" },
       { item: "bookshelf", gx: 7.5, gy: 0, tint: "#ba9879" },
       { item: "runner", gx: 3.5, gy: 2, tint: "#b88491" },
@@ -44,6 +47,9 @@ export function createIsoPresets(defaultIsoSize) {
       // Work zone sits between the sleeping and living areas.
       { item: "desk", gx: 5, gy: 3.5, tint: "#c39a75" },
       { item: "laptop", gx: 5.5, gy: 3.5 },
+      { item: "desklamp", gx: 6.5, gy: 3.5, tint: "#d19b67" },
+      { item: "mug", gx: 6.5, gy: 4 },
+      { item: "ovalrug", gx: 5, gy: 4, tint: "#8f777b" },
       // Turned around: its backrest belongs behind the resident, not wedged
       // between them and the laptop.
       { item: "deskchair", gx: 6, gy: 5, rot: 2, tint: "#b47c92" },
@@ -52,7 +58,10 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "persianrug", gx: 2.5, gy: 5.5, tint: "#a9788e" },
       { item: "sofa", gx: 3, gy: 7, tint: "#78648d" },
       { item: "coffeetable", gx: 4.5, gy: 6, tint: "#c39a75" },
+      { item: "bookstack", gx: 4.5, gy: 6 },
+      { item: "mug", gx: 5.5, gy: 6.5 },
       { item: "armchair", gx: 6, gy: 6, tint: "#c5828c" },
+      { item: "cushion", gx: 6.5, gy: 7.5, tint: "#a97782" },
       { item: "tvunit", gx: 0, gy: 4.5, rot: 1, tint: "#77576f" },
       { item: "floorlamp", gx: 1.5, gy: 5.5, tint: "#d6a77e" },
       { item: "dog", gx: 7, gy: 7, look: "husky" },
@@ -65,7 +74,11 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "stripedrug", gx: 10.5, gy: 7.5, tint: "#8d7897" },
       { item: "counter", gx: 11.5, gy: 9.5, tint: "#c4a287" },
       { item: "counter", gx: 10.5, gy: 9.5, tint: "#c4a287" },
+      { item: "kettle", gx: 11.5, gy: 9.5 },
+      { item: "bread", gx: 10.5, gy: 9.5 },
       { item: "diningtable", gx: 7.5, gy: 8.5, tint: "#c39a75" },
+      { item: "fruitbowl", gx: 7.5, gy: 8.5 },
+      { item: "candle", gx: 8.5, gy: 9, tint: "#d7a56f" },
       { item: "chair", gx: 8, gy: 8, tint: "#9c7890" },
       { item: "chair", gx: 8, gy: 10, rot: 2, tint: "#9c7890" },
       // Wall detail follows the asymmetric shell rather than filling every run.
@@ -74,6 +87,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "hangplant", gx: 8.5, gy: 0, tint: "#668069" },
       { item: "neon", gx: 0, gy: 5.5, rot: 1, tint: "#d887a4" },
       { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#bd705f" },
+      { item: "snakeplant", gx: 9, gy: 3.5 },
       { item: "monstera", gx: 3.5, gy: 9.5 },
       { item: "plant", gx: 12.5, gy: 9.5 },
     ],
@@ -103,6 +117,8 @@ export function createIsoPresets(defaultIsoSize) {
       // ---- SLEEPING, in the right-hand bay -------------------------------
       { item: "bed", gx: 8, gy: 0, tint: "#7f9ec9" },
       { item: "nightstand", gx: 7, gy: 0 },
+      { item: "mushroomlamp", gx: 7, gy: 0, tint: "#c58e9e" },
+      { item: "runner", gx: 7, gy: 3.5, tint: "#75658e" },
       { item: "standmirror", gx: 9, gy: 3.5 },
       // ---- MEDIA WALL, along the back ------------------------------------
       { item: "tvunit", gx: 0, gy: 0 },
@@ -124,14 +140,22 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "squarerug", gx: 0.5, gy: 2.5, tint: "#8a7ac2" },
       { item: "sofa", gx: 0, gy: 2.5, rot: 1, tint: "#7f9ec9" },
       { item: "coffeetable", gx: 1.5, gy: 3, rot: 1 },
+      { item: "mug", gx: 1.5, gy: 3 },
+      { item: "bookstack", gx: 2, gy: 3.5 },
       { item: "armchair", gx: 1.5, gy: 1.5, tint: "#7f9ec9" },
       // the lamp lights the sofa from the corner instead of standing in the
       // middle of the room
       { item: "floorlamp", gx: 0.5, gy: 1 },
       { item: "dresser", gx: 0, gy: 5, rot: 1, tint: "#3a3142" },
+      { item: "radio", gx: 0, gy: 5, tint: "#4a3a5b" },
+      { item: "lightjar", gx: 0.5, gy: 5, tint: "#a986c2" },
       // ---- the open nook the corner cut leaves ---------------------------
+      { item: "ovalrug", gx: 2.5, gy: 5.5, tint: "#71658e" },
       { item: "beanbag", gx: 2.5, gy: 6, tint: "#8a7ac2" },
       { item: "cat", gx: 4, gy: 6, tint: "#2c2438" },
+      { item: "sidetable", gx: 5, gy: 6.5, tint: "#3a3142" },
+      { item: "moonlamp", gx: 5, gy: 6.5 },
+      { item: "fern", gx: 6.5, gy: 7 },
       { item: "monstera", gx: 0.5, gy: 7 },
       // ---- wall, spaced rather than crowded ------------------------------
       { item: "pennant", gx: 0, gy: 0, tint: "#5b6b9b" },
@@ -149,47 +173,48 @@ export function createIsoPresets(defaultIsoSize) {
   classic: {
     label: "Cozy study",
     icon: "🕯️",
-    size: { w: 9, d: 7 },
+    size: {
+      w: 9,
+      d: 7,
+      wallColors: { left: "#8a7562", right: "#6f6658" },
+      lighting: "golden",
+    },
     items: [
-      // work wall: desk flush against the right wall, chair on its centre —
-      // deliberately EMPTY. NPCs live only in the communal presets; in a
-      // personal room the empty desk chair is yours.
-      // The desk is a SURFACE, so these ride on top of it — their stored
-      // gx/gy deliberately sits inside the desk's footprint.
-      { item: "desk", gx: 3, gy: 0 },
-      { item: "computer", gx: 3.5, gy: 0 },
-      { item: "mug", gx: 5, gy: 0.5 },
-      { item: "deskchair", gx: 4, gy: 1.5, rot: 2 },
-      { item: "frame", gx: 1, gy: 0 },
-      { item: "wallclock", gx: 4.5, gy: 0 },
-      { item: "wallshelf", gx: 6, gy: 0 },
-      { item: "floorlamp", gx: 8, gy: 0.5 },
-      { item: "bookstack", gx: 2, gy: 4.5 },
-      // left wall: bookshelf faces into the room, clear of the window
-      { item: "bookshelf", gx: 0, gy: 3, rot: 1 },
-      { item: "corkboard", gx: 2.5, gy: 0 },
-      // The ceiling layer. No preset used a pendant at all, so the top third
-      // of every room was empty air above a busy floor — the walls were
-      // decorated, the volume wasn't. It hangs on the left wall clear of the
-      // built-in window (gy 1.1–3.5) and above the corner plant.
+      // Put the workstation directly in the broad left-wall window light,
+      // like the references, rather than floating it along the back wall.
+      // It stays deliberately empty: in a personal room the chair is yours.
+      { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#b78d67" },
+      { item: "computer", gx: 0, gy: 2 },
+      { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
+      { item: "mug", gx: 0.5, gy: 3 },
+      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 2, tint: "#71806c" },
+      // A fuller back wall makes the room feel built-in and collected.
+      { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
+      { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },
+      { item: "wallclock", gx: 4, gy: 0 },
+      { item: "bigwindow", gx: 5, gy: 0 },
+      { item: "corkboard", gx: 7, gy: 0 },
+      // The pendant fills the room's upper third and warms the plant corner.
       { item: "pendant", gx: 0, gy: 5, rot: 1 },
-      // centre: rug + cat, with the cat's own bed just off it
-      { item: "stripedrug", gx: 3, gy: 2.5 },
-      { item: "cat", gx: 4, gy: 3.5 },
-      { item: "petbed", gx: 6.5, gy: 4, tint: "#8a7ac2" },
-      // a candle in the window light
-      { item: "candle", gx: 1, gy: 2.5 },
-      // green corners, a coat by the door, a terrarium on the shelf run
+      // The middle is a proper reading nook: layered textile, two seats and
+      // a pool of table light, with the cat's bed just beyond it.
+      { item: "persianrug", gx: 2.5, gy: 3, tint: "#a76f60" },
+      { item: "armchair", gx: 3, gy: 4, tint: "#70806a" },
+      { item: "cushion", gx: 4.5, gy: 5, tint: "#b98568" },
+      { item: "sidetable", gx: 4.5, gy: 4, tint: "#a87c59" },
+      { item: "tablelamp", gx: 4.5, gy: 4, tint: "#d2a164" },
+      { item: "bookstack", gx: 5, gy: 4 },
+      { item: "cat", gx: 5, gy: 3.5 },
+      { item: "petbed", gx: 6.5, gy: 4.5, tint: "#a87569" },
+      // Green corners and a coat by the door soften the room's edges.
       { item: "monstera", gx: 0.5, gy: 5.5 },
-      { item: "plant", gx: 8, gy: 5.5 },
-      { item: "shelf", gx: 6.5, gy: 5.5 },
-      { item: "terrarium", gx: 5.5, gy: 5.5 },
+      { item: "fern", gx: 7.5, gy: 5.5 },
       { item: "coatrack", gx: 8, gy: 2.5 },
       // A door, and the two things a studious room collects: something
       // half-painted, and a globe to spin while thinking.
       { item: "doorway", gx: 7.5, gy: 0 },
-      { item: "easel", gx: 1, gy: 3 },
-      { item: "globe", gx: 2, gy: 5 },
+      { item: "easel", gx: 6.5, gy: 1.5, tint: "#b78d67" },
+      { item: "globe", gx: 2, gy: 5.5 },
     ],
   },
   cabin: {
@@ -227,6 +252,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "candle", gx: 5.5, gy: 0.5 },
       // and just enough on the walls
       { item: "wallshelf", gx: 6.5, gy: 0 },
+      { item: "christmaslights", gx: 4.5, gy: 0 },
       { item: "frame", gx: 0, gy: 4, rot: 1 },
       { item: "curtain", gx: 0, gy: 1, rot: 1 },
       { item: "pendant", gx: 0, gy: 6, rot: 1, tint: "#6f493d" },
@@ -559,41 +585,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "lantern", gx: 5, gy: 2 },
     ],
   },
-  // A seasonal room, and the reason the autumn set exists as a set. Open air
-  // (garden env: grass, no walls), so it holds the outdoor half of the
-  // collection — the wreath has nowhere to hang here and is deliberately left
-  // out rather than forced in.
-  //
-  // FOURTEEN pieces. Preset rooms are meant to be clean and functional,
-  // and three trees, a bench and a raked pile of leaves is a whole scene; the
-  // temptation with a themed room is to use every piece in the theme.
-  fall: {
-    label: "Autumn yard",
-    icon: "\u{1F342}",
-    size: { w: 10, d: 8, env: "garden" },
-    items: [
-      // A copse at the back-left and one tree opposite, rather than three
-      // spaced evenly across the skyline.
-      { item: "mapletree", gx: 0.5, gy: 0 },
-      { item: "mapletree", gx: 2.5, gy: 0.5, tint: "#c9762f" },
-      { item: "birch", gx: 7.5, gy: 0, tint: "#c9a24b" },
-      { item: "bush", gx: 0.5, gy: 3, tint: "#a8863a" },
-      { item: "rock", gx: 9, gy: 2.5 },
-      // the job someone is halfway through, under the trees that shed it
-      { item: "leafpile", gx: 3, gy: 2.5 },
-      { item: "rake", gx: 4, gy: 2.5 },
-      // the corner you actually sit in — the bench kept empty for you,
-      // the dog keeping it warm (a dog in a yard, not a cat: owner call)
-      { item: "bench", gx: 1, gy: 5.5 },
-      { item: "dog", gx: 1, gy: 6.5 },
-      { item: "lantern", gx: 3, gy: 5.5 },
-      // and the harvest, spread a full tile apart so they don't stack up
-      { item: "haybale", gx: 7.5, gy: 4 },
-      { item: "pumpkin", gx: 6.5, gy: 5.5 },
-      { item: "pumpkin", gx: 8, gy: 6 },
-      { item: "jackolantern", gx: 7, gy: 7 },
-    ],
-  },
+  ...createIsoSeasonalPresets(),
   empty: {
     label: "Empty room",
     icon: "🫙",

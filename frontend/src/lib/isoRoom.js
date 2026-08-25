@@ -174,6 +174,8 @@ export const ISO_ITEMS = {
   pumpkin: { label: "Pumpkin", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true },
   jackolantern: { label: "Jack-o'-lantern", icon: "🎃", foot: [0.5, 0.5], hitH: 20, stacks: true, flicker: true, glow: [15, 0.34] },
   rake: { label: "Rake", icon: "🧹", foot: [0.4, 0.4], hitH: 62 },
+  scarecrow: { label: "Scarecrow", icon: "🌾", foot: [1.1, 0.9], hitH: 78 },
+  turkey: { label: "Turkey", icon: "🦃", foot: [0.9, 0.8], hitH: 38 },
   wreath: { label: "Wreath", icon: "🌿", foot: [0.9, 0.3], wall: true, hitH: 96 },
   // ---- winter ----------------------------------------------------------
   // The second seasonal set, and the reason autumn wasn't a one-off: a season
@@ -183,6 +185,11 @@ export const ISO_ITEMS = {
   snowpine: { label: "Snowy pine", icon: "🌲", foot: [1.3, 1.3], hitH: 118 },
   snowman: { label: "Snowman", icon: "⛄", foot: [0.8, 0.8], hitH: 52 },
   snowdrift: { label: "Snow drift", icon: "❄️", foot: [1.2, 0.9], hitH: 14 },
+  snowballs: { label: "Snowballs", icon: "⚪", foot: [0.9, 0.7], hitH: 28, tintable: false },
+  christmastree: { label: "Christmas tree", icon: "🎄", foot: [1.4, 1.4], hitH: 126, glow: [32, 0.34] },
+  snowangel: { label: "Snow angel", icon: "❄️", foot: [2.4, 1.6], layer: -1, hitH: 10, tintable: false },
+  christmaslights: { label: "Christmas lights", icon: "🎄", foot: [1.4, 0.3], wall: true, hitH: 104, tintable: false, glow: [24, 0.35] },
+  chimney: { label: "Snowy chimney", icon: "🏠", foot: [1, 0.72], hitH: 112 },
   logstack: { label: "Firewood", icon: "🪵", foot: [0.9, 0.6], hitH: 28, seat: 28 },
   icelantern: { label: "Ice lantern", icon: "🕯️", foot: [0.45, 0.45], hitH: 22, stacks: true, flicker: true, glow: [17, 0.36] },
   icicles: { label: "Icicles", icon: "🧊", foot: [1, 0.3], wall: true, hitH: 104 },
@@ -193,6 +200,12 @@ export const ISO_ITEMS = {
   birdbath: { label: "Bird bath", icon: "🐦", foot: [0.8, 0.8], hitH: 34 },
   seedtray: { label: "Seedlings", icon: "🌱", foot: [0.7, 0.5], hitH: 12, stacks: true },
   bunting: { label: "Bunting", icon: "🎉", foot: [1.4, 0.3], wall: true, hitH: 100 },
+  // ---- summer ----------------------------------------------------------
+  pool: { label: "Swimming pool", icon: "🏊", foot: [3.5, 2.5], layer: -1, hitH: 14, tintable: false },
+  coconutpalm: { label: "Coconut palm", icon: "🌴", foot: [1.5, 1.5], hitH: 122 },
+  poolumbrella: { label: "Pool umbrella", icon: "⛱️", foot: [1.5, 1.5], hitH: 86 },
+  beachball: { label: "Beach ball", icon: "🏖️", foot: [0.6, 0.6], hitH: 22, tintable: false },
+  sunlounger: { label: "Sun lounger", icon: "🪑", foot: [1.6, 0.85], hitH: 46, seat: 18, lie: true },
   // ---- kitchen ---------------------------------------------------------
   oven: { label: "Oven", icon: "🍳", foot: [0.9, 0.7], hitH: 42, surface: 40 },
   sink: { label: "Sink", icon: "🚰", foot: [0.9, 0.65], hitH: 36 },
@@ -423,15 +436,20 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Autumn",
-    keys: ["mapletree", "leafpile", "haybale", "pumpkin", "jackolantern", "rake", "wreath"],
+    keys: ["mapletree", "leafpile", "haybale", "pumpkin", "jackolantern", "rake", "scarecrow", "turkey", "wreath"],
   },
   {
     label: "Winter",
-    keys: ["snowpine", "snowman", "snowdrift", "logstack", "icelantern", "icicles"],
+    keys: ["snowpine", "snowman", "snowdrift", "snowballs", "christmastree", "snowangel",
+      "logstack", "icelantern", "chimney", "christmaslights", "icicles"],
   },
   {
     label: "Spring",
     keys: ["blossomtree", "tulips", "wateringcan", "birdbath", "seedtray", "bunting"],
+  },
+  {
+    label: "Summer",
+    keys: ["pool", "coconutpalm", "poolumbrella", "beachball", "sunlounger"],
   },
   {
     label: "Outdoors",

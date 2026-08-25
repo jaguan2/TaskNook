@@ -60,7 +60,7 @@ const NPC_HOMES = {
 // checked by visiting.test.js against the real presets, and findFreeSpot
 // is the net if a preset ever shifts underneath one.
 const NPC_SPOTS = {
-  luna: { gx: 4, gy: 1.5 },
+  luna: { gx: 1.5, gy: 2.5 },
   kai: { gx: 7.5, gy: 8 },
   sora: { gx: 6.5, gy: 4 },
   mochi: { gx: 4, gy: 2 },

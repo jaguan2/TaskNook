@@ -265,6 +265,11 @@ export const GLASSES = [
 export const OUTFITS = [
   { key: "sweater", label: "Sweater" },
   { key: "tee", label: "T-shirt", sleeves: "short" },
+  // One picker choice, two authored cuts: the masc model wears a surf top,
+  // while the fem model gets a one-piece neckline and dropped hip panel.
+  // The registry receives `model` so this remains presentation rather than
+  // a gender-locked wardrobe rule.
+  { key: "swim", label: "Swimwear", sleeves: "short" },
   // Button-up: collar wings + placket + buttons — the neck-and-centre marks
   // are what separate a shirt from a tee at this size.
   { key: "shirt", label: "Button-up" },

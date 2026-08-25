@@ -264,8 +264,7 @@ running `git commit` yourself.
   on a previous LOCAL day (same local-day convention as the stats). The friend graph is a **self-referential many-to-many stored
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
   directions to stay symmetric. This is intentional; don't "simplify" to one row.
-- **Visiting friends' rooms** (simulated social — full design in
-  docs/visiting_friends_plan.md): `User.visit_access`
+- **Visiting friends' rooms** (simulated social): `User.visit_access`
   (public/friends/invite/private, default "friends") rides `public_dict`
   into `/api/friends`; `VISIT_ACCESS_LEVELS` in app.py mirrors
   `VISIT_ACCESS` in `lib/visiting.js` — same both-languages contract as
@@ -388,8 +387,8 @@ running `git commit` yourself.
   a per-device bond tally per bot — points per message sent, per visit,
   per minute spent in their room (a store interval while `visiting`) — read
   as five levels shown as a rose bar on the friend row. Mostly cosmetic BY
-  DESIGN (a reason to interact, not a grind; rewards are a noted-later in
-  docs/visiting_friends_plan.md), except that level 4+ additively widens
+  DESIGN (a reason to interact, not a grind; tangible rewards remain
+  deliberately unbuilt), except that level 4+ additively widens
   the chat reply pools (`CLOSE_LINES` in lib/chat.js — bond is passed at
   reply-FIRE time, and low bond can never produce a close line; the
   asymmetry is the tweak). The tally lives client-side like the check-in

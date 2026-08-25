@@ -79,6 +79,15 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         );
       }
     }
+    // Swimwear is the one top whose cut is model-aware, so the default masc
+    // wardrobe loop is only half its artwork. Keep the fem cut on the sheet
+    // in the same three stress-test colours.
+    for (const [way, hex] of Object.entries(WAYS)) {
+      save(
+        `top-swim-fem-${way}`,
+        <Resident character={dressed({ model: "fem", garment: "swim", ...(hex ? { outfit: hex } : {}) })} />
+      );
+    }
     for (const { key } of COATS) {
       for (const [way, hex] of Object.entries(WAYS)) {
         save(
