@@ -84,6 +84,8 @@ describe("IsoRoom interior architecture", () => {
     const glow = container.querySelector('[data-window-glow="true"]');
     expect(glow).toBeTruthy();
     expect(container.querySelector('[data-window-floor-light="true"]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-window-pane-light="true"] polygon')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-window-mullion-shadow="true"] polygon')).toHaveLength(2);
     const wallY = glow
       .getAttribute("points")
       .trim()
@@ -103,6 +105,8 @@ describe("IsoRoom interior architecture", () => {
 
     expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
     expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-pane-light="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-mullion-shadow="true"]')).toBeNull();
   });
 
   it("does not draw a window past the end of an asymmetric wall run", () => {

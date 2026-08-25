@@ -920,12 +920,11 @@ export function Resident({
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
               <circle
+                data-character-head="front"
                 cx="0"
                 cy={headY}
                 r={HEAD_R}
                 fill={skin}
-                stroke={INK}
-                strokeWidth="1"
                 opacity="1"
               />
               {/* the head is a SPHERE now, not a disc — same gradient the

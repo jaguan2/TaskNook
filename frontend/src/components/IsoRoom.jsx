@@ -904,6 +904,23 @@ function IsoSceneInner({
                 fill="#fff0bd"
                 opacity={tod.windowLight * 0.07}
               />
+              {/* The VC2 reference rooms rarely use an anonymous oval of
+                  daylight: you can read the WINDOW in the light it throws.
+                  Four quiet panes give the broad wash structure, while the
+                  two narrow strips are the frame/mullion shadows stretching
+                  into the room. They stay in grid space so the projection is
+                  correct for every room size, and remain subordinate to the
+                  furniture painted above them. */}
+              <g data-window-pane-light="true" opacity={tod.windowLight * 0.12}>
+                <polygon points={floorPatch(0.3, 1.12, 0.9, 0.92)} fill="#fff5d5" />
+                <polygon points={floorPatch(0.3, 2.18, 0.9, 0.92)} fill="#fff5d5" />
+                <polygon points={floorPatch(1.36, 1.12, 0.9, 0.92)} fill="#ffe4aa" />
+                <polygon points={floorPatch(1.36, 2.18, 0.9, 0.92)} fill="#ffe4aa" />
+              </g>
+              <g data-window-mullion-shadow="true" opacity={tod.windowLight * 0.2}>
+                <polygon points={floorPatch(1.2, 1.05, 0.14, 2.18)} fill="#5b3b54" />
+                <polygon points={floorPatch(0.24, 2.08, 2.12, 0.13)} fill="#5b3b54" />
+              </g>
             </g>
           )}
           {/* The tile grid is a placement aid: it belongs while you're

@@ -132,6 +132,14 @@ describe("the isometric catalog and its artwork agree", () => {
     // one axis over.
     const Resident = ISO_SPRITES.resident;
 
+    it("models the front face without a full ink outline", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const head = container.querySelector('[data-character-head="front"]');
+
+      expect(head).toBeTruthy();
+      expect(head.getAttribute("stroke")).toBeNull();
+    });
+
     it.each(
       MODELS.flatMap((m) => HAIR_STYLES.map((h) => [m.key, h.key]))
     )("%s × %s renders standing and seated without throwing", (model, hair) => {

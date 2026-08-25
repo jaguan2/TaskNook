@@ -675,8 +675,14 @@ export function Arm({
   // from the BEND in the outline, nothing else. Per-segment capsules with
   // per-segment washes grew a lens blob at every joint (owner screenshot);
   // clean low-poly bodies keep each part ONE flat tone.
-  const whole = `M ${S.x} ${S.y} L ${E.x} ${E.y} L ${H.x} ${H.y}`;
-  const upper = `M ${S.x} ${S.y} L ${E.x} ${E.y}`;
+  // Curve through the same shoulder, elbow and hand anchors. The elbow still
+  // changes direction, but the silhouette no longer looks like two rulers
+  // meeting at a vertex; the reference figures keep their limbs relaxed even
+  // when the rendering itself stays low-detail.
+  const upperControl = { x: side * (sh + 2.35), y: torsoY + 8.1 };
+  const lowerControl = { x: side * (sh + 2.15), y: torsoY + 14.7 };
+  const whole = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y} Q ${lowerControl.x} ${lowerControl.y} ${H.x} ${H.y}`;
+  const upper = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y}`;
   const w = 4.3 + bulk;
   const line = (d, paint, width, opacity, cap = "round") => (
     <path
@@ -716,8 +722,8 @@ export function Arm({
       {/* flush flat caps, tucked inside both ends — round caps stuck wash
           blobs past the shoulder and wrist (the glass-tube read, same
           de-glassing pass as the legs) */}
-      {edges && line(`M ${S.x + w / 4} ${S.y + 2.4} L ${E.x + w / 4} ${E.y} L ${H.x + w / 4} ${H.y - 2}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint, "butt")}
-      {edges && line(`M ${S.x - w / 4} ${S.y + 2.6} L ${E.x - w / 4} ${E.y} L ${H.x - w / 4} ${H.y - 2}`, SHADE, w / 2.9, 0.13 * tone.shade, "butt")}
+      {edges && line(`M ${S.x + w / 4} ${S.y + 2.4} Q ${upperControl.x + w / 4} ${upperControl.y} ${E.x + w / 4} ${E.y} Q ${lowerControl.x + w / 4} ${lowerControl.y} ${H.x + w / 4} ${H.y - 2}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint, "butt")}
+      {edges && line(`M ${S.x - w / 4} ${S.y + 2.6} Q ${upperControl.x - w / 4} ${upperControl.y} ${E.x - w / 4} ${E.y} Q ${lowerControl.x - w / 4} ${lowerControl.y} ${H.x - w / 4} ${H.y - 2}`, SHADE, w / 2.9, 0.13 * tone.shade, "butt")}
       {/* a short sleeve's HEM — the crossbar is what makes the bare forearm
           read as a hemline rather than a glitch in the sleeve */}
       {shortSleeve && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}

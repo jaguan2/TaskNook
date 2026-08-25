@@ -11,6 +11,7 @@ import {
   WAIST_DROP,
   HEAD_LIFT,
   WIDTH_RANGE,
+  SHOULDER_RANGE,
   HEIGHT_RANGE,
   TORSO_RANGE,
   STAND_TORSO_Y,
@@ -35,7 +36,7 @@ describe("figure proportions", () => {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
         expect(sh, `${model} × ${build}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF + 1);
+        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF + 0.3);
       }
     }
   });
@@ -84,17 +85,17 @@ describe("figureMetrics", () => {
     // masc keeps its shoulder line but the waist pinches to a V; fem is a
     // smaller hourglass; both hems came in with the base widths.
     masc: {
-      slim: { sh: 8.8, wa: 5, hem: 6.6, kneeX: 8.5 },
-      average: { sh: 9.6, wa: 5.8, hem: 7.4, kneeX: 8.5 },
-      sturdy: { sh: 10.8, wa: 7, hem: 8.6, kneeX: 8.5 },
+      slim: { sh: 8.2, wa: 5, hem: 6.6, kneeX: 8.5 },
+      average: { sh: 9, wa: 5.8, hem: 7.4, kneeX: 8.5 },
+      sturdy: { sh: 10.2, wa: 7, hem: 8.6, kneeX: 8.5 },
     },
     fem: {
       // All three builds now sit at MIN_SHOULDER (sturdy lands there
       // exactly) — the whole fem silhouette lives in the waist-to-hem
       // contrast and the finer limbs, exactly as documented.
-      slim: { sh: 8.6, wa: 2.8, hem: 8.2, kneeX: 8.5 },
-      average: { sh: 8.6, wa: 3.6, hem: 9, kneeX: 8.5 },
-      sturdy: { sh: 8.6, wa: 4.8, hem: 10.2, kneeX: 9.7 },
+      slim: { sh: 7.7, wa: 2.8, hem: 8.2, kneeX: 8.5 },
+      average: { sh: 7.7, wa: 3.6, hem: 9, kneeX: 8.5 },
+      sturdy: { sh: 8, wa: 4.8, hem: 10.2, kneeX: 9.7 },
     },
   };
 
@@ -132,6 +133,16 @@ describe("figureMetrics", () => {
     }
   });
 
+  it("the chest axis changes shoulders without changing waist or hem", () => {
+    const narrow = figureMetrics({ shoulders: SHOULDER_RANGE[0] });
+    const broad = figureMetrics({ shoulders: SHOULDER_RANGE[1] });
+
+    expect(narrow.sh).toBeLessThan(broad.sh);
+    expect(narrow.wa).toBe(broad.wa);
+    expect(narrow.hem).toBe(broad.hem);
+    expect(narrow.legW).toBe(broad.legW);
+  });
+
   it("limbs scale gently with width, and the models' limbs differ", () => {
     // A wide torso on unchanged stick legs reads as parts pasted together;
     // a narrow one on thick limbs reads stuffed. Since the slimming retune
@@ -160,6 +171,11 @@ describe("figureMetrics", () => {
         expect(sh, `${model} w${width}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
         expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(2.1);
         expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
+      }
+      for (const shoulders of SHOULDER_RANGE) {
+        const { sh } = figureMetrics({ model, shoulders });
+        expect(sh, `${model} chest${shoulders}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
+        expect(sh / HEAD_R_EFF, `${model} chest${shoulders}`).toBeLessThanOrEqual(2.1);
       }
       for (const height of HEIGHT_RANGE) {
         // At the DEFAULT torso, the leg range keeps the figure leggy — the

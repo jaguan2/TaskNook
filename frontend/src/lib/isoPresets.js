@@ -215,12 +215,21 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "squarerug", gx: 0.5, gy: 3.5 },
       { item: "sofa", gx: 0, gy: 3.5, rot: 1 },
       { item: "coffeetable", gx: 1.5, gy: 4, rot: 1 },
+      // A second seat turns these into a conversation nook instead of three
+      // objects lined up against a wall. The smaller lived-in pieces ride the
+      // table rather than consuming more floor.
+      { item: "armchair", gx: 3, gy: 4.5, tint: "#8f6b58" },
+      { item: "mug", gx: 2, gy: 4 },
+      { item: "bookstack", gx: 2.5, gy: 4.5 },
       { item: "floorlamp", gx: 0.5, gy: 6.5 },
       { item: "cat", gx: 2, gy: 5.5 },
+      { item: "runner", gx: 4.5, gy: 4.5, tint: "#8a5f52" },
+      { item: "candle", gx: 5.5, gy: 0.5 },
       // and just enough on the walls
       { item: "wallshelf", gx: 6.5, gy: 0 },
       { item: "frame", gx: 0, gy: 4, rot: 1 },
       { item: "curtain", gx: 0, gy: 1, rot: 1 },
+      { item: "pendant", gx: 0, gy: 6, rot: 1, tint: "#6f493d" },
     ],
   },
   garden: {

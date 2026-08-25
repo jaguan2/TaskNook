@@ -29,7 +29,7 @@ import {
   ZODIAC,
   profileSummary,
 } from "../lib/profile";
-import { WIDTH_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
+import { WIDTH_RANGE, SHOULDER_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 
 /**
@@ -882,6 +882,14 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.width}
                     onDraft={draftAxis("width")}
+                    onCommit={commitBody}
+                  />
+                  <BodySlider
+                    label="Chest"
+                    range={SHOULDER_RANGE}
+                    step="0.2"
+                    value={shown.shoulders}
+                    onDraft={draftAxis("shoulders")}
                     onCommit={commitBody}
                   />
                   {/* Legs and torso are separate axes — a long-legged figure

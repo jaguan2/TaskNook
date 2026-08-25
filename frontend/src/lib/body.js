@@ -71,7 +71,12 @@ export const SEAT_HEAD_Y = SEAT_TORSO_Y - HEAD_LIFT;
 // combinations: fem + slim once produced a body narrower than its own skull,
 // which is exactly the top-heavy proportion docs/MODELS.md exists to prevent.
 // The narrow read comes from the WAIST-to-hem contrast instead.
-export const MIN_SHOULDER = 8.6;
+// Arms add their own width outside this anchor, so the chest can sit much
+// closer to the head than the old +1.3px guard without becoming top-heavy.
+// The previous floor was also why dragging Body Width fully left appeared to
+// stop changing the upper body. Keep a small margin around the authored head,
+// then let the dedicated chest axis do its job.
+export const MIN_SHOULDER = 7.7;
 
 /**
  * The two bodies, as offsets from the build's half-width.
@@ -133,6 +138,12 @@ export const BUILD_SHAPE = {
 // chunky ceiling (8.4 + 2.8 = 11.2 → 1.53×). Old saves stored up to 9;
 // clampNum folds them to 8.4, which is the retune applied, not data loss.
 export const WIDTH_RANGE = [6.2, 8.4];
+// Independent upper-body shaping. Width still owns waist, hem and limb mass;
+// this axis moves only the shoulder/chest anchor so a narrow chest does not
+// also force narrow hips and stick limbs. A slightly inset default corrects
+// the broad classic sweater while preserving room-scale legibility.
+export const SHOULDER_RANGE = [-1.6, 1.0];
+export const DEFAULT_SHOULDER = -0.6;
 export const HEIGHT_RANGE = [28, 34];
 export const TORSO_RANGE = [14, 20];
 
@@ -164,6 +175,7 @@ export function figureMetrics(ch = {}) {
   const halfW = clampNum(ch.width, WIDTH_RANGE, build.halfW);
   const legH = clampNum(ch.height, HEIGHT_RANGE, LEG_H);
   const torsoH = clampNum(ch.torso, TORSO_RANGE, TORSO_H);
+  const shoulder = clampNum(ch.shoulders, SHOULDER_RANGE, DEFAULT_SHOULDER);
   // The waist rides the torso proportionally (the classic 10-of-17), so a
   // long torso doesn't wear its waist at the chest.
   const waistDrop = torsoH * (WAIST_DROP / TORSO_H);
@@ -171,7 +183,7 @@ export function figureMetrics(ch = {}) {
     build.limb +
     (shape.limb || 0) +
     Math.max(-0.6, Math.min(0.8, (halfW - BUILD_SHAPE.average.halfW) * 0.4));
-  const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder);
+  const sh = Math.max(MIN_SHOULDER, halfW + shape.shoulder + shoulder);
   const wa = halfW + shape.waist + build.waist;
   const hem = halfW + shape.hem;
   const standTorsoY = -(legH - TORSO_OVERLAP + torsoH);
