@@ -44,12 +44,22 @@ function TaskDetails({ task, editTask, onClose }) {
   const [notes, setNotes] = useState(task.notes || "");
   const [name, setName] = useState(task.name);
   const [due, setDue] = useState(task.dueDate || "");
+  const [scheduled, setScheduled] = useState(task.scheduledDate || "");
+  const [duration, setDuration] = useState(task.duration);
+  const [priority, setPriority] = useState(task.priority);
 
   // Only send what changed — a PUT carrying every field would re-stamp things the
   // user never touched, and the backend treats a present key as an instruction.
   const commit = (patch) => {
     const [[key, value]] = Object.entries(patch);
-    const before = { name: task.name, notes: task.notes || "", dueDate: task.dueDate || "" }[key];
+    const before = {
+      name: task.name,
+      notes: task.notes || "",
+      dueDate: task.dueDate || "",
+      scheduledDate: task.scheduledDate || "",
+      duration: task.duration,
+      priority: task.priority,
+    }[key];
     if (value === before) return;
     editTask(task.id, patch);
   };
@@ -76,6 +86,57 @@ function TaskDetails({ task, editTask, onClose }) {
         className="cozy-scroll w-full resize-none rounded-md bg-white/10 px-2 py-1 text-xs text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
       <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 text-[11px] text-petal/60">
+          Estimate
+          <input
+            type="number"
+            min="1"
+            max="1440"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            onBlur={() => {
+              const next = Math.max(1, Math.min(1440, Math.round(Number(duration) || task.duration)));
+              setDuration(next);
+              commit({ duration: next });
+            }}
+            aria-label="Estimated minutes"
+            className="w-14 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
+          />
+          min
+        </label>
+        <label className="flex items-center gap-1 text-[11px] text-petal/60">
+          Priority
+          <select
+            value={priority}
+            onChange={(e) => {
+              setPriority(e.target.value);
+              commit({ priority: e.target.value });
+            }}
+            aria-label="Task priority"
+            className="rounded-md bg-plum/90 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-plum"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
+          <CalendarClock size={12} /> Planned
+          <input
+            type="date"
+            value={scheduled}
+            onChange={(e) => {
+              setScheduled(e.target.value);
+              if (e.target.value !== (task.scheduledDate || "")) {
+                editTask(task.id, { scheduledDate: e.target.value || null });
+              }
+            }}
+            aria-label="Scheduled date"
+            className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
+          />
+        </label>
         <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
           <CalendarClock size={12} /> Due
           <input
@@ -149,6 +210,7 @@ function Row({
       <button
         onClick={() => toggleTask(task)}
         title={task.completed ? "Mark as not done" : "Mark complete"}
+        aria-label={task.completed ? `Mark ${task.name} as not done` : `Mark ${task.name} complete`}
         className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border-2 text-[11px] transition ${
           task.completed
             ? "border-sage bg-sage text-plum"
@@ -194,10 +256,18 @@ function Row({
           {task.dueDate.slice(5)}
         </span>
       )}
+      {task.scheduledDate && !task.completed && (
+        <span
+          title={`Planned for ${task.scheduledDate}`}
+          className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] font-semibold text-sage"
+        >
+          <CalendarClock size={10} /> {task.scheduledDate.slice(5)}
+        </span>
+      )}
       <button
         onClick={() => onToggleExpand(task.id)}
-        title={expanded ? "Hide details" : "Notes and due date"}
-        aria-label="Notes and due date"
+        title={expanded ? "Hide details" : "Edit task details"}
+        aria-label="Edit task details"
         aria-expanded={expanded}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           expanded ? "text-glow" : "text-petal/30 hover:text-cream"
@@ -208,6 +278,7 @@ function Row({
       <button
         onClick={() => toggleRoutine(task)}
         title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
+        aria-label={task.routine ? `Make ${task.name} one-off` : `Make ${task.name} a daily routine`}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           task.routine ? "text-sage" : "text-petal/30 hover:text-sage"
         }`}
@@ -246,6 +317,7 @@ export default function HudTasks({ onOpenTasks }) {
     taskGroups,
     addTaskGroup,
     removeTaskGroup,
+    renameTaskGroup,
     toggleRoutine,
     editTask,
     showToast,
@@ -253,6 +325,8 @@ export default function HudTasks({ onOpenTasks }) {
   const [draft, setDraft] = useState("");
   const [draftGroup, setDraftGroup] = useState("");
   const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
+  const [renamingGroup, setRenamingGroup] = useState(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const dragFrom = useRef(null); // { section, index }
 
   // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
@@ -292,6 +366,13 @@ export default function HudTasks({ onOpenTasks }) {
     const name = (groupDraft || "").trim();
     if (name) addTaskGroup(name);
     setGroupDraft(null);
+  };
+  const finishGroupRename = async () => {
+    if (renameDraft.trim() === renamingGroup) {
+      setRenamingGroup(null);
+      return;
+    }
+    if (await renameTaskGroup(renamingGroup, renameDraft)) setRenamingGroup(null);
   };
 
   const onDragStartRow = (section, index) => {
@@ -392,10 +473,37 @@ export default function HudTasks({ onOpenTasks }) {
               {/* the header row is its own hover group — a section-wide group
                   revealed EVERY row's controls when hovering any of them */}
               <div className="group flex items-center gap-1.5 px-1 pb-0.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
-                  {section.key}
-                </span>
+                {renamingGroup === section.key ? (
+                  <input
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenamingGroup(null);
+                    }}
+                    onBlur={finishGroupRename}
+                    maxLength={60}
+                    aria-label="Task group name"
+                    className="w-28 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-cream outline-none"
+                  />
+                ) : (
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
+                    {section.key}
+                  </span>
+                )}
                 <span className="h-px flex-1 bg-white/10" />
+                <button
+                  onClick={() => {
+                    setRenamingGroup(section.key);
+                    setRenameDraft(section.key);
+                  }}
+                  title="Rename group"
+                  aria-label={`Rename ${section.key} group`}
+                  className="hover-reveal px-1 text-petal/30 transition hover:text-cream"
+                >
+                  <Pencil size={10} />
+                </button>
                 {/* Armed like the row deletes: ungrouping is unrecoverable
                     (the quick-add select is the only way back INTO a group),
                     so one stray tap mustn't scatter a whole section. */}

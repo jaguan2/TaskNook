@@ -45,4 +45,13 @@ describe("desktop bridge", () => {
     await expect(setDesktopWidgetMode(true)).resolves.toBe(false);
     expect(error).toHaveBeenCalledOnce();
   });
+
+  it("contains a native pin failure", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.window = {
+      pywebview: { api: { set_always_on_top: vi.fn().mockRejectedValue(new Error("no GUI")) } },
+    };
+    await expect(setAlwaysOnTop(true)).resolves.toBe(false);
+    expect(error).toHaveBeenCalledOnce();
+  });
 });

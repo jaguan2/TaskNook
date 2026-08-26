@@ -37,6 +37,8 @@ export default function CalendarPanel() {
   // held in the store: it's one panel's concern, and sessionDays is already
   // refetched wholesale on every refreshAll.
   const [journal, setJournal] = useState(null);
+  const [journalError, setJournalError] = useState("");
+  const [journalRetry, setJournalRetry] = useState(0);
   // Refetch when THIS day's total changes, not on every refreshAll. Finishing a
   // block with the calendar open used to leave the breakdown stale until you
   // clicked another day — the minutes above it updated and the list under them
@@ -47,6 +49,7 @@ export default function CalendarPanel() {
 
   useEffect(() => {
     let live = true;
+    setJournalError("");
     setJournal((current) => (current?.day === selected ? current : null));
     if (selectedMinutes === 0) {
       setJournal({ day: selected, entries: [], total: 0 });
@@ -56,19 +59,20 @@ export default function CalendarPanel() {
     }
     api
       .sessionDay(selected)
-      // A failed lookup leaves the section absent rather than showing an error
-      // row: this is history you glance at, not an action you just took.
       .then((data) => live && setJournal(data))
       .catch((err) => {
         console.error("Failed to load the day's focus:", err);
-        if (live) setJournal({ day: selected, entries: [], total: 0 });
+        if (live) {
+          setJournal(null);
+          setJournalError(err.message || "Couldn't load this day's focus");
+        }
       });
     return () => {
       // The day can change faster than the network answers; without this a
       // slow earlier request lands last and shows the wrong day's focus.
       live = false;
     };
-  }, [selected, selectedMinutes]);
+  }, [selected, selectedMinutes, journalRetry]);
 
   const cells = monthMatrix(view.y, view.m);
   const monthName = new Date(view.y, view.m).toLocaleString([], {
@@ -135,6 +139,11 @@ export default function CalendarPanel() {
     if (m > 11) (m = 0), (y += 1);
     setView({ y, m });
   };
+  const goToday = () => {
+    const now = new Date();
+    setView({ y: now.getFullYear(), m: now.getMonth() });
+    setSelected(localTodayISO());
+  };
 
   return (
     <div className="space-y-4">
@@ -143,7 +152,17 @@ export default function CalendarPanel() {
         aria-label="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronLeft size={15} />
         </button>
-        <p className="text-sm font-semibold text-cream">{monthName}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-cream">{monthName}</p>
+          {(selected !== todayISO || view.y !== new Date().getFullYear() || view.m !== new Date().getMonth()) && (
+            <button
+              onClick={goToday}
+              className="pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-petal hover:bg-white/20"
+            >
+              Today
+            </button>
+          )}
+        </div>
         <button onClick={() => shift(1)} title="Next month"
         aria-label="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronRight size={15} />
@@ -178,6 +197,11 @@ export default function CalendarPanel() {
                   ? "You completed a task this day"
                   : undefined
               }
+              aria-label={`${date.toLocaleDateString([], {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}${span ? `, ${span} focused` : ""}${count ? `, ${count} planned task${count === 1 ? "" : "s"}` : ""}`}
               className={`relative grid h-9 place-items-center rounded-lg text-xs transition ${
                 isSel
                   ? "bg-glow font-bold text-plum"
@@ -265,6 +289,17 @@ export default function CalendarPanel() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {journalError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">
+          <span>Couldn't load this day's focus.</span>
+          <button
+            onClick={() => setJournalRetry((value) => value + 1)}
+            className="pill bg-white/10 px-2 py-1 font-semibold hover:bg-white/20"
+          >
+            Retry
+          </button>
         </div>
       )}
 

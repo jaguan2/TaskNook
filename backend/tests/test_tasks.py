@@ -81,6 +81,38 @@ def test_non_string_group_does_not_crash(client, auth):
     assert res.get_json()["group"] == "42"
 
 
+def test_rename_group_updates_every_member_atomically(client, auth):
+    for name in ("one", "two"):
+        client.post("/api/tasks", json={"name": name, "group": "Work"}, headers=auth)
+
+    res = client.put(
+        "/api/tasks/group",
+        json={"name": "Work", "nextName": "Deep work"},
+        headers=auth,
+    )
+    assert res.status_code == 200
+    assert res.get_json() == {"updated": 2, "name": "Deep work"}
+    assert {task["group"] for task in client.get("/api/tasks", headers=auth).get_json()} == {
+        "Deep work"
+    }
+
+
+def test_rename_group_refuses_an_existing_name(client, auth):
+    client.post("/api/tasks", json={"name": "one", "group": "Work"}, headers=auth)
+    client.post("/api/tasks", json={"name": "two", "group": "Home"}, headers=auth)
+
+    res = client.put(
+        "/api/tasks/group",
+        json={"name": "Work", "nextName": "Home"},
+        headers=auth,
+    )
+    assert res.status_code == 409
+    assert {task["group"] for task in client.get("/api/tasks", headers=auth).get_json()} == {
+        "Work",
+        "Home",
+    }
+
+
 def test_routine_resets_after_a_day(app, client, auth):
     task_id = client.post(
         "/api/tasks", json={"name": "stretch", "routine": True}, headers=auth

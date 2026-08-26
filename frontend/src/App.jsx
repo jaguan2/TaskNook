@@ -89,6 +89,7 @@ export default function App() {
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
+    toggleIsoItem,
     character,
     visiting,
     leaveVisit,
@@ -343,6 +344,7 @@ export default function App() {
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
               onTintItem={setIsoItemTint}
+              onToggleItem={toggleIsoItem}
               /* Walking at home: every persona is grabbable outside Decorate,
                  same rule and same target marker as a visit. Unlike a visit it
                  persists — see `walkIsoPersona`. */

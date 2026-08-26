@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derivePalette, hexToHsl, hslToHex, normalizeHex, PALETTE_VARS } from "./palette";
+import { derivePalette, hexToHsl, hslToHex, normalizeBrightness, normalizeHex, PALETTE_VARS } from "./palette";
 
 // Lightness (0-100) of a "r g b" channel string — the same HSL definition
 // the module uses, so the assertions measure what the CSS actually gets.
@@ -9,6 +9,14 @@ function lightnessOf(channels) {
 }
 
 const PICKS = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"];
+
+describe("normalizeBrightness", () => {
+  it("clamps corrupted or out-of-range display preferences", () => {
+    expect(normalizeBrightness("broken")).toBe(1);
+    expect(normalizeBrightness(0.1)).toBe(0.6);
+    expect(normalizeBrightness(9)).toBe(1.3);
+  });
+});
 
 describe("hex <-> hsl round trip", () => {
   // One colour per hue sextant plus the primaries — the three-branch hue

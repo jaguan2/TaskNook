@@ -129,6 +129,8 @@ export const api = {
   updateTask: (id, payload) => request("PUT", `/tasks/${id}`, payload),
   deleteTask: (id) => request("DELETE", `/tasks/${id}`),
   reorderTasks: (order) => request("PUT", "/tasks/reorder", { order }),
+  renameTaskGroup: (name, nextName) =>
+    request("PUT", "/tasks/group", { name, nextName }),
 
   // room decoration (flat layout + isometric layout travel together)
   getRoom: () => request("GET", "/room"),

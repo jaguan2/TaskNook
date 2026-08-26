@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatClock } from "../lib/time";
+import { formatClock, normalizeFocusMinutes } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { Check, ChevronUp, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
@@ -32,6 +32,8 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
     focusMinutes,
     setFocus,
     focusPresets,
+    chimeVolume,
+    setChimeVolume,
     pomodoro,
     setPomodoro,
     phase,
@@ -45,6 +47,14 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
+  const [customMinutes, setCustomMinutes] = useState(String(focusMinutes));
+  useEffect(() => setCustomMinutes(String(focusMinutes)), [focusMinutes]);
+
+  const applyCustomMinutes = () => {
+    const next = normalizeFocusMinutes(customMinutes, focusMinutes);
+    setCustomMinutes(String(next));
+    setFocus(next);
+  };
   const { activeTask, sessionDays, dailyGoal, unlockBalance } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
@@ -308,7 +318,41 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
                         {m}m
                       </button>
                     ))}
+                    <input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      value={customMinutes}
+                      onChange={(e) => setCustomMinutes(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && applyCustomMinutes()}
+                      disabled={running}
+                      aria-label="Custom focus minutes"
+                      className="w-12 rounded-full bg-white/10 px-2 py-0.5 text-center text-[11px] text-cream outline-none focus:bg-white/15 disabled:opacity-40"
+                    />
+                    <button
+                      onClick={applyCustomMinutes}
+                      disabled={running}
+                      className="pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-petal hover:bg-white/20 disabled:opacity-40"
+                    >
+                      Set
+                    </button>
                   </div>
+                  <label className="mx-auto flex max-w-48 items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                    Chime
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={chimeVolume}
+                      onChange={(e) => setChimeVolume(Number(e.target.value))}
+                      aria-label="Timer chime volume"
+                      className="min-w-0 flex-1 accent-glow"
+                    />
+                    <span className="w-7 text-right normal-case tabular-nums">
+                      {chimeVolume === 0 ? "off" : `${Math.round(chimeVolume * 100)}%`}
+                    </span>
+                  </label>
                   <button
                     onClick={() => setPomodoro({ enabled: !pomodoro.enabled })}
                     className={`pill mx-auto px-3 py-1 text-[11px] font-semibold transition ${

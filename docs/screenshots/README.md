@@ -60,6 +60,6 @@ both the weather and the hour.
 
 | | |
 |---|---|
-| ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, five ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
+| ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, six ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
 | ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and a breakdown of what each one went on |
 | ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, brightness, motion |

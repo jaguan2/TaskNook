@@ -25,6 +25,18 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(orphans).toEqual([]);
   });
 
+  it("dims fairy-light bulbs and removes their halo when switched off", () => {
+    const FairyLights = ISO_SPRITES.fairylights;
+    const { container, rerender } = draw(<FairyLights />);
+
+    expect(container.querySelector('[data-fairy-lights="true"]').dataset.lit).toBe("true");
+    expect(container.querySelector(".room-breathe")).toBeTruthy();
+
+    rerender(<svg><FairyLights lit={false} /></svg>);
+    expect(container.querySelector('[data-fairy-lights="true"]').dataset.lit).toBe("false");
+    expect(container.querySelector(".room-breathe")).toBeNull();
+  });
+
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is

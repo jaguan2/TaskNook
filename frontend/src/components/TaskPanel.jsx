@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Flame, Sparkles, Target } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Sparkles, Target } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
@@ -90,7 +90,11 @@ export default function TaskPanel() {
     setBusy(true);
     try {
       // Guard against an emptied number field (Number("") === 0).
-      await addTask({ name: name.trim(), duration: Math.max(1, Number(duration) || 25), priority });
+      await addTask({
+        name: name.trim(),
+        duration: Math.max(1, Math.min(1440, Math.round(Number(duration) || 25))),
+        priority,
+      });
       setName("");
       setDuration(25);
       setPriority("medium");
@@ -108,6 +112,14 @@ export default function TaskPanel() {
     const [moved] = next.splice(from, 1);
     next.splice(index, 0, moved);
     dragIndex.current = null;
+    reorderTasks(next);
+  };
+  const moveTask = (index, direction) => {
+    const to = index + direction;
+    if (to < 0 || to >= active.length) return;
+    const next = [...active];
+    const [moved] = next.splice(index, 1);
+    next.splice(to, 0, moved);
     reorderTasks(next);
   };
 
@@ -141,6 +153,8 @@ export default function TaskPanel() {
             <input
               type="number"
               min="1"
+              max="1440"
+              aria-label="Estimated minutes"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className="w-full bg-transparent text-cream outline-none"
@@ -148,6 +162,7 @@ export default function TaskPanel() {
             min
           </label>
           <select
+            aria-label="Priority"
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
             className="rounded-xl bg-white/10 px-3 py-2 text-sm text-cream outline-none"
@@ -230,13 +245,43 @@ export default function TaskPanel() {
                 >
                   {task.priority}
                 </span>
+                {task.dueDate && (
+                  <span
+                    title={`Due ${task.dueDate}`}
+                    className={`flex items-center gap-0.5 text-[10px] font-semibold ${
+                      task.dueDate <= localTodayISO() ? "text-danger" : "text-petal/60"
+                    }`}
+                  >
+                    <CalendarClock size={10} /> {task.dueDate.slice(5)}
+                  </span>
+                )}
                 {activeTaskId === task.id && (
                   <span className="text-[10px] font-semibold text-glow">● focusing</span>
                 )}
               </div>
             </button>
             {algorithm === "custom" && (
-              <span className="cursor-grab text-petal/40">⠿</span>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <GripVertical size={13} className="cursor-grab text-petal/40" aria-hidden="true" />
+                <button
+                  onClick={() => moveTask(index, -1)}
+                  disabled={index === 0}
+                  title="Move task up"
+                  aria-label={`Move ${task.name} up`}
+                  className="text-petal/50 hover:text-cream disabled:opacity-20"
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  onClick={() => moveTask(index, 1)}
+                  disabled={index === active.length - 1}
+                  title="Move task down"
+                  aria-label={`Move ${task.name} down`}
+                  className="text-petal/50 hover:text-cream disabled:opacity-20"
+                >
+                  <ChevronDown size={13} />
+                </button>
+              </div>
             )}
             <button
               onClick={() => requestDelete(task.id)}

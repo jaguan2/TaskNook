@@ -348,9 +348,12 @@ The screen has an ownership map — respect it:
   - **The lever is to stop changing `viewBox` mid-gesture**: translate a wrapping
     `<g>` during a pan and fold the offset back into the camera on pointerup, so
     unchanged content is moved rather than redrawn. Prototyped and measured at
-    **12.5ms median, 0 of 135 frames dropped**. Not in the tree — see item 2.2 in
-    `docs/fable_scan_8-7.md` for what's left to finish. Culling offscreen items is
-    the other half of the same idea and is also untouched.
+    **12.5ms median, 0 of 135 frames dropped**. This is now the production
+    path: pointer movement imperatively translates one `data-pan-layer`
+    wrapper, then release folds that offset into `viewBox`. A regression test
+    pins the important half of the contract (`viewBox` does not change during
+    the gesture). Culling offscreen items is the other half of the same idea
+    and remains untouched.
 - Big scenes are memo'd (`IsoRoom`); nothing may reintroduce a per-second
   re-render of thousands of SVG nodes. Props crossing into memo'd scenes must
   be stable (useCallback) or change rarely (booleans like `working`).

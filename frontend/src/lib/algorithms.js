@@ -28,7 +28,7 @@ function alternate(active) {
 export const ALGORITHMS = {
   custom: {
     label: "My order",
-    hint: "Drag to arrange tasks exactly how you like.",
+    hint: "Drag or use the arrows to arrange tasks exactly how you like.",
     icon: "✋",
     sort: (tasks) => {
       const { active, done } = splitDone(tasks);
@@ -77,6 +77,30 @@ export const ALGORITHMS = {
             PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] ||
             a.duration - b.duration
         ),
+        ...done,
+      ];
+    },
+  },
+  deadline: {
+    label: "Due soon",
+    hint: "Nearest deadlines first; undated tasks wait below them.",
+    icon: "📅",
+    sort: (tasks) => {
+      const { active, done } = splitDone(tasks);
+      return [
+        ...active.sort((a, b) => {
+          const aDue = /^\d{4}-\d{2}-\d{2}$/.test(a.dueDate || "")
+            ? a.dueDate
+            : "9999-12-31";
+          const bDue = /^\d{4}-\d{2}-\d{2}$/.test(b.dueDate || "")
+            ? b.dueDate
+            : "9999-12-31";
+          return (
+            aDue.localeCompare(bDue) ||
+            PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] ||
+            a.position - b.position
+          );
+        }),
         ...done,
       ];
     },

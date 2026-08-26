@@ -17,7 +17,12 @@ export function onDesktopApiReady(callback) {
 
 export async function setAlwaysOnTop(value) {
   if (!hasDesktopApi()) return false;
-  return window.pywebview.api.set_always_on_top(value);
+  try {
+    return await window.pywebview.api.set_always_on_top(value);
+  } catch (error) {
+    console.error("Could not change TaskNook's Always On Top state:", error);
+    return false;
+  }
 }
 
 export function hasDesktopWidgetApi() {

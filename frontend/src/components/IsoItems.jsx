@@ -9,6 +9,7 @@ import { Resident, You } from "./character";
 // keeps every living thing in the room reading as one kit.
 import { VolumeDefs, sphereFill } from "./character/volume";
 import { TintedBox } from "./IsoItemPrimitives";
+import { FairyLights } from "./IsoLightingItems";
 import {
   BeachBall,
   BirdBath,
@@ -4771,6 +4772,7 @@ export const ISO_SPRITES = {
   christmastree: ChristmasTree,
   snowangel: SnowAngel,
   christmaslights: ChristmasLights,
+  fairylights: FairyLights,
   chimney: Chimney,
   logstack: LogStack,
   icelantern: IceLantern,

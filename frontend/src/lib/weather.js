@@ -1,5 +1,8 @@
 // Real-world weather via Open-Meteo — free, no API key or account needed.
 // WMO weather codes: https://open-meteo.com/en/docs (see "WMO Weather interpretation codes")
+export const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
+export const TIMES_OF_DAY = ["night", "sunset", "day"];
+export const WEATHER_PRESET_LIMIT = 30;
 const WMO = {
   0: { label: "Clear sky", icon: "☀️", mode: "off" },
   1: { label: "Mostly clear", icon: "🌤️", mode: "off" },
@@ -198,6 +201,59 @@ export async function searchPlaces(name) {
 // A 45-minute window around actual sunrise/sunset reads as "sunset" — the
 // hazy in-between the day/night lighting presets are meant to capture.
 const TWILIGHT_WINDOW_MS = 45 * 60 * 1000;
+
+/** Display temperature in the user's chosen unit without another API fetch. */
+export function temperatureFor(tempF, unit = "F") {
+  if (!Number.isFinite(tempF)) return null;
+  return unit === "C" ? Math.round(((tempF - 32) * 5) / 9) : Math.round(tempF);
+}
+
+/** Rename one saved ambience scene without changing the snapshot itself. */
+export function renameWeatherPreset(presets, oldName, nextName) {
+  const clean = typeof nextName === "string" ? nextName.trim().slice(0, 60) : "";
+  const from = presets.findIndex((preset) => preset.name === oldName);
+  if (!clean || from < 0 || clean === oldName) return presets;
+  if (presets.some((preset, index) => index !== from && preset.name === clean)) return presets;
+  return presets.map((preset, index) =>
+    index === from ? { ...preset, name: clean } : preset
+  );
+}
+
+/** Move one saved ambience scene by one slot, clamping at either end. */
+export function moveWeatherPreset(presets, name, direction) {
+  const from = presets.findIndex((preset) => preset.name === name);
+  if (from < 0) return presets;
+  const to = Math.max(0, Math.min(presets.length - 1, from + Math.sign(direction)));
+  if (to === from) return presets;
+  const next = [...presets];
+  const [preset] = next.splice(from, 1);
+  next.splice(to, 0, preset);
+  return next;
+}
+
+/** Validate the device-local ambience snapshots before rendering their names. */
+export function validateWeatherPresets(raw) {
+  if (!Array.isArray(raw)) return [];
+  const clean = [];
+  const names = new Set();
+  for (const preset of raw) {
+    if (!preset || typeof preset !== "object") continue;
+    const name = typeof preset.name === "string" ? preset.name.trim().slice(0, 60) : "";
+    if (!name || names.has(name)) continue;
+    if (!WEATHER_MODES.includes(preset.weatherMode) || !TIMES_OF_DAY.includes(preset.timeOfDay)) continue;
+    names.add(name);
+    clean.push({
+      name,
+      weatherMode: preset.weatherMode,
+      timeOfDay: preset.timeOfDay,
+      ...(preset.soundMix && typeof preset.soundMix === "object" && !Array.isArray(preset.soundMix)
+        ? { soundMix: preset.soundMix }
+        : {}),
+    });
+    if (clean.length >= WEATHER_PRESET_LIMIT) break;
+  }
+  return clean;
+}
 
 export async function fetchCurrentWeather(lat, lon) {
   // timeformat=unixtime matters: the default is a LOCAL-time ISO string with

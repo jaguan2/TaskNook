@@ -20,6 +20,14 @@ export function formatClock(seconds, { padMinutes = false } = {}) {
   return `${padMinutes ? String(m).padStart(2, "0") : m}:${s}`;
 }
 
+/** A focus block is at least one minute and never longer than one day. */
+export function normalizeFocusMinutes(value, fallback = 25) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes)) return fallback;
+  return Math.max(1, Math.min(24 * 60, Math.round(minutes)));
+}
+
 /**
  * What a clock anchored at `at` with `base` seconds reads at `now`.
  *

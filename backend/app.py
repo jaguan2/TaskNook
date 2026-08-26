@@ -592,6 +592,33 @@ def register_routes(app):
         db.session.commit()
         return jsonify({"ok": True})
 
+    @app.put("/api/tasks/group")
+    @require_auth
+    def rename_task_group(user):
+        """Rename one user's task group atomically.
+
+        The client used to issue one PUT per task. A network failure halfway
+        through split a single group into two names, which is worse than a
+        refused rename. One SQL UPDATE makes the operation all-or-nothing.
+        Empty group headings remain client-side and never call this route.
+        """
+        data = json_body()
+        if not isinstance(data.get("name"), str) or not isinstance(data.get("nextName"), str):
+            return jsonify({"error": "Group names are required"}), 400
+        name = clean_str(data["name"], GROUP_NAME_MAX)
+        next_name = clean_str(data["nextName"], GROUP_NAME_MAX)
+        if not name or not next_name or name == next_name:
+            return jsonify({"error": "Two different group names are required"}), 400
+        if Task.query.filter_by(user_id=user.id, group_name=next_name).first():
+            return jsonify({"error": "That task group already exists"}), 409
+        updated = Task.query.filter_by(user_id=user.id, group_name=name).update(
+            {"group_name": next_name}, synchronize_session=False
+        )
+        if not updated:
+            return jsonify({"error": "Task group not found"}), 404
+        db.session.commit()
+        return jsonify({"updated": updated, "name": next_name})
+
     @app.put("/api/tasks/reorder")
     @require_auth
     def reorder_tasks(user):
@@ -797,6 +824,15 @@ def register_routes(app):
                 if look not in PET_LOOKS:
                     return None, False
                 entry["look"] = look
+            # Optional powered-state marker. The frontend only retains it for
+            # toggleable catalog pieces; the backend stays catalog-agnostic and
+            # merely guarantees that the stored shape is a real boolean.
+            off = p.get("off")
+            if off is not None:
+                if not isinstance(off, bool):
+                    return None, False
+                if off:
+                    entry["off"] = True
             clean.append(entry)
         return clean, True
 

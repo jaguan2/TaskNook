@@ -8,9 +8,9 @@ import {
   useState,
 } from "react";
 import { api } from "./lib/api";
-import { playChime } from "./lib/audio";
+import { normalizeChimeVolume, playChime } from "./lib/audio";
 import { readJSON, readStored, writeStored } from "./lib/storage";
-import { elapsedFrom, remainingFrom } from "./lib/time";
+import { elapsedFrom, normalizeFocusMinutes, remainingFrom } from "./lib/time";
 import {
   BREAK_NUDGE_MINUTES,
   PRESENCE_TICK_SECONDS,
@@ -62,8 +62,10 @@ export const useTimerStatus = () => useContext(TimerStatusContext);
 export function TimerProvider({ children }) {
   const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend } = useStore();
 
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [remaining, setRemaining] = useState(25 * 60);
+  const [focusMinutes, setFocusMinutes] = useState(() =>
+    normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 25)
+  );
+  const [remaining, setRemaining] = useState(() => focusMinutes * 60);
   const [running, setRunning] = useState(false);
   const tickRef = useRef(null);
   // "timer" counts down to a target; "stopwatch" counts up open-ended and
@@ -92,7 +94,7 @@ export function TimerProvider({ children }) {
    * A ref, not state: it changes in the same breath as the value it describes,
    * and nothing renders from it.
    */
-  const clockRef = useRef({ at: Date.now(), base: 25 * 60 });
+  const clockRef = useRef({ at: Date.now(), base: focusMinutes * 60 });
 
   /**
    * Set the countdown AND re-anchor it. Every write to `remaining` goes through
@@ -145,6 +147,14 @@ export function TimerProvider({ children }) {
   }));
   const [phase, setPhase] = useState("focus"); // "focus" | "break"
   const [round, setRound] = useState(1);
+  const [chimeVolume, setChimeVolumeState] = useState(() =>
+    normalizeChimeVolume(readStored("tasknook.chimeVolume"))
+  );
+  const setChimeVolume = (value) => {
+    const next = normalizeChimeVolume(value);
+    setChimeVolumeState(next);
+    writeStored("tasknook.chimeVolume", String(next));
+  };
 
   // Mid-session ±time nudges (VC2-style). Tracked separately so the progress
   // bar's total stretches with the block and the logged session reflects the
@@ -201,8 +211,10 @@ export function TimerProvider({ children }) {
     // control, is what's unsafe — the Pomodoro settings take the same care
     // (see setPomodoro) and any future caller inherits it.
     if (running) return;
-    setFocusMinutes(minutes);
-    setClock(minutes * 60);
+    const next = normalizeFocusMinutes(minutes, focusMinutes);
+    setFocusMinutes(next);
+    writeStored("tasknook.focusMinutes", String(next));
+    setClock(next * 60);
     setPhase("focus");
     setRound(1);
     setNudgeSeconds(0);
@@ -270,7 +282,7 @@ export function TimerProvider({ children }) {
   const handlePhaseComplete = useCallback(async () => {
     // A soft in-app chime marks every phase edge for someone at the screen;
     // the system notification covers whoever stepped away.
-    playChime();
+    playChime(chimeVolume);
     if (phase === "break") {
       setPhase("focus");
       setRound((r) => r + 1);
@@ -312,7 +324,7 @@ export function TimerProvider({ children }) {
     }
     // `setClock` is a stable useCallback with no deps of its own, so listing it
     // costs nothing and keeps the rule satisfied honestly rather than suppressed.
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock]);
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock, chimeVolume]);
 
   // Ends a break early and moves straight into the next focus round — before
   // this, the only way out of a break was ✕, which discards the whole cycle.
@@ -457,6 +469,8 @@ export function TimerProvider({ children }) {
     focusMinutes,
     setFocus,
     focusPresets: FOCUS_PRESETS,
+    chimeVolume,
+    setChimeVolume,
     remaining,
     running,
     startTimer,

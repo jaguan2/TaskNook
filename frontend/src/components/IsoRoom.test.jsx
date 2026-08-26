@@ -3,8 +3,8 @@
 // tags. Nothing else renders IsoRoom in tests, so before this existed a
 // throw in the personas/label layer would have shipped uncaught — the scene
 // ErrorBoundary's fallback would be the first anyone heard of it.
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
 import { WALL_H } from "../lib/iso";
 import { resolveVisitRoom } from "../lib/visiting";
@@ -72,6 +72,74 @@ describe("IsoRoom while visiting", () => {
       />
     );
     expect(grabCursors(container).length).toBe(1);
+  });
+});
+
+describe("powered room decorations", () => {
+  const SIZE = { w: 6, d: 6 };
+  const LIGHTS = [{ id: "fairy", item: "fairylights", gx: 0, gy: 2 }];
+
+  it("toggles fairy lights directly outside Decorate mode", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom size={SIZE} placements={LIGHTS} saveView={false} onToggleItem={onToggleItem} />
+    );
+
+    const lights = container.querySelector('[data-placement-id="fairy"]');
+    expect(lights.style.cursor).toBe("pointer");
+    fireEvent.pointerDown(lights);
+    expect(onToggleItem).toHaveBeenCalledWith("fairy");
+  });
+
+  it("removes the room light pool while switched off", () => {
+    const props = { size: SIZE, saveView: false, timeOfDay: "night" };
+    const { container, rerender } = render(<IsoRoom {...props} placements={LIGHTS} />);
+    expect(container.querySelector('[data-item-glow="fairy"]')).toBeTruthy();
+
+    rerender(<IsoRoom {...props} placements={[{ ...LIGHTS[0], off: true }]} />);
+    expect(container.querySelector('[data-item-glow="fairy"]')).toBeNull();
+  });
+
+  it("offers a power button on the selected decoration in Decorate mode", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom
+        size={SIZE}
+        placements={LIGHTS}
+        editMode
+        saveView={false}
+        onToggleItem={onToggleItem}
+      />
+    );
+
+    container.querySelector("svg").getScreenCTM = () => null;
+    fireEvent.pointerDown(container.querySelector('[data-placement-id="fairy"]'));
+    const power = container.querySelector('[data-power-toggle="fairy"]');
+    expect(power).toBeTruthy();
+    fireEvent.pointerDown(power);
+    expect(onToggleItem).toHaveBeenCalledWith("fairy");
+  });
+});
+
+describe("camera panning", () => {
+  it("composites one translated layer during the gesture and commits viewBox on release", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 9, d: 7 }} placements={[]} saveView={false} />
+    );
+    const svg = container.querySelector("svg");
+    const layer = container.querySelector('[data-pan-layer="true"]');
+    svg.getBoundingClientRect = () => ({ width: 1000, height: 500 });
+    svg.setPointerCapture = vi.fn();
+    const before = svg.getAttribute("viewBox");
+
+    fireEvent.pointerDown(svg, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    expect(svg.getAttribute("viewBox")).toBe(before);
+    expect(layer.getAttribute("transform")).toBe("translate(64 48)");
+
+    fireEvent.pointerUp(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    expect(layer.hasAttribute("transform")).toBe(false);
+    expect(svg.getAttribute("viewBox")).toBe("-64 -48 640 480");
   });
 });
 

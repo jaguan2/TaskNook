@@ -20,6 +20,16 @@ export const SOUND_CHANNELS = [
   { key: "paper", label: "Page turns", icon: "📖" },
 ];
 
+/** Keep a persisted mixer snapshot on known channels and legal gain values. */
+export function normalizeSoundMix(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean = {};
+  for (const { key } of SOUND_CHANNELS) {
+    if (key in raw) clean[key] = Math.max(0, Math.min(1, Number(raw[key]) || 0));
+  }
+  return clean;
+}
+
 const NOISE_PRESETS = {
   // Rain reads as rain (not radio static) because of the droplet plinks the
   // channel schedules on top — the noise bed itself stays dark and soft.
@@ -375,7 +385,16 @@ export function applyMix(mix) {
 // no-files philosophy as the ambience. Deliberately quiet: it marks the
 // moment for someone in the room, it doesn't demand attention. System
 // notifications cover the stepped-away case.
-export function playChime() {
+export function normalizeChimeVolume(value) {
+  if (value === null || value === undefined || value === "") return 1;
+  const level = Number(value);
+  if (!Number.isFinite(level)) return 1;
+  return Math.max(0, Math.min(1, level));
+}
+
+export function playChime(volume = 1) {
+  const level = normalizeChimeVolume(volume);
+  if (level === 0) return;
   const context = ensureContext();
   const now = context.currentTime;
   [523.25, 783.99].forEach((freq, i) => {
@@ -385,7 +404,7 @@ export function playChime() {
     const env = context.createGain();
     const t = now + i * 0.16;
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(0.07, t + 0.02);
+    env.gain.linearRampToValueAtTime(0.07 * level, t + 0.02);
     env.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
     osc.connect(env).connect(context.destination);
     osc.start(t);

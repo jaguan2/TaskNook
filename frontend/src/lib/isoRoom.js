@@ -308,6 +308,7 @@ export const ISO_ITEMS = {
   curtain: { label: "Curtains", icon: "🪟", foot: [1.6, 0.3], wall: true, hitH: 110 },
   hangplant: { label: "Hanging plant", icon: "🌿", foot: [0.7, 0.3], wall: true, hitH: 110 },
   neon: { label: "Neon sign", icon: "💡", foot: [1.4, 0.3], wall: true, hitH: 94, glow: [30, 0.4] },
+  fairylights: { label: "Fairy lights", icon: "✨", foot: [2, 0.3], wall: true, hitH: 104, tintable: false, toggleable: true, glow: [22, 0.16] },
   sconce: { label: "Wall sconce", icon: "🕯️", foot: [0.6, 0.3], wall: true, hitH: 96, flicker: true, glow: [17, 0.34] },
   pendant: { label: "Pendant light", icon: "💡", foot: [0.8, 0.3], wall: true, hitH: 118, glow: [27, 0.5] },
   corkboard: { label: "Corkboard", icon: "📌", foot: [1.2, 0.3], wall: true, hitH: 100 },
@@ -424,7 +425,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "On the wall",
     keys: ["frame", "poster", "wallshelf", "mirror", "wallclock", "menuboard", "corkboard",
-      "pennant", "neon", "sconce", "pendant", "curtain", "hangplant"],
+      "pennant", "neon", "fairylights", "sconce", "pendant", "curtain", "hangplant"],
   },
   {
     label: "Kitchen",
@@ -1452,6 +1453,7 @@ export function validateIsoLayout(raw) {
       ...(name && { name }),
       ...(temper && { temper }),
       ...(look && { look }),
+      ...(ISO_ITEMS[p.item].toggleable && p.off === true && { off: true }),
     });
     if (clean.length >= ISO_MAX_ITEMS) break;
   }

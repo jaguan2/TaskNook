@@ -21,8 +21,14 @@ const RAMP = [
 ];
 
 export const PALETTE_VARS = RAMP.map(([name]) => name);
+export const COLOR_SCHEME_KEYS = ["plum", "abyss", "shore", "linen", "walnut", "custom"];
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+export function normalizeBrightness(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? clamp(number, 0.6, 1.3) : 1;
+}
 
 export function hexToHsl(hex) {
   let clean = String(hex).replace("#", "").trim();

@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchCurrentWeather,
   formatPopulation,
+  moveWeatherPreset,
   nextRandomWeather,
   RANDOM_WEATHER_INTERVAL_MS,
   searchPlaces,
+  temperatureFor,
+  renameWeatherPreset,
+  validateWeatherPresets,
 } from "./weather";
 
 /** Reply to the next fetch with this JSON body. */
@@ -16,6 +20,51 @@ function respond(body, ok = true) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("temperatureFor", () => {
+  it("converts Fahrenheit readings for metric display", () => {
+    expect(temperatureFor(32, "C")).toBe(0);
+    expect(temperatureFor(77, "C")).toBe(25);
+    expect(temperatureFor(68, "F")).toBe(68);
+  });
+
+  it("keeps missing readings empty", () => {
+    expect(temperatureFor(null, "C")).toBeNull();
+    expect(temperatureFor(Number.NaN, "F")).toBeNull();
+  });
+});
+
+describe("saved weather presets", () => {
+  const presets = [
+    { name: "Rainy desk", weatherMode: "rain" },
+    { name: "Snow day", weatherMode: "snow" },
+  ];
+
+  it("renames a scene without replacing its saved settings", () => {
+    expect(renameWeatherPreset(presets, "Rainy desk", "  Storm study  ")).toEqual([
+      { name: "Storm study", weatherMode: "rain" },
+      presets[1],
+    ]);
+    expect(renameWeatherPreset(presets, "Rainy desk", "Snow day")).toBe(presets);
+  });
+
+  it("moves a scene and refuses to move beyond either edge", () => {
+    expect(moveWeatherPreset(presets, "Rainy desk", 1).map((p) => p.name)).toEqual([
+      "Snow day",
+      "Rainy desk",
+    ]);
+    expect(moveWeatherPreset(presets, "Rainy desk", -1)).toBe(presets);
+  });
+
+  it("drops malformed and duplicate cached scenes", () => {
+    expect(validateWeatherPresets([
+      { name: " Rain ", weatherMode: "rain", timeOfDay: "night", evil: true },
+      { name: "Rain", weatherMode: "snow", timeOfDay: "day" },
+      { name: "Space", weatherMode: "meteors", timeOfDay: "night" },
+      null,
+    ])).toEqual([{ name: "Rain", weatherMode: "rain", timeOfDay: "night" }]);
+  });
+});
 
 const place = (over = {}) => ({
   id: 1,

@@ -67,6 +67,14 @@ describe("iso catalog integrity", () => {
       expect(ISO_ITEMS[key], `catalog entry for ${key}`).toBeTruthy();
     }
   });
+
+  it("keeps fairy lights as dim wall ambience", () => {
+    const fairyLights = ISO_ITEMS.fairylights;
+    expect(fairyLights.wall).toBe(true);
+    expect(fairyLights.toggleable).toBe(true);
+    expect(fairyLights.glow[1]).toBeLessThanOrEqual(0.2);
+    expect(fairyLights.glow[1]).toBeLessThan(ISO_ITEMS.sconce.glow[1]);
+  });
 });
 
 describe("the picker's sections cover the catalog", () => {
@@ -378,6 +386,22 @@ describe("validateIsoLayout", () => {
     expect(out.placements.map((p) => p.id)).toEqual(["a", "d"]);
     expect(out.placements[0].tint).toBe("#6fb8cf");
     expect(out.placements[1].tint).toBeUndefined();
+  });
+
+  it("persists an off switch only for toggleable decorations", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "off", item: "fairylights", gx: 0, gy: 2, off: true },
+        { id: "on", item: "fairylights", gx: 0, gy: 4, off: false },
+        { id: "chair", item: "stool", gx: 4, gy: 4, off: true },
+      ],
+    });
+
+    expect(out.placements.find((p) => p.id === "off").off).toBe(true);
+    expect(out.placements.find((p) => p.id === "on").off).toBeUndefined();
+    expect(out.placements.find((p) => p.id === "chair").off).toBeUndefined();
   });
 
   it("keeps a pet's name and temper, cleans bad ones, refuses them on furniture", () => {

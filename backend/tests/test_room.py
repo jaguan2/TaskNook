@@ -335,6 +335,33 @@ def test_iso_roundtrips_a_rotation(client, auth):
     assert "rot" not in saved["placements"][0]
 
 
+def test_iso_roundtrips_powered_state(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [
+            {"id": "lights-off", "item": "fairylights", "gx": 0, "gy": 2, "off": True},
+            {"id": "lights-on", "item": "fairylights", "gx": 0, "gy": 5, "off": False},
+        ],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]["placements"]
+    assert saved[0]["off"] is True
+    assert "off" not in saved[1]
+
+
+@pytest.mark.parametrize("bad_off", [0, 1, "false", [], {}])
+def test_iso_rejects_malformed_powered_state(client, auth, bad_off):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [
+            {"id": "lights", "item": "fairylights", "gx": 0, "gy": 2, "off": bad_off}
+        ],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
 def test_iso_roundtrips_wall_finishes_and_lighting(client, auth):
     iso = {
         "w": 9,

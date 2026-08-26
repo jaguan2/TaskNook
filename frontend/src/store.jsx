@@ -12,7 +12,7 @@ import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./li
 import { toISO } from "./lib/dates";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
-import { normalizeHex } from "./lib/palette";
+import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
@@ -30,14 +30,29 @@ import {
 const CHECKIN_KEY = "tasknook.chat.checkin";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
-import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
-import { resolveMusicLink, stationKey } from "./lib/musicLink";
+import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
 import {
+  CUSTOM_STATION_LIMIT,
+  moveStation,
+  renameStation,
+  resolveMusicLink,
+  stationKey,
+  validateCustomStations,
+} from "./lib/musicLink";
+import { TASK_GROUP_LIMIT, TASK_GROUP_MAX, validateTaskGroups } from "./lib/taskGroups";
+import { createWriteQueue } from "./lib/writeQueue";
+import {
+  TIMES_OF_DAY,
+  WEATHER_MODES,
+  WEATHER_PRESET_LIMIT,
   locateBrowser,
   searchPlaces,
   fetchCurrentWeather,
+  moveWeatherPreset,
   nextRandomWeather,
   RANDOM_WEATHER_INTERVAL_MS,
+  renameWeatherPreset,
+  validateWeatherPresets,
 } from "./lib/weather";
 import {
   MAX_ITEMS,
@@ -66,11 +81,6 @@ import {
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
-
-// The two ambience axes, whitelisted because both are restored from
-// localStorage and both index into lookup tables in the scene components.
-const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
-const TIMES_OF_DAY = ["night", "sunset", "day"];
 
 // Which persistent HUD surfaces a viewer can dial back — "on" (default),
 // "faded" (dimmed but still there/interactive), or "hidden" (visibility:
@@ -189,13 +199,20 @@ export function StoreProvider({ children }) {
     const saved = readStored("tasknook.weatherMode");
     return WEATHER_MODES.includes(saved) ? saved : "off";
   });
+  const [weatherUnit, setWeatherUnitState] = useState(() =>
+    readStored("tasknook.weatherUnit") === "C" ? "C" : "F"
+  );
+  const setWeatherUnit = useCallback((unit) => {
+    const next = unit === "C" ? "C" : "F";
+    setWeatherUnitState(next);
+    writeStored("tasknook.weatherUnit", next);
+  }, []);
   // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, cafe,
   // paper).
   // Slider positions persist; actual audio only starts from a user gesture.
   const [soundMix, setSoundMixState] = useState(() => {
     try {
-      const saved = readJSON("tasknook.soundMix", {});
-      return saved && typeof saved === "object" ? saved : {};
+      return normalizeSoundMix(readJSON("tasknook.soundMix", {}));
     } catch {
       return {};
     }
@@ -330,8 +347,7 @@ export function StoreProvider({ children }) {
   const weatherModeRef = useRef(weatherMode);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
-      const saved = readJSON("tasknook.weather.presets", []);
-      return Array.isArray(saved) ? saved : [];
+      return validateWeatherPresets(readJSON("tasknook.weather.presets", []));
     } catch {
       return [];
     }
@@ -351,12 +367,15 @@ export function StoreProvider({ children }) {
   };
 
   // ---- Settings ----
-  const [brightness, setBrightnessState] = useState(
-    () => Number(readStored("tasknook.brightness")) || 1
+  const [brightness, setBrightnessState] = useState(() =>
+    normalizeBrightness(readStored("tasknook.brightness"))
   );
-  const [colorScheme, setColorSchemeState] = useState(
-    () => readStored("tasknook.colorScheme") || "plum"
-  );
+  const weatherFetchRef = useRef({ id: 0, active: false });
+  const weatherSearchRef = useRef(0);
+  const [colorScheme, setColorSchemeState] = useState(() => {
+    const saved = readStored("tasknook.colorScheme");
+    return COLOR_SCHEME_KEYS.includes(saved) ? saved : "plum";
+  });
   // Base colour for the "custom" scheme; the full ramp is derived from its
   // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
   // normalizeHex on load: a corrupt value would derive "NaN NaN NaN" for
@@ -428,8 +447,7 @@ export function StoreProvider({ children }) {
 
   const [customStations, setCustomStations] = useState(() => {
     try {
-      const saved = readJSON("tasknook.music.custom", []);
-      return Array.isArray(saved) ? saved : [];
+      return validateCustomStations(readJSON("tasknook.music.custom", []));
     } catch {
       return [];
     }
@@ -672,6 +690,19 @@ export function StoreProvider({ children }) {
       }),
     }));
   }, []);
+  const toggleIsoItem = useCallback((id) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.map((p) => {
+        if (p.id !== id || !ISO_ITEMS[p.item]?.toggleable) return p;
+        if (p.off) {
+          const { off: _dropped, ...rest } = p;
+          return rest;
+        }
+        return { ...p, off: true };
+      }),
+    }));
+  }, []);
   // Reshaping the room runs the layout back through the validator, and the
   // validator is allowed to DELETE: wall art has nowhere to hang outdoors, and
   // a floor that just shrank may have no free spot left for a piece. That's
@@ -877,6 +908,12 @@ export function StoreProvider({ children }) {
   // directly.
   const profileRef = useRef(profile);
   const characterRef = useRef(character);
+  // These endpoints receive full snapshots. Keep writes ordered so a slow
+  // older request cannot arrive last and replace a newer choice in SQLite.
+  const profileWriteRef = useRef(null);
+  const characterWriteRef = useRef(null);
+  if (!profileWriteRef.current) profileWriteRef.current = createWriteQueue(api.saveProfile);
+  if (!characterWriteRef.current) characterWriteRef.current = createWriteQueue(api.saveProfile);
   // Who YOU are, for code that runs on a timer: a scheduled bot reply has to
   // know which members are "the others", and the closure that scheduled it may
   // be several renders stale by the time it fires.
@@ -1164,7 +1201,7 @@ export function StoreProvider({ children }) {
       setProfile(next); // optimistic: the form must not lag a keystroke behind
       try {
         const { displayName, ...rest } = next;
-        await api.saveProfile({
+        await profileWriteRef.current({
           ...(displayName ? { displayName } : {}),
           profile: rest,
         });
@@ -1185,7 +1222,7 @@ export function StoreProvider({ children }) {
       // request shouldn't undo a choice the user can see on screen.
       writeStored("tasknook.character", JSON.stringify(next));
       try {
-        await api.saveProfile({ character: next });
+        await characterWriteRef.current({ character: next });
       } catch (err) {
         console.error("Failed to save character:", err);
         showToast("Couldn't save your character — it's still saved on this device 🌧️");
@@ -1254,8 +1291,7 @@ export function StoreProvider({ children }) {
   // until its first task arrives.
   const [emptyGroups, setEmptyGroups] = useState(() => {
     try {
-      const saved = readJSON("tasknook.taskGroups", []);
-      return Array.isArray(saved) ? saved.filter((g) => typeof g === "string") : [];
+      return validateTaskGroups(readJSON("tasknook.taskGroups", []));
     } catch {
       return [];
     }
@@ -1272,8 +1308,16 @@ export function StoreProvider({ children }) {
     [tasks, emptyGroups]
   );
   const addTaskGroup = (name) => {
-    const trimmed = name.trim().slice(0, 60);
-    if (!trimmed || taskGroups.includes(trimmed)) return false;
+    const trimmed = name.trim().slice(0, TASK_GROUP_MAX);
+    if (!trimmed) return false;
+    if (taskGroups.includes(trimmed)) {
+      showToast("That task group already exists 🌿");
+      return false;
+    }
+    if (taskGroups.length >= TASK_GROUP_LIMIT) {
+      showToast(`That's all ${TASK_GROUP_LIMIT} task groups — remove one first 🌿`);
+      return false;
+    }
     persistEmptyGroups([...emptyGroups, trimmed]);
     return true;
   };
@@ -1289,6 +1333,27 @@ export function StoreProvider({ children }) {
     } catch (err) {
       console.error("Failed to ungroup tasks:", err);
       showToast("Couldn't ungroup those tasks 🌧️");
+    }
+  };
+  const renameTaskGroup = async (name, nextName) => {
+    const clean = typeof nextName === "string" ? nextName.trim().slice(0, TASK_GROUP_MAX) : "";
+    if (!clean || clean === name) return false;
+    if (taskGroups.includes(clean)) {
+      showToast("That task group already exists 🌿");
+      return false;
+    }
+    const affected = tasks.filter((task) => task.group === name);
+    try {
+      if (affected.length) await api.renameTaskGroup(name, clean);
+      persistEmptyGroups(
+        [...new Set(emptyGroups.map((group) => (group === name ? clean : group)).concat(clean))]
+      );
+      if (affected.length) await refreshTasks();
+      return true;
+    } catch (err) {
+      console.error("Failed to rename the task group:", err);
+      showToast("Couldn't rename that task group 🌧️");
+      return false;
     }
   };
   const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
@@ -1846,13 +1911,19 @@ export function StoreProvider({ children }) {
   // A named snapshot of the whole ambience "scene" — weather visual, time of
   // day, and the full sound mix — recalled in one click.
   const saveWeatherPreset = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+    const trimmed = name.trim().slice(0, 60);
+    if (!trimmed) return false;
+    const replacing = weatherPresets.some((preset) => preset.name === trimmed);
+    if (!replacing && weatherPresets.length >= WEATHER_PRESET_LIMIT) {
+      showToast(`That's all ${WEATHER_PRESET_LIMIT} saved scenes — remove one first 🌿`);
+      return false;
+    }
     const preset = { name: trimmed, weatherMode, timeOfDay, soundMix };
     // Persist outside the updater (purity — StrictMode double-invokes them).
     const next = [...weatherPresets.filter((p) => p.name !== trimmed), preset];
     writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
+    return true;
   };
   const applyWeatherPreset = (name) => {
     const preset = weatherPresets.find((p) => p.name === name);
@@ -1887,14 +1958,36 @@ export function StoreProvider({ children }) {
     const next = weatherPresets.filter((p) => p.name !== name);
     writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
+    return true;
+  };
+  const renameSavedWeatherPreset = (name, nextName) => {
+    const clean = nextName.trim().slice(0, 60);
+    if (clean === name) return true;
+    const next = renameWeatherPreset(weatherPresets, name, nextName);
+    if (next === weatherPresets) {
+      showToast("Choose a unique name for that scene 🌿");
+      return false;
+    }
+    writeJSON("tasknook.weather.presets", next);
+    setWeatherPresets(next);
+    return true;
+  };
+  const moveSavedWeatherPreset = (name, direction) => {
+    const next = moveWeatherPreset(weatherPresets, name, direction);
+    if (next === weatherPresets) return false;
+    writeJSON("tasknook.weather.presets", next);
+    setWeatherPresets(next);
+    return true;
   };
 
   // ---------- Settings ----------
   const setBrightness = (v) => {
-    setBrightnessState(v);
-    writeStored("tasknook.brightness", String(v));
+    const clean = normalizeBrightness(v);
+    setBrightnessState(clean);
+    writeStored("tasknook.brightness", String(clean));
   };
   const setColorScheme = (scheme) => {
+    if (!COLOR_SCHEME_KEYS.includes(scheme)) return;
     setColorSchemeState(scheme);
     writeStored("tasknook.colorScheme", scheme);
   };
@@ -1930,15 +2023,23 @@ export function StoreProvider({ children }) {
    * triggered gets to report failure.
    */
   const refreshRealWeather = useCallback(async (coordsOverride, { background = false } = {}) => {
+    // A quiet poll never gets to supersede a location/search the user just
+    // requested. Foreground requests do supersede older work, and only the
+    // newest response may write the shared weather state.
+    if (background && weatherFetchRef.current.active) return false;
+    const requestId = weatherFetchRef.current.id + 1;
+    weatherFetchRef.current = { id: requestId, active: true };
     if (!background) {
       setWeatherStatus("loading");
       setWeatherError("");
     }
     try {
       const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
+      if (requestId !== weatherFetchRef.current.id) return false;
       weatherCoordsRef.current = coords;
       writeStored("tasknook.weather.coords", JSON.stringify(coords));
       const data = await fetchCurrentWeather(coords.lat, coords.lon);
+      if (requestId !== weatherFetchRef.current.id) return false;
       setRealWeather(data);
       setWeatherStatus("ready");
       if (autoMatchRef.current) {
@@ -1948,15 +2049,23 @@ export function StoreProvider({ children }) {
         setTimeOfDayState(data.timeOfDay);
         writeStored("tasknook.timeOfDay", data.timeOfDay);
       }
+      return true;
     } catch (err) {
-      if (background) return; // keep the last good reading and stay quiet
+      if (requestId !== weatherFetchRef.current.id) return false;
+      if (background) return false; // keep the last good reading and stay quiet
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't get the weather");
+      return false;
+    } finally {
+      if (requestId === weatherFetchRef.current.id) {
+        weatherFetchRef.current = { id: requestId, active: false };
+      }
     }
   }, []);
 
   /** Commit to one place: remember it and fetch its weather. */
   const chooseWeatherPlace = async (place) => {
+    weatherSearchRef.current += 1;
     setWeatherPlaces([]);
     setWeatherLocationLabel(place.label);
     writeStored("tasknook.weather.location", place.label);
@@ -1964,11 +2073,14 @@ export function StoreProvider({ children }) {
   };
 
   const searchWeatherCity = async (name) => {
+    const searchId = weatherSearchRef.current + 1;
+    weatherSearchRef.current = searchId;
     setWeatherStatus("loading");
     setWeatherError("");
     setWeatherPlaces([]);
     try {
       const places = await searchPlaces(name);
+      if (searchId !== weatherSearchRef.current) return;
       // One match is unambiguous — don't make someone confirm it. Several
       // means the name is genuinely shared (Gainesville is in Florida AND
       // Alabama), and guessing for them is how you end up showing the wrong
@@ -1980,6 +2092,7 @@ export function StoreProvider({ children }) {
       setWeatherPlaces(places);
       setWeatherStatus("idle");
     } catch (err) {
+      if (searchId !== weatherSearchRef.current) return;
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't find that place");
     }
@@ -2079,13 +2192,17 @@ export function StoreProvider({ children }) {
   };
 
   // Adds (and switches to) a station from a pasted YouTube or Spotify link.
-  // Returns false if no video/playlist could be parsed, so the UI can show an error.
+  // Returns a short status so the UI can distinguish a bad link from a full list.
   const addCustomStation = (url, label) => {
     const resolved = resolveMusicLink(url);
-    if (!resolved) return false;
+    if (!resolved) return "invalid";
     const station = { ...resolved, label: label.trim() || "custom station 🎧", custom: true };
     const key = stationKey(station);
     if (!musicStations.some((s) => stationKey(s) === key)) {
+      if (customStations.length >= CUSTOM_STATION_LIMIT) {
+        showToast(`That's all ${CUSTOM_STATION_LIMIT} custom stations — remove one first 🎧`);
+        return "limit";
+      }
       const next = [...customStations, station];
       setCustomStations(next);
       writeStored("tasknook.music.custom", JSON.stringify(next));
@@ -2100,6 +2217,22 @@ export function StoreProvider({ children }) {
     setCustomStations(next);
     writeStored("tasknook.music.custom", JSON.stringify(next));
     if (activeStationKey === key) setStation(stationKey(BUILT_IN_STATIONS[0]));
+  };
+
+  const renameCustomStation = (station, label) => {
+    const next = renameStation(customStations, stationKey(station), label);
+    if (next === customStations) return false;
+    setCustomStations(next);
+    writeJSON("tasknook.music.custom", next);
+    return true;
+  };
+
+  const moveCustomStation = (station, direction) => {
+    const next = moveStation(customStations, stationKey(station), direction);
+    if (next === customStations) return false;
+    setCustomStations(next);
+    writeJSON("tasknook.music.custom", next);
+    return true;
   };
 
   // ---------- Room actions ----------
@@ -2172,6 +2305,7 @@ export function StoreProvider({ children }) {
     taskGroups,
     addTaskGroup,
     removeTaskGroup,
+    renameTaskGroup,
     toggleRoutine,
 
     algorithm,
@@ -2226,6 +2360,7 @@ export function StoreProvider({ children }) {
     unlockItem,
     unlockBalance: balance,
     setIsoItemTint,
+    toggleIsoItem,
     setIsoSize,
     setIsoTile,
     setIsoPartition,
@@ -2273,6 +2408,8 @@ export function StoreProvider({ children }) {
     selectStation,
     addCustomStation,
     removeCustomStation,
+    renameCustomStation,
+    moveCustomStation,
 
     // real-world weather
     realWeather,
@@ -2280,6 +2417,8 @@ export function StoreProvider({ children }) {
     weatherError,
     weatherLocationLabel,
     weatherPlaces,
+    weatherUnit,
+    setWeatherUnit,
     chooseWeatherPlace,
     autoMatchWeather,
     autoRandomWeather,
@@ -2293,6 +2432,8 @@ export function StoreProvider({ children }) {
     saveWeatherPreset,
     applyWeatherPreset,
     deleteWeatherPreset,
+    renameSavedWeatherPreset,
+    moveSavedWeatherPreset,
 
     // settings
     brightness,

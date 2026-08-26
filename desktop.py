@@ -261,8 +261,12 @@ class DesktopApi:
         window = self._window
         if window is None:
             return False
-        window.on_top = bool(value)
-        return window.on_top
+        requested = bool(value)
+        window.on_top = requested
+        # The bridge returns whether the OPERATION succeeded, not the resulting
+        # state. Returning `window.on_top` made a successful "turn it off"
+        # indistinguishable from failure to the frontend.
+        return bool(window.on_top) == requested
 
     def set_widget_mode(self, value):
         """Resize the native app around the timer and restore it exactly.

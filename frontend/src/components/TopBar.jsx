@@ -50,7 +50,7 @@ function fmtClock(d) {
 }
 
 export default function TopBar({ clockVisibility = "on" }) {
-  const { user, weatherMode, setWeather, widgetMode, setWidgetMode } = useStore();
+  const { user, weatherMode, setWeather, widgetMode, setWidgetMode, showToast } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
 
@@ -70,16 +70,30 @@ export default function TopBar({ clockVisibility = "on" }) {
   // (esp. paired with Widget Mode) comes back pinned exactly as left —
   // same reasoning as musicOn's resume-on-boot.
   useEffect(() => {
-    if (desktopReady && alwaysOnTop) applyAlwaysOnTop(true);
-    // Only on the desktopReady transition, not every alwaysOnTop toggle —
-    // toggleAlwaysOnTop below already applies those directly.
+    if (!desktopReady || !alwaysOnTop) return undefined;
+    let live = true;
+    applyAlwaysOnTop(true).then((applied) => {
+      if (!live || applied) return;
+      setAlwaysOnTopState(false);
+      writeStored("tasknook.alwaysOnTop", "0");
+      showToast("Couldn't restore Always On Top 🌧️");
+    });
+    return () => {
+      live = false;
+    };
+    // Only on the desktopReady transition: the toggle below applies direct
+    // changes, while this effect restores the persisted launch state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desktopReady]);
   const toggleAlwaysOnTop = async () => {
     const next = !alwaysOnTop;
+    const applied = await applyAlwaysOnTop(next);
+    if (!applied) {
+      showToast("Couldn't change Always On Top 🌧️");
+      return;
+    }
     setAlwaysOnTopState(next);
     writeStored("tasknook.alwaysOnTop", next ? "1" : "0");
-    await applyAlwaysOnTop(next);
   };
   // The trigger mirrors the active option — including Clear, which used to
   // fall through to the rain icon and read as "rain is on".

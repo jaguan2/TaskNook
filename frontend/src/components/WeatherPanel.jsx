@@ -1,8 +1,21 @@
 import { useState } from "react";
-import { Clock, Dice5, Globe, Moon, Save, Sun, Sunset, Wand2 } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Dice5,
+  Globe,
+  Moon,
+  Pencil,
+  Save,
+  Sun,
+  Sunset,
+  Wand2,
+} from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
-import { formatPopulation } from "../lib/weather";
+import { formatPopulation, temperatureFor } from "../lib/weather";
 import { WEATHER_OPTIONS } from "./TopBar";
 
 const TIME_OPTIONS = [
@@ -18,6 +31,8 @@ export default function WeatherPanel() {
     weatherError,
     weatherLocationLabel,
     weatherPlaces,
+    weatherUnit,
+    setWeatherUnit,
     chooseWeatherPlace,
     refreshRealWeather,
     searchWeatherCity,
@@ -33,6 +48,8 @@ export default function WeatherPanel() {
     saveWeatherPreset,
     applyWeatherPreset,
     deleteWeatherPreset,
+    renameSavedWeatherPreset,
+    moveSavedWeatherPreset,
     autoTimeOfDay,
     setAutoTimeOfDay,
   } = useStore();
@@ -43,6 +60,8 @@ export default function WeatherPanel() {
   // showing turned it into: More than one “” — which?
   const [searchedFor, setSearchedFor] = useState("");
   const [presetName, setPresetName] = useState("");
+  const [editingPreset, setEditingPreset] = useState(null);
+  const [presetDraft, setPresetDraft] = useState("");
   const [armedName, arm] = useArmed();
 
   const submitCity = (e) => {
@@ -57,8 +76,15 @@ export default function WeatherPanel() {
   const submitPreset = (e) => {
     e.preventDefault();
     if (!presetName.trim()) return;
-    saveWeatherPreset(presetName.trim());
-    setPresetName("");
+    if (saveWeatherPreset(presetName.trim())) setPresetName("");
+  };
+
+  const beginPresetRename = (preset) => {
+    setEditingPreset(preset.name);
+    setPresetDraft(preset.name);
+  };
+  const finishPresetRename = () => {
+    if (renameSavedWeatherPreset(editingPreset, presetDraft)) setEditingPreset(null);
   };
 
   return (
@@ -69,13 +95,29 @@ export default function WeatherPanel() {
           <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
             <Globe size={15} className="text-petal/70" /> Right now
           </p>
-          <button
-            onClick={() => refreshRealWeather()}
-            disabled={weatherStatus === "loading"}
-            className="pill bg-white/10 px-3 py-1 text-xs font-semibold text-petal hover:bg-white/20 disabled:opacity-50"
-          >
-            {weatherStatus === "loading" ? "…" : "Refresh"}
-          </button>
+          <div className="flex items-center gap-1">
+            <div className="flex rounded-full bg-white/10 p-0.5" aria-label="Temperature unit">
+              {["F", "C"].map((unit) => (
+                <button
+                  key={unit}
+                  onClick={() => setWeatherUnit(unit)}
+                  aria-pressed={weatherUnit === unit}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${
+                    weatherUnit === unit ? "bg-glow text-plum" : "text-petal hover:text-cream"
+                  }`}
+                >
+                  °{unit}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => refreshRealWeather()}
+              disabled={weatherStatus === "loading"}
+              className="pill bg-white/10 px-3 py-1 text-xs font-semibold text-petal hover:bg-white/20 disabled:opacity-50"
+            >
+              {weatherStatus === "loading" ? "…" : "Refresh"}
+            </button>
+          </div>
         </div>
 
         {realWeather ? (
@@ -83,7 +125,7 @@ export default function WeatherPanel() {
             <span className="text-4xl leading-none">{realWeather.icon}</span>
             <div className="min-w-0">
               <p className="text-2xl font-bold text-cream">
-                {realWeather.tempF ?? "—"}°F
+                {temperatureFor(realWeather.tempF, weatherUnit) ?? "—"}°{weatherUnit}
               </p>
               <p className="truncate text-xs text-petal/70">{realWeather.label}</p>
               {weatherLocationLabel && (
@@ -290,25 +332,77 @@ export default function WeatherPanel() {
           <div className="flex flex-wrap gap-1.5">
             {weatherPresets.map((p) => (
               <div key={p.name} className="flex items-center">
-                <button
-                  onClick={() => applyWeatherPreset(p.name)}
-                  title={`${p.weatherMode} · ${p.timeOfDay}`}
-                  className="pill rounded-r-none bg-white/10 px-3 py-1 text-xs text-petal hover:bg-white/20"
-                >
-                  {p.name}
-                </button>
-                <button
-                  onClick={() => arm(p.name, () => deleteWeatherPreset(p.name))}
-                  title="Delete preset"
-                  aria-label="Delete preset"
-                  className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
-                    armedName === p.name
-                      ? "font-bold text-danger"
-                      : "text-petal/60 hover:text-danger"
-                  }`}
-                >
-                  {armedName === p.name ? "sure?" : "✕"}
-                </button>
+                {editingPreset === p.name ? (
+                  <div className="flex items-center rounded-l-full bg-white/10 pl-2">
+                    <input
+                      autoFocus
+                      value={presetDraft}
+                      onChange={(e) => setPresetDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") finishPresetRename();
+                        if (e.key === "Escape") setEditingPreset(null);
+                      }}
+                      maxLength={60}
+                      aria-label="Preset name"
+                      className="w-24 bg-transparent px-1 py-1 text-xs text-cream outline-none"
+                    />
+                    <button
+                      onClick={finishPresetRename}
+                      aria-label="Save preset name"
+                      className="px-1 text-sage"
+                    >
+                      <Check size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => applyWeatherPreset(p.name)}
+                    title={`${p.weatherMode} · ${p.timeOfDay}`}
+                    className="pill rounded-r-none bg-white/10 px-3 py-1 text-xs text-petal hover:bg-white/20"
+                  >
+                    {p.name}
+                  </button>
+                )}
+                <div className="flex bg-white/10">
+                  <button
+                    onClick={() => beginPresetRename(p)}
+                    title="Rename preset"
+                    aria-label={`Rename ${p.name}`}
+                    className="px-1 text-petal/60 hover:text-cream"
+                  >
+                    <Pencil size={10} />
+                  </button>
+                  <button
+                    onClick={() => moveSavedWeatherPreset(p.name, -1)}
+                    disabled={weatherPresets[0] === p}
+                    title="Move preset earlier"
+                    aria-label={`Move ${p.name} earlier`}
+                    className="px-0.5 text-petal/60 hover:text-cream disabled:opacity-25"
+                  >
+                    <ChevronLeft size={11} />
+                  </button>
+                  <button
+                    onClick={() => moveSavedWeatherPreset(p.name, 1)}
+                    disabled={weatherPresets.at(-1) === p}
+                    title="Move preset later"
+                    aria-label={`Move ${p.name} later`}
+                    className="px-0.5 text-petal/60 hover:text-cream disabled:opacity-25"
+                  >
+                    <ChevronRight size={11} />
+                  </button>
+                  <button
+                    onClick={() => arm(p.name, () => deleteWeatherPreset(p.name))}
+                    title="Delete preset"
+                    aria-label="Delete preset"
+                    className={`pill rounded-l-none bg-white/10 px-2 py-1 text-xs hover:bg-white/20 ${
+                      armedName === p.name
+                        ? "font-bold text-danger"
+                        : "text-petal/60 hover:text-danger"
+                    }`}
+                  >
+                    {armedName === p.name ? "sure?" : "✕"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -318,6 +412,7 @@ export default function WeatherPanel() {
           <input
             type="text"
             value={presetName}
+            maxLength={60}
             onChange={(e) => setPresetName(e.target.value)}
             placeholder="Name this scene…"
             className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-1.5 text-xs text-cream placeholder:text-petal/40 outline-none focus:bg-white/15"

@@ -212,6 +212,9 @@ const PlacedItem = memo(function PlacedItem({
   // While visiting, YOUR placement takes walk orders — grabbable outside
   // edit mode (cursor + the footprint hit polygon say so).
   walkable = false,
+  // Powered decorations can be clicked in the finished room. Decorate mode
+  // keeps the normal select/drag gesture and exposes a power button instead.
+  toggleable = false,
 }) {
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
@@ -252,7 +255,7 @@ const PlacedItem = memo(function PlacedItem({
             // duration is per-glide (constant speed, whole steps) so the
             // stride always agrees with the ground covered.
             transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
-            ...(walkable && { cursor: "grab" }),
+            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -260,7 +263,7 @@ const PlacedItem = memo(function PlacedItem({
       : {
           transform: `translate(${at.x},${at.y})`,
           style: {
-            ...(walkable && { cursor: "grab" }),
+            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -268,6 +271,7 @@ const PlacedItem = memo(function PlacedItem({
   return (
     <g
       {...placeProps}
+      data-placement-id={p.id}
       className={editMode ? "room-item" : undefined}
       onPointerDown={(e) => onStartDrag?.(p, e)}
     >
@@ -278,6 +282,15 @@ const PlacedItem = memo(function PlacedItem({
           diamond — a body is small and a fingertip isn't. */}
       {(editMode || walkable) && (
         <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
+      )}
+      {toggleable && !editMode && (
+        <rect
+          x={-4}
+          y={-item.hitH}
+          width={Math.max(18, (foot[0] * TILE_W) / 2 + 8)}
+          height={item.hitH}
+          fill="transparent"
+        />
       )}
       {/* Contact shadow: one soft ellipse sized to the footprint,
           under every grounded item. This is most of what makes the
@@ -351,6 +364,7 @@ const PlacedItem = memo(function PlacedItem({
               rot={(p.rot || 0) % 2}
               back={(p.rot || 0) >= 2}
               variant={item.variants?.[p.tint]}
+              lit={!p.off}
             />
           </g>
         );
@@ -467,6 +481,7 @@ function IsoSceneInner({
   onStartDrag,
   onRotateItem,
   onRemoveItem,
+  onToggleItem,
   onClearSelect,
   // Visiting: {placementId: {character, label}} — per-placement looks and
   // the name tags drawn over them. Null at home.
@@ -994,7 +1009,7 @@ function IsoSceneInner({
           <g clipPath="url(#isoFloorClip)">
             {effective.map((p) => {
               const glow = ISO_ITEMS[p.item]?.glow;
-              if (!glow || tod.glow <= 0) return null;
+              if (!glow || p.off || tod.glow <= 0) return null;
               const f = footOf(p.item, p.rot);
               const at = project(p.gx + f[0] / 2, p.gy + f[1] / 2);
               const [r, strength] = glow;
@@ -1010,7 +1025,12 @@ function IsoSceneInner({
               // noon. Nested opacity multiplies, so the animation stays
               // relative to whatever the hour and the catalog asked for.
               return (
-                <g key={`glow-${p.id}`} opacity={strength * tod.glow} style={ambienceVars(p.gx, p.gy)}>
+                <g
+                  key={`glow-${p.id}`}
+                  data-item-glow={p.id}
+                  opacity={strength * tod.glow}
+                  style={ambienceVars(p.gx, p.gy)}
+                >
                   <ellipse
                     className={ISO_ITEMS[p.item].flicker ? "pool-flicker" : "pool-breathe"}
                     cx={at.x}
@@ -1051,6 +1071,7 @@ function IsoSceneInner({
                 onStartDrag={onStartDrag}
                 personaInfo={personas ? personas[p.id] : null}
                 walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
+                toggleable={!!onToggleItem && !!ISO_ITEMS[p.item]?.toggleable}
               />
             );
           })}
@@ -1114,6 +1135,37 @@ function IsoSceneInner({
                       fill="#fff"
                     />
                   </g>
+                  {item.toggleable && onToggleItem && (
+                    <g
+                      className="room-remove"
+                      data-power-toggle={p.id}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onToggleItem(p.id);
+                      }}
+                    >
+                      <title>{p.off ? "Turn on" : "Turn off"}</title>
+                      <circle
+                        cx={hitR.x - 40}
+                        cy={-item.hitH - 2}
+                        r="9"
+                        fill={p.off ? "#6e6877" : "#7c9f79"}
+                      />
+                      <path
+                        d={`M${hitR.x - 40} ${-item.hitH - 8} v6`}
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d={`M${hitR.x - 43.5} ${-item.hitH - 5.5} a5 5 0 1 0 7 0`}
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
                   <g
                     className="room-remove"
                     onPointerDown={(e) => {
@@ -1182,12 +1234,14 @@ function IsoRoom({
   onRemoveItem,
   onRotateItem,
   onTintItem,
+  onToggleItem,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
   const heldRef = useRef(null);
+  const panLayerRef = useRef(null);
   // The marker alone — kept out of IsoScene so pointer-rate target updates
   // never re-render the scene subtree.
   const [walkTarget, setWalkTarget] = useState(null);
@@ -1221,6 +1275,7 @@ function IsoRoom({
   useEffect(() => flushView, []);
   const applyView = (next) => {
     const clamped = clampView(next);
+    viewRef.current = clamped;
     setView(clamped);
     // A visited room's camera is throwaway — never let it near the stored
     // home view (pendingViewRef stays null, so the unmount flush is a no-op).
@@ -1330,6 +1385,12 @@ function IsoRoom({
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
+        if (ISO_ITEMS[placement.item]?.toggleable && onToggleItem) {
+          e.stopPropagation();
+          pointerOnItemRef.current = true;
+          onToggleItem(placement.id);
+          return;
+        }
         // Grabbing a walkable placement starts a walk order. Everything else
         // falls through (no stopPropagation) so panning from furniture keeps
         // working.
@@ -1390,7 +1451,7 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1471,10 +1532,14 @@ function IsoRoom({
     // Camera pan: keep the grabbed world point glued under the pointer.
     const pan = panRef.current;
     if (pan) {
-      const p = toWorld(e);
-      if (!p) return;
-      const v = viewRef.current;
-      applyView({ ...v, x: v.x + (pan.x - p.x), y: v.y + (pan.y - p.y) });
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect?.width || !rect.height) return;
+      pan.dx = ((e.clientX - pan.clientX) * pan.view.w) / rect.width;
+      pan.dy = ((e.clientY - pan.clientY) * pan.view.h) / rect.height;
+      // Imperative on purpose: changing viewBox here invalidates and
+      // re-rasterizes every SVG node. Moving one wrapper lets the browser
+      // composite the already-painted room until release.
+      panLayerRef.current?.setAttribute("transform", `translate(${pan.dx} ${pan.dy})`);
     }
   };
 
@@ -1488,15 +1553,35 @@ function IsoRoom({
       if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.id, walk.gx, walk.gy);
     }
     dragRef.current = null;
+    const pan = panRef.current;
+    if (pan) {
+      const next = clampView({
+        ...pan.view,
+        x: pan.view.x - (pan.dx || 0),
+        y: pan.view.y - (pan.dy || 0),
+      });
+      // Set the attribute before removing the temporary translation so the
+      // release frame cannot flash back to the old camera while React queues.
+      svgRef.current?.setAttribute(
+        "viewBox",
+        `${next.x} ${next.y} ${next.w} ${next.h}`
+      );
+      applyView(next);
+      panLayerRef.current?.removeAttribute("transform");
+    }
     panRef.current = null;
   };
 
   const startPan = (e) => {
     pointerOnItemRef.current = false;
     if (editMode) setSelectedId(null);
-    const p = toWorld(e);
-    if (!p) return;
-    panRef.current = { x: p.x, y: p.y };
+    panRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      view: { ...viewRef.current },
+      dx: 0,
+      dy: 0,
+    };
     svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
@@ -1526,7 +1611,8 @@ function IsoRoom({
           applyView(DEFAULT_VIEW);
         }}
       >
-        <IsoScene
+        <g ref={panLayerRef} data-pan-layer="true">
+          <IsoScene
           size={size}
           placements={placements}
           editMode={editMode}
@@ -1541,17 +1627,18 @@ function IsoRoom({
           onStartDrag={onStartDrag}
           onRotateItem={onRotateItem}
           onRemoveItem={onRemoveItem}
+          onToggleItem={onToggleItem}
           onClearSelect={onClearSelect}
           personas={personas}
           walkId={walkId}
           walkPersonas={walkPersonas}
           carriedId={walkTarget?.id ?? null}
-        />
+          />
         {/* Picking someone up: the landing diamond (where they'll stand if you
             let go) and the figure itself, dangling from your cursor. Outside
             IsoScene — pointer-rate updates must not re-render the room — and
             after it, so no furniture buries either: the selection-chrome rule. */}
-        {walkTarget && (
+          {walkTarget && (
           <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
             {/* THE SEAT GLOW (seated life): while a PERSON is in your hand,
                 every place they could settle — free seats, soft ground —
@@ -1620,7 +1707,8 @@ function IsoRoom({
               />
             </g>
           </g>
-        )}
+          )}
+        </g>
       </svg>
 
       {selectedRaw &&
