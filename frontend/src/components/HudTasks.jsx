@@ -188,7 +188,7 @@ function Row({
   // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
   // the same rule the calendar follows, and both are plain YYYY-MM-DD so a
   // string compare is a date compare.
-  const overdue = task.dueDate && !task.completed && task.dueDate <= toISO(new Date());
+  const overdue = task.dueDate && !task.completed && task.dueDate < toISO(new Date());
   return (
     <>
     <div

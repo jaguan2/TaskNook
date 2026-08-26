@@ -4,6 +4,7 @@ import {
   formatPopulation,
   moveWeatherPreset,
   nextRandomWeather,
+  normalizeWeatherCoords,
   RANDOM_WEATHER_INTERVAL_MS,
   searchPlaces,
   temperatureFor,
@@ -113,6 +114,17 @@ describe("searchPlaces", () => {
   it("drops duplicate rows — two identical choices help nobody", async () => {
     respond({ results: [place(), place({ id: 9 })] });
     expect(await searchPlaces("gainesville")).toHaveLength(1);
+  });
+
+  it("keeps same-named places in one region when their coordinates differ", async () => {
+    respond({ results: [place(), place({ id: 9, latitude: 29.7, longitude: -82.4 })] });
+    expect(await searchPlaces("gainesville")).toHaveLength(2);
+  });
+
+  it("includes the county when the service provides one", async () => {
+    respond({ results: [place({ admin2: "Alachua" })] });
+    const [found] = await searchPlaces("gainesville");
+    expect(found.region).toBe("Alachua, Florida, United States");
   });
 
   it("drops rows we couldn't fetch weather for anyway", async () => {
@@ -251,7 +263,13 @@ describe("fetchCurrentWeather", () => {
 
   it("surfaces the service's own reason on a 400", async () => {
     respond({ reason: "Latitude must be in range" }, false);
-    await expect(fetchCurrentWeather(999, 0)).rejects.toThrow("Latitude must be in range");
+    await expect(fetchCurrentWeather(89, 0)).rejects.toThrow("Latitude must be in range");
+  });
+
+  it("rejects impossible cached coordinates before making a request", async () => {
+    respond(forecast());
+    await expect(fetchCurrentWeather(91, 0)).rejects.toThrow(/invalid coordinates/);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("says it timed out rather than blaming the network", async () => {
@@ -264,5 +282,16 @@ describe("fetchCurrentWeather", () => {
       })
     );
     await expect(fetchCurrentWeather(0, 0)).rejects.toThrow(/took too long/);
+  });
+});
+
+describe("normalizeWeatherCoords", () => {
+  it("accepts numeric strings but rejects non-finite and out-of-range values", () => {
+    expect(normalizeWeatherCoords({ lat: "29.65", lon: "-82.32" })).toEqual({
+      lat: 29.65,
+      lon: -82.32,
+    });
+    expect(normalizeWeatherCoords({ lat: 91, lon: 0 })).toBeNull();
+    expect(normalizeWeatherCoords({ lat: 0, lon: Infinity })).toBeNull();
   });
 });

@@ -260,6 +260,13 @@ def clean_date(value):
     return head
 
 
+def clean_day(value):
+    """An exact YYYY-MM-DD query value (timestamps are not query days)."""
+    if not isinstance(value, str) or len(value) != 10:
+        return None
+    return clean_date(value)
+
+
 def clean_int(value, lo, hi, default=None):
     """A storable integer inside [lo, hi], or `default` for anything else.
 
@@ -603,13 +610,16 @@ def register_routes(app):
         Empty group headings remain client-side and never call this route.
         """
         data = json_body()
-        if not isinstance(data.get("name"), str) or not isinstance(data.get("nextName"), str):
+        next_raw = data.get("nextName")
+        if "nextName" not in data or not isinstance(data.get("name"), str) or not (
+            next_raw is None or isinstance(next_raw, str)
+        ):
             return jsonify({"error": "Group names are required"}), 400
         name = clean_str(data["name"], GROUP_NAME_MAX)
-        next_name = clean_str(data["nextName"], GROUP_NAME_MAX)
-        if not name or not next_name or name == next_name:
+        next_name = clean_str(next_raw, GROUP_NAME_MAX) if next_raw is not None else None
+        if not name or next_name == "" or name == next_name:
             return jsonify({"error": "Two different group names are required"}), 400
-        if Task.query.filter_by(user_id=user.id, group_name=next_name).first():
+        if next_name and Task.query.filter_by(user_id=user.id, group_name=next_name).first():
             return jsonify({"error": "That task group already exists"}), 409
         updated = Task.query.filter_by(user_id=user.id, group_name=name).update(
             {"group_name": next_name}, synchronize_session=False
@@ -632,23 +642,28 @@ def register_routes(app):
         # Bounded, not merely type-checked: a huge int passes `isinstance(t, int)`
         # and then raises OverflowError inside `Task.id.in_(ids)`. This is the
         # fourth site of the same bug and the one with no test covering it.
-        ids = [
-            v
-            for v in (
-                clean_int(t, 1, 2**53)
-                for t in order
-                if isinstance(t, int) and not isinstance(t, bool)
-            )
-            if v is not None
-        ]
-        tasks = {
-            t.id: t
-            for t in Task.query.filter(Task.user_id == user.id, Task.id.in_(ids)).all()
-        }
-        for index, task_id in enumerate(ids):
-            task = tasks.get(task_id)
-            if task:
-                task.position = index
+        ids = []
+        seen = set()
+        for raw in order:
+            task_id = clean_id(raw)
+            if task_id is not None and task_id not in seen:
+                seen.add(task_id)
+                ids.append(task_id)
+
+        # A partial or duplicate client list must still leave one dense,
+        # deterministic ordering. Previously omitted tasks kept their old
+        # positions and duplicate ids created gaps/collisions, so later reads
+        # could interleave rows unpredictably.
+        all_tasks = (
+            Task.query.filter_by(user_id=user.id)
+            .order_by(Task.position, Task.id)
+            .all()
+        )
+        by_id = {task.id: task for task in all_tasks}
+        reordered = [by_id[task_id] for task_id in ids if task_id in by_id]
+        reordered.extend(task for task in all_tasks if task.id not in seen)
+        for index, task in enumerate(reordered):
+            task.position = index
         db.session.commit()
         return jsonify({"ok": True})
 
@@ -707,7 +722,7 @@ def register_routes(app):
         /sessions/days because that one is fetched wholesale on every refresh and
         paints a whole month; names are wanted for exactly one day at a time.
         """
-        day = clean_date(request.args.get("day"))
+        day = clean_day(request.args.get("day"))
         if not day:
             return jsonify({"error": "day must be YYYY-MM-DD"}), 400
         rows = (

@@ -26,6 +26,9 @@ export const COLOR_SCHEME_KEYS = ["plum", "abyss", "shore", "linen", "walnut", "
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 export function normalizeBrightness(value) {
+  // A missing preference is the neutral default, not Number(null) === 0.
+  // Treat empty storage the same way as corrupt storage before clamping.
+  if (value === null || value === undefined || value === "") return 1;
   const number = Number(value);
   return Number.isFinite(number) ? clamp(number, 0.6, 1.3) : 1;
 }

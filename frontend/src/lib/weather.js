@@ -148,6 +148,16 @@ async function getJSON(url, fallback) {
 
 const PLACE_LIMIT = 6;
 
+/** A coordinate pair Open-Meteo can actually accept. */
+export function normalizeWeatherCoords(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const lat = Number(value.lat);
+  const lon = Number(value.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+  return { lat, lon };
+}
+
 /** "140k" / "1.2m" — enough to tell two same-named towns apart at a glance. */
 export function formatPopulation(n) {
   if (!Number.isFinite(n) || n <= 0) return "";
@@ -178,12 +188,16 @@ export async function searchPlaces(name) {
   for (const hit of results) {
     // A row we can't fetch weather for is worse than no row.
     if (!Number.isFinite(hit?.latitude) || !Number.isFinite(hit?.longitude)) continue;
-    const region = [hit.admin1, hit.country].filter(Boolean).join(", ");
+    const region = [hit.admin2, hit.admin1, hit.country].filter(Boolean).join(", ");
     const label = [hit.name, region].filter(Boolean).join(", ");
     // Open-Meteo can list the same place twice under different feature codes.
     // Two identical rows in a "which one?" list are worse than useless.
-    if (seen.has(label)) continue;
-    seen.add(label);
+    // Same-named places can exist in the same state/region. Coordinates are
+    // the identity; using the display label here silently removed a valid
+    // choice from the disambiguation list.
+    const identity = `${hit.latitude},${hit.longitude}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     places.push({
       id: hit.id ?? `${hit.latitude},${hit.longitude}`,
       lat: hit.latitude,
@@ -256,11 +270,13 @@ export function validateWeatherPresets(raw) {
 }
 
 export async function fetchCurrentWeather(lat, lon) {
+  const coords = normalizeWeatherCoords({ lat, lon });
+  if (!coords) throw new Error("That location has invalid coordinates");
   // timeformat=unixtime matters: the default is a LOCAL-time ISO string with
   // no offset, which JS parses in the BROWSER's zone — wrong whenever the
   // queried city (manual search) isn't in the browser's timezone.
   const data = await getJSON(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}` +
       `&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset` +
       `&temperature_unit=fahrenheit&timezone=auto&timeformat=unixtime`,
     "Couldn't reach the weather service"

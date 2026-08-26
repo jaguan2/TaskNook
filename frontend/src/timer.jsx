@@ -10,7 +10,12 @@ import {
 import { api } from "./lib/api";
 import { normalizeChimeVolume, playChime } from "./lib/audio";
 import { readJSON, readStored, writeStored } from "./lib/storage";
-import { elapsedFrom, normalizeFocusMinutes, remainingFrom } from "./lib/time";
+import {
+  elapsedFrom,
+  normalizeFocusMinutes,
+  normalizePomodoro,
+  remainingFrom,
+} from "./lib/time";
 import {
   BREAK_NUDGE_MINUTES,
   PRESENCE_TICK_SECONDS,
@@ -137,14 +142,9 @@ export function TimerProvider({ children }) {
   };
 
   // Pomodoro mode: focus → break → focus … for a set number of rounds.
-  const [pomodoro, setPomodoroState] = useState(() => ({
-    enabled: false,
-    breakMinutes: 5,
-    rounds: 4,
-    // readJSON already returns the fallback for missing OR corrupt storage, so
-    // the try/catch this used to carry was dead weight.
-    ...readJSON("tasknook.pomodoro", {}),
-  }));
+  const [pomodoro, setPomodoroState] = useState(() =>
+    normalizePomodoro(readJSON("tasknook.pomodoro", {}))
+  );
   const [phase, setPhase] = useState("focus"); // "focus" | "break"
   const [round, setRound] = useState(1);
   const [chimeVolume, setChimeVolumeState] = useState(() =>
@@ -164,7 +164,7 @@ export function TimerProvider({ children }) {
   const setPomodoro = (patch) => {
     // Persist OUTSIDE the updater (updaters must stay pure — StrictMode
     // double-invokes them); `pomodoro` is in scope, so compute next here.
-    const next = { ...pomodoro, ...patch };
+    const next = normalizePomodoro({ ...pomodoro, ...patch });
     writeStored("tasknook.pomodoro", JSON.stringify(next));
     setPomodoroState(next);
     // Changing the plan restarts the cycle from round 1 — but only when idle.
@@ -234,14 +234,25 @@ export function TimerProvider({ children }) {
     // calls below are permanently dead (permission starts as "default").
     try {
       if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
+        const request = Notification.requestPermission();
+        // Some WebView versions reject the permission Promise rather than
+        // throwing synchronously. A fire-and-forget rejection must not become
+        // a global unhandledrejection error.
+        request?.catch?.(() => undefined);
       }
     } catch {
       /* older webviews may not implement it */
     }
     setRunning(true);
   };
-  const pauseTimer = () => setRunning(false);
+  const pauseTimer = () => {
+    // Sample the anchor BEFORE stopping. In a throttled/minimised window the
+    // rendered value may be minutes stale; pausing from that stale state used
+    // to hand all of that elapsed time back on the next resume.
+    if (timerMode === "stopwatch") setStopwatch(currentElapsed());
+    else setClock(currentRemaining());
+    setRunning(false);
+  };
   const resetTimer = () => {
     setRunning(false);
     if (timerMode === "stopwatch") {
@@ -270,8 +281,12 @@ export function TimerProvider({ children }) {
   };
 
   const notify = (title, body) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body });
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body });
+      }
+    } catch {
+      /* notifications are optional in browsers and older webviews */
     }
   };
 
@@ -381,11 +396,16 @@ export function TimerProvider({ children }) {
     const seen = () => {
       lastActivityRef.current = Date.now();
     };
-    const events = ["pointerdown", "pointermove", "keydown", "wheel", "visibilitychange"];
+    const events = ["pointerdown", "pointermove", "keydown", "wheel"];
     for (const e of events) window.addEventListener(e, seen, { passive: true });
+    // visibilitychange is a Document event and does not reliably bubble to
+    // window. Listening on window left a return from a long hidden period
+    // looking idle until the next pointer/key event.
+    document.addEventListener("visibilitychange", seen, { passive: true });
     const id = setInterval(() => samplePresenceRef.current?.(), PRESENCE_TICK_SECONDS * 1000);
     return () => {
       for (const e of events) window.removeEventListener(e, seen);
+      document.removeEventListener("visibilitychange", seen);
       clearInterval(id);
     };
   }, []);
@@ -433,7 +453,7 @@ export function TimerProvider({ children }) {
     const minutes = Math.round(currentElapsed() / 60);
     setStopwatch(0);
     if (minutes < 1) return; // nothing meaningful to log
-    playChime();
+    playChime(chimeVolume);
     try {
       await api.logSession({
         minutes,

@@ -276,6 +276,18 @@ def test_reorder_survives_junk_entries(client, auth):
     assert names_in_order(client, auth) == ["solo"]
 
 
+def test_reorder_deduplicates_ids_and_appends_omitted_tasks(client, auth):
+    ids = [
+        client.post("/api/tasks", json={"name": n}, headers=auth).get_json()["id"]
+        for n in ("a", "b", "c")
+    ]
+    res = client.put(
+        "/api/tasks/reorder", json={"order": [ids[2], ids[2]]}, headers=auth
+    )
+    assert res.status_code == 200
+    assert names_in_order(client, auth) == ["c", "a", "b"]
+
+
 # --------------------------------------------------------------------------- #
 # Friends — the graph is two directed rows, on purpose
 # --------------------------------------------------------------------------- #

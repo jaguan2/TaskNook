@@ -12,6 +12,9 @@ const PICKS = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"]
 
 describe("normalizeBrightness", () => {
   it("clamps corrupted or out-of-range display preferences", () => {
+    expect(normalizeBrightness(null)).toBe(1);
+    expect(normalizeBrightness(undefined)).toBe(1);
+    expect(normalizeBrightness("")).toBe(1);
     expect(normalizeBrightness("broken")).toBe(1);
     expect(normalizeBrightness(0.1)).toBe(0.6);
     expect(normalizeBrightness(9)).toBe(1.3);

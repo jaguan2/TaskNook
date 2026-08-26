@@ -28,6 +28,23 @@ export function normalizeFocusMinutes(value, fallback = 25) {
   return Math.max(1, Math.min(24 * 60, Math.round(minutes)));
 }
 
+/** A Pomodoro plan safe to render and turn into timer durations. */
+export function normalizePomodoro(value) {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    enabled: raw.enabled === true,
+    breakMinutes: normalizeFocusMinutes(raw.breakMinutes, 5),
+    // A cycle is deliberately smaller than a task list. Bounding this also
+    // prevents a hand-edited localStorage value from asking React to render
+    // millions of round pips.
+    rounds: (() => {
+      if (raw.rounds === null || raw.rounds === undefined || raw.rounds === "") return 4;
+      const n = Number(raw.rounds);
+      return Number.isFinite(n) ? Math.max(1, Math.min(12, Math.round(n))) : 4;
+    })(),
+  };
+}
+
 /**
  * What a clock anchored at `at` with `base` seconds reads at `now`.
  *

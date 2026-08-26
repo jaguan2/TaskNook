@@ -1240,6 +1240,10 @@ function IsoRoom({
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
+  // A powered decoration toggles only when the pointer is released without
+  // becoming a pan. Pointer-down is too early: touch users commonly begin a
+  // camera drag on whatever furniture happens to be under their finger.
+  const toggleRef = useRef(null);
   const heldRef = useRef(null);
   const panLayerRef = useRef(null);
   // The marker alone — kept out of IsoScene so pointer-rate target updates
@@ -1386,9 +1390,14 @@ function IsoRoom({
     (placement, e) => {
       if (!editMode) {
         if (ISO_ITEMS[placement.item]?.toggleable && onToggleItem) {
-          e.stopPropagation();
           pointerOnItemRef.current = true;
-          onToggleItem(placement.id);
+          toggleRef.current = {
+            id: placement.id,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          };
+          // Let this bubble to startPan. A drag pans the room; a stationary
+          // release is recognized in endDrag and toggles the decoration.
           return;
         }
         // Grabbing a walkable placement starts a walk order. Everything else
@@ -1554,6 +1563,19 @@ function IsoRoom({
     }
     dragRef.current = null;
     const pan = panRef.current;
+    const toggle = toggleRef.current;
+    toggleRef.current = null;
+    const toggleClick =
+      toggle &&
+      e?.type === "pointerup" &&
+      Math.hypot(e.clientX - toggle.clientX, e.clientY - toggle.clientY) < 6;
+    if (toggleClick) {
+      onToggleItem?.(toggle.id);
+      // A tiny hand wobble within the click threshold is not a camera move.
+      panLayerRef.current?.removeAttribute("transform");
+      panRef.current = null;
+      return;
+    }
     if (pan) {
       const next = clampView({
         ...pan.view,
@@ -1573,7 +1595,7 @@ function IsoRoom({
   };
 
   const startPan = (e) => {
-    pointerOnItemRef.current = false;
+    if (!toggleRef.current) pointerOnItemRef.current = false;
     if (editMode) setSelectedId(null);
     panRef.current = {
       clientX: e.clientX,

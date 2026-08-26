@@ -249,7 +249,7 @@ export default function TaskPanel() {
                   <span
                     title={`Due ${task.dueDate}`}
                     className={`flex items-center gap-0.5 text-[10px] font-semibold ${
-                      task.dueDate <= localTodayISO() ? "text-danger" : "text-petal/60"
+                      task.dueDate < localTodayISO() ? "text-danger" : "text-petal/60"
                     }`}
                   >
                     <CalendarClock size={10} /> {task.dueDate.slice(5)}

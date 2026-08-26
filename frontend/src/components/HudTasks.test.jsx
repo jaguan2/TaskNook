@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import HudTasks from "./HudTasks";
+import { toISO } from "../lib/dates";
 
 const mockStore = vi.hoisted(() => ({
   orderedTasks: [],
@@ -43,6 +44,15 @@ const task = {
 };
 
 describe("task detail editing", () => {
+  it("does not style a task due today as overdue", () => {
+    const today = toISO(new Date());
+    mockStore.orderedTasks = [{ ...task, dueDate: today }];
+    render(<HudTasks onOpenTasks={() => {}} />);
+
+    const badge = screen.getByTitle(`Due ${today}`);
+    expect(badge.className).not.toContain("text-danger");
+  });
+
   it("shows a planned date directly on the task row", () => {
     mockStore.orderedTasks = [task];
     render(<HudTasks onOpenTasks={() => {}} />);

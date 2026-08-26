@@ -473,11 +473,10 @@ export default function RoomPanel() {
                             gridRow: `${footprint.y + 1} / span ${footprint.d}`,
                           }}
                         >
-                          {footprint.w * footprint.d >= 4 && (
-                            <span className="max-w-full truncate px-1 text-[8px] font-bold leading-none text-cream/90">
-                              {footprint.label}
-                            </span>
-                          )}
+                          {/* Names live on the underlying tiles' hover titles.
+                              Even apparently large footprints become only a
+                              few pixels wide in big rooms, so permanent text
+                              inevitably collides with neighbouring pieces. */}
                         </span>
                       ))}
                     </div>

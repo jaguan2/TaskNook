@@ -28,6 +28,9 @@ import {
 } from "./lib/chat";
 // One unprompted message a day, marked per device. See `deliverCheckIn`.
 const CHECKIN_KEY = "tasknook.chat.checkin";
+// Marks a local room mirror that has not yet been acknowledged by SQLite.
+// It is intentionally separate from the room JSON: an empty room is valid.
+const ROOM_DIRTY_KEY = "tasknook.room.dirty";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
@@ -50,6 +53,7 @@ import {
   fetchCurrentWeather,
   moveWeatherPreset,
   nextRandomWeather,
+  normalizeWeatherCoords,
   RANDOM_WEATHER_INTERVAL_MS,
   renameWeatherPreset,
   validateWeatherPresets,
@@ -317,7 +321,7 @@ export function StoreProvider({ children }) {
   const [weatherLocationLabel, setWeatherLocationLabel] = useState(
     () => readStored("tasknook.weather.location") || ""
   );
-  const [autoMatchWeather, setAutoMatchWeather] = useState(
+  const [autoMatchWeather, setAutoMatchWeatherState] = useState(
     () => readStored("tasknook.weather.automatch") === "1"
   );
   // Weather that drifts on its own, like the real thing — no location, no
@@ -329,17 +333,21 @@ export function StoreProvider({ children }) {
   );
   const weatherCoordsRef = useRef(
     (() => {
-      try {
-        const c = readJSON("tasknook.weather.coords", null);
-        // Shape-check: a corrupt cache would build latitude=undefined URLs
-        // and error forever with no recovery path.
-        return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) ? c : null;
-      } catch {
-        return null;
-      }
+      // Bounds matter too: finite latitude 999 is still a cache that can only
+      // produce errors forever.
+      return normalizeWeatherCoords(readJSON("tasknook.weather.coords", null));
     })()
   );
   const autoMatchRef = useRef(autoMatchWeather);
+  // Async weather responses read this ref. Advance it in the same event as the
+  // setting, rather than waiting for an effect, so a response settling between
+  // click and render cannot apply a mode the user just switched off (or miss a
+  // mode they just switched on).
+  const setAutoMatchWeather = useCallback((value) => {
+    const next = Boolean(value);
+    autoMatchRef.current = next;
+    setAutoMatchWeatherState(next);
+  }, []);
   // So a random-weather roll (fired from inside a setTimeout) always steps
   // from the CURRENT condition, not one captured when the effect last ran —
   // without pulling weatherMode into that effect's deps, which would tear
@@ -443,6 +451,14 @@ export function StoreProvider({ children }) {
       writeJSON("tasknook.hudVisibility", next);
       return next;
     });
+  }, []);
+  const setAllHudVisibility = useCallback((mode) => {
+    if (!HUD_VIS_MODES.includes(mode)) return;
+    const next = Object.fromEntries(
+      Object.keys(DEFAULT_HUD_VISIBILITY).map((key) => [key, mode])
+    );
+    writeJSON("tasknook.hudVisibility", next);
+    setHudVisibilityState(next);
   }, []);
 
   const [customStations, setCustomStations] = useState(() => {
@@ -912,8 +928,14 @@ export function StoreProvider({ children }) {
   // older request cannot arrive last and replace a newer choice in SQLite.
   const profileWriteRef = useRef(null);
   const characterWriteRef = useRef(null);
+  const roomWriteRef = useRef(null);
   if (!profileWriteRef.current) profileWriteRef.current = createWriteQueue(api.saveProfile);
   if (!characterWriteRef.current) characterWriteRef.current = createWriteQueue(api.saveProfile);
+  if (!roomWriteRef.current) {
+    roomWriteRef.current = createWriteQueue(({ placements, iso }) =>
+      api.saveRoom(placements, iso)
+    );
+  }
   // Who YOU are, for code that runs on a timer: a scheduled bot reply has to
   // know which members are "the others", and the closure that scheduled it may
   // be several renders stale by the time it fires.
@@ -929,6 +951,7 @@ export function StoreProvider({ children }) {
     friendsRef.current = friends;
   }, [profile, character, user, friends]);
   const roomSaveTimer = useRef(null);
+  const roomSaveVersion = useRef(0);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
 
@@ -953,10 +976,12 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (roomSkipSave.current) return;
     writeStored("tasknook.room", JSON.stringify(roomPlacements));
+    writeStored(ROOM_DIRTY_KEY, "1");
   }, [roomPlacements]);
   useEffect(() => {
     if (roomSkipSave.current) return;
     writeStored("tasknook.isoRoom", JSON.stringify(isoRoom));
+    writeStored(ROOM_DIRTY_KEY, "1");
   }, [isoRoom]);
 
   // ONE debounced PUT for both, since they travel together on the wire. It reads
@@ -969,8 +994,12 @@ export function StoreProvider({ children }) {
       return undefined;
     }
     clearTimeout(roomSaveTimer.current);
+    const version = ++roomSaveVersion.current;
     roomSaveTimer.current = setTimeout(() => {
-      api.saveRoom(roomRef.current, isoRef.current).catch((err) => {
+      const snapshot = { placements: roomRef.current, iso: isoRef.current };
+      roomWriteRef.current(snapshot).then(() => {
+        if (version === roomSaveVersion.current) removeStored(ROOM_DIRTY_KEY);
+      }).catch((err) => {
         console.error("Failed to save room layout:", err);
         showToast("Couldn't save the room — it's still safe on this device 🌧️");
       });
@@ -1116,6 +1145,14 @@ export function StoreProvider({ children }) {
         const data = await api.getRoom();
         const server = validatePlacements(data?.placements);
         const serverIso = validateIsoLayout(data?.iso);
+        // Closing inside the debounce leaves a synchronous local mirror plus
+        // this marker. Let that newer mirror win once, or the older DB copy
+        // would overwrite the backup on the very next launch.
+        if (readStored(ROOM_DIRTY_KEY) === "1") {
+          await roomWriteRef.current({ placements: roomRef.current, iso: isoRef.current });
+          removeStored(ROOM_DIRTY_KEY);
+          return;
+        }
         // A null server copy means "never saved" — the one case where this
         // device's layout should be adopted. An EMPTY layout is a real,
         // deliberate choice and must win; testing `.length` would silently
@@ -1134,7 +1171,11 @@ export function StoreProvider({ children }) {
         if (!server || !serverIso) {
           // Push whatever half the server is missing (first run, or a save
           // from before the iso room existed).
-          await api.saveRoom(server || roomRef.current, serverIso || isoRef.current);
+          await roomWriteRef.current({
+            placements: server || roomRef.current,
+            iso: serverIso || isoRef.current,
+          });
+          removeStored(ROOM_DIRTY_KEY);
         }
       } catch (err) {
         // This block also WRITES (pushing a first-run/legacy layout to the
@@ -1258,8 +1299,11 @@ export function StoreProvider({ children }) {
   };
   const removeTask = async (id) => {
     try {
-      if (activeTaskId === id) setActiveTaskId(null);
       await api.deleteTask(id);
+      // Do not detach a running timer from its task until deletion is durable.
+      // A failed request used to leave the task visible but silently clear the
+      // active-task label from the eventual session log.
+      if (activeTaskId === id) setActiveTaskId(null);
       await refreshTasks();
     } catch (err) {
       console.error("Failed to delete task:", err);
@@ -1281,6 +1325,13 @@ export function StoreProvider({ children }) {
       await refreshTasks();
     } catch (err) {
       console.error("Failed to save the task order:", err);
+      // The reorder was optimistic. Restore the durable order so the list
+      // does not advertise an arrangement that will disappear on reload.
+      try {
+        await refreshTasks();
+      } catch {
+        /* the original toast already explains the connectivity failure */
+      }
       showToast("Couldn't save the new order 🌧️");
     }
   };
@@ -1322,11 +1373,16 @@ export function StoreProvider({ children }) {
     return true;
   };
   const removeTaskGroup = async (name) => {
-    persistEmptyGroups(emptyGroups.filter((g) => g !== name));
     const affected = tasks.filter((t) => t.group === name);
-    if (!affected.length) return;
+    if (!affected.length) {
+      persistEmptyGroups(emptyGroups.filter((g) => g !== name));
+      return;
+    }
     try {
-      await Promise.all(affected.map((t) => api.updateTask(t.id, { group: null })));
+      // One atomic UPDATE. Per-task PUTs could fail halfway and split what the
+      // user experienced as one removal into grouped and ungrouped rows.
+      await api.renameTaskGroup(name, null);
+      persistEmptyGroups(emptyGroups.filter((g) => g !== name));
       // A group change is a task write like any other — it can't move the
       // friends list or the per-day session map, so it pays the narrow price.
       await refreshTasks();
@@ -1944,7 +2000,11 @@ export function StoreProvider({ children }) {
       WEATHER_MODES.includes(preset.weatherMode) ? preset.weatherMode : weatherMode
     );
     applyTimeOfDay(TIMES_OF_DAY.includes(preset.timeOfDay) ? preset.timeOfDay : timeOfDay);
+    // Recalling a snapshot is a manual choice. Every automatic writer must
+    // stand down or it can replace half of the recalled scene moments later.
     setAutoMatchWeather(false);
+    setAutoRandomWeather(false);
+    setAutoTimeOfDay(false);
     // A saved scene is an explicit user snapshot, so restoring its sounds IS
     // what applying it means (unlike the weather quick-picks, which are
     // visual-only). Legacy presets from before the mixer just set the visual.
@@ -2030,11 +2090,19 @@ export function StoreProvider({ children }) {
     const requestId = weatherFetchRef.current.id + 1;
     weatherFetchRef.current = { id: requestId, active: true };
     if (!background) {
+      // "Use my location" (or an explicit place choice) supersedes a city
+      // search still in flight. Without this, its late candidate list could
+      // reopen after the newer weather had already loaded.
+      weatherSearchRef.current += 1;
+      setWeatherPlaces([]);
       setWeatherStatus("loading");
       setWeatherError("");
     }
     try {
-      const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
+      const coords = normalizeWeatherCoords(
+        coordsOverride || weatherCoordsRef.current || (await locateBrowser())
+      );
+      if (!coords) throw new Error("That location has invalid coordinates");
       if (requestId !== weatherFetchRef.current.id) return false;
       weatherCoordsRef.current = coords;
       writeStored("tasknook.weather.coords", JSON.stringify(coords));
@@ -2075,6 +2143,15 @@ export function StoreProvider({ children }) {
   const searchWeatherCity = async (name) => {
     const searchId = weatherSearchRef.current + 1;
     weatherSearchRef.current = searchId;
+    // A prior geolocation/forecast request is now obsolete. It may still use
+    // the network, but its request id can no longer write shared UI state.
+    const weatherGuardId = weatherFetchRef.current.id + 1;
+    weatherFetchRef.current = {
+      id: weatherGuardId,
+      // Also block the silent 15-minute poll while the foreground search is
+      // deciding which location should own the display.
+      active: true,
+    };
     setWeatherStatus("loading");
     setWeatherError("");
     setWeatherPlaces([]);
@@ -2095,6 +2172,10 @@ export function StoreProvider({ children }) {
       if (searchId !== weatherSearchRef.current) return;
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't find that place");
+    } finally {
+      if (weatherFetchRef.current.id === weatherGuardId) {
+        weatherFetchRef.current = { id: weatherGuardId, active: false };
+      }
     }
   };
 
@@ -2448,6 +2529,7 @@ export function StoreProvider({ children }) {
     setMotionMode,
     hudVisibility,
     setHudVisibility,
+    setAllHudVisibility,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

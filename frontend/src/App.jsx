@@ -404,7 +404,20 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <TopBar clockVisibility={hudVisibility.clock} />
+      {/* The bottom-right rail is fixed in the same lane as a newly-opened
+          drawer. Let the foreground drawer own that lane; otherwise the rail
+          protrudes from underneath its rounded bottom and can cover the last
+          controls in a long panel. It stays mounted so its clock/menu state
+          and intro animation are not restarted when the drawer closes. */}
+      <div
+        className={
+          openPanels.length > 0
+            ? "pointer-events-none invisible opacity-0 transition-opacity duration-300"
+            : "opacity-100 transition-opacity duration-300"
+        }
+      >
+        <TopBar clockVisibility={hudVisibility.clock} />
+      </div>
       <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
       </div>
 
@@ -489,7 +502,11 @@ export default function App() {
           }}
         />
       </div>
-      <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.tasks)}>
+      {/* Unlike the timer card, the task HUD is fixed in the same top-right
+          lane drawers open into. Let the foreground drawer own that lane
+          completely instead of leaving the task title peeking through above
+          its header. Closing the last drawer restores the HUD in place. */}
+      <div className={hudWrapClass(roomEditMode || widgetMode || openPanels.length > 0, hudVisibility.tasks)}>
         <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
       </div>
       {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the

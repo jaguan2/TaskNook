@@ -30,15 +30,24 @@ const YT_SCRIPT_SRC = "https://www.youtube.com/iframe_api";
 const YT_LOAD_TIMEOUT = 12000;
 
 let ytApiPromise = null;
-function loadYouTubeApi() {
+export function loadYouTubeApi() {
   if (window.YT?.Player) return Promise.resolve(window.YT);
   if (!ytApiPromise) {
     ytApiPromise = new Promise((resolve) => {
       let settled = false;
+      let script = null;
+      let ownsScript = false;
+      let ready = null;
+      let existingError = null;
       const finish = (value) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (script && existingError) script.removeEventListener("error", existingError);
+        if (!value && ownsScript) script?.remove();
+        if (window.onYouTubeIframeAPIReady === ready) {
+          window.onYouTubeIframeAPIReady = prev;
+        }
         // Offline NOW isn't offline forever: clear the cached promise so the
         // next station change / toggle retries instead of pinning the bar to
         // "needs internet" until an app restart.
@@ -48,10 +57,11 @@ function loadYouTubeApi() {
       const timer = setTimeout(() => finish(null), YT_LOAD_TIMEOUT);
 
       const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
+      ready = () => {
         prev?.();
         finish(window.YT);
       };
+      window.onYouTubeIframeAPIReady = ready;
       // Reuse the tag if one is already in the document: every retry used to
       // append another <script>, and a few failed stations left a pile of them
       // in <head> all racing the same global callback.
@@ -63,14 +73,21 @@ function loadYouTubeApi() {
       // listener that could never fire, and burned the full 12s timeout before
       // reporting "needs internet" — for ever, until an app restart. That is the
       // opposite of what the comment above `finish` promises. Removing the
-      // corpse on error is what makes the retry real; the TIMEOUT path always
-      // self-healed, because `window.YT?.Player` short-circuits at the top.
+      // corpse on error is what makes the retry real. The timeout path removes
+      // a tag this loader created too, covering captive portals that returned
+      // HTML successfully but never installed window.YT.
       const existing = document.querySelector(`script[src="${YT_SCRIPT_SRC}"]`);
       if (existing) {
-        existing.addEventListener("error", () => finish(null), { once: true });
+        script = existing;
+        existingError = () => {
+          existing.remove();
+          finish(null);
+        };
+        existing.addEventListener("error", existingError, { once: true });
         return;
       }
-      const script = document.createElement("script");
+      script = document.createElement("script");
+      ownsScript = true;
       script.src = YT_SCRIPT_SRC;
       script.onerror = () => {
         script.remove();

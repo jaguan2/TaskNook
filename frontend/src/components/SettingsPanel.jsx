@@ -20,9 +20,15 @@ const HUD_ELEMENTS = [
   { key: "chat", label: "Chat unread badges" },
 ];
 const VIS_OPTIONS = [
-  { key: "on", label: "On" },
-  { key: "faded", label: "Faded" },
-  { key: "hidden", label: "Hidden" },
+  { key: "on", label: "Show" },
+  { key: "faded", label: "Dim" },
+  { key: "hidden", label: "Hide" },
+];
+
+const HUD_PRESETS = [
+  { key: "on", label: "Show all" },
+  { key: "faded", label: "Dim all" },
+  { key: "hidden", label: "Hide all" },
 ];
 
 // One-tap starting points for the custom scheme.
@@ -84,6 +90,7 @@ export default function SettingsPanel() {
     setMotionMode,
     hudVisibility,
     setHudVisibility,
+    setAllHudVisibility,
     autoResumeMusic,
     setAutoResumeMusic,
   } = useStore();
@@ -168,22 +175,45 @@ export default function SettingsPanel() {
           <EyeOff size={15} className="text-petal/70" /> HUD elements
         </p>
         <p className="text-xs text-petal/60">
-          Fade or fully hide individual pieces of the interface.
+          Quiet the scene without stopping timers, music, or notifications.
         </p>
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1" role="group" aria-label="All HUD elements">
+          {HUD_PRESETS.map((preset) => {
+            const selected = Object.values(hudVisibility).every((mode) => mode === preset.key);
+            return (
+              <button
+                key={preset.key}
+                onClick={() => setAllHudVisibility(preset.key)}
+                aria-pressed={selected}
+                className={`pill px-2 py-1.5 text-[11px] font-semibold transition ${
+                  selected
+                    ? "bg-glow text-plum"
+                    : "text-petal/80 hover:bg-white/10 hover:text-cream"
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="space-y-2 pt-1">
           {HUD_ELEMENTS.map((el) => (
             <div key={el.key} className="flex items-center justify-between gap-2">
               <span className="text-xs text-petal/80">{el.label}</span>
-              <div className="flex gap-1">
+              <div
+                className="grid w-36 grid-cols-3 gap-0.5 rounded-full bg-white/5 p-0.5"
+                role="group"
+                aria-label={`${el.label} visibility`}
+              >
                 {VIS_OPTIONS.map((v) => (
                   <button
                     key={v.key}
                     onClick={() => setHudVisibility(el.key, v.key)}
                     aria-pressed={hudVisibility[el.key] === v.key}
-                    className={`pill px-2.5 py-1 text-[10px] font-semibold transition ${
+                    className={`pill px-2 py-1 text-[10px] font-semibold transition ${
                       hudVisibility[el.key] === v.key
                         ? "bg-glow text-plum"
-                        : "bg-white/10 text-petal hover:bg-white/20"
+                        : "text-petal/70 hover:bg-white/10 hover:text-cream"
                     }`}
                   >
                     {v.label}
@@ -193,6 +223,9 @@ export default function SettingsPanel() {
             </div>
           ))}
         </div>
+        <p className="rounded-lg bg-white/5 px-2.5 py-2 text-[11px] leading-relaxed text-petal/60">
+          Hidden HUDs keep running. Open Settings from the left dock whenever you want them back.
+        </p>
       </section>
 
       <hr className="border-white/10" />

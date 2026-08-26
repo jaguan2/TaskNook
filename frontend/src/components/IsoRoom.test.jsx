@@ -79,7 +79,7 @@ describe("powered room decorations", () => {
   const SIZE = { w: 6, d: 6 };
   const LIGHTS = [{ id: "fairy", item: "fairylights", gx: 0, gy: 2 }];
 
-  it("toggles fairy lights directly outside Decorate mode", () => {
+  it("toggles fairy lights on a stationary release outside Decorate mode", () => {
     const onToggleItem = vi.fn();
     const { container } = render(
       <IsoRoom size={SIZE} placements={LIGHTS} saveView={false} onToggleItem={onToggleItem} />
@@ -87,8 +87,35 @@ describe("powered room decorations", () => {
 
     const lights = container.querySelector('[data-placement-id="fairy"]');
     expect(lights.style.cursor).toBe("pointer");
-    fireEvent.pointerDown(lights);
+    fireEvent.pointerDown(lights, { pointerId: 1, clientX: 100, clientY: 100 });
+    expect(onToggleItem).not.toHaveBeenCalled();
+    fireEvent.pointerUp(container.querySelector("svg"), {
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    });
     expect(onToggleItem).toHaveBeenCalledWith("fairy");
+  });
+
+  it("pans from fairy lights without toggling them", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom size={SIZE} placements={LIGHTS} saveView={false} onToggleItem={onToggleItem} />
+    );
+    const svg = container.querySelector("svg");
+    svg.getBoundingClientRect = () => ({ width: 1000, height: 500 });
+    svg.setPointerCapture = vi.fn();
+
+    fireEvent.pointerDown(container.querySelector('[data-placement-id="fairy"]'), {
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    fireEvent.pointerUp(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+
+    expect(onToggleItem).not.toHaveBeenCalled();
+    expect(svg.getAttribute("viewBox")).toBe("-64 -48 640 480");
   });
 
   it("removes the room light pool while switched off", () => {

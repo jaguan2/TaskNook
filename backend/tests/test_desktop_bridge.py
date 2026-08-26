@@ -11,6 +11,25 @@ import threading
 DESKTOP_PY = Path(__file__).resolve().parents[2] / "desktop.py"
 
 
+def _function_from_desktop(name):
+    tree = ast.parse(DESKTOP_PY.read_text(encoding="utf-8"))
+    function = next(
+        node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == name
+    )
+    module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
+    namespace = {}
+    exec(compile(module, str(DESKTOP_PY), "exec"), namespace)  # noqa: S102 - local source AST
+    return namespace[name]
+
+
+def test_port_override_is_bounded_before_the_server_uses_it():
+    parse_port = _function_from_desktop("parse_port")
+    assert parse_port("39217") == 39217
+    assert parse_port(1) == 1
+    for bad in (None, "", "not-a-port", 0, -1, 65536):
+        assert parse_port(bad) is None
+
+
 def test_native_window_never_becomes_public_javascript_api():
     tree = ast.parse(DESKTOP_PY.read_text(encoding="utf-8"))
     bridge = next(

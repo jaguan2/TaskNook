@@ -113,6 +113,18 @@ def test_rename_group_refuses_an_existing_name(client, auth):
     }
 
 
+def test_group_can_be_removed_from_every_member_atomically(client, auth):
+    for name in ("one", "two"):
+        client.post("/api/tasks", json={"name": name, "group": "Work"}, headers=auth)
+
+    res = client.put(
+        "/api/tasks/group", json={"name": "Work", "nextName": None}, headers=auth
+    )
+    assert res.status_code == 200
+    assert res.get_json() == {"updated": 2, "name": None}
+    assert all(task["group"] is None for task in client.get("/api/tasks", headers=auth).get_json())
+
+
 def test_routine_resets_after_a_day(app, client, auth):
     task_id = client.post(
         "/api/tasks", json={"name": "stretch", "routine": True}, headers=auth

@@ -50,7 +50,13 @@ def _message_box(message, icon):
     source you have a terminal, and a modal dialog would just block whoever
     (or whatever) launched it.
     """
-    print(message)
+    # PyInstaller's --windowed mode may replace stdout with None. The fallback
+    # dialog is most important in exactly that build, so a failed print must
+    # never prevent MessageBoxW from being reached.
+    try:
+        print(message)
+    except (AttributeError, OSError):
+        pass
     if sys.platform == "win32" and getattr(sys, "frozen", False):
         try:
             import ctypes
@@ -157,9 +163,21 @@ NORMAL_MIN_SIZE = (900, 640)
 WIDGET_WINDOW_SIZE = (300, 260)
 
 
+def parse_port(value):
+    """A valid TCP port, or None for a malformed environment override."""
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        return None
+    return port if 1 <= port <= 65535 else None
+
+
 def get_port():
     if os.environ.get("PORT"):
-        return int(os.environ["PORT"])
+        port = parse_port(os.environ["PORT"])
+        if port is None:
+            fatal("PORT must be a number between 1 and 65535.")
+        return port
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", DEFAULT_PORT))
