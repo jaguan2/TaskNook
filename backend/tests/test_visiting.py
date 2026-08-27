@@ -44,7 +44,7 @@ def friends_by_name(client, auth):
 def test_seeded_bots_cover_every_door_state(client, auth):
     # One of each, so every visit flow in the UI exists on day one.
     doors = {name: f["visitAccess"] for name, f in friends_by_name(client, auth).items()}
-    assert doors == {"luna": "public", "kai": "friends", "sora": "invite", "mochi": "private"}
+    assert doors == {"luna": "open", "kai": "friends", "sora": "invite", "mochi": "private"}
 
 
 def test_friend_room_returns_everything_a_visit_needs(client, auth):
@@ -54,7 +54,7 @@ def test_friend_room_returns_everything_a_visit_needs(client, auth):
     data = res.get_json()
     assert data["username"] == "luna"
     assert data["displayName"] == "Luna"
-    assert data["visitAccess"] == "public"
+    assert data["visitAccess"] == "open"
     # The bots ship with no stored room or character — the frontend derives
     # both (preset home + deterministic look), so null is the contract here.
     assert data["room"] is None
@@ -122,6 +122,6 @@ def test_visit_access_is_settable_and_whitelisted(client, auth):
     )
     me = client.get("/api/auth/me", headers=auth).get_json()["user"]
     assert me["visitAccess"] == "invite"
-    for junk in ("castle", "", None, 7):
+    for junk in ("public", "castle", "", None, 7):
         res = client.put("/api/visit-access", json={"value": junk}, headers=auth)
         assert res.status_code == 400, f"accepted {junk!r}"

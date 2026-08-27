@@ -33,7 +33,7 @@ import { WIDTH_RANGE, HEIGHT_RANGE } from "./body";
 // in app.py — same both-languages contract as ISO_ENVS); labels and hints
 // are UI text this file owns.
 export const VISIT_ACCESS = [
-  { key: "public", label: "Public", hint: "anyone may drop in" },
+  { key: "open", label: "Open", hint: "friends and neighbours may drop in" },
   { key: "friends", label: "Friends-only", hint: "friends may drop in" },
   { key: "invite", label: "Invite-only", hint: "visitors knock first" },
   { key: "private", label: "Private", hint: "nobody visits" },
@@ -41,7 +41,7 @@ export const VISIT_ACCESS = [
 
 // How long a knock hangs in the air before an invite-only bot opens the
 // door. The WAIT is the feature — instant entry would make "invite-only"
-// indistinguishable from "public".
+// indistinguishable from "open".
 export const KNOCK_WAIT_MS = 2600;
 
 // Hand-picked homes for the seeded bots — personality over hash: luna the

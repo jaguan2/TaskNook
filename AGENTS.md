@@ -265,14 +265,14 @@ running `git commit` yourself.
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
   directions to stay symmetric. This is intentional; don't "simplify" to one row.
 - **Visiting friends' rooms** (simulated social): `User.visit_access`
-  (public/friends/invite/private, default "friends") rides `public_dict`
+  (open/friends/invite/private, default "friends") rides `public_dict`
   into `/api/friends`; `VISIT_ACCESS_LEVELS` in app.py mirrors
   `VISIT_ACCESS` in `lib/visiting.js` — same both-languages contract as
   ISO_ENVS. `GET /api/friends/<id>/room` is friend-gated (404 otherwise)
-  and returns room + character + door in one call; knock/private
+  and returns room + character + visit access in one call; knock/private
   enforcement is deliberately CLIENT-side theater, and the endpoint's
   doc-comment is the contract that a multi-user future must move the gate
-  server-side first. The seeded bots hold one door state each (luna public,
+  server-side first. The seeded bots hold one access state each (luna open,
   kai friends, sora invite, mochi private — a one-shot boot backfill deals
   them to existing installs) and store NO rooms or characters:
   `lib/visiting.js` derives their homes from hand-picked presets
@@ -397,7 +397,7 @@ running `git commit` yourself.
   with a hint, the chip (and Escape, ahead of everything else) leads home —
   and `activity` still flows, so starting a focus block means studying
   together. A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
-  answer. Your own door is set in ProfilePanel (PUT `/api/visit-access`).
+  answer. Your own room access is set in ProfilePanel (PUT `/api/visit-access`).
 - **Chatting with friends** (simulated social, same contract as visiting):
   three tables — `Conversation` (`is_group` STORED, not inferred from the
   member count, because a group left with two people is still a group),

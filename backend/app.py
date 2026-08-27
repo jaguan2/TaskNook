@@ -369,7 +369,7 @@ PET_TEMPERS = ("mellow", "curious", "sleepy")
 
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
-VISIT_ACCESS_LEVELS = ("public", "friends", "invite", "private")
+VISIT_ACCESS_LEVELS = ("open", "friends", "invite", "private")
 
 
 def _hex_color(v):
@@ -1174,7 +1174,7 @@ def register_routes(app):
     @app.get("/api/friends/<int:friend_id>/room")
     @require_auth
     def friend_room(user, friend_id):
-        """A friend's room, character and door setting — for VISITING.
+        """A friend's room, character and access setting — for VISITING.
 
         Friend-gated (a stranger gets a 404), but deliberately NOT gated on
         `visit_access`: TaskNook is a single-user local app, the "friends"
@@ -1210,7 +1210,7 @@ def register_routes(app):
     @app.put("/api/visit-access")
     @require_auth
     def set_visit_access(user):
-        """Your own door setting. A whitelist, not free text — the value is
+        """Your room's visit setting. A whitelist, not free text — the value is
         an access rule, and an unknown level must fail loudly rather than be
         stored as a string nothing will ever match."""
         data = json_body()
@@ -1646,10 +1646,10 @@ def befriend_demo_users(user):
     db.session.commit()
 
 
-# One of each door state, so every visit flow in the UI exists on day one:
-# luna's door is open, kai is friends-only (the default), sora makes you
-# knock, and mochi's room is private.
-DEMO_VISIT_ACCESS = {"luna": "public", "kai": "friends", "sora": "invite", "mochi": "private"}
+# One of each access state, so every visit flow in the UI exists on day one:
+# Luna's room is open, Kai's is friends-only (the default), Sora asks visitors
+# to knock, and Mochi's room is private.
+DEMO_VISIT_ACCESS = {"luna": "open", "kai": "friends", "sora": "invite", "mochi": "private"}
 
 
 def seed_demo_data():

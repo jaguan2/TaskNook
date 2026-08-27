@@ -140,6 +140,22 @@ def test_relaunch_when_up_to_date_does_no_work(tmp_path, monkeypatch):
     assert revision(db) == head_of(app)
 
 
+def test_public_visit_access_is_migrated_to_open(tmp_path, monkeypatch):
+    """Existing installs keep the permissive simulated-social setting, but
+    its stored meaning is renamed so it no longer promises public access."""
+    db = tmp_path / "public-access.db"
+    boot(db, monkeypatch)
+    sql(db, "UPDATE user SET visit_access = 'public' WHERE username = 'luna'")
+    sql(db, "UPDATE alembic_version SET version_num = '6d53f00fb564'")
+
+    app = boot(db, monkeypatch)
+
+    assert revision(db) == head_of(app)
+    assert sql(db, "SELECT visit_access FROM user WHERE username = 'luna'") == [
+        ("open",)
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # the edge cases that used to brick the app
 # --------------------------------------------------------------------------- #

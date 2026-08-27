@@ -54,7 +54,7 @@ both the weather and the hour.
 
 | | |
 |---|---|
-| ![Friends](26-friends.webp) **Friends** — who's about, what they're up to right now, and whose door is open. | ![Visiting](27-visiting.webp) **Visiting** — walk into someone else's room, and drag yourself over to sit with them. |
+| ![Friends](26-friends.webp) **Friends** — who's about, what they're up to right now, and whose room is open. | ![Visiting](27-visiting.webp) **Visiting** — walk into someone else's room, and drag yourself over to sit with them. |
 
 ## Features
 

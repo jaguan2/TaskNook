@@ -73,7 +73,7 @@ class User(db.Model):
     # colours. Kept apart from `profile` because a different consumer reads it —
     # the iso room draws this every frame, panels read the other one.
     character = db.Column(db.Text, nullable=True)
-    # Who may visit this user's room: "public" | "friends" | "invite" |
+    # Who may visit this user's room: "open" | "friends" | "invite" |
     # "private". A real COLUMN, not a blob field, because it is an access
     # rule a multi-user server would enforce — not presentation the frontend
     # owns. (Today enforcement is client-side theater against the seeded

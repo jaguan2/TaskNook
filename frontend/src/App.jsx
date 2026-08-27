@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Sofa } from "lucide-react";
+import { Maximize2, Sofa, X } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
@@ -83,7 +83,6 @@ export default function App() {
     removeRoomItem,
     setRoomItemTint,
     isoPreview,
-    isoRoom,
     lastIsoAddedId,
     moveIsoItem,
     removeIsoItem,
@@ -94,7 +93,10 @@ export default function App() {
     visiting,
     leaveVisit,
     moveVisitGuest,
-    walkIsoPersona,
+    homeVisitors,
+    homeScene,
+    moveHomePersona,
+    kickHomeVisitor,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -115,7 +117,7 @@ export default function App() {
   // thread on integrated/disabled GPUs. Large home AND visited rooms use the
   // calm static treatment automatically; smaller rooms keep all authored
   // motion unless the user's reduced-motion setting says otherwise.
-  const activeIsoLayout = visiting?.layout || (isoPreview ? isoRoom : null);
+  const activeIsoLayout = visiting?.layout || (isoPreview ? homeScene.layout : null);
   const heavyScene =
     activeIsoLayout &&
     (activeIsoLayout.w * activeIsoLayout.d > 120 || activeIsoLayout.placements.length > 48);
@@ -331,8 +333,8 @@ export default function App() {
           ) : isoPreview ? (
             <IsoRoom
               key="home"
-              size={isoRoom}
-              placements={isoRoom.placements}
+              size={homeScene.layout}
+              placements={homeScene.layout.placements}
               editMode={roomEditMode}
               timeOfDay={timeOfDay}
               highlightId={lastIsoAddedId}
@@ -345,11 +347,12 @@ export default function App() {
               onRotateItem={rotateIsoItem}
               onTintItem={setIsoItemTint}
               onToggleItem={toggleIsoItem}
+              personas={homeScene.personas}
               /* Walking at home: every persona is grabbable outside Decorate,
                  same rule and same target marker as a visit. Unlike a visit it
                  persists — see `walkIsoPersona`. */
               walkPersonas
-              onWalkTo={walkIsoPersona}
+              onWalkTo={moveHomePersona}
             />
           ) : (
             <Cottage
@@ -380,6 +383,39 @@ export default function App() {
             {visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room
             <span className="ml-1 text-petal/60">· leave</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Open-room visitors borrow the signature's bottom-left lane. Each
+          guest is its own kick control: visible, keyboard reachable, and
+          immediate because this only removes a simulated render layer. */}
+      <AnimatePresence>
+        {!visiting && !roomEditMode && homeVisitors.length > 0 && (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            className="glass absolute bottom-6 left-6 z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
+            aria-label="Room visitors"
+          >
+            <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+              visiting
+            </span>
+            {homeVisitors.map((guest) => (
+              <button
+                key={guest.id}
+                type="button"
+                onClick={() => kickHomeVisitor(guest.id)}
+                title={`Ask ${guest.label} to leave`}
+                aria-label={`Ask ${guest.label} to leave`}
+                className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
+              >
+                <span aria-hidden="true">{guest.avatar}</span>
+                {guest.label}
+                <X size={11} className="text-petal/60" />
+              </button>
+            ))}
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -544,7 +580,9 @@ export default function App() {
           were asking to quiet down. */}
       <div
         className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
-          roomEditMode || widgetMode ? "invisible opacity-0" : "opacity-100"
+          roomEditMode || widgetMode || homeVisitors.length > 0
+            ? "invisible opacity-0"
+            : "opacity-100"
         }`}
         style={{ visibility: visiting ? "hidden" : undefined }}
         title="A space where I archive and share my journey, wherever it takes me."

@@ -1151,8 +1151,8 @@ export default function ProfilePanel() {
         />
         <p className="mt-1 text-xs text-petal/50">
           {VISIT_ACCESS.find((v) => v.key === (user?.visitAccess || "friends"))?.hint}
-          . It&apos;ll matter the day friends can really drop by — for now
-          it&apos;s your door, set how you like it.
+          . Open means friends and simulated neighbours, not unrestricted public
+          access. Any drop-in can be asked to leave from the visitor chip.
         </p>
       </Field>
 

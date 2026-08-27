@@ -15,6 +15,14 @@ import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import {
+  HOME_VISITOR_KICK_COOLDOWN_MS,
+  HOME_VISITOR_TICK_MS,
+  advanceHomeVisitors,
+  homeVisitorScene,
+  moveHomeVisitor,
+  nextHomeVisitorDelay,
+} from "./lib/homeVisitors";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import {
   MESSAGE_MAX,
@@ -1537,6 +1545,16 @@ export function StoreProvider({ children }) {
   // lib/visiting derive the rest (their home, their look, you as the guest),
   // and hand IsoRoom a read-only layout + personas. Never persisted.
   const [visiting, setVisiting] = useState(null);
+  // Friends dropping into YOUR open room. Also render-only: these placements
+  // never enter isoRoom or its local/server mirrors.
+  const [homeVisitors, setHomeVisitors] = useState([]);
+  const homeVisitorsRef = useRef([]);
+  const nextHomeVisitorAt = useRef(null);
+  const kickedHomeVisitors = useRef({});
+  const commitHomeVisitors = useCallback((next) => {
+    homeVisitorsRef.current = next;
+    setHomeVisitors(next);
+  }, []);
   // Which friend's door is being knocked on (the invite-only wait).
   const [knockingId, setKnockingId] = useState(null);
   const knockTimer = useRef(null);
@@ -1639,6 +1657,92 @@ export function StoreProvider({ children }) {
       };
     });
   }, []);
+
+  const moveHomePersona = useCallback(
+    (id, gx, gy) => {
+      const moved = moveHomeVisitor(homeVisitorsRef.current, id, gx, gy);
+      if (moved !== homeVisitorsRef.current) {
+        commitHomeVisitors(moved);
+        return;
+      }
+      walkIsoPersona(id, gx, gy);
+    },
+    [commitHomeVisitors, walkIsoPersona]
+  );
+
+  const kickHomeVisitor = useCallback(
+    (id) => {
+      const guest = homeVisitorsRef.current.find((visitor) => visitor.id === id);
+      if (!guest) return false;
+      kickedHomeVisitors.current[guest.username] =
+        Date.now() + HOME_VISITOR_KICK_COOLDOWN_MS;
+      commitHomeVisitors(
+        homeVisitorsRef.current.filter((visitor) => visitor.id !== id)
+      );
+      // A kick creates breathing room rather than immediately rolling a
+      // replacement on the next 15-second tick.
+      nextHomeVisitorAt.current = Date.now() + nextHomeVisitorDelay();
+      showToast(`${guest.avatar} ${guest.label} headed home`);
+      return true;
+    },
+    [commitHomeVisitors, showToast]
+  );
+
+  // One small scheduler owns both arrivals and natural departures. Guests
+  // only exist while the home is visible and room access is explicitly Open;
+  // decorating or leaving home clears the temporary layer rather than letting
+  // simulated people interfere with room editing.
+  const isVisiting = Boolean(visiting);
+  useEffect(() => {
+    const open =
+      user?.visitAccess === "open" && !isVisiting && !roomEditMode && isoPreview;
+    if (!open) {
+      nextHomeVisitorAt.current = null;
+      if (homeVisitorsRef.current.length) commitHomeVisitors([]);
+      return undefined;
+    }
+
+    const tick = () => {
+      const now = Date.now();
+      const current = homeVisitorsRef.current;
+      const result = advanceHomeVisitors({
+        layout: isoRef.current,
+        friends: friendsRef.current,
+        visitors: current,
+        kickedUntil: kickedHomeVisitors.current,
+        now,
+        nextArrivalAt: nextHomeVisitorAt.current,
+      });
+      const next = result.visitors;
+      const arrived = result.arrived;
+      nextHomeVisitorAt.current = result.nextArrivalAt;
+
+      if (
+        next.length !== current.length ||
+        next.some((visitor, index) => visitor !== current[index])
+      ) {
+        commitHomeVisitors(next);
+      }
+      if (arrived) showToast(`${arrived.avatar} ${arrived.label} dropped by`);
+    };
+
+    tick();
+    const id = setInterval(tick, HOME_VISITOR_TICK_MS);
+    return () => clearInterval(id);
+  }, [
+    user?.visitAccess,
+    isVisiting,
+    roomEditMode,
+    isoPreview,
+    friends.length,
+    commitHomeVisitors,
+    showToast,
+  ]);
+
+  const homeScene = useMemo(
+    () => homeVisitorScene(isoRoom, homeVisitors),
+    [isoRoom, homeVisitors]
+  );
   /**
    * A pet's identity — name and temper — living ON its placement, because a
    * pet IS a placement: two cats are two rows, each with its own name, and
@@ -1947,14 +2051,14 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (user) refreshChats();
   }, [user, refreshChats]);
-  // Your own door. Matters the day friends can really visit; today it's a
-  // preference the bots politely respect.
+  // Who may enter your room. Today the simulated friends politely respect it;
+  // a networked future would enforce this server-side.
   const setVisitAccess = async (value) => {
     try {
       const res = await api.setVisitAccess(value);
       setUser((u) => (u ? { ...u, visitAccess: res.visitAccess } : u));
     } catch (err) {
-      showToast(`Couldn't change your door — ${err.message}`);
+      showToast(`Couldn't change room access — ${err.message}`);
     }
   };
 
@@ -2459,6 +2563,10 @@ export function StoreProvider({ children }) {
     leaveVisit,
     moveVisitGuest,
     walkIsoPersona,
+    homeVisitors,
+    homeScene,
+    moveHomePersona,
+    kickHomeVisitor,
     setPetIdentity,
     setVisitAccess,
     applyIsoPreset,

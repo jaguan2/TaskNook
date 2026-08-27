@@ -30,11 +30,12 @@ describe("the door vocabulary", () => {
     // VISIT_ACCESS_LEVELS in app.py — the both-languages contract. If this
     // fails, one side gained (or renamed) a door state the other can't speak.
     expect(VISIT_ACCESS.map((v) => v.key)).toEqual([
-      "public",
+      "open",
       "friends",
       "invite",
       "private",
     ]);
+    expect(VISIT_ACCESS[0]).toMatchObject({ key: "open", label: "Open" });
   });
 
   it("every bot's home is a real preset", () => {
