@@ -64,6 +64,10 @@ describe("task naming and deletion", () => {
 
     fireEvent.click(screen.getAllByLabelText("Delete task")[0]);
     expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getAllByLabelText("Delete task")[0]);
     fireEvent.click(screen.getByText("Delete"));
     expect(mockStore.removeTask).toHaveBeenCalledWith(1);
   });

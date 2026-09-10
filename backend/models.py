@@ -134,6 +134,7 @@ class Task(db.Model):
     is_routine = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -150,6 +151,8 @@ class Task(db.Model):
             "routine": self.is_routine,
             "createdAt": _utc_iso(self.created_at),
             "completedAt": _utc_iso(self.completed_at),
+            "archived": self.archived_at is not None,
+            "archivedAt": _utc_iso(self.archived_at),
         }
 
 

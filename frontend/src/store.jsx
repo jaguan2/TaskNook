@@ -1571,6 +1571,16 @@ export function StoreProvider({ children }) {
       throw err;
     }
   };
+  const archiveTask = async (id) => {
+    try {
+      await api.archiveTask(id);
+      await refreshTasks();
+      showToast("Task added to your journal ✨");
+    } catch (err) {
+      console.error("Failed to archive task:", err);
+      showToast("Couldn't archive the task 🌧️");
+    }
+  };
   const removeEvent = async (id) => {
     try {
       await api.deleteEvent(id);
@@ -2533,6 +2543,7 @@ export function StoreProvider({ children }) {
     toggleTask,
     editTask,
     removeTask,
+    archiveTask,
     reorderTasks,
 
     taskGroups,

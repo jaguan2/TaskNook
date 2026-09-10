@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Pencil, Sparkles, Target } from "lucide-react";
+import { Archive, CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Pencil, Sparkles, Target } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
@@ -53,6 +53,7 @@ export default function TaskPanel() {
     addTask,
     toggleTask,
     removeTask,
+    archiveTask,
     reorderTasks,
     activeTaskId,
     setActiveTaskId,
@@ -77,7 +78,6 @@ export default function TaskPanel() {
   const dragIndex = useRef(null);
 
   const [deleting, setDeleting] = useState(null);
-  const confirmId = null;
   const [editingId, setEditingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
   const requestDelete = (task) => setDeleting(task);
@@ -87,8 +87,9 @@ export default function TaskPanel() {
     if (next && next !== task.name) editTask(task.id, { name: next });
   };
 
-  const active = orderedTasks.filter((t) => !t.completed);
-  const done = orderedTasks.filter((t) => t.completed);
+  const visibleTasks = orderedTasks.filter((t) => !t.archived);
+  const active = visibleTasks.filter((t) => !t.completed);
+  const done = visibleTasks.filter((t) => t.completed);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -311,13 +312,9 @@ export default function TaskPanel() {
               onClick={() => requestDelete(task)}
               title="Delete task"
               aria-label="Delete task"
-              className={`hover-reveal shrink-0 transition ${
-                confirmId === task.id
-                  ? "confirming text-[10px] font-bold text-danger"
-                  : "text-sm text-petal/40 hover:text-danger"
-              }`}
+              className="hover-reveal shrink-0 text-sm text-petal/40 transition hover:text-danger"
             >
-              {confirmId === task.id ? "sure?" : "✕"}
+              ✕
             </button>
           </div>
         ))}
@@ -345,17 +342,15 @@ export default function TaskPanel() {
               <p className="flex-1 truncate text-sm text-cream line-through">
                 {task.name}
               </p>
+              {!task.routine && <button onClick={() => archiveTask(task.id)} title="Archive to journal" aria-label={`Archive ${task.name}`}
+                className="shrink-0 text-petal/45 hover:text-glow"><Archive size={14} /></button>}
               <button
                 onClick={() => requestDelete(task)}
                 title="Delete task"
                 aria-label="Delete task"
-                className={`shrink-0 transition ${
-                  confirmId === task.id
-                    ? "text-[10px] font-bold text-danger"
-                    : "text-sm text-petal/40 hover:text-danger"
-                }`}
+                className="shrink-0 text-sm text-petal/40 transition hover:text-danger"
               >
-                {confirmId === task.id ? "sure?" : "✕"}
+                ✕
               </button>
             </div>
           ))}

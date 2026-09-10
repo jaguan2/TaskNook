@@ -185,7 +185,6 @@ function Row({
   editTask,
 }) {
   const expanded = expandedId === task.id;
-  const confirming = false;
   // A deadline that has passed (or lands today) is the only thing in the list
   // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
   // the same rule the calendar follows, and both are plain YYYY-MM-DD so a
@@ -291,13 +290,9 @@ function Row({
         onClick={() => requestDelete(task)}
         title="Delete task"
         aria-label="Delete task"
-        className={`hover-reveal shrink-0 px-1 transition ${
-          confirming
-            ? "confirming text-[10px] font-bold text-danger"
-            : "text-sm text-petal/30 hover:text-danger"
-        }`}
+        className="hover-reveal shrink-0 px-1 text-sm text-petal/30 transition hover:text-danger"
       >
-        {confirming ? "sure?" : "✕"}
+        ✕
       </button>
     </div>
     {expanded && (

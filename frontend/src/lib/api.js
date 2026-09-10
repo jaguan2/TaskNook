@@ -128,6 +128,7 @@ export const api = {
   createTask: (payload) => request("POST", "/tasks", payload),
   updateTask: (id, payload) => request("PUT", `/tasks/${id}`, payload),
   deleteTask: (id) => request("DELETE", `/tasks/${id}`),
+  archiveTask: (id) => request("POST", `/tasks/${id}/archive`),
   reorderTasks: (order) => request("PUT", "/tasks/reorder", { order }),
   renameTaskGroup: (name, nextName) =>
     request("PUT", "/tasks/group", { name, nextName }),

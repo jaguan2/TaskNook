@@ -491,6 +491,8 @@ def register_routes(app):
         today = date.today()
         changed = False
         for t in tasks:
+            if t.archived_at:
+                continue
             if t.is_routine and t.completed and t.completed_at:
                 done_at = t.completed_at
                 if done_at.tzinfo is None:
@@ -610,6 +612,21 @@ def register_routes(app):
         db.session.delete(task)
         db.session.commit()
         return jsonify({"ok": True})
+
+    @app.post("/api/tasks/<int:task_id>/archive")
+    @require_auth
+    def archive_task(user, task_id):
+        task = Task.query.filter_by(id=task_id, user_id=user.id).first()
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        if not task.completed:
+            return jsonify({"error": "Only completed tasks can be archived"}), 400
+        if task.is_routine:
+            return jsonify({"error": "Daily routines cannot be archived"}), 400
+        if not task.archived_at:
+            task.archived_at = utcnow()
+            db.session.commit()
+        return jsonify(task.to_dict())
 
     @app.get("/api/events")
     @require_auth
@@ -1569,7 +1586,7 @@ def build_stats_for(user_ids):
                 0,
             ),
         )
-        .filter(Task.user_id.in_(ids))
+        .filter(Task.user_id.in_(ids), Task.archived_at.is_(None))
         .group_by(Task.user_id)
         .all()
     )
@@ -1612,10 +1629,10 @@ def build_stats(user):
     one real N+1.
     """
     today = today_str()
-    total = db.session.query(db.func.count(Task.id)).filter_by(user_id=user.id).scalar() or 0
+    total = db.session.query(db.func.count(Task.id)).filter(Task.user_id == user.id, Task.archived_at.is_(None)).scalar() or 0
     done = (
         db.session.query(db.func.count(Task.id))
-        .filter_by(user_id=user.id, completed=True)
+        .filter(Task.user_id == user.id, Task.completed.is_(True), Task.archived_at.is_(None))
         .scalar()
         or 0
     )
