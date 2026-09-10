@@ -153,6 +153,28 @@ class Task(db.Model):
         }
 
 
+class CalendarEvent(db.Model):
+    """A time-bound appointment; tasks stay in Task because they can be done."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    title = db.Column(db.String(TASK_NAME_MAX), nullable=False)
+    event_date = db.Column(db.String(10), nullable=False, index=True)
+    start_time = db.Column(db.String(5), nullable=False)  # local HH:MM
+    duration = db.Column(db.Integer, nullable=False, default=60)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "date": self.event_date,
+            "startTime": self.start_time,
+            "duration": self.duration,
+            "notes": self.notes,
+        }
+
+
 class FocusSession(db.Model):
     """A completed (or in-progress) focus block, used for productivity hours."""
 

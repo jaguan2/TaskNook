@@ -10,6 +10,7 @@ import {
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
 import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
 import { toISO } from "./lib/dates";
+import { localTodayISO } from "./lib/stats";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
@@ -166,6 +167,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
   const [friends, setFriends] = useState([]);
   const [stats, setStats] = useState({
     tasksTotal: 0,
@@ -1096,15 +1098,17 @@ export function StoreProvider({ children }) {
     // that had already reset. It self-corrected on the next refresh, which is
     // exactly what makes it easy to miss.
     const t = await api.listTasks();
-    const [s, f, d] = await Promise.all([
+    const [s, f, d, e] = await Promise.all([
       api.stats(),
       api.listFriends(),
       api.sessionDays(),
+      api.listEvents(),
     ]);
     setTasks(t);
     setStats(s);
     setFriends(f);
     setSessionDays(d);
+    setEvents(e);
   }, []);
 
   /**
@@ -1555,6 +1559,49 @@ export function StoreProvider({ children }) {
     homeVisitorsRef.current = next;
     setHomeVisitors(next);
   }, []);
+
+  const refreshEvents = useCallback(async () => setEvents(await api.listEvents()), []);
+  const addEvent = async (payload) => {
+    try {
+      await api.createEvent(payload);
+      await refreshEvents();
+    } catch (err) {
+      console.error("Failed to add event:", err);
+      showToast("Couldn't add that appointment 🌧️");
+      throw err;
+    }
+  };
+  const removeEvent = async (id) => {
+    try {
+      await api.deleteEvent(id);
+      await refreshEvents();
+    } catch (err) {
+      console.error("Failed to remove event:", err);
+      showToast("Couldn't delete that appointment 🌧️");
+    }
+  };
+
+  // Alert once per local event minute and persist the acknowledgement so a
+  // panel re-render or relaunch cannot turn a 10:00 appointment into a toast
+  // loop. This is intentionally in-app feedback, not an OS notification API.
+  useEffect(() => {
+    const announce = () => {
+      const now = new Date();
+      const day = localTodayISO();
+      const clock = now.toTimeString().slice(0, 5);
+      for (const event of events) {
+        if (event.date !== day || event.startTime !== clock) continue;
+        const key = `tasknook.eventAlert.${event.id}.${day}`;
+        if (readStored(key)) continue;
+        writeStored(key, "1");
+        showToast(`⏰ ${event.title} starts now`, 12_000);
+        break;
+      }
+    };
+    announce();
+    const id = setInterval(announce, 30_000);
+    return () => clearInterval(id);
+  }, [events, showToast]);
   // Which friend's door is being knocked on (the invite-only wait).
   const [knockingId, setKnockingId] = useState(null);
   const knockTimer = useRef(null);
@@ -2480,6 +2527,7 @@ export function StoreProvider({ children }) {
     dismissToast,
 
     tasks,
+    events,
     orderedTasks,
     addTask,
     toggleTask,
@@ -2507,6 +2555,9 @@ export function StoreProvider({ children }) {
     refreshAll,
     refreshTasks,
     refreshFocus,
+    refreshEvents,
+    addEvent,
+    removeEvent,
     dailyGoal,
     setDailyGoal,
 

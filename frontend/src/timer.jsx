@@ -48,7 +48,7 @@ import { useStore } from "./store";
 //                      would put App back on a 1Hz re-render and drag its whole
 //                      subtree along with it — the exact thing this split fixes.
 
-const FOCUS_PRESETS = [15, 25, 45, 60];
+const FOCUS_PRESETS = [15, 30, 45, 60];
 
 // Long enough to read without hurrying, since this one arrives unprompted
 // while your eyes are on the work rather than on the app.
@@ -68,7 +68,7 @@ export function TimerProvider({ children }) {
   const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend } = useStore();
 
   const [focusMinutes, setFocusMinutes] = useState(() =>
-    normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 25)
+    normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 30)
   );
   const [remaining, setRemaining] = useState(() => focusMinutes * 60);
   const [running, setRunning] = useState(false);

@@ -50,7 +50,7 @@ function fmtClock(d) {
 }
 
 export default function TopBar({ clockVisibility = "on" }) {
-  const { user, weatherMode, setWeather, widgetMode, setWidgetMode, showToast } = useStore();
+  const { weatherMode, setWeather, widgetMode, setWidgetMode, showToast } = useStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
 
@@ -198,12 +198,6 @@ export default function TopBar({ clockVisibility = "on" }) {
         </div>
       )}
 
-      <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
-        <span className="text-base leading-none">{user?.avatar || "🌙"}</span>
-        <span className="hidden sm:block text-sm font-semibold">
-          {user?.displayName}
-        </span>
-      </div>
     </div>
   );
 }

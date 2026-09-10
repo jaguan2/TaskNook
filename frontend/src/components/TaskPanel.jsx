@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
-import { CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Sparkles, Target } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Pencil, Sparkles, Target } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { formatSpan } from "../lib/breaks";
-import { useArmed } from "../lib/useArmed";
+import ConfirmDialog from "./ConfirmDialog";
 
 // The three are a SCALE, so all three colours have to be fixed ones or the
 // scale stops meaning anything. `danger` rather than `rose` for high: rose is
@@ -56,6 +56,7 @@ export default function TaskPanel() {
     reorderTasks,
     activeTaskId,
     setActiveTaskId,
+    editTask,
     stats,
     sessionDays,
     dailyGoal,
@@ -70,13 +71,21 @@ export default function TaskPanel() {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState(25);
   const [priority, setPriority] = useState("medium");
+  const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const dragIndex = useRef(null);
 
-  // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
-  const [confirmId, arm] = useArmed();
-  const requestDelete = (id) => arm(id, () => removeTask(id));
+  const [deleting, setDeleting] = useState(null);
+  const confirmId = null;
+  const [editingId, setEditingId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const requestDelete = (task) => setDeleting(task);
+  const finishRename = (task) => {
+    const next = renameDraft.trim();
+    setEditingId(null);
+    if (next && next !== task.name) editTask(task.id, { name: next });
+  };
 
   const active = orderedTasks.filter((t) => !t.completed);
   const done = orderedTasks.filter((t) => t.completed);
@@ -94,10 +103,12 @@ export default function TaskPanel() {
         name: name.trim(),
         duration: Math.max(1, Math.min(1440, Math.round(Number(duration) || 25))),
         priority,
+        dueDate: dueDate || null,
       });
       setName("");
       setDuration(25);
       setPriority("medium");
+      setDueDate("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -137,6 +148,7 @@ export default function TaskPanel() {
   const goalMet = focusMinutesLive >= dailyGoal;
 
   return (
+    <>
     <div className="space-y-5">
       {/* Add task */}
       <form onSubmit={submit} className="space-y-2">
@@ -172,6 +184,11 @@ export default function TaskPanel() {
             <option className="bg-plum" value="high">High</option>
           </select>
         </div>
+        <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-petal">
+          Due date <span className="text-petal/50">(optional)</span>
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+            aria-label="Due date" className="ml-auto min-w-0 bg-transparent text-cream outline-none" />
+        </label>
         <button
           disabled={busy}
           className="pill w-full bg-glow py-2 font-semibold text-plum hover:bg-amber disabled:opacity-50"
@@ -232,12 +249,17 @@ export default function TaskPanel() {
             >
               ✓
             </button>
-            <button
-              onClick={() => setActiveTaskId(task.id)}
-              title="Focus on this task"
-              className="min-w-0 flex-1 text-left"
-            >
-              <p className="truncate text-sm font-medium text-cream">{task.name}</p>
+            <div className="min-w-0 flex-1">
+              {editingId === task.id ? (
+                <input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
+                  onBlur={() => finishRename(task)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                  aria-label="Task name" maxLength={200}
+                  className="w-full rounded-md bg-white/10 px-1.5 py-0.5 text-sm font-medium text-cream outline-none focus:bg-white/15" />
+              ) : (
+                <button onClick={() => setActiveTaskId(task.id)} title="Focus on this task" className="min-w-0 text-left">
+                  <p className="truncate text-sm font-medium text-cream">{task.name}</p>
+                </button>
+              )}
               <div className="mt-0.5 flex items-center gap-2">
                 <span className="text-xs text-petal/70">{task.duration} min</span>
                 <span
@@ -259,7 +281,9 @@ export default function TaskPanel() {
                   <span className="text-[10px] font-semibold text-glow">● focusing</span>
                 )}
               </div>
-            </button>
+            </div>
+            <button onClick={() => { setEditingId(task.id); setRenameDraft(task.name); }} title="Rename task" aria-label={`Rename ${task.name}`}
+              className="hover-reveal shrink-0 text-petal/40 hover:text-cream"><Pencil size={13} /></button>
             {algorithm === "custom" && (
               <div className="flex shrink-0 items-center gap-0.5">
                 <GripVertical size={13} className="cursor-grab text-petal/40" aria-hidden="true" />
@@ -284,7 +308,7 @@ export default function TaskPanel() {
               </div>
             )}
             <button
-              onClick={() => requestDelete(task.id)}
+              onClick={() => requestDelete(task)}
               title="Delete task"
               aria-label="Delete task"
               className={`hover-reveal shrink-0 transition ${
@@ -322,7 +346,7 @@ export default function TaskPanel() {
                 {task.name}
               </p>
               <button
-                onClick={() => requestDelete(task.id)}
+                onClick={() => requestDelete(task)}
                 title="Delete task"
                 aria-label="Delete task"
                 className={`shrink-0 transition ${
@@ -422,5 +446,10 @@ export default function TaskPanel() {
         />
       </label>
     </div>
+    <ConfirmDialog open={!!deleting} title="Delete task?"
+      message={`Remove “${deleting?.name || "this task"}” permanently?`}
+      onCancel={() => setDeleting(null)}
+      onConfirm={() => { removeTask(deleting.id); setDeleting(null); }} />
+    </>
   );
 }

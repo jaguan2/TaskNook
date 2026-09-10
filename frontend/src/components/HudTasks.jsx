@@ -11,6 +11,7 @@ import {
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { toISO } from "../lib/dates";
+import ConfirmDialog from "./ConfirmDialog";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
@@ -65,6 +66,7 @@ function TaskDetails({ task, editTask, onClose }) {
   };
 
   return (
+    <>
     <div className="mb-1 ml-[38px] mr-1 space-y-1.5 rounded-lg bg-white/5 p-2">
       <input
         value={name}
@@ -162,6 +164,7 @@ function TaskDetails({ task, editTask, onClose }) {
         </button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -171,7 +174,6 @@ function Row({
   index,
   draggableRow,
   activeTaskId,
-  confirmId,
   toggleTask,
   setActiveTaskId,
   toggleRoutine,
@@ -183,7 +185,7 @@ function Row({
   editTask,
 }) {
   const expanded = expandedId === task.id;
-  const confirming = confirmId === task.id;
+  const confirming = false;
   // A deadline that has passed (or lands today) is the only thing in the list
   // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
   // the same rule the calendar follows, and both are plain YYYY-MM-DD so a
@@ -286,7 +288,7 @@ function Row({
         <Repeat size={12} />
       </button>
       <button
-        onClick={() => requestDelete(task.id)}
+        onClick={() => requestDelete(task)}
         title="Delete task"
         aria-label="Delete task"
         className={`hover-reveal shrink-0 px-1 transition ${
@@ -335,13 +337,16 @@ export default function HudTasks({ onOpenTasks }) {
   const [expandedId, setExpandedId] = useState(null);
   const toggleExpand = (id) => setExpandedId((cur) => (cur === id ? null : id));
 
+  const [deleting, setDeleting] = useState(null);
+  const requestDelete = (task) => setDeleting(task);
   const [confirmId, arm] = useArmed();
-  const requestDelete = (id) => arm(id, () => removeTask(id));
 
   // orderedTasks already sinks completed tasks to the bottom. Grouping only
   // partitions the active rows — done rows collapse into one flat pile.
-  const active = orderedTasks.filter((t) => !t.completed);
-  const done = orderedTasks.filter((t) => t.completed);
+  const today = toISO(new Date());
+  const todayTasks = orderedTasks.filter((t) => !t.scheduledDate || t.scheduledDate <= today);
+  const active = todayTasks.filter((t) => !t.completed);
+  const done = todayTasks.filter((t) => t.completed);
   const sections = [
     { key: "", tasks: active.filter((t) => !t.group) },
     ...taskGroups.map((g) => ({ key: g, tasks: active.filter((t) => t.group === g) })),
@@ -396,7 +401,6 @@ export default function HudTasks({ onOpenTasks }) {
 
   const rowProps = {
     activeTaskId,
-    confirmId,
     toggleTask,
     setActiveTaskId,
     toggleRoutine,
@@ -409,7 +413,8 @@ export default function HudTasks({ onOpenTasks }) {
   };
 
   return (
-    // Below 600px this 288px list and the 216px timer card can't both have the
+    <>
+    {/* Below 600px this 288px list and the 216px timer card can't both have the
     // top of the window: they overlapped, and the result was unreadable — two
     // stacks of text on top of each other (measured: the collision starts at
     // 588px and grows as you narrow). The list steps aside instead; the full
@@ -418,6 +423,7 @@ export default function HudTasks({ onOpenTasks }) {
     // `invisible`, never `hidden`: this carries .intro-chrome, and
     // display:none would replay its 1.5s boot animation every time the window
     // crossed the threshold (docs/DESIGN.md).
+    */}
     <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col max-[599px]:invisible">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
@@ -579,5 +585,10 @@ export default function HudTasks({ onOpenTasks }) {
         )}
       </form>
     </div>
+    <ConfirmDialog open={!!deleting} title="Delete task?"
+      message={`Remove “${deleting?.name || "this task"}” permanently?`}
+      onCancel={() => setDeleting(null)}
+      onConfirm={() => { removeTask(deleting.id); setDeleting(null); }} />
+    </>
   );
 }

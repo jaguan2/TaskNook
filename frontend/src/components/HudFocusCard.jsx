@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatClock, normalizeFocusMinutes } from "../lib/time";
+import { formatClock } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
-import { Check, ChevronUp, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
+import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
@@ -47,14 +47,6 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
-  const [customMinutes, setCustomMinutes] = useState(String(focusMinutes));
-  useEffect(() => setCustomMinutes(String(focusMinutes)), [focusMinutes]);
-
-  const applyCustomMinutes = () => {
-    const next = normalizeFocusMinutes(customMinutes, focusMinutes);
-    setCustomMinutes(String(next));
-    setFocus(next);
-  };
   const { activeTask, sessionDays, dailyGoal, unlockBalance } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
@@ -142,7 +134,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
           </h1>
         )}
 
-        <div className="glass w-full rounded-2xl px-4 pb-3 pt-2 shadow-soft">
+        <div className="glass relative w-full rounded-2xl px-4 pb-3 pt-2 shadow-soft">
           {!compact && (
             <div
               onPointerDown={(e) => dragControls.start(e)}
@@ -268,14 +260,14 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
                   expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
                 }`}
               >
-                {expanded ? <ChevronUp size={15} /> : <Settings2 size={14} />}
+                {expanded ? <ChevronLeft size={15} /> : <Settings2 size={14} />}
               </button>
             )}
           </div>
 
           {/* options, tucked away by default */}
           {expanded && !compact && (
-            <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
+            <div className="glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
               <div className="flex justify-center gap-1">
                 {[
                   { key: "timer", label: "Timer", Icon: Hourglass },
@@ -318,24 +310,6 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
                         {m}m
                       </button>
                     ))}
-                    <input
-                      type="number"
-                      min="1"
-                      max="1440"
-                      value={customMinutes}
-                      onChange={(e) => setCustomMinutes(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && applyCustomMinutes()}
-                      disabled={running}
-                      aria-label="Custom focus minutes"
-                      className="w-12 rounded-full bg-white/10 px-2 py-0.5 text-center text-[11px] text-cream outline-none focus:bg-white/15 disabled:opacity-40"
-                    />
-                    <button
-                      onClick={applyCustomMinutes}
-                      disabled={running}
-                      className="pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-petal hover:bg-white/20 disabled:opacity-40"
-                    >
-                      Set
-                    </button>
                   </div>
                   <label className="mx-auto flex max-w-48 items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
                     Chime

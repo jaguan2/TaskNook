@@ -6,7 +6,12 @@ import CalendarPanel from "./CalendarPanel";
 const mockApi = vi.hoisted(() => ({ sessionDay: vi.fn() }));
 const mockStore = vi.hoisted(() => ({
   tasks: [],
+  events: [],
+  addTask: vi.fn(),
+  addEvent: vi.fn(),
+  removeEvent: vi.fn(),
   editTask: vi.fn(),
+  showToast: vi.fn(),
   sessionDays: {},
 }));
 
@@ -17,6 +22,7 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date(2026, 7, 25, 12));
   mockStore.tasks = [];
+  mockStore.events = [];
   mockStore.sessionDays = {};
 });
 
@@ -57,5 +63,26 @@ describe("calendar focus journal", () => {
     await waitFor(() => expect(screen.getByText("Plan the garden")).toBeTruthy());
     expect(mockApi.sessionDay).toHaveBeenCalledTimes(2);
     expect(error).toHaveBeenCalledOnce();
+  });
+});
+
+describe("calendar planning", () => {
+  it("creates a scheduled task for the selected day", () => {
+    render(<CalendarPanel />);
+    fireEvent.change(screen.getByPlaceholderText("e.g. Physics 2 exam"), { target: { value: "Physics 2 exam" } });
+    fireEvent.click(screen.getByText("Add task"));
+    expect(mockStore.addTask).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Physics 2 exam", scheduledDate: "2026-08-25",
+    }));
+  });
+
+  it("shows appointments and confirms their removal", () => {
+    mockStore.events = [{ id: 4, title: "Dentist", date: "2026-08-25", startTime: "09:30" }];
+    render(<CalendarPanel />);
+    expect(screen.getByText("Dentist")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Delete Dentist"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByText("Delete"));
+    expect(mockStore.removeEvent).toHaveBeenCalledWith(4);
   });
 });

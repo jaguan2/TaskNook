@@ -755,19 +755,27 @@ describe("presets", () => {
     expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
   });
 
-  it("turns every back-wall desk chair toward its computer", () => {
-    // Every shipped workstation currently has its screen/desk up-room and
-    // its chair down-room. Rot 2 puts the chair back behind the sitter; rot 0
-    // wedges that backrest between the resident and the screen.
+  it("turns every desk chair toward its computer", () => {
+    // A chair's real front is opposite its backrest. The usual workstation
+    // has its screen up-room (rot 2), but the Cozy study desk is on the left
+    // wall (rot 3). Test the actual dominant screen direction rather than
+    // assuming every desk was placed along the back wall.
     for (const key of ISO_PRESET_KEYS) {
       const items = ISO_PRESETS[key].items;
       const terminals = items.filter((p) => p.item === "computer" || p.item === "laptop");
       for (const chair of items.filter((p) => p.item === "deskchair")) {
-        const terminal = terminals.find(
-          (p) => Math.abs(p.gx - chair.gx) <= 2 && p.gy < chair.gy
-        );
-        expect(terminal, `${key}: desk chair has no screen up-room`).toBeTruthy();
-        expect(chair.rot, `${key}: desk chair backrest faces its screen`).toBe(2);
+        const terminal = terminals.reduce((nearest, p) => {
+          const distance = Math.abs(p.gx - chair.gx) + Math.abs(p.gy - chair.gy);
+          return !nearest || distance < nearest.distance ? { p, distance } : nearest;
+        }, null)?.p;
+        expect(terminal, `${key}: desk chair has no computer`).toBeTruthy();
+
+        const dx = terminal.gx - chair.gx;
+        const dy = terminal.gy - chair.gy;
+        const expectedRot = Math.abs(dx) > Math.abs(dy)
+          ? dx < 0 ? 3 : 1
+          : dy < 0 ? 2 : 0;
+        expect(chair.rot, `${key}: desk chair does not face its computer`).toBe(expectedRot);
       }
     }
   });

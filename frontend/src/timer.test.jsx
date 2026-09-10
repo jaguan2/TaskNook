@@ -104,7 +104,7 @@ describe("persisted timer preferences", () => {
     vi.setSystemTime(new Date("2026-08-26T12:01:00Z"));
     fireEvent.click(screen.getByText("pause"));
 
-    expect(screen.getByLabelText("remaining").textContent).toBe(String(24 * 60));
+    expect(screen.getByLabelText("remaining").textContent).toBe(String(29 * 60));
   });
 
   it("uses the configured chime level when a stopwatch finishes", async () => {

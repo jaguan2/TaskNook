@@ -17,6 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     AVATAR_MAX,
     CHAT_TITLE_MAX,
+    CalendarEvent,
     Conversation,
     ConversationMember,
     DISPLAY_NAME_MAX,
@@ -258,6 +259,17 @@ def clean_date(value):
     except ValueError:
         return None
     return head
+
+
+def clean_time(value):
+    """A local HH:MM time, or None — appointments are not UTC timestamps."""
+    if not isinstance(value, str) or len(value) != 5:
+        return None
+    try:
+        time.fromisoformat(value)
+    except ValueError:
+        return None
+    return value
 
 
 def clean_day(value):
@@ -596,6 +608,45 @@ def register_routes(app):
         if not task:
             return jsonify({"error": "Task not found"}), 404
         db.session.delete(task)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.get("/api/events")
+    @require_auth
+    def list_events(user):
+        events = CalendarEvent.query.filter_by(user_id=user.id).order_by(
+            CalendarEvent.event_date.asc(), CalendarEvent.start_time.asc()
+        ).all()
+        return jsonify([event.to_dict() for event in events])
+
+    @app.post("/api/events")
+    @require_auth
+    def create_event(user):
+        data = json_body()
+        title = clean_str(data.get("title"), TASK_NAME_MAX)
+        event_date = clean_date(data.get("date"))
+        start_time = clean_time(data.get("startTime"))
+        if not title or not event_date or not start_time:
+            return jsonify({"error": "Event title, date, and start time are required"}), 400
+        event = CalendarEvent(
+            user_id=user.id,
+            title=title,
+            event_date=event_date,
+            start_time=start_time,
+            duration=clean_int(data.get("duration"), 1, 24 * 60, 60),
+            notes=clean_str(data.get("notes"), TASK_NOTES_MAX) or None,
+        )
+        db.session.add(event)
+        db.session.commit()
+        return jsonify(event.to_dict()), 201
+
+    @app.delete("/api/events/<int:event_id>")
+    @require_auth
+    def delete_event(user, event_id):
+        event = CalendarEvent.query.filter_by(id=event_id, user_id=user.id).first()
+        if not event:
+            return jsonify({"error": "Event not found"}), 404
+        db.session.delete(event)
         db.session.commit()
         return jsonify({"ok": True})
 

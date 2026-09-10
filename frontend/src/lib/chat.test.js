@@ -214,6 +214,14 @@ const BOTS = ["luna", "kai", "sora", "mochi"];
 const STATES = ["focus", "break", "idle"];
 
 describe("dialogue options are an RPG menu, not a text box", () => {
+  it("follows up on what the friend just said", () => {
+    const opts = dialogueOptions("luna", Date.UTC(2026, 7, 13, 12), {
+      theirTurn: true,
+      lastMessage: "just made tea ☕ what's up?",
+    });
+    expect(opts.map((o) => o.id)).toEqual(["tea", "tea_milk", "tea_share"]);
+  });
+
   it("offers only real options, and offers them by what the bot is doing", () => {
     for (const state of STATES) {
       const now = instantWhere("luna", state);

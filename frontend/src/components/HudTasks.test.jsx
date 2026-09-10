@@ -92,3 +92,22 @@ describe("task groups", () => {
     expect(mockStore.renameTaskGroup).toHaveBeenCalledWith("Work", "Deep work");
   });
 });
+
+describe("scene to-do list", () => {
+  it("does not show tasks planned for a future day", () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    mockStore.orderedTasks = [{ ...task, name: "Future task", scheduledDate: toISO(tomorrow) }];
+    render(<HudTasks onOpenTasks={() => {}} />);
+    expect(screen.queryByText("Future task")).toBeNull();
+  });
+
+  it("asks in a dialog before deleting a task", () => {
+    mockStore.orderedTasks = [{ ...task, scheduledDate: null }];
+    render(<HudTasks onOpenTasks={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Delete task"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByText("Delete"));
+    expect(mockStore.removeTask).toHaveBeenCalledWith(7);
+  });
+});

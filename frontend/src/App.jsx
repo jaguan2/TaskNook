@@ -97,6 +97,7 @@ export default function App() {
     homeScene,
     moveHomePersona,
     kickHomeVisitor,
+    user,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -585,11 +586,12 @@ export default function App() {
             : "opacity-100"
         }`}
         style={{ visibility: visiting ? "hidden" : undefined }}
-        title="A space where I archive and share my journey, wherever it takes me."
+        title="Your profile"
       >
-        <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
-          rkive<span className="text-glow/70">.</span>
-        </span>
+        <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
+          <span className="text-base leading-none">{user?.avatar || "🌙"}</span>
+          <span className="text-sm font-semibold">{user?.displayName}</span>
+        </div>
       </div>
 
     </div>

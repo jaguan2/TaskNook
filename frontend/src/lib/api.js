@@ -132,6 +132,11 @@ export const api = {
   renameTaskGroup: (name, nextName) =>
     request("PUT", "/tasks/group", { name, nextName }),
 
+  // Calendar appointments are time-bound; scheduled tasks remain /tasks.
+  listEvents: () => request("GET", "/events"),
+  createEvent: (payload) => request("POST", "/events", payload),
+  deleteEvent: (id) => request("DELETE", `/events/${id}`),
+
   // room decoration (flat layout + isometric layout travel together)
   getRoom: () => request("GET", "/room"),
   saveRoom: (placements, iso) => request("PUT", "/room", { placements, iso }),

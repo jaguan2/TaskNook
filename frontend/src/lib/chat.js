@@ -346,6 +346,9 @@ export const OPTION_LABEL = {
   wind: "Calling it a night soon?",
   thanks: "Thanks 💛",
   bye: "Good luck — talk later 👋",
+  tea: "What tea did you make?",
+  tea_milk: "Did you add milk or honey?",
+  tea_share: "Save me a cup ☕",
 };
 
 // Options whose answer depends on what the bot is DOING, so they need their
@@ -405,13 +408,21 @@ const MENU = {
   },
 };
 
+// A menu should answer the thread, not merely the clock. A bot mentioning tea
+// deserves tea-shaped follow-ups; otherwise every message is met by the same
+// three activity prompts and the exchange reads like a kiosk.
+const THREAD_MENU = ["tea", "tea_milk", "tea_share"];
+
 /**
  * The lines on offer right now, as `{id, label}`.
  *
  * `theirTurn` — the last message in the thread is theirs — swaps in "Thanks",
  * which is the one option that only makes sense as a response.
  */
-export function dialogueOptions(username, now, { theirTurn = false } = {}) {
+export function dialogueOptions(username, now, { theirTurn = false, lastMessage = "" } = {}) {
+  if (theirTurn && /\b(tea|kettle|chai|earl grey|matcha)\b/i.test(lastMessage)) {
+    return THREAD_MENU.map((id) => ({ id, label: OPTION_LABEL[id] }));
+  }
   const { state } = npcActivity(username, now);
   const byPart = MENU[state] || MENU.idle;
   const ids = [...(byPart[dayPartOf(now)] || byPart.afternoon)];
@@ -428,6 +439,27 @@ export function dialogueOptions(username, now, { theirTurn = false } = {}) {
  */
 export function replyToOption(username, optionId, now, seed = 0, bond = 1) {
   const { state, minutesLeft } = npcActivity(username, now);
+  if (optionId === "tea") {
+    return pick([
+      "earl grey with a slice of orange — simple and perfect ☕",
+      "a soft jasmine green tea. it smells like a reset",
+      "chai today — cinnamon won the argument",
+    ], hash(username, optionId, seed));
+  }
+  if (optionId === "tea_milk") {
+    return pick([
+      "honey, always. just enough to make it feel like a treat",
+      "a little oat milk — it makes the whole break softer",
+      "no milk today, but I did add far too much honey",
+    ], hash(username, optionId, seed));
+  }
+  if (optionId === "tea_share") {
+    return pick([
+      "already poured you one ☕ come claim it",
+      "of course — the kettle made enough for two",
+      "saved the good mug for you",
+    ], hash(username, optionId, seed));
+  }
   // A voice's own answer for this option beats the generic table — kai and
   // mochi should not describe the same day in the same words.
   const own = VOICE[username]?.options?.[optionId] || OPTION_LINES[optionId];

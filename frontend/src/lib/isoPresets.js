@@ -129,7 +129,13 @@ export function createIsoPresets(defaultIsoSize) {
       // needs a wall to lean on, so it goes in the gap between the aquarium
       // and the bed's nightstand.
       { item: "guitar", gx: 6, gy: 0 },
-      { item: "screen", gx: 6.5, gy: 3 },
+      // ---- WINDOW DESK: a compact work nook under the attic window ------
+      // The desk stops before the bed bay and its chair faces back toward the
+      // computer, so this is somewhere to actually sit and work, not a screen
+      // stranded in the middle of the room.
+      { item: "desk", gx: 5.5, gy: 1.5, tint: "#7f9ec9" },
+      { item: "computer", gx: 6, gy: 1.5 },
+      { item: "deskchair", gx: 6.5, gy: 3, rot: 2, tint: "#7f9ec9" },
       // ---- LOUNGE: an L-group, both seats addressing the table -----------
       // `rot` is a MIRROR, not a rotation — there are only two facings, so a
       // true face-to-face across the table can't be expressed. An L works
@@ -187,7 +193,8 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "computer", gx: 0, gy: 2 },
       { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
       { item: "mug", gx: 0.5, gy: 3 },
-      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 2, tint: "#71806c" },
+      // The desk is on the left wall, so its chair faces sideways toward it.
+      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 3, tint: "#71806c" },
       // A fuller back wall makes the room feel built-in and collected.
       { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
       { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },

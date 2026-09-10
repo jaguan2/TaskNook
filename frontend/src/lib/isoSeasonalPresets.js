@@ -57,20 +57,27 @@ export function createIsoSeasonalPresets() {
   summer: {
     label: "Poolside",
     icon: "⛱️",
-    size: { w: 10, d: 8, env: "terrace", lighting: "golden" },
+    // A poolside should breathe: the former 10×8 terrace made the water feel
+    // like a prop in a room. This is a real deck with circulation, shade and
+    // separate lounging zones.
+    size: { w: 14, d: 11, env: "terrace", lighting: "golden" },
     items: [
       { item: "coconutpalm", gx: 0, gy: 0, tint: "#986a42" },
-      { item: "coconutpalm", gx: 8, gy: 0, tint: "#a27448" },
-      { item: "pool", gx: 3, gy: 2 },
+      { item: "coconutpalm", gx: 12, gy: 0, tint: "#a27448" },
+      { item: "coconutpalm", gx: 12, gy: 8.5, tint: "#986a42" },
+      { item: "pool", gx: 4.5, gy: 2.5 },
+      { item: "pool", gx: 8, gy: 2.5 },
       { item: "poolumbrella", gx: 0.5, gy: 3, tint: "#df765f" },
-      { item: "sunlounger", gx: 0.5, gy: 5.5, tint: "#67a9bf" },
-      { item: "sunlounger", gx: 6.5, gy: 5.5, tint: "#df765f" },
-      { item: "beachball", gx: 7.5, gy: 3.5 },
-      { item: "sidetable", gx: 4.5, gy: 5.5, tint: "#b78d67" },
-      { item: "fruitbowl", gx: 4.5, gy: 5.5 },
-      { item: "mug", gx: 5, gy: 5.5 },
-      { item: "lantern", gx: 8.5, gy: 6.5, tint: "#b78d67" },
-      { item: "plant", gx: 9, gy: 2.5 },
+      { item: "poolumbrella", gx: 11, gy: 5.5, tint: "#67a9bf" },
+      { item: "sunlounger", gx: 0.5, gy: 6, tint: "#67a9bf" },
+      { item: "sunlounger", gx: 2.5, gy: 7.5, tint: "#df765f" },
+      { item: "sunlounger", gx: 10.5, gy: 7.5, tint: "#df765f" },
+      { item: "beachball", gx: 11.5, gy: 3.5 },
+      { item: "sidetable", gx: 6.5, gy: 8, tint: "#b78d67" },
+      { item: "fruitbowl", gx: 6.5, gy: 8 },
+      { item: "mug", gx: 7, gy: 8 },
+      { item: "lantern", gx: 12, gy: 9.5, tint: "#b78d67" },
+      { item: "plant", gx: 1, gy: 9 },
     ],
   },
   };

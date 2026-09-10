@@ -16,6 +16,7 @@ const mockStore = vi.hoisted(() => ({
   reorderTasks: vi.fn(),
   activeTaskId: null,
   setActiveTaskId: vi.fn(),
+  editTask: vi.fn(),
   stats: { completion: 0, tasksDone: 0, tasksTotal: 2, tasksDoneToday: 0 },
   sessionDays: {},
   dailyGoal: 120,
@@ -49,5 +50,21 @@ describe("manual task ordering", () => {
       mockStore.orderedTasks[1],
       mockStore.orderedTasks[0],
     ]);
+  });
+});
+
+describe("task naming and deletion", () => {
+  it("renames a task in place and confirms deletion in a dialog", () => {
+    render(<TaskPanel />);
+    fireEvent.click(screen.getByLabelText("Rename First task"));
+    const input = screen.getByLabelText("Task name");
+    fireEvent.change(input, { target: { value: "Renamed task" } });
+    fireEvent.blur(input);
+    expect(mockStore.editTask).toHaveBeenCalledWith(1, { name: "Renamed task" });
+
+    fireEvent.click(screen.getAllByLabelText("Delete task")[0]);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByText("Delete"));
+    expect(mockStore.removeTask).toHaveBeenCalledWith(1);
   });
 });

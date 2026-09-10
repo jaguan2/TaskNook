@@ -78,7 +78,7 @@ export default function ChatThread({ chat, onBack }) {
     // isn't a non-sequitur.
     const last = messages?.[messages.length - 1];
     const theirTurn = !!last && last.senderId !== user?.id;
-    return dialogueOptions(speaker, now, { theirTurn });
+    return dialogueOptions(speaker, now, { theirTurn, lastMessage: theirTurn ? last.body : "" });
   }, [speaker, now, messages, user?.id]);
 
   const say = (option) => {
