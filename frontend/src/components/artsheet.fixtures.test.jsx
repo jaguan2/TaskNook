@@ -12,9 +12,12 @@
 // silhouette, a fringe reading as a blindfold, soles that were just circles.
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import FocusWidget from "./FocusWidget";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoRoom from "./IsoRoom";
+import Cottage from "./Cottage";
+import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
 import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, seatFor } from "../lib/isoRoom";
 import {
@@ -34,6 +37,17 @@ const DIR = globalThis.process?.env?.SHEET_DIR;
 describe.skipIf(!DIR)("art sheet fixtures", () => {
   it("renders the whole wardrobe to SVG files", () => {
     mkdirSync(DIR, { recursive: true });
+    const widgetCss = readFileSync("src/index.css", "utf8").split("/* Widget mode is one composed surface")[1];
+    const widgetBase = { clock: "18:42", running: true, task: "Sketch the next chapter", progress: .25,
+      round: 2, rounds: 4, today: 42, goal: 90, canFinish: true };
+    for (const [name, props] of Object.entries({ focus: {}, break: { inBreak: true, clock: "04:30", progress: .1 }, stopwatch: { stopwatch: true, clock: "1:04:12", rounds: 0 }, idle: { running: false, canFinish: false, clock: "25:00", progress: 0 } })) {
+      writeFileSync(`${DIR}/../widget-${name}.html`, `<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0}p{margin:0}button{font:inherit;border:0;background:transparent;cursor:pointer} :root{--color-rose:186 119 152} /* Widget mode is one composed surface${widgetCss}</style>${renderToStaticMarkup(<FocusWidget {...widgetBase} {...props} />)}`);
+    }
+    for (const [key, preset] of Object.entries(PRESETS)) {
+      const cottage = renderToStaticMarkup(<Cottage preview reduceMotion setting={preset.setting || "city"} room={presetPlacements(key)} timeOfDay={key === "seaside" || key === "greenhouse" ? "day" : "night"} />);
+      writeFileSync(`${DIR}/cottage-${key}.svg`, cottage.slice(cottage.indexOf("<svg"), cottage.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
     const Resident = ISO_SPRITES.resident;
     const Cat = ISO_SPRITES.cat;
     const Dog = ISO_SPRITES.dog;

@@ -160,7 +160,7 @@ DEFAULT_PORT = 39217
 # the OS window at creation and a later resize cannot go below it.
 NORMAL_WINDOW_SIZE = (1200, 820)
 NORMAL_MIN_SIZE = (900, 640)
-WIDGET_WINDOW_SIZE = (300, 260)
+WIDGET_WINDOW_SIZE = (340, 300)
 
 
 def parse_port(value):

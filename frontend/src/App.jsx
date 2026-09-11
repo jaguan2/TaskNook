@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Sofa, X } from "lucide-react";
+import { Sofa, X } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
@@ -76,6 +76,7 @@ export default function App() {
     setHudVisibility,
     widgetMode,
     setWidgetMode,
+    cottageView,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -359,6 +360,7 @@ export default function App() {
             <Cottage
               weather={weatherMode}
               timeOfDay={timeOfDay}
+              setting={cottageView}
               room={roomPlacements}
               editMode={roomEditMode}
               onMoveItem={moveRoomItem}
@@ -533,6 +535,7 @@ export default function App() {
       <div className={widgetMode ? "opacity-100 transition-opacity duration-300" : hudWrapClass(roomEditMode, hudVisibility.timer)}>
         <HudFocusCard
           compact={widgetMode}
+          onExpand={() => setWidgetMode(false)}
           onEdgeDismiss={() => {
             setHudVisibility("timer", "hidden");
             if (widgetMode) setWidgetMode(false);
@@ -554,22 +557,6 @@ export default function App() {
       <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.music)}>
         <MusicDock />
       </div>
-
-      {/* Widget Mode's own expand/exit control — a plain button, not .intro-chrome,
-          so mounting it only while widgetMode is on (rather than fading a
-          permanent one) costs nothing and needs no extra state. Escape does
-          the same thing (App's keydown handler, checked before every other
-          Escape behaviour). */}
-      {widgetMode && (
-        <button
-          onClick={() => setWidgetMode(false)}
-          title="Exit Widget Mode"
-          aria-label="Exit Widget Mode"
-          className="pill glass absolute right-4 top-4 z-40 grid h-9 w-9 place-items-center text-cream shadow-soft hover:bg-white/10"
-        >
-          <Maximize2 size={15} />
-        </button>
-      )}
 
       {/* rkive. — the maker's signature, same wordmark as the portfolio.
           Sits ON the bottom rail: same bottom-6, same 44px height, so its

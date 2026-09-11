@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   GRID,
+  COTTAGE_SETTINGS,
+  cottageSetting,
   ITEMS,
   ITEM_KEYS,
   MAX_ITEMS,
@@ -219,6 +221,20 @@ describe("validatePlacements", () => {
 });
 
 describe("presets", () => {
+  it("keeps scenery choices valid and preserves furniture tints through saved layouts", () => {
+    for (const [key, preset] of Object.entries(PRESETS)) {
+      expect(COTTAGE_SETTINGS[cottageSetting(preset.setting)]).toBeTruthy();
+      const placed = presetPlacements(key);
+      // Loading uses the same fine grid as dragging, including older presets
+      // authored before snapping. Material colors and identities survive it.
+      expect(validatePlacements(JSON.parse(JSON.stringify(placed)))).toEqual(
+        placed.map((p) => ({ ...p, x: snap(p.x), y: snap(p.y) }))
+      );
+    }
+    for (const invalid of [null, "missing", "constructor", "__proto__"]) {
+      expect(cottageSetting(invalid)).toBe("city");
+    }
+  });
   it("only reference items that exist, placed inside the room", () => {
     for (const [name, preset] of Object.entries(PRESETS)) {
       for (const p of preset.placements) {

@@ -21,6 +21,7 @@ import {
   HOME_VISITOR_TICK_MS,
   advanceHomeVisitors,
   homeVisitorScene,
+  homeVisitorsEnabled,
   moveHomeVisitor,
   nextHomeVisitorDelay,
 } from "./lib/homeVisitors";
@@ -69,6 +70,9 @@ import {
   validateWeatherPresets,
 } from "./lib/weather";
 import {
+  COTTAGE_SETTINGS,
+  cottageSetting,
+  PRESETS as COTTAGE_PRESETS,
   MAX_ITEMS,
   newPlacement,
   presetPlacements,
@@ -512,6 +516,12 @@ export function StoreProvider({ children }) {
   // ---------- Room (freeform decoration) ----------
   // The layout lives in the DB (rides the migration/backup system) with a
   // localStorage mirror so the room paints instantly on boot.
+  const [cottageView, setCottageViewState] = useState(() => cottageSetting(readStored("tasknook.cottageView")));
+  const setCottageView = useCallback((value) => {
+    if (!Object.hasOwn(COTTAGE_SETTINGS, value)) return;
+    setCottageViewState(value);
+    writeStored("tasknook.cottageView", value);
+  }, []);
   const [roomPlacements, setRoomPlacements] = useState(() => {
     try {
       const saved = validatePlacements(
@@ -1747,13 +1757,13 @@ export function StoreProvider({ children }) {
   );
 
   // One small scheduler owns both arrivals and natural departures. Guests
-  // only exist while the home is visible and room access is explicitly Open;
+  // only exist while the home is visible and the door admits friends;
   // decorating or leaving home clears the temporary layer rather than letting
   // simulated people interfere with room editing.
   const isVisiting = Boolean(visiting);
   useEffect(() => {
-    const open =
-      user?.visitAccess === "open" && !isVisiting && !roomEditMode && isoPreview;
+    const open = homeVisitorsEnabled({ access: user?.visitAccess,
+      isVisiting, editing: roomEditMode, isometric: isoPreview, widgetMode });
     if (!open) {
       nextHomeVisitorAt.current = null;
       if (homeVisitorsRef.current.length) commitHomeVisitors([]);
@@ -1789,6 +1799,7 @@ export function StoreProvider({ children }) {
     return () => clearInterval(id);
   }, [
     user?.visitAccess,
+    widgetMode,
     isVisiting,
     roomEditMode,
     isoPreview,
@@ -2525,7 +2536,10 @@ export function StoreProvider({ children }) {
   const removeRoomItem = useCallback((id) => {
     setRoomPlacements((prev) => prev.filter((p) => p.id !== id));
   }, []);
-  const applyRoomPreset = useCallback((key) => setRoomPlacements(presetPlacements(key)), []);
+  const applyRoomPreset = useCallback((key) => {
+    setRoomPlacements(presetPlacements(key));
+    setCottageView(cottageSetting(COTTAGE_PRESETS[key]?.setting));
+  }, [setCottageView]);
   const clearRoom = useCallback(() => setRoomPlacements([]), []);
   // tint: an #rrggbb string recolours the item's main material; null returns
   // it to the classic colour (the key is removed so saves stay minimal).
@@ -2599,6 +2613,8 @@ export function StoreProvider({ children }) {
     friendship,
 
     // room decoration
+    cottageView,
+    setCottageView,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,

@@ -8,6 +8,7 @@ import {
   chooseHomeVisitor,
   homeVisitorScene,
   homeVisitorStay,
+  homeVisitorsEnabled,
   moveHomeVisitor,
   nextHomeVisitorDelay,
 } from "./homeVisitors";
@@ -18,6 +19,18 @@ const friends = [
 ];
 
 describe("open-room drop-ins", () => {
+  it("admits friends under the default Friends-only setting as well as Open", () => {
+    const home = { isometric: true, editing: false, isVisiting: false, widgetMode: false };
+    for (const access of ["friends", "open"]) {
+      expect(homeVisitorsEnabled({ ...home, access })).toBe(true);
+      for (const blocked of [{ editing: true }, { isVisiting: true }, { widgetMode: true }, { isometric: false }]) {
+        expect(homeVisitorsEnabled({ ...home, access, ...blocked })).toBe(false);
+      }
+    }
+    for (const access of ["invite", "private", undefined, "unknown"]) {
+      expect(homeVisitorsEnabled({ ...home, access })).toBe(false);
+    }
+  });
   it("spaces arrivals and gives guests a bounded visit", () => {
     expect(nextHomeVisitorDelay(() => 0)).toBe(90_000);
     expect(nextHomeVisitorDelay(() => 1)).toBeLessThanOrEqual(4 * 60_000);

@@ -51,7 +51,7 @@ function Books() {
   );
 }
 
-function Mug() {
+function Mug({ time }) {
   return (
     <g transform="translate(-394,-300)">
       <path d="M380 300 h30 v-20 h-30 z" style={tinted("#d98a93")} />
@@ -62,7 +62,7 @@ function Mug() {
         strokeWidth="2"
         fill="none"
         strokeLinecap="round"
-        animate={{ opacity: [0, 0.6, 0], y: [0, -10, -16] }}
+        animate={time?.static ? undefined : { opacity: [0, 0.6, 0], y: [0, -10, -16] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeOut" }}
       />
     </g>
@@ -95,7 +95,7 @@ function DeskLamp({ time }) {
   return (
     <g transform="translate(-566,-296)">
       {/* the warm pool the lamp throws on the desk travels with it */}
-      <ellipse cx="530" cy="299" rx="78" ry="12" fill="url(#lampPool)" opacity={time.lampGlow} />
+      <ellipse cx="530" cy="299" rx="78" ry="12" fill={`url(#${time.lampPool || "lampPool"})`} opacity={time.lampGlow} />
       <ellipse cx="566" cy="296" rx="18" ry="5" fill="#3a3142" />
       <line x1="566" y1="294" x2="552" y2="258" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
       <line x1="552" y1="258" x2="528" y2="240" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
@@ -105,7 +105,7 @@ function DeskLamp({ time }) {
       <polygon
         className="animate-flicker"
         points="516,254 540,254 566,294 490,294"
-        fill="url(#lampCone)"
+        fill={`url(#${time.lampCone || "lampCone"})`}
         opacity={time.lampGlow * 0.55}
       />
     </g>
@@ -371,14 +371,14 @@ function FloorLamp({ time }) {
         cy="-84"
         rx="26"
         ry="14"
-        fill="url(#lampPool)"
+        fill={`url(#${time.lampPool || "lampPool"})`}
         opacity={time.lampGlow * 0.8}
       />
     </g>
   );
 }
 
-function Cat() {
+function Cat({ time }) {
   return (
     <g>
       <ellipse cx="0" cy="-8" rx="26" ry="13" style={tinted("#3a3142")} />
@@ -387,7 +387,7 @@ function Cat() {
       <polygon points="-13,-24 -9,-31 -6,-22" style={tinted("#3a3142")} />
       <path d="M24 -10 q12 -2 10 -14" fill="none" style={tintedStroke("#3a3142")} strokeWidth="5" strokeLinecap="round" />
       <path d="M-24 -15 q2 2 4 0 M-16 -15 q2 2 4 0" stroke="#1e1926" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <motion.g animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
+      <motion.g animate={time?.static ? undefined : { opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
         <path d="M6 -26 q2 -4 0 -7 M11 -24 q2 -4 0 -7" stroke="#f3c6c0" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
       </motion.g>
     </g>
@@ -489,7 +489,63 @@ function Garland({ time }) {
   );
 }
 
+function Armchair() {
+  return <g>
+    <ellipse cy="0" rx="47" ry="5" fill="#000" opacity=".16" />
+    <path d="M-33 -17 l-3 17 M33 -17 l3 17" stroke="#493444" strokeWidth="6" />
+    <rect x="-37" y="-84" width="74" height="65" rx="18" style={tinted("#9b8bd6")} />
+    <rect x="-29" y="-76" width="58" height="42" rx="12" fill="#fff" opacity=".1" />
+    <path d="M0 -70 v30" stroke="#35283e" opacity=".18" />
+    <rect x="-37" y="-38" width="74" height="25" rx="9" style={tinted("#9b8bd6")} />
+    <rect x="-37" y="-25" width="74" height="12" rx="5" fill="#000" opacity=".13" />
+    <rect x="-47" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
+    <rect x="30" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
+    <path d="M10 -49 Q23 -53 30 -44 L28 -16 Q16 -13 9 -20Z" fill="#eed8b9" />
+    <path d="M14 -40 l12 2 M13 -33 l13 2 M12 -26 l14 2" stroke="#af8b79" strokeWidth="2" opacity=".5" />
+  </g>;
+}
+
+function SideTable() {
+  return <g>
+    <ellipse cy="0" rx="29" ry="4" fill="#000" opacity=".15" />
+    <path d="M-21 -31 l-4 31 M21 -31 l4 31 M0 -30 v27" stroke="#694b52" strokeWidth="5" />
+    <ellipse cy="-31" rx="30" ry="9" style={tinted("#be8e70")} />
+    <ellipse cy="-34" rx="30" ry="8" fill="#edc69d" />
+    <path d="M-18 -37 h22 v-5 h-22Z" fill="#7faf8f" />
+    <path d="M-16 -39 H3" stroke="#f7e9e2" strokeWidth="2" />
+    <path d="M10 -47 h12 v7 q-6 7 -12 0Z" fill="#f7e9e2" />
+    <path d="M22 -46 q8 0 3 6 h-3" fill="none" stroke="#f7e9e2" strokeWidth="2" />
+    <ellipse cx="16" cy="-47" rx="6" ry="2" fill="#6c4b4a" />
+  </g>;
+}
+
+function PlantStand() {
+  return <g>
+    <ellipse cy="0" rx="25" ry="4" fill="#000" opacity=".15" />
+    <path d="M-19 -49 l-4 49 M19 -49 l4 49 M-21 -18 h42" stroke="#af8569" strokeWidth="4" fill="none" />
+    <ellipse cy="-49" rx="26" ry="7" fill="#d2ad86" />
+    <path d="M-19 -75 h38 l-5 24 q-14 6 -28 0Z" style={tinted("#d98a93")} />
+    <ellipse cy="-75" rx="19" ry="5" fill="#493a3c" />
+    <path d="M0 -73 v-36 M-1 -83 l-19 -16 M0 -93 l19 -12" stroke="#658c73" strokeWidth="3" fill="none" />
+    <path d="M0 -100 Q-24 -120 -25 -102 Q-21 -86 0 -94 M1 -92 Q24 -119 27 -100 Q26 -84 1 -86 M-2 -79 Q-29 -98 -27 -81 Q-23 -70 -2 -75" fill="#7faf8f" />
+    <path d="M3 -107 Q16 -118 17 -106 Q15 -97 3 -101" fill="#9bc59d" />
+  </g>;
+}
+
+function Mirror() {
+  return <g>
+    <path d="M-24 44 V-20 a24 24 0 0 1 48 0 V44Z" style={tinted("#be8e70")} />
+    <path d="M-18 38 V-20 a18 18 0 0 1 36 0 V38Z" fill="#718b9e" />
+    <path d="M-17 10 L17 -18 V-5 L-17 23Z M-17 29 L17 1 V6 L-17 34Z" fill="#d0e5e9" opacity=".35" />
+    <path d="M-18 38 h36" stroke="#4f536a" strokeWidth="2" />
+  </g>;
+}
+
 export const ITEM_SPRITES = {
+  armchair: Armchair,
+  sidetable: SideTable,
+  plantstand: PlantStand,
+  mirror: Mirror,
   deskplant: DeskPlant,
   books: Books,
   mug: Mug,

@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
-import { ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
+import { COTTAGE_SETTINGS, ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
 import {
   ISO_ENVS,
   ISO_ENV_KEYS,
@@ -19,6 +19,7 @@ import {
   partitionKey,
 } from "../lib/isoRoom";
 import { costOf, owns } from "../lib/unlocks";
+import Cottage from "./Cottage";
 import { ITEM_SPRITES } from "./RoomItems";
 import { IsoItemPreview, IsoPresetPreview } from "./IsoRoomPreviews";
 
@@ -41,6 +42,8 @@ function footprintTone(id) {
 
 // Preview sprites are lit as if at night so lamps/lights glow in the panel.
 const PREVIEW_TIME = { lampGlow: 0.55, screenGlow: 0.4, bulbGlow: 0.95 };
+const PRESET_ROOMS = Object.fromEntries(Object.entries(PRESETS).map(([key, preset]) =>
+  [key, preset.placements.map((p, i) => ({ ...p, id: `${key}-${i}` }))]));
 
 const ZONE_SECTIONS = [
   { zone: "wall", label: "On the wall" },
@@ -50,6 +53,7 @@ const ZONE_SECTIONS = [
 ];
 
 function ItemPreview({ itemKey }) {
+  const uid = useId();
   const item = ITEMS[itemKey];
   const Sprite = ITEM_SPRITES[itemKey];
   const { x, y, w, h } = item.hit;
@@ -60,16 +64,19 @@ function ItemPreview({ itemKey }) {
       className="h-9 w-9 shrink-0"
       aria-hidden="true"
     >
-      {/* No local <defs>: url(#lampPool)/url(#lampCone) resolve document-wide
-          to the Cottage SVG's defs, which is always mounted behind the panel.
-          Duplicating the ids here would be invalid HTML. */}
-      <Sprite time={PREVIEW_TIME} />
+      <defs>
+        <radialGradient id={`${uid}-pool`}><stop stopColor="#ffe9b0" /><stop offset="1" stopColor="#ffe9b0" stopOpacity="0" /></radialGradient>
+        <linearGradient id={`${uid}-cone`} x2="0" y2="1"><stop stopColor="#ffe9b0" stopOpacity=".8" /><stop offset="1" stopColor="#ffe9b0" stopOpacity="0" /></linearGradient>
+      </defs>
+      <Sprite time={{ ...PREVIEW_TIME, static: true, lampPool: `${uid}-pool`, lampCone: `${uid}-cone` }} />
     </svg>
   );
 }
 
 export default function RoomPanel() {
   const {
+    cottageView,
+    setCottageView,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -676,22 +683,32 @@ export default function RoomPanel() {
         </section>
       )}
 
+      {!isoPreview && <section>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">Outside your window</p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(COTTAGE_SETTINGS).map(([key, label]) => <button key={key} aria-pressed={cottageView === key} onClick={() => setCottageView(key)} className={`pill px-3 py-1.5 text-xs ${cottageView === key ? "bg-rose/25 text-cream" : "bg-white/10 text-petal"}`}>{label}</button>)}
+        </div>
+      </section>}
+
       {/* Presets (classic scene) */}
       {!isoPreview && (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
           Start from a preset
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-2 gap-2">
           {Object.entries(PRESETS).map(([key, preset]) => (
             <button
               key={key}
               onClick={() => applyRoomPreset(key)}
-              className="pill bg-white/10 px-3 py-1.5 text-xs font-semibold text-petal hover:bg-white/20"
+              className="overflow-hidden rounded-xl bg-white/5 text-left text-xs font-semibold text-petal hover:bg-white/15"
             >
-              {preset.icon} {preset.label}
+              <Cottage preview reduceMotion setting={preset.setting || "city"} timeOfDay={key === "seaside" || key === "greenhouse" ? "day" : "night"} room={PRESET_ROOMS[key]} />
+              <span className="block px-3 py-2">{preset.label}</span>
             </button>
           ))}
+        </div>
+        <div className="mt-2">
           {/* "Clear", not "Empty room" — the iso presets have an "Empty room"
               PRESET, and the same words meaning a state there and an action
               here read as one feature. */}
@@ -718,15 +735,20 @@ export default function RoomPanel() {
       </section>
       )}
 
+      {!isoPreview && <label className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-petal/60">
+        <Search size={14} />
+        <input aria-label="Search cottage decorations" placeholder="Find a decoration..." value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-cream outline-none" />
+      </label>}
+      {!isoPreview && !ITEM_KEYS.some((key) => ITEMS[key].label.toLowerCase().includes(catalogQuery.trim().toLowerCase())) && <p className="text-xs text-petal/60">No matching decorations. Try a different name.</p>}
       {/* Inventory (classic scene) */}
       {!isoPreview &&
-        ZONE_SECTIONS.map(({ zone, label }) => (
+        ZONE_SECTIONS.filter(({ zone }) => ITEM_KEYS.some((key) => ITEMS[key].zone === zone && ITEMS[key].label.toLowerCase().includes(catalogQuery.trim().toLowerCase()))).map(({ zone, label }) => (
         <section key={zone}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
             {label}
           </p>
           <div className="grid grid-cols-2 gap-1.5">
-            {ITEM_KEYS.filter((k) => ITEMS[k].zone === zone).map((key) => {
+            {ITEM_KEYS.filter((k) => ITEMS[k].zone === zone && ITEMS[k].label.toLowerCase().includes(catalogQuery.trim().toLowerCase())).map((key) => {
               // Fixed items (string lights) are singletons — once placed,
               // adding another is a no-op, so say so instead of a dead button.
               const maxed = ITEMS[key].fixed && counts[key] > 0;

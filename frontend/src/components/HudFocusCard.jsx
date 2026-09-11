@@ -8,6 +8,7 @@ import { focusStreak, localTodayISO } from "../lib/stats";
 import { storeIsOpen } from "../lib/unlocks";
 import { useArmed } from "../lib/useArmed";
 import { shouldDismissAtEdge } from "../lib/widgetDrag";
+import FocusWidget from "./FocusWidget";
 
 const BREAK_PRESETS = [3, 5, 10];
 const ROUND_PRESETS = [2, 3, 4, 6];
@@ -20,7 +21,7 @@ const fmt = (seconds) => formatClock(seconds, { padMinutes: true });
 // round pips, the time, a thin progress bar, and ✕ ▶/⏸ ✓ — with everything
 // else (mode, presets, pomodoro plan) tucked behind the ⚙ expander. The task
 // name appears centred above only when there IS one; no idle filler text.
-export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
+export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand }) {
   // This card IS the clock, so it's the one component that should re-render
   // every second — it reads the full timer context on purpose.
   const {
@@ -100,6 +101,17 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss }) {
     if (hasProgress) arm("reset", resetTimer);
     else resetTimer();
   };
+
+  if (compact) return <FocusWidget
+    clock={fmt(stopwatch ? elapsed : remaining)} running={running} inBreak={inBreak}
+    stopwatch={stopwatch} task={activeTask?.name}
+    progress={stopwatch ? (dailyGoal > 0 ? focusMinutesLive / dailyGoal : 0) : progress}
+    round={round} rounds={!stopwatch && pomodoro.enabled ? pomodoro.rounds : 0}
+    today={focusMinutesLive} goal={dailyGoal} confirmReset={confirmReset}
+    canFinish={stopwatch ? elapsed > 0 : remaining < total}
+    onToggle={running ? pauseTimer : startTimer} onReset={requestReset}
+    onFinish={finishStopwatch} onSkip={skipBreak} onNudge={() => nudgeTimer(60)} onExpand={onExpand}
+  />;
 
   return (
     // z-30: when the ⚙ options are expanded on a short window the panel may

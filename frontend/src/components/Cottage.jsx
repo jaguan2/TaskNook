@@ -1,5 +1,6 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useId, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import CottageLandscape from "./CottageLandscape";
 import { GRID, ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
 import { ambienceVars } from "../lib/motion";
 import { ITEM_SPRITES } from "./RoomItems";
@@ -72,6 +73,8 @@ const TIME_PRESETS = {
 // placements the user arranges in edit mode by dragging. Hand-built SVG so it
 // scales crisply with no image assets.
 function Cottage({
+  preview = false,
+  setting = "city",
   weather = "off",
   timeOfDay = "night",
   room = [],
@@ -91,7 +94,9 @@ function Cottage({
   // { id, dx, dy } while a drag is in flight — offset keeps the grab point
   // under the cursor instead of snapping the origin to it.
   const dragRef = useRef(null);
-  const time = TIME_PRESETS[timeOfDay] || TIME_PRESETS.night;
+  const uid = useId();
+  const time = { ...(TIME_PRESETS[timeOfDay] || TIME_PRESETS.night),
+    static: preview || reduceMotion, lampPool: `${uid}-lampPool`, lampCone: `${uid}-lampCone` };
 
   useEffect(() => {
     // Gated for reduced motion too — the flash is a photosensitivity
@@ -264,17 +269,18 @@ function Cottage({
 
   return (
     <div
-      className={`select-none absolute inset-0 ${
+      className={`select-none ${preview ? "relative h-28 cottage-preview" : "absolute inset-0"} ${
         editMode ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
       <svg
+        aria-hidden={preview || undefined}
         ref={svgRef}
-        viewBox={VIEW_BOX}
+        viewBox={preview ? "0 0 640 480" : VIEW_BOX}
         // Cover the viewport, bottom-anchored: wide windows crop the wall's
         // sides, very wide ones crop the sky — the desk never leaves the
         // bottom edge, which is what keeps it feeling sat-at.
-        preserveAspectRatio="xMidYMax slice"
+        preserveAspectRatio={preview ? "xMidYMid meet" : "xMidYMax slice"}
         className="h-full w-full"
         style={{
           // Without this a touch drag pans/scrolls the page instead of moving
@@ -293,31 +299,32 @@ function Cottage({
           {/* Room surfaces follow the active color scheme (CSS variables from
               index.css) so "re-tint the whole app" includes the scene. var()
               only resolves in style=, not SVG presentation attributes. */}
-          <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${uid}-wallGrad`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
             <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
           </linearGradient>
-          <linearGradient id="nightSky" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${uid}-nightSky`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={time.skyTop} />
             <stop offset="1" stopColor={time.skyBottom} />
           </linearGradient>
-          <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${uid}-floorGrad`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
             <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
           </linearGradient>
-          <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${uid}-screenGrad`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#4a3a6b" />
             <stop offset="1" stopColor="#2c2148" />
           </linearGradient>
-          <radialGradient id="lampPool">
+          <radialGradient id={`${uid}-lampPool`}>
             <stop offset="0" stopColor="#ffe9b0" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="lampCone" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${uid}-lampCone`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#ffe9b0" stopOpacity="0.8" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </linearGradient>
-          <clipPath id="skyClip">
+          <clipPath id={`${uid}-roomClip`}><rect x="0" y="0" width="640" height="480" /></clipPath>
+          <clipPath id={`${uid}-skyClip`}>
             <rect x="98" y="46" width="320" height="212" />
           </clipPath>
         </defs>
@@ -325,12 +332,17 @@ function Cottage({
         {/* ---------- Room backdrop — wall to every edge, no card. It
             reaches above the viewBox so ultra-wide windows (which crop from
             the top under xMidYMax) still meet wall, never void. ---------- */}
-        <rect x="-320" y="-240" width="1280" height="720" fill="url(#wallGrad)" />
+        <rect x="-320" y="-240" width="1280" height="720" fill={`url(#${uid}-wallGrad)`} />
+
+        {/* Low wall panels give the furniture a grounded backdrop. */}
+        <rect x="-320" y="320" width="1280" height="70" fill="#000" opacity=".06" />
+        <path d="M-320 320 H960 M-320 324 H960" stroke="#f7e9e2" opacity=".08" />
+        {Array.from({ length: 17 }, (_, i) => <path key={i} d={`M${-308 + i * 80} 333 h64 v45 h-64Z`} fill="none" stroke="#f7e9e2" opacity=".055" />)}
 
         {/* ---------- Floor ---------- */}
         <g>
           <rect x="-320" y="390" width="1280" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
-          <rect x="-320" y="396" width="1280" height="84" fill="url(#floorGrad)" />
+          <rect x="-320" y="396" width="1280" height="84" fill={`url(#${uid}-floorGrad)`} />
           {/* floorboards */}
           <line x1="-320" y1="420" x2="960" y2="420" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
           <line x1="-320" y1="446" x2="960" y2="446" stroke="#26122a" strokeWidth="1.5" opacity="0.4" />
@@ -344,41 +356,13 @@ function Cottage({
 
         {/* ================= WINDOW ================= */}
         <rect x="88" y="36" width="340" height="232" rx="6" fill="#46396f" />
-        <rect x="98" y="46" width="320" height="212" fill="url(#nightSky)" />
+        <rect x="98" y="46" width="320" height="212" fill={`url(#${uid}-nightSky)`} />
 
-        <g clipPath="url(#skyClip)">
+        <g clipPath={`url(#${uid}-skyClip)`}>
           {/* sun or moon */}
           <circle cx="332" cy={time.celestialCy} r={time.celestialR} fill={time.celestialFill} />
 
-          {/* distant skyline */}
-          {[
-            [102, 214, 22, 44],
-            [128, 198, 20, 60],
-            [152, 220, 26, 38],
-            [182, 204, 22, 54],
-            [208, 224, 24, 34],
-            [236, 192, 20, 66],
-            [260, 216, 28, 42],
-            [292, 206, 20, 52],
-            [316, 222, 24, 36],
-            [344, 198, 22, 60],
-            [370, 218, 26, 40],
-            [398, 208, 20, 50],
-          ].map(([x, y, w, h], i) => (
-            <rect key={`bld-${i}`} x={x} y={y} width={w} height={h} fill={time.building} />
-          ))}
-          {/* lit windows in the buildings */}
-          {[
-            [108, 226],
-            [133, 214],
-            [160, 232],
-            [243, 210],
-            [299, 220],
-            [350, 216],
-            [403, 224],
-          ].map(([x, y], i) => (
-            <rect key={`lit-${i}`} x={x} y={y} width="4" height="5" fill={time.litWindow} opacity={time.litOpacity} />
-          ))}
+          <CottageLandscape setting={setting} time={time} />
 
           {/* rain streaks. Delays are NEGATIVE, scaled to each drop's own
               duration (the overlay's lesson): a positive delay parks a
@@ -508,7 +492,7 @@ function Cottage({
           <rect x="252" y="297" width="76" height="7" rx="3.5" fill="#3a3142" />
           <rect x="283" y="274" width="14" height="25" fill="#342c3e" />
           <rect x="220" y="194" width="140" height="86" rx="9" fill="#2c2438" stroke="#201a30" strokeWidth="2" />
-          <rect x="228" y="202" width="124" height="70" rx="5" fill="url(#screenGrad)" />
+          <rect x="228" y="202" width="124" height="70" rx="5" fill={`url(#${uid}-screenGrad)`} />
           {/* on-screen task rows */}
           <circle cx="240" cy="218" r="3.5" fill="#7faf8f" />
           <path d="M238.5 218 l1.2 1.4 l2 -2.6" stroke="#2c2148" strokeWidth="1.2" fill="none" strokeLinecap="round" />
@@ -524,7 +508,7 @@ function Cottage({
         </g>
 
         {/* ================= PLACED ITEMS (+ the resident) ================= */}
-        <g clipPath="url(#roomClip)">{sceneChildren}</g>
+        <g clipPath={`url(#${uid}-roomClip)`}>{sceneChildren}</g>
       </svg>
 
       {/* Colour popover for the selected item — HTML, not SVG, because it

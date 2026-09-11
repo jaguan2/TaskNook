@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const store = vi.hoisted(() => ({
   roomPlacements: [],
+  cottageView: "city",
+  setCottageView: vi.fn(),
   roomEditMode: false,
   setRoomEditMode: vi.fn(),
   addRoomItem: vi.fn(),
@@ -39,6 +41,7 @@ import { ISO_PRESET_KEYS } from "../lib/isoRoom";
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  store.isoPreview = true;
 });
 
 const presetPreviews = (container) => container.querySelectorAll("svg.h-24");
@@ -46,6 +49,33 @@ const itemPreviews = (container) => container.querySelectorAll("svg.h-9");
 const floorCells = (container) => container.querySelectorAll(".cursor-crosshair");
 
 describe("RoomPanel progressive rendering", () => {
+  it("previews cottage layouts with independent paint definitions and applies a preset", () => {
+    store.isoPreview = false;
+    const { container } = render(<RoomPanel />);
+    expect(container.querySelectorAll(".cottage-preview")).toHaveLength(6);
+    const ids = [...container.querySelectorAll("[id]")].map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const node of container.querySelectorAll("[fill], [clip-path]")) {
+      const value = node.getAttribute("fill") || node.getAttribute("clip-path");
+      if (value?.startsWith("url(#")) expect(ids).toContain(value.slice(5, -1));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Woodland nook" }));
+    expect(store.applyRoomPreset).toHaveBeenCalledWith("reading");
+    fireEvent.click(screen.getByRole("button", { name: "Seaside" }));
+    expect(store.setCottageView).toHaveBeenCalledWith("coast");
+  });
+
+  it("finds cottage furniture by name and explains an empty search", () => {
+    store.isoPreview = false;
+    render(<RoomPanel />);
+    const search = screen.getByRole("textbox", { name: "Search cottage decorations" });
+    fireEvent.change(search, { target: { value: "  READING  " } });
+    fireEvent.click(screen.getByRole("button", { name: /reading chair/i }));
+    expect(store.addRoomItem).toHaveBeenCalledWith("armchair");
+    expect(screen.queryByRole("button", { name: /tea table/i })).toBeNull();
+    fireEvent.change(search, { target: { value: "no-such-piece" } });
+    expect(screen.getByText(/no matching decorations/i)).toBeTruthy();
+  });
   it("shows optimized preset previews but keeps furniture and the floor editor deferred", () => {
     const { container } = render(<RoomPanel />);
 

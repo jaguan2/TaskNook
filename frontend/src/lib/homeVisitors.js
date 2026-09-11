@@ -1,9 +1,9 @@
 /**
- * Simulated drop-in visitors for an open home room.
+ * Simulated drop-in visitors for a home that admits friends.
  *
  * These records are deliberately render-only. A guest must never enter the
  * persisted room layout: closing the app, changing rooms, or changing access
- * away from Open ends the fiction without leaving somebody in the room JSON.
+ * to Invite or Private ends the fiction without leaving somebody in the room JSON.
  */
 import { findFreeSpot, freeSeatSpot } from "./isoRoom";
 import { deriveNpcCharacter } from "./visiting";
@@ -11,6 +11,13 @@ import { deriveNpcCharacter } from "./visiting";
 export const HOME_VISITOR_MAX = 2;
 export const HOME_VISITOR_TICK_MS = 15_000;
 export const HOME_VISITOR_KICK_COOLDOWN_MS = 30 * 60_000;
+
+// Both door settings admit friends. Invite/private never schedule unsolicited
+// arrivals, and hidden room modes must not consume visits off-screen.
+export function homeVisitorsEnabled({ access, isVisiting, editing, isometric, widgetMode }) {
+  return (access === "open" || access === "friends") &&
+    !isVisiting && !editing && Boolean(isometric) && !widgetMode;
+}
 
 const ARRIVAL_MIN_MS = 90_000;
 const ARRIVAL_MAX_MS = 4 * 60_000;
