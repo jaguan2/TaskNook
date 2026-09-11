@@ -395,8 +395,12 @@ running `git commit` yourself.
   marker — the server never hears of it. A visit is otherwise a
   read-only scene swap — drawers close on arrival, Decorate is disabled
   with a hint, the chip (and Escape, ahead of everything else) leads home —
-  and `activity` still flows, so starting a focus block means studying
-  together. A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
+  and `activity` still drives your character. NPC personas carry `npcUsername`:
+  `useNpcActivity` gives each one its own `npcActivity` pose, including home
+  drop-ins, so a friend on a break never starts typing just because you do.
+  The 30s check lives on that placed sprite, updates only on a state change,
+  and allocates no clock for the user's character or furniture.
+  A knock is `KNOCK_WAIT_MS` of pure wait; the bots always
   answer. Your own room access is set in ProfilePanel (PUT `/api/visit-access`).
 - **Chatting with friends** (simulated social, same contract as visiting):
   three tables — `Conversation` (`is_group` STORED, not inferred from the
@@ -462,9 +466,17 @@ running `git commit` yourself.
   driving the real app: close the drawer mid-wait and the answer still lands,
   as an unread badge. Chats are NOT part of `refreshAll` (only the Friends
   panel reads them; every task tick would otherwise pay for it), and an open
-  thread keeps its messages in LOCAL state — the store hands them back through
-  the `onMessages` callback rather than re-rendering every context consumer for
-  a line nobody else can see.
+  thread keeps its messages in LOCAL state — `subscribeChat` registers the
+  currently mounted thread for write notifications, including unprompted
+  messages. Never retain a send-time panel callback in a reply timer: after
+  closing/reopening, that callback belongs to the old thread instance.
+  Transcript reads are separate from successful sends, so a failed read cannot
+  cause a duplicate-send retry. Drafts clear only after a confirmed send.
+  `chatSignals` also tracks pending reply names: status-only notifications never
+  refetch the transcript, reopening a thread restores its wait status, and a
+  successful thread deletion cancels its outstanding reply timers. Keep pending
+  state out of the global context. Group creation is guarded while in flight,
+  since the backend deliberately allows distinct groups with the same members.
   **`clean_id` is not `clean_int`**: ids go through the strict one, because
   `clean_int` CLAMPS into range — right for a duration, and wrong for an
   identifier, where `memberIds: [0]` came back as `1` and opened a thread with

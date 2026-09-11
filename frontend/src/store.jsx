@@ -25,6 +25,7 @@ import {
   nextHomeVisitorDelay,
 } from "./lib/homeVisitors";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
+import { createChatSignals } from "./lib/chatSignals";
 import {
   MESSAGE_MAX,
   botReply,
@@ -1879,6 +1880,11 @@ export function StoreProvider({ children }) {
   // unmount instead of setting state into a dead tree.
   const [chats, setChats] = useState([]);
   const replyTimers = useRef(new Set());
+  // Listeners belong to the currently mounted thread, never to a past send.
+  const chatSignals = useRef(null);
+  if (!chatSignals.current) chatSignals.current = createChatSignals();
+  const subscribeChat = useCallback((chatId, listener) => chatSignals.current.subscribe(chatId, listener), []);
+  const notifyChat = useCallback((chatId) => chatSignals.current.publish(chatId), []);
   useEffect(() => {
     const timers = replyTimers.current;
     return () => {
@@ -1925,25 +1931,24 @@ export function StoreProvider({ children }) {
   /**
    * Say something, then let whoever is around answer.
    *
-   * `onMessages` is handed the fresh list after each write so an open thread
-   * repaints without polling — the reply may land long after the send
-   * resolved, which is the point of scheduling it.
+   * Notify the current subscriber after each successful write. A transcript
+   * read failing must never turn a successful send into a retry/duplicate.
    */
-  const sendChatMessage = async (chat, body, onMessages, optionId = null) => {
+  const sendChatMessage = async (chat, body, optionId = null) => {
     const text = body.trim().slice(0, MESSAGE_MAX);
-    if (!text || !chat) return;
+    if (!text || !chat) return false;
     try {
       await api.sendMessage(chat.id, text);
-      onMessages?.(await api.chatMessages(chat.id));
+      notifyChat(chat.id);
       refreshChats();
     } catch (err) {
       showToast(`Couldn't send — ${err.message}`);
-      return;
+      return false;
     }
 
     // Who replies: the one friend, or a couple of the group who are free.
     const others = (chat.members || []).filter((m) => m.id !== userRef.current?.id);
-    if (!others.length) return;
+    if (!others.length) return true;
     // Saying something to someone is the cheapest brick in the friendship —
     // everyone who heard you gets it, which makes a group line worth more in
     // total but no more per person.
@@ -1960,7 +1965,6 @@ export function StoreProvider({ children }) {
       // Stagger a group so two people don't answer in the same instant.
       const delay = replyDelayMs(username, now, seed + i) + i * 900;
       const timer = setTimeout(async () => {
-        replyTimers.current.delete(timer);
         try {
           // A picked option answers the OPTION, not the words on the button:
           // the intent is already known, so there's nothing to infer from the
@@ -1972,15 +1976,20 @@ export function StoreProvider({ children }) {
             ? replyToOption(username, optionId, Date.now(), seed + i, bond)
             : botReply(username, text, Date.now(), seed + i, bond);
           await api.sendMessage(chat.id, reply, friend.id);
-          onMessages?.(await api.chatMessages(chat.id));
+          notifyChat(chat.id);
           refreshChats();
         } catch {
           // A reply that fails is a bot who didn't answer — no toast for a
           // message the user never asked to send.
+        } finally {
+          replyTimers.current.delete(timer);
+          chatSignals.current.finish(timer);
         }
       }, delay);
       replyTimers.current.add(timer);
+      chatSignals.current.start(chat.id, timer, friend);
     });
+    return true;
   };
 
   /**
@@ -1995,6 +2004,7 @@ export function StoreProvider({ children }) {
       try {
         const chat = await api.openChat([friend.id]);
         await api.sendMessage(chat.id, body, friend.id);
+        notifyChat(chat.id);
         refreshChats();
         return true;
       } catch {
@@ -2003,7 +2013,7 @@ export function StoreProvider({ children }) {
         return false;
       }
     },
-    [refreshChats]
+    [refreshChats, notifyChat]
   );
 
   /**
@@ -2091,6 +2101,10 @@ export function StoreProvider({ children }) {
   const deleteChat = async (chatId) => {
     try {
       await api.deleteChat(chatId);
+      for (const timer of chatSignals.current.cancel(chatId)) {
+        clearTimeout(timer);
+        replyTimers.current.delete(timer);
+      }
       await refreshChats();
       return true;
     } catch (err) {
@@ -2579,6 +2593,7 @@ export function StoreProvider({ children }) {
     nudgeFromFriend,
     openGroupChat,
     sendChatMessage,
+    subscribeChat,
     markChatRead,
     deleteChat,
     friendship,

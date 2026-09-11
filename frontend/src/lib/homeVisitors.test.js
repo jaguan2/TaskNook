@@ -49,6 +49,7 @@ describe("open-room drop-ins", () => {
     expect(scene.layout.placements).toHaveLength(original.length + 2);
     expect(room.placements).toBe(original);
     expect(scene.personas[luna.id].label).toBe("Luna");
+    expect(scene.personas[luna.id].npcUsername).toBe("luna");
   });
 
   it("lets the host re-seat a guest without changing other visitors", () => {

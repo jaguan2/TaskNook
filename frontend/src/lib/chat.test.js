@@ -219,7 +219,7 @@ describe("dialogue options are an RPG menu, not a text box", () => {
       theirTurn: true,
       lastMessage: "just made tea ☕ what's up?",
     });
-    expect(opts.map((o) => o.id)).toEqual(["tea", "tea_milk", "tea_share"]);
+    expect(opts.map((o) => o.id)).toEqual(["tea", "tea_share", "working", "thanks"]);
   });
 
   it("offers only real options, and offers them by what the bot is doing", () => {
@@ -458,5 +458,30 @@ describe("voices, rotation and the free-form field", () => {
     const reply = botReply("mochi", "I reorganised my whole desk today", now, 2);
     expect(typeof reply).toBe("string");
     expect(reply.length).toBeGreaterThan(0);
+  });
+});
+
+
+describe("conversations have follow-through", () => {
+  it("keeps each friend's tea consistent across repeated questions", () => {
+    const now = instantWhere("luna", "idle");
+    const cups = BOTS.map((bot) => replyToOption(bot, "tea", now, 0));
+    expect(new Set(cups).size).toBe(4);
+    for (const bot of BOTS) {
+      expect(replyToOption(bot, "tea", now, 99)).toBe(replyToOption(bot, "tea", now, 0));
+      expect(botReply(bot, "what tea did you make?", now, 0)).toBe(replyToOption(bot, "tea", now, 0));
+      const followups = dialogueOptions(bot, now, { theirTurn: true, lastMessage: replyToOption(bot, "tea", now) });
+      expect(followups.map((o) => o.id)).toContain("working");
+      expect(followups.map((o) => o.id)).not.toContain("tea");
+    }
+  });
+  it("lets a work conversation become encouragement or a shared celebration", () => {
+    const now = instantWhere("sora", "focus");
+    const options = dialogueOptions("sora", now, { theirTurn: true, lastMessage: "deep in my book ? 12m left" });
+    expect(options.map((o) => o.id)).toContain("encourage");
+    expect(options.map((o) => o.id)).toContain("celebrate");
+    expect(botReply("sora", "I finished my essay!", now, 2)).toBe(replyToOption("sora", "celebrate", now, 2));
+    expect(botReply("sora", "I haven't finished my essay", now, 2)).not.toBe(replyToOption("sora", "celebrate", now, 2));
+    expect(botReply("sora", "Have you finished?", now, 2)).not.toBe(replyToOption("sora", "celebrate", now, 2));
   });
 });

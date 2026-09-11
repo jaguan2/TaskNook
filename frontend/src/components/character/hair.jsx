@@ -38,7 +38,7 @@
 // `back` replaces everything when the figure turns away. The old `behind`
 // layer is retired — crown volume welds into `front` now.
 import { HEAD_R, farColor } from "../../lib/body";
-import { GLINT, HAIR_LIFT } from "./body";
+import { GLINT, SHADE, HAIR_LIFT } from "./body";
 
 const R = HEAD_R;
 
@@ -362,6 +362,27 @@ export const HAIR_REGISTRY = {
     ),
   },
   bob: {
+    // One continuous cap-to-nape silhouette, painted OVER the back. Reusing
+    // the front's behind-body curtain let the sweater cut through the hair.
+    backIncludesLength: true,
+    back: ({ headY, color }) => (
+      <g data-hair-back="bob">
+        <path d={`M -8.2 ${headY + 1} Q -9.5 ${headY - 8.6} -1 ${headY - 9.6}
+          Q 8.6 ${headY - 10.1} 9.1 ${headY - 1}
+          Q 11.1 ${headY + 8.2} 7.5 ${headY + 10.4}
+          Q 0 ${headY + 12} -7.5 ${headY + 10.4}
+          Q -10.7 ${headY + 8.3} -8.2 ${headY + 1} Z`} fill={color} />
+        <path d={`M -7.7 ${headY - 2} Q -8.1 ${headY + 6.8} -5.4 ${headY + 9.4}
+          Q 0 ${headY + 10.8} 7.5 ${headY + 9.5}
+          Q 1 ${headY + 12.1} -7.5 ${headY + 10.4}
+          Q -10.1 ${headY + 7} -7.7 ${headY - 2} Z`} fill={SHADE} opacity="0.28" />
+        <path d={`M -4.6 ${headY - 5.8} Q 0 ${headY - 9} 5.1 ${headY - 5.6}
+          Q 7.7 ${headY - 2.8} 7.2 ${headY + 2.2}
+          Q 5.5 ${headY - 4.9} -4.6 ${headY - 5.8} Z`} fill={GLINT} opacity="0.16" />
+        <path d={`M 1.5 ${headY - 5} Q 4 ${headY + 1} 2.8 ${headY + 8.6}`}
+          fill="none" stroke={SHADE} strokeWidth="0.65" opacity="0.22" />
+      </g>
+    ),
     // The dark back sheet curls IN under the jaw (the make-or-break — a
     // flared hem reads as a lampshade); the front wig carries the blunt
     // fringe. Two masses, two tones, per the method's long-hair form.
@@ -400,6 +421,30 @@ export const HAIR_REGISTRY = {
     ),
   },
   long: {
+    backIncludesLength: true,
+    back: ({ headY, color }) => (
+      <g data-hair-back="long">
+        <path d={`M -8.5 ${headY} Q -9.3 ${headY - 8.5} -1 ${headY - 9.6}
+          Q 8.8 ${headY - 10.4} 9 ${headY}
+          Q 8.8 ${headY + 11} 11.4 ${headY + 21}
+          Q 8.2 ${headY + 23.1} 5.2 ${headY + 21.6}
+          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
+          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
+          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={color} />
+        <path d={`M -6.8 ${headY - 3} Q -5.6 ${headY + 10} -7.2 ${headY + 20.1}
+          Q -1.3 ${headY + 23} 5.2 ${headY + 21.6}
+          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
+          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
+          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={SHADE} opacity="0.27" />
+        <path d={`M -3.9 ${headY - 6.2} Q 3 ${headY - 9.1} 6.4 ${headY - 3.9}
+          Q 7.2 ${headY + 4} 6.2 ${headY + 13.6}
+          Q 4.9 ${headY + 7} 4.9 ${headY - 0.7}
+          Q 3.9 ${headY - 5.3} -3.9 ${headY - 6.2} Z`} fill={GLINT} opacity="0.14" />
+        <path d={`M -2.4 ${headY - 4} Q -0.3 ${headY + 6} -2.2 ${headY + 19}
+          M 2.2 ${headY + 3} Q 4 ${headY + 13} 3.2 ${headY + 20.1}`}
+          fill="none" stroke={SHADE} strokeWidth="0.75" strokeLinecap="round" opacity="0.22" />
+      </g>
+    ),
     // Dark back sheet to below the shoulders + two base-tone curtains riding
     // over it — the tone split is what makes it deep instead of a slab.
     // Profile: the whole fall hangs BEHIND the figure — dark sheet plus one
@@ -1392,8 +1437,10 @@ export function HairBehind({ style, headY, color }) {
 }
 
 /** Everything past the jaw — before the torso, so it falls behind the body. */
-export function HairLength({ style, headY, color }) {
-  return HAIR_REGISTRY[style]?.length?.({ headY, color }) ?? null;
+export function HairLength({ style, headY, color, back = false }) {
+  const entry = HAIR_REGISTRY[style];
+  if (back && entry?.backIncludesLength) return null;
+  return entry?.length?.({ headY, color }) ?? null;
 }
 
 /** The hair over the skull. Styles without their own get the short wig. */

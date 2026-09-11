@@ -92,7 +92,7 @@ export function homeVisitorScene(layout, visitors) {
   const personas = Object.fromEntries(
     list.map((visitor) => [
       visitor.id,
-      { character: visitor.character, label: visitor.label },
+      { character: visitor.character, label: visitor.label, npcUsername: visitor.username },
     ])
   );
   return { layout: { ...layout, placements }, personas };

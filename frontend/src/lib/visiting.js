@@ -169,6 +169,7 @@ export function resolveVisitRoom(data, guest = null) {
   if (ownerAt) {
     placements.push({ id: ownerId, item: "resident", gx: ownerAt.gx, gy: ownerAt.gy });
     personas[ownerId] = {
+      npcUsername: data?.username || "friend",
       character: ownerCharacter,
       label: data?.displayName || data?.username || "friend",
     };

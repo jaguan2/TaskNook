@@ -26,6 +26,7 @@ import {
 import { unproject } from "../lib/iso";
 import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
+import { useNpcActivity } from "../lib/useNpcActivity";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import ExteriorWall from "./ExteriorWall";
@@ -223,6 +224,7 @@ const PlacedItem = memo(function PlacedItem({
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
   const glide = useGlide(at.x, at.y, glides && !editMode && !reduceMotion);
+  const personaActivity = useNpcActivity(personaInfo?.npcUsername, activity);
   if (!item || !Sprite) return null;
   const foot = footOf(p.item, p.rot);
   // Wanderers use a CSS transform (transition = the glide);
@@ -332,7 +334,7 @@ const PlacedItem = memo(function PlacedItem({
               seated={!!p._seat && !p._lie}
               lying={!!p._lie}
               seatH={p._seat || 0}
-              activity={activity}
+              activity={personaActivity}
               moving={glide.moving}
               facing={p._facing || "front"}
               // Only YOU wear the profile's character and think

@@ -1,5 +1,11 @@
 # Modelling roadmap — how the characters get to "actually 3D"
 
+Current implementation note (2026-09-10): the later reference review restored
+`HEAD_SCALE = 1` while keeping the longer legs. `docs/MODELS.md` and
+`lib/body.js` describe the shipped proportions; the adult-pivot decision
+below is historical. Bob and long hairstyles now have continuous rear
+silhouettes that cover the back instead of being hidden by the torso.
+
 Written 2026-08-19, from a research pass over three candidate pipelines. The
 owner's goal: models that look **3D, cohesive, and normal** — and openness to
 "actual modelling instead of just formatting with CSS", thinking long-term.

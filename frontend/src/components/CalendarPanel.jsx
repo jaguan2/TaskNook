@@ -151,7 +151,7 @@ export default function CalendarPanel() {
       if (createKind === "task") await addTask({ name: title, duration: 25, priority: "medium", scheduledDate: selected });
       else await addEvent({ title, date: selected, startTime: eventTime, duration: 60 });
       setCreateTitle("");
-    } catch (err) {
+    } catch {
       // addEvent supplies its own useful toast; addTask predates that contract.
       if (createKind === "task") showToast("Couldn't schedule that task 🌧️");
     } finally {

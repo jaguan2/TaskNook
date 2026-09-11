@@ -580,7 +580,7 @@ export function Resident({
           stay welded to the dome they hang from — unscaled after the adult-
           proportion pivot they jutted ~25% wide of the head. */}
       <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
-        <HairLength style={ch.hair} headY={headY} color={hairColor} />
+        <HairLength style={ch.hair} headY={headY} color={hairColor} back={back && !hatted} />
       </g>
       {/* The skirt flare, over the bare legs and under the torso's hem.
           Standing only — seated, the cloth already drapes the lap via the

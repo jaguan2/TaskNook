@@ -116,3 +116,12 @@ then paste the resulting `<path d="…">` data into the entry — the entry is
 just a function returning SVG elements, and hand-drawn path data is as
 legitimate as computed paths. Keep coordinates relative to `headY` (hair,
 hats) or the passed-in torso metrics (garments).
+
+## Rear hair that covers the torso
+
+A hairstyle can set `backIncludesLength: true` when its `back` drawing owns
+both crown and hanging hair (currently bob and long). The assembly then
+omits its behind-body `length` only in an unhatted rear view. This prevents
+the torso from cutting through hair that should lie over the back. Keep the
+full rear silhouette inside the head group so recolours and gestures stay
+attached. Hatted views still use the separate length under the hat.

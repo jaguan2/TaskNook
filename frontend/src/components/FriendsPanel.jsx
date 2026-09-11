@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart } from "lucide-react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
@@ -48,6 +48,8 @@ export default function FriendsPanel() {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatLock = useRef(false);
   const [armedId, arm] = useArmed();
   // Which thread is open, by id — held as an ID rather than the object so the
   // header and unread badge track the store's fresh copy after each message.
@@ -85,20 +87,34 @@ export default function FriendsPanel() {
   };
 
   const chatWith = async (f) => {
-    const chat = await openChatWith(f);
-    if (chat) setOpenChatId(chat.id);
+    if (chatLock.current) return;
+    chatLock.current = true;
+    setChatBusy(true);
+    try {
+      const chat = await openChatWith(f);
+      if (chat) setOpenChatId(chat.id);
+    } finally {
+      chatLock.current = false;
+      setChatBusy(false);
+    }
   };
 
   const startGroup = async () => {
-    if (picking.length < 2) return;
-    const chat = await openGroupChat(picking, groupName);
-    // Only clear the picks on success — a failed create already toasted, and
-    // throwing away the member selection on top of it makes the user rebuild
-    // it just to retry.
-    if (chat) {
-      setPicking(null);
-      setGroupName("");
-      setOpenChatId(chat.id);
+    if (picking.length < 2 || chatLock.current) return;
+    chatLock.current = true;
+    setChatBusy(true);
+    try {
+      const chat = await openGroupChat(picking, groupName);
+      // Only clear the picks on success — a failed create already toasted,
+      // and the user should not have to choose everyone again just to retry.
+      if (chat) {
+        setPicking(null);
+        setGroupName("");
+        setOpenChatId(chat.id);
+      }
+    } finally {
+      chatLock.current = false;
+      setChatBusy(false);
     }
   };
 
@@ -113,6 +129,7 @@ export default function FriendsPanel() {
       await refreshAll();
     } catch (err) {
       setError(err.message);
+      showToast("Couldn't add that friend — " + err.message);
     } finally {
       setBusy(false);
     }
@@ -136,7 +153,7 @@ export default function FriendsPanel() {
   if (openChat) {
     return (
       <div className="h-[70vh]">
-        <ChatThread chat={openChat} onBack={() => setOpenChatId(null)} />
+        <ChatThread key={openChat.id} chat={openChat} onBack={() => setOpenChatId(null)} />
       </div>
     );
   }
@@ -158,6 +175,7 @@ export default function FriendsPanel() {
             }}
             title="Back to friends"
             aria-label="Back to friends"
+            disabled={chatBusy}
             className="pill grid h-8 w-8 place-items-center text-cream transition hover:bg-white/10"
           >
             ‹
@@ -170,6 +188,7 @@ export default function FriendsPanel() {
           maxLength={60}
           placeholder="group name (optional)"
           aria-label="Group name"
+          disabled={chatBusy}
           className="w-full rounded-xl bg-white/10 px-3 py-2 text-sm text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
         />
         <div className="space-y-1.5">
@@ -180,6 +199,8 @@ export default function FriendsPanel() {
                 key={f.id}
                 onClick={() => toggle(f.id)}
                 aria-pressed={chosen}
+                aria-label={f.displayName}
+                disabled={chatBusy}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${
                   chosen ? "bg-glow/20" : "bg-white/5 hover:bg-white/10"
                 }`}
@@ -199,10 +220,10 @@ export default function FriendsPanel() {
         </div>
         <button
           onClick={startGroup}
-          disabled={picking.length < 2}
+          disabled={picking.length < 2 || chatBusy}
           className="pill w-full bg-glow py-2 text-sm font-semibold text-plum hover:bg-amber disabled:opacity-40"
         >
-          {picking.length < 2
+          {chatBusy ? "Starting group…" : picking.length < 2
             ? "Pick at least two friends"
             : `Start with ${picking.length} friends`}
         </button>
@@ -217,10 +238,12 @@ export default function FriendsPanel() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="add by username (try: kai)"
+          aria-label="Friend username"
           className="flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
         />
         <button
           disabled={busy}
+          aria-label="Add friend"
           className="pill bg-glow px-4 py-2 text-sm font-semibold text-plum hover:bg-amber disabled:opacity-50"
         >
           +
@@ -376,6 +399,7 @@ export default function FriendsPanel() {
                 <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => chatWith(f)}
+                  disabled={chatBusy}
                   title={`Message ${f.displayName}`}
                   className="pill inline-flex shrink-0 items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
                 >

@@ -346,6 +346,9 @@ export const OPTION_LABEL = {
   wind: "Calling it a night soon?",
   thanks: "Thanks 💛",
   bye: "Good luck — talk later 👋",
+  encourage: "I'm having trouble getting started",
+  joke: "Tell me a terrible joke 😄",
+  celebrate: "I finished something on my list!",
   tea: "What tea did you make?",
   tea_milk: "Did you add milk or honey?",
   tea_share: "Save me a cup ☕",
@@ -361,7 +364,7 @@ const OPTION_LINES = {
     idle: ["about to start on {topic} 🌙", "tidying my list, then {topic}"],
   },
   study: {
-    focus: ["already at it — join me 📖", "yes! {left}m in, plenty left"],
+    focus: ["already at it — join me 📖", "yes! {left}m left — pull up a chair"],
     break: ["yes! give me five ☕", "in a minute — kettle first"],
     idle: ["yes please 🌸 I need the push", "go on then. you start!"],
   },
@@ -411,7 +414,22 @@ const MENU = {
 // A menu should answer the thread, not merely the clock. A bot mentioning tea
 // deserves tea-shaped follow-ups; otherwise every message is met by the same
 // three activity prompts and the exchange reads like a kiosk.
-const THREAD_MENU = ["tea", "tea_milk", "tea_share"];
+const THREAD_MENU = ["tea", "tea_share", "working", "thanks"];
+
+// Small remembered details: each friend keeps their own cup throughout the
+// conversation. They also make the same prompt sound like four people.
+const TEA = {
+  luna: ["jasmine tea — something soft while I watch the sky 🌙", "just a little honey. no milk in this one"],
+  kai: ["ginger tea! a little kick for the next round 💪", "honey and lemon. keeping it bright!"],
+  sora: ["earl grey. the book isn't going to read itself 📚", "a splash of milk. no sugar. a reliable arrangement"],
+  mochi: ["cinnamon chai — the whole kitchen smells like a hug ☕", "oat milk and honey. café privileges"],
+};
+const CELEBRATE = {
+  luna: ["one more little light on the chart ✨ I'm proud of you", "look at you 🌙 let yourself enjoy that for a moment"],
+  kai: ["YES!! 💪 that's a win. take the victory stretch", "DONE is done ⚡ give yourself credit for that one!"],
+  sora: ["a satisfying full stop. nicely done 📚", "evidence that the list is mortal. well done"],
+  mochi: ["that's worth a biscuit! saved you the nicest one 🍪", "look at you go ☕ a little celebration before the next thing"],
+};
 
 /**
  * The lines on offer right now, as `{id, label}`.
@@ -421,7 +439,15 @@ const THREAD_MENU = ["tea", "tea_milk", "tea_share"];
  */
 export function dialogueOptions(username, now, { theirTurn = false, lastMessage = "" } = {}) {
   if (theirTurn && /\b(tea|kettle|chai|earl grey|matcha)\b/i.test(lastMessage)) {
-    return THREAD_MENU.map((id) => ({ id, label: OPTION_LABEL[id] }));
+    const ids = /\b(jasmine|ginger|earl grey|cinnamon chai)\b/i.test(lastMessage)
+      ? ["tea_milk", "tea_share", "working", "thanks"] : THREAD_MENU;
+    return ids.map((id) => ({ id, label: OPTION_LABEL[id] }));
+  }
+  if (theirTurn && /\b(topic|star|chart|astronomy|poetry|nebula|book|chapter|essay|recipe|baking|problem|notes|block|list)\w*\b/i.test(lastMessage)) {
+    return ["celebrate", "encourage", "study", "thanks"].map((id) => ({ id, label: OPTION_LABEL[id] }));
+  }
+  if (theirTurn && /\b(breathe|small|tiniest|rest|tired|step)\w*\b/i.test(lastMessage)) {
+    return ["joke", "study", "thanks"].map((id) => ({ id, label: OPTION_LABEL[id] }));
   }
   const { state } = npcActivity(username, now);
   const byPart = MENU[state] || MENU.idle;
@@ -439,19 +465,11 @@ export function dialogueOptions(username, now, { theirTurn = false, lastMessage 
  */
 export function replyToOption(username, optionId, now, seed = 0, bond = 1) {
   const { state, minutesLeft } = npcActivity(username, now);
-  if (optionId === "tea") {
-    return pick([
-      "earl grey with a slice of orange — simple and perfect ☕",
-      "a soft jasmine green tea. it smells like a reset",
-      "chai today — cinnamon won the argument",
-    ], hash(username, optionId, seed));
-  }
-  if (optionId === "tea_milk") {
-    return pick([
-      "honey, always. just enough to make it feel like a treat",
-      "a little oat milk — it makes the whole break softer",
-      "no milk today, but I did add far too much honey",
-    ], hash(username, optionId, seed));
+  if (optionId === "tea") return (TEA[username] || TEA.mochi)[0];
+  if (optionId === "tea_milk") return (TEA[username] || TEA.mochi)[1];
+  if (optionId === "celebrate") return pick(CELEBRATE[username] || CELEBRATE.kai, hash(username, optionId, seed));
+  if (optionId === "encourage" || optionId === "joke") {
+    return replyFor(username, optionId, optionId, now, seed, bond);
   }
   if (optionId === "tea_share") {
     return pick([
@@ -491,6 +509,14 @@ const LOWMOOD = /\b(tired|exhausted|stressed|overwhelmed|burnt? ?out|can'?t focu
 function intentOf(text) {
   const body = String(text || "").trim();
   if (!body) return { shape: null };
+  // Celebrate a stated win, never "haven't finished" or a question about them.
+  if (!/\b(not|never|haven't|havent|hadn't|didn't|didnt)\b|\?/i.test(body)
+    && /\bi(?:'ve| have)?\s+(?:(?:just|finally|already)\s+)?(?:finished|completed|checked off|got it done)\b/i.test(body)) {
+    return { option: "celebrate" };
+  }
+  if (/\b(milk|honey)\b/i.test(body)) return { option: "tea_milk" };
+  if (/\b(what|which)\b.*\b(tea|chai)\b/i.test(body)) return { option: "tea" };
+  if (/\b(save|share|pour)\b.*\b(cup|mug|tea)\b/i.test(body)) return { option: "tea_share" };
   if (BYE.test(body)) return { shape: "bye" };
   if (THANKS.test(body)) return { shape: "thanks" };
   if (LOWMOOD.test(body)) return { shape: "encourage" };

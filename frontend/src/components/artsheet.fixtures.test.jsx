@@ -14,7 +14,9 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { ISO_SPRITES } from "./IsoItems";
-import { BUNNY_COATS, CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
+import IsoRoom from "./IsoRoom";
+import { resolveVisitRoom } from "../lib/visiting";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, seatFor } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -48,6 +50,31 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    // Rear hair must read on a chair as well as standing. Keep the skin,
+    // wardrobe and hair contrast cases visible together during art review.
+    for (const hair of ["bob", "long"]) {
+      for (const model of ["masc", "fem"]) {
+        for (const hairColor of ["#3a3142", "#9a6b46", "#e7dcc7"]) {
+          save(`rear-${hair}-${model}-${hairColor.slice(1)}`,
+            <Resident character={dressed({ hair, model, hairColor })} facing="back" seated seatH={19} />);
+        }
+      }
+    }
+    const { layout, personas, guestId } = resolveVisitRoom(
+      { id: 1, username: "luna", displayName: "Luna", room: null, character: null },
+      { character: dressed({ hair: "long" }), name: "You" }
+    );
+    // Rotate only the fixture's guest chair to review rear hair behind a
+    // real backrest; the preset catalog stays untouched.
+    const guestSeat = seatFor(layout.placements.find((p) => p.id === guestId), layout.placements);
+    if (guestSeat && !guestSeat.soft) guestSeat.placement.rot = 2;
+    const scene = renderToStaticMarkup(
+      <IsoRoom size={layout} placements={layout.placements} personas={personas}
+        saveView={false} reduceMotion timeOfDay="sunset" />
+    );
+    // IsoRoom includes its positioning div; the exported asset is SVG only.
+    writeFileSync(`${DIR}/scene-visit.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
+      .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
     // Pose review belongs beside wardrobe review: this catches a bed model
     // drifting back into a generic blanket/body that ignores customization.
     save(

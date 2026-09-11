@@ -312,8 +312,8 @@ export default function App() {
           {visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
-               `activity` still flows, so starting a focus block means the
-               two of you study together. The `key` REMOUNTS the scene per
+               `activity` still flows to your guest; each NPC follows their
+               own schedule. The `key` REMOUNTS the scene per
                room — camera, selection and wander offsets are per-room
                state, and React would otherwise reconcile the same component
                and carry all three across the swap. */

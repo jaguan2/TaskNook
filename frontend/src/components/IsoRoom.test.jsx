@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
 import { WALL_H } from "../lib/iso";
-import { resolveVisitRoom } from "../lib/visiting";
+import { npcActivity, resolveVisitRoom } from "../lib/visiting";
 import { validateCharacter } from "../lib/profile";
 
 afterEach(cleanup);
@@ -19,6 +19,26 @@ const grabCursors = (container) =>
   [...container.querySelectorAll("g")].filter((g) => g.style && g.style.cursor === "grab");
 
 describe("IsoRoom while visiting", () => {
+  it("lets the host take a break while the guest's real timer is focusing", () => {
+    let now = new Date(2026, 8, 10, 12).getTime();
+    while (npcActivity("luna", now).state !== "break") now += 60_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const { layout, personas, guestId } = resolveVisitRoom(
+        { id: 1, username: "luna", displayName: "Luna", room: null, character: null },
+        { character: validateCharacter(null), name: "You" }
+      );
+      const { container } = render(<IsoRoom size={layout} placements={layout.placements}
+        personas={personas} activity="focus" saveView={false} reduceMotion />);
+      const host = container.querySelector('[data-placement-id="visit-owner-1"]');
+      const guest = container.querySelector(`[data-placement-id="${guestId}"]`);
+      expect(host.querySelector(".break-stretch")).toBeTruthy();
+      expect(host.querySelector(".resident-type")).toBeNull();
+      expect(guest.querySelector(".resident-type")).toBeTruthy();
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it("renders a visited room with both name tags and no self bubble", () => {
     const { layout, personas } = resolveVisitRoom(
       { id: 1, username: "luna", displayName: "Luna", room: null, character: null },

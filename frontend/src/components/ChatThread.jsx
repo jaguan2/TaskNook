@@ -18,15 +18,19 @@ const ACTIVITY_LINE = {
  * One open conversation.
  *
  * Messages are LOCAL state, not the store's: only this view reads them, they
- * change on a timer that belongs to the store's reply scheduler, and putting
- * them in the context would re-render every consumer for a line nobody else
- * can see. The store hands them back through the `onMessages` callback it
- * already calls after each write.
+ * change on a timer that belongs to the store's reply scheduler. A scoped
+ * subscription reloads only the currently open thread, including after a
+ * close/reopen and for unprompted check-ins.
  */
 export default function ChatThread({ chat, onBack }) {
-  const { user, sendChatMessage, markChatRead, deleteChat } = useStore();
+  const { user, sendChatMessage, subscribeChat, markChatRead, deleteChat } = useStore();
   const [messages, setMessages] = useState(null);
   const [sending, setSending] = useState(false);
+  const [pending, setPending] = useState([]);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const sendLock = useRef(false);
+  const stickToBottom = useRef(true);
   // The free-form line — local until sent, like every draft in the app.
   const [typed, setTyped] = useState("");
   const [now, setNow] = useState(() => Date.now());
@@ -51,27 +55,43 @@ export default function ChatThread({ chat, onBack }) {
 
   useEffect(() => {
     let live = true;
-    api
-      .chatMessages(chat.id)
-      .then((rows) => live && setMessages(rows))
-      .catch(() => live && setMessages([]));
-    markChatRead(chat.id);
+    let revision = 0;
+    setMessages(null);
+    setLoadError(false);
+    stickToBottom.current = true;
+    const load = async () => {
+      const request = ++revision;
+      try {
+        const rows = await api.chatMessages(chat.id);
+        if (!live || request !== revision) return;
+        setMessages(rows);
+        setLoadError(false);
+        markChatRead(chat.id);
+      } catch {
+        if (live && request === revision) setLoadError(true);
+      }
+    };
+    const unsubscribe = subscribeChat(chat.id, (event) => {
+      setPending(event?.pending || []);
+      if (event?.messagesChanged !== false) load();
+    });
+    load();
     return () => {
       live = false;
+      unsubscribe();
     };
-  }, [chat.id, markChatRead]);
+  }, [chat.id, subscribeChat, markChatRead, reload]);
 
-  // Stick to the bottom as lines arrive — a chat that opens at the top is a
-  // transcript, not a conversation.
+  // New lines follow the reader only while they're already near the bottom.
   useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // What you can say right now. In a group the menu follows whoever the thread
-  // is named after — one person's schedule, so the options stay coherent —
-  // while `groupResponders` still decides who actually answers.
-  const speaker = others[0]?.username;
+  // Follow whoever actually spoke last in a group, rather than whichever
+  // member happened to come first in the API response.
+  const lastSender = byId[messages?.[messages.length - 1]?.senderId];
+  const speaker = (lastSender?.id !== user?.id && lastSender?.username) || others[0]?.username;
   const options = useMemo(() => {
     if (!speaker) return [];
     // Their turn = the last line is theirs, which is the only time "Thanks"
@@ -81,14 +101,18 @@ export default function ChatThread({ chat, onBack }) {
     return dialogueOptions(speaker, now, { theirTurn, lastMessage: theirTurn ? last.body : "" });
   }, [speaker, now, messages, user?.id]);
 
-  const say = (option) => {
-    if (sending) return;
-    // Locked until the line lands, so a double-tap can't post it twice — the
-    // reply is scheduled off the send, so a duplicate would be answered twice.
+  const say = async (option, draft = false) => {
+    if (sendLock.current) return;
+    sendLock.current = true;
     setSending(true);
-    Promise.resolve(sendChatMessage(chat, option.label, setMessages, option.id)).finally(
-      () => setSending(false)
-    );
+    stickToBottom.current = true;
+    try {
+      const sent = await sendChatMessage(chat, option.label, option.id);
+      if (sent && draft) setTyped((current) => current === option.label ? "" : current);
+    } finally {
+      sendLock.current = false;
+      setSending(false);
+    }
   };
 
   const title = chatTitle(chat, user?.id);
@@ -118,7 +142,7 @@ export default function ChatThread({ chat, onBack }) {
           </p>
         </div>
         <button
-          onClick={() => arm(chat.id, () => deleteChat(chat.id).then(onBack))}
+          onClick={() => arm(chat.id, () => deleteChat(chat.id).then((deleted) => deleted && onBack()))}
           title="Delete this chat"
           aria-label={armedId === chat.id ? "Tap again to delete this chat" : "Delete this chat"}
           className={`shrink-0 transition ${
@@ -133,16 +157,28 @@ export default function ChatThread({ chat, onBack }) {
 
       <div
         ref={scroller}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+        }}
         className="cozy-scroll min-h-0 flex-1 overflow-y-auto rounded-2xl bg-white/5 p-3"
       >
         {/* min-h-full + justify-end keeps a short conversation sitting on the
             composer instead of stranded at the top of an empty column, while a
             long one still grows and scrolls normally. */}
         <div className="flex min-h-full flex-col justify-end space-y-2">
-        {messages === null && (
+        {messages === null && !loadError && (
           <p className="py-6 text-center text-xs text-petal/50">one moment…</p>
         )}
-        {messages?.length === 0 && (
+        {loadError && (
+          <div role="alert" className="py-4 text-center text-xs text-danger">
+            <p>Couldn't load this conversation.</p>
+            <button className="pill mt-2 px-3 py-1 text-cream" onClick={() => setReload((n) => n + 1)}>
+              Try again
+            </button>
+          </div>
+        )}
+        {messages?.length === 0 && !loadError && (
           <p className="py-6 text-center text-xs text-petal/60">
             Say hello 👋 {solo ? solo.displayName : "everyone"} will answer when
             they&apos;re free.
@@ -179,6 +215,13 @@ export default function ChatThread({ chat, onBack }) {
         </div>
       </div>
 
+      {pending.length > 0 && (
+        <p role="status" className="px-1 text-[11px] text-petal/60">
+          {pending.map((reply) => reply.displayName).join(" and ")}
+          {pending.length === 1 ? " is" : " are"} taking a moment to reply…
+        </p>
+      )}
+
       {/* You PICK a line rather than typing one — the RPG grammar. The bots'
           replies are canned, so a text box promises a conversation they can't
           have: you write something thoughtful and get a non-sequitur. A menu
@@ -212,11 +255,7 @@ export default function ChatThread({ chat, onBack }) {
             e.preventDefault();
             const text = typed.trim();
             if (!text || sending) return;
-            setTyped("");
-            setSending(true);
-            Promise.resolve(sendChatMessage(chat, text, setMessages)).finally(() =>
-              setSending(false)
-            );
+            say({ label: typed, id: null }, true);
           }}
         >
           <input
