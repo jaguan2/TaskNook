@@ -799,6 +799,16 @@ describe("presets", () => {
     }
   });
 
+  it("keeps the starter rooms calm and puts the Loft computer by its window", () => {
+    expect(ISO_PRESETS.loft.items.length).toBeLessThanOrEqual(24);
+    expect(ISO_PRESETS.home.items.length).toBeLessThanOrEqual(32);
+    const loft = ISO_PRESETS.loft.items;
+    const computer = loft.find((p) => p.item === "computer");
+    const window = loft.find((p) => p.item === "bigwindow");
+    expect(computer).toMatchObject({ gx: 5, gy: 0 });
+    expect(Math.abs(computer.gx - window.gx) + Math.abs(computer.gy - window.gy)).toBeLessThanOrEqual(0.5);
+  });
+
   it("each application mints fresh ids (presets can be applied repeatedly)", () => {
     const a = isoPresetLayout("classic");
     const b = isoPresetLayout("classic");

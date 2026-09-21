@@ -19,7 +19,7 @@ import IsoRoom from "./IsoRoom";
 import Cottage from "./Cottage";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
-import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, seatFor } from "../lib/isoRoom";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, isoPresetLayout, seatFor } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -89,6 +89,14 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // IsoRoom includes its positioning div; the exported asset is SVG only.
     writeFileSync(`${DIR}/scene-visit.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
       .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    for (const key of ["loft", "home"]) {
+      const room = isoPresetLayout(key);
+      const presetScene = renderToStaticMarkup(
+        <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />
+      );
+      writeFileSync(`${DIR}/scene-${key}.svg`, presetScene.slice(presetScene.indexOf("<svg"), presetScene.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
     // Pose review belongs beside wardrobe review: this catches a bed model
     // drifting back into a generic blanket/body that ignores customization.
     save(

@@ -41,14 +41,10 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "nightstand", gx: 3, gy: 0, tint: "#d2a075" },
       { item: "tablelamp", gx: 3, gy: 0, tint: "#d7a56f" },
       { item: "wardrobe", gx: 4, gy: 0, tint: "#77576f" },
-      { item: "bookshelf", gx: 7.5, gy: 0, tint: "#ba9879" },
-      { item: "runner", gx: 3.5, gy: 2, tint: "#b88491" },
-      { item: "floorlamp", gx: 3, gy: 1.5, tint: "#d6a77e" },
       // Work zone sits between the sleeping and living areas.
       { item: "desk", gx: 5, gy: 3.5, tint: "#c39a75" },
       { item: "laptop", gx: 5.5, gy: 3.5 },
       { item: "desklamp", gx: 6.5, gy: 3.5, tint: "#d19b67" },
-      { item: "mug", gx: 6.5, gy: 4 },
       { item: "ovalrug", gx: 5, gy: 4, tint: "#8f777b" },
       // Turned around: its backrest belongs behind the resident, not wedged
       // between them and the laptop.
@@ -58,10 +54,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "persianrug", gx: 2.5, gy: 5.5, tint: "#a9788e" },
       { item: "sofa", gx: 3, gy: 7, tint: "#78648d" },
       { item: "coffeetable", gx: 4.5, gy: 6, tint: "#c39a75" },
-      { item: "bookstack", gx: 4.5, gy: 6 },
-      { item: "mug", gx: 5.5, gy: 6.5 },
       { item: "armchair", gx: 6, gy: 6, tint: "#c5828c" },
-      { item: "cushion", gx: 6.5, gy: 7.5, tint: "#a97782" },
       { item: "tvunit", gx: 0, gy: 4.5, rot: 1, tint: "#77576f" },
       { item: "floorlamp", gx: 1.5, gy: 5.5, tint: "#d6a77e" },
       { item: "dog", gx: 7, gy: 7, look: "husky" },
@@ -72,24 +65,15 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "oven", gx: 12.5, gy: 5, tint: "#8d7897" },
       { item: "fridge", gx: 13, gy: 6, tint: "#7c6a91" },
       { item: "stripedrug", gx: 10.5, gy: 7.5, tint: "#8d7897" },
-      { item: "counter", gx: 11.5, gy: 9.5, tint: "#c4a287" },
-      { item: "counter", gx: 10.5, gy: 9.5, tint: "#c4a287" },
-      { item: "kettle", gx: 11.5, gy: 9.5 },
-      { item: "bread", gx: 10.5, gy: 9.5 },
       { item: "diningtable", gx: 7.5, gy: 8.5, tint: "#c39a75" },
       { item: "fruitbowl", gx: 7.5, gy: 8.5 },
-      { item: "candle", gx: 8.5, gy: 9, tint: "#d7a56f" },
       { item: "chair", gx: 8, gy: 8, tint: "#9c7890" },
       { item: "chair", gx: 8, gy: 10, rot: 2, tint: "#9c7890" },
       // Wall detail follows the asymmetric shell rather than filling every run.
       { item: "bigwindow", gx: 5.5, gy: 0 },
-      { item: "poster", gx: 3.5, gy: 0, tint: "#c7788b" },
-      { item: "hangplant", gx: 8.5, gy: 0, tint: "#668069" },
       { item: "neon", gx: 0, gy: 5.5, rot: 1, tint: "#d887a4" },
       { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#bd705f" },
       { item: "snakeplant", gx: 9, gy: 3.5 },
-      { item: "monstera", gx: 3.5, gy: 9.5 },
-      { item: "plant", gx: 12.5, gy: 9.5 },
     ],
   },
   loft: {
@@ -108,34 +92,21 @@ export function createIsoPresets(defaultIsoSize) {
       lighting: "golden",
     },
     items: [
-      // Rebuilt: the first version left the dresser, the standing mirror, the
-      // guitar, the vinyl crate AND the floor lamp adrift in open floor, which
-      // breaks the two rules every other preset follows — big pieces go flush
-      // to a wall, and the middle stays walkable. Now it's three zones with a
-      // clear path between them.
-      //
+      // A restrained starter room leaves open floor and obvious places for
+      // the user to add their own pieces.
       // ---- SLEEPING, in the right-hand bay -------------------------------
       { item: "bed", gx: 8, gy: 0, tint: "#7f9ec9" },
       { item: "nightstand", gx: 7, gy: 0 },
       { item: "mushroomlamp", gx: 7, gy: 0, tint: "#c58e9e" },
-      { item: "runner", gx: 7, gy: 3.5, tint: "#75658e" },
-      { item: "standmirror", gx: 9, gy: 3.5 },
       // ---- MEDIA WALL, along the back ------------------------------------
       { item: "tvunit", gx: 0, gy: 0 },
       { item: "recordplayer", gx: 2.5, gy: 0, tint: "#4a3a5b" },
-      { item: "vinylcrate", gx: 3.5, gy: 1, tint: "#4a3a5b" },
-      { item: "aquarium", gx: 4, gy: 0 },
-      // A guitar standing in open floor reads as balancing on nothing — it
-      // needs a wall to lean on, so it goes in the gap between the aquarium
-      // and the bed's nightstand.
-      { item: "guitar", gx: 6, gy: 0 },
+      // The short media wall ends here instead of filling the whole back run.
       // ---- WINDOW DESK: a compact work nook under the attic window ------
-      // The desk stops before the bed bay and its chair faces back toward the
-      // computer, so this is somewhere to actually sit and work, not a screen
-      // stranded in the middle of the room.
-      { item: "desk", gx: 5.5, gy: 1.5, tint: "#7f9ec9" },
-      { item: "computer", gx: 6, gy: 1.5 },
-      { item: "deskchair", gx: 6.5, gy: 3, rot: 2, tint: "#7f9ec9" },
+      // Desk, computer, and window share one anchor: this is the focal point.
+      { item: "desk", gx: 4.5, gy: 0, tint: "#7f9ec9" },
+      { item: "computer", gx: 5, gy: 0 },
+      { item: "deskchair", gx: 5.5, gy: 1.5, rot: 2, tint: "#7f9ec9" },
       // ---- LOUNGE: an L-group, both seats addressing the table -----------
       // `rot` is a MIRROR, not a rotation — there are only two facings, so a
       // true face-to-face across the table can't be expressed. An L works
@@ -146,34 +117,20 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "squarerug", gx: 0.5, gy: 2.5, tint: "#8a7ac2" },
       { item: "sofa", gx: 0, gy: 2.5, rot: 1, tint: "#7f9ec9" },
       { item: "coffeetable", gx: 1.5, gy: 3, rot: 1 },
-      { item: "mug", gx: 1.5, gy: 3 },
-      { item: "bookstack", gx: 2, gy: 3.5 },
       { item: "armchair", gx: 1.5, gy: 1.5, tint: "#7f9ec9" },
       // the lamp lights the sofa from the corner instead of standing in the
       // middle of the room
       { item: "floorlamp", gx: 0.5, gy: 1 },
-      { item: "dresser", gx: 0, gy: 5, rot: 1, tint: "#3a3142" },
-      { item: "radio", gx: 0, gy: 5, tint: "#4a3a5b" },
-      { item: "lightjar", gx: 0.5, gy: 5, tint: "#a986c2" },
-      // ---- the open nook the corner cut leaves ---------------------------
+      // ---- QUIET NOOK ----------------------------------------------------
       { item: "ovalrug", gx: 2.5, gy: 5.5, tint: "#71658e" },
       { item: "beanbag", gx: 2.5, gy: 6, tint: "#8a7ac2" },
       { item: "cat", gx: 4, gy: 6, tint: "#2c2438" },
       { item: "sidetable", gx: 5, gy: 6.5, tint: "#3a3142" },
       { item: "moonlamp", gx: 5, gy: 6.5 },
-      { item: "fern", gx: 6.5, gy: 7 },
-      { item: "monstera", gx: 0.5, gy: 7 },
       // ---- wall, spaced rather than crowded ------------------------------
       { item: "pennant", gx: 0, gy: 0, tint: "#5b6b9b" },
-      { item: "wallshelf", gx: 1.5, gy: 0, tint: "#3a3142" },
-      { item: "frame", gx: 3.5, gy: 0, tint: "#3a3142" },
-      { item: "neon", gx: 5.5, gy: 0, tint: "#8a7ac2" },
-      { item: "mirror", gx: 0, gy: 6.5, rot: 1, tint: "#cbd5e8" },
-      // Overhead, above the lounge group — the left wall's one free run,
-      // between the built-in window and the mirror.
-      { item: "pendant", gx: 0, gy: 4.5, rot: 1, tint: "#3a3142" },
-      // The window the attic deserves, inside the new bedroom bay.
-      { item: "bigwindow", gx: 7.5, gy: 0 },
+      // The loft's defining window now belongs to the workstation.
+      { item: "bigwindow", gx: 4.5, gy: 0 },
     ],
   },
   classic: {

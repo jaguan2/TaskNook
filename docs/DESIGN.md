@@ -417,6 +417,24 @@ window movement. Browser mode presents the same face as a rounded floating card.
 
 ## Decorating & room presets
 
+The Loft is the starter room, so it stays deliberately sparse: four readable
+zones with no more than 24 pieces, open floor for customization, and the
+computer desk directly beneath the large window. Shared Home can carry more
+because it demonstrates several household zones, but remains under 32 pieces;
+the Library is where a denser group composition belongs.
+
+Dock panels keep their split bundles, but warm on pointer/focus and then one at
+a time after first paint. This removes the first-click parsing pause in the
+desktop app without moving all panels into its startup path. Drawer entrance
+motion is a short, firm spring and `.pill:active` supplies immediate press
+feedback.
+
+Task completion is optimistic: the checkmark paints immediately while the
+local Flask/SQLite write runs, duplicate taps are ignored during that write,
+and a failed save restores the prior completion fields with a toast. This is
+the highest-frequency action and must not feel gated by the localhost round
+trip used by the packaged app.
+
 The 2D cottage also has visual preset cards, using the actual cottage renderer
 with animation disabled and instance-scoped SVG paint/clip IDs. Keep thumbnail
 placement arrays stable so searching the catalog does not redraw every room.

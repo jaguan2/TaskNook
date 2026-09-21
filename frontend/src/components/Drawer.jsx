@@ -33,7 +33,7 @@ export default function Drawer({
       initial={{ x: 420, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 420, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 280, damping: 30 }}
+      transition={{ type: "spring", stiffness: 430, damping: 38 }}
       // Positioned with explicit top/bottom (not a translate-y class):
       // framer-motion writes its own inline `transform` for the slide/drag,
       // which would silently overwrite any Tailwind translate and leave the

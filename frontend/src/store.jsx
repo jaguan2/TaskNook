@@ -1296,6 +1296,7 @@ export function StoreProvider({ children }) {
   );
 
   // ---------- Task actions ----------
+  const pendingTaskToggles = useRef(new Set());
   const addTask = async (payload) => {
     await api.createTask(payload);
     await refreshTasks();
@@ -1303,12 +1304,27 @@ export function StoreProvider({ children }) {
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
   // as an unhandled promise rejection from an onClick handler.
   const toggleTask = async (task) => {
+    if (pendingTaskToggles.current.has(task.id)) return;
+    pendingTaskToggles.current.add(task.id);
+    const completed = !task.completed;
+    // The packaged app still reaches Flask over localhost. Paint the user's
+    // choice before that round trip, then reconcile against the durable row.
+    setTasks((prev) => prev.map((row) => row.id === task.id
+      ? { ...row, completed, completedAt: completed ? new Date().toISOString() : null }
+      : row));
     try {
-      await api.updateTask(task.id, { completed: !task.completed });
+      await api.updateTask(task.id, { completed });
       await refreshTasks();
     } catch (err) {
       console.error("Failed to toggle task:", err);
+      // Restore only completion fields, preserving any independent edit that
+      // may have landed while the save was in flight.
+      setTasks((prev) => prev.map((row) => row.id === task.id
+        ? { ...row, completed: task.completed, completedAt: task.completedAt }
+        : row));
       showToast("Couldn't save that change 🌧️");
+    } finally {
+      pendingTaskToggles.current.delete(task.id);
     }
   };
   const editTask = async (id, payload) => {

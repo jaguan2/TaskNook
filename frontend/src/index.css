@@ -1330,7 +1330,7 @@ body {
   transform: translateY(-1px);
 }
 .pill:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.96);
 }
 /* The hover lift is the one transform TRANSITION the reduced-motion block's
    `animation: none` can't reach — but unlike the JS-gated glide it answers a

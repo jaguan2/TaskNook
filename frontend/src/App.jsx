@@ -24,14 +24,27 @@ import SkyOverlay from "./components/SkyOverlay";
 // browser). They live behind a dock click, so a chunk fetch is invisible.
 // The room panel's sprites are NOT duplicated into its chunk — IsoItems is
 // already in the main bundle via the always-mounted scene.
-const TaskPanel = lazy(() => import("./components/TaskPanel"));
-const CalendarPanel = lazy(() => import("./components/CalendarPanel"));
-const FriendsPanel = lazy(() => import("./components/FriendsPanel"));
-const MusicPanel = lazy(() => import("./components/MusicPanel"));
-const WeatherPanel = lazy(() => import("./components/WeatherPanel"));
-const RoomPanel = lazy(() => import("./components/RoomPanel"));
-const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
-const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
+const PANEL_LOADERS = {
+  tasks: () => import("./components/TaskPanel"),
+  calendar: () => import("./components/CalendarPanel"),
+  friends: () => import("./components/FriendsPanel"),
+  music: () => import("./components/MusicPanel"),
+  weather: () => import("./components/WeatherPanel"),
+  room: () => import("./components/RoomPanel"),
+  profile: () => import("./components/ProfilePanel"),
+  settings: () => import("./components/SettingsPanel"),
+};
+const TaskPanel = lazy(PANEL_LOADERS.tasks);
+const CalendarPanel = lazy(PANEL_LOADERS.calendar);
+const FriendsPanel = lazy(PANEL_LOADERS.friends);
+const MusicPanel = lazy(PANEL_LOADERS.music);
+const WeatherPanel = lazy(PANEL_LOADERS.weather);
+const RoomPanel = lazy(PANEL_LOADERS.room);
+const SettingsPanel = lazy(PANEL_LOADERS.settings);
+const ProfilePanel = lazy(PANEL_LOADERS.profile);
+// A speculative load must stay invisible if a chunk is unavailable; the real
+// lazy render still owns user-facing failure handling when the panel is opened.
+const warmPanel = (key) => PANEL_LOADERS[key]?.().catch(() => undefined);
 
 const PANELS = {
   // There is deliberately no Progress panel. It existed, and it was mostly a
@@ -115,6 +128,28 @@ export default function App() {
   // Resolved once here and threaded down: the setting wins over the OS
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
+
+  // The desktop bundle serves chunks from localhost, but loading and parsing a
+  // panel only after its first click still feels like a dead button. Warm one
+  // chunk at a time after first paint; pointer/focus warming below covers a
+  // panel the user reaches before this quiet queue does.
+  useEffect(() => {
+    if (booting) return undefined;
+    let cancelled = false;
+    let timer;
+    const keys = Object.keys(PANEL_LOADERS);
+    const next = () => {
+      if (cancelled || !keys.length) return;
+      warmPanel(keys.shift())?.finally(() => {
+        if (!cancelled) timer = setTimeout(next, 180);
+      });
+    };
+    timer = setTimeout(next, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [booting]);
   // Continuously animating a dense SVG scene can monopolise WebView2's UI
   // thread on integrated/disabled GPUs. Large home AND visited rooms use the
   // calm static treatment automatically; smaller rooms keep all authored
@@ -457,7 +492,7 @@ export default function App() {
       >
         <TopBar clockVisibility={hudVisibility.clock} />
       </div>
-      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
+      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} onWarm={warmPanel} />
       </div>
 
       {/* Shared error toast — top-centre (the one HUD zone nothing owns).
