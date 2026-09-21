@@ -169,7 +169,7 @@ export const api = {
   // the words, the server just stores them (see the endpoint's doc-comment).
   listChats: () => request("GET", "/chats"),
   openChat: (memberIds, opts = {}) => request("POST", "/chats", { memberIds, ...opts }),
-  chatMessages: (id) => request("GET", `/chats/${id}/messages`),
+  chatMessages: (id, { before } = {}) => request("GET", `/chats/${id}/messages${before == null ? "" : `?before=${encodeURIComponent(before)}`}`),
   sendMessage: (id, body, senderId) =>
     request("POST", `/chats/${id}/messages`, senderId ? { body, senderId } : { body }),
   markChatRead: (id) => request("POST", `/chats/${id}/read`),

@@ -1332,9 +1332,9 @@ def register_routes(app):
     def list_chats(user):
         """Every thread the viewer is in, newest activity first.
 
-        Three grouped queries rather than per-thread lookups — the same lesson
-        `/api/friends` already learned, and a chat list is the screen most
-        likely to grow.
+        A fixed number of grouped queries rather than per-thread lookups.
+        Only the latest message per thread is materialized; unread counts
+        belong in SQL, not a Python loop over the entire chat history.
         """
         rows = (
             db.session.query(Conversation, ConversationMember.last_read_at)
@@ -1343,7 +1343,6 @@ def register_routes(app):
             .all()
         )
         chats = [row[0] for row in rows]
-        read_at = {row[0].id: row[1] for row in rows}
         ids = [c.id for c in chats]
 
         members_by_chat = {}
@@ -1359,19 +1358,38 @@ def register_routes(app):
         last_by_chat = {}
         unread_by_chat = {}
         if ids:
+            ranked = (
+                db.session.query(
+                    Message.id.label("message_id"),
+                    db.func.row_number().over(
+                        partition_by=Message.conversation_id,
+                        order_by=(Message.created_at.desc(), Message.id.desc()),
+                    ).label("rank"),
+                )
+                .filter(Message.conversation_id.in_(ids))
+                .subquery()
+            )
             for msg in (
-                Message.query.filter(Message.conversation_id.in_(ids))
-                .order_by(Message.created_at, Message.id)
+                Message.query.join(ranked, Message.id == ranked.c.message_id)
+                .filter(ranked.c.rank == 1)
                 .all()
             ):
                 last_by_chat[msg.conversation_id] = msg
-                seen = read_at.get(msg.conversation_id)
-                # Your own lines are never unread, and a thread you have never
-                # opened counts everything but yourself.
-                if msg.sender_id != user.id and (seen is None or msg.created_at > seen):
-                    unread_by_chat[msg.conversation_id] = (
-                        unread_by_chat.get(msg.conversation_id, 0) + 1
-                    )
+            unread_by_chat = dict(
+                db.session.query(Message.conversation_id, db.func.count(Message.id))
+                .join(ConversationMember, db.and_(
+                    ConversationMember.conversation_id == Message.conversation_id,
+                    ConversationMember.user_id == user.id,
+                ))
+                .filter(
+                    Message.conversation_id.in_(ids),
+                    Message.sender_id != user.id,
+                    db.or_(ConversationMember.last_read_at.is_(None),
+                           Message.created_at > ConversationMember.last_read_at),
+                )
+                .group_by(Message.conversation_id)
+                .all()
+            )
 
         payload = [
             _chat_payload(c, user.id, members_by_chat, last_by_chat, unread_by_chat)
@@ -1446,14 +1464,20 @@ def register_routes(app):
 
     def _one_chat(chat, viewer):
         members = [m.user for m in chat.members]
-        last = chat.messages.order_by(Message.created_at.desc(), Message.id.desc()).first()
+        # Clear the relationship's default ascending order before asking for
+        # the newest line; Query.order_by otherwise APPENDS its arguments.
+        last = chat.messages.order_by(None).order_by(Message.created_at.desc(), Message.id.desc()).first()
+        membership = _membership(viewer, chat.id)
+        unread = chat.messages.filter(Message.sender_id != viewer.id)
+        if membership.last_read_at is not None:
+            unread = unread.filter(Message.created_at > membership.last_read_at)
         return {
             "id": chat.id,
             "title": chat.title,
             "isGroup": chat.is_group,
             "members": [m.public_dict() for m in members],
             "lastMessage": last.to_dict() if last else None,
-            "unread": 0,
+            "unread": unread.count(),
             "createdAt": _utc_iso(chat.created_at),
         }
 
@@ -1463,8 +1487,27 @@ def register_routes(app):
         if not _membership(user, chat_id):
             return jsonify({"error": "Not found"}), 404
         limit = clean_int(request.args.get("limit"), 1, 500, 200)
+        query = Message.query.filter_by(conversation_id=chat_id)
+        if "before" in request.args:
+            raw_before = request.args["before"]
+            # Query parameters are strings, unlike the JSON ids clean_id
+            # deliberately accepts. Validate before converting; never clamp.
+            before_id = clean_id(int(raw_before)) if (
+                raw_before.isascii() and raw_before.isdecimal() and len(raw_before) <= 10
+            ) else None
+            if before_id is None:
+                return jsonify({"error": "before must be a message id"}), 400
+            cursor = query.filter_by(id=before_id).first()
+            if cursor is None:
+                return jsonify({"error": "Not found"}), 404
+            # IDs break timestamp ties. The cursor belongs to THIS thread;
+            # neither another thread's timestamps nor offset shifts leak in.
+            query = query.filter(db.or_(
+                Message.created_at < cursor.created_at,
+                db.and_(Message.created_at == cursor.created_at, Message.id < cursor.id),
+            ))
         rows = (
-            Message.query.filter_by(conversation_id=chat_id)
+            query
             .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(limit)
             .all()

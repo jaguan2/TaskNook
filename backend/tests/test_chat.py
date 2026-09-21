@@ -7,6 +7,8 @@ only talk to friends, you can only see threads you are in, and a thread you
 were never in is a 404 rather than a leak.
 """
 import pytest
+from datetime import datetime, timedelta
+from sqlalchemy import event
 
 from app import create_app
 from models import Conversation, ConversationMember, Message, User, db
@@ -63,6 +65,59 @@ def test_one_to_one_is_idempotent(client, auth):
     assert second.status_code == 200
     assert second.get_json()["id"] == first.get_json()["id"]
     assert len(client.get("/api/chats", headers=auth).get_json()) == 1
+
+
+def test_reopening_returns_latest_message_and_actual_unread(client, app, auth):
+    luna = friend_id(client, auth)
+    chat = open_chat(client, auth, luna).get_json()
+    with app.app_context():
+        for i in range(3):
+            db.session.add(Message(conversation_id=chat["id"], sender_id=luna,
+                                   body=f"line {i}",
+                                   created_at=datetime(2026, 1, 1) + timedelta(seconds=i)))
+        db.session.commit()
+    reopened = open_chat(client, auth, luna).get_json()
+    assert reopened["lastMessage"]["body"] == "line 2"
+    assert reopened["unread"] == 3
+
+
+def test_message_history_cursor_handles_equal_timestamps(client, app, auth):
+    luna = friend_id(client, auth)
+    chat = open_chat(client, auth, luna).get_json()
+    with app.app_context():
+        for i in range(205):
+            db.session.add(Message(conversation_id=chat["id"], sender_id=luna,
+                                   body=f"line {i}", created_at=datetime(2026, 1, 1)))
+        db.session.commit()
+    path = f"/api/chats/{chat['id']}/messages"
+    latest = client.get(path, headers=auth).get_json()
+    assert len(latest) == 200
+    older = client.get(f"{path}?before={latest[0]['id']}", headers=auth).get_json()
+    assert [row["body"] for row in older + latest] == [f"line {i}" for i in range(205)]
+    assert client.get(f"{path}?before={older[0]['id']}", headers=auth).get_json() == []
+
+    # The roster needs one preview and an unread COUNT, not 205 ORM objects.
+    loaded = []
+    def record_load(message, context):
+        loaded.append(message.id)
+    event.listen(Message, "load", record_load)
+    try:
+        listed = client.get("/api/chats", headers=auth).get_json()
+    finally:
+        event.remove(Message, "load", record_load)
+    assert listed[0]["unread"] == 205
+    assert listed[0]["lastMessage"]["id"] == latest[-1]["id"]
+    assert len(loaded) == 1
+
+
+def test_history_cursor_is_validated_and_scoped_to_thread(client, auth):
+    luna, kai = friend_id(client, auth), friend_id(client, auth, "kai")
+    first = open_chat(client, auth, luna).get_json()
+    second = open_chat(client, auth, kai).get_json()
+    msg = client.post(f"/api/chats/{second['id']}/messages", json={"body": "private"}, headers=auth).get_json()
+    path = f"/api/chats/{first['id']}/messages"
+    assert client.get(f"{path}?before=invalid", headers=auth).status_code == 400
+    assert client.get(f"{path}?before={msg['id']}", headers=auth).status_code == 404
 
 
 def test_a_group_can_repeat_the_same_people(client, auth):

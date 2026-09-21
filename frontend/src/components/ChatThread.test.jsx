@@ -17,7 +17,7 @@ vi.mock("../store", () => ({ useStore: () => ({
   markChatRead: mocks.markChatRead, deleteChat: mocks.deleteChat, subscribeChat,
 }) }));
 const chat = { id: 8, members: [{ id: 1, displayName: "You" }, { id: 2, username: "luna", displayName: "Luna" }] };
-const message = (id, body) => ({ id, body, senderId: 2, createdAt: new Date().toISOString() });
+const message = (id, body) => ({ id, body, senderId: 2, createdAt: new Date(Date.UTC(2026, 0, 1) + id * 1000).toISOString() });
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.listeners.clear();
@@ -27,6 +27,71 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("chat delivery and recovery", () => {
+  it("loads earlier history and keeps it when a new reply arrives", async () => {
+    const latest = Array.from({ length: 200 }, (_, i) => message(i + 6, `Line ${i + 6}`));
+    mocks.chatMessages.mockResolvedValueOnce(latest);
+    render(<ChatThread chat={chat} onBack={() => {}} />);
+    const earlier = await screen.findByText("Load earlier messages");
+    mocks.chatMessages.mockResolvedValueOnce([message(1, "Our first hello")]);
+    fireEvent.click(earlier);
+    await screen.findByText("Our first hello");
+    expect(mocks.chatMessages).toHaveBeenLastCalledWith(chat.id, { before: 6 });
+    expect(screen.queryByText("Load earlier messages")).toBeNull();
+    mocks.chatMessages.mockResolvedValue([...latest.slice(1), message(206, "New reply")]);
+    await act(async () => mocks.listeners.get(chat.id)());
+    expect(screen.getByText("Our first hello")).toBeTruthy();
+    expect(screen.getByText("Line 6")).toBeTruthy();
+    expect(screen.getAllByText("Line 7")).toHaveLength(1);
+    expect(screen.getByText("New reply")).toBeTruthy();
+  });
+
+  it("keeps the transcript and allows retrying a failed history request", async () => {
+    mocks.chatMessages.mockResolvedValueOnce(Array.from({ length: 200 }, (_, i) => message(i + 6, `Line ${i + 6}`)));
+    render(<ChatThread chat={chat} onBack={() => {}} />);
+    await screen.findByText("Load earlier messages");
+    mocks.chatMessages.mockRejectedValueOnce(new Error("offline"));
+    fireEvent.click(screen.getByText("Load earlier messages"));
+    await screen.findByRole("alert");
+    expect(screen.getByText("Line 205")).toBeTruthy();
+    mocks.chatMessages.mockResolvedValueOnce([message(1, "Earlier hello")]);
+    fireEvent.click(screen.getByText("Load earlier messages"));
+    await screen.findByText("Earlier hello");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("preserves the reader's position when earlier messages are prepended", async () => {
+    mocks.chatMessages.mockResolvedValueOnce(Array.from({ length: 200 }, (_, i) => message(i + 6, `Line ${i + 6}`)));
+    const { container } = render(<ChatThread chat={chat} onBack={() => {}} />);
+    await screen.findByText("Load earlier messages");
+    const scroller = container.querySelector(".cozy-scroll");
+    // jsdom has no layout: model the extra height without mocking the scroll
+    // handler or the effect responsible for keeping the same line in view.
+    Object.defineProperty(scroller, "scrollHeight", {
+      configurable: true,
+      get: () => scroller.textContent.includes("Earlier hello") ? 3000 : 2000,
+    });
+    scroller.scrollTop = 100;
+    fireEvent.scroll(scroller);
+    mocks.chatMessages.mockResolvedValueOnce([message(1, "Earlier hello")]);
+    fireEvent.click(screen.getByText("Load earlier messages"));
+    await screen.findByText("Earlier hello");
+    expect(scroller.scrollTop).toBe(1100);
+  });
+
+  it("ignores an earlier-history response after switching threads", async () => {
+    mocks.chatMessages.mockResolvedValueOnce(Array.from({ length: 200 }, (_, i) => message(i + 6, `Line ${i + 6}`)));
+    const view = render(<ChatThread chat={chat} onBack={() => {}} />);
+    await screen.findByText("Load earlier messages");
+    let resolve;
+    mocks.chatMessages.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    fireEvent.click(screen.getByText("Load earlier messages"));
+    mocks.chatMessages.mockResolvedValueOnce([message(300, "Other conversation")]);
+    view.rerender(<ChatThread chat={{ ...chat, id: 9 }} onBack={() => {}} />);
+    await screen.findByText("Other conversation");
+    await act(async () => resolve([message(1, "Wrong conversation")]));
+    expect(screen.queryByText("Wrong conversation")).toBeNull();
+  });
+
   it("shows pending names without refetching messages for a status-only update", async () => {
     render(<ChatThread chat={chat} onBack={() => {}} />);
     await screen.findByText(/Say hello/);

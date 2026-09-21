@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
@@ -13,6 +13,11 @@ const ACTIVITY_LINE = {
   break: () => "☕ on a break",
   idle: () => "🪴 pottering about",
 };
+
+const MESSAGE_PAGE_SIZE = 200;
+const mergeMessages = (previous, incoming) => [...new Map(
+  [...(previous || []), ...incoming].map((row) => [row.id, row])
+).values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id - b.id);
 
 /**
  * One open conversation.
@@ -29,6 +34,12 @@ export default function ChatThread({ chat, onBack }) {
   const [pending, setPending] = useState([]);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState(false);
+  const historyGeneration = useRef(0);
+  const historyLock = useRef(false);
+  const scrollAnchor = useRef(null);
   const sendLock = useRef(false);
   const stickToBottom = useRef(true);
   // The free-form line — local until sent, like every draft in the app.
@@ -56,15 +67,24 @@ export default function ChatThread({ chat, onBack }) {
   useEffect(() => {
     let live = true;
     let revision = 0;
+    let opened = false;
+    historyGeneration.current += 1;
+    historyLock.current = false;
+    scrollAnchor.current = null;
     setMessages(null);
     setLoadError(false);
+    setHasOlder(false);
+    setLoadingOlder(false);
+    setOlderError(false);
     stickToBottom.current = true;
     const load = async () => {
       const request = ++revision;
       try {
         const rows = await api.chatMessages(chat.id);
         if (!live || request !== revision) return;
-        setMessages(rows);
+        setMessages((previous) => mergeMessages(previous, rows));
+        if (!opened) setHasOlder(rows.length === MESSAGE_PAGE_SIZE);
+        opened = true;
         setLoadError(false);
         markChatRead(chat.id);
       } catch {
@@ -78,9 +98,42 @@ export default function ChatThread({ chat, onBack }) {
     load();
     return () => {
       live = false;
+      historyGeneration.current += 1;
       unsubscribe();
     };
   }, [chat.id, subscribeChat, markChatRead, reload]);
+
+  const loadOlder = async () => {
+    if (historyLock.current || !messages?.length) return;
+    historyLock.current = true;
+    setLoadingOlder(true);
+    setOlderError(false);
+    const generation = historyGeneration.current;
+    try {
+      const rows = await api.chatMessages(chat.id, { before: messages[0].id });
+      if (generation !== historyGeneration.current) return;
+      const el = scroller.current;
+      if (el) scrollAnchor.current = { height: el.scrollHeight, top: el.scrollTop };
+      stickToBottom.current = false;
+      setMessages((previous) => mergeMessages(previous, rows));
+      setHasOlder(rows.length === MESSAGE_PAGE_SIZE);
+    } catch {
+      if (generation === historyGeneration.current) setOlderError(true);
+    } finally {
+      if (generation === historyGeneration.current) {
+        historyLock.current = false;
+        setLoadingOlder(false);
+      }
+    }
+  };
+
+  // Prepending history keeps the line the reader was looking at in place.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const anchor = scrollAnchor.current;
+    if (el && anchor) el.scrollTop = anchor.top + el.scrollHeight - anchor.height;
+    scrollAnchor.current = null;
+  }, [messages]);
 
   // New lines follow the reader only while they're already near the bottom.
   useEffect(() => {
@@ -167,6 +220,13 @@ export default function ChatThread({ chat, onBack }) {
             composer instead of stranded at the top of an empty column, while a
             long one still grows and scrolls normally. */}
         <div className="flex min-h-full flex-col justify-end space-y-2">
+        {hasOlder && (
+          <button className="pill self-center px-3 py-1 text-xs text-petal disabled:opacity-40"
+            disabled={loadingOlder} onClick={loadOlder}>
+            {loadingOlder ? "Loading earlier messages…" : "Load earlier messages"}
+          </button>
+        )}
+        {olderError && <p role="alert" className="text-center text-xs text-danger">Couldn't load earlier messages. Try again.</p>}
         {messages === null && !loadError && (
           <p className="py-6 text-center text-xs text-petal/50">one moment…</p>
         )}

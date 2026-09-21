@@ -39,6 +39,9 @@ export default function FriendsPanel() {
     knockFriend,
     knockingId,
     chats,
+    chatsError,
+    chatsLoading,
+    refreshChats,
     openChatWith,
     openGroupChat,
     friendship,
@@ -233,6 +236,15 @@ export default function FriendsPanel() {
 
   return (
     <div className="space-y-4">
+      {chatsError && (
+        <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
+          <p>Couldn't refresh conversations. Your saved chats are still there.</p>
+          <button className="pill mt-2 px-3 py-1 text-cream disabled:opacity-40"
+            onClick={refreshChats} disabled={chatsLoading}>
+            {chatsLoading ? "Retrying…" : "Retry conversations"}
+          </button>
+        </div>
+      )}
       <form onSubmit={add} className="flex gap-2">
         <input
           value={username}

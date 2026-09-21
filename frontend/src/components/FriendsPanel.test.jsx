@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
-const mocks = vi.hoisted(() => ({ openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn() }));
+const mocks = vi.hoisted(() => ({ openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
   user: { id: 9 },
   friends: [
@@ -13,10 +13,17 @@ vi.mock("../store", () => ({ useStore: () => ({
   chats: [], friendship: {}, hudVisibility: { chat: "on" }, knockingId: null,
   ...mocks,
 }) }));
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); mocks.chatsError = false; });
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("offers a retry when the conversation list could not load", () => {
+    mocks.chatsError = true;
+    render(<FriendsPanel />);
+    expect(screen.getByRole("alert").textContent).toContain("Couldn't refresh conversations");
+    fireEvent.click(screen.getByRole("button", { name: "Retry conversations" }));
+    expect(mocks.refreshChats).toHaveBeenCalledTimes(1);
+  });
   it("starts a group only once and preserves the picks when creation fails", async () => {
     let resolve;
     mocks.openGroupChat.mockImplementation(() => new Promise((done) => { resolve = done; }));

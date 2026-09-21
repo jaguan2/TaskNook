@@ -1101,7 +1101,19 @@ export function StoreProvider({ children }) {
     return () => setReauthorizer(null);
   }, []);
 
+  const pendingTaskToggles = useRef(new Map());
+  const taskCompletionVersion = useRef(0);
+  const taskReadVersion = useRef(0);
+  const applyTaskSnapshot = useCallback((rows) => {
+    setTasks(rows.map((row) => {
+      const pending = pendingTaskToggles.current.get(row.id);
+      return pending ? { ...row, ...pending } : row;
+    }));
+  }, []);
+
   const refreshAll = useCallback(async () => {
+    const request = ++taskReadVersion.current;
+    const completionVersion = taskCompletionVersion.current;
     // listTasks goes FIRST, on its own — not in the Promise.all. GET /api/tasks
     // is what lazily resets daily routines, so a stats query racing alongside it
     // could be answered from the pre-reset rows: on the first refresh of a new
@@ -1115,12 +1127,14 @@ export function StoreProvider({ children }) {
       api.sessionDays(),
       api.listEvents(),
     ]);
-    setTasks(t);
-    setStats(s);
+    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+      applyTaskSnapshot(t);
+      setStats(s);
+    }
     setFriends(f);
     setSessionDays(d);
     setEvents(e);
-  }, []);
+  }, [applyTaskSnapshot]);
 
   /**
    * Refresh only what a TASK write can have changed.
@@ -1137,11 +1151,18 @@ export function StoreProvider({ children }) {
    * refresh of a new day.
    */
   const refreshTasks = useCallback(async () => {
+    const request = ++taskReadVersion.current;
+    const completionVersion = taskCompletionVersion.current;
     const t = await api.listTasks();
     const s = await api.stats();
-    setTasks(t);
-    setStats(s);
-  }, []);
+    // A read begun before another checkbox changed cannot undo that newer
+    // choice. A concurrent task's optimistic fields survive until its save
+    // settles, even if this snapshot came from another task's refresh.
+    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+      applyTaskSnapshot(t);
+      setStats(s);
+    }
+  }, [applyTaskSnapshot]);
 
   /** A logged focus block also moves the per-day map the streak and heatmap read. */
   const refreshFocus = useCallback(async () => {
@@ -1296,7 +1317,6 @@ export function StoreProvider({ children }) {
   );
 
   // ---------- Task actions ----------
-  const pendingTaskToggles = useRef(new Set());
   const addTask = async (payload) => {
     await api.createTask(payload);
     await refreshTasks();
@@ -1305,18 +1325,33 @@ export function StoreProvider({ children }) {
   // as an unhandled promise rejection from an onClick handler.
   const toggleTask = async (task) => {
     if (pendingTaskToggles.current.has(task.id)) return;
-    pendingTaskToggles.current.add(task.id);
     const completed = !task.completed;
+    const optimistic = { completed, completedAt: completed ? new Date().toISOString() : null };
+    pendingTaskToggles.current.set(task.id, optimistic);
+    taskCompletionVersion.current += 1;
     // The packaged app still reaches Flask over localhost. Paint the user's
     // choice before that round trip, then reconcile against the durable row.
     setTasks((prev) => prev.map((row) => row.id === task.id
-      ? { ...row, completed, completedAt: completed ? new Date().toISOString() : null }
+      ? { ...row, ...optimistic }
       : row));
     try {
-      await api.updateTask(task.id, { completed });
-      await refreshTasks();
+      const saved = await api.updateTask(task.id, { completed });
+      pendingTaskToggles.current.set(task.id, { completed: saved.completed, completedAt: saved.completedAt });
+      taskCompletionVersion.current += 1;
+      setTasks((prev) => prev.map((row) => row.id === task.id
+        ? { ...row, completed: saved.completed, completedAt: saved.completedAt }
+        : row));
+      try {
+        await refreshTasks();
+      } catch (err) {
+        // The write has already committed. A failed GET cannot undo it, and
+        // telling the user to save again would misrepresent the durable row.
+        console.error("Couldn't refresh after saving task:", err);
+        showToast("Task saved, but couldn't refresh the list 🌧️");
+      }
     } catch (err) {
       console.error("Failed to toggle task:", err);
+      taskCompletionVersion.current += 1;
       // Restore only completion fields, preserving any independent edit that
       // may have landed while the save was in flight.
       setTasks((prev) => prev.map((row) => row.id === task.id
@@ -1906,6 +1941,9 @@ export function StoreProvider({ children }) {
   // illusion. Every pending timer is tracked so the provider can clear them on
   // unmount instead of setting state into a dead tree.
   const [chats, setChats] = useState([]);
+  const [chatsError, setChatsError] = useState(false);
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const chatReadVersion = useRef(0);
   const replyTimers = useRef(new Set());
   // Listeners belong to the currently mounted thread, never to a past send.
   const chatSignals = useRef(null);
@@ -1921,19 +1959,33 @@ export function StoreProvider({ children }) {
   }, []);
 
   const refreshChats = useCallback(async () => {
+    const request = ++chatReadVersion.current;
+    setChatsLoading(true);
     try {
-      setChats(await api.listChats());
+      const rows = await api.listChats();
+      if (request !== chatReadVersion.current) return;
+      setChats(rows);
+      setChatsError(false);
     } catch (err) {
-      // A read, and a background one at that — the panel shows what it has.
+      // Keep the last good list, but let the panel offer an explicit retry.
       console.error("Couldn't load chats:", err);
+      if (request === chatReadVersion.current) setChatsError(true);
+    } finally {
+      if (request === chatReadVersion.current) setChatsLoading(false);
     }
   }, []);
+
+  const rememberChat = (chat) => {
+    chatReadVersion.current += 1;
+    setChats((previous) => [chat, ...previous.filter((row) => row.id !== chat.id)]);
+  };
 
   /** Open (or reopen) the thread with one friend. Idempotent server-side. */
   const openChatWith = async (friend) => {
     try {
       const chat = await api.openChat([friend.id]);
-      await refreshChats();
+      rememberChat(chat);
+      refreshChats();
       return chat;
     } catch (err) {
       showToast(`Couldn't open the chat — ${err.message}`);
@@ -1947,7 +1999,8 @@ export function StoreProvider({ children }) {
         isGroup: true,
         title: title?.trim() || undefined,
       });
-      await refreshChats();
+      rememberChat(chat);
+      refreshChats();
       return chat;
     } catch (err) {
       showToast(`Couldn't start the group — ${err.message}`);
@@ -2128,11 +2181,13 @@ export function StoreProvider({ children }) {
   const deleteChat = async (chatId) => {
     try {
       await api.deleteChat(chatId);
+      chatReadVersion.current += 1;
+      setChats((previous) => previous.filter((chat) => chat.id !== chatId));
       for (const timer of chatSignals.current.cancel(chatId)) {
         clearTimeout(timer);
         replyTimers.current.delete(timer);
       }
-      await refreshChats();
+      refreshChats();
       return true;
     } catch (err) {
       showToast(`Couldn't delete the chat — ${err.message}`);
@@ -2618,6 +2673,8 @@ export function StoreProvider({ children }) {
 
     // chat
     chats,
+    chatsError,
+    chatsLoading,
     refreshChats,
     openChatWith,
     nudgeFromFriend,
