@@ -12,12 +12,18 @@
 // silhouette, a fringe reading as a blindfold, soles that were just circles.
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import FocusWidget from "./FocusWidget";
 import { ISO_SPRITES } from "./IsoItems";
-import { BUNNY_COATS, CAT_COATS, DOG_BREEDS } from "../lib/isoRoom";
+import IsoRoom from "./IsoRoom";
+import Cottage from "./Cottage";
+import { PRESETS, presetPlacements } from "../lib/room";
+import { resolveVisitRoom } from "../lib/visiting";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, freeSeatSpot, isoPresetLayout, seatFor } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
+  GLASSES,
   HAIR_STYLES,
   HATS,
   OUTFITS,
@@ -31,6 +37,17 @@ const DIR = globalThis.process?.env?.SHEET_DIR;
 describe.skipIf(!DIR)("art sheet fixtures", () => {
   it("renders the whole wardrobe to SVG files", () => {
     mkdirSync(DIR, { recursive: true });
+    const widgetCss = readFileSync("src/index.css", "utf8").split("/* Widget mode is one composed surface")[1];
+    const widgetBase = { clock: "18:42", running: true, task: "Sketch the next chapter", progress: .25,
+      round: 2, rounds: 4, today: 42, goal: 90, canFinish: true };
+    for (const [name, props] of Object.entries({ focus: {}, break: { inBreak: true, clock: "04:30", progress: .1 }, stopwatch: { stopwatch: true, clock: "1:04:12", rounds: 0 }, idle: { running: false, canFinish: false, clock: "25:00", progress: 0 } })) {
+      writeFileSync(`${DIR}/../widget-${name}.html`, `<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0}p{margin:0}button{font:inherit;border:0;background:transparent;cursor:pointer} :root{--color-rose:186 119 152} /* Widget mode is one composed surface${widgetCss}</style>${renderToStaticMarkup(<FocusWidget {...widgetBase} {...props} />)}`);
+    }
+    for (const [key, preset] of Object.entries(PRESETS)) {
+      const cottage = renderToStaticMarkup(<Cottage preview reduceMotion setting={preset.setting || "city"} room={presetPlacements(key)} timeOfDay={key === "seaside" || key === "greenhouse" ? "day" : "night"} />);
+      writeFileSync(`${DIR}/cottage-${key}.svg`, cottage.slice(cottage.indexOf("<svg"), cottage.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
     const Resident = ISO_SPRITES.resident;
     const Cat = ISO_SPRITES.cat;
     const Dog = ISO_SPRITES.dog;
@@ -38,11 +55,99 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     const save = (name, node, viewBox = "-32 -60 64 78") => {
       writeFileSync(
         `${DIR}/${name}.svg`,
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${renderToStaticMarkup(node)}</svg>`
+        renderToStaticMarkup(
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox}>
+            {node}
+          </svg>
+        )
       );
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    for (const { key: pants } of PANTS) {
+      for (const model of ["masc", "fem"]) {
+        save(`seated-${pants}-${model}`, <Resident character={dressed({ pants, model, trouser: "#a86d91" })} seated seatH={19} />, "-32 -60 64 100");
+      }
+    }
+    for (const pants of ["jeans", "jorts", "dress", "maxi"]) {
+      for (const [width, height] of [[6.2, 28], [8.4, 34]]) {
+        for (const facing of ["front", "back", "side"]) {
+          save(`fit-${pants}-${width}-${facing}`, <Resident facing={facing} seated seatH={22}
+            character={dressed({ pants, width, height, trouser: "#b39277" })} />, "-32 -60 64 100");
+        }
+      }
+    }
+    for (const key of ["chair", "deskchair", "armchair", "sofa", "bed", "wardrobe", "dresser", "bookshelf"]) {
+      const Sprite = ISO_SPRITES[key];
+      save(`furniture-${key}`, <Sprite />, "-80 -120 160 165");
+    }
+    for (const pants of ["skirt", "pleats", "maxi"]) {
+      for (const [way, trouser] of Object.entries({ dark: "#33305e", light: "#e7dcc7" })) {
+        for (const seatH of [4, 22]) {
+          save(`drape-${pants}-${way}-${seatH}`, <Resident seated seatH={seatH}
+            character={dressed({ pants, model: "fem", trouser })} />, "-32 -60 64 100");
+        }
+      }
+    }
+    // Rear hair must read on a chair as well as standing. Keep the skin,
+    // wardrobe and hair contrast cases visible together during art review.
+    for (const hair of ["bob", "long"]) {
+      for (const model of ["masc", "fem"]) {
+        for (const hairColor of ["#3a3142", "#9a6b46", "#e7dcc7"]) {
+          save(`rear-${hair}-${model}-${hairColor.slice(1)}`,
+            <Resident character={dressed({ hair, model, hairColor })} facing="back" seated seatH={19} />);
+        }
+      }
+    }
+    const { layout, personas, guestId } = resolveVisitRoom(
+      { id: 1, username: "luna", displayName: "Luna", room: null, character: null },
+      { character: dressed({ hair: "long" }), name: "You" }
+    );
+    // Rotate only the fixture's guest chair to review rear hair behind a
+    // real backrest; the preset catalog stays untouched.
+    const guestSeat = seatFor(layout.placements.find((p) => p.id === guestId), layout.placements);
+    if (guestSeat && !guestSeat.soft) guestSeat.placement.rot = 2;
+    const scene = renderToStaticMarkup(
+      <IsoRoom size={layout} placements={layout.placements} personas={personas}
+        saveView={false} reduceMotion timeOfDay="sunset" />
+    );
+    // IsoRoom includes its positioning div; the exported asset is SVG only.
+    writeFileSync(`${DIR}/scene-visit.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
+      .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    for (const key of ["loft", "home"]) {
+      const room = isoPresetLayout(key);
+      const presetScene = renderToStaticMarkup(
+        <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />
+      );
+      writeFileSync(`${DIR}/scene-${key}.svg`, presetScene.slice(presetScene.indexOf("<svg"), presetScene.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
+    // Real furniture, occlusion and seat heights: the same wardrobe test in
+    // a furnished room, with no changes to the shipped preset placements.
+    for (const pants of ["skirt", "pleats", "maxi", "jeans", "jorts", "dress"]) {
+      const room = isoPresetLayout("loft");
+      const personas = {};
+      for (let i = 0; i < 3; i += 1) {
+        const spot = freeSeatSpot(room.placements);
+        if (spot) {
+          const id = `review-${i}`;
+          room.placements.push({ id, item: "resident", ...spot });
+          personas[id] = { character: dressed({ pants, model: "fem", trouser: "#a86d91" }) };
+        }
+      }
+      const scene = renderToStaticMarkup(<IsoRoom size={room} placements={room.placements}
+        personas={personas}
+        saveView={false} reduceMotion timeOfDay="day" />);
+      writeFileSync(`${DIR}/scene-wardrobe-${pants}.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
+    // Pose review belongs beside wardrobe review: this catches a bed model
+    // drifting back into a generic blanket/body that ignores customization.
+    save(
+      "pose-lying",
+      <Resident character={dressed({ hair: "bob", garment: "sweater" })} lying />,
+      "-48 -50 96 88"
+    );
     for (const { key } of HAIR_STYLES) {
       save(`hair-front-${key}`, <Resident character={dressed({ hair: key })} />);
       // A light colourway too — the texture pass (flow lines, notch wedges,
@@ -66,6 +171,15 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
           <Resident character={dressed({ garment: key, ...(hex ? { outfit: hex } : {}) })} />
         );
       }
+    }
+    // Swimwear is the one top whose cut is model-aware, so the default masc
+    // wardrobe loop is only half its artwork. Keep the fem cut on the sheet
+    // in the same three stress-test colours.
+    for (const [way, hex] of Object.entries(WAYS)) {
+      save(
+        `top-swim-fem-${way}`,
+        <Resident character={dressed({ model: "fem", garment: "swim", ...(hex ? { outfit: hex } : {}) })} />
+      );
     }
     for (const { key } of COATS) {
       for (const [way, hex] of Object.entries(WAYS)) {
@@ -92,6 +206,10 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const { key } of SCARVES) {
       save(`scarf-${key}`, <Resident character={dressed({ scarf: key })} />);
       save(`scarf-${key}-side`, <Resident character={dressed({ scarf: key })} facing="side" />);
+    }
+    for (const { key } of GLASSES) {
+      save(`glasses-${key}`, <Resident character={dressed({ glasses: key })} />);
+      save(`glasses-${key}-side`, <Resident character={dressed({ glasses: key })} facing="side" />);
     }
     // Every coat and breed, every pose — a pattern that only works on the
     // barrel but not the curl is exactly what side-by-side review catches.

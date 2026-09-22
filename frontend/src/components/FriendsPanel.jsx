@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart } from "lucide-react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
@@ -18,6 +18,13 @@ const ACTIVITY_LINE = {
   break: () => "☕ on a break",
   idle: () => "🪴 pottering about",
 };
+// A quiet dot by default; the row that says what it means only on hover
+// (`.hover-reveal`, same convention as the row's own delete control — touch
+// devices have no hover, so it stays legible there). There's no real privacy
+// question to gate this behind: every "friend" here is a simulated bot row
+// in your own local SQLite file, not another person's live session, so this
+// is purely a decluttering choice, not an opt-in.
+const ACTIVITY_DOT = { focus: "bg-glow", break: "bg-sage", idle: "bg-petal/40" };
 
 export default function FriendsPanel() {
   // The knock timer lives in the STORE, not here — this drawer closes for
@@ -32,13 +39,20 @@ export default function FriendsPanel() {
     knockFriend,
     knockingId,
     chats,
+    chatsError,
+    chatsLoading,
+    refreshChats,
     openChatWith,
     openGroupChat,
     friendship,
+    showToast,
+    hudVisibility,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatLock = useRef(false);
   const [armedId, arm] = useArmed();
   // Which thread is open, by id — held as an ID rather than the object so the
   // header and unread badge track the store's fresh copy after each message.
@@ -76,16 +90,35 @@ export default function FriendsPanel() {
   };
 
   const chatWith = async (f) => {
-    const chat = await openChatWith(f);
-    if (chat) setOpenChatId(chat.id);
+    if (chatLock.current) return;
+    chatLock.current = true;
+    setChatBusy(true);
+    try {
+      const chat = await openChatWith(f);
+      if (chat) setOpenChatId(chat.id);
+    } finally {
+      chatLock.current = false;
+      setChatBusy(false);
+    }
   };
 
   const startGroup = async () => {
-    if (picking.length < 2) return;
-    const chat = await openGroupChat(picking, groupName);
-    setPicking(null);
-    setGroupName("");
-    if (chat) setOpenChatId(chat.id);
+    if (picking.length < 2 || chatLock.current) return;
+    chatLock.current = true;
+    setChatBusy(true);
+    try {
+      const chat = await openGroupChat(picking, groupName);
+      // Only clear the picks on success — a failed create already toasted,
+      // and the user should not have to choose everyone again just to retry.
+      if (chat) {
+        setPicking(null);
+        setGroupName("");
+        setOpenChatId(chat.id);
+      }
+    } finally {
+      chatLock.current = false;
+      setChatBusy(false);
+    }
   };
 
   const add = async (e) => {
@@ -99,6 +132,7 @@ export default function FriendsPanel() {
       await refreshAll();
     } catch (err) {
       setError(err.message);
+      showToast("Couldn't add that friend — " + err.message);
     } finally {
       setBusy(false);
     }
@@ -109,7 +143,11 @@ export default function FriendsPanel() {
       await api.removeFriend(id);
       await refreshAll();
     } catch (err) {
+      // The error line renders above the roster, which can be entirely
+      // off-screen from the row you tapped — toast too, per the app rule
+      // that a failed write is never silent where you're looking.
       setError(err.message);
+      showToast("Couldn't remove that friend — " + err.message);
     }
   };
 
@@ -118,7 +156,7 @@ export default function FriendsPanel() {
   if (openChat) {
     return (
       <div className="h-[70vh]">
-        <ChatThread chat={openChat} onBack={() => setOpenChatId(null)} />
+        <ChatThread key={openChat.id} chat={openChat} onBack={() => setOpenChatId(null)} />
       </div>
     );
   }
@@ -140,6 +178,7 @@ export default function FriendsPanel() {
             }}
             title="Back to friends"
             aria-label="Back to friends"
+            disabled={chatBusy}
             className="pill grid h-8 w-8 place-items-center text-cream transition hover:bg-white/10"
           >
             ‹
@@ -152,6 +191,7 @@ export default function FriendsPanel() {
           maxLength={60}
           placeholder="group name (optional)"
           aria-label="Group name"
+          disabled={chatBusy}
           className="w-full rounded-xl bg-white/10 px-3 py-2 text-sm text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
         />
         <div className="space-y-1.5">
@@ -162,6 +202,8 @@ export default function FriendsPanel() {
                 key={f.id}
                 onClick={() => toggle(f.id)}
                 aria-pressed={chosen}
+                aria-label={f.displayName}
+                disabled={chatBusy}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${
                   chosen ? "bg-glow/20" : "bg-white/5 hover:bg-white/10"
                 }`}
@@ -181,10 +223,10 @@ export default function FriendsPanel() {
         </div>
         <button
           onClick={startGroup}
-          disabled={picking.length < 2}
+          disabled={picking.length < 2 || chatBusy}
           className="pill w-full bg-glow py-2 text-sm font-semibold text-plum hover:bg-amber disabled:opacity-40"
         >
-          {picking.length < 2
+          {chatBusy ? "Starting group…" : picking.length < 2
             ? "Pick at least two friends"
             : `Start with ${picking.length} friends`}
         </button>
@@ -194,15 +236,26 @@ export default function FriendsPanel() {
 
   return (
     <div className="space-y-4">
+      {chatsError && (
+        <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
+          <p>Couldn't refresh conversations. Your saved chats are still there.</p>
+          <button className="pill mt-2 px-3 py-1 text-cream disabled:opacity-40"
+            onClick={refreshChats} disabled={chatsLoading}>
+            {chatsLoading ? "Retrying…" : "Retry conversations"}
+          </button>
+        </div>
+      )}
       <form onSubmit={add} className="flex gap-2">
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="add by username (try: kai)"
+          aria-label="Friend username"
           className="flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
         />
         <button
           disabled={busy}
+          aria-label="Add friend"
           className="pill bg-glow px-4 py-2 text-sm font-semibold text-plum hover:bg-amber disabled:opacity-50"
         >
           +
@@ -252,8 +305,15 @@ export default function FriendsPanel() {
                     {whenLabel(c.lastMessage.createdAt, Date.now())}
                   </span>
                 )}
-                {c.unread > 0 && (
-                  <span className="grid h-5 min-w-[1.25rem] shrink-0 place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum">
+                {/* The Settings "Chat" visibility only quiets the unread
+                    COUNT — a Do Not Disturb for the nagging red-dot feeling,
+                    not a way to hide the thread list itself. */}
+                {c.unread > 0 && hudVisibility.chat !== "hidden" && (
+                  <span
+                    className={`grid h-5 min-w-[1.25rem] shrink-0 place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum ${
+                      hudVisibility.chat === "faded" ? "opacity-40" : ""
+                    }`}
+                  >
                     {c.unread}
                   </span>
                 )}
@@ -351,12 +411,17 @@ export default function FriendsPanel() {
                 <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => chatWith(f)}
+                  disabled={chatBusy}
                   title={`Message ${f.displayName}`}
                   className="pill inline-flex shrink-0 items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
                 >
                   💬 Chat
-                  {unreadByFriend[f.id] > 0 && (
-                    <span className="grid h-4 min-w-[1rem] place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum">
+                  {unreadByFriend[f.id] > 0 && hudVisibility.chat !== "hidden" && (
+                    <span
+                      className={`grid h-4 min-w-[1rem] place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum ${
+                        hudVisibility.chat === "faded" ? "opacity-40" : ""
+                      }`}
+                    >
                       {unreadByFriend[f.id]}
                     </span>
                   )}
@@ -385,9 +450,16 @@ export default function FriendsPanel() {
                 </div>
                 {(() => {
                   const a = npcActivity(f.username, now);
+                  const line = ACTIVITY_LINE[a.state](a.minutesLeft);
                   return (
-                    <span className="shrink-0 text-right text-[11px] text-petal/60">
-                      {ACTIVITY_LINE[a.state](a.minutesLeft)}
+                    <span
+                      className="flex shrink-0 items-center gap-1.5 text-right text-[11px] text-petal/60"
+                      title={line}
+                    >
+                      <span className="hover-reveal whitespace-nowrap">{line}</span>
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_DOT[a.state]}`}
+                      />
                     </span>
                   );
                 })()}

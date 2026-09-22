@@ -11,6 +11,7 @@ import {
 import { useStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { toISO } from "../lib/dates";
+import ConfirmDialog from "./ConfirmDialog";
 
 // The top-right to-do list, drawn straight onto the backdrop (no card/dialog
 // chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
@@ -44,23 +45,35 @@ function TaskDetails({ task, editTask, onClose }) {
   const [notes, setNotes] = useState(task.notes || "");
   const [name, setName] = useState(task.name);
   const [due, setDue] = useState(task.dueDate || "");
+  const [scheduled, setScheduled] = useState(task.scheduledDate || "");
+  const [duration, setDuration] = useState(task.duration);
+  const [priority, setPriority] = useState(task.priority);
 
   // Only send what changed — a PUT carrying every field would re-stamp things the
   // user never touched, and the backend treats a present key as an instruction.
   const commit = (patch) => {
     const [[key, value]] = Object.entries(patch);
-    const before = { name: task.name, notes: task.notes || "", dueDate: task.dueDate || "" }[key];
+    const before = {
+      name: task.name,
+      notes: task.notes || "",
+      dueDate: task.dueDate || "",
+      scheduledDate: task.scheduledDate || "",
+      duration: task.duration,
+      priority: task.priority,
+    }[key];
     if (value === before) return;
     editTask(task.id, patch);
   };
 
   return (
+    <>
     <div className="mb-1 ml-[38px] mr-1 space-y-1.5 rounded-lg bg-white/5 p-2">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={() => commit({ name: name.trim() || task.name })}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        maxLength={200}
         aria-label="Task name"
         className="w-full rounded-md bg-white/10 px-2 py-1 text-sm text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
@@ -69,11 +82,63 @@ function TaskDetails({ task, editTask, onClose }) {
         onChange={(e) => setNotes(e.target.value)}
         onBlur={() => commit({ notes })}
         rows={2}
+        maxLength={2000}
         placeholder="Notes…"
         aria-label="Notes"
         className="cozy-scroll w-full resize-none rounded-md bg-white/10 px-2 py-1 text-xs text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
       <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 text-[11px] text-petal/60">
+          Estimate
+          <input
+            type="number"
+            min="1"
+            max="1440"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            onBlur={() => {
+              const next = Math.max(1, Math.min(1440, Math.round(Number(duration) || task.duration)));
+              setDuration(next);
+              commit({ duration: next });
+            }}
+            aria-label="Estimated minutes"
+            className="w-14 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
+          />
+          min
+        </label>
+        <label className="flex items-center gap-1 text-[11px] text-petal/60">
+          Priority
+          <select
+            value={priority}
+            onChange={(e) => {
+              setPriority(e.target.value);
+              commit({ priority: e.target.value });
+            }}
+            aria-label="Task priority"
+            className="rounded-md bg-plum/90 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-plum"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
+          <CalendarClock size={12} /> Planned
+          <input
+            type="date"
+            value={scheduled}
+            onChange={(e) => {
+              setScheduled(e.target.value);
+              if (e.target.value !== (task.scheduledDate || "")) {
+                editTask(task.id, { scheduledDate: e.target.value || null });
+              }
+            }}
+            aria-label="Scheduled date"
+            className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
+          />
+        </label>
         <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
           <CalendarClock size={12} /> Due
           <input
@@ -99,6 +164,7 @@ function TaskDetails({ task, editTask, onClose }) {
         </button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -108,7 +174,6 @@ function Row({
   index,
   draggableRow,
   activeTaskId,
-  confirmId,
   toggleTask,
   setActiveTaskId,
   toggleRoutine,
@@ -120,12 +185,11 @@ function Row({
   editTask,
 }) {
   const expanded = expandedId === task.id;
-  const confirming = confirmId === task.id;
   // A deadline that has passed (or lands today) is the only thing in the list
   // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
   // the same rule the calendar follows, and both are plain YYYY-MM-DD so a
   // string compare is a date compare.
-  const overdue = task.dueDate && !task.completed && task.dueDate <= toISO(new Date());
+  const overdue = task.dueDate && !task.completed && task.dueDate < toISO(new Date());
   return (
     <>
     <div
@@ -147,6 +211,7 @@ function Row({
       <button
         onClick={() => toggleTask(task)}
         title={task.completed ? "Mark as not done" : "Mark complete"}
+        aria-label={task.completed ? `Mark ${task.name} as not done` : `Mark ${task.name} complete`}
         className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border-2 text-[11px] transition ${
           task.completed
             ? "border-sage bg-sage text-plum"
@@ -192,10 +257,18 @@ function Row({
           {task.dueDate.slice(5)}
         </span>
       )}
+      {task.scheduledDate && !task.completed && (
+        <span
+          title={`Planned for ${task.scheduledDate}`}
+          className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] font-semibold text-sage"
+        >
+          <CalendarClock size={10} /> {task.scheduledDate.slice(5)}
+        </span>
+      )}
       <button
         onClick={() => onToggleExpand(task.id)}
-        title={expanded ? "Hide details" : "Notes and due date"}
-        aria-label="Notes and due date"
+        title={expanded ? "Hide details" : "Edit task details"}
+        aria-label="Edit task details"
         aria-expanded={expanded}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           expanded ? "text-glow" : "text-petal/30 hover:text-cream"
@@ -206,6 +279,7 @@ function Row({
       <button
         onClick={() => toggleRoutine(task)}
         title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
+        aria-label={task.routine ? `Make ${task.name} one-off` : `Make ${task.name} a daily routine`}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           task.routine ? "text-sage" : "text-petal/30 hover:text-sage"
         }`}
@@ -213,16 +287,12 @@ function Row({
         <Repeat size={12} />
       </button>
       <button
-        onClick={() => requestDelete(task.id)}
+        onClick={() => requestDelete(task)}
         title="Delete task"
         aria-label="Delete task"
-        className={`hover-reveal shrink-0 px-1 transition ${
-          confirming
-            ? "confirming text-[10px] font-bold text-danger"
-            : "text-sm text-petal/30 hover:text-danger"
-        }`}
+        className="hover-reveal shrink-0 px-1 text-sm text-petal/30 transition hover:text-danger"
       >
-        {confirming ? "sure?" : "✕"}
+        ✕
       </button>
     </div>
     {expanded && (
@@ -244,6 +314,7 @@ export default function HudTasks({ onOpenTasks }) {
     taskGroups,
     addTaskGroup,
     removeTaskGroup,
+    renameTaskGroup,
     toggleRoutine,
     editTask,
     showToast,
@@ -251,6 +322,8 @@ export default function HudTasks({ onOpenTasks }) {
   const [draft, setDraft] = useState("");
   const [draftGroup, setDraftGroup] = useState("");
   const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
+  const [renamingGroup, setRenamingGroup] = useState(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const dragFrom = useRef(null); // { section, index }
 
   // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
@@ -259,13 +332,16 @@ export default function HudTasks({ onOpenTasks }) {
   const [expandedId, setExpandedId] = useState(null);
   const toggleExpand = (id) => setExpandedId((cur) => (cur === id ? null : id));
 
+  const [deleting, setDeleting] = useState(null);
+  const requestDelete = (task) => setDeleting(task);
   const [confirmId, arm] = useArmed();
-  const requestDelete = (id) => arm(id, () => removeTask(id));
 
   // orderedTasks already sinks completed tasks to the bottom. Grouping only
   // partitions the active rows — done rows collapse into one flat pile.
-  const active = orderedTasks.filter((t) => !t.completed);
-  const done = orderedTasks.filter((t) => t.completed);
+  const today = toISO(new Date());
+  const todayTasks = orderedTasks.filter((t) => !t.scheduledDate || t.scheduledDate <= today);
+  const active = todayTasks.filter((t) => !t.completed);
+  const done = todayTasks.filter((t) => t.completed);
   const sections = [
     { key: "", tasks: active.filter((t) => !t.group) },
     ...taskGroups.map((g) => ({ key: g, tasks: active.filter((t) => t.group === g) })),
@@ -291,6 +367,13 @@ export default function HudTasks({ onOpenTasks }) {
     if (name) addTaskGroup(name);
     setGroupDraft(null);
   };
+  const finishGroupRename = async () => {
+    if (renameDraft.trim() === renamingGroup) {
+      setRenamingGroup(null);
+      return;
+    }
+    if (await renameTaskGroup(renamingGroup, renameDraft)) setRenamingGroup(null);
+  };
 
   const onDragStartRow = (section, index) => {
     dragFrom.current = { section, index };
@@ -313,7 +396,6 @@ export default function HudTasks({ onOpenTasks }) {
 
   const rowProps = {
     activeTaskId,
-    confirmId,
     toggleTask,
     setActiveTaskId,
     toggleRoutine,
@@ -326,7 +408,8 @@ export default function HudTasks({ onOpenTasks }) {
   };
 
   return (
-    // Below 600px this 288px list and the 216px timer card can't both have the
+    <>
+    {/* Below 600px this 288px list and the 216px timer card can't both have the
     // top of the window: they overlapped, and the result was unreadable — two
     // stacks of text on top of each other (measured: the collision starts at
     // 588px and grows as you narrow). The list steps aside instead; the full
@@ -335,6 +418,7 @@ export default function HudTasks({ onOpenTasks }) {
     // `invisible`, never `hidden`: this carries .intro-chrome, and
     // display:none would replay its 1.5s boot animation every time the window
     // crossed the threshold (docs/DESIGN.md).
+    */}
     <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col max-[599px]:invisible">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
@@ -359,6 +443,7 @@ export default function HudTasks({ onOpenTasks }) {
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
                 onBlur={submitGroup}
+                maxLength={60}
                 placeholder="Group name"
                 className="w-24 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-cream placeholder:text-petal/40 outline-none"
               />
@@ -389,17 +474,55 @@ export default function HudTasks({ onOpenTasks }) {
               {/* the header row is its own hover group — a section-wide group
                   revealed EVERY row's controls when hovering any of them */}
               <div className="group flex items-center gap-1.5 px-1 pb-0.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
-                  {section.key}
-                </span>
+                {renamingGroup === section.key ? (
+                  <input
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenamingGroup(null);
+                    }}
+                    onBlur={finishGroupRename}
+                    maxLength={60}
+                    aria-label="Task group name"
+                    className="w-28 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-cream outline-none"
+                  />
+                ) : (
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-petal/60">
+                    {section.key}
+                  </span>
+                )}
                 <span className="h-px flex-1 bg-white/10" />
                 <button
-                  onClick={() => removeTaskGroup(section.key)}
-                  title="Remove group (its tasks stay, ungrouped)"
-                  aria-label="Remove group (its tasks stay, ungrouped)"
-                  className="hover-reveal px-1 text-xs text-petal/30 transition hover:text-danger"
+                  onClick={() => {
+                    setRenamingGroup(section.key);
+                    setRenameDraft(section.key);
+                  }}
+                  title="Rename group"
+                  aria-label={`Rename ${section.key} group`}
+                  className="hover-reveal px-1 text-petal/30 transition hover:text-cream"
                 >
-                  ✕
+                  <Pencil size={10} />
+                </button>
+                {/* Armed like the row deletes: ungrouping is unrecoverable
+                    (the quick-add select is the only way back INTO a group),
+                    so one stray tap mustn't scatter a whole section. */}
+                <button
+                  onClick={() => arm(`group:${section.key}`, () => removeTaskGroup(section.key))}
+                  title="Remove group (its tasks stay, ungrouped)"
+                  aria-label={
+                    confirmId === `group:${section.key}`
+                      ? "Tap again to remove this group"
+                      : "Remove group (its tasks stay, ungrouped)"
+                  }
+                  className={`hover-reveal px-1 transition ${
+                    confirmId === `group:${section.key}`
+                      ? "confirming text-[10px] font-bold text-danger"
+                      : "text-xs text-petal/30 hover:text-danger"
+                  }`}
+                >
+                  {confirmId === `group:${section.key}` ? "sure?" : "✕"}
                 </button>
               </div>
               {section.tasks.length === 0 && (
@@ -435,6 +558,7 @@ export default function HudTasks({ onOpenTasks }) {
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          maxLength={200}
           placeholder="＋ New Task"
           className="min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-cream placeholder:text-petal/40 outline-none"
         />
@@ -456,5 +580,10 @@ export default function HudTasks({ onOpenTasks }) {
         )}
       </form>
     </div>
+    <ConfirmDialog open={!!deleting} title="Delete task?"
+      message={`Remove “${deleting?.name || "this task"}” permanently?`}
+      onCancel={() => setDeleting(null)}
+      onConfirm={() => { removeTask(deleting.id); setDeleting(null); }} />
+    </>
   );
 }

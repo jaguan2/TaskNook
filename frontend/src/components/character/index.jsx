@@ -17,7 +17,7 @@ import { useId } from "react";
 import { SKEW, project } from "../../lib/iso";
 import { tinted, toneFor } from "../../lib/tint";
 import { DEFAULT_CHARACTER, MOODS, coatOf, garmentOf } from "../../lib/profile";
-import { HEAD_R, figureMetrics, torsoGeom } from "../../lib/body";
+import { HEAD_R, HEAD_R_EFF, HEAD_SCALE, figureMetrics, torsoGeom } from "../../lib/body";
 import {
   Arm,
   GLINT,
@@ -29,6 +29,7 @@ import {
   TROUSER,
   Face,
   SeatedLeg,
+  SeatedSkirt,
   SideFace,
   SideLeg,
   StandingLeg,
@@ -47,10 +48,12 @@ import {
 } from "./hair";
 import { Hat } from "./hats";
 import { Scarf } from "./scarves";
+import { Glasses } from "./glasses";
 
 export { HAIR_REGISTRY } from "./hair";
 export { GARMENT_REGISTRY } from "./garments";
 export { HAT_REGISTRY } from "./hats";
+export { GLASSES_REGISTRY } from "./glasses";
 
 /**
  * The resident. Small enough that only the silhouette carries, so what got
@@ -116,46 +119,33 @@ export function Resident({
     seatTorsoY,
     seatHeadY,
   } = figureMetrics(ch);
-  // Lying down is its own drawing, not a squashed sitting pose: dropped on a
-  // bed the resident used to perch bolt upright on the duvet.
+  // Keep sleeping literal: the SAME complete character lies flat along the
+  // mattress. The bespoke blanket/body drawing this replaces had become a
+  // second character model (missing most wardrobe detail, with one oversized
+  // arm and a body-shaped duvet), and no amount of small tuning made it read
+  // naturally. Reusing the standing figure preserves their actual hair,
+  // clothes and proportions without maintaining another anatomy system.
   if (lying) {
     return (
       <g transform={`translate(${c.x}, ${c.y})`}>
-        {/* A bed's long axis is a DIAGONAL on screen, and its head end is the
-            one with the pillows. This pose was drawn flat along screen-x with
-            the head at -x, which put the sleeper across the mattress at ~27° to
-            it AND head-down at the foot of the bed, feet on the pillows.
-            One wrapper fixes both: `scale(-1,1)` swaps the ends, then
-            `rotate(-SKEW)` lays the body along the bed. SKEW is the projection's
-            own angle (atan(TILE_H / TILE_W)) — the same number every wall sprite
-            skews by — so the body follows the mattress exactly rather than by
-            eye. Its own <g>: the breathe animation below can't share an element
-            with a transform attribute. */}
-        <g transform={`rotate(${-SKEW}) scale(-1,1)`}>
-        <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
-          {/* body along the bed, knees slightly raised */}
-          <rect x="-20" y="-11" width="34" height="12" rx="6" style={outfit} />
-          {/* Lit along the top, falling away underneath — the same two-tone
-              treatment the standing figure got. Without it this pose stayed
-              the one flat-green shape it always was while the other two
-              picked up volume. */}
-          <rect x="-19" y="-10.4" width="32" height="4" rx="2" fill="#fff" opacity="0.12" />
-          <rect x="-20" y="-5" width="34" height="6" rx="3" fill="#000" opacity="0.12" />
-          <ellipse cx="12" cy="-9" rx="8" ry="6" style={outfit} />
-          {/* arm resting on top of the covers */}
-          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" style={outfit} />
-          <rect x="-12" y="-14" width="14" height="4.6" rx="2.3" fill="#fff" opacity="0.1" />
-          <circle cx="1" cy="-11.7" r="2.4" fill={skin} />
-          {/* head on the pillow, eyes closed whatever the waking expression.
-              A collar at the neck end so the head doesn't read as set down
-              beside the body. */}
-          <ellipse cx="-16.5" cy="-11.5" rx="3.2" ry="4.4" style={outfit} />
-          <circle cx="-23" cy="-13" r={HEAD_R} fill={skin} />
-          <path d={`M-30.4 -13 a7.4 7.4 0 0 1 14.8 0 q-2 -2.6 -5 -2.2 q-4.4 -3 -8.8 0.6 z`} fill={hairColor} />
-          <path d="M-26.4 -12.4 q1.6 1.4 3.2 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <path d="M-21 -12.6 q1.5 1.3 3 0" fill="none" stroke={INK} strokeWidth="0.9" strokeLinecap="round" opacity="0.75" />
-          <ellipse cx="-27" cy="-10" rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
-        </g>
+        {/* The bed's long grid axis projects down-left at SKEW degrees. A
+            standing figure grows upward from its feet, so rotating it by
+            90-SKEW points its head toward the pillows. The small down-left
+            offset puts the feet toward the footboard; scale keeps every body
+            slider and hat inside the mattress. Cancel the nested Resident's
+            own standard floor anchor before applying the bed transform. */}
+        <g transform={`translate(-16, 8) rotate(${90 - SKEW}) scale(0.78)`}>
+          {/* Animation gets a separate wrapper: CSS transform animations
+              override an SVG transform attribute when both occupy one node,
+              which would silently stand the sleeper back up. */}
+          <g
+            className="body-breathe"
+            style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          >
+            <g transform={`translate(${-c.x}, ${-c.y})`}>
+              <Resident character={{ ...ch, expression: "sleepy" }} facing="front" />
+            </g>
+          </g>
         </g>
       </g>
     );
@@ -205,11 +195,16 @@ export function Resident({
   const cuff = !!outerEntry.cuffs;
   const drape = !!outerEntry.drape;
   const trouser = ch.trouser || TROUSER;
-  const pants = ch.pants || "trousers";
+  // Swimwear is a complete look rather than a top worn over office trousers:
+  // the masc cut brings swim shorts; the fem one-piece leaves the legs bare.
+  // The saved pants choice is untouched and returns when another top is worn.
+  const pants = ch.garment === "swim"
+    ? ch.model === "fem" ? "swim" : "shorts"
+    : ch.pants || "trousers";
   // The skirt kinds: the legs render bare (see PANTS_FORM) and the flare is
   // drawn HERE, at hip level between the hair's length and the torso — it's
   // clothing on the hips, not part of a leg.
-  const skirted = !!pantsFormOf(pants).bare;
+  const skirted = !!pantsFormOf(pants).skirt;
   // The maxi's cone runs to the ankle (just clear of the shoe tops); the
   // short skirts keep their hip-level hems.
   const skirtHem = pants === "maxi" ? -4.5 : -legH * (pants === "pleats" ? 0.42 : 0.52);
@@ -254,7 +249,13 @@ export function Resident({
           </g>
           <g className={moving ? "walk-bob" : undefined}>
             <g className={moving ? "walk-roll" : undefined}>
-              <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
+              {/* Length masses ride the SAME head-unit scale as the dome they
+                  hang from (lib/body.js HEAD_SCALE) — left unscaled after the
+                  adult-proportion pivot they jutted ~25% wide of the shrunken
+                  head and read as a ghost cape behind the shoulders. */}
+              <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
+                <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
+              </g>
               {skirted && (
                 <g>
                   <path
@@ -305,14 +306,19 @@ export function Resident({
                   const top = torsoY;
                   const bot = torsoY + torsoH;
                   const waistY = torsoY + waistDrop;
+                  // Kept SUBTLE on purpose: the first cut pushed the chest
+                  // 0.7 forward of the hem and the whole figure read as
+                  // leaning into a headwind (owner, 2026-08-19: "always
+                  // leaning forward") — the S is a whisper now, and the
+                  // upper mass sits back over the hips.
                   const body = `M ${-sSh + 3.5} ${top}
-                    Q ${-sSh - 0.4} ${top + 0.5} ${-sSh - 0.7} ${top + 7}
-                    Q ${-sWa - 1} ${waistY} ${-sHem + 0.9} ${bot - 3}
+                    Q ${-sSh - 0.1} ${top + 0.5} ${-sSh - 0.2} ${top + 7}
+                    Q ${-sWa - 0.6} ${waistY} ${-sHem + 0.9} ${bot - 3}
                     Q ${-sHem + 0.9} ${bot} ${-sHem + 3.4} ${bot}
                     L ${sHem - 3} ${bot}
                     Q ${sHem + 0.8} ${bot} ${sHem + 0.8} ${bot - 3}
-                    Q ${sWa + 0.9} ${waistY} ${sSh - 0.4} ${top + 7}
-                    Q ${sSh} ${top + 0.5} ${sSh - 3.5} ${top} Z`;
+                    Q ${sWa + 0.9} ${waistY} ${sSh + 0.1} ${top + 7}
+                    Q ${sSh + 0.4} ${top + 0.5} ${sSh - 3.5} ${top} Z`;
                   return (
                     <>
                       <path d={body} style={outfit} />
@@ -356,7 +362,7 @@ export function Resident({
                         </>
                       )}
                       <g style={outfit}>
-                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} view="side" />
+                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} model={ch.model} view="side" />
                       </g>
                       <Coat
                         kind={ch.coat}
@@ -371,21 +377,24 @@ export function Resident({
                           volume.jsx — gradient alone is airbrush, crescent
                           alone is flat; together they model. */}
                       <path d={body} fill={cylFill(clipId)} />
-                      {/* the same ONE-light pass the front gets: form shadow
-                          down the front edge (light sits behind a left-facing
-                          profile), warm glint, hem occlusion */}
+                      {/* the same ONE-light pass the front gets — and the
+                          same LIGHT as the head's flipped gradient: it sits
+                          slightly in FRONT, so the form shadow runs down the
+                          BACK edge and the glint leans toward the face side.
+                          It used to shade the front, which contradicted the
+                          face and deepened the hunched read. */}
                       <path
-                        d={`M ${-sSh + 0.4} ${torsoY + 4.5}
-                            Q ${-sWa + 0.4} ${torsoY + waistDrop} ${-sHem + 0.4} ${torsoY + torsoH - 1.8}
-                            L ${-sHem + 0.6} ${torsoY + torsoH - 0.3}
-                            L ${-sHem + 2.6} ${torsoY + torsoH - 0.3}
-                            Q ${-sWa + 2.4} ${torsoY + waistDrop} ${-sSh + 2.3} ${torsoY + 6}
-                            Q ${-sSh + 1.2} ${torsoY + 4.7} ${-sSh + 0.4} ${torsoY + 4.5} z`}
+                        d={`M ${sSh - 0.4} ${torsoY + 4.5}
+                            Q ${sWa - 0.4} ${torsoY + waistDrop} ${sHem - 0.4} ${torsoY + torsoH - 1.8}
+                            L ${sHem - 0.6} ${torsoY + torsoH - 0.3}
+                            L ${sHem - 2.6} ${torsoY + torsoH - 0.3}
+                            Q ${sWa - 2.4} ${torsoY + waistDrop} ${sSh - 2.3} ${torsoY + 6}
+                            Q ${sSh - 1.2} ${torsoY + 4.7} ${sSh - 0.4} ${torsoY + 4.5} z`}
                         fill={SHADE}
                         opacity={finish.shade * bodyTone.shade}
                       />
                       <ellipse
-                        cx="0.8"
+                        cx="-0.8"
                         cy={torsoY + 3.5}
                         rx={sSh - 1.2}
                         ry="4.6"
@@ -442,8 +451,8 @@ export function Resident({
                     />
                   </g>
                 </g>
-                <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill={skin} />
-                <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill="#000" opacity="0.16" />
+                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill={skin} />
+                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill="#000" opacity="0.16" />
                 <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" style={outfit} />
                 <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" fill="#fff" opacity="0.1" />
                 <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
@@ -453,18 +462,57 @@ export function Resident({
                 <Scarf kind={ch.scarf} torsoY={torsoY} color={ch.scarfColor} view="side" />
                 {/* head-only gestures keep playing in profile; the arm ones
                     stand down — they're front-view choreography. The OUTER
-                    wrapper carries the head's forward lean (an attribute
-                    transform can't share the animated gesture elements): a
-                    head centred over a chest that bulges forward read as a
-                    slump, so the whole head unit shifts with the chest. */}
-                <g transform="translate(-0.7 0)">
+                    wrapper carries a WHISPER of forward set plus the
+                    adult-proportion head scale (see lib/body.js HEAD_SCALE —
+                    the unit shrinks about its own centre, every side-view
+                    asset riding along); an attribute transform can't share
+                    the animated gesture elements, hence its own <g>. */}
+                <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
                 <g className="gesture-yawn">
                   <g className="gesture-look">
                     <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-                    <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+                    {/* The volume gradient FLIPS for the profile: the shared
+                        sphere lights from +x (screen right — "slightly in
+                        front" for the front view), but a profile faces -x,
+                        so unflipped it lit the BACK of the skull and put the
+                        whole face in shade — most of what read as a dirty
+                        smudge on the side view. Mirroring just the gradient
+                        circle keeps the doctrine's light where it claims to
+                        be: on the face. */}
+                    <g transform="scale(-1,1)">
+                      <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+                    </g>
+                    {/* the same warm rim the front carries, on the face
+                        edge — the side's light sits in front */}
+                    <path
+                      d={`M ${-(HEAD_R - 0.55) * 0.93} ${headY + (HEAD_R - 0.55) * 0.15} A ${HEAD_R - 0.55} ${HEAD_R - 0.55} 0 0 1 ${-(HEAD_R - 0.55) * 0.15} ${headY - (HEAD_R - 0.55) * 0.93}`}
+                      stroke={GLINT}
+                      strokeWidth="1.1"
+                      strokeLinecap="round"
+                      fill="none"
+                      opacity="0.2"
+                    />
+                    {/* the EAR — a profile skull without one reads as an egg
+                        (VC2 reference pass). Mid-skull, slightly aft of
+                        centre, BEFORE the hair so a wig tucks over it; a
+                        faint plane wash plus one helix curve is all an ear
+                        is at this scale. */}
+                    <ellipse cx="1.1" cy={headY + 1.9} rx="1.6" ry="2" fill={skin} />
+                    <ellipse cx="1.1" cy={headY + 1.9} rx="1.6" ry="2" fill="#000" opacity="0.07" />
+                    <path
+                      d={`M 1.9 ${headY + 0.7} a 1.6 1.8 0 0 0 -1.4 1.9`}
+                      stroke="#000"
+                      strokeWidth="0.7"
+                      strokeLinecap="round"
+                      fill="none"
+                      opacity="0.22"
+                    />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
                     <SideFace expression={ch.expression} headY={headY} skin={skin} />
+                    {/* glasses over the finished face — after the hair's side
+                        mass and the hat, so neither can bury the lens */}
+                    <Glasses kind={ch.glasses} headY={headY} view="side" />
                   </g>
                 </g>
                 </g>
@@ -495,8 +543,12 @@ export function Resident({
         <>
           {/* Legs run the full LEG_H — at 15px they were stubs under a long
               torso, which is most of what made the figure read as a toddler.
-              The far one uses the depth colours the seated pose already had
-              (TROUSER_FAR/SHOE_FAR) so two legs don't merge into one block.
+              BOTH legs wear the same tone: this is a straight-on front view,
+              and the old far-leg depth split (borrowed from the seated pose,
+              where thighs genuinely overlap) dressed one leg darker than the
+              other — at 4x it read as two different trousers (VC2 pass,
+              2026-08-19). Standing legs never overlap, so the gap between
+              them is all the separation the eye needs.
               While moving they SCISSOR from the hip — a stiff clay-toy stride,
               swing fore-and-aft, not the old vertical piston that hopped each
               trouser leg straight up and read as pedalling in place. */}
@@ -506,7 +558,7 @@ export function Resident({
               there's no floor under them. */}
           <g className={moving ? "leg-stride-a" : undefined}>
             <g style={hangLimb(held, -5)}>
-              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} far />
+              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
             </g>
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
@@ -524,11 +576,18 @@ export function Resident({
           hair would shear off the rolling head. */}
       <g className={moving ? "walk-bob" : undefined}>
       <g className={moving ? "walk-roll" : undefined}>
-      {/* Before the torso: length falls behind the body, not onto the chest. */}
-      <HairLength style={ch.hair} headY={headY} color={hairColor} />
-      {/* The skirt flare, over the bare legs and under the torso's hem.
-          Standing only — seated, the cloth already drapes the lap via the
-          leg drawing. */}
+      {/* Before the torso: length falls behind the body, not onto the chest.
+          Inside the head-unit scale (lib/body.js HEAD_SCALE) so the sheets
+          stay welded to the dome they hang from — unscaled after the adult-
+          proportion pivot they jutted ~25% wide of the head. */}
+      <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
+        <HairLength style={ch.hair} headY={headY} color={hairColor} back={back && !hatted} />
+      </g>
+      {/* Seated cloth spans the lap instead of painting two trouser thighs. */}
+      {skirted && seated && (
+        <SeatedSkirt hem={hem} thighW={thighW} ankle={ankle} pants={pants} color={trouser} />
+      )}
+      {/* The standing skirt flare, over the bare legs and under the torso. */}
       {skirted && !seated && (
         <g>
           <path
@@ -663,6 +722,7 @@ export function Resident({
                   waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
+                  model={ch.model}
                   view={back ? "back" : "front"}
                 />
               </g>
@@ -729,6 +789,19 @@ export function Resident({
                   opacity="0.14"
                 />
               )}
+              {/* One quiet ink contour reunites the garment, coat and body
+                  into a single illustrated silhouette. The reference figures
+                  use strong outside shapes and very little interior detail;
+                  without this final pass our layered clothes read as parts
+                  assembled on a mannequin. */}
+              <path
+                d={body}
+                fill="none"
+                stroke={INK}
+                strokeWidth="1.05"
+                strokeLinejoin="round"
+                opacity="0.24"
+              />
             </>
           );
         })()}
@@ -810,12 +883,12 @@ export function Resident({
             read as a bundle rather than a body — the neck is short, but the
             collar is what actually sells it. It reaches from under the chin to
             just inside the torso top so no pose can leave a gap. */}
-        <rect x="-2.6" y={headY + HEAD_R - 1} width="5.2" height={torsoY - headY - HEAD_R + 4} fill={skin} />
+        <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill={skin} />
         <rect
           x="-2.6"
-          y={headY + HEAD_R - 1}
+          y={headY + HEAD_R_EFF - 1}
           width="5.2"
-          height={torsoY - headY - HEAD_R + 4}
+          height={torsoY - headY - HEAD_R_EFF + 4}
           fill="#000"
           opacity="0.16"
         />
@@ -834,6 +907,12 @@ export function Resident({
             (the crown sheen has one) — the rule is only that an animation may
             not share an ELEMENT with one. The neck and collar stay outside, so
             a turning head turns against a body that doesn't. */}
+        {/* THE ADULT-PROPORTION SCALE (see lib/body.js HEAD_SCALE): the whole
+            finished head unit — skull, hair, hat, glasses, face — shrinks
+            about its own centre, so every asset authored at HEAD_R rides
+            along. Its own wrapper: an attribute transform may never share
+            the gesture elements' animations. */}
+        <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
         <g className="gesture-yawn">
           {/* Both halves of the rub take the same gate, `moving` included: the
               arm half stands down mid-stride, and a head leaning into a hand
@@ -849,10 +928,28 @@ export function Resident({
               {!hatted && !back && (
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
-              <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
+              <circle
+                data-character-head="front"
+                cx="0"
+                cy={headY}
+                r={HEAD_R}
+                fill={skin}
+                opacity="1"
+              />
               {/* the head is a SPHERE now, not a disc — same gradient the
                   pets' masses carry, so every round thing models alike */}
               <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+              {/* warm rim on the lit edge (VC2 reference pass): the window-
+                  light cue their figures all carry. Under the hair, so it
+                  reads on the cheek and jaw where skin shows. */}
+              <path
+                d={`M ${(HEAD_R - 0.55) * 0.15} ${headY - (HEAD_R - 0.55) * 0.93} A ${HEAD_R - 0.55} ${HEAD_R - 0.55} 0 0 1 ${(HEAD_R - 0.55) * 0.93} ${headY + (HEAD_R - 0.55) * 0.15}`}
+                stroke={GLINT}
+                strokeWidth="1.1"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.22"
+              />
               {back && !hatted && (
                 <HairBack style={ch.hair} headY={headY} color={hairColor} />
               )}
@@ -875,6 +972,12 @@ export function Resident({
                   <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
                 </>
               )}
+              {/* Glasses land right after the eyes' layer — over the fringe
+                  and the hat's rim, so no crown mass can bury the rims, and
+                  inside the gesture group so they turn with a glance. Turned
+                  away they draw nothing: from behind, glasses are temple tips
+                  at most, which at 7px is noise. */}
+              {!back && <Glasses kind={ch.glasses} headY={headY} />}
               {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
                   keyframes outrank while they run but which takes over the moment
                   they don't — so under reduced motion the mouth is simply shut,
@@ -892,6 +995,7 @@ export function Resident({
               )}
             </g>
           </g>
+        </g>
         </g>
       </g>
       </g>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { toISO } from "../lib/dates";
 import { focusSummary, intensityOf, intensityScale, localTodayISO } from "../lib/stats";
 import { formatSpan } from "../lib/breaks";
+import ConfirmDialog from "./ConfirmDialog";
 
 function monthMatrix(year, month) {
   const first = new Date(year, month, 1);
@@ -19,14 +20,31 @@ function monthMatrix(year, month) {
 const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function CalendarPanel() {
-  const { tasks, editTask, sessionDays } = useStore();
-  const today = new Date();
-  const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
-  const [selected, setSelected] = useState(toISO(today));
+  const { tasks, events, addTask, editTask, addEvent, removeEvent, sessionDays, showToast } = useStore();
+  // "Today" is state on a slow tick, not a render-time `new Date()`: TaskNook
+  // sits open all day, and a panel mounted before midnight kept ringing
+  // yesterday's cell until something unrelated re-rendered it.
+  const [todayISO, setTodayISO] = useState(localTodayISO);
+  useEffect(() => {
+    const id = setInterval(() => setTodayISO(localTodayISO()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const [view, setView] = useState(() => {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  const [selected, setSelected] = useState(localTodayISO);
+  const [createKind, setCreateKind] = useState("task");
+  const [createTitle, setCreateTitle] = useState("");
+  const [eventTime, setEventTime] = useState("09:00");
+  const [creating, setCreating] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(null);
   // What the selected day was actually spent on. Fetched per day rather than
   // held in the store: it's one panel's concern, and sessionDays is already
   // refetched wholesale on every refreshAll.
   const [journal, setJournal] = useState(null);
+  const [journalError, setJournalError] = useState("");
+  const [journalRetry, setJournalRetry] = useState(0);
   // Refetch when THIS day's total changes, not on every refreshAll. Finishing a
   // block with the calendar open used to leave the breakdown stale until you
   // clicked another day — the minutes above it updated and the list under them
@@ -37,22 +55,30 @@ export default function CalendarPanel() {
 
   useEffect(() => {
     let live = true;
-    setJournal(null);
+    setJournalError("");
+    setJournal((current) => (current?.day === selected ? current : null));
+    if (selectedMinutes === 0) {
+      setJournal({ day: selected, entries: [], total: 0 });
+      return () => {
+        live = false;
+      };
+    }
     api
       .sessionDay(selected)
-      // A failed lookup leaves the section absent rather than showing an error
-      // row: this is history you glance at, not an action you just took.
       .then((data) => live && setJournal(data))
       .catch((err) => {
         console.error("Failed to load the day's focus:", err);
-        if (live) setJournal({ entries: [], total: 0 });
+        if (live) {
+          setJournal(null);
+          setJournalError(err.message || "Couldn't load this day's focus");
+        }
       });
     return () => {
       // The day can change faster than the network answers; without this a
       // slow earlier request lands last and shows the wrong day's focus.
       live = false;
     };
-  }, [selected, selectedMinutes]);
+  }, [selected, selectedMinutes, journalRetry]);
 
   const cells = monthMatrix(view.y, view.m);
   const monthName = new Date(view.y, view.m).toLocaleString([], {
@@ -64,6 +90,9 @@ export default function CalendarPanel() {
   tasks.forEach((t) => {
     if (t.scheduledDate)
       countByDate[t.scheduledDate] = (countByDate[t.scheduledDate] || 0) + 1;
+  });
+  events.forEach((event) => {
+    countByDate[event.date] = (countByDate[event.date] || 0) + 1;
   });
 
   // A day is "active" if you focused (sessionDays) or completed a task on it —
@@ -102,7 +131,33 @@ export default function CalendarPanel() {
   const summary = focusSummary(sessionDays, localTodayISO());
 
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);
+  const dayEvents = events.filter((event) => event.date === selected);
   const unscheduled = tasks.filter((t) => !t.scheduledDate && !t.completed);
+  // Journal: what got checked off that day. Derived client-side from the
+  // already-loaded task list (completedAt is a UTC timestamp, routed through
+  // the same local-day toISO() the calendar's own tinting uses) — unlike the
+  // "Focused on" breakdown above, this needs no backend endpoint since the
+  // data's already in the store.
+  const completedOnSelected = tasks.filter(
+    (t) => t.completed && t.completedAt && toISO(new Date(t.completedAt)) === selected
+  );
+
+  const createForDay = async (e) => {
+    e.preventDefault();
+    const title = createTitle.trim();
+    if (!title || creating) return;
+    setCreating(true);
+    try {
+      if (createKind === "task") await addTask({ name: title, duration: 25, priority: "medium", scheduledDate: selected });
+      else await addEvent({ title, date: selected, startTime: eventTime, duration: 60 });
+      setCreateTitle("");
+    } catch {
+      // addEvent supplies its own useful toast; addTask predates that contract.
+      if (createKind === "task") showToast("Couldn't schedule that task 🌧️");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const shift = (delta) => {
     let m = view.m + delta;
@@ -110,6 +165,11 @@ export default function CalendarPanel() {
     if (m < 0) (m = 11), (y -= 1);
     if (m > 11) (m = 0), (y += 1);
     setView({ y, m });
+  };
+  const goToday = () => {
+    const now = new Date();
+    setView({ y: now.getFullYear(), m: now.getMonth() });
+    setSelected(localTodayISO());
   };
 
   return (
@@ -119,7 +179,17 @@ export default function CalendarPanel() {
         aria-label="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronLeft size={15} />
         </button>
-        <p className="text-sm font-semibold text-cream">{monthName}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-cream">{monthName}</p>
+          {(selected !== todayISO || view.y !== new Date().getFullYear() || view.m !== new Date().getMonth()) && (
+            <button
+              onClick={goToday}
+              className="pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-petal hover:bg-white/20"
+            >
+              Today
+            </button>
+          )}
+        </div>
         <button onClick={() => shift(1)} title="Next month"
         aria-label="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronRight size={15} />
@@ -133,7 +203,7 @@ export default function CalendarPanel() {
         {cells.map((date, i) => {
           if (!date) return <span key={i} />;
           const iso = toISO(date);
-          const isToday = iso === toISO(today);
+          const isToday = iso === todayISO;
           const isSel = iso === selected;
           const count = countByDate[iso] || 0;
           const isActive = activeDays.has(iso);
@@ -154,6 +224,11 @@ export default function CalendarPanel() {
                   ? "You completed a task this day"
                   : undefined
               }
+              aria-label={`${date.toLocaleDateString([], {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}${span ? `, ${span} focused` : ""}${count ? `, ${count} planned task${count === 1 ? "" : "s"}` : ""}`}
               className={`relative grid h-9 place-items-center rounded-lg text-xs transition ${
                 isSel
                   ? "bg-glow font-bold text-plum"
@@ -174,6 +249,27 @@ export default function CalendarPanel() {
           );
         })}
       </div>
+
+      <form onSubmit={createForDay} className="space-y-2 rounded-2xl bg-white/5 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream"><CalendarPlus size={15} /> Add to {selected}</p>
+          <div className="flex rounded-full bg-white/10 p-0.5 text-[11px] font-semibold">
+            {[["task", "Task"], ["event", "Event"]].map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setCreateKind(key)}
+                className={`rounded-full px-2 py-1 ${createKind === key ? "bg-glow text-plum" : "text-petal"}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} maxLength={200}
+          placeholder={createKind === "task" ? "e.g. Physics 2 exam" : "e.g. Dentist appointment"}
+          className="w-full rounded-xl bg-white/10 px-3 py-2 text-sm text-cream outline-none focus:bg-white/15" />
+        {createKind === "event" && <label className="flex items-center gap-2 text-xs text-petal/70">Starts at
+          <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="rounded-lg bg-white/10 px-2 py-1 text-cream outline-none" />
+        </label>}
+        <button disabled={creating} className="pill w-full bg-glow py-1.5 text-sm font-bold text-plum hover:bg-amber disabled:opacity-50">
+          Add {createKind}
+        </button>
+      </form>
 
       {/* The legend has to explain a SCALE now, not a single colour. */}
       <div className="flex items-center gap-1.5 text-[10px] text-petal/50">
@@ -243,6 +339,55 @@ export default function CalendarPanel() {
           </div>
         </div>
       )}
+      {journalError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">
+          <span>Couldn't load this day's focus.</span>
+          <button
+            onClick={() => setJournalRetry((value) => value + 1)}
+            className="pill bg-white/10 px-2 py-1 font-semibold hover:bg-white/20"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {dayEvents.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">Appointments</p>
+          <div className="space-y-1.5">
+            {dayEvents.map((event) => (
+              <div key={event.id} className="flex items-center gap-2 rounded-xl bg-glow/10 px-3 py-2">
+                <span className="shrink-0 text-xs font-bold text-glow">{event.startTime}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-cream">{event.title}</span>
+                <button onClick={() => setDeletingEvent(event)} aria-label={`Delete ${event.title}`}
+                  className="text-sm text-petal/45 hover:text-danger">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Journal: checked tasks for the selected day. */}
+      {completedOnSelected.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
+            Completed
+          </p>
+          <div className="space-y-1.5">
+            {completedOnSelected.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2"
+              >
+                <span className="text-sage">✓</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-cream/80 line-through decoration-cream/40">
+                  {t.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Scheduled on selected day */}
       <div>
@@ -262,14 +407,14 @@ export default function CalendarPanel() {
             {scheduled.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2"
               >
-                <span className={`text-sm text-cream ${t.completed ? "line-through opacity-60" : ""}`}>
+                <span className={`min-w-0 flex-1 truncate text-sm text-cream ${t.completed ? "line-through opacity-60" : ""}`}>
                   {t.name}
                 </span>
                 <button
                   onClick={() => editTask(t.id, { scheduledDate: null })}
-                  className="text-xs text-petal/60 hover:text-danger"
+                  className="shrink-0 text-xs text-petal/60 hover:text-danger"
                 >
                   Unschedule
                 </button>
@@ -292,13 +437,20 @@ export default function CalendarPanel() {
                 onClick={() => editTask(t.id, { scheduledDate: selected })}
                 className="flex w-full items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-left transition hover:bg-white/10"
               >
-                <span className="text-sm text-cream">{t.name}</span>
-                <span className="text-xs text-glow">+ add to {selected.slice(5)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-cream">{t.name}</span>
+                <span className="shrink-0 text-xs text-glow">+ add to {selected.slice(5)}</span>
               </button>
             ))}
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!deletingEvent}
+        title="Delete appointment?"
+        message={`Remove “${deletingEvent?.title || "this appointment"}” from your calendar?`}
+        onCancel={() => setDeletingEvent(null)}
+        onConfirm={() => { removeEvent(deletingEvent.id); setDeletingEvent(null); }}
+      />
     </div>
   );
 }

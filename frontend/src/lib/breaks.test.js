@@ -102,6 +102,7 @@ describe("the threshold in words", () => {
   });
 
   it("keeps minutes below the hour, and mixes above it", () => {
+    expect(formatSpan(1)).toBe("1 minute");
     expect(formatSpan(45)).toBe("45 minutes");
     expect(formatSpan(90)).toBe("1 hour 30 min");
   });

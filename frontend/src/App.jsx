@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sofa } from "lucide-react";
+import { Sofa, X } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
+import { onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
@@ -23,14 +24,27 @@ import SkyOverlay from "./components/SkyOverlay";
 // browser). They live behind a dock click, so a chunk fetch is invisible.
 // The room panel's sprites are NOT duplicated into its chunk — IsoItems is
 // already in the main bundle via the always-mounted scene.
-const TaskPanel = lazy(() => import("./components/TaskPanel"));
-const CalendarPanel = lazy(() => import("./components/CalendarPanel"));
-const FriendsPanel = lazy(() => import("./components/FriendsPanel"));
-const MusicPanel = lazy(() => import("./components/MusicPanel"));
-const WeatherPanel = lazy(() => import("./components/WeatherPanel"));
-const RoomPanel = lazy(() => import("./components/RoomPanel"));
-const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
-const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
+const PANEL_LOADERS = {
+  tasks: () => import("./components/TaskPanel"),
+  calendar: () => import("./components/CalendarPanel"),
+  friends: () => import("./components/FriendsPanel"),
+  music: () => import("./components/MusicPanel"),
+  weather: () => import("./components/WeatherPanel"),
+  room: () => import("./components/RoomPanel"),
+  profile: () => import("./components/ProfilePanel"),
+  settings: () => import("./components/SettingsPanel"),
+};
+const TaskPanel = lazy(PANEL_LOADERS.tasks);
+const CalendarPanel = lazy(PANEL_LOADERS.calendar);
+const FriendsPanel = lazy(PANEL_LOADERS.friends);
+const MusicPanel = lazy(PANEL_LOADERS.music);
+const WeatherPanel = lazy(PANEL_LOADERS.weather);
+const RoomPanel = lazy(PANEL_LOADERS.room);
+const SettingsPanel = lazy(PANEL_LOADERS.settings);
+const ProfilePanel = lazy(PANEL_LOADERS.profile);
+// A speculative load must stay invisible if a chunk is unavailable; the real
+// lazy render still owns user-facing failure handling when the panel is opened.
+const warmPanel = (key) => PANEL_LOADERS[key]?.().catch(() => undefined);
 
 const PANELS = {
   // There is deliberately no Progress panel. It existed, and it was mostly a
@@ -48,6 +62,16 @@ const PANELS = {
   settings: { title: "Settings", subtitle: "Brightness & colours", Comp: SettingsPanel },
 };
 
+// "faded" stays interactive (a quieter HUD, not a hidden one); "hidden" and
+// decorating both use `invisible` so the element also drops out of
+// hit-testing, matching the pointer-events story the room-edit fade already
+// relied on.
+function hudWrapClass(hiddenByEdit, visMode) {
+  if (hiddenByEdit || visMode === "hidden") return "transition-opacity duration-300 invisible opacity-0";
+  if (visMode === "faded") return "transition-opacity duration-300 opacity-30";
+  return "transition-opacity duration-300 opacity-100";
+}
+
 export default function App() {
   const {
     booting,
@@ -59,7 +83,13 @@ export default function App() {
     brightness,
     colorScheme,
     customColor,
+    customSurface,
     motionMode,
+    hudVisibility,
+    setHudVisibility,
+    widgetMode,
+    setWidgetMode,
+    cottageView,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -67,17 +97,21 @@ export default function App() {
     removeRoomItem,
     setRoomItemTint,
     isoPreview,
-    isoRoom,
     lastIsoAddedId,
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
+    toggleIsoItem,
     character,
     visiting,
     leaveVisit,
     moveVisitGuest,
-    walkIsoPersona,
+    homeVisitors,
+    homeScene,
+    moveHomePersona,
+    kickHomeVisitor,
+    user,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -95,6 +129,50 @@ export default function App() {
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
 
+  // The desktop bundle serves chunks from localhost, but loading and parsing a
+  // panel only after its first click still feels like a dead button. Warm one
+  // chunk at a time after first paint; pointer/focus warming below covers a
+  // panel the user reaches before this quiet queue does.
+  useEffect(() => {
+    if (booting) return undefined;
+    let cancelled = false;
+    let timer;
+    const keys = Object.keys(PANEL_LOADERS);
+    const next = () => {
+      if (cancelled || !keys.length) return;
+      warmPanel(keys.shift())?.finally(() => {
+        if (!cancelled) timer = setTimeout(next, 180);
+      });
+    };
+    timer = setTimeout(next, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [booting]);
+  // Continuously animating a dense SVG scene can monopolise WebView2's UI
+  // thread on integrated/disabled GPUs. Large home AND visited rooms use the
+  // calm static treatment automatically; smaller rooms keep all authored
+  // motion unless the user's reduced-motion setting says otherwise.
+  const activeIsoLayout = visiting?.layout || (isoPreview ? homeScene.layout : null);
+  const heavyScene =
+    activeIsoLayout &&
+    (activeIsoLayout.w * activeIsoLayout.d > 120 || activeIsoLayout.placements.length > 48);
+  const sceneReduceMotion = reduceMotion || !!heavyScene;
+  // The new 8% zoom is deliberately cheap enough for dense rooms; only an
+  // explicit reduced-motion preference turns the entrance into a fade.
+  const quietIntro = reduceMotion;
+
+  // In the packaged app Widget Mode also changes the OS window itself. The
+  // bridge arrives asynchronously, so apply immediately when available and
+  // once more on `pywebviewready` for a persisted mode during startup. In a
+  // browser this safely remains a compact in-page timer view.
+  useEffect(() => {
+    const apply = () => setDesktopWidgetMode(widgetMode);
+    apply();
+    return onDesktopApiReady(apply);
+  }, [widgetMode]);
+
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
   // For the "custom" scheme there's no CSS block — we derive the ramp from the
@@ -104,14 +182,14 @@ export default function App() {
     const root = document.documentElement;
     root.setAttribute("data-theme", colorScheme);
     if (colorScheme === "custom") {
-      const vars = derivePalette(customColor);
+      const vars = derivePalette(customColor, customSurface);
       Object.entries(vars).forEach(([name, value]) =>
         root.style.setProperty(name, value)
       );
     } else {
       PALETTE_VARS.forEach((name) => root.style.removeProperty(name));
     }
-  }, [colorScheme, customColor]);
+  }, [colorScheme, customColor, customSurface]);
 
   const toggleDockPanel = (key) => {
     setOpenPanels((prev) => {
@@ -137,6 +215,13 @@ export default function App() {
       // guard as the iso room's Delete shortcut now — the two were separate
       // copies that disagreed, and the shorter one was the dangerous one.
       if (isTypingTarget(e.target)) return;
+      // Widget Mode outranks everything else here — none of the states below
+      // are even reachable while it's on (there's no scene, no dock, no
+      // panels to escape out of), so this is the only exit that matters.
+      if (widgetMode) {
+        setWidgetMode(false);
+        return;
+      }
       // Leaving a friend's room outranks everything — you can't be
       // decorating while visiting, and closing panels from inside a visit
       // would strand you there with less UI.
@@ -158,7 +243,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit]);
+  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit, widgetMode, setWidgetMode]);
 
   // Arriving somewhere closes the drawers — you visited to SEE the room, and
   // the Friends panel would be covering half of it — and EXITS decorating.
@@ -212,26 +297,30 @@ export default function App() {
       // app into one composited layer that re-rasterizes every paint.
       style={brightness === 1 ? undefined : { filter: `brightness(${brightness})` }}
     >
+      {/* Widget Mode hides the scene, TopBar, Dock and drawers behind the
+          same visibility convention as everything else — never unmounted,
+          since HudFocusCard (kept OUTSIDE this wrapper, below) must stay
+          mounted throughout: unmounting it would replay its .intro-chrome
+          boot entrance on every single toggle, which is
+          exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
+      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
       <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
 
-      {/* Centerpiece cottage. On first open we start zoomed right into the
-          window and pull back to reveal the room — like stepping back from
-          peeking through it. The transform origin sits roughly on the window
-          within the centred SVG; UI chrome fades in afterwards via the
-          .intro-chrome CSS delay. */}
+      {/* Centerpiece cottage. A short, direct zoom establishes the room
+          without the old picture-frame/window sequence or its long hold.
+          Reduced-motion mode uses a fade only. */}
       <motion.div
         className="absolute inset-0 grid place-items-center"
-        style={{ transformOrigin: "48% 36%" }}
-        initial={reduceMotion ? { opacity: 0 } : { scale: 3, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{
-          duration: reduceMotion ? 0.6 : 2.2,
-          ease: [0.16, 1, 0.3, 1],
-          opacity: { duration: reduceMotion ? 0.6 : 0.9, ease: "easeOut" },
-        }}
+        initial={quietIntro ? { opacity: 0 } : { scale: 0.92, opacity: 0 }}
+        animate={quietIntro ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+        transition={
+          quietIntro
+            ? { duration: 0.35, ease: "easeOut" }
+            : { duration: 0.75, ease: [0.22, 1, 0.36, 1] }
+        }
       >
         {/* The scene gets its OWN boundary. It's the most failure-prone thing
             in the app (thousands of SVG nodes generated from editable layout
@@ -259,8 +348,8 @@ export default function App() {
           {visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
-               `activity` still flows, so starting a focus block means the
-               two of you study together. The `key` REMOUNTS the scene per
+               `activity` still flows to your guest; each NPC follows their
+               own schedule. The `key` REMOUNTS the scene per
                room — camera, selection and wander offsets are per-room
                state, and React would otherwise reconcile the same component
                and carry all three across the swap. */
@@ -272,7 +361,7 @@ export default function App() {
               timeOfDay={timeOfDay}
               activity={running ? phase : null}
               character={character}
-              reduceMotion={reduceMotion}
+              reduceMotion={sceneReduceMotion}
               personas={visiting.personas}
               saveView={false}
               walkId={visiting.guestId ?? null}
@@ -281,29 +370,32 @@ export default function App() {
           ) : isoPreview ? (
             <IsoRoom
               key="home"
-              size={isoRoom}
-              placements={isoRoom.placements}
+              size={homeScene.layout}
+              placements={homeScene.layout.placements}
               editMode={roomEditMode}
               timeOfDay={timeOfDay}
               highlightId={lastIsoAddedId}
               activity={running ? phase : null}
               character={character}
               mood={mood}
-              reduceMotion={reduceMotion}
+              reduceMotion={sceneReduceMotion}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
               onTintItem={setIsoItemTint}
+              onToggleItem={toggleIsoItem}
+              personas={homeScene.personas}
               /* Walking at home: every persona is grabbable outside Decorate,
                  same rule and same target marker as a visit. Unlike a visit it
                  persists — see `walkIsoPersona`. */
               walkPersonas
-              onWalkTo={walkIsoPersona}
+              onWalkTo={moveHomePersona}
             />
           ) : (
             <Cottage
               weather={weatherMode}
               timeOfDay={timeOfDay}
+              setting={cottageView}
               room={roomPlacements}
               editMode={roomEditMode}
               onMoveItem={moveRoomItem}
@@ -332,6 +424,39 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Open-room visitors borrow the signature's bottom-left lane. Each
+          guest is its own kick control: visible, keyboard reachable, and
+          immediate because this only removes a simulated render layer. */}
+      <AnimatePresence>
+        {!visiting && !roomEditMode && homeVisitors.length > 0 && (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            className="glass absolute bottom-6 left-6 z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
+            aria-label="Room visitors"
+          >
+            <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+              visiting
+            </span>
+            {homeVisitors.map((guest) => (
+              <button
+                key={guest.id}
+                type="button"
+                onClick={() => kickHomeVisitor(guest.id)}
+                title={`Ask ${guest.label} to leave`}
+                aria-label={`Ask ${guest.label} to leave`}
+                className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
+              >
+                <span aria-hidden="true">{guest.avatar}</span>
+                {guest.label}
+                <X size={11} className="text-petal/60" />
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Decorating chip: visible whenever edit mode is on, so there's always
           a way out even with the Room panel closed. */}
       <AnimatePresence>
@@ -353,8 +478,22 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <TopBar />
-      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} />
+      {/* The bottom-right rail is fixed in the same lane as a newly-opened
+          drawer. Let the foreground drawer own that lane; otherwise the rail
+          protrudes from underneath its rounded bottom and can cover the last
+          controls in a long panel. It stays mounted so its clock/menu state
+          and intro animation are not restarted when the drawer closes. */}
+      <div
+        className={
+          openPanels.length > 0
+            ? "pointer-events-none invisible opacity-0 transition-opacity duration-300"
+            : "opacity-100 transition-opacity duration-300"
+        }
+      >
+        <TopBar clockVisibility={hudVisibility.clock} />
+      </div>
+      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} onWarm={warmPanel} />
+      </div>
 
       {/* Shared error toast — top-centre (the one HUD zone nothing owns).
           Outside the decorating visibility wrapper: failures matter in every
@@ -386,6 +525,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
+      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       <AnimatePresence>
         {openPanels.map(({ key, pinned }, i) => {
           const Def = PANELS[key];
@@ -412,42 +552,67 @@ export default function App() {
           );
         })}
       </AnimatePresence>
+      </div>
 
       {/* The HUD cards own the scene's top corners (focus card left, to-do
-          right) — exactly where wall items can now be placed — and the maker's
-          signature sits bottom-left where the decorating chip appears. So all
-          three step aside while decorating. Hidden via `visibility`, NOT
-          unmounting/display:none: those replay the .intro-chrome boot
-          animation on return (1.5s of invisible chrome), while
-          visibility:hidden also removes them from hit-testing without
-          restarting anything. Timers keep ticking in the store either way. */}
-      <div
-        className={`transition-opacity duration-300 ${
-          roomEditMode ? "invisible opacity-0" : "opacity-100"
-        }`}
-      >
-        <HudFocusCard />
+          right) — exactly where wall items can now be placed. So each steps
+          aside while decorating, ADDITIONALLY to whatever its own Settings
+          visibility says. Hidden via `visibility`, NOT unmounting/
+          display:none: those replay the .intro-chrome boot animation on
+          return (1.5s of invisible chrome), while visibility:hidden also
+          removes them from hit-testing without restarting anything. "Faded"
+          stays interactive — it's a quieter HUD, not a hidden one. Timers
+          keep ticking in the store regardless of any of this.
+          The focus card ALONE ignores widgetMode here — Widget Mode's whole
+          point is showing it, so it overrides even a Settings "Hidden" for
+          Session & timer while active; everything else below still folds
+          away via hudWrapClass(roomEditMode || widgetMode, ...). */}
+      <div className={widgetMode ? "opacity-100 transition-opacity duration-300" : hudWrapClass(roomEditMode, hudVisibility.timer)}>
+        <HudFocusCard
+          compact={widgetMode}
+          onExpand={() => setWidgetMode(false)}
+          onEdgeDismiss={() => {
+            setHudVisibility("timer", "hidden");
+            if (widgetMode) setWidgetMode(false);
+          }}
+        />
+      </div>
+      {/* Unlike the timer card, the task HUD is fixed in the same top-right
+          lane drawers open into. Let the foreground drawer own that lane
+          completely instead of leaving the task title peeking through above
+          its header. Closing the last drawer restores the HUD in place. */}
+      <div className={hudWrapClass(roomEditMode || widgetMode || openPanels.length > 0, hudVisibility.tasks)}>
         <HudTasks onOpenTasks={() => toggleDockPanel("tasks")} />
-        {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
-            music keeps playing when the panel closes; hidden (not unmounted)
-            while decorating so playback survives that too and the tint picker
-            gets the bottom-centre spot. */}
+      </div>
+      {/* Bottom-centre transport bar. Lives OUTSIDE the Sounds panel so the
+          music keeps playing when the panel closes; hidden (not unmounted)
+          while decorating so playback survives that too and the tint picker
+          gets the bottom-centre spot. Same story in Widget Mode — the music
+          keeps playing, only the bar itself steps out of sight. */}
+      <div className={hudWrapClass(roomEditMode || widgetMode, hudVisibility.music)}>
         <MusicDock />
+      </div>
 
-        {/* rkive. — the maker's signature, same wordmark as the portfolio.
-            Sits ON the bottom rail: same bottom-6, same 44px height, so its
-            optical centre lines up with the transport bar and the clock
-            cluster instead of floating a few px below them. The visiting
-            chip borrows this exact spot, so the signature steps aside for a
-            visit the same way it does for the decorating chip. */}
-        <div
-          className="intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center"
-          style={{ visibility: visiting ? "hidden" : undefined }}
-          title="A space where I archive and share my journey, wherever it takes me."
-        >
-          <span className="font-mark text-lg font-semibold text-petal/40 transition-colors duration-300 hover:text-petal/90">
-            rkive<span className="text-glow/70">.</span>
-          </span>
+      {/* rkive. — the maker's signature, same wordmark as the portfolio.
+          Sits ON the bottom rail: same bottom-6, same 44px height, so its
+          optical centre lines up with the transport bar and the clock
+          cluster instead of floating a few px below them. The visiting
+          chip borrows this exact spot, so the signature steps aside for a
+          visit the same way it does for the decorating chip. Not part of
+          the fade/hide settings — it's not a HUD element the patch notes
+          were asking to quiet down. */}
+      <div
+        className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
+          roomEditMode || widgetMode || homeVisitors.length > 0
+            ? "invisible opacity-0"
+            : "opacity-100"
+        }`}
+        style={{ visibility: visiting ? "hidden" : undefined }}
+        title="Your profile"
+      >
+        <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">
+          <span className="text-base leading-none">{user?.avatar || "🌙"}</span>
+          <span className="text-sm font-semibold">{user?.displayName}</span>
         </div>
       </div>
 

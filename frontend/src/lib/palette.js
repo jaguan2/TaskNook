@@ -21,8 +21,17 @@ const RAMP = [
 ];
 
 export const PALETTE_VARS = RAMP.map(([name]) => name);
+export const COLOR_SCHEME_KEYS = ["plum", "abyss", "shore", "linen", "walnut", "custom"];
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+export function normalizeBrightness(value) {
+  // A missing preference is the neutral default, not Number(null) === 0.
+  // Treat empty storage the same way as corrupt storage before clamping.
+  if (value === null || value === undefined || value === "") return 1;
+  const number = Number(value);
+  return Number.isFinite(number) ? clamp(number, 0.6, 1.3) : 1;
+}
 
 export function hexToHsl(hex) {
   let clean = String(hex).replace("#", "").trim();
@@ -91,19 +100,27 @@ export function normalizeHex(input) {
  *   Values are space-separated RGB channels so Tailwind's `<alpha-value>`
  *   opacity modifiers (bg-rose/40) keep working.
  */
-export function derivePalette(hex) {
+export function derivePalette(hex, surfaceHex = null) {
   // Total function: garbage in must not mean "NaN NaN NaN" out — these values
   // land directly on <html> as CSS variables, and one bad set unstyles the
   // entire app with no in-app way back.
   const { h, s, l } = hexToHsl(normalizeHex(hex) || "#d98a93");
-  const darkSat = clamp(s * 0.6, 14, 40);
+  // The BACKDROP can carry its own hue (owner, 2026-08-19: "we should allow
+  // the ability to customize" beyond one colour) — a teal accent over warm
+  // brown surfaces, say. Only the dark stops' hue/saturation move; their
+  // LIGHTNESS stays the fixed ramp, which is the whole legibility guarantee,
+  // so no backdrop pick can wash out the text sitting on it. null (or
+  // garbage) means what it always meant: the backdrop follows the accent.
+  const surface = normalizeHex(surfaceHex);
+  const sf = surface ? hexToHsl(surface) : { h, s };
+  const darkSat = clamp(sf.s * 0.6, 14, 40);
   const accentSat = clamp(s, 22, 68);
   const roseL = clamp(l, 52, 72); // the pick itself, kept off the extremes
 
   const vars = {};
   for (const [name, lightness, role] of RAMP) {
     if (role === "dark") {
-      vars[name] = hslToRgb(h, darkSat, lightness).join(" ");
+      vars[name] = hslToRgb(sf.h, darkSat, lightness).join(" ");
     } else if (role === "accent") {
       vars[name] = hslToRgb(h, accentSat, roseL).join(" ");
     } else if (role === "accent2") {

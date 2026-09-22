@@ -8,6 +8,7 @@ permanently unable to boot.
 import sqlite3
 
 import pytest
+from flask_migrate import downgrade
 
 from app import create_app
 from models import db
@@ -64,6 +65,7 @@ def make_pre_migrations(db_path):
     sql(db_path, "DROP TABLE message")
     sql(db_path, "DROP TABLE conversation_member")
     sql(db_path, "DROP TABLE conversation")
+    sql(db_path, "DROP TABLE calendar_event")
     sql(db_path, "ALTER TABLE user DROP COLUMN room_config")
     sql(db_path, "ALTER TABLE user DROP COLUMN unlocked")
     sql(db_path, "ALTER TABLE user DROP COLUMN profile")
@@ -73,6 +75,7 @@ def make_pre_migrations(db_path):
     sql(db_path, "ALTER TABLE task DROP COLUMN is_routine")
     sql(db_path, "ALTER TABLE task DROP COLUMN notes")
     sql(db_path, "ALTER TABLE task DROP COLUMN due_date")
+    sql(db_path, "ALTER TABLE task DROP COLUMN archived_at")
     sql(db_path, "DROP TABLE alembic_version")
 
 
@@ -138,6 +141,25 @@ def test_relaunch_when_up_to_date_does_no_work(tmp_path, monkeypatch):
     # disk for nothing.
     assert backups(tmp_path) == before
     assert revision(db) == head_of(app)
+
+
+def test_public_visit_access_is_migrated_to_open(tmp_path, monkeypatch):
+    """Existing installs keep the permissive simulated-social setting, but
+    its stored meaning is renamed so it no longer promises public access."""
+    db = tmp_path / "public-access.db"
+    app = boot(db, monkeypatch)
+    # Rewind the schema as well as its revision. Changing only the stamp
+    # leaves later tables/columns behind and makes their upgrades collide.
+    with app.app_context():
+        downgrade(revision="6d53f00fb564")
+    sql(db, "UPDATE user SET visit_access = 'public' WHERE username = 'luna'")
+
+    app = boot(db, monkeypatch)
+
+    assert revision(db) == head_of(app)
+    assert sql(db, "SELECT visit_access FROM user WHERE username = 'luna'") == [
+        ("open",)
+    ]
 
 
 # --------------------------------------------------------------------------- #

@@ -109,11 +109,40 @@ export const GARMENT_REGISTRY = {
     back: ({ hem, bot }) => (
       <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
     ),
+    // Profile: the ribbed hem band survives edge-on (the cuff rides the
+    // arm) — without it the side torso lost the knit read entirely.
+    side: ({ hem, bot }) => (
+      <>
+        <rect x={-hem + 1.2} y={bot - 2.3} width={(hem - 1.2) * 2} height="2.3" fill="#000" opacity="0.15" />
+        {[-hem + 2.4, 0, hem - 2.4].map((x) => (
+          <path
+            key={x}
+            d={`M ${x} ${bot - 2.1} L ${x} ${bot - 0.3}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            opacity="0.26"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
   },
   tee: {
     finish: MATTE,
     // From behind there's no collar — the bare forearms carry the garment.
     back: () => null,
+    // Profile: the collar's near edge is the whole torso story — the short
+    // sleeve (the outline mark) rides the arm and survives on its own.
+    side: ({ top }) => (
+      <path
+        d={`M ${-3.8} ${top + 0.7} Q ${-0.8} ${top + 3.4} ${2} ${top + 1}`}
+        fill="none"
+        stroke="#000"
+        strokeWidth="1.1"
+        opacity="0.2"
+        strokeLinecap="round"
+      />
+    ),
     // A collar: with bare forearms (`sleeves: "short"`) doing the outline
     // work, the torso only needs to stop looking knitted.
     draw: ({ top }) => (
@@ -127,7 +156,48 @@ export const GARMENT_REGISTRY = {
       />
     ),
   },
+  swim: {
+    finish: CRISP,
+    back: ({ hem, bot, model, outfit }) => model === "fem" ? (
+      <>
+        <path d={`M ${-hem + 1} ${bot - 5} Q 0 ${bot - 1} ${hem - 1} ${bot - 5}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.18" />
+        <path d={`M ${-hem + 1.4} ${bot - 1} L ${-hem + 3} ${bot + 4} L 0 ${bot + 1.8} L ${hem - 3} ${bot + 4} L ${hem - 1.4} ${bot - 1} Z`} style={outfit} />
+      </>
+    ) : (
+      <path d={`M ${-hem + 1.4} ${bot - 4} Q 0 ${bot - 1.4} ${hem - 1.4} ${bot - 4}`} fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.28" />
+    ),
+    side: ({ hem, top, bot, model, outfit }) => model === "fem" ? (
+      <>
+        <path d={`M ${-2.8} ${top + 1} Q 0 ${top + 5} ${2.4} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M ${-hem + 1.2} ${bot - 1} L ${-hem + 2.7} ${bot + 4} L ${hem - 2.2} ${bot + 1.5} L ${hem - 1.1} ${bot - 1} Z`} style={outfit} />
+      </>
+    ) : (
+      <>
+        <path d={`M ${-3} ${top + 1} Q 0 ${top + 3.4} ${2.8} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.1" opacity="0.18" />
+        <path d={`M ${-hem + 1.2} ${top + 8} L ${hem - 1.2} ${top + 8}`} stroke="#fff" strokeWidth="1.2" opacity="0.25" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, model, outfit }) => model === "fem" ? (
+      <>
+        {/* One-piece: sweetheart straps above a small hip panel. */}
+        <path d={`M ${-sh + 2} ${top + 1} L ${-4} ${top + 6} Q 0 ${top + 3} 4 ${top + 6} L ${sh - 2} ${top + 1}`} fill="none" stroke="#000" strokeWidth="1.35" opacity="0.22" />
+        <path d={`M ${-hem + 1.2} ${bot - 1} L ${-hem + 3} ${bot + 4.4} L 0 ${bot + 2} L ${hem - 3} ${bot + 4.4} L ${hem - 1.2} ${bot - 1} Z`} style={outfit} />
+        <path d={`M ${-hem + 3} ${bot + 4.4} Q 0 ${bot + 1} ${hem - 3} ${bot + 4.4}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.16" />
+      </>
+    ) : (
+      <>
+        {/* Surf top: high crew neck, shoulder panels and a chest seam. */}
+        <path d={`M -4 ${top + 0.8} Q 0 ${top + 3} 4 ${top + 0.8}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M ${-sh + 1} ${top + 2} L -4 ${top + 7} M ${sh - 1} ${top + 2} L 4 ${top + 7}`} fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.28" />
+        <path d={`M ${-hem + 1.4} ${top + 9} L ${hem - 1.4} ${top + 9}`} stroke="#fff" strokeWidth="1.2" opacity="0.25" />
+      </>
+    ),
+  },
   shirt: {
+    // Pressed cotton holds its plane — the jacket's crisp finish, and
+    // buttoned cuffs where knitwear wears ribbing.
+    finish: CRISP,
+    cuffs: true,
     // A button-up reads from its NECK and CENTRE: two collar wings, the
     // placket line, a few buttons. From behind, just the collar's band.
     back: ({ top }) => (
@@ -372,6 +442,8 @@ export const GARMENT_REGISTRY = {
     finish: CRISP,
   },
   overalls: {
+    // Denim is the flattest cloth in the set — the tee's matte numbers.
+    finish: MATTE,
     // Dungarees OVER the shirt: the bib and straps take the INNER colour and
     // the torso stays the outfit, which is the way round that actually splits
     // the chest in two. Drawn the other way (bib in the outfit colour) the bib
@@ -502,6 +574,11 @@ export const GARMENT_REGISTRY = {
   turtleneck: {
     finish: KNIT,
     cuffs: true,
+    // Profile: the swallowed neck is GarmentCollar's job in every view; the
+    // torso just keeps its knit hem band so the side doesn't read bare.
+    side: ({ hem, bot }) => (
+      <rect x={-hem + 1.2} y={bot - 2.3} width={(hem - 1.2) * 2} height="2.3" fill="#000" opacity="0.15" />
+    ),
     // The one garment that changes the NECK line: the rolled collar swallows
     // it (see `collar` below — drawn after the body's own neck, which would
     // otherwise paint skin over it). The torso itself needs nothing.
@@ -893,6 +970,8 @@ export const GARMENT_REGISTRY = {
         />
       </>
     ),
+    // Soft jersey drapes matte — the knit numbers; a sheen would read satin.
+    finish: KNIT,
     // The flare replaces the hem-on-trousers story outright.
     drape: true,
   },
@@ -915,13 +994,13 @@ const viewDraw = (entry, view) => {
  * "side"); garments whose artwork is symmetric (overalls' straps, the
  * puffer's seams) simply draw the same both ways.
  */
-export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, view = "front" }) {
+export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, model = "masc", view = "front" }) {
   const entry = GARMENT_REGISTRY[kind];
   if (!entry) return null;
   // waistY arrives from the body's own metrics (the torso is user-tunable
   // now); the WAIST_DROP default keeps previews and tests that don't pass
   // one on the classic figure.
-  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit };
+  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit, model };
   ctx.shell = shellFor(ctx);
   const drawFn = viewDraw(entry, view);
   return drawFn ? drawFn(ctx) : null;

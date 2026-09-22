@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MonitorCog, Palette, SunMedium, Waves, Wind } from "lucide-react";
+import { EyeOff, MonitorCog, Music2, Palette, SunMedium, Waves, Wind } from "lucide-react";
 import { useStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 
@@ -9,8 +9,36 @@ const MOTION_OPTIONS = [
   { key: "reduced", label: "Reduced", Icon: Waves },
 ];
 
+// Matches store.jsx's DEFAULT_HUD_VISIBILITY keys — a mismatched key here
+// would silently no-op the button (setHudVisibility guards against unknown
+// keys) instead of throwing, so keep the two lists in sync by hand.
+const HUD_ELEMENTS = [
+  { key: "timer", label: "Session & timer" },
+  { key: "tasks", label: "To-do list" },
+  { key: "music", label: "Music bar" },
+  { key: "clock", label: "Clock" },
+  { key: "chat", label: "Chat unread badges" },
+];
+const VIS_OPTIONS = [
+  { key: "on", label: "Show" },
+  { key: "faded", label: "Dim" },
+  { key: "hidden", label: "Hide" },
+];
+
+const HUD_PRESETS = [
+  { key: "on", label: "Show all" },
+  { key: "faded", label: "Dim all" },
+  { key: "hidden", label: "Hide all" },
+];
+
 // One-tap starting points for the custom scheme.
 const QUICK_HUES = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"];
+
+// Backdrop hues for the custom scheme — only hue/saturation are used (the
+// dark stops keep their fixed lightness, which is the legibility guarantee),
+// so these chips are shown at a mid lightness the backdrop never actually
+// reaches. First entry is "follow the accent", the classic behaviour.
+const SURFACE_HUES = ["#6b5544", "#5d7290", "#5d7a62", "#7a5875", "#8a8494", "#8a4a4a"];
 
 // The base colour's lightness is ignored by derivePalette (only hue +
 // saturation matter), so slider edits write back at a fixed mid lightness.
@@ -56,8 +84,15 @@ export default function SettingsPanel() {
     setColorScheme,
     customColor,
     setCustomColor,
+    customSurface,
+    setCustomSurface,
     motionMode,
     setMotionMode,
+    hudVisibility,
+    setHudVisibility,
+    setAllHudVisibility,
+    autoResumeMusic,
+    setAutoResumeMusic,
   } = useStore();
 
   const customSwatch = paletteSwatch(customColor);
@@ -91,6 +126,7 @@ export default function SettingsPanel() {
             step="0.05"
             value={brightness}
             onChange={(e) => setBrightness(Number(e.target.value))}
+            aria-label="Scene brightness"
             className="flex-1 accent-glow"
           />
           <span className="text-xs text-petal/60">bright</span>
@@ -125,6 +161,99 @@ export default function SettingsPanel() {
               <m.Icon size={13} /> {m.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Each element keeps working underneath — the timer keeps ticking,
+          music keeps playing — this only ever touches how much of it you
+          SEE. "Faded" stays clickable; "Hidden" drops out of hit-testing too
+          (see App.jsx's hudWrapClass). */}
+      <section className="space-y-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <EyeOff size={15} className="text-petal/70" /> HUD elements
+        </p>
+        <p className="text-xs text-petal/60">
+          Quiet the scene without stopping timers, music, or notifications.
+        </p>
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1" role="group" aria-label="All HUD elements">
+          {HUD_PRESETS.map((preset) => {
+            const selected = Object.values(hudVisibility).every((mode) => mode === preset.key);
+            return (
+              <button
+                key={preset.key}
+                onClick={() => setAllHudVisibility(preset.key)}
+                aria-pressed={selected}
+                className={`pill px-2 py-1.5 text-[11px] font-semibold transition ${
+                  selected
+                    ? "bg-glow text-plum"
+                    : "text-petal/80 hover:bg-white/10 hover:text-cream"
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="space-y-2 pt-1">
+          {HUD_ELEMENTS.map((el) => (
+            <div key={el.key} className="flex items-center justify-between gap-2">
+              <span className="text-xs text-petal/80">{el.label}</span>
+              <div
+                className="grid w-36 grid-cols-3 gap-0.5 rounded-full bg-white/5 p-0.5"
+                role="group"
+                aria-label={`${el.label} visibility`}
+              >
+                {VIS_OPTIONS.map((v) => (
+                  <button
+                    key={v.key}
+                    onClick={() => setHudVisibility(el.key, v.key)}
+                    aria-pressed={hudVisibility[el.key] === v.key}
+                    className={`pill px-2 py-1 text-[10px] font-semibold transition ${
+                      hudVisibility[el.key] === v.key
+                        ? "bg-glow text-plum"
+                        : "text-petal/70 hover:bg-white/10 hover:text-cream"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="rounded-lg bg-white/5 px-2.5 py-2 text-[11px] leading-relaxed text-petal/60">
+          Hidden HUDs keep running. Open Settings from the left dock whenever you want them back.
+        </p>
+      </section>
+
+      <hr className="border-white/10" />
+
+      {/* Off means off, every time — even a session that ended mid-song boots
+          silent (store.jsx's musicOn init + MusicDock's BOOTED_WITH_MUSIC_ON
+          both gate on this same setting, so they can't disagree). */}
+      <section className="space-y-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
+          <Music2 size={15} className="text-petal/70" /> Music on startup
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-petal/60">
+            {autoResumeMusic
+              ? "Resumes where you left off if music was playing when you last closed TaskNook."
+              : "Always starts silent — press play yourself each time."}
+          </p>
+          <button
+            onClick={() => setAutoResumeMusic(!autoResumeMusic)}
+            aria-pressed={autoResumeMusic}
+            className={`pill shrink-0 px-3 py-1.5 text-[10px] font-semibold transition ${
+              autoResumeMusic
+                ? "bg-glow text-plum"
+                : "bg-white/10 text-petal hover:bg-white/20"
+            }`}
+          >
+            {autoResumeMusic ? "On" : "Off"}
+          </button>
         </div>
       </section>
 
@@ -245,6 +374,37 @@ export default function SettingsPanel() {
                   title={hex}
                   className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
                     customColor === hex ? "border-glow" : "border-white/25"
+                  }`}
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+
+            {/* The backdrop can carry its OWN hue — teal accent on warm brown
+                surfaces. Lightness is still the fixed dark ramp, so no pick
+                here can wash the text out. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
+                Backdrop
+              </span>
+              <button
+                onClick={() => setCustomSurface(null)}
+                className={`pill px-2 py-0.5 text-[10px] transition ${
+                  customSurface === null
+                    ? "bg-glow text-plum"
+                    : "bg-white/10 text-petal hover:bg-white/20"
+                }`}
+              >
+                Match accent
+              </button>
+              {SURFACE_HUES.map((hex) => (
+                <button
+                  key={hex}
+                  onClick={() => setCustomSurface(hex)}
+                  title={hex}
+                  aria-label={`Backdrop colour ${hex}`}
+                  className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
+                    customSurface === hex ? "border-glow" : "border-white/25"
                   }`}
                   style={{ backgroundColor: hex }}
                 />

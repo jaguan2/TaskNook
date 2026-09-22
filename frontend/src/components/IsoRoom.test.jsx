@@ -3,10 +3,11 @@
 // tags. Nothing else renders IsoRoom in tests, so before this existed a
 // throw in the personas/label layer would have shipped uncaught — the scene
 // ErrorBoundary's fallback would be the first anyone heard of it.
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
-import { resolveVisitRoom } from "../lib/visiting";
+import { WALL_H } from "../lib/iso";
+import { npcActivity, resolveVisitRoom } from "../lib/visiting";
 import { validateCharacter } from "../lib/profile";
 
 afterEach(cleanup);
@@ -18,6 +19,26 @@ const grabCursors = (container) =>
   [...container.querySelectorAll("g")].filter((g) => g.style && g.style.cursor === "grab");
 
 describe("IsoRoom while visiting", () => {
+  it("lets the host take a break while the guest's real timer is focusing", () => {
+    let now = new Date(2026, 8, 10, 12).getTime();
+    while (npcActivity("luna", now).state !== "break") now += 60_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const { layout, personas, guestId } = resolveVisitRoom(
+        { id: 1, username: "luna", displayName: "Luna", room: null, character: null },
+        { character: validateCharacter(null), name: "You" }
+      );
+      const { container } = render(<IsoRoom size={layout} placements={layout.placements}
+        personas={personas} activity="focus" saveView={false} reduceMotion />);
+      const host = container.querySelector('[data-placement-id="visit-owner-1"]');
+      const guest = container.querySelector(`[data-placement-id="${guestId}"]`);
+      expect(host.querySelector(".break-stretch")).toBeTruthy();
+      expect(host.querySelector(".resident-type")).toBeNull();
+      expect(guest.querySelector(".resident-type")).toBeTruthy();
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it("renders a visited room with both name tags and no self bubble", () => {
     const { layout, personas } = resolveVisitRoom(
       { id: 1, username: "luna", displayName: "Luna", room: null, character: null },
@@ -71,6 +92,197 @@ describe("IsoRoom while visiting", () => {
       />
     );
     expect(grabCursors(container).length).toBe(1);
+  });
+});
+
+describe("powered room decorations", () => {
+  const SIZE = { w: 6, d: 6 };
+  const LIGHTS = [{ id: "fairy", item: "fairylights", gx: 0, gy: 2 }];
+
+  it("toggles fairy lights on a stationary release outside Decorate mode", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom size={SIZE} placements={LIGHTS} saveView={false} onToggleItem={onToggleItem} />
+    );
+
+    const lights = container.querySelector('[data-placement-id="fairy"]');
+    expect(lights.style.cursor).toBe("pointer");
+    fireEvent.pointerDown(lights, { pointerId: 1, clientX: 100, clientY: 100 });
+    expect(onToggleItem).not.toHaveBeenCalled();
+    fireEvent.pointerUp(container.querySelector("svg"), {
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    });
+    expect(onToggleItem).toHaveBeenCalledWith("fairy");
+  });
+
+  it("pans from fairy lights without toggling them", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom size={SIZE} placements={LIGHTS} saveView={false} onToggleItem={onToggleItem} />
+    );
+    const svg = container.querySelector("svg");
+    svg.getBoundingClientRect = () => ({ width: 1000, height: 500 });
+    svg.setPointerCapture = vi.fn();
+
+    fireEvent.pointerDown(container.querySelector('[data-placement-id="fairy"]'), {
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    fireEvent.pointerUp(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+
+    expect(onToggleItem).not.toHaveBeenCalled();
+    expect(svg.getAttribute("viewBox")).toBe("-64 -48 640 480");
+  });
+
+  it("removes the room light pool while switched off", () => {
+    const props = { size: SIZE, saveView: false, timeOfDay: "night" };
+    const { container, rerender } = render(<IsoRoom {...props} placements={LIGHTS} />);
+    expect(container.querySelector('[data-item-glow="fairy"]')).toBeTruthy();
+
+    rerender(<IsoRoom {...props} placements={[{ ...LIGHTS[0], off: true }]} />);
+    expect(container.querySelector('[data-item-glow="fairy"]')).toBeNull();
+  });
+
+  it("offers a power button on the selected decoration in Decorate mode", () => {
+    const onToggleItem = vi.fn();
+    const { container } = render(
+      <IsoRoom
+        size={SIZE}
+        placements={LIGHTS}
+        editMode
+        saveView={false}
+        onToggleItem={onToggleItem}
+      />
+    );
+
+    container.querySelector("svg").getScreenCTM = () => null;
+    fireEvent.pointerDown(container.querySelector('[data-placement-id="fairy"]'));
+    const power = container.querySelector('[data-power-toggle="fairy"]');
+    expect(power).toBeTruthy();
+    fireEvent.pointerDown(power);
+    expect(onToggleItem).toHaveBeenCalledWith("fairy");
+  });
+});
+
+describe("camera panning", () => {
+  it("composites one translated layer during the gesture and commits viewBox on release", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 9, d: 7 }} placements={[]} saveView={false} />
+    );
+    const svg = container.querySelector("svg");
+    const layer = container.querySelector('[data-pan-layer="true"]');
+    svg.getBoundingClientRect = () => ({ width: 1000, height: 500 });
+    svg.setPointerCapture = vi.fn();
+    const before = svg.getAttribute("viewBox");
+
+    fireEvent.pointerDown(svg, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    expect(svg.getAttribute("viewBox")).toBe(before);
+    expect(layer.getAttribute("transform")).toBe("translate(64 48)");
+
+    fireEvent.pointerUp(svg, { pointerId: 1, clientX: 200, clientY: 150 });
+    expect(layer.hasAttribute("transform")).toBe(false);
+    expect(svg.getAttribute("viewBox")).toBe("-64 -48 640 480");
+  });
+});
+
+describe("IsoRoom interior architecture", () => {
+  it("layers a soft glow behind a full-height room window", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 6, d: 6, env: "room", walls: "full" }} placements={[]} saveView={false} />
+    );
+
+    const glow = container.querySelector('[data-window-glow="true"]');
+    expect(glow).toBeTruthy();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-window-pane-light="true"] polygon')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-window-mullion-shadow="true"] polygon')).toHaveLength(2);
+    const wallY = glow
+      .getAttribute("points")
+      .trim()
+      .split(/\s+/)
+      .map((point) => Number(point.split(",")[1]));
+    expect(Math.min(...wallY)).toBeGreaterThanOrEqual(-WALL_H);
+  });
+
+  it("does not leave window light floating in an open room", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{ w: 6, d: 6, env: "room", walls: "none" }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+
+    expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-pane-light="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-mullion-shadow="true"]')).toBeNull();
+  });
+
+  it("does not draw a window past the end of an asymmetric wall run", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{
+          w: 6,
+          d: 6,
+          env: "room",
+          walls: "full",
+          mask: ["111111", "111111", "111111", "011111", "011111", "011111"],
+        }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+
+    expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
+    expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+  });
+
+  it("makes window light stronger by day than at night", () => {
+    const props = {
+      size: { w: 6, d: 6, env: "room", walls: "full" },
+      placements: [],
+      saveView: false,
+    };
+    const { container, rerender } = render(<IsoRoom {...props} timeOfDay="night" />);
+    const night = Number(
+      container.querySelector('[data-window-floor-light="true"] polygon').getAttribute("opacity"),
+    );
+    rerender(<IsoRoom {...props} timeOfDay="day" />);
+    const day = Number(
+      container.querySelector('[data-window-floor-light="true"] polygon').getAttribute("opacity"),
+    );
+
+    expect(day).toBeGreaterThan(night);
+  });
+
+  it("batches a maximum-size board floor into a bounded number of SVG nodes", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 48, d: 48, env: "room" }} placements={[]} saveView={false} />
+    );
+    const surface = container.querySelector('[data-floor-surface="boards"]');
+
+    expect(surface).toBeTruthy();
+    expect(surface.children.length).toBeLessThanOrEqual(50);
+    expect(surface.querySelectorAll("path")).toHaveLength(2);
+  });
+
+  it("renders a drawn divider at the exterior roof height", () => {
+    const { container } = render(
+      <IsoRoom
+        size={{ w: 5, d: 4, partitions: ["gy:2:1", "gy:2:2"] }}
+        placements={[]}
+        saveView={false}
+      />
+    );
+    const wall = container.querySelector('[data-partition-style="wall"]');
+
+    expect(Number(wall.dataset.wallHeight)).toBe(WALL_H);
   });
 });
 

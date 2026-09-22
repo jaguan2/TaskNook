@@ -15,7 +15,7 @@
  * Everything here is a pure function so it can be tested in the fast `node`
  * environment; nothing touches the DOM, the store, or `localStorage`.
  */
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, TORSO_RANGE, LEG_H, TORSO_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, SHOULDER_RANGE, DEFAULT_SHOULDER, HEIGHT_RANGE, TORSO_RANGE, LEG_H, TORSO_H } from "./body";
 
 // --------------------------------------------------------------------------- //
 // MBTI
@@ -231,6 +231,23 @@ export const SCARF_COLORS = [
 ];
 
 /**
+ * Glasses — the third accessory slot (artwork in character/glasses.jsx, same
+ * both-ways key contract as hats and scarves). They live on the FACE, so one
+ * entry reads in front and profile alike, under every hat and over every
+ * hairstyle. Deliberately NO colour option: frames are a fixed dark neutral
+ * the way shoe soles are fixed rubber — at ~1px of frame a sixth hex channel
+ * buys nothing you can see, and a fixed anchor reads as designed.
+ */
+export const GLASSES = [
+  { key: "none", label: "None" },
+  { key: "round", label: "Round" },
+  { key: "square", label: "Square" },
+  // Half-moons sit low on the nose with the top rim open — the one pair the
+  // character looks OVER rather than through.
+  { key: "halfmoon", label: "Half-moon" },
+];
+
+/**
  * The wardrobe. `outfit` was a lone hex for years, so every resident in the app
  * wore the same sweater in a different colour — nine hairstyles against one
  * garment.
@@ -248,6 +265,11 @@ export const SCARF_COLORS = [
 export const OUTFITS = [
   { key: "sweater", label: "Sweater" },
   { key: "tee", label: "T-shirt", sleeves: "short" },
+  // One picker choice, two authored cuts: the masc model wears a surf top,
+  // while the fem model gets a one-piece neckline and dropped hip panel.
+  // The registry receives `model` so this remains presentation rather than
+  // a gender-locked wardrobe rule.
+  { key: "swim", label: "Swimwear", sleeves: "short" },
   // Button-up: collar wings + placket + buttons — the neck-and-centre marks
   // are what separate a shirt from a tee at this size.
   { key: "shirt", label: "Button-up" },
@@ -420,10 +442,12 @@ export const DEFAULT_CHARACTER = {
   hat: "none",
   scarf: "none",
   scarfColor: "#8e3a3f",
+  glasses: "none",
   print: "none",
   expression: "calm",
   build: "average",
   width: BUILD_SHAPE.average.halfW,
+  shoulders: DEFAULT_SHOULDER,
   height: LEG_H,
   torso: TORSO_H,
 };
@@ -432,6 +456,7 @@ const MODEL_KEYS = new Set(MODELS.map((m) => m.key));
 const HAIR_KEYS = new Set(HAIR_STYLES.map((h) => h.key));
 const HAT_KEYS = new Set(HATS.map((h) => h.key));
 const SCARF_KEYS = new Set(SCARVES.map((s) => s.key));
+const GLASSES_KEYS = new Set(GLASSES.map((g) => g.key));
 const PATTERN_KEYS = new Set(PATTERNS.map((p) => p.key));
 const GARMENT_KEYS = new Set(OUTFITS.map((o) => o.key));
 const COAT_KEYS = new Set(COATS.map((c) => c.key));
@@ -517,6 +542,7 @@ export function validateCharacter(raw) {
     hat: pickKey(c.hat, HAT_KEYS, DEFAULT_CHARACTER.hat),
     scarf: pickKey(c.scarf, SCARF_KEYS, DEFAULT_CHARACTER.scarf),
     scarfColor: pickHex(c.scarfColor, DEFAULT_CHARACTER.scarfColor),
+    glasses: pickKey(c.glasses, GLASSES_KEYS, DEFAULT_CHARACTER.glasses),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
     build,
@@ -524,6 +550,7 @@ export function validateCharacter(raw) {
     // save that chose "slim" keeps its silhouette instead of snapping to
     // average the first time it round-trips through here.
     width: pickNum(c.width, WIDTH_RANGE, BUILD_SHAPE[build].halfW),
+    shoulders: pickNum(c.shoulders, SHOULDER_RANGE, DEFAULT_SHOULDER),
     height: pickNum(c.height, HEIGHT_RANGE, LEG_H),
     // Legs and torso are separate axes; pre-split saves had no torso and
     // keep the classic one.

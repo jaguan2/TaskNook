@@ -17,6 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     AVATAR_MAX,
     CHAT_TITLE_MAX,
+    CalendarEvent,
     Conversation,
     ConversationMember,
     DISPLAY_NAME_MAX,
@@ -260,6 +261,24 @@ def clean_date(value):
     return head
 
 
+def clean_time(value):
+    """A local HH:MM time, or None — appointments are not UTC timestamps."""
+    if not isinstance(value, str) or len(value) != 5:
+        return None
+    try:
+        time.fromisoformat(value)
+    except ValueError:
+        return None
+    return value
+
+
+def clean_day(value):
+    """An exact YYYY-MM-DD query value (timestamps are not query days)."""
+    if not isinstance(value, str) or len(value) != 10:
+        return None
+    return clean_date(value)
+
+
 def clean_int(value, lo, hi, default=None):
     """A storable integer inside [lo, hi], or `default` for anything else.
 
@@ -362,7 +381,7 @@ PET_TEMPERS = ("mellow", "curious", "sleepy")
 
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
-VISIT_ACCESS_LEVELS = ("public", "friends", "invite", "private")
+VISIT_ACCESS_LEVELS = ("open", "friends", "invite", "private")
 
 
 def _hex_color(v):
@@ -472,6 +491,8 @@ def register_routes(app):
         today = date.today()
         changed = False
         for t in tasks:
+            if t.archived_at:
+                continue
             if t.is_routine and t.completed and t.completed_at:
                 done_at = t.completed_at
                 if done_at.tzinfo is None:
@@ -592,6 +613,90 @@ def register_routes(app):
         db.session.commit()
         return jsonify({"ok": True})
 
+    @app.post("/api/tasks/<int:task_id>/archive")
+    @require_auth
+    def archive_task(user, task_id):
+        task = Task.query.filter_by(id=task_id, user_id=user.id).first()
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+        if not task.completed:
+            return jsonify({"error": "Only completed tasks can be archived"}), 400
+        if task.is_routine:
+            return jsonify({"error": "Daily routines cannot be archived"}), 400
+        if not task.archived_at:
+            task.archived_at = utcnow()
+            db.session.commit()
+        return jsonify(task.to_dict())
+
+    @app.get("/api/events")
+    @require_auth
+    def list_events(user):
+        events = CalendarEvent.query.filter_by(user_id=user.id).order_by(
+            CalendarEvent.event_date.asc(), CalendarEvent.start_time.asc()
+        ).all()
+        return jsonify([event.to_dict() for event in events])
+
+    @app.post("/api/events")
+    @require_auth
+    def create_event(user):
+        data = json_body()
+        title = clean_str(data.get("title"), TASK_NAME_MAX)
+        event_date = clean_date(data.get("date"))
+        start_time = clean_time(data.get("startTime"))
+        if not title or not event_date or not start_time:
+            return jsonify({"error": "Event title, date, and start time are required"}), 400
+        event = CalendarEvent(
+            user_id=user.id,
+            title=title,
+            event_date=event_date,
+            start_time=start_time,
+            duration=clean_int(data.get("duration"), 1, 24 * 60, 60),
+            notes=clean_str(data.get("notes"), TASK_NOTES_MAX) or None,
+        )
+        db.session.add(event)
+        db.session.commit()
+        return jsonify(event.to_dict()), 201
+
+    @app.delete("/api/events/<int:event_id>")
+    @require_auth
+    def delete_event(user, event_id):
+        event = CalendarEvent.query.filter_by(id=event_id, user_id=user.id).first()
+        if not event:
+            return jsonify({"error": "Event not found"}), 404
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.put("/api/tasks/group")
+    @require_auth
+    def rename_task_group(user):
+        """Rename one user's task group atomically.
+
+        The client used to issue one PUT per task. A network failure halfway
+        through split a single group into two names, which is worse than a
+        refused rename. One SQL UPDATE makes the operation all-or-nothing.
+        Empty group headings remain client-side and never call this route.
+        """
+        data = json_body()
+        next_raw = data.get("nextName")
+        if "nextName" not in data or not isinstance(data.get("name"), str) or not (
+            next_raw is None or isinstance(next_raw, str)
+        ):
+            return jsonify({"error": "Group names are required"}), 400
+        name = clean_str(data["name"], GROUP_NAME_MAX)
+        next_name = clean_str(next_raw, GROUP_NAME_MAX) if next_raw is not None else None
+        if not name or next_name == "" or name == next_name:
+            return jsonify({"error": "Two different group names are required"}), 400
+        if next_name and Task.query.filter_by(user_id=user.id, group_name=next_name).first():
+            return jsonify({"error": "That task group already exists"}), 409
+        updated = Task.query.filter_by(user_id=user.id, group_name=name).update(
+            {"group_name": next_name}, synchronize_session=False
+        )
+        if not updated:
+            return jsonify({"error": "Task group not found"}), 404
+        db.session.commit()
+        return jsonify({"updated": updated, "name": next_name})
+
     @app.put("/api/tasks/reorder")
     @require_auth
     def reorder_tasks(user):
@@ -605,23 +710,28 @@ def register_routes(app):
         # Bounded, not merely type-checked: a huge int passes `isinstance(t, int)`
         # and then raises OverflowError inside `Task.id.in_(ids)`. This is the
         # fourth site of the same bug and the one with no test covering it.
-        ids = [
-            v
-            for v in (
-                clean_int(t, 1, 2**53)
-                for t in order
-                if isinstance(t, int) and not isinstance(t, bool)
-            )
-            if v is not None
-        ]
-        tasks = {
-            t.id: t
-            for t in Task.query.filter(Task.user_id == user.id, Task.id.in_(ids)).all()
-        }
-        for index, task_id in enumerate(ids):
-            task = tasks.get(task_id)
-            if task:
-                task.position = index
+        ids = []
+        seen = set()
+        for raw in order:
+            task_id = clean_id(raw)
+            if task_id is not None and task_id not in seen:
+                seen.add(task_id)
+                ids.append(task_id)
+
+        # A partial or duplicate client list must still leave one dense,
+        # deterministic ordering. Previously omitted tasks kept their old
+        # positions and duplicate ids created gaps/collisions, so later reads
+        # could interleave rows unpredictably.
+        all_tasks = (
+            Task.query.filter_by(user_id=user.id)
+            .order_by(Task.position, Task.id)
+            .all()
+        )
+        by_id = {task.id: task for task in all_tasks}
+        reordered = [by_id[task_id] for task_id in ids if task_id in by_id]
+        reordered.extend(task for task in all_tasks if task.id not in seen)
+        for index, task in enumerate(reordered):
+            task.position = index
         db.session.commit()
         return jsonify({"ok": True})
 
@@ -680,7 +790,7 @@ def register_routes(app):
         /sessions/days because that one is fetched wholesale on every refresh and
         paints a whole month; names are wanted for exactly one day at a time.
         """
-        day = clean_date(request.args.get("day"))
+        day = clean_day(request.args.get("day"))
         if not day:
             return jsonify({"error": "day must be YYYY-MM-DD"}), 400
         rows = (
@@ -797,6 +907,15 @@ def register_routes(app):
                 if look not in PET_LOOKS:
                     return None, False
                 entry["look"] = look
+            # Optional powered-state marker. The frontend only retains it for
+            # toggleable catalog pieces; the backend stays catalog-agnostic and
+            # merely guarantees that the stored shape is a real boolean.
+            off = p.get("off")
+            if off is not None:
+                if not isinstance(off, bool):
+                    return None, False
+                if off:
+                    entry["off"] = True
             clean.append(entry)
         return clean, True
 
@@ -822,6 +941,18 @@ def register_routes(app):
             if not iso_ok:
                 return jsonify({"error": "Invalid room layout"}), 400
             stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
+            # Frontend layout migrations use this small JSON version to make
+            # one-time geometry repairs without continually overriding later
+            # user choices. It is metadata, not a database-schema version.
+            version = iso.get("version")
+            if version is not None:
+                if not (
+                    isinstance(version, int)
+                    and not isinstance(version, bool)
+                    and 1 <= version <= 64
+                ):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["version"] = version
             env = iso.get("env")
             if env is not None:
                 if env not in ISO_ENVS:
@@ -832,6 +963,22 @@ def register_routes(app):
                 if walls not in ISO_WALLS:
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["walls"] = walls
+            wall_colors = iso.get("wallColors")
+            if wall_colors is not None:
+                if not isinstance(wall_colors, dict) or set(wall_colors) - {"left", "right"}:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                clean_wall_colors = {}
+                for side, color in wall_colors.items():
+                    if not _hex_color(color):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    clean_wall_colors[side] = color
+                if clean_wall_colors:
+                    stored["iso"]["wallColors"] = clean_wall_colors
+            lighting = iso.get("lighting")
+            if lighting is not None:
+                if lighting not in ("natural", "golden", "candle", "moonlit"):
+                    return jsonify({"error": "Invalid room layout"}), 400
+                stored["iso"]["lighting"] = lighting
             # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
             # at least one floor tile.
             mask = iso.get("mask")
@@ -847,6 +994,52 @@ def register_routes(app):
                 ):
                     return jsonify({"error": "Invalid room layout"}), 400
                 stored["iso"]["mask"] = mask
+            # User-drawn interior wall units and passable arch spans share the
+            # same compact edge grammar. The frontend additionally drops edges
+            # that no longer have floor on both sides after a reshape; the API
+            # pins their representation and room bounds. An arch wins if a
+            # hand-edited client names the same edge in both collections.
+            for field in ("partitions", "arches"):
+                edges = iso.get(field)
+                if edges is None:
+                    continue
+                if not isinstance(edges, list) or len(edges) > 2 * w * depth:
+                    return jsonify({"error": "Invalid room layout"}), 400
+                clean_edges = []
+                seen_edges = set()
+                for key in edges:
+                    if not isinstance(key, str):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    parts = key.split(":")
+                    if len(parts) != 3 or parts[0] not in ("gx", "gy"):
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    try:
+                        at, start = int(parts[1]), int(parts[2])
+                    except ValueError:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    canonical = f"{parts[0]}:{at}:{start}"
+                    if canonical != key:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    valid = (
+                        0 < at < (depth if parts[0] == "gy" else w)
+                        and 0 <= start < (w if parts[0] == "gy" else depth)
+                    )
+                    if not valid:
+                        return jsonify({"error": "Invalid room layout"}), 400
+                    if canonical not in seen_edges:
+                        seen_edges.add(canonical)
+                        clean_edges.append(canonical)
+                if clean_edges:
+                    stored["iso"][field] = sorted(clean_edges)
+            if "arches" in stored["iso"] and "partitions" in stored["iso"]:
+                arch_edges = set(stored["iso"]["arches"])
+                solid_edges = [
+                    key for key in stored["iso"]["partitions"] if key not in arch_edges
+                ]
+                if solid_edges:
+                    stored["iso"]["partitions"] = solid_edges
+                else:
+                    stored["iso"].pop("partitions")
             # Optional corner cuts (irregular floors). The frontend owns the
             # geometry rules; here we only pin the shape and sizes.
             cuts = iso.get("cuts")
@@ -1049,7 +1242,7 @@ def register_routes(app):
     @app.get("/api/friends/<int:friend_id>/room")
     @require_auth
     def friend_room(user, friend_id):
-        """A friend's room, character and door setting — for VISITING.
+        """A friend's room, character and access setting — for VISITING.
 
         Friend-gated (a stranger gets a 404), but deliberately NOT gated on
         `visit_access`: TaskNook is a single-user local app, the "friends"
@@ -1085,7 +1278,7 @@ def register_routes(app):
     @app.put("/api/visit-access")
     @require_auth
     def set_visit_access(user):
-        """Your own door setting. A whitelist, not free text — the value is
+        """Your room's visit setting. A whitelist, not free text — the value is
         an access rule, and an unknown level must fail loudly rather than be
         stored as a string nothing will ever match."""
         data = json_body()
@@ -1139,9 +1332,9 @@ def register_routes(app):
     def list_chats(user):
         """Every thread the viewer is in, newest activity first.
 
-        Three grouped queries rather than per-thread lookups — the same lesson
-        `/api/friends` already learned, and a chat list is the screen most
-        likely to grow.
+        A fixed number of grouped queries rather than per-thread lookups.
+        Only the latest message per thread is materialized; unread counts
+        belong in SQL, not a Python loop over the entire chat history.
         """
         rows = (
             db.session.query(Conversation, ConversationMember.last_read_at)
@@ -1150,7 +1343,6 @@ def register_routes(app):
             .all()
         )
         chats = [row[0] for row in rows]
-        read_at = {row[0].id: row[1] for row in rows}
         ids = [c.id for c in chats]
 
         members_by_chat = {}
@@ -1166,19 +1358,38 @@ def register_routes(app):
         last_by_chat = {}
         unread_by_chat = {}
         if ids:
+            ranked = (
+                db.session.query(
+                    Message.id.label("message_id"),
+                    db.func.row_number().over(
+                        partition_by=Message.conversation_id,
+                        order_by=(Message.created_at.desc(), Message.id.desc()),
+                    ).label("rank"),
+                )
+                .filter(Message.conversation_id.in_(ids))
+                .subquery()
+            )
             for msg in (
-                Message.query.filter(Message.conversation_id.in_(ids))
-                .order_by(Message.created_at, Message.id)
+                Message.query.join(ranked, Message.id == ranked.c.message_id)
+                .filter(ranked.c.rank == 1)
                 .all()
             ):
                 last_by_chat[msg.conversation_id] = msg
-                seen = read_at.get(msg.conversation_id)
-                # Your own lines are never unread, and a thread you have never
-                # opened counts everything but yourself.
-                if msg.sender_id != user.id and (seen is None or msg.created_at > seen):
-                    unread_by_chat[msg.conversation_id] = (
-                        unread_by_chat.get(msg.conversation_id, 0) + 1
-                    )
+            unread_by_chat = dict(
+                db.session.query(Message.conversation_id, db.func.count(Message.id))
+                .join(ConversationMember, db.and_(
+                    ConversationMember.conversation_id == Message.conversation_id,
+                    ConversationMember.user_id == user.id,
+                ))
+                .filter(
+                    Message.conversation_id.in_(ids),
+                    Message.sender_id != user.id,
+                    db.or_(ConversationMember.last_read_at.is_(None),
+                           Message.created_at > ConversationMember.last_read_at),
+                )
+                .group_by(Message.conversation_id)
+                .all()
+            )
 
         payload = [
             _chat_payload(c, user.id, members_by_chat, last_by_chat, unread_by_chat)
@@ -1253,14 +1464,20 @@ def register_routes(app):
 
     def _one_chat(chat, viewer):
         members = [m.user for m in chat.members]
-        last = chat.messages.order_by(Message.created_at.desc(), Message.id.desc()).first()
+        # Clear the relationship's default ascending order before asking for
+        # the newest line; Query.order_by otherwise APPENDS its arguments.
+        last = chat.messages.order_by(None).order_by(Message.created_at.desc(), Message.id.desc()).first()
+        membership = _membership(viewer, chat.id)
+        unread = chat.messages.filter(Message.sender_id != viewer.id)
+        if membership.last_read_at is not None:
+            unread = unread.filter(Message.created_at > membership.last_read_at)
         return {
             "id": chat.id,
             "title": chat.title,
             "isGroup": chat.is_group,
             "members": [m.public_dict() for m in members],
             "lastMessage": last.to_dict() if last else None,
-            "unread": 0,
+            "unread": unread.count(),
             "createdAt": _utc_iso(chat.created_at),
         }
 
@@ -1270,8 +1487,27 @@ def register_routes(app):
         if not _membership(user, chat_id):
             return jsonify({"error": "Not found"}), 404
         limit = clean_int(request.args.get("limit"), 1, 500, 200)
+        query = Message.query.filter_by(conversation_id=chat_id)
+        if "before" in request.args:
+            raw_before = request.args["before"]
+            # Query parameters are strings, unlike the JSON ids clean_id
+            # deliberately accepts. Validate before converting; never clamp.
+            before_id = clean_id(int(raw_before)) if (
+                raw_before.isascii() and raw_before.isdecimal() and len(raw_before) <= 10
+            ) else None
+            if before_id is None:
+                return jsonify({"error": "before must be a message id"}), 400
+            cursor = query.filter_by(id=before_id).first()
+            if cursor is None:
+                return jsonify({"error": "Not found"}), 404
+            # IDs break timestamp ties. The cursor belongs to THIS thread;
+            # neither another thread's timestamps nor offset shifts leak in.
+            query = query.filter(db.or_(
+                Message.created_at < cursor.created_at,
+                db.and_(Message.created_at == cursor.created_at, Message.id < cursor.id),
+            ))
         rows = (
-            Message.query.filter_by(conversation_id=chat_id)
+            query
             .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(limit)
             .all()
@@ -1393,7 +1629,7 @@ def build_stats_for(user_ids):
                 0,
             ),
         )
-        .filter(Task.user_id.in_(ids))
+        .filter(Task.user_id.in_(ids), Task.archived_at.is_(None))
         .group_by(Task.user_id)
         .all()
     )
@@ -1436,10 +1672,10 @@ def build_stats(user):
     one real N+1.
     """
     today = today_str()
-    total = db.session.query(db.func.count(Task.id)).filter_by(user_id=user.id).scalar() or 0
+    total = db.session.query(db.func.count(Task.id)).filter(Task.user_id == user.id, Task.archived_at.is_(None)).scalar() or 0
     done = (
         db.session.query(db.func.count(Task.id))
-        .filter_by(user_id=user.id, completed=True)
+        .filter(Task.user_id == user.id, Task.completed.is_(True), Task.archived_at.is_(None))
         .scalar()
         or 0
     )
@@ -1521,10 +1757,10 @@ def befriend_demo_users(user):
     db.session.commit()
 
 
-# One of each door state, so every visit flow in the UI exists on day one:
-# luna's door is open, kai is friends-only (the default), sora makes you
-# knock, and mochi's room is private.
-DEMO_VISIT_ACCESS = {"luna": "public", "kai": "friends", "sora": "invite", "mochi": "private"}
+# One of each access state, so every visit flow in the UI exists on day one:
+# Luna's room is open, Kai's is friends-only (the default), Sora asks visitors
+# to knock, and Mochi's room is private.
+DEMO_VISIT_ACCESS = {"luna": "open", "kai": "friends", "sora": "invite", "mochi": "private"}
 
 
 def seed_demo_data():

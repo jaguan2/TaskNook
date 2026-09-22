@@ -16,6 +16,7 @@ import {
   findFreeSpot,
   footOf,
   footprintFree,
+  freeSeatSpot,
   isoPresetLayout,
   validateIsoLayout,
 } from "./isoRoom";
@@ -32,7 +33,7 @@ import { WIDTH_RANGE, HEIGHT_RANGE } from "./body";
 // in app.py — same both-languages contract as ISO_ENVS); labels and hints
 // are UI text this file owns.
 export const VISIT_ACCESS = [
-  { key: "public", label: "Public", hint: "anyone may drop in" },
+  { key: "open", label: "Open", hint: "friends and neighbours may drop in" },
   { key: "friends", label: "Friends-only", hint: "friends may drop in" },
   { key: "invite", label: "Invite-only", hint: "visitors knock first" },
   { key: "private", label: "Private", hint: "nobody visits" },
@@ -40,7 +41,7 @@ export const VISIT_ACCESS = [
 
 // How long a knock hangs in the air before an invite-only bot opens the
 // door. The WAIT is the feature — instant entry would make "invite-only"
-// indistinguishable from "public".
+// indistinguishable from "open".
 export const KNOCK_WAIT_MS = 2600;
 
 // Hand-picked homes for the seeded bots — personality over hash: luna the
@@ -59,7 +60,7 @@ const NPC_HOMES = {
 // checked by visiting.test.js against the real presets, and findFreeSpot
 // is the net if a preset ever shifts underneath one.
 const NPC_SPOTS = {
-  luna: { gx: 4, gy: 1.5 },
+  luna: { gx: 1.5, gy: 2.5 },
   kai: { gx: 7.5, gy: 8 },
   sora: { gx: 6.5, gy: 4 },
   mochi: { gx: 4, gy: 2 },
@@ -168,6 +169,7 @@ export function resolveVisitRoom(data, guest = null) {
   if (ownerAt) {
     placements.push({ id: ownerId, item: "resident", gx: ownerAt.gx, gy: ownerAt.gy });
     personas[ownerId] = {
+      npcUsername: data?.username || "friend",
       character: ownerCharacter,
       label: data?.displayName || data?.username || "friend",
     };
@@ -175,12 +177,16 @@ export function resolveVisitRoom(data, guest = null) {
 
   let placedGuestId = null;
   if (guest) {
-    // You arrive at the front of the room — visiting means being there,
-    // not watching a diorama.
-    const at = residentSpot(layout, placements, null, {
-      gx: layout.w / 2,
-      gy: layout.d - 1,
-    });
+    // Seated life: arriving means being shown to a seat — the first free
+    // one (or soft ground). The front-of-room stand survives as the
+    // no-seat fallback, so a seatless room still lets you in.
+    const seatAt = freeSeatSpot(placements, "resident");
+    const at =
+      seatAt ||
+      residentSpot(layout, placements, null, {
+        gx: layout.w / 2,
+        gy: layout.d - 1,
+      });
     if (at) {
       placements.push({ id: guestId, item: "resident", gx: at.gx, gy: at.gy });
       personas[guestId] = {

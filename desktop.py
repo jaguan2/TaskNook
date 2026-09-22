@@ -50,7 +50,13 @@ def _message_box(message, icon):
     source you have a terminal, and a modal dialog would just block whoever
     (or whatever) launched it.
     """
-    print(message)
+    # PyInstaller's --windowed mode may replace stdout with None. The fallback
+    # dialog is most important in exactly that build, so a failed print must
+    # never prevent MessageBoxW from being reached.
+    try:
+        print(message)
+    except (AttributeError, OSError):
+        pass
     if sys.platform == "win32" and getattr(sys, "frozen", False):
         try:
             import ctypes
@@ -149,10 +155,29 @@ def find_free_port():
 # though the underlying browser profile is being persisted correctly.
 DEFAULT_PORT = 39217
 
+# Widget Mode is a real native-window mode, not merely a frontend visibility
+# toggle. The minimum has to permit this size: pywebview applies `min_size` to
+# the OS window at creation and a later resize cannot go below it.
+NORMAL_WINDOW_SIZE = (1200, 820)
+NORMAL_MIN_SIZE = (900, 640)
+WIDGET_WINDOW_SIZE = (340, 300)
+
+
+def parse_port(value):
+    """A valid TCP port, or None for a malformed environment override."""
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        return None
+    return port if 1 <= port <= 65535 else None
+
 
 def get_port():
     if os.environ.get("PORT"):
-        return int(os.environ["PORT"])
+        port = parse_port(os.environ["PORT"])
+        if port is None:
+            fatal("PORT must be a number between 1 and 65535.")
+        return port
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", DEFAULT_PORT))
@@ -192,6 +217,124 @@ def serve(port):
         waitress_serve(app, host="127.0.0.1", port=port, threads=8)
     except Exception as exc:  # noqa: BLE001 — surfaced, not swallowed
         fatal(f"TaskNook couldn't start its server on port {port}: {exc}")
+
+
+class DesktopApi:
+    """Exposed to the frontend as `window.pywebview.api.*` (pywebview's js_api
+    bridge — every method here is callable from JS and returns a Promise).
+    Only reachable from the packaged/native window; the dev server and any
+    plain browser tab never see `window.pywebview` at all, so the frontend
+    treats its absence as "not running as the desktop app" rather than an
+    error. `_window` is attached after create_window() returns the Window
+    object, since the Api instance has to exist before that call to be passed
+    in as js_api. It MUST stay private: pywebview recursively exposes every
+    public object on `js_api`. A public `window` field made it walk the entire
+    WinForms/WebView2 object graph at startup, including circular accessibility
+    and COM objects, which could permanently wedge the native UI thread.
+    """
+
+    _EXPOSED_METHODS = frozenset({"set_always_on_top", "set_widget_mode"})
+
+    def __init__(self):
+        self._window = None
+        self._widget_mode = False
+        self._normal_bounds = None
+        self._normal_was_maximized = False
+        self._is_maximized = False
+        self._window_lock = threading.Lock()
+
+    def _attach_window(self, window):
+        """Finish the circular Window↔API setup and track maximize state.
+
+        Private by design: only the two `set_*` methods below are JavaScript
+        API. Page code must not be able to rerun native-window setup.
+        """
+        self._window = window
+
+        def maximized():
+            self._is_maximized = True
+
+        def restored():
+            self._is_maximized = False
+
+        window.events.maximized += maximized
+        window.events.restored += restored
+
+        # This is a launch-safety invariant, not merely API tidiness.
+        # pywebview recursively walks every public attribute when it generates
+        # `window.pywebview.api`; exposing a native object can block startup.
+        public = {name for name in dir(self) if not name.startswith("_")}
+        unexpected = public - self._EXPOSED_METHODS
+        if unexpected:
+            raise RuntimeError(
+                "Unsafe public desktop bridge surface: "
+                + ", ".join(sorted(unexpected))
+            )
+
+    def set_always_on_top(self, value):
+        """Backs Widget Mode's "Always On Top" toggle. `Window.on_top` is a
+        real runtime-settable property (confirmed against this pywebview
+        version) — setting it calls straight through to the platform GUI
+        toolkit's own always-on-top flag, no restart needed."""
+        window = self._window
+        if window is None:
+            return False
+        requested = bool(value)
+        window.on_top = requested
+        # The bridge returns whether the OPERATION succeeded, not the resulting
+        # state. Returning `window.on_top` made a successful "turn it off"
+        # indistinguishable from failure to the frontend.
+        return bool(window.on_top) == requested
+
+    def set_widget_mode(self, value):
+        """Resize the native app around the timer and restore it exactly.
+
+        The frontend still owns which React surfaces render. This method owns
+        only OS-window geometry/title, keeping web mode fully supported. Bounds
+        are captured once on entry; moving the small widget never overwrites
+        the full app's remembered home.
+        """
+        window = self._window
+        if window is None:
+            return False
+        enabled = bool(value)
+        with self._window_lock:
+            if enabled == self._widget_mode:
+                return True
+
+            if enabled:
+                self._normal_bounds = {
+                    "x": window.x,
+                    "y": window.y,
+                    "width": window.width,
+                    "height": window.height,
+                }
+                self._normal_was_maximized = self._is_maximized
+                if self._is_maximized:
+                    window.restore()
+                window.resize(*WIDGET_WINDOW_SIZE)
+                window.set_title("TaskNook Timer")
+            else:
+                bounds = self._normal_bounds
+                window.restore()
+                if bounds:
+                    # Normal mode keeps the application's established usable
+                    # floor even though the creation-time minimum must permit
+                    # the much smaller widget shell.
+                    width = max(NORMAL_MIN_SIZE[0], bounds["width"])
+                    height = max(NORMAL_MIN_SIZE[1], bounds["height"])
+                    window.resize(width, height)
+                    window.move(bounds["x"], bounds["y"])
+                else:
+                    window.resize(*NORMAL_WINDOW_SIZE)
+                window.set_title("TaskNook")
+                if self._normal_was_maximized:
+                    window.maximize()
+                self._normal_bounds = None
+                self._normal_was_maximized = False
+
+            self._widget_mode = enabled
+            return True
 
 
 def open_in_browser(url):
@@ -251,13 +394,19 @@ def main():
         return open_in_browser(url)
 
     try:
-        webview.create_window(
+        api = DesktopApi()
+        window = webview.create_window(
             "TaskNook",
             url,
-            width=1200,
-            height=820,
-            min_size=(900, 640),
+            width=NORMAL_WINDOW_SIZE[0],
+            height=NORMAL_WINDOW_SIZE[1],
+            # Widget Mode temporarily needs a much smaller native shell. The
+            # API restores normal geometry on exit; this creation-time minimum
+            # is the hard floor enforced by the platform toolkit.
+            min_size=WIDGET_WINDOW_SIZE,
+            js_api=api,
         )
+        api._attach_window(window)
         # private_mode=False + an explicit storage_path: without these,
         # pywebview defaults to an incognito-style session that throws away
         # localStorage (settings, the auth token, everything) on every close.

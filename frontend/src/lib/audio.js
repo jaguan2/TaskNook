@@ -20,6 +20,16 @@ export const SOUND_CHANNELS = [
   { key: "paper", label: "Page turns", icon: "📖" },
 ];
 
+/** Keep a persisted mixer snapshot on known channels and legal gain values. */
+export function normalizeSoundMix(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean = {};
+  for (const { key } of SOUND_CHANNELS) {
+    if (key in raw) clean[key] = Math.max(0, Math.min(1, Number(raw[key]) || 0));
+  }
+  return clean;
+}
+
 const NOISE_PRESETS = {
   // Rain reads as rain (not radio static) because of the droplet plinks the
   // channel schedules on top — the noise bed itself stays dark and soft.
@@ -29,8 +39,14 @@ const NOISE_PRESETS = {
   rain: { lowpass: 1100, highpass: 320, gain: 0.26, lfoFreq: 0.09, lfoDepth: 0.1 },
   // Snow has no patter of its own — just a hushed, heavily-muffled wind.
   snow: { lowpass: 900, highpass: 120, gain: 0.22, lfoFreq: 0.045, lfoDepth: 0.22 },
-  // Storm is rain pushed louder/brighter, with gustier modulation.
-  storm: { lowpass: 3200, highpass: 220, gain: 0.8, lfoFreq: 0.2, lfoDepth: 0.18 },
+  // Storm was the one bed that broke the "keep noise beds dark" rule —
+  // lowpass 3200 at gain 0.8 was the brightest, loudest bed in the mixer,
+  // which is exactly the radio-static read the rain retunes fixed twice
+  // (owner, 2026-08-19: "some of the sounds aren't really ambient").
+  // Now it's the rain bed pushed a LITTLE louder and windier, with the
+  // storm's identity carried by its one-shots: thunder plus its own
+  // heavier droplet layer (see startChannel).
+  storm: { lowpass: 1400, highpass: 180, gain: 0.55, lfoFreq: 0.16, lfoDepth: 0.3 },
   // Wind is deep and slow, with strong gusting.
   wind: { lowpass: 620, highpass: 70, gain: 0.5, lfoFreq: 0.07, lfoDepth: 0.4 },
   // Fireplace base: a low, steady rumble (the crackles ride on top).
@@ -285,7 +301,13 @@ function startChannel(name, volume) {
     ch.lfoGain = lfoGain;
   }
 
-  if (name === "storm") loop(name, playThunder, 6000, 20000);
+  if (name === "storm") {
+    loop(name, playThunder, 6000, 20000);
+    // A storm IS heavy rain — the droplets are denser and hit harder than
+    // the rain channel's, and they carry the brightness the darkened bed
+    // gave up (transients read as weather; a bright bed reads as static).
+    loop(name, (m) => playDroplet(m, 1.4), 30, 110);
+  }
   if (name === "fireplace") loop(name, playCrackle, 90, 420);
   // The café is two overlapping rhythms on top of the murmur bed.
   if (name === "cafe") {
@@ -363,7 +385,16 @@ export function applyMix(mix) {
 // no-files philosophy as the ambience. Deliberately quiet: it marks the
 // moment for someone in the room, it doesn't demand attention. System
 // notifications cover the stepped-away case.
-export function playChime() {
+export function normalizeChimeVolume(value) {
+  if (value === null || value === undefined || value === "") return 1;
+  const level = Number(value);
+  if (!Number.isFinite(level)) return 1;
+  return Math.max(0, Math.min(1, level));
+}
+
+export function playChime(volume = 1) {
+  const level = normalizeChimeVolume(volume);
+  if (level === 0) return;
   const context = ensureContext();
   const now = context.currentTime;
   [523.25, 783.99].forEach((freq, i) => {
@@ -373,7 +404,7 @@ export function playChime() {
     const env = context.createGain();
     const t = now + i * 0.16;
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(0.07, t + 0.02);
+    env.gain.linearRampToValueAtTime(0.07 * level, t + 0.02);
     env.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
     osc.connect(env).connect(context.destination);
     osc.start(t);

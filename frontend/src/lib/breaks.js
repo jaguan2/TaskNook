@@ -77,7 +77,7 @@ export function tickPresence(state, { enabled, suppressed, present, step = PRESE
 export function formatSpan(minutes) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (!h) return `${m} minutes`;
+  if (!h) return `${m} minute${m === 1 ? "" : "s"}`;
   const hours = `${h} hour${h === 1 ? "" : "s"}`;
   return m ? `${hours} ${m} min` : hours;
 }

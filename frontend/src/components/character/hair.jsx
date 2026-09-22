@@ -25,15 +25,20 @@
 //     locks, unequal, stopping short of every edge (lines that touch the
 //     silhouette flatten it — "grass" strands off the mass are banned);
 //     (c) a NOTCHED light band across the crown instead of a blob sheen —
-//     a blob says plastic dome, broken dashes say strands catching light.
-//     Budget stays capped: wedges + lines + band + brow and nothing else.
+//     a blob says plastic dome, broken dashes say strands catching light;
+//     (d) the UNDER-LAYER value step (VC2 reference pass, 2026-08-19): a
+//     soft dark crescent under each clump's lower lip, giving every wig
+//     the three-value read (crown light / base / dark underside) the
+//     reference's chunky locks carry.
+//     Budget stays capped: wedges + lines + band + brow + hem crescents
+//     and nothing else.
 //
 // Layers (see index.jsx): `front` draws over the head inside the gesture
 // wrappers; `length` draws before the torso so it hangs behind the body;
 // `back` replaces everything when the figure turns away. The old `behind`
 // layer is retired — crown volume welds into `front` now.
 import { HEAD_R, farColor } from "../../lib/body";
-import { GLINT, HAIR_LIFT } from "./body";
+import { GLINT, SHADE, HAIR_LIFT } from "./body";
 
 const R = HEAD_R;
 
@@ -143,6 +148,33 @@ const flowLines = (headY, { sideX, apex }, { lines = 3, lean = 0 } = {}) => {
 };
 
 /**
+ * The UNDER-LAYER value step (VC2 reference pass, 2026-08-19): a soft dark
+ * crescent hugging each clump's lower lip, so a wig reads as THREE values —
+ * notched crown light, base, dark underside — the chunky-locks read the
+ * reference carries. Inside the silhouette by construction: each crescent's
+ * far edge is the tooth's own curve, its near edge the same curve pulled
+ * shallower, so nothing can spill onto the face. Upward cuts (negative
+ * depth) carve air, not a lock, and take no shade.
+ */
+const hemShade = (headY, { sideX, baseY }, clumps) => {
+  let x = sideX;
+  const lenses = [];
+  for (const [w, depth] of clumps) {
+    if (depth >= 1) {
+      lenses.push(
+        `M ${x} ${headY + baseY} q ${-w * 0.38} ${depth} ${-w} 0 q ${w * 0.5} ${
+          depth * 0.45
+        } ${w} 0 z`
+      );
+    }
+    x -= w;
+  }
+  return lenses.length ? (
+    <path d={lenses.join(" ")} fill="#000" opacity="0.12" />
+  ) : null;
+};
+
+/**
  * A carved wig WITH its texture pass — the standard way to draw a wig-method
  * style's mass. Slick gathered styles (bun, ponytails) skip this and keep
  * their bare path + tension lines: pulled-tight hair has no loose flow.
@@ -150,6 +182,7 @@ const flowLines = (headY, { sideX, apex }, { lines = 3, lean = 0 } = {}) => {
 const wig = (headY, color, cfg, clumps, opts = {}) => (
   <>
     <path d={wigPath(headY, cfg, clumps)} fill={color} />
+    {opts.hem !== false && hemShade(headY, cfg, clumps)}
     {notchShadows(headY, cfg, clumps, opts.notch ?? [0, clumps.length - 2])}
     {flowLines(headY, cfg, opts)}
   </>
@@ -329,6 +362,27 @@ export const HAIR_REGISTRY = {
     ),
   },
   bob: {
+    // One continuous cap-to-nape silhouette, painted OVER the back. Reusing
+    // the front's behind-body curtain let the sweater cut through the hair.
+    backIncludesLength: true,
+    back: ({ headY, color }) => (
+      <g data-hair-back="bob">
+        <path d={`M -8.2 ${headY + 1} Q -9.5 ${headY - 8.6} -1 ${headY - 9.6}
+          Q 8.6 ${headY - 10.1} 9.1 ${headY - 1}
+          Q 11.1 ${headY + 8.2} 7.5 ${headY + 10.4}
+          Q 0 ${headY + 12} -7.5 ${headY + 10.4}
+          Q -10.7 ${headY + 8.3} -8.2 ${headY + 1} Z`} fill={color} />
+        <path d={`M -7.7 ${headY - 2} Q -8.1 ${headY + 6.8} -5.4 ${headY + 9.4}
+          Q 0 ${headY + 10.8} 7.5 ${headY + 9.5}
+          Q 1 ${headY + 12.1} -7.5 ${headY + 10.4}
+          Q -10.1 ${headY + 7} -7.7 ${headY - 2} Z`} fill={SHADE} opacity="0.28" />
+        <path d={`M -4.6 ${headY - 5.8} Q 0 ${headY - 9} 5.1 ${headY - 5.6}
+          Q 7.7 ${headY - 2.8} 7.2 ${headY + 2.2}
+          Q 5.5 ${headY - 4.9} -4.6 ${headY - 5.8} Z`} fill={GLINT} opacity="0.16" />
+        <path d={`M 1.5 ${headY - 5} Q 4 ${headY + 1} 2.8 ${headY + 8.6}`}
+          fill="none" stroke={SHADE} strokeWidth="0.65" opacity="0.22" />
+      </g>
+    ),
     // The dark back sheet curls IN under the jaw (the make-or-break — a
     // flared hem reads as a lampshade); the front wig carries the blunt
     // fringe. Two masses, two tones, per the method's long-hair form.
@@ -367,6 +421,30 @@ export const HAIR_REGISTRY = {
     ),
   },
   long: {
+    backIncludesLength: true,
+    back: ({ headY, color }) => (
+      <g data-hair-back="long">
+        <path d={`M -8.5 ${headY} Q -9.3 ${headY - 8.5} -1 ${headY - 9.6}
+          Q 8.8 ${headY - 10.4} 9 ${headY}
+          Q 8.8 ${headY + 11} 11.4 ${headY + 21}
+          Q 8.2 ${headY + 23.1} 5.2 ${headY + 21.6}
+          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
+          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
+          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={color} />
+        <path d={`M -6.8 ${headY - 3} Q -5.6 ${headY + 10} -7.2 ${headY + 20.1}
+          Q -1.3 ${headY + 23} 5.2 ${headY + 21.6}
+          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
+          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
+          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={SHADE} opacity="0.27" />
+        <path d={`M -3.9 ${headY - 6.2} Q 3 ${headY - 9.1} 6.4 ${headY - 3.9}
+          Q 7.2 ${headY + 4} 6.2 ${headY + 13.6}
+          Q 4.9 ${headY + 7} 4.9 ${headY - 0.7}
+          Q 3.9 ${headY - 5.3} -3.9 ${headY - 6.2} Z`} fill={GLINT} opacity="0.14" />
+        <path d={`M -2.4 ${headY - 4} Q -0.3 ${headY + 6} -2.2 ${headY + 19}
+          M 2.2 ${headY + 3} Q 4 ${headY + 13} 3.2 ${headY + 20.1}`}
+          fill="none" stroke={SHADE} strokeWidth="0.75" strokeLinecap="round" opacity="0.22" />
+      </g>
+    ),
     // Dark back sheet to below the shoulders + two base-tone curtains riding
     // over it — the tone split is what makes it deep instead of a slab.
     // Profile: the whole fall hangs BEHIND the figure — dark sheet plus one
@@ -382,6 +460,12 @@ export const HAIR_REGISTRY = {
         <path
           d={`M 5.4 ${headY - 3.6} q 3.6 9.2 2.4 21.6 q -2.6 1.4 -4.6 0.4 q 1.6 -12.4 -1 -18.6 z`}
           fill={color}
+        />
+        {/* the same hem value step the front curtains carry */}
+        <path
+          d={`M 8.3 ${headY + 20.8} q -3.2 2.2 -7.4 1.5 q 3.9 1.5 7.7 -0.7 z`}
+          fill="#000"
+          opacity="0.13"
         />
       </>
     ),
@@ -399,12 +483,32 @@ export const HAIR_REGISTRY = {
           fill={farColor(color)}
         />
         {[-1, 1].map((s) => (
-          <path
-            key={s}
-            d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
-                q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
-            fill={color}
-          />
+          <g key={s}>
+            <path
+              d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
+                  q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
+              fill={color}
+            />
+            {/* the texture pass the curtains were missing — the one flat,
+                markless mass left in the set read as a cape, not hair: a
+                hem crescent (the under-layer value step every other wig
+                carries) and one tapered flow line following the fall,
+                stopping short of both edges per the doctrine above. */}
+            <path
+              d={`M${s * 11.4} ${headY + 18.6} q${-s * 1.6} 2 ${-s * 4.2} 1.7
+                  q${s * 2.5} 0.9 ${s * 4.3} -0.7 z`}
+              fill="#000"
+              opacity="0.13"
+            />
+            <path
+              d={`M${s * 9.4} ${headY + 2.4} q${s * 1.5} 7.6 ${s * 1} 14.4`}
+              stroke="#000"
+              strokeWidth="0.8"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.11"
+            />
+          </g>
         ))}
       </>
     ),
@@ -535,6 +639,56 @@ export const HAIR_REGISTRY = {
   curly: {
     // A same-tone backing dome with coils riding its edge — the coils ARE
     // the outline's teeth, in circle form.
+    // From behind the coils still tooth the outline down to the nape — the
+    // default dome smoothed the cloud into a swim cap (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.8} r={R + 1.6} fill={color} />
+        {[
+          [-5.8, -3.8, 3.3],
+          [-2, -5.8, 3.4],
+          [1.9, -5.7, 3.4],
+          [5.4, -3.7, 3.3],
+          [7, -0.4, 2.7],
+          [-7, -0.4, 2.7],
+          [4.6, 4.8, 2.4],
+          [-4.6, 4.8, 2.4],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        {/* interior curl marks — the same C-arc grammar as the front */}
+        {[
+          [-3.4, -2.6, 2],
+          [2.8, -4, 2.2],
+          [-0.4, 1.8, 1.7],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+        {/* coil-top glints on the light side, never a straight band */}
+        {[
+          [2, -6.4, 2.4],
+          [5.4, -2.4, 2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
     // Profile: the cloud shifts back off the face; coils walk the outline
     // from the fringe over the crown down to the nape.
     side: ({ headY, color }) => (
@@ -665,6 +819,16 @@ export const HAIR_REGISTRY = {
   undercut: {
     // All the mass combed one way over a HIGH rim — bare skin below is the
     // style; the razor part is the one allowed line.
+    // The shaved band shows from behind too: the combed mass ends on its
+    // high rim with stubble below it down to the nape — the default dome
+    // grew the clipped sides back out (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.4" />
+        {wig(headY, color, { sideX: 7.9, apex: 9.6, baseY: -2 }, [ [9.8, 1.6], [6, 0.8], ], { lines: 2, lean: 0.8 })}
+        {shine(headY, 9.6)}
+      </>
+    ),
     // Profile is the undercut's money shot: the heavy top sweeps back and
     // ends on a hard rim well ABOVE the ear, clipped skin under it.
     side: ({ headY, color }) => (
@@ -714,6 +878,55 @@ export const HAIR_REGISTRY = {
   afro: {
     // The widest silhouette: a scalloped cloud, one tone, its own hairline
     // arc across the forehead — afros sit ON the hairline, they don't drape.
+    // From behind the cloud is unchanged — an afro is round from every
+    // angle, and the default dome clipped the widest cut in the set to a
+    // skull cap (sheet, 2026-08-19). No hairline arc: that's a face mark.
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 2.5} r={R + 3.1} fill={color} />
+        {[
+          [-8.2, -5.4, 3.8],
+          [-2.8, -8.2, 4],
+          [2.8, -8.2, 4],
+          [8.2, -5.4, 3.8],
+          [9.6, -0.8, 3.3],
+          [-9.6, -0.8, 3.3],
+        ].map(([cx, dy, r]) => (
+          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
+        ))}
+        {/* coil marks, spread wide — same C-arc grammar as the front */}
+        {[
+          [-5.2, -4.4, 2.2],
+          [1.4, -6.8, 2.4],
+          [5.6, -1.6, 2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.5} ${-r * 0.6}`}
+            stroke="#000"
+            strokeWidth="0.7"
+            fill="none"
+            opacity="0.13"
+            strokeLinecap="round"
+          />
+        ))}
+        {/* coil-top glints on the light side, never a straight band */}
+        {[
+          [2, -7.6, 2.6],
+          [6.6, -3, 2.2],
+        ].map(([x, dy, r]) => (
+          <path
+            key={`g${x},${dy}`}
+            d={`M ${x - r} ${headY + dy} a ${r} ${r} 0 0 1 ${r * 1.6} ${-r * 0.4}`}
+            stroke={GLINT}
+            strokeWidth="1.3"
+            fill="none"
+            opacity="0.16"
+            strokeLinecap="round"
+          />
+        ))}
+      </>
+    ),
     // Profile: the same cloud, shifted a touch back; the hairline arc only
     // shows on the face side.
     side: ({ headY, color }) => (
@@ -837,6 +1050,16 @@ export const HAIR_REGISTRY = {
     // rims ending ABOVE the ears with bare skin below — mass where the cut
     // grows it, skin where it's clipped (research; two failed attempts are
     // recorded in git history: a visor, then sideburn blocks).
+    // From behind the cut IS its nape: the cap stops on a high, LEVEL rim
+    // with clipped skin below it — the default dome buried the shaved band
+    // (sheet, 2026-08-19).
+    back: ({ headY, color }) => (
+      <>
+        <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.4" />
+        {wig(headY, color, { sideX: 8.2, apex: 9.4, baseY: -1.8 }, [ [3.1, 1.1], [4.4, 1.5], [3.6, 1], [2.6, 1.3], [2.7, 0.9], ])}
+        {shine(headY, 9.4)}
+      </>
+    ),
     // Profile: the deep fringe grazes the brow and the rim runs high and
     // LEVEL, bare skin between it and the ear — the "two blocks" seen
     // edge-on. Its own path rather than the generic wig: the generic's
@@ -1214,8 +1437,10 @@ export function HairBehind({ style, headY, color }) {
 }
 
 /** Everything past the jaw — before the torso, so it falls behind the body. */
-export function HairLength({ style, headY, color }) {
-  return HAIR_REGISTRY[style]?.length?.({ headY, color }) ?? null;
+export function HairLength({ style, headY, color, back = false }) {
+  const entry = HAIR_REGISTRY[style];
+  if (back && entry?.backIncludesLength) return null;
+  return entry?.length?.({ headY, color }) ?? null;
 }
 
 /** The hair over the skull. Styles without their own get the short wig. */

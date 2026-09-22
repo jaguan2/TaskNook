@@ -51,7 +51,7 @@ function Books() {
   );
 }
 
-function Mug() {
+function Mug({ time }) {
   return (
     <g transform="translate(-394,-300)">
       <path d="M380 300 h30 v-20 h-30 z" style={tinted("#d98a93")} />
@@ -62,7 +62,7 @@ function Mug() {
         strokeWidth="2"
         fill="none"
         strokeLinecap="round"
-        animate={{ opacity: [0, 0.6, 0], y: [0, -10, -16] }}
+        animate={time?.static ? undefined : { opacity: [0, 0.6, 0], y: [0, -10, -16] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeOut" }}
       />
     </g>
@@ -95,7 +95,7 @@ function DeskLamp({ time }) {
   return (
     <g transform="translate(-566,-296)">
       {/* the warm pool the lamp throws on the desk travels with it */}
-      <ellipse cx="530" cy="299" rx="78" ry="12" fill="url(#lampPool)" opacity={time.lampGlow} />
+      <ellipse cx="530" cy="299" rx="78" ry="12" fill={`url(#${time.lampPool || "lampPool"})`} opacity={time.lampGlow} />
       <ellipse cx="566" cy="296" rx="18" ry="5" fill="#3a3142" />
       <line x1="566" y1="294" x2="552" y2="258" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
       <line x1="552" y1="258" x2="528" y2="240" stroke="#3a3142" strokeWidth="4" strokeLinecap="round" />
@@ -105,7 +105,7 @@ function DeskLamp({ time }) {
       <polygon
         className="animate-flicker"
         points="516,254 540,254 566,294 490,294"
-        fill="url(#lampCone)"
+        fill={`url(#${time.lampCone || "lampCone"})`}
         opacity={time.lampGlow * 0.55}
       />
     </g>
@@ -132,6 +132,74 @@ function Headphones() {
       <rect x="-22" y="-8" width="9" height="12" rx="3" style={tinted("#4a3a6b")} stroke="#3a3142" />
       <rect x="13" y="-8" width="9" height="12" rx="3" style={tinted("#4a3a6b")} stroke="#3a3142" />
       <path d="M-18 4 q-4 4 -2 7 q10 5 20 0" fill="none" stroke="#2c2438" strokeWidth="1.5" opacity="0.6" />
+    </g>
+  );
+}
+
+function Radio() {
+  return (
+    <g>
+      {/* antenna first so the body overlaps its root */}
+      <line x1="-14" y1="-28" x2="-2" y2="-44" stroke="#3a3142" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="-2" cy="-44" r="1.8" fill="#3a3142" />
+      <rect x="-22" y="-30" width="44" height="30" rx="6" style={tinted("#c0563f")} />
+      <rect x="-22" y="-30" width="44" height="7" rx="3.5" fill="#000" opacity="0.14" />
+      {/* speaker */}
+      <circle cx="-9" cy="-14" r="7" fill="#f7e9e2" opacity="0.85" />
+      <path d="M-13 -14 h8 M-9 -18 v8" stroke="#000" strokeWidth="1.2" opacity="0.3" strokeLinecap="round" />
+      {/* dial + knob */}
+      <rect x="5" y="-22" width="13" height="5" rx="2.5" fill="#f7e9e2" opacity="0.85" />
+      <line x1="10" y1="-21" x2="10" y2="-18" stroke="#c0563f" strokeWidth="1.5" />
+      <circle cx="11" cy="-10" r="3.5" fill="#e8b04b" />
+      <circle cx="11" cy="-10" r="3.5" fill="none" stroke="#000" opacity="0.25" />
+    </g>
+  );
+}
+
+function Candle({ time }) {
+  return (
+    <g>
+      {/* the flame's small halo breathes with the sky like the garland bulbs */}
+      <g className="animate-flicker">
+        <circle cx="0" cy="-33" r="10" fill="#ffe9b0" opacity={time.bulbGlow * 0.2} />
+        <path d="M0 -39 q4.5 5.5 0 10 q-4.5 -4.5 0 -10 z" fill="#ffd97a" />
+        <path d="M0 -35.5 q2 2.5 0 4.5 q-2 -2 0 -4.5 z" fill="#fff3d0" />
+      </g>
+      <line x1="0" y1="-26" x2="0" y2="-29.5" stroke="#5a4632" strokeWidth="1.5" strokeLinecap="round" />
+      {/* wax pillar is the tintable material; drips read via shade overlays */}
+      <rect x="-6" y="-26" width="12" height="25" rx="2.5" style={tinted("#f2e4cf")} />
+      <rect x="-6" y="-26" width="12" height="4" rx="2" fill="#000" opacity="0.12" />
+      <path d="M-6 -22 q2.5 3 0 7 z M6 -18 q-2.5 3 0 6 z" fill="#000" opacity="0.08" />
+      {/* fixed brass dish — the anchor that makes recolours read as designed */}
+      <ellipse cx="0" cy="-1" rx="11" ry="3.5" fill="#b98a5a" />
+      <ellipse cx="0" cy="-2" rx="11" ry="3" fill="#000" opacity="0.12" />
+    </g>
+  );
+}
+
+function FlowerVase() {
+  return (
+    <g>
+      {/* stems + heads sway from the vase mouth; the wrapper carries no
+          transform attribute so the animation can't drop one (the law). */}
+      <g className="room-sway">
+        <path
+          d="M-2 -22 q-7 -10 -10 -15 M0 -22 q1 -13 1 -19 M2 -22 q7 -9 9 -14"
+          stroke="#56a07c"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <ellipse cx="-12" cy="-40" rx="4" ry="5" fill="#e8a3a8" />
+        <ellipse cx="1" cy="-44" rx="4" ry="5" fill="#e8b04b" />
+        <ellipse cx="11" cy="-39" rx="4" ry="5" fill="#9b8bd6" />
+        <circle cx="-12" cy="-40" r="1.5" fill="#000" opacity="0.15" />
+        <circle cx="1" cy="-44" r="1.5" fill="#000" opacity="0.15" />
+        <circle cx="11" cy="-39" r="1.5" fill="#000" opacity="0.15" />
+      </g>
+      {/* vase drawn after so the stems disappear into it */}
+      <path d="M-9 -24 q-4 13 3 24 h12 q7 -11 3 -24 z" style={tinted("#6fb8cf")} />
+      <path d="M-9 -24 h18 l-1.5 5 h-15 z" fill="#000" opacity="0.15" />
     </g>
   );
 }
@@ -220,6 +288,39 @@ function Shelf() {
   );
 }
 
+function Bunting() {
+  // Pennants hang from a gently sagging string; their tops sit ON the curve
+  // (hardcoded from the same quadratic, so the flags never float off it).
+  // Every other flag takes the tint; the rest alternate fixed accents, so a
+  // recolour reads as restringing the set rather than repainting one flag.
+  const flags = [
+    [-48, -3.5],
+    [-24, 0.6],
+    [0, 2],
+    [24, 0.6],
+    [48, -3.5],
+  ];
+  const fixed = ["#e8b04b", "#7faf8f"];
+  return (
+    <g>
+      <path d="M-58 -6 Q0 10 58 -6" stroke="#8a5346" strokeWidth="1.5" fill="none" />
+      {flags.map(([x, y], i) => (
+        <g key={`flag-${i}`}>
+          <polygon
+            points={`${x - 7},${y} ${x + 7},${y} ${x},${y + 15}`}
+            style={i % 2 === 0 ? tinted("#d98a93") : { fill: fixed[(i >> 1) % 2] }}
+          />
+          <polygon
+            points={`${x - 7},${y} ${x + 7},${y} ${x + 5.5},${y + 3} ${x - 5.5},${y + 3}`}
+            fill="#000"
+            opacity="0.14"
+          />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /* ---------------- floor items ---------------- */
 
 function Rug() {
@@ -270,14 +371,14 @@ function FloorLamp({ time }) {
         cy="-84"
         rx="26"
         ry="14"
-        fill="url(#lampPool)"
+        fill={`url(#${time.lampPool || "lampPool"})`}
         opacity={time.lampGlow * 0.8}
       />
     </g>
   );
 }
 
-function Cat() {
+function Cat({ time }) {
   return (
     <g>
       <ellipse cx="0" cy="-8" rx="26" ry="13" style={tinted("#3a3142")} />
@@ -286,7 +387,7 @@ function Cat() {
       <polygon points="-13,-24 -9,-31 -6,-22" style={tinted("#3a3142")} />
       <path d="M24 -10 q12 -2 10 -14" fill="none" style={tintedStroke("#3a3142")} strokeWidth="5" strokeLinecap="round" />
       <path d="M-24 -15 q2 2 4 0 M-16 -15 q2 2 4 0" stroke="#1e1926" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <motion.g animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
+      <motion.g animate={time?.static ? undefined : { opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
         <path d="M6 -26 q2 -4 0 -7 M11 -24 q2 -4 0 -7" stroke="#f3c6c0" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
       </motion.g>
     </g>
@@ -326,6 +427,40 @@ function Beanbag() {
   );
 }
 
+function Basket() {
+  return (
+    <g>
+      {/* yarn + needles peek above the rim, so they draw first */}
+      <circle cx="-5" cy="-26" r="7" fill="#e8a3a8" />
+      <path d="M-10 -28 a7 7 0 0 1 9 -4" stroke="#000" strokeWidth="1.2" fill="none" opacity="0.15" />
+      <circle cx="6" cy="-25" r="6" fill="#9b8bd6" />
+      <path d="M3 -30 l11 -14 M8 -29 l10 -15" stroke="#f7e9e2" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="14" cy="-44" r="1.6" fill="#f7e9e2" />
+      <circle cx="18" cy="-44" r="1.6" fill="#f7e9e2" />
+      <path d="M-22 -24 h44 l-5 24 h-34 z" style={tinted("#b98a5a")} />
+      <path d="M-22 -24 h44 l-1.2 5 h-41.6 z" fill="#000" opacity="0.15" />
+      {/* weave: translucent overlays, so they read over any tint */}
+      <path d="M-20 -15 h40 M-18 -7 h36" stroke="#000" strokeWidth="1.5" opacity="0.12" />
+      <path d="M-12 -23 l1.5 22 M0 -23 v22 M12 -23 l-1.5 22" stroke="#000" strokeWidth="1.5" opacity="0.08" />
+    </g>
+  );
+}
+
+function Slippers() {
+  return (
+    <g>
+      {[-14, 8].map((x, i) => (
+        <g key={`slipper-${i}`} transform={`translate(${x},0) rotate(${i === 0 ? -3 : 3})`}>
+          <path d="M-10 0 q-1.5 -7 5 -8.5 h9 q7 1 6 8.5 z" style={tinted("#d98a93")} />
+          {/* fleece cuff at the opening */}
+          <ellipse cx="-4" cy="-7" rx="5.5" ry="3" fill="#f7e9e2" opacity="0.95" />
+          <path d="M-10 0 h20" stroke="#000" strokeWidth="1.5" opacity="0.2" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /* ---------------- ceiling ---------------- */
 
 const GARLAND_BULBS = [
@@ -354,7 +489,63 @@ function Garland({ time }) {
   );
 }
 
+function Armchair() {
+  return <g>
+    <ellipse cy="0" rx="47" ry="5" fill="#000" opacity=".16" />
+    <path d="M-33 -17 l-3 17 M33 -17 l3 17" stroke="#493444" strokeWidth="6" />
+    <rect x="-37" y="-84" width="74" height="65" rx="18" style={tinted("#9b8bd6")} />
+    <rect x="-29" y="-76" width="58" height="42" rx="12" fill="#fff" opacity=".1" />
+    <path d="M0 -70 v30" stroke="#35283e" opacity=".18" />
+    <rect x="-37" y="-38" width="74" height="25" rx="9" style={tinted("#9b8bd6")} />
+    <rect x="-37" y="-25" width="74" height="12" rx="5" fill="#000" opacity=".13" />
+    <rect x="-47" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
+    <rect x="30" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
+    <path d="M10 -49 Q23 -53 30 -44 L28 -16 Q16 -13 9 -20Z" fill="#eed8b9" />
+    <path d="M14 -40 l12 2 M13 -33 l13 2 M12 -26 l14 2" stroke="#af8b79" strokeWidth="2" opacity=".5" />
+  </g>;
+}
+
+function SideTable() {
+  return <g>
+    <ellipse cy="0" rx="29" ry="4" fill="#000" opacity=".15" />
+    <path d="M-21 -31 l-4 31 M21 -31 l4 31 M0 -30 v27" stroke="#694b52" strokeWidth="5" />
+    <ellipse cy="-31" rx="30" ry="9" style={tinted("#be8e70")} />
+    <ellipse cy="-34" rx="30" ry="8" fill="#edc69d" />
+    <path d="M-18 -37 h22 v-5 h-22Z" fill="#7faf8f" />
+    <path d="M-16 -39 H3" stroke="#f7e9e2" strokeWidth="2" />
+    <path d="M10 -47 h12 v7 q-6 7 -12 0Z" fill="#f7e9e2" />
+    <path d="M22 -46 q8 0 3 6 h-3" fill="none" stroke="#f7e9e2" strokeWidth="2" />
+    <ellipse cx="16" cy="-47" rx="6" ry="2" fill="#6c4b4a" />
+  </g>;
+}
+
+function PlantStand() {
+  return <g>
+    <ellipse cy="0" rx="25" ry="4" fill="#000" opacity=".15" />
+    <path d="M-19 -49 l-4 49 M19 -49 l4 49 M-21 -18 h42" stroke="#af8569" strokeWidth="4" fill="none" />
+    <ellipse cy="-49" rx="26" ry="7" fill="#d2ad86" />
+    <path d="M-19 -75 h38 l-5 24 q-14 6 -28 0Z" style={tinted("#d98a93")} />
+    <ellipse cy="-75" rx="19" ry="5" fill="#493a3c" />
+    <path d="M0 -73 v-36 M-1 -83 l-19 -16 M0 -93 l19 -12" stroke="#658c73" strokeWidth="3" fill="none" />
+    <path d="M0 -100 Q-24 -120 -25 -102 Q-21 -86 0 -94 M1 -92 Q24 -119 27 -100 Q26 -84 1 -86 M-2 -79 Q-29 -98 -27 -81 Q-23 -70 -2 -75" fill="#7faf8f" />
+    <path d="M3 -107 Q16 -118 17 -106 Q15 -97 3 -101" fill="#9bc59d" />
+  </g>;
+}
+
+function Mirror() {
+  return <g>
+    <path d="M-24 44 V-20 a24 24 0 0 1 48 0 V44Z" style={tinted("#be8e70")} />
+    <path d="M-18 38 V-20 a18 18 0 0 1 36 0 V38Z" fill="#718b9e" />
+    <path d="M-17 10 L17 -18 V-5 L-17 23Z M-17 29 L17 1 V6 L-17 34Z" fill="#d0e5e9" opacity=".35" />
+    <path d="M-18 38 h36" stroke="#4f536a" strokeWidth="2" />
+  </g>;
+}
+
 export const ITEM_SPRITES = {
+  armchair: Armchair,
+  sidetable: SideTable,
+  plantstand: PlantStand,
+  mirror: Mirror,
   deskplant: DeskPlant,
   books: Books,
   mug: Mug,
@@ -363,12 +554,16 @@ export const ITEM_SPRITES = {
   desklamp: DeskLamp,
   cactus: Cactus,
   headphones: Headphones,
+  radio: Radio,
+  candle: Candle,
+  flowervase: FlowerVase,
   frame: Frame,
   hangplant: HangPlant,
   clock: Clock,
   poster: Poster,
   polaroids: Polaroids,
   shelf: Shelf,
+  bunting: Bunting,
   rug: Rug,
   rugstripe: RugStripe,
   monstera: Monstera,
@@ -376,5 +571,7 @@ export const ITEM_SPRITES = {
   cat: Cat,
   bookshelf: Bookshelf,
   beanbag: Beanbag,
+  basket: Basket,
+  slippers: Slippers,
   garland: Garland,
 };

@@ -5,6 +5,7 @@ import {
   ISO_ITEMS,
   ISO_ITEM_GROUPS,
   ISO_ITEM_KEYS,
+  ISO_LAYOUT_VERSION,
   ISO_MAX_ITEMS,
   ISO_PRESET_KEYS,
   ISO_PRESETS,
@@ -13,6 +14,7 @@ import {
   blocksSpawn,
   cutsToMask,
   defaultIsoLayout,
+  exteriorWallHeight,
   footprintsOverlap,
   findFreeSpot,
   footOf,
@@ -25,14 +27,23 @@ import {
   normalizeRot,
   rotationsFor,
   normalizeMask,
-  personaCanStand,
+  normalizePartitions,
+  occupiedIsoFootprints,
+  occupiedIsoTiles,
+  partitionKey,
+  partitionPieces,
+  partitionRuns,
+  personaCanSit,
+  freeSeatSpot,
   seatFor,
   seatedPlacement,
   snapHalf,
   sortIso,
+  sortIsoScene,
   stackedPlacement,
   surfaceFor,
   validateIsoLayout,
+  wallModeOf,
   wallRuns,
 } from "./isoRoom";
 import { ISO_SPRITES } from "../components/IsoItems";
@@ -55,6 +66,14 @@ describe("iso catalog integrity", () => {
     for (const key of Object.keys(ISO_SPRITES)) {
       expect(ISO_ITEMS[key], `catalog entry for ${key}`).toBeTruthy();
     }
+  });
+
+  it("keeps fairy lights as dim wall ambience", () => {
+    const fairyLights = ISO_ITEMS.fairylights;
+    expect(fairyLights.wall).toBe(true);
+    expect(fairyLights.toggleable).toBe(true);
+    expect(fairyLights.glow[1]).toBeLessThanOrEqual(0.2);
+    expect(fairyLights.glow[1]).toBeLessThan(ISO_ITEMS.sconce.glow[1]);
   });
 });
 
@@ -220,6 +239,70 @@ describe("render ordering", () => {
     ]);
     expect(out.map((p) => p.item)).toEqual(["frame", "rug"]);
   });
+
+  it("interleaves an opaque divider between furniture behind and in front", () => {
+    const layers = sortIsoScene(
+      [
+        { id: "far", item: "stool", gx: 0, gy: 0 },
+        { id: "near", item: "stool", gx: 6, gy: 5 },
+      ],
+      [{ plane: "gy", at: 2, from: 0, to: 3 }]
+    );
+    const order = layers.map((layer) => layer.kind === "item" ? layer.placement.id : "wall");
+    expect(order[0]).toBe("far");
+    expect(order.at(-1)).toBe("near");
+    expect(order.filter((value) => value === "wall")).toHaveLength(3);
+  });
+
+  it("sorts each part of a long solid divider at its local depth", () => {
+    const layers = sortIsoScene(
+      [
+        { id: "far-left", item: "stool", gx: 0, gy: 0 },
+        { id: "near-left", item: "stool", gx: 0, gy: 2.2 },
+        { id: "far-right", item: "stool", gx: 7, gy: 0 },
+        { id: "near-right", item: "stool", gx: 7, gy: 2.2 },
+      ],
+      [{ plane: "gy", at: 2, from: 0, to: 8 }]
+    );
+    const indexOfItem = (id) => layers.findIndex(
+      (layer) => layer.kind === "item" && layer.placement.id === id
+    );
+    const indexOfWall = (from) => layers.findIndex(
+      (layer) => layer.kind === "partition" && layer.partition.from === from
+    );
+
+    expect(indexOfItem("far-left")).toBeLessThan(indexOfWall(0));
+    expect(indexOfWall(0)).toBeLessThan(indexOfItem("near-left"));
+    expect(indexOfItem("far-right")).toBeLessThan(indexOfWall(7));
+    expect(indexOfWall(7)).toBeLessThan(indexOfItem("near-right"));
+  });
+});
+
+describe("floor-plan occupancy", () => {
+  it("keeps each item as one connected, clipped footprint", () => {
+    const footprints = occupiedIsoFootprints([
+      { id: "bed", item: "bed", gx: 0.5, gy: 0 },
+      { id: "wall", item: "frame", gx: 0, gy: 0 },
+      { id: "edge", item: "rug", gx: 3, gy: 3 },
+    ], { w: 4, d: 4 });
+
+    expect(footprints).toEqual([
+      expect.objectContaining({ id: "bed", label: "Bed", x: 0, y: 0, w: 3, d: 3 }),
+      expect.objectContaining({ id: "edge", label: "Round rug", x: 3, y: 3, w: 1, d: 1 }),
+    ]);
+  });
+
+  it("marks every tile touched by fractional and multi-tile furniture", () => {
+    const occupied = occupiedIsoTiles([
+      { id: "a", item: "stool", gx: 0.5, gy: 0.5 },
+      { id: "b", item: "rug", gx: 2, gy: 1 },
+      { id: "c", item: "frame", gx: 0, gy: 0 },
+    ]);
+    expect([...occupied.keys()]).toContain("0:0");
+    expect([...occupied.keys()]).toContain("1:1");
+    expect(occupied.get("2:1")).toContain("Round rug");
+    expect([...occupied.values()].flat()).not.toContain("Frame");
+  });
 });
 
 describe("newIsoPlacement", () => {
@@ -303,6 +386,22 @@ describe("validateIsoLayout", () => {
     expect(out.placements.map((p) => p.id)).toEqual(["a", "d"]);
     expect(out.placements[0].tint).toBe("#6fb8cf");
     expect(out.placements[1].tint).toBeUndefined();
+  });
+
+  it("persists an off switch only for toggleable decorations", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      placements: [
+        { id: "off", item: "fairylights", gx: 0, gy: 2, off: true },
+        { id: "on", item: "fairylights", gx: 0, gy: 4, off: false },
+        { id: "chair", item: "stool", gx: 4, gy: 4, off: true },
+      ],
+    });
+
+    expect(out.placements.find((p) => p.id === "off").off).toBe(true);
+    expect(out.placements.find((p) => p.id === "on").off).toBeUndefined();
+    expect(out.placements.find((p) => p.id === "chair").off).toBeUndefined();
   });
 
   it("keeps a pet's name and temper, cleans bad ones, refuses them on furniture", () => {
@@ -397,6 +496,12 @@ describe("floor masks (drawn shapes)", () => {
     expect(lipRuns(L_ROOM)).toHaveLength(4);
   });
 
+  it("keeps original walls tall but turns recessed silhouette steps into cutaways", () => {
+    expect(exteriorWallHeight({ plane: "gy", at: 0 }, 118)).toBe(118);
+    expect(exteriorWallHeight({ plane: "gy", at: 4 }, 118)).toBe(48);
+    expect(exteriorWallHeight({ plane: "gx", at: 3 }, 42)).toBe(42);
+  });
+
   // A wall stands 118px tall and its face shows through the void it faces, so
   // one raised anywhere but the lot's back silhouette is a slab through the
   // middle of the room. Painting any non-rectangular floor plan used to do
@@ -489,6 +594,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [0, 1]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeGreaterThan(isoDepth(sofa));
+      expect(out._facing, `rot ${rot}`).toBe("front");
       expect(sortIso([{ ...sofa }, { ...out, id: "p", item: "resident" }]).map((x) => x.id)).toEqual(
         ["s", "p"]
       );
@@ -500,6 +606,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     for (const rot of [2, 3]) {
       const { sofa, out } = sit(rot);
       expect(out._depth, `rot ${rot}`).toBeLessThan(isoDepth(sofa));
+      expect(out._facing, `rot ${rot}`).toBe("back");
       expect(sortIso([{ ...out, id: "p", item: "resident" }, { ...sofa }]).map((x) => x.id)).toEqual(
         ["p", "s"]
       );
@@ -523,6 +630,37 @@ describe("a sitter is placed by which way the seat faces", () => {
     );
     expect(out._seat).toBe(18);
     expect(out._lie).toBe(true);
+  });
+
+  it("does not invent a facing direction from a rug's rotation", () => {
+    const rug = { id: "r", item: "roundrug", gx: 1, gy: 1, rot: 0 };
+    const out = seatedPlacement(
+      { id: "p", item: "resident", gx: 1, gy: 1 },
+      { placement: rug, height: 1.5, lie: false, soft: true }
+    );
+    expect(out._facing).toBe("front");
+  });
+});
+
+describe("layout migrations", () => {
+  const workstation = {
+    w: 9,
+    d: 7,
+    placements: [
+      { id: "screen", item: "computer", gx: 3.5, gy: 0 },
+      { id: "chair", item: "deskchair", gx: 4, gy: 1.5 },
+    ],
+  };
+
+  it("repairs legacy desk chairs whose backrest blocks the computer", () => {
+    const out = validateIsoLayout(workstation);
+    expect(out.version).toBe(ISO_LAYOUT_VERSION);
+    expect(out.placements.find((p) => p.id === "chair").rot).toBe(2);
+  });
+
+  it("preserves a user's rotation after the workstation migration", () => {
+    const out = validateIsoLayout({ ...workstation, version: ISO_LAYOUT_VERSION });
+    expect(out.placements.find((p) => p.id === "chair").rot).toBeUndefined();
   });
 });
 
@@ -575,6 +713,13 @@ describe("personas", () => {
 });
 
 describe("environments", () => {
+  it("resolves default and per-room wall modes", () => {
+    expect(wallModeOf("room")).toBe("full");
+    expect(wallModeOf("terrace")).toBe("low");
+    expect(wallModeOf("garden")).toBe("none");
+    expect(wallModeOf("garden", "full")).toBe("full");
+  });
+
   it("keeps a known env, defaults junk to room (implicit)", () => {
     expect(validateIsoLayout({ w: 9, d: 7, env: "garden", placements: [] }).env).toBe("garden");
     expect(validateIsoLayout({ w: 9, d: 7, env: "space", placements: [] }).env).toBeUndefined();
@@ -596,6 +741,45 @@ describe("environments", () => {
 });
 
 describe("presets", () => {
+  it("ships the plant shop as a stocked, functional retail room", () => {
+    const shop = ISO_PRESETS.plantshop;
+    const keys = shop.items.map((p) => p.item);
+    const greenery = new Set([
+      "plantshelf", "monstera", "palm", "fern", "snakeplant", "plant",
+      "succulent", "orchid", "bonsai", "terrarium", "seedtray", "wateringcan",
+      "hangplant",
+    ]);
+    expect(shop.size.env).toBe("cafe");
+    expect(keys.filter((key) => key === "plantshelf")).toHaveLength(6);
+    expect(keys.filter((key) => greenery.has(key)).length).toBeGreaterThanOrEqual(18);
+    expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
+  });
+
+  it("turns every desk chair toward its computer", () => {
+    // A chair's real front is opposite its backrest. The usual workstation
+    // has its screen up-room (rot 2), but the Cozy study desk is on the left
+    // wall (rot 3). Test the actual dominant screen direction rather than
+    // assuming every desk was placed along the back wall.
+    for (const key of ISO_PRESET_KEYS) {
+      const items = ISO_PRESETS[key].items;
+      const terminals = items.filter((p) => p.item === "computer" || p.item === "laptop");
+      for (const chair of items.filter((p) => p.item === "deskchair")) {
+        const terminal = terminals.reduce((nearest, p) => {
+          const distance = Math.abs(p.gx - chair.gx) + Math.abs(p.gy - chair.gy);
+          return !nearest || distance < nearest.distance ? { p, distance } : nearest;
+        }, null)?.p;
+        expect(terminal, `${key}: desk chair has no computer`).toBeTruthy();
+
+        const dx = terminal.gx - chair.gx;
+        const dy = terminal.gy - chair.gy;
+        const expectedRot = Math.abs(dx) > Math.abs(dy)
+          ? dx < 0 ? 3 : 1
+          : dy < 0 ? 2 : 0;
+        expect(chair.rot, `${key}: desk chair does not face its computer`).toBe(expectedRot);
+      }
+    }
+  });
+
   it("every preset is valid by its own rules and fits its own floor", () => {
     for (const key of ISO_PRESET_KEYS) {
       const layout = isoPresetLayout(key);
@@ -613,6 +797,16 @@ describe("presets", () => {
         expect(p.gy, `${key}:${p.item} gy not half-snapped`).toBe(snapHalf(p.gy));
       }
     }
+  });
+
+  it("keeps the starter rooms calm and puts the Loft computer by its window", () => {
+    expect(ISO_PRESETS.loft.items.length).toBeLessThanOrEqual(24);
+    expect(ISO_PRESETS.home.items.length).toBeLessThanOrEqual(32);
+    const loft = ISO_PRESETS.loft.items;
+    const computer = loft.find((p) => p.item === "computer");
+    const window = loft.find((p) => p.item === "bigwindow");
+    expect(computer).toMatchObject({ gx: 5, gy: 0 });
+    expect(Math.abs(computer.gx - window.gx) + Math.abs(computer.gy - window.gy)).toBeLessThanOrEqual(0.5);
   });
 
   it("each application mints fresh ids (presets can be applied repeatedly)", () => {
@@ -895,6 +1089,114 @@ describe("you, in the room", () => {
   });
 });
 
+describe("room atmosphere", () => {
+  it("keeps independent wall colours and a known lighting mood", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      wallColors: { left: "#aa6655", right: "#554477" },
+      lighting: "golden",
+      placements: [],
+    });
+    expect(out.wallColors).toEqual({ left: "#aa6655", right: "#554477" });
+    expect(out.lighting).toBe("golden");
+  });
+
+  it("keeps the asymmetric shared home open-plan", () => {
+    const layout = isoPresetLayout("home");
+    expect(layout.mask).toBeTruthy();
+    for (const key of ["home", "loft", "cafeteria"]) {
+      expect(isoPresetLayout(key).partitions, `${key} should stay open-plan`).toBeUndefined();
+      expect(isoPresetLayout(key).arches, `${key} should stay open-plan`).toBeUndefined();
+    }
+    for (const key of ["garden", "terrace", "fall"]) {
+      expect(isoPresetLayout(key).partitions, `${key} should stay open-air`).toBeUndefined();
+    }
+  });
+
+  it("renders explicit arch openings separately and merges adjacent spans", () => {
+    const pieces = partitionPieces({
+      w: 5,
+      d: 4,
+      partitions: ["gx:2:0", "gx:2:3"],
+      arches: ["gx:2:1", "gx:2:2"],
+    });
+    expect(pieces).toContainEqual({
+      plane: "gx",
+      at: 2,
+      from: 1,
+      to: 3,
+      partition: true,
+      arch: true,
+    });
+  });
+
+  it("keeps arches passable and lets them win over duplicate solid edges", () => {
+    const out = validateIsoLayout({
+      w: 4,
+      d: 4,
+      partitions: ["gy:2:1", "gy:2:2"],
+      arches: ["gy:2:1"],
+      placements: [],
+    });
+    expect(out.arches).toEqual(["gy:2:1"]);
+    expect(out.partitions).toEqual(["gy:2:2"]);
+    expect(footprintFree(1, 1, [1, 2], out)).toBe(true);
+    expect(footprintFree(2, 1, [1, 2], out)).toBe(false);
+  });
+
+  it("keeps only interior walls with floor on both sides and merges long runs", () => {
+    const size = {
+      w: 5,
+      d: 4,
+      partitions: [
+        partitionKey("gy", 2, 0),
+        partitionKey("gy", 2, 1),
+        partitionKey("gy", 2, 2),
+        partitionKey("gx", 3, 1),
+        "gy:0:0", // exterior line — the environment owns it
+        "nope",
+      ],
+    };
+    expect(normalizePartitions(size.partitions, size)).toHaveLength(4);
+    expect(partitionRuns(size)).toEqual([
+      { plane: "gy", at: 2, from: 0, to: 3, partition: true },
+      { plane: "gx", at: 3, from: 1, to: 2, partition: true },
+    ]);
+  });
+
+  it("drops a partition when reshaping removes the floor beside it", () => {
+    const out = validateIsoLayout({
+      w: 3,
+      d: 3,
+      mask: ["111", "101", "111"],
+      partitions: ["gy:1:0", "gy:1:1", "gx:1:2"],
+      placements: [],
+    });
+    expect(out.partitions).toEqual(["gx:1:2", "gy:1:0"]);
+  });
+
+  it("keeps furniture on one side of a drawn wall", () => {
+    const room = { w: 5, d: 4, partitions: ["gy:2:1", "gx:3:0"] };
+    expect(footprintFree(1, 1, [1, 2], room)).toBe(false);
+    expect(footprintFree(2, 0, [2, 1], room)).toBe(false);
+    expect(footprintFree(1, 0, [1, 1], room)).toBe(true);
+    expect(footprintFree(1, 2, [1, 1], room)).toBe(true);
+  });
+
+  it("drops malformed finishes instead of poisoning a saved room", () => {
+    const out = validateIsoLayout({
+      w: 9,
+      d: 7,
+      wallColors: { left: "red", right: "#123456", ceiling: "#ffffff" },
+      lighting: "disco",
+      placements: [],
+    });
+    expect(out.wallColors).toEqual({ right: "#123456" });
+    expect(out.lighting).toBeUndefined();
+  });
+});
+
 // A turn changes which TILES a piece covers, so on a drawn (non-rectangular)
 // floor it can strand the piece over void while staying perfectly in bounds.
 // `clampIsoPlacement` is bounds-only by design, so the caller has to check —
@@ -960,54 +1262,67 @@ describe("rotating on a drawn floor", () => {
   });
 });
 
-describe("personaCanStand — the walk-order rule", () => {
-  // Not the edit-mode drag rule (that one allows overlap) and not quite the
-  // wander rule (that one refuses ALL furniture): walking may end on a free
-  // seat, which is how a walk order becomes sitting down with your friend.
+describe("personaCanSit — the seated-life landing rule", () => {
+  // The carry may land on a free seat or soft ground; bare floor only when
+  // the room offers nowhere to sit (the no-seat fallback that keeps every
+  // room placeable). Owner decision 2026-08-19, from the VC2 reference.
   const ROOM = { w: 9, d: 7 };
   const SELF = "visit-guest-1";
 
-  it("allows open floor and refuses the void", () => {
-    expect(personaCanStand(4, 4, ROOM, [], SELF)).toBe(true);
+  it("allows standing on any clear floor and refuses the void", () => {
+    // Owner, 2026-08-19: dropping someone on bare floor just STANDS them
+    // there — no walk follows, but the spot is theirs.
+    expect(personaCanSit(4, 4, ROOM, [], SELF)).toBe(true);
     // Out of bounds (the 0.8 footprint pokes past the far edge)…
-    expect(personaCanStand(8.9, 6.9, ROOM, [], SELF)).toBe(false);
+    expect(personaCanSit(8.9, 6.9, ROOM, [], SELF)).toBe(false);
     // …and a painted-away tile.
     const masked = {
       ...ROOM,
       mask: Array.from({ length: 7 }, (_, y) => (y === 0 ? "011111111" : "111111111")),
     };
-    expect(personaCanStand(0, 0, masked, [], SELF)).toBe(false);
+    expect(personaCanSit(0, 0, masked, [], SELF)).toBe(false);
   });
 
-  it("refuses furniture but ignores rugs, personas, and itself", () => {
+  it("soft ground seats you (shared), furniture refuses, bare floor stands", () => {
+    const rug = { id: "r1", item: "rug", gx: 3, gy: 3 };
+    // Over the rug: a floor-sit — legal, and SHARED (a rug isn't a chair).
+    expect(personaCanSit(4, 4, ROOM, [rug], SELF)).toBe(true);
+    expect(
+      personaCanSit(4, 4, ROOM, [rug, { id: "o1", item: "resident", gx: 4.5, gy: 4 }], SELF)
+    ).toBe(true);
+    // Off the rug: bare floor is legal even with seats around — they stand.
+    expect(personaCanSit(1, 1, ROOM, [rug], SELF)).toBe(true);
+    // Furniture is refused everywhere.
     const bookcase = { id: "b1", item: "bookcase", gx: 4, gy: 4 };
-    expect(personaCanStand(4, 4, ROOM, [bookcase], SELF)).toBe(false);
-    expect(personaCanStand(1, 1, ROOM, [bookcase], SELF)).toBe(true);
-    // A rug is layer -1 — standing ON it is the point of a rug.
-    expect(
-      personaCanStand(4, 4, ROOM, [{ id: "r1", item: "rug", gx: 3, gy: 3 }], SELF)
-    ).toBe(true);
-    // The owner standing there doesn't block the floor (the wander engine's
-    // rule), and your OWN current placement never blocks your next step.
-    expect(
-      personaCanStand(4, 4, ROOM, [{ id: "o1", item: "resident", gx: 4, gy: 4 }], SELF)
-    ).toBe(true);
-    expect(
-      personaCanStand(2, 2, ROOM, [{ id: SELF, item: "resident", gx: 2, gy: 2 }], SELF)
-    ).toBe(true);
+    expect(personaCanSit(4, 4, ROOM, [bookcase], SELF)).toBe(false);
+    expect(personaCanSit(1, 1, ROOM, [bookcase], SELF)).toBe(true);
   });
 
   it("a free seat is legal; a seat someone else resolves onto is taken", () => {
     const stool = { id: "s1", item: "stool", gx: 4, gy: 4 };
     // Centred over the stool → seatFor will seat them there.
     expect(seatFor({ id: SELF, item: "resident", gx: 4, gy: 4 }, [stool])).toBeTruthy();
-    expect(personaCanStand(4, 4, ROOM, [stool], SELF)).toBe(true);
+    expect(personaCanSit(4, 4, ROOM, [stool], SELF)).toBe(true);
     // The owner already sits there — two people snapping to one seat centre
     // is the stacked-mug bug wearing a face.
     const owner = { id: "o1", item: "resident", gx: 4, gy: 4 };
-    expect(personaCanStand(4, 4, ROOM, [stool, owner], SELF)).toBe(false);
+    expect(personaCanSit(4, 4, ROOM, [stool, owner], SELF)).toBe(false);
     // A second, empty seat stays legal.
     const stool2 = { id: "s2", item: "stool", gx: 6, gy: 4 };
-    expect(personaCanStand(6, 4, ROOM, [stool, owner, stool2], SELF)).toBe(true);
+    expect(personaCanSit(6, 4, ROOM, [stool, owner, stool2], SELF)).toBe(true);
+  });
+
+  it("freeSeatSpot shows an arrival to a free chair, then soft ground, then null", () => {
+    const stool = { id: "s1", item: "stool", gx: 4, gy: 4 };
+    const rug = { id: "r1", item: "rug", gx: 0, gy: 0 };
+    const at = freeSeatSpot([stool, rug]);
+    // Centred over the stool: seatFor resolves a resident placed there.
+    expect(seatFor({ id: "g", item: "resident", ...at }, [stool, rug])?.placement.id).toBe("s1");
+    // Stool taken → the rug (a floor-sit) is next.
+    const owner = { id: "o1", item: "resident", gx: 4, gy: 4 };
+    const soft = freeSeatSpot([stool, rug, owner]);
+    expect(seatFor({ id: "g", item: "resident", ...soft }, [stool, rug, owner])?.soft).toBe(true);
+    // Nothing to sit on at all → null (the caller stands them up instead).
+    expect(freeSeatSpot([{ id: "b1", item: "bookcase", gx: 1, gy: 1 }])).toBe(null);
   });
 });

@@ -27,7 +27,7 @@ const ITEMS = [
   { key: "settings", Icon: Settings, label: "Settings" },
 ];
 
-export default function Dock({ active, onSelect }) {
+export default function Dock({ active, onSelect, onWarm }) {
   // Collapsible so the scene can breathe (VC2 keeps its chrome ghosted and
   // minimal). Persisted per device — it's a display preference.
   const [collapsed, setCollapsed] = useState(
@@ -77,6 +77,8 @@ export default function Dock({ active, onSelect }) {
               <button
                 key={item.key}
                 onClick={() => onSelect(item.key)}
+                onPointerEnter={() => onWarm?.(item.key)}
+                onFocus={() => onWarm?.(item.key)}
                 className={`pill group relative grid h-10 w-10 place-items-center transition ${
                   active.includes(item.key)
                     ? "bg-glow text-plum"
@@ -84,7 +86,10 @@ export default function Dock({ active, onSelect }) {
                 }`}
               >
                 <item.Icon size={17} />
-                <span className="pointer-events-none absolute left-12 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream opacity-0 transition group-hover:opacity-100">
+                {/* group-focus-within keeps the label visible for keyboard
+                    users too — tabbing the dock otherwise shows eight
+                    identical unlabeled icons. */}
+                <span className="pointer-events-none absolute left-12 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
                   {item.label}
                 </span>
               </button>

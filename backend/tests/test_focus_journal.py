@@ -99,7 +99,10 @@ def test_one_users_focus_is_not_anothers(client, app):
     assert client.get(f"/api/sessions/day?day={day}", headers=bh).get_json()["entries"] == []
 
 
-@pytest.mark.parametrize("bad", ["", "nonsense", "2026-13-40", "not-a-date"])
+@pytest.mark.parametrize(
+    "bad",
+    ["", "nonsense", "2026-13-40", "not-a-date", "2026-08-26T12:00:00Z"],
+)
 def test_a_bad_day_is_refused_not_guessed(client, auth, bad):
     assert client.get(f"/api/sessions/day?day={bad}", headers=auth).status_code == 400
 

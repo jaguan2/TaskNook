@@ -1,8 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { resolveMusicLink, stationKey, stationUrl } from "./musicLink";
+import { moveStation, renameStation, resolveMusicLink, stationKey, stationUrl, validateCustomStations } from "./musicLink";
 
 const VIDEO = { provider: "youtube", id: "dQw4w9WgXcQ", label: "a single" };
 const LIST = { provider: "youtube", kind: "playlist", id: "PLwzQP2wCE5w5x", label: "a list" };
+
+describe("custom station editing", () => {
+  const stations = [VIDEO, LIST];
+
+  it("renames a station without changing its identity", () => {
+    const renamed = renameStation(stations, stationKey(VIDEO), "  evening mix  ");
+    expect(renamed[0].label).toBe("evening mix");
+    expect(stationKey(renamed[0])).toBe(stationKey(VIDEO));
+    expect(renameStation(stations, stationKey(VIDEO), "   ")).toBe(stations);
+  });
+
+  it("reorders stations and clamps at either end", () => {
+    expect(moveStation(stations, stationKey(VIDEO), 1)).toEqual([LIST, VIDEO]);
+    expect(moveStation(stations, stationKey(VIDEO), -1)).toBe(stations);
+    expect(moveStation(stations, stationKey(LIST), 1)).toBe(stations);
+  });
+});
+
+describe("custom station cache", () => {
+  it("drops malformed and duplicate saved stations before rendering", () => {
+    expect(validateCustomStations([VIDEO, null, { provider: "radio", id: "bad" }, VIDEO])).toEqual([
+      { ...VIDEO, custom: true },
+    ]);
+  });
+});
 
 describe("stationUrl — the page behind the transport bar's title", () => {
   it("links a single video to its watch page", () => {

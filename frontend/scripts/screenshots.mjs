@@ -21,6 +21,11 @@
  *   node --experimental-websocket scripts/screenshots.mjs
  *   node --experimental-websocket scripts/screenshots.mjs 01 02 22   # a subset
  *
+ * For a throwaway review pass, keep generated files out of `docs/` and point
+ * at any production/dev server without editing this script:
+ *   set TASKNOOK_SHOT_APP=http://localhost:5099
+ *   set TASKNOOK_SHOT_DIR=art-sheet\preset-review
+ *
  * `--experimental-websocket` is required on Node 20 (global WebSocket is
  * undefined without it); Node 22+ doesn't need the flag but tolerates it.
  *
@@ -40,13 +45,14 @@ import { fileURLToPath } from "url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
-const OUT_DIR = join(REPO, "docs", "screenshots");
-const PREVIEW = join(REPO, "docs", "preview.png");
+const OUT_DIR = process.env.TASKNOOK_SHOT_DIR || join(REPO, "docs", "screenshots");
+const PREVIEW = process.env.TASKNOOK_SHOT_PREVIEW ||
+  (process.env.TASKNOOK_SHOT_DIR ? join(OUT_DIR, "preview.png") : join(REPO, "docs", "preview.png"));
 
-const CDP = 9333;
-const APP = "http://localhost:5173";
-const W = 1600;
-const H = 1000;
+const CDP = Number(process.env.TASKNOOK_SHOT_CDP || 9333);
+const APP = process.env.TASKNOOK_SHOT_APP || "http://localhost:5173";
+const W = Number(process.env.TASKNOOK_SHOT_WIDTH || 1600);
+const H = Number(process.env.TASKNOOK_SHOT_HEIGHT || 1000);
 
 const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
 
@@ -99,6 +105,10 @@ const ROOMS = [
   ["07", "terrace", "Terrace", { weather: "off", time: "sunset" }],
   ["08", "study-hall", "Study hall", { weather: "off", time: "day" }],
   ["09", "autumn-yard", "Autumn yard", { weather: "off", time: "sunset" }],
+  ["28", "shared-home", "Shared home", { weather: "off", time: "sunset" }],
+  ["30", "plant-shop", "Plant shop", { weather: "off", time: "day" }],
+  ["31", "winter-yard", "Winter yard", { weather: "snow", time: "night" }],
+  ["32", "poolside", "Poolside", { weather: "off", time: "day" }],
 ];
 
 // The weather set is deliberately ONE room in five conditions, so the only
@@ -312,7 +322,15 @@ async function main() {
   // ---- rooms ----
   for (const [n, name, preset, amb] of ROOMS) {
     if (!want(n)) continue;
-    await page.setStorage({ ...ambient(amb), "tasknook.isoView": "" });
+    // Room screenshots are specifically the isometric preset gallery. Make
+    // that mode explicit: a previous interactive run may have persisted the
+    // flat-room toggle, which made every iso preset label disappear and left
+    // a partial capture run reporting MISSING after its first room.
+    await page.setStorage({
+      ...ambient(amb),
+      "tasknook.isoView": "",
+      "tasknook.isoPreview": "1",
+    });
     await page.load();
     await page.clickText("Room", { exact: true });
     await sleep(1400);
@@ -381,6 +399,19 @@ async function main() {
       const b = await page.shot(join(OUT_DIR, "25-decorating.webp"));
       console.log(`  25-decorating.webp  ${Math.round(b * 0.75 / 1024)}kB`);
     } else console.log("  25 decorating:", r);
+  }
+
+  // ---- 29 floor plan: both wall and arch tools visible on a zoned room ----
+  if (want("29")) {
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await sleep(1400);
+    const r = await page.clickText("Floor plan");
+    if (r === "ok") {
+      await sleep(1200);
+      const b = await page.shot(join(OUT_DIR, "29-floor-plan.webp"));
+      console.log(`  29-floor-plan.webp  ${Math.round(b * 0.75 / 1024)}kB`);
+    } else console.log("  29 floor plan:", r);
   }
 
   // ---- 27 visiting: knock on a friend's door and stand in their room ----

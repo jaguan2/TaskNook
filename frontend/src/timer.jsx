@@ -8,9 +8,14 @@ import {
   useState,
 } from "react";
 import { api } from "./lib/api";
-import { playChime } from "./lib/audio";
+import { normalizeChimeVolume, playChime } from "./lib/audio";
 import { readJSON, readStored, writeStored } from "./lib/storage";
-import { elapsedFrom, remainingFrom } from "./lib/time";
+import {
+  elapsedFrom,
+  normalizeFocusMinutes,
+  normalizePomodoro,
+  remainingFrom,
+} from "./lib/time";
 import {
   BREAK_NUDGE_MINUTES,
   PRESENCE_TICK_SECONDS,
@@ -43,7 +48,7 @@ import { useStore } from "./store";
 //                      would put App back on a 1Hz re-render and drag its whole
 //                      subtree along with it — the exact thing this split fixes.
 
-const FOCUS_PRESETS = [15, 25, 45, 60];
+const FOCUS_PRESETS = [15, 30, 45, 60];
 
 // Long enough to read without hurrying, since this one arrives unprompted
 // while your eyes are on the work rather than on the app.
@@ -62,8 +67,10 @@ export const useTimerStatus = () => useContext(TimerStatusContext);
 export function TimerProvider({ children }) {
   const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend } = useStore();
 
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [remaining, setRemaining] = useState(25 * 60);
+  const [focusMinutes, setFocusMinutes] = useState(() =>
+    normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 30)
+  );
+  const [remaining, setRemaining] = useState(() => focusMinutes * 60);
   const [running, setRunning] = useState(false);
   const tickRef = useRef(null);
   // "timer" counts down to a target; "stopwatch" counts up open-ended and
@@ -92,7 +99,7 @@ export function TimerProvider({ children }) {
    * A ref, not state: it changes in the same breath as the value it describes,
    * and nothing renders from it.
    */
-  const clockRef = useRef({ at: Date.now(), base: 25 * 60 });
+  const clockRef = useRef({ at: Date.now(), base: focusMinutes * 60 });
 
   /**
    * Set the countdown AND re-anchor it. Every write to `remaining` goes through
@@ -135,16 +142,19 @@ export function TimerProvider({ children }) {
   };
 
   // Pomodoro mode: focus → break → focus … for a set number of rounds.
-  const [pomodoro, setPomodoroState] = useState(() => ({
-    enabled: false,
-    breakMinutes: 5,
-    rounds: 4,
-    // readJSON already returns the fallback for missing OR corrupt storage, so
-    // the try/catch this used to carry was dead weight.
-    ...readJSON("tasknook.pomodoro", {}),
-  }));
+  const [pomodoro, setPomodoroState] = useState(() =>
+    normalizePomodoro(readJSON("tasknook.pomodoro", {}))
+  );
   const [phase, setPhase] = useState("focus"); // "focus" | "break"
   const [round, setRound] = useState(1);
+  const [chimeVolume, setChimeVolumeState] = useState(() =>
+    normalizeChimeVolume(readStored("tasknook.chimeVolume"))
+  );
+  const setChimeVolume = (value) => {
+    const next = normalizeChimeVolume(value);
+    setChimeVolumeState(next);
+    writeStored("tasknook.chimeVolume", String(next));
+  };
 
   // Mid-session ±time nudges (VC2-style). Tracked separately so the progress
   // bar's total stretches with the block and the logged session reflects the
@@ -154,7 +164,7 @@ export function TimerProvider({ children }) {
   const setPomodoro = (patch) => {
     // Persist OUTSIDE the updater (updaters must stay pure — StrictMode
     // double-invokes them); `pomodoro` is in scope, so compute next here.
-    const next = { ...pomodoro, ...patch };
+    const next = normalizePomodoro({ ...pomodoro, ...patch });
     writeStored("tasknook.pomodoro", JSON.stringify(next));
     setPomodoroState(next);
     // Changing the plan restarts the cycle from round 1 — but only when idle.
@@ -201,8 +211,10 @@ export function TimerProvider({ children }) {
     // control, is what's unsafe — the Pomodoro settings take the same care
     // (see setPomodoro) and any future caller inherits it.
     if (running) return;
-    setFocusMinutes(minutes);
-    setClock(minutes * 60);
+    const next = normalizeFocusMinutes(minutes, focusMinutes);
+    setFocusMinutes(next);
+    writeStored("tasknook.focusMinutes", String(next));
+    setClock(next * 60);
     setPhase("focus");
     setRound(1);
     setNudgeSeconds(0);
@@ -222,14 +234,25 @@ export function TimerProvider({ children }) {
     // calls below are permanently dead (permission starts as "default").
     try {
       if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
+        const request = Notification.requestPermission();
+        // Some WebView versions reject the permission Promise rather than
+        // throwing synchronously. A fire-and-forget rejection must not become
+        // a global unhandledrejection error.
+        request?.catch?.(() => undefined);
       }
     } catch {
       /* older webviews may not implement it */
     }
     setRunning(true);
   };
-  const pauseTimer = () => setRunning(false);
+  const pauseTimer = () => {
+    // Sample the anchor BEFORE stopping. In a throttled/minimised window the
+    // rendered value may be minutes stale; pausing from that stale state used
+    // to hand all of that elapsed time back on the next resume.
+    if (timerMode === "stopwatch") setStopwatch(currentElapsed());
+    else setClock(currentRemaining());
+    setRunning(false);
+  };
   const resetTimer = () => {
     setRunning(false);
     if (timerMode === "stopwatch") {
@@ -258,8 +281,12 @@ export function TimerProvider({ children }) {
   };
 
   const notify = (title, body) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body });
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body });
+      }
+    } catch {
+      /* notifications are optional in browsers and older webviews */
     }
   };
 
@@ -270,7 +297,7 @@ export function TimerProvider({ children }) {
   const handlePhaseComplete = useCallback(async () => {
     // A soft in-app chime marks every phase edge for someone at the screen;
     // the system notification covers whoever stepped away.
-    playChime();
+    playChime(chimeVolume);
     if (phase === "break") {
       setPhase("focus");
       setRound((r) => r + 1);
@@ -312,7 +339,7 @@ export function TimerProvider({ children }) {
     }
     // `setClock` is a stable useCallback with no deps of its own, so listing it
     // costs nothing and keeps the rule satisfied honestly rather than suppressed.
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock]);
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock, chimeVolume]);
 
   // Ends a break early and moves straight into the next focus round — before
   // this, the only way out of a break was ✕, which discards the whole cycle.
@@ -369,11 +396,16 @@ export function TimerProvider({ children }) {
     const seen = () => {
       lastActivityRef.current = Date.now();
     };
-    const events = ["pointerdown", "pointermove", "keydown", "wheel", "visibilitychange"];
+    const events = ["pointerdown", "pointermove", "keydown", "wheel"];
     for (const e of events) window.addEventListener(e, seen, { passive: true });
+    // visibilitychange is a Document event and does not reliably bubble to
+    // window. Listening on window left a return from a long hidden period
+    // looking idle until the next pointer/key event.
+    document.addEventListener("visibilitychange", seen, { passive: true });
     const id = setInterval(() => samplePresenceRef.current?.(), PRESENCE_TICK_SECONDS * 1000);
     return () => {
       for (const e of events) window.removeEventListener(e, seen);
+      document.removeEventListener("visibilitychange", seen);
       clearInterval(id);
     };
   }, []);
@@ -421,7 +453,7 @@ export function TimerProvider({ children }) {
     const minutes = Math.round(currentElapsed() / 60);
     setStopwatch(0);
     if (minutes < 1) return; // nothing meaningful to log
-    playChime();
+    playChime(chimeVolume);
     try {
       await api.logSession({
         minutes,
@@ -457,6 +489,8 @@ export function TimerProvider({ children }) {
     focusMinutes,
     setFocus,
     focusPresets: FOCUS_PRESETS,
+    chimeVolume,
+    setChimeVolume,
     remaining,
     running,
     startTimer,

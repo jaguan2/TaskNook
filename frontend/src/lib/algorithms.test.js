@@ -99,6 +99,16 @@ describe("ordering algorithms", () => {
     expect(names(out)).toEqual([3, 2, 4, 1]);
   });
 
+  it("deadline: nearest valid due dates first, then undated tasks", () => {
+    const out = applyAlgorithm("deadline", [
+      task(1, { dueDate: null, priority: "high" }),
+      task(2, { dueDate: "2026-09-02" }),
+      task(3, { dueDate: "2026-08-30" }),
+      task(4, { dueDate: "garbage", priority: "low" }),
+    ]);
+    expect(names(out)).toEqual([3, 2, 1, 4]);
+  });
+
   it("custom: follows the manual position field", () => {
     const out = applyAlgorithm("custom", [
       task(1, { position: 2 }),

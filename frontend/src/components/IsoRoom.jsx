@@ -2,30 +2,36 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
+  ISO_LIGHTING,
   clampIsoPlacement,
   envOf,
-  WALL_MODES,
   footOf,
   footprintFree,
   lipRuns,
-  personaCanStand,
+  personaCanSit,
+  partitionPieces,
   petCanStand,
   petTemper,
   seatFor,
   seatedPlacement,
   snapHalf,
-  sortIso,
+  sortIsoScene,
   stackedPlacement,
   surfaceFor,
   tileOn,
+  wallModeOf,
   wallRuns,
   wallSegment,
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
 import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
 import { readStored, writeStored } from "../lib/storage";
+import { useNpcActivity } from "../lib/useNpcActivity";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
+import ExteriorWall from "./ExteriorWall";
+import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
+import PartitionWall from "./PartitionWall";
 import RoomTintPicker from "./RoomTintPicker";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
@@ -44,7 +50,10 @@ import RoomTintPicker from "./RoomTintPicker";
 // A balustrade rather than a wall: high enough to enclose a terrace, low
 // enough that you still read it as outdoors.
 const LOW_WALL_H = 30;
-
+const WINDOW_FRAME_FROM = 1.1;
+const WINDOW_FRAME_LENGTH = 2.4;
+const WINDOW_GLOW_FROM = 0.35;
+const WINDOW_GLOW_LENGTH = 3.5;
 
 /**
  * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
@@ -61,133 +70,6 @@ function overSoftSpot(placements, gx, gy, f) {
     return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
   });
 }
-
-/**
- * The painted floor as horizontal RUNS: `[gx, gy, length]` per unbroken stretch.
- *
- * Only the clip path wants this. It needs the same AREA, not the individual
- * tiles, and emitting one polygon per tile made it 2,304 nodes on a 48×48 lot —
- * for a shape that is usually a plain rectangle — with FOUR groups referencing
- * it, so the browser resolved that region four times over. Merging by row is the
- * same trick `lipRuns` uses, and it takes a rectangle to one polygon per row.
- */
-function floorClipRuns(size) {
-  const runs = [];
-  for (let ty = 0; ty < size.d; ty++) {
-    let start = -1;
-    // One past the end so a run reaching the far edge is still closed.
-    for (let tx = 0; tx <= size.w; tx++) {
-      const on = tx < size.w && tileOn(size, tx, ty);
-      if (on && start < 0) start = tx;
-      if (!on && start >= 0) {
-        runs.push([start, ty, tx - start]);
-        start = -1;
-      }
-    }
-  }
-  return runs;
-}
-
-/**
- * The floor's MATERIAL, drawn over its colour gradient and clipped to the
- * painted tiles.
- *
- * A flat gradient reads as a coloured plane, not a floor — it's the largest
- * surface on screen and it was the thing most obviously missing next to the
- * references. Grain is cheap: every line here is one `<line>` in grid space,
- * and `project()` puts it on the right plane for free.
- *
- * Everything is derived from the tile index, never Math.random — the scene
- * re-renders and a reshuffling floor would crawl.
- *
- * memo'd because `stone` is a w·d nested loop (2,304 polygons on a big terrace)
- * and `boards`/`tiles` are hundreds of lines. All three props are scalars, so the
- * comparison is exact and free.
- */
-function FloorSurfaceInner({ w, d, style }) {
-  const line = (key, x1, y1, x2, y2, stroke, width, opacity) => {
-    const a = project(x1, y1);
-    const b = project(x2, y2);
-    return (
-      <line
-        key={key}
-        x1={a.x}
-        y1={a.y}
-        x2={b.x}
-        y2={b.y}
-        stroke={stroke}
-        strokeWidth={width}
-        opacity={opacity}
-      />
-    );
-  };
-
-  if (style === "grass") {
-    // Mown stripes: the only thing a lawn needs to stop reading as felt.
-    const out = [];
-    for (let t = 0; t < d; t += 2) {
-      out.push(
-        <polygon
-          key={`mow-${t}`}
-          points={floorPatch(0, t, w, 1)}
-          fill="#ffffff"
-          opacity="0.045"
-        />
-      );
-    }
-    return <g>{out}</g>;
-  }
-
-  if (style === "stone") {
-    // Flagstones: one inset slab per tile, its size nudged by the tile index
-    // so the joints wander instead of forming a grid.
-    const out = [];
-    for (let ty = 0; ty < d; ty++) {
-      for (let tx = 0; tx < w; tx++) {
-        const j = ((tx * 7 + ty * 13) % 5) / 100; // 0 … 0.04
-        out.push(
-          <polygon
-            key={`slab-${tx}-${ty}`}
-            points={floorPatch(tx + 0.06 + j, ty + 0.06 - j, 0.88 - j, 0.88 + j)}
-            fill="#ffffff"
-            opacity={0.05 + (((tx * 3 + ty * 5) % 4) / 100)}
-          />
-        );
-      }
-    }
-    return <g>{out}</g>;
-  }
-
-  if (style === "tiles") {
-    const out = [];
-    for (let t = 0.5; t < d; t += 0.5) {
-      out.push(line(`h${t}`, 0, t, w, t, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
-    }
-    for (let t = 0.5; t < w; t += 0.5) {
-      out.push(line(`v${t}`, t, 0, t, d, "#000", 0.8, t % 1 === 0 ? 0.22 : 0.12));
-    }
-    return <g>{out}</g>;
-  }
-
-  // boards: planks running along +gx, half a tile wide, with staggered end
-  // joints in a brick bond — a plain set of parallel lines reads as corduroy.
-  const out = [];
-  let row = 0;
-  for (let t = 0.5; t < d; t += 0.5, row++) {
-    out.push(line(`seam${t}`, 0, t, w, t, "#000", 0.9, 0.2));
-  }
-  row = 0;
-  for (let t = 0; t < d; t += 0.5, row++) {
-    const stagger = (row % 2) * 1.25;
-    for (let gx = stagger; gx < w; gx += 2.5) {
-      if (gx <= 0) continue;
-      out.push(line(`j${t}-${gx}`, gx, t, gx, Math.min(d, t + 0.5), "#000", 0.7, 0.16));
-    }
-  }
-  return <g>{out}</g>;
-}
-
-const FloorSurface = memo(FloorSurfaceInner);
 
 const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;
@@ -234,9 +116,9 @@ const ISO_TIME = {
   // every colour the user picked). Without it the backdrop brightened but the
   // room stayed pitch dark inside it, which read as a night room cut out and
   // pasted onto a day sky.
-  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1 },
-  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7 },
-  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#9fc4e0", washOpacity: 0.42, lift: "#cfe4f2", liftOpacity: 0.19, glow: 0.25 },
+  night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1, windowLight: 0.12 },
+  sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7, windowLight: 0.68 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#c5a4ad", washOpacity: 0.38, lift: "#f0d0c5", liftOpacity: 0.14, glow: 0.25, windowLight: 0.78 },
 };
 
 /**
@@ -331,6 +213,9 @@ const PlacedItem = memo(function PlacedItem({
   // While visiting, YOUR placement takes walk orders — grabbable outside
   // edit mode (cursor + the footprint hit polygon say so).
   walkable = false,
+  // Powered decorations can be clicked in the finished room. Decorate mode
+  // keeps the normal select/drag gesture and exposes a power button instead.
+  toggleable = false,
 }) {
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
@@ -339,6 +224,7 @@ const PlacedItem = memo(function PlacedItem({
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
   const glide = useGlide(at.x, at.y, glides && !editMode && !reduceMotion);
+  const personaActivity = useNpcActivity(personaInfo?.npcUsername, activity);
   if (!item || !Sprite) return null;
   const foot = footOf(p.item, p.rot);
   // Wanderers use a CSS transform (transition = the glide);
@@ -371,7 +257,7 @@ const PlacedItem = memo(function PlacedItem({
             // duration is per-glide (constant speed, whole steps) so the
             // stride always agrees with the ground covered.
             transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
-            ...(walkable && { cursor: "grab" }),
+            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -379,7 +265,7 @@ const PlacedItem = memo(function PlacedItem({
       : {
           transform: `translate(${at.x},${at.y})`,
           style: {
-            ...(walkable && { cursor: "grab" }),
+            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -387,6 +273,7 @@ const PlacedItem = memo(function PlacedItem({
   return (
     <g
       {...placeProps}
+      data-placement-id={p.id}
       className={editMode ? "room-item" : undefined}
       onPointerDown={(e) => onStartDrag?.(p, e)}
     >
@@ -397,6 +284,15 @@ const PlacedItem = memo(function PlacedItem({
           diamond — a body is small and a fingertip isn't. */}
       {(editMode || walkable) && (
         <polygon points={floorPatch(0, 0, foot[0], foot[1])} fill="transparent" />
+      )}
+      {toggleable && !editMode && (
+        <rect
+          x={-4}
+          y={-item.hitH}
+          width={Math.max(18, (foot[0] * TILE_W) / 2 + 8)}
+          height={item.hitH}
+          fill="transparent"
+        />
       )}
       {/* Contact shadow: one soft ellipse sized to the footprint,
           under every grounded item. This is most of what makes the
@@ -438,7 +334,7 @@ const PlacedItem = memo(function PlacedItem({
               seated={!!p._seat && !p._lie}
               lying={!!p._lie}
               seatH={p._seat || 0}
-              activity={activity}
+              activity={personaActivity}
               moving={glide.moving}
               facing={p._facing || "front"}
               // Only YOU wear the profile's character and think
@@ -470,6 +366,7 @@ const PlacedItem = memo(function PlacedItem({
               rot={(p.rot || 0) % 2}
               back={(p.rot || 0) >= 2}
               variant={item.variants?.[p.tint]}
+              lit={!p.off}
             />
           </g>
         );
@@ -586,6 +483,7 @@ function IsoSceneInner({
   onStartDrag,
   onRotateItem,
   onRemoveItem,
+  onToggleItem,
   onClearSelect,
   // Visiting: {placementId: {character, label}} — per-placement looks and
   // the name tags drawn over them. Null at home.
@@ -611,10 +509,11 @@ function IsoSceneInner({
   // through a drag or a pan and again on every roam tick. On a 48×48 lot that is
   // thousands of tiles walked repeatedly for a value that hasn't changed since
   // the room was last resized. `wallRuns` alone was being called four times.
-  const { floorClip, wallRunList, lipRunList, leftSeg, rightSeg } = useMemo(
+  const { floorClip, wallRunList, partitionRunList, lipRunList, leftSeg, rightSeg } = useMemo(
     () => ({
       floorClip: floorClipRuns(size),
       wallRunList: wallRuns(size),
+      partitionRunList: partitionPieces(size),
       lipRunList: lipRuns(size),
       leftSeg: wallSegment("left", size),
       rightSeg: wallSegment("right", size),
@@ -626,8 +525,18 @@ function IsoSceneInner({
   // from one number instead of from a scatter of `outdoors` checks.
   const env = envOf(size.env);
   // The layout's own walls override (user-picked) beats the floor's default.
-  const walls = WALL_MODES.includes(size.walls) ? size.walls : env.walls;
+  const walls = wallModeOf(size.env, size.walls);
   const wallH = walls === "full" ? WALL_H : walls === "low" ? LOW_WALL_H : 0;
+  const lighting = ISO_LIGHTING[size.lighting] || ISO_LIGHTING.natural;
+  // Wall glow, frame and floor projection are three parts of one window. Keep
+  // the eligibility rule in one place so a shaped/low-wall room can never
+  // gain a floating light patch after one branch changes independently.
+  const hasWindow =
+    env.window &&
+    walls === "full" &&
+    d >= 5 &&
+    leftSeg.from <= WINDOW_GLOW_FROM &&
+    leftSeg.to >= WINDOW_GLOW_FROM + WINDOW_GLOW_LENGTH;
 
   // Personas: seated ones snap onto their seat (slightly forward so they
   // draw in front of the backrest, lifted by the seat height); standing ones
@@ -648,7 +557,13 @@ function IsoSceneInner({
     const id = setInterval(() => {
       const wanderers = placements.filter((p) => {
         const it = ISO_ITEMS[p.item];
-        if (it?.persona) return !seatFor(p, placements);
+        // SEATED LIFE (owner decision, 2026-08-19, from the VC2 reference:
+        // "it seems like they mostly just sit down"): humans never wander.
+        // People are SETTLED — on a chair, on a rug, or standing where you
+        // set them — and only a carry moves them. The pets are the room's
+        // motion now, which reads cozier, not deader: stillness with one
+        // moving cat is a study; six pacing humans was a train platform.
+        if (it?.persona) return false;
         return !!it?.roamer;
       });
       if (!wanderers.length) return;
@@ -765,7 +680,7 @@ function IsoSceneInner({
       ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _facing: off.facing }
       : p;
   });
-  const ordered = sortIso(effective);
+  const sceneLayers = sortIsoScene(effective, partitionRunList);
   const selectedPlacement =
     editMode && selectedId ? effective.find((p) => p.id === selectedId) : null;
 
@@ -778,12 +693,12 @@ function IsoSceneInner({
             <stop offset="1" style={{ stopColor: tod.wash }} stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWallL" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-blush))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.left || "rgb(var(--color-rose))" }} />
           </linearGradient>
           <linearGradient id="isoWallR" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-night))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
+            <stop offset="0" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-rose))" }} />
+            <stop offset="1" style={{ stopColor: size.wallColors?.right || "rgb(var(--color-wine))" }} />
           </linearGradient>
           <linearGradient id="isoFloor" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
@@ -820,6 +735,16 @@ function IsoSceneInner({
             <stop offset="0" stopColor="#ffe9b0" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="isoWindowGlow">
+            <stop offset="0" stopColor="#ffd9a4" stopOpacity="0.42" />
+            <stop offset="0.58" stopColor="#ffc987" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#ffc987" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="isoWindowFloorLight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#fff3ca" stopOpacity="0.38" />
+            <stop offset="0.52" stopColor="#ffd68d" stopOpacity="0.2" />
+            <stop offset="1" stopColor="#ffc276" stopOpacity="0" />
+          </linearGradient>
           {/* soft contact shadow under every grounded item — one gradient,
               no filters (a 48×48 lot can hold dozens of these) */}
           {/* Floor vignette: clear in the middle, darker toward the rim. A big
@@ -829,7 +754,7 @@ function IsoSceneInner({
           <radialGradient id="isoVignette">
             <stop offset="0.45" stopColor="#000" stopOpacity="0" />
             <stop offset="0.8" stopColor="#000" stopOpacity="0.07" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.13" />
           </radialGradient>
           <radialGradient id="isoShadow">
             <stop offset="0" stopColor="#000" stopOpacity="0.32" />
@@ -843,72 +768,30 @@ function IsoSceneInner({
         </defs>
 
         <ellipse cx="320" cy="250" rx="430" ry="330" fill="url(#isoAmbient)" />
+        <ellipse
+          cx="320"
+          cy="250"
+          rx="430"
+          ry="330"
+          fill={lighting.color}
+          opacity={lighting.opacity}
+          className={size.lighting === "candle" && !reduceMotion ? "iso-light-breathe" : undefined}
+          pointerEvents="none"
+        />
 
         <g transform={`translate(${cx}, ${cy})`}>
           {/* ---------- walls (cut-aware: main walls plus the inner planes
               that step around a cut corner) ---------- */}
           {wallH > 0 &&
-            wallRunList.map((run, i) => {
-            const a =
-              run.plane === "gy" ? project(run.from, run.at) : project(run.at, run.from);
-            const b =
-              run.plane === "gy" ? project(run.to, run.at) : project(run.at, run.to);
-            return (
-              <g key={`wall-${i}`}>
-                <polygon
-                  points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill={run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)"}
-                />
-                <polygon
-                  points={`${a.x},${a.y - wallH - 6} ${b.x},${b.y - wallH - 6} ${b.x},${b.y - wallH} ${a.x},${a.y - wallH}`}
-                  style={{
-                    fill: `rgb(var(--color-petal) / ${run.plane === "gy" ? 0.22 : 0.35})`,
-                  }}
-                />
-                {/* Panelling: one seam per tile along the run. Subtle on
-                    purpose — wall decor hangs on this surface, so it wants
-                    texture, not pattern. */}
-                {Array.from({ length: Math.max(0, Math.ceil(run.to - run.from) - 1) }, (_, k) => {
-                  const at = run.from + k + 1;
-                  const q = run.plane === "gy" ? project(at, run.at) : project(run.at, at);
-                  return (
-                    <line
-                      key={`panel-${k}`}
-                      x1={q.x}
-                      y1={q.y - wallH}
-                      x2={q.x}
-                      y2={q.y}
-                      stroke="#000"
-                      strokeWidth="1"
-                      opacity="0.09"
-                    />
-                  );
-                })}
-                {/* Skirting and a picture rail. Two bands is all it takes for
-                    a wall to stop being a coloured plane — the references have
-                    them and it was the cheapest gap to close. */}
-                <polygon
-                  points={`${a.x},${a.y - 9} ${b.x},${b.y - 9} ${b.x},${b.y} ${a.x},${a.y}`}
-                  fill="#fff"
-                  opacity={run.plane === "gy" ? 0.06 : 0.09}
-                />
-                <polygon
-                  points={`${a.x},${a.y - wallH * 0.62} ${b.x},${b.y - wallH * 0.62} ${b.x},${
-                    b.y - wallH * 0.62 + 3
-                  } ${a.x},${a.y - wallH * 0.62 + 3}`}
-                  fill="#000"
-                  opacity="0.14"
-                />
-                {tod.lift && (
-                  <polygon
-                    points={`${a.x},${a.y - wallH} ${b.x},${b.y - wallH} ${b.x},${b.y} ${a.x},${a.y}`}
-                    fill={tod.lift}
-                    opacity={tod.liftOpacity * (run.plane === "gy" ? 0.75 : 1)}
-                  />
-                )}
-              </g>
-            );
-          })}
+            wallRunList.map((run, i) => (
+              <ExteriorWall
+                key={`wall-${i}`}
+                run={run}
+                height={wallH}
+                lift={tod.lift}
+                liftOpacity={tod.liftOpacity}
+              />
+            ))}
           {/* The seam where the two walls meet. It only exists if the back
               corner is actually floor — this used to test `size.cuts`, which
               validation converts to a `mask` long before the scene sees it, so
@@ -921,15 +804,23 @@ function IsoSceneInner({
               and only at full height (a window poking above a low rail, or
               floating in open air, is nonsense the walls override made
               possible) */}
-          {env.window && walls === "full" && d >= 5 && leftSeg.from <= 1 && leftSeg.to >= 2.7 && (
+          {hasWindow && (
             <>
-              <polygon points={wallRect("left", 1.1, 2.4, 28, 70)} fill="#46396f" />
+              {/* A broad local glow is the cozy cue; the window frame remains
+                  crisp because it is painted on top. The wall-sized polygon
+                  clips the gradient without introducing an SVG filter. */}
+              <polygon
+                data-window-glow="true"
+                points={wallRect("left", WINDOW_GLOW_FROM, WINDOW_GLOW_LENGTH, 0, WALL_H)}
+                fill="url(#isoWindowGlow)"
+                opacity={tod.windowLight}
+              />
+              <polygon points={wallRect("left", WINDOW_FRAME_FROM, WINDOW_FRAME_LENGTH, 28, 70)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 34, 58)} fill="url(#isoSky)" />
               <circle cx={project(0, 2.3).x} cy={project(0, 2.3).y - 74} r="7" fill={tod.orb} />
               <polygon points={wallRect("left", 2.24, 0.12, 34, 58)} fill="#46396f" />
               <polygon points={wallRect("left", 1.25, 2.1, 60, 3.5)} fill="#46396f" />
               <polygon points={wallRect("left", 1.05, 2.5, 24, 5)} fill="#8a5346" />
-              <polygon points={floorPatch(0.15, 1.0, 2.4, 2.4)} fill="#ffe9b0" opacity="0.06" />
             </>
           )}
 
@@ -1014,6 +905,41 @@ function IsoSceneInner({
               fill="url(#isoVignette)"
             />
           </g>
+          {/* Window light belongs on TOP of the floor. This used to live with
+              the wall window above, where the later floor sheet painted over
+              it completely. Two projected shapes give the room a readable
+              pool and brighter inner shaft without SVG filters. */}
+          {hasWindow && (
+            <g data-window-floor-light="true" clipPath="url(#isoFloorClip)" pointerEvents="none">
+              <polygon
+                points={floorPatch(0.15, 1.0, 2.5, 2.55)}
+                fill="url(#isoWindowFloorLight)"
+                opacity={tod.windowLight}
+              />
+              <polygon
+                points={floorPatch(0.42, 1.28, 1.55, 1.72)}
+                fill="#fff0bd"
+                opacity={tod.windowLight * 0.07}
+              />
+              {/* The VC2 reference rooms rarely use an anonymous oval of
+                  daylight: you can read the WINDOW in the light it throws.
+                  Four quiet panes give the broad wash structure, while the
+                  two narrow strips are the frame/mullion shadows stretching
+                  into the room. They stay in grid space so the projection is
+                  correct for every room size, and remain subordinate to the
+                  furniture painted above them. */}
+              <g data-window-pane-light="true" opacity={tod.windowLight * 0.12}>
+                <polygon points={floorPatch(0.3, 1.12, 0.9, 0.92)} fill="#fff5d5" />
+                <polygon points={floorPatch(0.3, 2.18, 0.9, 0.92)} fill="#fff5d5" />
+                <polygon points={floorPatch(1.36, 1.12, 0.9, 0.92)} fill="#ffe4aa" />
+                <polygon points={floorPatch(1.36, 2.18, 0.9, 0.92)} fill="#ffe4aa" />
+              </g>
+              <g data-window-mullion-shadow="true" opacity={tod.windowLight * 0.2}>
+                <polygon points={floorPatch(1.2, 1.05, 0.14, 2.18)} fill="#5b3b54" />
+                <polygon points={floorPatch(0.24, 2.08, 2.12, 0.13)} fill="#5b3b54" />
+              </g>
+            </g>
+          )}
           {/* The tile grid is a placement aid: it belongs while you're
               decorating and nowhere else, now that the floor has a grain of
               its own to read.
@@ -1085,7 +1011,7 @@ function IsoSceneInner({
           <g clipPath="url(#isoFloorClip)">
             {effective.map((p) => {
               const glow = ISO_ITEMS[p.item]?.glow;
-              if (!glow || tod.glow <= 0) return null;
+              if (!glow || p.off || tod.glow <= 0) return null;
               const f = footOf(p.item, p.rot);
               const at = project(p.gx + f[0] / 2, p.gy + f[1] / 2);
               const [r, strength] = glow;
@@ -1101,7 +1027,12 @@ function IsoSceneInner({
               // noon. Nested opacity multiplies, so the animation stays
               // relative to whatever the hour and the catalog asked for.
               return (
-                <g key={`glow-${p.id}`} opacity={strength * tod.glow} style={ambienceVars(p.gx, p.gy)}>
+                <g
+                  key={`glow-${p.id}`}
+                  data-item-glow={p.id}
+                  opacity={strength * tod.glow}
+                  style={ambienceVars(p.gx, p.gy)}
+                >
                   <ellipse
                     className={ISO_ITEMS[p.item].flicker ? "pool-flicker" : "pool-breathe"}
                     cx={at.x}
@@ -1115,21 +1046,37 @@ function IsoSceneInner({
             })}
           </g>
 
-          {/* ---------- placed items ---------- */}
-          {ordered.map((p) => (
-            <PlacedItem
-              key={p.id}
-              p={p}
-              editMode={editMode}
-              activity={activity}
-              character={character}
-              mood={mood}
-              reduceMotion={reduceMotion}
-              onStartDrag={onStartDrag}
-              personaInfo={personas ? personas[p.id] : null}
-              walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
-            />
-          ))}
+          {/* Opaque dividers and furniture share painter order: a wall hides
+              what is behind it without burying furniture on the near side. */}
+          {sceneLayers.map((layer) => {
+            if (layer.kind === "partition") {
+              return (
+                <PartitionWall
+                  key={layer.key}
+                  run={layer.partition}
+                  height={WALL_H}
+                  lift={tod.lift}
+                  liftOpacity={tod.liftOpacity}
+                />
+              );
+            }
+            const p = layer.placement;
+            return (
+              <PlacedItem
+                key={layer.key}
+                p={p}
+                editMode={editMode}
+                activity={activity}
+                character={character}
+                mood={mood}
+                reduceMotion={reduceMotion}
+                onStartDrag={onStartDrag}
+                personaInfo={personas ? personas[p.id] : null}
+                walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
+                toggleable={!!onToggleItem && !!ISO_ITEMS[p.item]?.toggleable}
+              />
+            );
+          })}
 
           {/* Name tags for a visited room's people — after the furniture so
               nothing buries a name (the selection-chrome rule), and OUTSIDE
@@ -1190,6 +1137,37 @@ function IsoSceneInner({
                       fill="#fff"
                     />
                   </g>
+                  {item.toggleable && onToggleItem && (
+                    <g
+                      className="room-remove"
+                      data-power-toggle={p.id}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onToggleItem(p.id);
+                      }}
+                    >
+                      <title>{p.off ? "Turn on" : "Turn off"}</title>
+                      <circle
+                        cx={hitR.x - 40}
+                        cy={-item.hitH - 2}
+                        r="9"
+                        fill={p.off ? "#6e6877" : "#7c9f79"}
+                      />
+                      <path
+                        d={`M${hitR.x - 40} ${-item.hitH - 8} v6`}
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d={`M${hitR.x - 43.5} ${-item.hitH - 5.5} a5 5 0 1 0 7 0`}
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
                   <g
                     className="room-remove"
                     onPointerDown={(e) => {
@@ -1258,12 +1236,18 @@ function IsoRoom({
   onRemoveItem,
   onRotateItem,
   onTintItem,
+  onToggleItem,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const svgRef = useRef(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
+  // A powered decoration toggles only when the pointer is released without
+  // becoming a pan. Pointer-down is too early: touch users commonly begin a
+  // camera drag on whatever furniture happens to be under their finger.
+  const toggleRef = useRef(null);
   const heldRef = useRef(null);
+  const panLayerRef = useRef(null);
   // The marker alone — kept out of IsoScene so pointer-rate target updates
   // never re-render the scene subtree.
   const [walkTarget, setWalkTarget] = useState(null);
@@ -1297,6 +1281,7 @@ function IsoRoom({
   useEffect(() => flushView, []);
   const applyView = (next) => {
     const clamped = clampView(next);
+    viewRef.current = clamped;
     setView(clamped);
     // A visited room's camera is throwaway — never let it near the stored
     // home view (pendingViewRef stays null, so the unmount flush is a no-op).
@@ -1406,6 +1391,17 @@ function IsoRoom({
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
+        if (ISO_ITEMS[placement.item]?.toggleable && onToggleItem) {
+          pointerOnItemRef.current = true;
+          toggleRef.current = {
+            id: placement.id,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          };
+          // Let this bubble to startPan. A drag pans the room; a stationary
+          // release is recognized in endDrag and toggles the decoration.
+          return;
+        }
         // Grabbing a walkable placement starts a walk order. Everything else
         // falls through (no stopPropagation) so panning from furniture keeps
         // working.
@@ -1466,7 +1462,7 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1500,10 +1496,11 @@ function IsoRoom({
       const g = unproject(walk.sx, walk.sy);
       const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
       // A pet's landing rule has no seat exception (there's no seated-cat
-      // drawing); a persona's walk can still end in sitting down.
+      // drawing); a persona lands on a seat or soft ground — the seated
+      // life's carry rule.
       const ok = ISO_ITEMS[walk.item]?.roamer
         ? petCanStand(at.gx, at.gy, size, placements, walk.id, walk.item)
-        : personaCanStand(at.gx, at.gy, size, placements, walk.id);
+        : personaCanSit(at.gx, at.gy, size, placements, walk.id);
       // The FIGURE follows every pointermove (imperatively, above — 60Hz of
       // React state for a 100-node sprite is exactly what this layer exists to
       // avoid); only the diamond and its legality are state, and those change a
@@ -1546,10 +1543,14 @@ function IsoRoom({
     // Camera pan: keep the grabbed world point glued under the pointer.
     const pan = panRef.current;
     if (pan) {
-      const p = toWorld(e);
-      if (!p) return;
-      const v = viewRef.current;
-      applyView({ ...v, x: v.x + (pan.x - p.x), y: v.y + (pan.y - p.y) });
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect?.width || !rect.height) return;
+      pan.dx = ((e.clientX - pan.clientX) * pan.view.w) / rect.width;
+      pan.dy = ((e.clientY - pan.clientY) * pan.view.h) / rect.height;
+      // Imperative on purpose: changing viewBox here invalidates and
+      // re-rasterizes every SVG node. Moving one wrapper lets the browser
+      // composite the already-painted room until release.
+      panLayerRef.current?.setAttribute("transform", `translate(${pan.dx} ${pan.dy})`);
     }
   };
 
@@ -1563,15 +1564,48 @@ function IsoRoom({
       if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.id, walk.gx, walk.gy);
     }
     dragRef.current = null;
+    const pan = panRef.current;
+    const toggle = toggleRef.current;
+    toggleRef.current = null;
+    const toggleClick =
+      toggle &&
+      e?.type === "pointerup" &&
+      Math.hypot(e.clientX - toggle.clientX, e.clientY - toggle.clientY) < 6;
+    if (toggleClick) {
+      onToggleItem?.(toggle.id);
+      // A tiny hand wobble within the click threshold is not a camera move.
+      panLayerRef.current?.removeAttribute("transform");
+      panRef.current = null;
+      return;
+    }
+    if (pan) {
+      const next = clampView({
+        ...pan.view,
+        x: pan.view.x - (pan.dx || 0),
+        y: pan.view.y - (pan.dy || 0),
+      });
+      // Set the attribute before removing the temporary translation so the
+      // release frame cannot flash back to the old camera while React queues.
+      svgRef.current?.setAttribute(
+        "viewBox",
+        `${next.x} ${next.y} ${next.w} ${next.h}`
+      );
+      applyView(next);
+      panLayerRef.current?.removeAttribute("transform");
+    }
     panRef.current = null;
   };
 
   const startPan = (e) => {
-    pointerOnItemRef.current = false;
+    if (!toggleRef.current) pointerOnItemRef.current = false;
     if (editMode) setSelectedId(null);
-    const p = toWorld(e);
-    if (!p) return;
-    panRef.current = { x: p.x, y: p.y };
+    panRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      view: { ...viewRef.current },
+      dx: 0,
+      dy: 0,
+    };
     svgRef.current?.setPointerCapture?.(e.pointerId);
   };
 
@@ -1601,7 +1635,8 @@ function IsoRoom({
           applyView(DEFAULT_VIEW);
         }}
       >
-        <IsoScene
+        <g ref={panLayerRef} data-pan-layer="true">
+          <IsoScene
           size={size}
           placements={placements}
           editMode={editMode}
@@ -1616,18 +1651,50 @@ function IsoRoom({
           onStartDrag={onStartDrag}
           onRotateItem={onRotateItem}
           onRemoveItem={onRemoveItem}
+          onToggleItem={onToggleItem}
           onClearSelect={onClearSelect}
           personas={personas}
           walkId={walkId}
           walkPersonas={walkPersonas}
           carriedId={walkTarget?.id ?? null}
-        />
+          />
         {/* Picking someone up: the landing diamond (where they'll stand if you
             let go) and the figure itself, dangling from your cursor. Outside
             IsoScene — pointer-rate updates must not re-render the room — and
             after it, so no furniture buries either: the selection-chrome rule. */}
-        {walkTarget && (
+          {walkTarget && (
           <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
+            {/* THE SEAT GLOW (seated life): while a PERSON is in your hand,
+                every place they could settle — free seats, soft ground —
+                breathes amber, so choosing a spot is reading the room, not
+                hunting for legal tiles. Pets don't get it (they land on any
+                open floor, so lighting the whole room would say nothing). */}
+            {!ISO_ITEMS[placements.find((p) => p.id === walkTarget.id)?.item]?.roamer &&
+              placements
+                .filter((p) => {
+                  const it = ISO_ITEMS[p.item];
+                  if (!it || p.id === walkTarget.id) return false;
+                  if (it.layer === -1 && p.item !== "pond" && !it.persona) return true;
+                  if (!it.seat) return false;
+                  const others = placements.filter((o) => o.id !== walkTarget.id);
+                  return !others.some((o) => {
+                    if (!ISO_ITEMS[o.item]?.persona) return false;
+                    const s = seatFor(o, others.filter((x) => x.id !== o.id));
+                    return s && !s.soft && s.placement.id === p.id;
+                  });
+                })
+                .map((p) => (
+                  <polygon
+                    key={`glow-${p.id}`}
+                    className="room-breathe"
+                    points={floorPatch(p.gx, p.gy, ...footOf(p.item, p.rot))}
+                    fill="#ffe9b0"
+                    fillOpacity="0.14"
+                    stroke="#ffe9b0"
+                    strokeWidth="1"
+                    opacity="0.75"
+                  />
+                ))}
             <polygon
               points={floorPatch(
                 walkTarget.gx,
@@ -1664,7 +1731,8 @@ function IsoRoom({
               />
             </g>
           </g>
-        )}
+          )}
+        </g>
       </svg>
 
       {selectedRaw &&

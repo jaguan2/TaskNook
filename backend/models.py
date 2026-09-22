@@ -73,7 +73,7 @@ class User(db.Model):
     # colours. Kept apart from `profile` because a different consumer reads it —
     # the iso room draws this every frame, panels read the other one.
     character = db.Column(db.Text, nullable=True)
-    # Who may visit this user's room: "public" | "friends" | "invite" |
+    # Who may visit this user's room: "open" | "friends" | "invite" |
     # "private". A real COLUMN, not a blob field, because it is an access
     # rule a multi-user server would enforce — not presentation the frontend
     # owns. (Today enforcement is client-side theater against the seeded
@@ -134,6 +134,7 @@ class Task(db.Model):
     is_routine = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -150,6 +151,30 @@ class Task(db.Model):
             "routine": self.is_routine,
             "createdAt": _utc_iso(self.created_at),
             "completedAt": _utc_iso(self.completed_at),
+            "archived": self.archived_at is not None,
+            "archivedAt": _utc_iso(self.archived_at),
+        }
+
+
+class CalendarEvent(db.Model):
+    """A time-bound appointment; tasks stay in Task because they can be done."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    title = db.Column(db.String(TASK_NAME_MAX), nullable=False)
+    event_date = db.Column(db.String(10), nullable=False, index=True)
+    start_time = db.Column(db.String(5), nullable=False)  # local HH:MM
+    duration = db.Column(db.Integer, nullable=False, default=60)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "date": self.event_date,
+            "startTime": self.start_time,
+            "duration": self.duration,
+            "notes": self.notes,
         }
 
 

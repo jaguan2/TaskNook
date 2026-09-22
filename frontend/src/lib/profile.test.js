@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BUILD_SHAPE, WIDTH_RANGE, HEIGHT_RANGE, LEG_H, TORSO_H } from "./body";
+import { BUILD_SHAPE, WIDTH_RANGE, SHOULDER_RANGE, HEIGHT_RANGE, LEG_H, TORSO_H } from "./body";
 import {
   MBTI_TYPES,
   MODELS,
@@ -151,8 +151,10 @@ describe("validateCharacter", () => {
       hat: "none",
       scarf: "none",
       scarfColor: DEFAULT_CHARACTER.scarfColor,
+      glasses: "none",
       print: "none",
       width: BUILD_SHAPE.slim.halfW,
+      shoulders: DEFAULT_CHARACTER.shoulders,
       height: LEG_H,
       torso: TORSO_H,
     });
@@ -172,6 +174,14 @@ describe("validateCharacter", () => {
     expect(validateCharacter({ scarfColor: "tartan" }).scarfColor).toBe(
       DEFAULT_CHARACTER.scarfColor
     );
+  });
+
+  it("glasses: keeps a real pair, refuses an invented one, defaults bare-faced", () => {
+    expect(validateCharacter({ glasses: "round" }).glasses).toBe("round");
+    expect(validateCharacter({ glasses: "monocle" }).glasses).toBe("none");
+    // A pre-glasses save has no key at all — it falls back to "none", the
+    // JSON blob's whole bargain.
+    expect(validateCharacter({}).glasses).toBe("none");
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {
@@ -231,9 +241,12 @@ describe("validateCharacter", () => {
     expect(validateCharacter({ width: 0 }).width).toBe(WIDTH_RANGE[0]);
     expect(validateCharacter({ height: 1000 }).height).toBe(HEIGHT_RANGE[1]);
     expect(validateCharacter({ height: 0 }).height).toBe(HEIGHT_RANGE[0]);
+    expect(validateCharacter({ shoulders: 100 }).shoulders).toBe(SHOULDER_RANGE[1]);
+    expect(validateCharacter({ shoulders: -100 }).shoulders).toBe(SHOULDER_RANGE[0]);
     for (const junk of ["9", NaN, Infinity, true, null]) {
       expect(validateCharacter({ width: junk }).width).toBe(DEFAULT_CHARACTER.width);
       expect(validateCharacter({ height: junk }).height).toBe(DEFAULT_CHARACTER.height);
+      expect(validateCharacter({ shoulders: junk }).shoulders).toBe(DEFAULT_CHARACTER.shoulders);
     }
     expect(validateCharacter({ build: "sturdy" }).width).toBe(BUILD_SHAPE.sturdy.halfW);
   });

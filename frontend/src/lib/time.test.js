@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { elapsedFrom, formatClock, remainingFrom } from "./time";
+import {
+  elapsedFrom,
+  formatClock,
+  normalizeFocusMinutes,
+  normalizePomodoro,
+  remainingFrom,
+} from "./time";
 
 describe("formatClock", () => {
   it("reads m:ss under an hour", () => {
@@ -32,6 +38,39 @@ describe("formatClock", () => {
 
   it("truncates rather than rounding, so a clock never shows its target early", () => {
     expect(formatClock(59.9)).toBe("0:59");
+  });
+});
+
+describe("normalizeFocusMinutes", () => {
+  it("accepts custom lengths and clamps them to one day", () => {
+    expect(normalizeFocusMinutes(37)).toBe(37);
+    expect(normalizeFocusMinutes(0)).toBe(1);
+    expect(normalizeFocusMinutes(2000)).toBe(1440);
+  });
+
+  it("uses the supplied fallback for invalid input", () => {
+    expect(normalizeFocusMinutes("nope", 45)).toBe(45);
+    expect(normalizeFocusMinutes(null, 25)).toBe(25);
+    expect(normalizeFocusMinutes("", 25)).toBe(25);
+  });
+});
+
+describe("normalizePomodoro", () => {
+  it("keeps a valid saved plan", () => {
+    expect(normalizePomodoro({ enabled: true, breakMinutes: 10, rounds: 6 })).toEqual({
+      enabled: true,
+      breakMinutes: 10,
+      rounds: 6,
+    });
+  });
+
+  it("repairs corrupt storage and bounds renderable round counts", () => {
+    expect(normalizePomodoro({ enabled: "yes", breakMinutes: -20, rounds: 1e9 })).toEqual({
+      enabled: false,
+      breakMinutes: 1,
+      rounds: 12,
+    });
+    expect(normalizePomodoro(null)).toEqual({ enabled: false, breakMinutes: 5, rounds: 4 });
   });
 });
 

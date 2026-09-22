@@ -17,9 +17,13 @@ mkdirSync(svgDir, { recursive: true });
 
 // 1. The gated fixture test renders every piece to an SVG file.
 const run = spawnSync(
-  process.platform === "win32" ? "npx.cmd" : "npx",
-  ["vitest", "run", "src/components/artsheet.fixtures.test.jsx"],
-  { cwd: root, env: { ...process.env, SHEET_DIR: svgDir }, stdio: "inherit", shell: true }
+  process.execPath,
+  [
+    join(root, "node_modules", "vitest", "vitest.mjs"),
+    "run",
+    "src/components/artsheet.fixtures.test.jsx",
+  ],
+  { cwd: root, env: { ...process.env, SHEET_DIR: svgDir }, stdio: "inherit" }
 );
 if (run.status !== 0) {
   console.error("fixture render failed");

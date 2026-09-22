@@ -335,6 +335,124 @@ def test_iso_roundtrips_a_rotation(client, auth):
     assert "rot" not in saved["placements"][0]
 
 
+def test_iso_roundtrips_powered_state(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [
+            {"id": "lights-off", "item": "fairylights", "gx": 0, "gy": 2, "off": True},
+            {"id": "lights-on", "item": "fairylights", "gx": 0, "gy": 5, "off": False},
+        ],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]["placements"]
+    assert saved[0]["off"] is True
+    assert "off" not in saved[1]
+
+
+@pytest.mark.parametrize("bad_off", [0, 1, "false", [], {}])
+def test_iso_rejects_malformed_powered_state(client, auth, bad_off):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "placements": [
+            {"id": "lights", "item": "fairylights", "gx": 0, "gy": 2, "off": bad_off}
+        ],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
+def test_iso_roundtrips_wall_finishes_and_lighting(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "wallColors": {"left": "#aa6655", "right": "#554477"},
+        "lighting": "golden",
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+def test_iso_roundtrips_frontend_layout_version(client, auth):
+    iso = {**ISO, "version": 2}
+    assert (
+        client.put("/api/room", json={"placements": LAYOUT, "iso": iso}, headers=auth).status_code
+        == 200
+    )
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+@pytest.mark.parametrize("version", [0, 65, True, "2", 2.0])
+def test_iso_rejects_malformed_layout_version(client, auth, version):
+    iso = {**ISO, "version": version}
+    assert (
+        client.put("/api/room", json={"placements": LAYOUT, "iso": iso}, headers=auth).status_code
+        == 400
+    )
+
+
+def test_iso_roundtrips_drawn_interior_walls(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "partitions": ["gx:4:5", "gy:3:1", "gy:3:2"],
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
+
+
+def test_iso_roundtrips_passable_arches_and_resolves_duplicate_edges(client, auth):
+    iso = {
+        "w": 9,
+        "d": 7,
+        "partitions": ["gx:4:1", "gx:4:2"],
+        "arches": ["gx:4:2", "gx:4:3"],
+        "placements": [],
+    }
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]
+    assert saved["partitions"] == ["gx:4:1"]
+    assert saved["arches"] == ["gx:4:2", "gx:4:3"]
+
+
+@pytest.mark.parametrize(
+    "partitions",
+    [
+        "gy:2:1",
+        ["gy:0:1"],
+        ["gx:9:1"],
+        ["diagonal:2:1"],
+        ["gy:2:1:extra"],
+        ["gy:02:1"],
+    ],
+)
+def test_iso_rejects_malformed_drawn_walls(client, auth, partitions):
+    iso = {"w": 9, "d": 7, "partitions": partitions, "placements": []}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
+@pytest.mark.parametrize("arches", ["gy:2:1", ["gy:0:1"], ["arch:2:1"], ["gy:02:1"]])
+def test_iso_rejects_malformed_arches(client, auth, arches):
+    iso = {"w": 9, "d": 7, "arches": arches, "placements": []}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"wallColors": {"left": "red"}},
+        {"wallColors": {"ceiling": "#ffffff"}},
+        {"wallColors": ["#ffffff"]},
+        {"lighting": "disco"},
+    ],
+)
+def test_iso_rejects_malformed_room_atmosphere(client, auth, patch):
+    iso = {"w": 9, "d": 7, "placements": [], **patch}
+    assert client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth).status_code == 400
+
+
 @pytest.mark.parametrize("bad_rot", [4, -1, True, "1", 1.0])
 def test_iso_rejects_malformed_rotations(client, auth, bad_rot):
     """Rotation is quarter turns 0-3. `True` is excluded deliberately: it's an

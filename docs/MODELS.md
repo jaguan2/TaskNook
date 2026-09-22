@@ -75,13 +75,34 @@ piece so a new item sits correctly beside the existing ones.
 
 ### Persona proportions
 
+Seated skirts use one continuous lap panel over the bare legs, not separate
+cloth strokes on each thigh (which read as shorts). Keep skirt, pleated skirt
+and maxi hems distinct; the maxi follows the seat-adjusted ankle height so
+it stays long without covering the shoes. Review these on both low and high
+seats, in light and dark colours, and inside a furnished room. The opt-in
+art-sheet fixtures include these combinations.
+
+Seated trousers retain the same material cues as standing trousers: rolled
+hems and ochre stitching for denim, a pressed crease for dress trousers,
+and an elastic cuff for joggers. Bare shins draw behind the shorts' thighs
+so the shin's round cap cannot erase the cloth hem. Review every bottom
+seated as well as standing; the distinct-artwork test covers both poses.
+
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests
-all read that one copy): `HEAD_R` 7.3, `LEG_H` 29, standing torso at −42 and
-head at −50.5 — about 58px tall with the head a quarter of it, and the
-visible leg ~43% of the figure. It was 32%, and a figure that is two-thirds
-torso-and-head reads squat whatever the shading; the 2026-08 "chunky" retune
+all read that one copy). **The figure uses the soft, illustrated proportions
+of the Virtual Cottage 2 references**: ~58px tall at **~4 heads**, visible leg
+~47%. The mechanism is `HEAD_SCALE` (1):
+`HEAD_R` 7.3 stays the DRAWING radius every hair/hat/glasses/face asset is
+authored against, and the assembly scales the finished head unit about its
+own centre — one number retunes the whole wardrobe. Layout code (neck
+seams, height guards, shoulder ratios) must use `HEAD_R_EFF`, the radius
+the head actually occupies; new head-adjacent art keeps authoring at 7.3. An
+earlier 0.75 scale made the character's most expressive silhouette disappear
+beside the furniture; the supplied rear and seated references made that
+mismatch especially clear. The long-leg rebuild still prevents the original
+squat read: the 2026-08 "chunky" retune
 raised the legs, shortened the torso, and drew the standing legs as
 GARMENTS — tapered trousers with a cuff band ending in deliberately chunky
 shoes (the owner's clay-toy reference kits carry nearly half the figure as
@@ -97,6 +118,16 @@ floor, the ≤1.55×-head chunky ceiling, the hem-covers-stance rule and the
 thickness scales gently with width (a wide torso on stick legs reads as
 parts pasted together). Stored `build` keys survive as the width's default,
 so pre-slider saves keep their silhouette.
+
+The 2026-08-19 **slimming retune** (owner: "they look like blobs", "make the
+two models more different"): every build's base half-width came down ~0.6px
+(the old average torso was 19.2 wide × 17 tall — nearly square, and no
+shading rescues a square), both waists pinched (masc −1.0 so the male body
+is a V rather than a slab; fem −3.2), limb bases came down ~0.2, and `limb`
+became a MODEL axis too — fem's arms and legs run 0.6px finer than masc's,
+because a sub-half-pixel model delta is invisible at 57px. Old saves with
+widths above the new 8.4 ceiling clamp down on load: that is the retune
+applied, not data loss.
 
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading

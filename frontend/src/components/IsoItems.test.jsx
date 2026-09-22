@@ -4,8 +4,9 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
+import { GLASSES_REGISTRY } from "./character/glasses";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { COATS, DEFAULT_CHARACTER, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -22,6 +23,18 @@ describe("the isometric catalog and its artwork agree", () => {
     // bundle, and for the Kenney items it drags PNGs along with it.
     const orphans = Object.keys(ISO_SPRITES).filter((key) => !ISO_ITEMS[key]);
     expect(orphans).toEqual([]);
+  });
+
+  it("dims fairy-light bulbs and removes their halo when switched off", () => {
+    const FairyLights = ISO_SPRITES.fairylights;
+    const { container, rerender } = draw(<FairyLights />);
+
+    expect(container.querySelector('[data-fairy-lights="true"]').dataset.lit).toBe("true");
+    expect(container.querySelector(".room-breathe")).toBeTruthy();
+
+    rerender(<svg><FairyLights lit={false} /></svg>);
+    expect(container.querySelector('[data-fairy-lights="true"]').dataset.lit).toBe("false");
+    expect(container.querySelector(".room-breathe")).toBeNull();
   });
 
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
@@ -131,6 +144,14 @@ describe("the isometric catalog and its artwork agree", () => {
     // one axis over.
     const Resident = ISO_SPRITES.resident;
 
+    it("models the front face without a full ink outline", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const head = container.querySelector('[data-character-head="front"]');
+
+      expect(head).toBeTruthy();
+      expect(head.getAttribute("stroke")).toBeNull();
+    });
+
     it.each(
       MODELS.flatMap((m) => HAIR_STYLES.map((h) => [m.key, h.key]))
     )("%s × %s renders standing and seated without throwing", (model, hair) => {
@@ -154,6 +175,23 @@ describe("the isometric catalog and its artwork agree", () => {
       );
       expect(Object.keys(HAT_REGISTRY).sort()).toEqual(HATS.map((h) => h.key).sort());
       expect(Object.keys(SCARF_REGISTRY).sort()).toEqual(SCARVES.map((s) => s.key).sort());
+      expect(Object.keys(GLASSES_REGISTRY).sort()).toEqual(GLASSES.map((g) => g.key).sort());
+    });
+
+    it("every pair of glasses renders, and each draws its own geometry", () => {
+      const seen = new Map();
+      for (const { key } of GLASSES) {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, glasses: key }} />
+        );
+        const html = container.innerHTML;
+        expect(
+          seen.has(html),
+          `"${key}" draws identically to "${seen.get(html)}"`
+        ).toBe(false);
+        seen.set(html, key);
+        cleanup();
+      }
     });
 
     it("every scarf renders, and each draws its own geometry", () => {
@@ -218,6 +256,28 @@ describe("the isometric catalog and its artwork agree", () => {
       };
       expect(htmlFor("masc")).not.toBe(htmlFor("fem"));
     });
+
+    it("the bed pose lies down the complete customized resident", () => {
+      const htmlFor = (hair) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, hair }} lying />
+        );
+        const html = container.innerHTML;
+        expect(
+          [...container.querySelectorAll("g[transform]")].some((node) =>
+            node.getAttribute("transform").includes("rotate(")
+          ),
+          "the bed pose is not rotated flat"
+        ).toBe(true);
+        cleanup();
+        return html;
+      };
+
+      // The discarded sleeper was a second, generic body drawing: changing
+      // the resident's hair did nothing. A bed pose must remain the same
+      // customized person users created, merely laid along the mattress.
+      expect(htmlFor("bob")).not.toBe(htmlFor("buzz"));
+    });
   });
 
   it("roamers render awake and asleep", () => {
@@ -263,7 +323,11 @@ describe("the profile view and the wardrobe slots", () => {
     const seen = new Map();
     for (const [key, node] of nodes) {
       const { container } = draw(node);
-      const html = container.innerHTML;
+      // Instance IDs and descriptive data attributes are not artwork. They
+      // must not make identical geometry pass as two different styles.
+      const html = container.innerHTML
+        .replace(/:r[0-9a-z]+:/g, ":instance:")
+        .replace(/ data-[\w-]+="[^"]*"/g, "");
       expect(
         seen.has(html),
         `${labelOf} "${key}" draws identically to "${seen.get(html)}"`
@@ -328,18 +392,27 @@ describe("the profile view and the wardrobe slots", () => {
     );
   });
 
-  it("the seated pose survives every bottom", () => {
-    for (const { key } of PANTS) {
-      expect(() =>
-        draw(
-          <Resident
-            character={{ ...DEFAULT_CHARACTER, pants: key }}
-            seated
-            seatH={19}
-          />
-        )
-      ).not.toThrow();
+  it("cuts swimwear differently for the two character models", () => {
+    const markup = (model) => {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, model, garment: "swim", coat: "none" }} />
+      );
+      const html = container.innerHTML;
       cleanup();
+      return html;
+    };
+
+    expect(markup("masc")).not.toBe(markup("fem"));
+  });
+
+  it("every bottom keeps distinct artwork when seated", () => {
+    for (const seatH of [4, 19, 26]) {
+      allDistinct(
+        `seated bottoms at height ${seatH}`,
+        PANTS.map(({ key }) => [key,
+          <Resident key={key} character={{ ...DEFAULT_CHARACTER, pants: key }} seated seatH={seatH} />,
+        ])
+      );
     }
   });
 

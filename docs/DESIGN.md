@@ -348,9 +348,12 @@ The screen has an ownership map — respect it:
   - **The lever is to stop changing `viewBox` mid-gesture**: translate a wrapping
     `<g>` during a pan and fold the offset back into the camera on pointerup, so
     unchanged content is moved rather than redrawn. Prototyped and measured at
-    **12.5ms median, 0 of 135 frames dropped**. Not in the tree — see item 2.2 in
-    `docs/fable_scan_8-7.md` for what's left to finish. Culling offscreen items is
-    the other half of the same idea and is also untouched.
+    **12.5ms median, 0 of 135 frames dropped**. This is now the production
+    path: pointer movement imperatively translates one `data-pan-layer`
+    wrapper, then release folds that offset into `viewBox`. A regression test
+    pins the important half of the contract (`viewBox` does not change during
+    the gesture). Culling offscreen items is the other half of the same idea
+    and remains untouched.
 - Big scenes are memo'd (`IsoRoom`); nothing may reintroduce a per-second
   re-render of thousands of SVG nodes. Props crossing into memo'd scenes must
   be stable (useCallback) or change rarely (booleans like `working`).
@@ -393,7 +396,54 @@ The screen has an ownership map — respect it:
   is theme-swapped — grey-blue in shore, tan in linen — so it may decorate
   but must never carry meaning on its own.
 
+## NPC drop-ins
+
+NPC home drop-ins run under both Open and Friends-only access. Invite and
+Private block unsolicited arrivals. The scheduler checks every 15 seconds,
+spaces arrivals by 90 seconds to 4 minutes, allows two guests, and gives each
+a 4-10 minute stay. Visiting another room, decorating, 2D mode, or widget mode
+clears the temporary visitors; returning to an eligible home starts a fresh
+arrival wait. A guest who is asked to leave has a 30-minute cooldown.
+
+## Focus widget
+
+Widget mode uses a dedicated `FocusWidget` surface rather than a scaled room
+HUD. Its large timer, session ring, current task, transport controls, and daily
+total fit the native 340×300 window. Stopwatch mode uses daily-goal progress for
+the ring instead of a repeating minute sweep. Timer state and destructive-reset
+confirmation remain in `HudFocusCard`; expanding restores the room without
+starting another clock. The desktop still supplies the native title bar and
+window movement. Browser mode presents the same face as a rounded floating card.
+
 ## Decorating & room presets
+
+The Loft is the starter room, so it stays deliberately sparse: four readable
+zones with no more than 24 pieces, open floor for customization, and the
+computer desk directly beneath the large window. Shared Home can carry more
+because it demonstrates several household zones, but remains under 32 pieces;
+the Library is where a denser group composition belongs.
+
+Dock panels keep their split bundles, but warm on pointer/focus and then one at
+a time after first paint. This removes the first-click parsing pause in the
+desktop app without moving all panels into its startup path. Drawer entrance
+motion is a short, firm spring and `.pill:active` supplies immediate press
+feedback.
+
+Task completion is optimistic: the checkmark paints immediately while the
+local Flask/SQLite write runs, duplicate taps are ignored during that write,
+and a failed save restores the prior completion fields with a toast. This is
+the highest-frequency action and must not feel gated by the localhost round
+trip used by the packaged app.
+
+The 2D cottage also has visual preset cards, using the actual cottage renderer
+with animation disabled and instance-scoped SVG paint/clip IDs. Keep thumbnail
+placement arrays stable so searching the catalog does not redraw every room.
+City, woodland, and seaside window views follow the current light and weather;
+the choice persists per device as `tasknook.cottageView`. Applying a preset sets
+its window view as well as its furniture. Existing placement coordinates are
+unchanged. The woodland nook and seaside studio use reading chairs, tea tables,
+plant stands, and arched mirrors to give the floor and wall areas distinct uses.
+The cottage catalog searches by piece name, across all placement groups.
 
 Rooms must read as *real rooms*, not scattered objects (user feedback,
 learned the hard way):

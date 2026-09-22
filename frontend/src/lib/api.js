@@ -128,7 +128,15 @@ export const api = {
   createTask: (payload) => request("POST", "/tasks", payload),
   updateTask: (id, payload) => request("PUT", `/tasks/${id}`, payload),
   deleteTask: (id) => request("DELETE", `/tasks/${id}`),
+  archiveTask: (id) => request("POST", `/tasks/${id}/archive`),
   reorderTasks: (order) => request("PUT", "/tasks/reorder", { order }),
+  renameTaskGroup: (name, nextName) =>
+    request("PUT", "/tasks/group", { name, nextName }),
+
+  // Calendar appointments are time-bound; scheduled tasks remain /tasks.
+  listEvents: () => request("GET", "/events"),
+  createEvent: (payload) => request("POST", "/events", payload),
+  deleteEvent: (id) => request("DELETE", `/events/${id}`),
 
   // room decoration (flat layout + isometric layout travel together)
   getRoom: () => request("GET", "/room"),
@@ -161,7 +169,7 @@ export const api = {
   // the words, the server just stores them (see the endpoint's doc-comment).
   listChats: () => request("GET", "/chats"),
   openChat: (memberIds, opts = {}) => request("POST", "/chats", { memberIds, ...opts }),
-  chatMessages: (id) => request("GET", `/chats/${id}/messages`),
+  chatMessages: (id, { before } = {}) => request("GET", `/chats/${id}/messages${before == null ? "" : `?before=${encodeURIComponent(before)}`}`),
   sendMessage: (id, body, senderId) =>
     request("POST", `/chats/${id}/messages`, senderId ? { body, senderId } : { body }),
   markChatRead: (id) => request("POST", `/chats/${id}/read`),

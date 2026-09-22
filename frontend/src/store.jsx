@@ -10,12 +10,23 @@ import {
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
 import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
 import { toISO } from "./lib/dates";
+import { localTodayISO } from "./lib/stats";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
-import { normalizeHex } from "./lib/palette";
+import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import {
+  HOME_VISITOR_KICK_COOLDOWN_MS,
+  HOME_VISITOR_TICK_MS,
+  advanceHomeVisitors,
+  homeVisitorScene,
+  homeVisitorsEnabled,
+  moveHomeVisitor,
+  nextHomeVisitorDelay,
+} from "./lib/homeVisitors";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
+import { createChatSignals } from "./lib/chatSignals";
 import {
   MESSAGE_MAX,
   botReply,
@@ -28,12 +39,40 @@ import {
 } from "./lib/chat";
 // One unprompted message a day, marked per device. See `deliverCheckIn`.
 const CHECKIN_KEY = "tasknook.chat.checkin";
+// Marks a local room mirror that has not yet been acknowledged by SQLite.
+// It is intentionally separate from the room JSON: an empty room is valid.
+const ROOM_DIRTY_KEY = "tasknook.room.dirty";
 import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
-import { SOUND_CHANNELS, applyMix, setChannel } from "./lib/audio";
-import { resolveMusicLink, stationKey } from "./lib/musicLink";
-import { locateBrowser, searchPlaces, fetchCurrentWeather } from "./lib/weather";
+import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
 import {
+  CUSTOM_STATION_LIMIT,
+  moveStation,
+  renameStation,
+  resolveMusicLink,
+  stationKey,
+  validateCustomStations,
+} from "./lib/musicLink";
+import { TASK_GROUP_LIMIT, TASK_GROUP_MAX, validateTaskGroups } from "./lib/taskGroups";
+import { createWriteQueue } from "./lib/writeQueue";
+import {
+  TIMES_OF_DAY,
+  WEATHER_MODES,
+  WEATHER_PRESET_LIMIT,
+  locateBrowser,
+  searchPlaces,
+  fetchCurrentWeather,
+  moveWeatherPreset,
+  nextRandomWeather,
+  normalizeWeatherCoords,
+  RANDOM_WEATHER_INTERVAL_MS,
+  renameWeatherPreset,
+  validateWeatherPresets,
+} from "./lib/weather";
+import {
+  COTTAGE_SETTINGS,
+  cottageSetting,
+  PRESETS as COTTAGE_PRESETS,
   MAX_ITEMS,
   newPlacement,
   presetPlacements,
@@ -48,8 +87,10 @@ import {
   footOf,
   footprintFree,
   isoPresetLayout,
+  freeSeatSpot,
   newIsoPlacement,
   nextRot,
+  partitionKey,
   PET_TEMPERS,
   cleanPetName,
   isStorableLook,
@@ -59,10 +100,12 @@ import {
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
 
-// The two ambience axes, whitelisted because both are restored from
-// localStorage and both index into lookup tables in the scene components.
-const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
-const TIMES_OF_DAY = ["night", "sunset", "day"];
+// Which persistent HUD surfaces a viewer can dial back — "on" (default),
+// "faded" (dimmed but still there/interactive), or "hidden" (visibility:
+// hidden, same convention as the decorating chrome fade — never unmounted,
+// so nothing replays its .intro-chrome boot animation on return).
+const HUD_VIS_MODES = ["on", "faded", "hidden"];
+const DEFAULT_HUD_VISIBILITY = { timer: "on", tasks: "on", music: "on", clock: "on", chat: "on" };
 
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 
@@ -129,6 +172,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
   const [friends, setFriends] = useState([]);
   const [stats, setStats] = useState({
     tasksTotal: 0,
@@ -174,13 +218,20 @@ export function StoreProvider({ children }) {
     const saved = readStored("tasknook.weatherMode");
     return WEATHER_MODES.includes(saved) ? saved : "off";
   });
+  const [weatherUnit, setWeatherUnitState] = useState(() =>
+    readStored("tasknook.weatherUnit") === "C" ? "C" : "F"
+  );
+  const setWeatherUnit = useCallback((unit) => {
+    const next = unit === "C" ? "C" : "F";
+    setWeatherUnitState(next);
+    writeStored("tasknook.weatherUnit", next);
+  }, []);
   // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, cafe,
   // paper).
   // Slider positions persist; actual audio only starts from a user gesture.
   const [soundMix, setSoundMixState] = useState(() => {
     try {
-      const saved = readJSON("tasknook.soundMix", {});
-      return saved && typeof saved === "object" ? saved : {};
+      return normalizeSoundMix(readJSON("tasknook.soundMix", {}));
     } catch {
       return {};
     }
@@ -240,9 +291,40 @@ export function StoreProvider({ children }) {
   const [autoTimeOfDay, setAutoTimeOfDayState] = useState(
     () => readStored("tasknook.timeOfDay.auto") === "1"
   );
-  // Persisted, so the transport bar comes back after a relaunch cued where
+  // Settings → "Music on startup" — default true. This restores the transport
+  // and saved position, but MusicDock deliberately waits for Play before it
+  // creates an external YouTube/Spotify renderer; startup itself stays local
+  // and responsive. Read directly alongside musicOn's own initializer rather
+  // than depending on a separate state's init order.
+  const [autoResumeMusic, setAutoResumeMusicState] = useState(
+    () => readStored("tasknook.autoResumeMusic") !== "0"
+  );
+  const setAutoResumeMusic = useCallback((value) => {
+    setAutoResumeMusicState(value);
+    writeStored("tasknook.autoResumeMusic", value ? "1" : "0");
+  }, []);
+  // Persisted, so the transport bar comes back after a relaunch showing where
   // the music stopped — closing the app shouldn't cost you your station.
-  const [musicOn, setMusicOn] = useState(() => readStored("tasknook.music.on") === "1");
+  // Gated on autoResumeMusic: with it off, a session that ended with music
+  // playing must still boot silent — "off" has to mean off, every time.
+  const [musicOn, setMusicOn] = useState(
+    () =>
+      readStored("tasknook.music.on") === "1" &&
+      readStored("tasknook.autoResumeMusic") !== "0"
+  );
+
+  // Widget Mode: the whole app collapses to just the (already-draggable)
+  // focus card floating over a plain backdrop — meant to sit alongside other
+  // work, not replace the cottage. Persisted like dockCollapsed/musicOn,
+  // since leaving it on and relaunching (esp. paired with Always On Top on
+  // desktop) is the exact use case.
+  const [widgetMode, setWidgetModeState] = useState(
+    () => readStored("tasknook.widgetMode") === "1"
+  );
+  const setWidgetMode = useCallback((value) => {
+    setWidgetModeState(value);
+    writeStored("tasknook.widgetMode", value ? "1" : "0");
+  }, []);
 
   // ---- Real-world weather ----
   const [realWeather, setRealWeather] = useState(null);
@@ -254,26 +336,41 @@ export function StoreProvider({ children }) {
   const [weatherLocationLabel, setWeatherLocationLabel] = useState(
     () => readStored("tasknook.weather.location") || ""
   );
-  const [autoMatchWeather, setAutoMatchWeather] = useState(
+  const [autoMatchWeather, setAutoMatchWeatherState] = useState(
     () => readStored("tasknook.weather.automatch") === "1"
+  );
+  // Weather that drifts on its own, like the real thing — no location, no
+  // network, unlike "Match my real weather" above. Owns weatherMode the same
+  // way auto-match and a manual pick do, so all three stay mutually
+  // exclusive: only one thing may be driving the sky at a time.
+  const [autoRandomWeather, setAutoRandomWeather] = useState(
+    () => readStored("tasknook.weather.random") === "1"
   );
   const weatherCoordsRef = useRef(
     (() => {
-      try {
-        const c = readJSON("tasknook.weather.coords", null);
-        // Shape-check: a corrupt cache would build latitude=undefined URLs
-        // and error forever with no recovery path.
-        return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) ? c : null;
-      } catch {
-        return null;
-      }
+      // Bounds matter too: finite latitude 999 is still a cache that can only
+      // produce errors forever.
+      return normalizeWeatherCoords(readJSON("tasknook.weather.coords", null));
     })()
   );
   const autoMatchRef = useRef(autoMatchWeather);
+  // Async weather responses read this ref. Advance it in the same event as the
+  // setting, rather than waiting for an effect, so a response settling between
+  // click and render cannot apply a mode the user just switched off (or miss a
+  // mode they just switched on).
+  const setAutoMatchWeather = useCallback((value) => {
+    const next = Boolean(value);
+    autoMatchRef.current = next;
+    setAutoMatchWeatherState(next);
+  }, []);
+  // So a random-weather roll (fired from inside a setTimeout) always steps
+  // from the CURRENT condition, not one captured when the effect last ran —
+  // without pulling weatherMode into that effect's deps, which would tear
+  // down and restart the whole schedule on every roll.
+  const weatherModeRef = useRef(weatherMode);
   const [weatherPresets, setWeatherPresets] = useState(() => {
     try {
-      const saved = readJSON("tasknook.weather.presets", []);
-      return Array.isArray(saved) ? saved : [];
+      return validateWeatherPresets(readJSON("tasknook.weather.presets", []));
     } catch {
       return [];
     }
@@ -293,18 +390,27 @@ export function StoreProvider({ children }) {
   };
 
   // ---- Settings ----
-  const [brightness, setBrightnessState] = useState(
-    () => Number(readStored("tasknook.brightness")) || 1
+  const [brightness, setBrightnessState] = useState(() =>
+    normalizeBrightness(readStored("tasknook.brightness"))
   );
-  const [colorScheme, setColorSchemeState] = useState(
-    () => readStored("tasknook.colorScheme") || "plum"
-  );
+  const weatherFetchRef = useRef({ id: 0, active: false });
+  const weatherSearchRef = useRef(0);
+  const [colorScheme, setColorSchemeState] = useState(() => {
+    const saved = readStored("tasknook.colorScheme");
+    return COLOR_SCHEME_KEYS.includes(saved) ? saved : "plum";
+  });
   // Base colour for the "custom" scheme; the full ramp is derived from its
   // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
   // normalizeHex on load: a corrupt value would derive "NaN NaN NaN" for
   // every theme variable and unstyle the whole app with no way back.
   const [customColor, setCustomColorState] = useState(
     () => normalizeHex(readStored("tasknook.customColor")) || "#d98a93"
+  );
+  // The custom scheme's backdrop hue — null means "follow the accent",
+  // which is everything the one-colour custom scheme ever did. Stored
+  // separately so the two can differ (teal accent on warm brown surfaces).
+  const [customSurface, setCustomSurfaceState] = useState(() =>
+    normalizeHex(readStored("tasknook.customSurface"))
   );
 
   // How much the room is allowed to move. "auto" follows the OS preference,
@@ -342,10 +448,37 @@ export function StoreProvider({ children }) {
     };
   }, [motionMode]);
 
+  // Per-element HUD fade/hide (Settings). Merged against the default shape
+  // rather than trusted whole — an older save (or a hand-edited one) missing
+  // a key must still yield "on" for that key, not undefined.
+  const [hudVisibility, setHudVisibilityState] = useState(() => {
+    const saved = readJSON("tasknook.hudVisibility", {});
+    const merged = { ...DEFAULT_HUD_VISIBILITY };
+    for (const key of Object.keys(DEFAULT_HUD_VISIBILITY)) {
+      if (HUD_VIS_MODES.includes(saved?.[key])) merged[key] = saved[key];
+    }
+    return merged;
+  });
+  const setHudVisibility = useCallback((key, mode) => {
+    if (!(key in DEFAULT_HUD_VISIBILITY) || !HUD_VIS_MODES.includes(mode)) return;
+    setHudVisibilityState((prev) => {
+      const next = { ...prev, [key]: mode };
+      writeJSON("tasknook.hudVisibility", next);
+      return next;
+    });
+  }, []);
+  const setAllHudVisibility = useCallback((mode) => {
+    if (!HUD_VIS_MODES.includes(mode)) return;
+    const next = Object.fromEntries(
+      Object.keys(DEFAULT_HUD_VISIBILITY).map((key) => [key, mode])
+    );
+    writeJSON("tasknook.hudVisibility", next);
+    setHudVisibilityState(next);
+  }, []);
+
   const [customStations, setCustomStations] = useState(() => {
     try {
-      const saved = readJSON("tasknook.music.custom", []);
-      return Array.isArray(saved) ? saved : [];
+      return validateCustomStations(readJSON("tasknook.music.custom", []));
     } catch {
       return [];
     }
@@ -383,6 +516,12 @@ export function StoreProvider({ children }) {
   // ---------- Room (freeform decoration) ----------
   // The layout lives in the DB (rides the migration/backup system) with a
   // localStorage mirror so the room paints instantly on boot.
+  const [cottageView, setCottageViewState] = useState(() => cottageSetting(readStored("tasknook.cottageView")));
+  const setCottageView = useCallback((value) => {
+    if (!Object.hasOwn(COTTAGE_SETTINGS, value)) return;
+    setCottageViewState(value);
+    writeStored("tasknook.cottageView", value);
+  }, []);
   const [roomPlacements, setRoomPlacements] = useState(() => {
     try {
       const saved = validatePlacements(
@@ -588,6 +727,19 @@ export function StoreProvider({ children }) {
       }),
     }));
   }, []);
+  const toggleIsoItem = useCallback((id) => {
+    setIsoRoom((prev) => ({
+      ...prev,
+      placements: prev.placements.map((p) => {
+        if (p.id !== id || !ISO_ITEMS[p.item]?.toggleable) return p;
+        if (p.off) {
+          const { off: _dropped, ...rest } = p;
+          return rest;
+        }
+        return { ...p, off: true };
+      }),
+    }));
+  }, []);
   // Reshaping the room runs the layout back through the validator, and the
   // validator is allowed to DELETE: wall art has nowhere to hang outdoors, and
   // a floor that just shrank may have no free spot left for a piece. That's
@@ -627,6 +779,16 @@ export function StoreProvider({ children }) {
       reshapeIso({ walls }, (n, s) => `Nothing to hang ${n} wall ${s} on without walls 🖼️`),
     [reshapeIso]
   );
+  const setIsoWallColor = useCallback((side, color) => {
+    if (!["left", "right"].includes(side)) return;
+    setIsoRoom((prev) => validateIsoLayout({
+      ...prev,
+      wallColors: { ...prev.wallColors, [side]: color },
+    }));
+  }, []);
+  const setIsoLighting = useCallback((lighting) => {
+    setIsoRoom((prev) => validateIsoLayout({ ...prev, lighting }));
+  }, []);
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
   const setIsoTile = useCallback(
     // Outside the updater like the others — doubly important here, because
@@ -661,6 +823,49 @@ export function StoreProvider({ children }) {
     },
     [showToast]
   );
+  const setIsoPartition = useCallback((plane, at, from, on) => {
+    if (!["gx", "gy"].includes(plane)) return;
+    const prev = isoRef.current;
+    const key = partitionKey(plane, at, from);
+    const nextKeys = new Set(prev.partitions || []);
+    const nextArches = new Set(prev.arches || []);
+    if (on) {
+      nextKeys.add(key);
+      nextArches.delete(key);
+    }
+    else nextKeys.delete(key);
+    const next = validateIsoLayout({
+      ...prev,
+      partitions: [...nextKeys],
+      arches: [...nextArches],
+    });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
+  const setIsoArch = useCallback((plane, at, from, on) => {
+    if (!["gx", "gy"].includes(plane)) return;
+    const prev = isoRef.current;
+    const key = partitionKey(plane, at, from);
+    const nextArches = new Set(prev.arches || []);
+    const nextWalls = new Set(prev.partitions || []);
+    if (on) {
+      nextArches.add(key);
+      nextWalls.delete(key);
+    } else nextArches.delete(key);
+    const next = validateIsoLayout({
+      ...prev,
+      partitions: [...nextWalls],
+      arches: [...nextArches],
+    });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
+  const resetIsoPartitions = useCallback(() => {
+    const prev = isoRef.current;
+    const next = validateIsoLayout({ ...prev, partitions: undefined, arches: undefined });
+    isoRef.current = next;
+    setIsoRoom(next);
+  }, []);
   const resetIsoShape = useCallback(
     () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
     []
@@ -690,7 +895,12 @@ export function StoreProvider({ children }) {
     if (layout.placements.length >= ISO_MAX_ITEMS) return null;
     const placement = newIsoPlacement("you", layout.placements, layout);
     if (!placement) return null; // genuinely nowhere to stand
-    return { ...layout, placements: [...layout.placements, placement] };
+    // Seated life: arriving in your room means taking a seat — the first
+    // free one (or soft ground); the spawn-on-free-floor placement above
+    // survives as the no-seat fallback.
+    const seatAt = freeSeatSpot(layout.placements, "you");
+    const seated = seatAt ? { ...placement, gx: seatAt.gx, gy: seatAt.gy } : placement;
+    return { ...layout, placements: [...layout.placements, seated] };
   }, []);
   const setSelfInRoom = useCallback(
     (on) => {
@@ -735,6 +945,18 @@ export function StoreProvider({ children }) {
   // directly.
   const profileRef = useRef(profile);
   const characterRef = useRef(character);
+  // These endpoints receive full snapshots. Keep writes ordered so a slow
+  // older request cannot arrive last and replace a newer choice in SQLite.
+  const profileWriteRef = useRef(null);
+  const characterWriteRef = useRef(null);
+  const roomWriteRef = useRef(null);
+  if (!profileWriteRef.current) profileWriteRef.current = createWriteQueue(api.saveProfile);
+  if (!characterWriteRef.current) characterWriteRef.current = createWriteQueue(api.saveProfile);
+  if (!roomWriteRef.current) {
+    roomWriteRef.current = createWriteQueue(({ placements, iso }) =>
+      api.saveRoom(placements, iso)
+    );
+  }
   // Who YOU are, for code that runs on a timer: a scheduled bot reply has to
   // know which members are "the others", and the closure that scheduled it may
   // be several renders stale by the time it fires.
@@ -750,6 +972,7 @@ export function StoreProvider({ children }) {
     friendsRef.current = friends;
   }, [profile, character, user, friends]);
   const roomSaveTimer = useRef(null);
+  const roomSaveVersion = useRef(0);
   // Applying server state on boot must not immediately echo back as a "save".
   const roomSkipSave = useRef(true);
 
@@ -774,10 +997,12 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (roomSkipSave.current) return;
     writeStored("tasknook.room", JSON.stringify(roomPlacements));
+    writeStored(ROOM_DIRTY_KEY, "1");
   }, [roomPlacements]);
   useEffect(() => {
     if (roomSkipSave.current) return;
     writeStored("tasknook.isoRoom", JSON.stringify(isoRoom));
+    writeStored(ROOM_DIRTY_KEY, "1");
   }, [isoRoom]);
 
   // ONE debounced PUT for both, since they travel together on the wire. It reads
@@ -790,8 +1015,12 @@ export function StoreProvider({ children }) {
       return undefined;
     }
     clearTimeout(roomSaveTimer.current);
+    const version = ++roomSaveVersion.current;
     roomSaveTimer.current = setTimeout(() => {
-      api.saveRoom(roomRef.current, isoRef.current).catch((err) => {
+      const snapshot = { placements: roomRef.current, iso: isoRef.current };
+      roomWriteRef.current(snapshot).then(() => {
+        if (version === roomSaveVersion.current) removeStored(ROOM_DIRTY_KEY);
+      }).catch((err) => {
         console.error("Failed to save room layout:", err);
         showToast("Couldn't save the room — it's still safe on this device 🌧️");
       });
@@ -872,7 +1101,19 @@ export function StoreProvider({ children }) {
     return () => setReauthorizer(null);
   }, []);
 
+  const pendingTaskToggles = useRef(new Map());
+  const taskCompletionVersion = useRef(0);
+  const taskReadVersion = useRef(0);
+  const applyTaskSnapshot = useCallback((rows) => {
+    setTasks(rows.map((row) => {
+      const pending = pendingTaskToggles.current.get(row.id);
+      return pending ? { ...row, ...pending } : row;
+    }));
+  }, []);
+
   const refreshAll = useCallback(async () => {
+    const request = ++taskReadVersion.current;
+    const completionVersion = taskCompletionVersion.current;
     // listTasks goes FIRST, on its own — not in the Promise.all. GET /api/tasks
     // is what lazily resets daily routines, so a stats query racing alongside it
     // could be answered from the pre-reset rows: on the first refresh of a new
@@ -880,16 +1121,20 @@ export function StoreProvider({ children }) {
     // that had already reset. It self-corrected on the next refresh, which is
     // exactly what makes it easy to miss.
     const t = await api.listTasks();
-    const [s, f, d] = await Promise.all([
+    const [s, f, d, e] = await Promise.all([
       api.stats(),
       api.listFriends(),
       api.sessionDays(),
+      api.listEvents(),
     ]);
-    setTasks(t);
-    setStats(s);
+    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+      applyTaskSnapshot(t);
+      setStats(s);
+    }
     setFriends(f);
     setSessionDays(d);
-  }, []);
+    setEvents(e);
+  }, [applyTaskSnapshot]);
 
   /**
    * Refresh only what a TASK write can have changed.
@@ -906,11 +1151,18 @@ export function StoreProvider({ children }) {
    * refresh of a new day.
    */
   const refreshTasks = useCallback(async () => {
+    const request = ++taskReadVersion.current;
+    const completionVersion = taskCompletionVersion.current;
     const t = await api.listTasks();
     const s = await api.stats();
-    setTasks(t);
-    setStats(s);
-  }, []);
+    // A read begun before another checkbox changed cannot undo that newer
+    // choice. A concurrent task's optimistic fields survive until its save
+    // settles, even if this snapshot came from another task's refresh.
+    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+      applyTaskSnapshot(t);
+      setStats(s);
+    }
+  }, [applyTaskSnapshot]);
 
   /** A logged focus block also moves the per-day map the streak and heatmap read. */
   const refreshFocus = useCallback(async () => {
@@ -937,6 +1189,14 @@ export function StoreProvider({ children }) {
         const data = await api.getRoom();
         const server = validatePlacements(data?.placements);
         const serverIso = validateIsoLayout(data?.iso);
+        // Closing inside the debounce leaves a synchronous local mirror plus
+        // this marker. Let that newer mirror win once, or the older DB copy
+        // would overwrite the backup on the very next launch.
+        if (readStored(ROOM_DIRTY_KEY) === "1") {
+          await roomWriteRef.current({ placements: roomRef.current, iso: isoRef.current });
+          removeStored(ROOM_DIRTY_KEY);
+          return;
+        }
         // A null server copy means "never saved" — the one case where this
         // device's layout should be adopted. An EMPTY layout is a real,
         // deliberate choice and must win; testing `.length` would silently
@@ -955,7 +1215,11 @@ export function StoreProvider({ children }) {
         if (!server || !serverIso) {
           // Push whatever half the server is missing (first run, or a save
           // from before the iso room existed).
-          await api.saveRoom(server || roomRef.current, serverIso || isoRef.current);
+          await roomWriteRef.current({
+            placements: server || roomRef.current,
+            iso: serverIso || isoRef.current,
+          });
+          removeStored(ROOM_DIRTY_KEY);
         }
       } catch (err) {
         // This block also WRITES (pushing a first-run/legacy layout to the
@@ -1022,7 +1286,7 @@ export function StoreProvider({ children }) {
       setProfile(next); // optimistic: the form must not lag a keystroke behind
       try {
         const { displayName, ...rest } = next;
-        await api.saveProfile({
+        await profileWriteRef.current({
           ...(displayName ? { displayName } : {}),
           profile: rest,
         });
@@ -1043,7 +1307,7 @@ export function StoreProvider({ children }) {
       // request shouldn't undo a choice the user can see on screen.
       writeStored("tasknook.character", JSON.stringify(next));
       try {
-        await api.saveProfile({ character: next });
+        await characterWriteRef.current({ character: next });
       } catch (err) {
         console.error("Failed to save character:", err);
         showToast("Couldn't save your character — it's still saved on this device 🌧️");
@@ -1060,12 +1324,42 @@ export function StoreProvider({ children }) {
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
   // as an unhandled promise rejection from an onClick handler.
   const toggleTask = async (task) => {
+    if (pendingTaskToggles.current.has(task.id)) return;
+    const completed = !task.completed;
+    const optimistic = { completed, completedAt: completed ? new Date().toISOString() : null };
+    pendingTaskToggles.current.set(task.id, optimistic);
+    taskCompletionVersion.current += 1;
+    // The packaged app still reaches Flask over localhost. Paint the user's
+    // choice before that round trip, then reconcile against the durable row.
+    setTasks((prev) => prev.map((row) => row.id === task.id
+      ? { ...row, ...optimistic }
+      : row));
     try {
-      await api.updateTask(task.id, { completed: !task.completed });
-      await refreshTasks();
+      const saved = await api.updateTask(task.id, { completed });
+      pendingTaskToggles.current.set(task.id, { completed: saved.completed, completedAt: saved.completedAt });
+      taskCompletionVersion.current += 1;
+      setTasks((prev) => prev.map((row) => row.id === task.id
+        ? { ...row, completed: saved.completed, completedAt: saved.completedAt }
+        : row));
+      try {
+        await refreshTasks();
+      } catch (err) {
+        // The write has already committed. A failed GET cannot undo it, and
+        // telling the user to save again would misrepresent the durable row.
+        console.error("Couldn't refresh after saving task:", err);
+        showToast("Task saved, but couldn't refresh the list 🌧️");
+      }
     } catch (err) {
       console.error("Failed to toggle task:", err);
+      taskCompletionVersion.current += 1;
+      // Restore only completion fields, preserving any independent edit that
+      // may have landed while the save was in flight.
+      setTasks((prev) => prev.map((row) => row.id === task.id
+        ? { ...row, completed: task.completed, completedAt: task.completedAt }
+        : row));
       showToast("Couldn't save that change 🌧️");
+    } finally {
+      pendingTaskToggles.current.delete(task.id);
     }
   };
   const editTask = async (id, payload) => {
@@ -1079,8 +1373,11 @@ export function StoreProvider({ children }) {
   };
   const removeTask = async (id) => {
     try {
-      if (activeTaskId === id) setActiveTaskId(null);
       await api.deleteTask(id);
+      // Do not detach a running timer from its task until deletion is durable.
+      // A failed request used to leave the task visible but silently clear the
+      // active-task label from the eventual session log.
+      if (activeTaskId === id) setActiveTaskId(null);
       await refreshTasks();
     } catch (err) {
       console.error("Failed to delete task:", err);
@@ -1102,6 +1399,13 @@ export function StoreProvider({ children }) {
       await refreshTasks();
     } catch (err) {
       console.error("Failed to save the task order:", err);
+      // The reorder was optimistic. Restore the durable order so the list
+      // does not advertise an arrangement that will disappear on reload.
+      try {
+        await refreshTasks();
+      } catch {
+        /* the original toast already explains the connectivity failure */
+      }
       showToast("Couldn't save the new order 🌧️");
     }
   };
@@ -1112,8 +1416,7 @@ export function StoreProvider({ children }) {
   // until its first task arrives.
   const [emptyGroups, setEmptyGroups] = useState(() => {
     try {
-      const saved = readJSON("tasknook.taskGroups", []);
-      return Array.isArray(saved) ? saved.filter((g) => typeof g === "string") : [];
+      return validateTaskGroups(readJSON("tasknook.taskGroups", []));
     } catch {
       return [];
     }
@@ -1130,23 +1433,57 @@ export function StoreProvider({ children }) {
     [tasks, emptyGroups]
   );
   const addTaskGroup = (name) => {
-    const trimmed = name.trim().slice(0, 60);
-    if (!trimmed || taskGroups.includes(trimmed)) return false;
+    const trimmed = name.trim().slice(0, TASK_GROUP_MAX);
+    if (!trimmed) return false;
+    if (taskGroups.includes(trimmed)) {
+      showToast("That task group already exists 🌿");
+      return false;
+    }
+    if (taskGroups.length >= TASK_GROUP_LIMIT) {
+      showToast(`That's all ${TASK_GROUP_LIMIT} task groups — remove one first 🌿`);
+      return false;
+    }
     persistEmptyGroups([...emptyGroups, trimmed]);
     return true;
   };
   const removeTaskGroup = async (name) => {
-    persistEmptyGroups(emptyGroups.filter((g) => g !== name));
     const affected = tasks.filter((t) => t.group === name);
-    if (!affected.length) return;
+    if (!affected.length) {
+      persistEmptyGroups(emptyGroups.filter((g) => g !== name));
+      return;
+    }
     try {
-      await Promise.all(affected.map((t) => api.updateTask(t.id, { group: null })));
+      // One atomic UPDATE. Per-task PUTs could fail halfway and split what the
+      // user experienced as one removal into grouped and ungrouped rows.
+      await api.renameTaskGroup(name, null);
+      persistEmptyGroups(emptyGroups.filter((g) => g !== name));
       // A group change is a task write like any other — it can't move the
       // friends list or the per-day session map, so it pays the narrow price.
       await refreshTasks();
     } catch (err) {
       console.error("Failed to ungroup tasks:", err);
       showToast("Couldn't ungroup those tasks 🌧️");
+    }
+  };
+  const renameTaskGroup = async (name, nextName) => {
+    const clean = typeof nextName === "string" ? nextName.trim().slice(0, TASK_GROUP_MAX) : "";
+    if (!clean || clean === name) return false;
+    if (taskGroups.includes(clean)) {
+      showToast("That task group already exists 🌿");
+      return false;
+    }
+    const affected = tasks.filter((task) => task.group === name);
+    try {
+      if (affected.length) await api.renameTaskGroup(name, clean);
+      persistEmptyGroups(
+        [...new Set(emptyGroups.map((group) => (group === name ? clean : group)).concat(clean))]
+      );
+      if (affected.length) await refreshTasks();
+      return true;
+    } catch (err) {
+      console.error("Failed to rename the task group:", err);
+      showToast("Couldn't rename that task group 🌧️");
+      return false;
     }
   };
   const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
@@ -1204,6 +1541,9 @@ export function StoreProvider({ children }) {
   };
   const setWeather = (nextMode) => {
     if (autoMatchRef.current) setAutoMatchWeather(false);
+    // A hand-picked condition has to switch random weather off too, or the
+    // next scheduled roll silently overwrites it a half hour later.
+    setAutoRandomWeather(false);
     applyWeatherVisual(nextMode);
   };
   const setTimeOfDay = (mode) => {
@@ -1271,6 +1611,69 @@ export function StoreProvider({ children }) {
   // lib/visiting derive the rest (their home, their look, you as the guest),
   // and hand IsoRoom a read-only layout + personas. Never persisted.
   const [visiting, setVisiting] = useState(null);
+  // Friends dropping into YOUR open room. Also render-only: these placements
+  // never enter isoRoom or its local/server mirrors.
+  const [homeVisitors, setHomeVisitors] = useState([]);
+  const homeVisitorsRef = useRef([]);
+  const nextHomeVisitorAt = useRef(null);
+  const kickedHomeVisitors = useRef({});
+  const commitHomeVisitors = useCallback((next) => {
+    homeVisitorsRef.current = next;
+    setHomeVisitors(next);
+  }, []);
+
+  const refreshEvents = useCallback(async () => setEvents(await api.listEvents()), []);
+  const addEvent = async (payload) => {
+    try {
+      await api.createEvent(payload);
+      await refreshEvents();
+    } catch (err) {
+      console.error("Failed to add event:", err);
+      showToast("Couldn't add that appointment 🌧️");
+      throw err;
+    }
+  };
+  const archiveTask = async (id) => {
+    try {
+      await api.archiveTask(id);
+      await refreshTasks();
+      showToast("Task added to your journal ✨");
+    } catch (err) {
+      console.error("Failed to archive task:", err);
+      showToast("Couldn't archive the task 🌧️");
+    }
+  };
+  const removeEvent = async (id) => {
+    try {
+      await api.deleteEvent(id);
+      await refreshEvents();
+    } catch (err) {
+      console.error("Failed to remove event:", err);
+      showToast("Couldn't delete that appointment 🌧️");
+    }
+  };
+
+  // Alert once per local event minute and persist the acknowledgement so a
+  // panel re-render or relaunch cannot turn a 10:00 appointment into a toast
+  // loop. This is intentionally in-app feedback, not an OS notification API.
+  useEffect(() => {
+    const announce = () => {
+      const now = new Date();
+      const day = localTodayISO();
+      const clock = now.toTimeString().slice(0, 5);
+      for (const event of events) {
+        if (event.date !== day || event.startTime !== clock) continue;
+        const key = `tasknook.eventAlert.${event.id}.${day}`;
+        if (readStored(key)) continue;
+        writeStored(key, "1");
+        showToast(`⏰ ${event.title} starts now`, 12_000);
+        break;
+      }
+    };
+    announce();
+    const id = setInterval(announce, 30_000);
+    return () => clearInterval(id);
+  }, [events, showToast]);
   // Which friend's door is being knocked on (the invite-only wait).
   const [knockingId, setKnockingId] = useState(null);
   const knockTimer = useRef(null);
@@ -1285,7 +1688,7 @@ export function StoreProvider({ children }) {
   const hintWalk = useCallback(() => {
     if (readStored("tasknook.walkHinted") === "1") return;
     writeStored("tasknook.walkHinted", "1");
-    showToast("Drag your little self to walk around 🚶", 4000);
+    showToast("Pick your little self up and set them on any seat 🪑", 4000);
   }, [showToast]);
   // At home the hint has no arrival to hang off, so it waits for the one moment
   // it's true: booted, not visiting, not decorating (a drag means something
@@ -1346,19 +1749,14 @@ export function StoreProvider({ children }) {
     });
   }, []);
   /**
-   * Walking on your OWN island. The scene arms every persona (they're all
-   * yours, all drawn with your character), validates the tile with the same
-   * `personaCanStand` rule a visit uses, and lands here.
+   * Re-seating on your OWN island. The scene arms every persona (they're all
+   * yours, all drawn with your character), validates the landing with the
+   * same `personaCanSit` rule a visit uses — a free seat or soft ground,
+   * bare floor only when the room offers nowhere to sit — and lands here.
    *
-   * Unlike a visit, this one PERSISTS — it's `moveIsoItem`, so the walk moves
-   * that resident's home and the room saves. That's deliberate rather than
-   * convenient: a wander offset is measured from a home and dies when the home
-   * moves (the roam record's whole point), so a "temporary" walk would be
-   * undone by the next roam tick and again by any reload. Walking your little
-   * person to the sofa and finding them still there tomorrow is also just what
-   * anyone would expect. It stays inside the wander engine's rules — no void,
-   * no furniture, but a free seat is legal — so a walk order can end in sitting
-   * down at your own desk.
+   * Unlike a visit, this one PERSISTS: the carry moves that resident's home
+   * and the room saves. Finding your little person still on the sofa
+   * tomorrow is what anyone expects of the seated life.
    */
   const walkIsoPersona = useCallback((id, gx, gy) => {
     setIsoRoom((prev) => {
@@ -1378,6 +1776,93 @@ export function StoreProvider({ children }) {
       };
     });
   }, []);
+
+  const moveHomePersona = useCallback(
+    (id, gx, gy) => {
+      const moved = moveHomeVisitor(homeVisitorsRef.current, id, gx, gy);
+      if (moved !== homeVisitorsRef.current) {
+        commitHomeVisitors(moved);
+        return;
+      }
+      walkIsoPersona(id, gx, gy);
+    },
+    [commitHomeVisitors, walkIsoPersona]
+  );
+
+  const kickHomeVisitor = useCallback(
+    (id) => {
+      const guest = homeVisitorsRef.current.find((visitor) => visitor.id === id);
+      if (!guest) return false;
+      kickedHomeVisitors.current[guest.username] =
+        Date.now() + HOME_VISITOR_KICK_COOLDOWN_MS;
+      commitHomeVisitors(
+        homeVisitorsRef.current.filter((visitor) => visitor.id !== id)
+      );
+      // A kick creates breathing room rather than immediately rolling a
+      // replacement on the next 15-second tick.
+      nextHomeVisitorAt.current = Date.now() + nextHomeVisitorDelay();
+      showToast(`${guest.avatar} ${guest.label} headed home`);
+      return true;
+    },
+    [commitHomeVisitors, showToast]
+  );
+
+  // One small scheduler owns both arrivals and natural departures. Guests
+  // only exist while the home is visible and the door admits friends;
+  // decorating or leaving home clears the temporary layer rather than letting
+  // simulated people interfere with room editing.
+  const isVisiting = Boolean(visiting);
+  useEffect(() => {
+    const open = homeVisitorsEnabled({ access: user?.visitAccess,
+      isVisiting, editing: roomEditMode, isometric: isoPreview, widgetMode });
+    if (!open) {
+      nextHomeVisitorAt.current = null;
+      if (homeVisitorsRef.current.length) commitHomeVisitors([]);
+      return undefined;
+    }
+
+    const tick = () => {
+      const now = Date.now();
+      const current = homeVisitorsRef.current;
+      const result = advanceHomeVisitors({
+        layout: isoRef.current,
+        friends: friendsRef.current,
+        visitors: current,
+        kickedUntil: kickedHomeVisitors.current,
+        now,
+        nextArrivalAt: nextHomeVisitorAt.current,
+      });
+      const next = result.visitors;
+      const arrived = result.arrived;
+      nextHomeVisitorAt.current = result.nextArrivalAt;
+
+      if (
+        next.length !== current.length ||
+        next.some((visitor, index) => visitor !== current[index])
+      ) {
+        commitHomeVisitors(next);
+      }
+      if (arrived) showToast(`${arrived.avatar} ${arrived.label} dropped by`);
+    };
+
+    tick();
+    const id = setInterval(tick, HOME_VISITOR_TICK_MS);
+    return () => clearInterval(id);
+  }, [
+    user?.visitAccess,
+    widgetMode,
+    isVisiting,
+    roomEditMode,
+    isoPreview,
+    friends.length,
+    commitHomeVisitors,
+    showToast,
+  ]);
+
+  const homeScene = useMemo(
+    () => homeVisitorScene(isoRoom, homeVisitors),
+    [isoRoom, homeVisitors]
+  );
   /**
    * A pet's identity — name and temper — living ON its placement, because a
    * pet IS a placement: two cats are two rows, each with its own name, and
@@ -1456,7 +1941,15 @@ export function StoreProvider({ children }) {
   // illusion. Every pending timer is tracked so the provider can clear them on
   // unmount instead of setting state into a dead tree.
   const [chats, setChats] = useState([]);
+  const [chatsError, setChatsError] = useState(false);
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const chatReadVersion = useRef(0);
   const replyTimers = useRef(new Set());
+  // Listeners belong to the currently mounted thread, never to a past send.
+  const chatSignals = useRef(null);
+  if (!chatSignals.current) chatSignals.current = createChatSignals();
+  const subscribeChat = useCallback((chatId, listener) => chatSignals.current.subscribe(chatId, listener), []);
+  const notifyChat = useCallback((chatId) => chatSignals.current.publish(chatId), []);
   useEffect(() => {
     const timers = replyTimers.current;
     return () => {
@@ -1466,19 +1959,33 @@ export function StoreProvider({ children }) {
   }, []);
 
   const refreshChats = useCallback(async () => {
+    const request = ++chatReadVersion.current;
+    setChatsLoading(true);
     try {
-      setChats(await api.listChats());
+      const rows = await api.listChats();
+      if (request !== chatReadVersion.current) return;
+      setChats(rows);
+      setChatsError(false);
     } catch (err) {
-      // A read, and a background one at that — the panel shows what it has.
+      // Keep the last good list, but let the panel offer an explicit retry.
       console.error("Couldn't load chats:", err);
+      if (request === chatReadVersion.current) setChatsError(true);
+    } finally {
+      if (request === chatReadVersion.current) setChatsLoading(false);
     }
   }, []);
+
+  const rememberChat = (chat) => {
+    chatReadVersion.current += 1;
+    setChats((previous) => [chat, ...previous.filter((row) => row.id !== chat.id)]);
+  };
 
   /** Open (or reopen) the thread with one friend. Idempotent server-side. */
   const openChatWith = async (friend) => {
     try {
       const chat = await api.openChat([friend.id]);
-      await refreshChats();
+      rememberChat(chat);
+      refreshChats();
       return chat;
     } catch (err) {
       showToast(`Couldn't open the chat — ${err.message}`);
@@ -1492,7 +1999,8 @@ export function StoreProvider({ children }) {
         isGroup: true,
         title: title?.trim() || undefined,
       });
-      await refreshChats();
+      rememberChat(chat);
+      refreshChats();
       return chat;
     } catch (err) {
       showToast(`Couldn't start the group — ${err.message}`);
@@ -1503,25 +2011,24 @@ export function StoreProvider({ children }) {
   /**
    * Say something, then let whoever is around answer.
    *
-   * `onMessages` is handed the fresh list after each write so an open thread
-   * repaints without polling — the reply may land long after the send
-   * resolved, which is the point of scheduling it.
+   * Notify the current subscriber after each successful write. A transcript
+   * read failing must never turn a successful send into a retry/duplicate.
    */
-  const sendChatMessage = async (chat, body, onMessages, optionId = null) => {
+  const sendChatMessage = async (chat, body, optionId = null) => {
     const text = body.trim().slice(0, MESSAGE_MAX);
-    if (!text || !chat) return;
+    if (!text || !chat) return false;
     try {
       await api.sendMessage(chat.id, text);
-      onMessages?.(await api.chatMessages(chat.id));
+      notifyChat(chat.id);
       refreshChats();
     } catch (err) {
       showToast(`Couldn't send — ${err.message}`);
-      return;
+      return false;
     }
 
     // Who replies: the one friend, or a couple of the group who are free.
     const others = (chat.members || []).filter((m) => m.id !== userRef.current?.id);
-    if (!others.length) return;
+    if (!others.length) return true;
     // Saying something to someone is the cheapest brick in the friendship —
     // everyone who heard you gets it, which makes a group line worth more in
     // total but no more per person.
@@ -1538,7 +2045,6 @@ export function StoreProvider({ children }) {
       // Stagger a group so two people don't answer in the same instant.
       const delay = replyDelayMs(username, now, seed + i) + i * 900;
       const timer = setTimeout(async () => {
-        replyTimers.current.delete(timer);
         try {
           // A picked option answers the OPTION, not the words on the button:
           // the intent is already known, so there's nothing to infer from the
@@ -1550,15 +2056,20 @@ export function StoreProvider({ children }) {
             ? replyToOption(username, optionId, Date.now(), seed + i, bond)
             : botReply(username, text, Date.now(), seed + i, bond);
           await api.sendMessage(chat.id, reply, friend.id);
-          onMessages?.(await api.chatMessages(chat.id));
+          notifyChat(chat.id);
           refreshChats();
         } catch {
           // A reply that fails is a bot who didn't answer — no toast for a
           // message the user never asked to send.
+        } finally {
+          replyTimers.current.delete(timer);
+          chatSignals.current.finish(timer);
         }
       }, delay);
       replyTimers.current.add(timer);
+      chatSignals.current.start(chat.id, timer, friend);
     });
+    return true;
   };
 
   /**
@@ -1573,6 +2084,7 @@ export function StoreProvider({ children }) {
       try {
         const chat = await api.openChat([friend.id]);
         await api.sendMessage(chat.id, body, friend.id);
+        notifyChat(chat.id);
         refreshChats();
         return true;
       } catch {
@@ -1581,7 +2093,7 @@ export function StoreProvider({ children }) {
         return false;
       }
     },
-    [refreshChats]
+    [refreshChats, notifyChat]
   );
 
   /**
@@ -1669,7 +2181,13 @@ export function StoreProvider({ children }) {
   const deleteChat = async (chatId) => {
     try {
       await api.deleteChat(chatId);
-      await refreshChats();
+      chatReadVersion.current += 1;
+      setChats((previous) => previous.filter((chat) => chat.id !== chatId));
+      for (const timer of chatSignals.current.cancel(chatId)) {
+        clearTimeout(timer);
+        replyTimers.current.delete(timer);
+      }
+      refreshChats();
       return true;
     } catch (err) {
       showToast(`Couldn't delete the chat — ${err.message}`);
@@ -1686,14 +2204,14 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (user) refreshChats();
   }, [user, refreshChats]);
-  // Your own door. Matters the day friends can really visit; today it's a
-  // preference the bots politely respect.
+  // Who may enter your room. Today the simulated friends politely respect it;
+  // a networked future would enforce this server-side.
   const setVisitAccess = async (value) => {
     try {
       const res = await api.setVisitAccess(value);
       setUser((u) => (u ? { ...u, visitAccess: res.visitAccess } : u));
     } catch (err) {
-      showToast(`Couldn't change your door — ${err.message}`);
+      showToast(`Couldn't change room access — ${err.message}`);
     }
   };
 
@@ -1706,13 +2224,19 @@ export function StoreProvider({ children }) {
   // A named snapshot of the whole ambience "scene" — weather visual, time of
   // day, and the full sound mix — recalled in one click.
   const saveWeatherPreset = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+    const trimmed = name.trim().slice(0, 60);
+    if (!trimmed) return false;
+    const replacing = weatherPresets.some((preset) => preset.name === trimmed);
+    if (!replacing && weatherPresets.length >= WEATHER_PRESET_LIMIT) {
+      showToast(`That's all ${WEATHER_PRESET_LIMIT} saved scenes — remove one first 🌿`);
+      return false;
+    }
     const preset = { name: trimmed, weatherMode, timeOfDay, soundMix };
     // Persist outside the updater (purity — StrictMode double-invokes them).
     const next = [...weatherPresets.filter((p) => p.name !== trimmed), preset];
     writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
+    return true;
   };
   const applyWeatherPreset = (name) => {
     const preset = weatherPresets.find((p) => p.name === name);
@@ -1733,7 +2257,11 @@ export function StoreProvider({ children }) {
       WEATHER_MODES.includes(preset.weatherMode) ? preset.weatherMode : weatherMode
     );
     applyTimeOfDay(TIMES_OF_DAY.includes(preset.timeOfDay) ? preset.timeOfDay : timeOfDay);
+    // Recalling a snapshot is a manual choice. Every automatic writer must
+    // stand down or it can replace half of the recalled scene moments later.
     setAutoMatchWeather(false);
+    setAutoRandomWeather(false);
+    setAutoTimeOfDay(false);
     // A saved scene is an explicit user snapshot, so restoring its sounds IS
     // what applying it means (unlike the weather quick-picks, which are
     // visual-only). Legacy presets from before the mixer just set the visual.
@@ -1747,14 +2275,36 @@ export function StoreProvider({ children }) {
     const next = weatherPresets.filter((p) => p.name !== name);
     writeStored("tasknook.weather.presets", JSON.stringify(next));
     setWeatherPresets(next);
+    return true;
+  };
+  const renameSavedWeatherPreset = (name, nextName) => {
+    const clean = nextName.trim().slice(0, 60);
+    if (clean === name) return true;
+    const next = renameWeatherPreset(weatherPresets, name, nextName);
+    if (next === weatherPresets) {
+      showToast("Choose a unique name for that scene 🌿");
+      return false;
+    }
+    writeJSON("tasknook.weather.presets", next);
+    setWeatherPresets(next);
+    return true;
+  };
+  const moveSavedWeatherPreset = (name, direction) => {
+    const next = moveWeatherPreset(weatherPresets, name, direction);
+    if (next === weatherPresets) return false;
+    writeJSON("tasknook.weather.presets", next);
+    setWeatherPresets(next);
+    return true;
   };
 
   // ---------- Settings ----------
   const setBrightness = (v) => {
-    setBrightnessState(v);
-    writeStored("tasknook.brightness", String(v));
+    const clean = normalizeBrightness(v);
+    setBrightnessState(clean);
+    writeStored("tasknook.brightness", String(clean));
   };
   const setColorScheme = (scheme) => {
+    if (!COLOR_SCHEME_KEYS.includes(scheme)) return;
     setColorSchemeState(scheme);
     writeStored("tasknook.colorScheme", scheme);
   };
@@ -1763,6 +2313,14 @@ export function StoreProvider({ children }) {
   const setCustomColor = (hex) => {
     setCustomColorState(hex);
     writeStored("tasknook.customColor", hex);
+    setColorScheme("custom");
+  };
+  // null = follow the accent again (the key is removed, not stored as "null").
+  const setCustomSurface = (hex) => {
+    const clean = hex === null ? null : normalizeHex(hex);
+    setCustomSurfaceState(clean);
+    if (clean === null) removeStored("tasknook.customSurface");
+    else writeStored("tasknook.customSurface", clean);
     setColorScheme("custom");
   };
 
@@ -1782,15 +2340,31 @@ export function StoreProvider({ children }) {
    * triggered gets to report failure.
    */
   const refreshRealWeather = useCallback(async (coordsOverride, { background = false } = {}) => {
+    // A quiet poll never gets to supersede a location/search the user just
+    // requested. Foreground requests do supersede older work, and only the
+    // newest response may write the shared weather state.
+    if (background && weatherFetchRef.current.active) return false;
+    const requestId = weatherFetchRef.current.id + 1;
+    weatherFetchRef.current = { id: requestId, active: true };
     if (!background) {
+      // "Use my location" (or an explicit place choice) supersedes a city
+      // search still in flight. Without this, its late candidate list could
+      // reopen after the newer weather had already loaded.
+      weatherSearchRef.current += 1;
+      setWeatherPlaces([]);
       setWeatherStatus("loading");
       setWeatherError("");
     }
     try {
-      const coords = coordsOverride || weatherCoordsRef.current || (await locateBrowser());
+      const coords = normalizeWeatherCoords(
+        coordsOverride || weatherCoordsRef.current || (await locateBrowser())
+      );
+      if (!coords) throw new Error("That location has invalid coordinates");
+      if (requestId !== weatherFetchRef.current.id) return false;
       weatherCoordsRef.current = coords;
       writeStored("tasknook.weather.coords", JSON.stringify(coords));
       const data = await fetchCurrentWeather(coords.lat, coords.lon);
+      if (requestId !== weatherFetchRef.current.id) return false;
       setRealWeather(data);
       setWeatherStatus("ready");
       if (autoMatchRef.current) {
@@ -1800,15 +2374,23 @@ export function StoreProvider({ children }) {
         setTimeOfDayState(data.timeOfDay);
         writeStored("tasknook.timeOfDay", data.timeOfDay);
       }
+      return true;
     } catch (err) {
-      if (background) return; // keep the last good reading and stay quiet
+      if (requestId !== weatherFetchRef.current.id) return false;
+      if (background) return false; // keep the last good reading and stay quiet
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't get the weather");
+      return false;
+    } finally {
+      if (requestId === weatherFetchRef.current.id) {
+        weatherFetchRef.current = { id: requestId, active: false };
+      }
     }
   }, []);
 
   /** Commit to one place: remember it and fetch its weather. */
   const chooseWeatherPlace = async (place) => {
+    weatherSearchRef.current += 1;
     setWeatherPlaces([]);
     setWeatherLocationLabel(place.label);
     writeStored("tasknook.weather.location", place.label);
@@ -1816,11 +2398,23 @@ export function StoreProvider({ children }) {
   };
 
   const searchWeatherCity = async (name) => {
+    const searchId = weatherSearchRef.current + 1;
+    weatherSearchRef.current = searchId;
+    // A prior geolocation/forecast request is now obsolete. It may still use
+    // the network, but its request id can no longer write shared UI state.
+    const weatherGuardId = weatherFetchRef.current.id + 1;
+    weatherFetchRef.current = {
+      id: weatherGuardId,
+      // Also block the silent 15-minute poll while the foreground search is
+      // deciding which location should own the display.
+      active: true,
+    };
     setWeatherStatus("loading");
     setWeatherError("");
     setWeatherPlaces([]);
     try {
       const places = await searchPlaces(name);
+      if (searchId !== weatherSearchRef.current) return;
       // One match is unambiguous — don't make someone confirm it. Several
       // means the name is genuinely shared (Gainesville is in Florida AND
       // Alabama), and guessing for them is how you end up showing the wrong
@@ -1832,8 +2426,13 @@ export function StoreProvider({ children }) {
       setWeatherPlaces(places);
       setWeatherStatus("idle");
     } catch (err) {
+      if (searchId !== weatherSearchRef.current) return;
       setWeatherStatus("error");
       setWeatherError(err.message || "Couldn't find that place");
+    } finally {
+      if (weatherFetchRef.current.id === weatherGuardId) {
+        weatherFetchRef.current = { id: weatherGuardId, active: false };
+      }
     }
   };
 
@@ -1849,7 +2448,19 @@ export function StoreProvider({ children }) {
     // otherwise its 15-minute refresh and the clock tick take turns overwriting
     // each other's value.
     if (next) setAutoTimeOfDay(false);
+    // And it owns weatherMode, same axis random weather drives — the two
+    // refreshes would otherwise fight over the sky.
+    if (next) setAutoRandomWeather(false);
     setAutoMatchWeather(next);
+  };
+
+  // Turning random weather on hands weatherMode to the drift schedule below;
+  // auto-match (which also owns weatherMode) has to stand down for the same
+  // reason it stands down for a manual pick.
+  const toggleRandomWeather = () => {
+    const next = !autoRandomWeather;
+    if (next && autoMatchRef.current) setAutoMatchWeather(false);
+    setAutoRandomWeather(next);
   };
 
   // While the clock is driving the scene, re-check it. A minute is far finer
@@ -1879,6 +2490,35 @@ export function StoreProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoMatchWeather]);
 
+  useEffect(() => {
+    weatherModeRef.current = weatherMode;
+  }, [weatherMode]);
+
+  useEffect(() => {
+    writeStored("tasknook.weather.random", autoRandomWeather ? "1" : "0");
+  }, [autoRandomWeather]);
+
+  // Random weather: a condition holds for RANDOM_WEATHER_INTERVAL_MS (30
+  // minutes), then steps to a new one via nextRandomWeather's weighted
+  // transitions. `nextRollAt` persists across reloads — closing the app
+  // doesn't pause the clock, so reopening past a scheduled roll catches up
+  // immediately instead of waiting out a stale timer, the same reasoning
+  // the music bar's resume-on-boot already follows.
+  useEffect(() => {
+    if (!autoRandomWeather) return undefined;
+    let timer;
+    const roll = () => {
+      applyWeatherVisual(nextRandomWeather(weatherModeRef.current));
+      const at = Date.now() + RANDOM_WEATHER_INTERVAL_MS;
+      writeStored("tasknook.weather.random.nextRollAt", String(at));
+      timer = setTimeout(roll, RANDOM_WEATHER_INTERVAL_MS);
+    };
+    const savedAt = Number(readStored("tasknook.weather.random.nextRollAt"));
+    const remaining = savedAt > 0 ? savedAt - Date.now() : 0;
+    timer = setTimeout(roll, Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [autoRandomWeather]);
+
   const setStation = (key) => {
     setActiveStationKey(key);
     writeStored("tasknook.music.station", key);
@@ -1890,13 +2530,17 @@ export function StoreProvider({ children }) {
   };
 
   // Adds (and switches to) a station from a pasted YouTube or Spotify link.
-  // Returns false if no video/playlist could be parsed, so the UI can show an error.
+  // Returns a short status so the UI can distinguish a bad link from a full list.
   const addCustomStation = (url, label) => {
     const resolved = resolveMusicLink(url);
-    if (!resolved) return false;
+    if (!resolved) return "invalid";
     const station = { ...resolved, label: label.trim() || "custom station 🎧", custom: true };
     const key = stationKey(station);
     if (!musicStations.some((s) => stationKey(s) === key)) {
+      if (customStations.length >= CUSTOM_STATION_LIMIT) {
+        showToast(`That's all ${CUSTOM_STATION_LIMIT} custom stations — remove one first 🎧`);
+        return "limit";
+      }
       const next = [...customStations, station];
       setCustomStations(next);
       writeStored("tasknook.music.custom", JSON.stringify(next));
@@ -1911,6 +2555,22 @@ export function StoreProvider({ children }) {
     setCustomStations(next);
     writeStored("tasknook.music.custom", JSON.stringify(next));
     if (activeStationKey === key) setStation(stationKey(BUILT_IN_STATIONS[0]));
+  };
+
+  const renameCustomStation = (station, label) => {
+    const next = renameStation(customStations, stationKey(station), label);
+    if (next === customStations) return false;
+    setCustomStations(next);
+    writeJSON("tasknook.music.custom", next);
+    return true;
+  };
+
+  const moveCustomStation = (station, direction) => {
+    const next = moveStation(customStations, stationKey(station), direction);
+    if (next === customStations) return false;
+    setCustomStations(next);
+    writeJSON("tasknook.music.custom", next);
+    return true;
   };
 
   // ---------- Room actions ----------
@@ -1947,7 +2607,10 @@ export function StoreProvider({ children }) {
   const removeRoomItem = useCallback((id) => {
     setRoomPlacements((prev) => prev.filter((p) => p.id !== id));
   }, []);
-  const applyRoomPreset = useCallback((key) => setRoomPlacements(presetPlacements(key)), []);
+  const applyRoomPreset = useCallback((key) => {
+    setRoomPlacements(presetPlacements(key));
+    setCottageView(cottageSetting(COTTAGE_PRESETS[key]?.setting));
+  }, [setCottageView]);
   const clearRoom = useCallback(() => setRoomPlacements([]), []);
   // tint: an #rrggbb string recolours the item's main material; null returns
   // it to the classic colour (the key is removed so saves stay minimal).
@@ -1973,16 +2636,19 @@ export function StoreProvider({ children }) {
     dismissToast,
 
     tasks,
+    events,
     orderedTasks,
     addTask,
     toggleTask,
     editTask,
     removeTask,
+    archiveTask,
     reorderTasks,
 
     taskGroups,
     addTaskGroup,
     removeTaskGroup,
+    renameTaskGroup,
     toggleRoutine,
 
     algorithm,
@@ -1999,21 +2665,29 @@ export function StoreProvider({ children }) {
     refreshAll,
     refreshTasks,
     refreshFocus,
+    refreshEvents,
+    addEvent,
+    removeEvent,
     dailyGoal,
     setDailyGoal,
 
     // chat
     chats,
+    chatsError,
+    chatsLoading,
     refreshChats,
     openChatWith,
     nudgeFromFriend,
     openGroupChat,
     sendChatMessage,
+    subscribeChat,
     markChatRead,
     deleteChat,
     friendship,
 
     // room decoration
+    cottageView,
+    setCottageView,
     roomPlacements,
     roomEditMode,
     setRoomEditMode,
@@ -2037,11 +2711,17 @@ export function StoreProvider({ children }) {
     unlockItem,
     unlockBalance: balance,
     setIsoItemTint,
+    toggleIsoItem,
     setIsoSize,
     setIsoTile,
+    setIsoPartition,
+    setIsoArch,
+    resetIsoPartitions,
     resetIsoShape,
     setIsoEnv,
     setIsoWalls,
+    setIsoWallColor,
+    setIsoLighting,
     visiting,
     visitFriend,
     knockFriend,
@@ -2049,6 +2729,10 @@ export function StoreProvider({ children }) {
     leaveVisit,
     moveVisitGuest,
     walkIsoPersona,
+    homeVisitors,
+    homeScene,
+    moveHomePersona,
+    kickHomeVisitor,
     setPetIdentity,
     setVisitAccess,
     applyIsoPreset,
@@ -2070,11 +2754,17 @@ export function StoreProvider({ children }) {
     setTimeOfDay,
     musicOn,
     toggleMusic,
+    autoResumeMusic,
+    setAutoResumeMusic,
+    widgetMode,
+    setWidgetMode,
     musicStations,
     activeStationKey: resolvedStationKey,
     selectStation,
     addCustomStation,
     removeCustomStation,
+    renameCustomStation,
+    moveCustomStation,
 
     // real-world weather
     realWeather,
@@ -2082,8 +2772,12 @@ export function StoreProvider({ children }) {
     weatherError,
     weatherLocationLabel,
     weatherPlaces,
+    weatherUnit,
+    setWeatherUnit,
     chooseWeatherPlace,
     autoMatchWeather,
+    autoRandomWeather,
+    toggleRandomWeather,
     autoTimeOfDay,
     setAutoTimeOfDay,
     toggleAutoMatchWeather,
@@ -2093,6 +2787,8 @@ export function StoreProvider({ children }) {
     saveWeatherPreset,
     applyWeatherPreset,
     deleteWeatherPreset,
+    renameSavedWeatherPreset,
+    moveSavedWeatherPreset,
 
     // settings
     brightness,
@@ -2101,8 +2797,13 @@ export function StoreProvider({ children }) {
     setColorScheme,
     customColor,
     setCustomColor,
+    customSurface,
+    setCustomSurface,
     motionMode,
     setMotionMode,
+    hudVisibility,
+    setHudVisibility,
+    setAllHudVisibility,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

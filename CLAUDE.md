@@ -126,6 +126,9 @@ The backend is bundled **file-by-file, never as a whole folder** — an
 `--add-data "backend;backend"` would publish your local `tasknook.db` and its
 backups inside the committed binary.
 Web mode is unchanged and needs neither `pywebview` nor `waitress`.
+`desktop.py` also exposes a `DesktopApi` (pywebview `js_api`) for the
+frontend's Always On Top toggle — see Widget Mode / Always On Top under
+"Focus timer" below for the full frontend↔desktop contract.
 
 **Single instance**: `desktop.py`'s `claim_single_instance()` takes an
 OS-level lock on `%LOCALAPPDATA%\TaskNook\tasknook.lock` **before importing
@@ -250,8 +253,7 @@ running `git commit` yourself.
   on a previous LOCAL day (same local-day convention as the stats). The friend graph is a **self-referential many-to-many stored
   as two directed rows** (A→B and B→A) — adding/removing a friend must touch both
   directions to stay symmetric. This is intentional; don't "simplify" to one row.
-- **Visiting friends' rooms** (simulated social — full design in
-  docs/visiting_friends_plan.md): `User.visit_access`
+- **Visiting friends' rooms** (simulated social): `User.visit_access`
   (public/friends/invite/private, default "friends") rides `public_dict`
   into `/api/friends`; `VISIT_ACCESS_LEVELS` in app.py mirrors
   `VISIT_ACCESS` in `lib/visiting.js` — same both-languages contract as
@@ -278,18 +280,26 @@ running `git commit` yourself.
   per-placement characters + name tags: tag lifts are tuned by screenshot
   (hitH is the grab region, a head too tall), and tags share the walkers'
   per-glide clock via the same `useGlide` hook (`PersonaTag`) or they
-  teleport ahead of their person. **You can WALK AROUND a visit**:
-  `resolveVisitRoom` returns `guestId` (null when no guest could stand) and
-  your placement (`walkId={visiting.guestId}`) is grabbable outside edit
-  mode — **dragging PICKS THEM UP**: the figure lifts off the floor and
-  dangles from your cursor (`held` → the pinched-chibi pose, see below)
-  while a dashed diamond under its feet shows where it will land (amber =
-  legal, danger = refused); release calls `onWalkTo` → the store's
-  `moveVisitGuest`. The rule is `personaCanStand` in lib/isoRoom.js
-  — mask + the wander engine's furniture rule, EXCEPT a free seat is legal
-  (that's how a walk order ends in sitting with your friend; an occupied
-  seat is refused). Deliberately not the edit-drag rule: walking is
-  fiction.
+  teleport ahead of their person. **THE SEATED LIFE** (owner decision,
+  2026-08-19, from the VC2 reference: "it seems like they mostly just sit
+  down"): humans never wander — people are SETTLED, on a chair, a rug, or
+  where you set them, and only a CARRY moves them; the pets are the room's
+  motion. **You can re-seat yourself on a visit**: `resolveVisitRoom`
+  returns `guestId` (null when no guest could be placed), arrival SEATS
+  you (`freeSeatSpot` — being shown to a chair; the front-of-room stand is
+  the no-seat fallback), and your placement (`walkId={visiting.guestId}`)
+  is grabbable outside edit mode — **dragging PICKS THEM UP**: the figure
+  lifts off the floor and dangles from your cursor (`held` → the
+  pinched-chibi pose, see below) while a dashed diamond under its feet
+  shows where it will land (amber = legal, danger = refused) and every
+  free seat + soft ground BREATHES AMBER (the seat glow — choosing a spot
+  is reading the room); release calls `onWalkTo` → the store's
+  `moveVisitGuest`. The rule is `personaCanSit` in lib/isoRoom.js — a FREE
+  seat or SOFT GROUND (layer −1 minus the pond; `seatFor` resolves a
+  floor-sit with `soft: true`, shared by many, so a rug is never "taken");
+  BARE floor anywhere clear of furniture just STANDS them there (owner:
+  drop anywhere is fine — standing is a chosen spot, not a walk).
+  Deliberately not the edit-drag rule: settling is fiction.
   **And around your OWN island.** The plumbing is generic: `walkableBy` in
   IsoRoom.jsx is the ONE rule ("may this placement be walked right now?"),
   read by both the drag handler and the grab cursor so a cursor can never
@@ -302,17 +312,17 @@ running `git commit` yourself.
   "real" you is a distinction the room can't show). `onWalkTo(id, gx, gy)`
   carries the id for that reason, matching `onMoveItem`'s signature.
   The home handler is the store's `walkIsoPersona`, and unlike a visit it
-  **PERSISTS** — it moves that resident's home and the room saves. A wander
-  offset is measured from a home and dies when the home moves, so a
-  render-only walk would be undone by the next roam tick and by any reload;
-  and finding your little person still on the sofa tomorrow is what anyone
-  expects. It is its OWN updater rather than a call through to `moveIsoItem`
+  **PERSISTS** — it moves that resident's home and the room saves: finding
+  your little person still on the sofa tomorrow is what anyone expects.
+  Toggling "In the room" also SEATS you on arrival (`withSelf` prefers
+  `freeSeatSpot` over the free-tile spawn). `walkIsoPersona` is its OWN
+  updater rather than a call through to `moveIsoItem`
   so it can refuse non-personas: this is a write that happens OUTSIDE
   Decorate and must never become a route for moving furniture there.
-  The "drag your little self" hint is one toast per DEVICE
+  The "set them on any seat" hint is one toast per DEVICE
   (`tasknook.walkHinted`), shared by both rooms — it was a ref, so it fired
   every launch. At home it waits for the one moment it's true: booted, not
-  visiting, not decorating, and a persona actually standing in the room.
+  visiting, not decorating, and a persona actually placed in the room.
   **The gesture is PICK UP AND SET DOWN, not "point at a tile"** (owner
   request, 2026-08-13, with reference art: the pinched-chibi meme). Four
   things make it work, and each replaced something the marker-only version
@@ -347,7 +357,15 @@ running `git commit` yourself.
   (`npcActivity` in lib/visiting.js): a deterministic 120-minute study loop
   offset per username — a pure function of (username, clock), never
   Math.random, so the panel re-derives it on a 30s timer without statuses
-  jittering. The row's NUMBERS are simulated too (`npcDailyStats`, same
+  jittering. **The line itself is HOVER-REVEALED** (`FriendsPanel.jsx`'s
+  `.hover-reveal`, same convention as the row's own delete control — touch
+  devices have no hover, so it stays legible there): a small always-visible
+  dot (`ACTIVITY_DOT`) carries the state at a glance, and the row's own
+  `title` attribute mirrors the text for a native tooltip fallback. There is
+  deliberately no opt-in "share my session" setting gating this — every
+  "friend" here is a simulated bot row in your own local SQLite file, not
+  another person's live session, so it's purely a decluttering choice, not a
+  privacy one. The row's NUMBERS are simulated too (`npcDailyStats`, same
   file): the API's seeded rows never change, so every bot showed "0m
   focused" forever beside a presence line claiming they were mid-block. It
   rolls 2–6 tasks per LOCAL day, picks how much of the list finishes (not
@@ -358,8 +376,8 @@ running `git commit` yourself.
   a per-device bond tally per bot — points per message sent, per visit,
   per minute spent in their room (a store interval while `visiting`) — read
   as five levels shown as a rose bar on the friend row. Mostly cosmetic BY
-  DESIGN (a reason to interact, not a grind; rewards are a noted-later in
-  docs/visiting_friends_plan.md), except that level 4+ additively widens
+  DESIGN (a reason to interact, not a grind; tangible rewards remain
+  deliberately unbuilt), except that level 4+ additively widens
   the chat reply pools (`CLOSE_LINES` in lib/chat.js — bond is passed at
   reply-FIRE time, and low bond can never produce a close line; the
   asymmetry is the tweak). The tally lives client-side like the check-in
@@ -494,6 +512,12 @@ running `git commit` yourself.
   "Untitled block": `timer.jsx` used to substitute the literals `"Focus"` and
   `"Stopwatch"`, which made untitled time split across two rows that looked
   like tasks you had named. Rows logged before that fix still carry them.
+  **Checked tasks show up too**, as their own "Completed" list beside "Focused
+  on" — but derived CLIENT-SIDE (`CalendarPanel`'s `completedOnSelected`
+  filters the already-loaded `tasks` by `completedAt` routed through the same
+  local-day `toISO()` the month grid's own tinting uses), not through a new
+  endpoint: unlike per-session focus minutes, completed tasks are already
+  sitting in the store.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
@@ -525,7 +549,12 @@ running `git commit` yourself.
   and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
   `character/scarves.jsx` registry: wrapped/loop/long, drawn TORSO-anchored
   after the collar so a glance can't shear it off — the second accessory
-  slot, and the accent-colour one).
+  slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
+  `character/glasses.jsx`: round/square/halfmoon — the third accessory
+  slot, deliberately colour-less: frames are a fixed ink like shoe soles
+  are fixed rubber. Drawn inside the head's gesture group AFTER hair and
+  hat so a fringe can't bury the rims; nothing from behind — temple tips
+  at a 7.3px skull are noise. They stack with hats, unlike hair).
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
@@ -731,6 +760,47 @@ running `git commit` yourself.
   a single ☰ button (`tasknook.dockCollapsed`) and its top is
   `max(172px, calc(50% - 220px))` — clamped so a centred column can never
   climb into the focus card's corner on short windows.
+  **Widget Mode** (`store.jsx`'s `widgetMode`, `tasknook.widgetMode`,
+  toggled from the icon beside the clock in `TopBar.jsx`) collapses the app
+  to just the already-draggable `HudFocusCard`, floating over the plain
+  themed backdrop — meant to sit alongside other work, not replace the
+  cottage, so everything else (scene, weather/sky overlays, TopBar, Dock,
+  drawers, HudTasks, MusicDock, the signature) folds away too. **It is a
+  visibility toggle in `App.jsx`, never a separate early return** — the
+  first cut rendered widget mode as its own `if (widgetMode) return (...)`
+  branch with a fresh `<HudFocusCard />`, which unmounted the real one and
+  remounted a new instance carrying `.intro-chrome` — replaying its 1.5s
+  boot delay on every single toggle, exactly the trap this file's
+  `.intro-chrome` gotcha (below) warns about. The fix is the same pattern
+  `hudWrapClass` already uses elsewhere: one persistent `HudFocusCard`
+  outside the hidden region, and `hudWrapClass(roomEditMode || widgetMode,
+  ...)` for `HudTasks`/`MusicDock` (so music keeps playing, just out of
+  sight) — except the focus card's OWN wrapper ignores `widgetMode`
+  entirely and stays force-visible, since showing it is the whole point and
+  it should override even a Settings "Hidden" for Session & timer while
+  active. MusicDock and the toast (failed writes are never silent, widget
+  or not) are deliberately untouched by the hidden region. Exits: a
+  dedicated Minimize2 button (top-right, mounted only while active — a
+  plain button with no persistent state, unlike the timer card, so
+  mount/unmount costs nothing) and Escape, which checks `widgetMode` FIRST
+  in App's keydown handler, ahead of leaving a visit or closing a panel,
+  since none of those states are even reachable while it's on.
+  **Always On Top** pairs with it, desktop-only: `desktop.py`'s
+  `DesktopApi` class is passed as pywebview's `js_api` at `create_window()`
+  (its `window` attribute is set right after, since the Api instance has to
+  exist before that call), exposing `set_always_on_top(value)` to the
+  frontend as `window.pywebview.api.set_always_on_top(...)` — a real
+  Promise-returning call straight through to `Window.on_top`'s runtime
+  setter (confirmed against the installed pywebview version; no restart
+  needed). `lib/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
+  it, `onDesktopApiReady()` listens for pywebview's `pywebviewready` event
+  (the bridge injects asynchronously, so it may not exist yet on first
+  render even inside the real desktop window). `TopBar.jsx` only renders the
+  Pin toggle once detected — a plain browser tab never gets
+  `window.pywebview` at all, and there's no OS window for a tab to pin
+  anyway. The preference persists (`tasknook.alwaysOnTop`) and re-applies
+  once the bridge comes ready, so a relaunch comes back pinned exactly as
+  left, same reasoning as the music bar's own resume-on-boot.
   **Design north star (user preference)**: VC2's UI — prefer chromeless
   on-scene elements (HUD text, small pills, bottom bars, popovers) over new
   drawers/dialogs; panels are for infrequent configuration.
@@ -747,7 +817,10 @@ running `git commit` yourself.
   `applyMix`. No audio files, works offline. The mixer's channels are rain,
   storm, snow, wind, fireplace, cafe and paper (birds were replaced — page
   turns and a café suit a study nook better). The noise channels share one
-  filtered-noise engine with per-channel presets; storm schedules thunder,
+  filtered-noise engine with per-channel presets; storm schedules thunder
+  AND its own heavier droplet layer (its bed was the one that broke the
+  dark-beds rule — lowpass 3200 at gain 0.8 read as static; retuned
+  2026-08-19 to a darker, quieter bed with the identity in the one-shots),
   fireplace schedules crackles, the café murmurs under steam bursts and cup
   clinks, paper is one-shot-only page turns (no bed) — all one-shots
   route through the channel's master gain so its slider scales them.
@@ -843,9 +916,20 @@ running `git commit` yourself.
   `{provider, id, kind?}` station, persisted to `localStorage`
   (`tasknook.music.custom` / `tasknook.music.station`). No API keys or fees involved
   on either side.
+  **Settings → "Music on startup"** (`store.jsx`'s `autoResumeMusic`,
+  `tasknook.autoResumeMusic`, default on) gates the resume-on-boot behaviour
+  above: with it off, a launch always starts silent even when the previous
+  session ended mid-song. Both places that read "was music on when the app
+  last closed" — `musicOn`'s own `useState` initializer in store.jsx and
+  MusicDock's module-level `BOOTED_WITH_MUSIC_ON` — check this same flag, so
+  they can't disagree about whether a given launch resumes.
 - **Ambience conflicts**: manually picking a weather visual or time of day
   while "Match my real weather" is on turns auto-match OFF (the user's pick
-  wins; auto-match's internal appliers bypass this). The iso room takes
+  wins; auto-match's internal appliers bypass this) — and turns "Random
+  weather" off too, the same rule, since a manual pick has to win over every
+  automatic source of `weatherMode`. Enabling auto-match or random weather
+  each switches the other off as well; only one may drive the sky. The iso
+  room takes
   `timeOfDay` too (`ISO_TIME`: window sky/orb + string-light brightness) —
   don't let a new scene hardcode night again. **Time of day has to reach the
   BACKDROP and the room's own surfaces**, not just the window: `SkyOverlay`'s
@@ -873,6 +957,25 @@ running `git commit` yourself.
   local/offline. "Match my real weather" (`autoMatchWeather` in `store.jsx`) maps
   the fetched WMO weather code to `weatherMode` and the sunrise/sunset window to
   `timeOfDay` (`night`/`sunset`/`day`), refreshing every 15 minutes while enabled.
+  **"Random weather"** (`autoRandomWeather` in `store.jsx`, `tasknook.weather.random`)
+  is its offline sibling: no location, no forecast, just `weatherMode` drifting
+  on its own every `RANDOM_WEATHER_INTERVAL_MS` (30 minutes, `lib/weather.js`)
+  via `nextRandomWeather`'s weighted transition table — conditions persist and
+  drift through neighbours rather than jumping between extremes (clear can't
+  roll straight to storm; a storm eases back to rain before it can clear), the
+  same "like real life" reasoning VC2's own weather draws on. `leaves` is
+  excluded from the rotation, same rule as auto-match: it's a season, not a
+  forecast, so it stays a manual pick. All three ways of driving `weatherMode`
+  (manual pick, auto-match, random) are mutually exclusive — turning one on
+  switches the other two off, the same triangle `autoTimeOfDay` already forms
+  with auto-match. Unlike `autoTimeOfDay`'s effect, the roll schedule persists
+  its next-fire time (`tasknook.weather.random.nextRollAt`) across reloads: the
+  clock doesn't pause when the app is closed, so reopening past a scheduled
+  roll catches up immediately rather than waiting out a stale timer — same
+  reasoning as the music bar's resume-on-boot. A `weatherModeRef` feeds the
+  roll its current condition without putting `weatherMode` itself in the
+  effect's deps, which would otherwise tear down and reschedule the timer on
+  every single roll.
 - **Dates**: format dates with **local** parts, not `toISOString()` (which is UTC
   and shifts the day for negative-UTC users). See `toISO()` in `CalendarPanel.jsx`.
   The backend buckets focus time by local `date.today()` for "today" stats.
@@ -895,10 +998,14 @@ running `git commit` yourself.
   re-tint. Presets are `[data-theme="abyss|shore|linen|walnut"]` blocks in
   `index.css`; `App.jsx` stamps `data-theme` on `<html>` (not its own root) so
   `<body>`'s gradient sees it. The `custom` scheme has **no CSS block** — 
-  `lib/palette.js`'s `derivePalette(hex)` builds the ramp from the picked
-  colour's hue/saturation and `App.jsx` sets the vars inline on `<html>`
-  (inline wins over `[data-theme]`); switching back to a preset must
+  `lib/palette.js`'s `derivePalette(hex, surfaceHex?)` builds the ramp from
+  the picked colour's hue/saturation and `App.jsx` sets the vars inline on
+  `<html>` (inline wins over `[data-theme]`); switching back to a preset must
   `removeProperty` each `PALETTE_VARS` entry or the custom colours would stick.
+  The optional second colour (`tasknook.customSurface`, null = follow accent)
+  gives the DARK stops their own hue — teal accent on warm brown surfaces —
+  while their lightness stays the fixed ramp, so no backdrop pick can break
+  the legibility guarantee (pinned in palette.test.js).
   The pick maps faithfully onto the ROSE accent (hue, saturation, and its
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees
@@ -1039,13 +1146,14 @@ running `git commit` yourself.
   little people — drop one whose CENTRE lands on an item with a `seat`
   height (stool/sofa/bench/cushion/bed) and `seatFor` seats them there at
   render time (snapped to the seat's centre, +0.15 gy so they draw in front
-  of the backrest, lifted by the seat height, sitting pose); on open floor
-  they idle-wander via a VISUAL-ONLY offset (never persisted — the stored
-  spot is home; the interval collision-checks the floor mask AND furniture
-  footprints, and pauses in edit mode; a roam record stamps the home it was
-  measured from and dies if the home moves, so a walk order can't inherit a
-  stale offset). Personas use a CSS transform +
-  transition (the glide) instead of the attribute transform others use.
+  of the backrest, lifted by the seat height, sitting pose); over SOFT
+  GROUND (layer −1 minus the pond) `seatFor` resolves a floor-sit with
+  `soft: true` — shared, so one rug seats many. **Humans never wander**
+  (the seated life, 2026-08-19): the wander interval is the PETS' engine
+  now, and a persona stays exactly where you settled them. Personas still
+  use a CSS transform + transition (the glide) instead of the attribute
+  transform others use — a carry's set-down and the pets' roaming share
+  the plumbing.
   **The glide is paced by `glideMs` (lib/motion.js): constant screen speed
   (`WALK_SPEED`), rounded to whole steps of `STEP_S`, capped in steps.** It
   was a fixed 2.6s whatever the distance, so speed varied ~4× under legs
@@ -1521,10 +1629,33 @@ running `git commit` yourself.
 - Vite proxies `/api` to `:5000` in dev (see `vite.config.js`), so the frontend
   always uses **relative** `/api/...` URLs — don't hardcode `http://localhost:5000`.
 - **Never unmount (or `display:none`) chrome that carries `.intro-chrome`** —
-  remounting replays its boot animation: 1.5s of invisible UI before the fade
-  begins. To hide such chrome temporarily (the HUD cards + signature step
-  aside during room decorating), toggle `visibility` on a wrapper: it removes
-  the element from hit-testing without restarting animations.
+  remounting replays its boot animation: 2.1s of invisible UI before the fade
+  begins (timed to the opening picture-frame push-in — the boot shows the
+  room as a framed picture hanging on the night sky, holds a beat, then the
+  camera pushes through the frame; the frame bands live inside App.jsx's
+  scene-scaling wrapper, sized to land exactly offscreen at scale 1, and
+  unmount on completion). To hide such chrome temporarily (the HUD cards +
+  signature step aside during room decorating), toggle `visibility` on a
+  wrapper: it removes the element from hit-testing without restarting
+  animations.
+  **Settings → HUD elements** (`store.jsx`'s `hudVisibility`, persisted as
+  `tasknook.hudVisibility`) reuses the exact same convention for a second,
+  user-driven reason to hide the same cards: Session/Timer, To-do list and the
+  music bar each get "on"/"faded"/"hidden" via `App.jsx`'s `hudWrapClass`
+  (faded stays interactive — only "hidden" drops `visibility`). The clock
+  (inside `TopBar`, not its own component) is the one exception — it carries
+  no persistent state or `.intro-chrome` of its own, so its "hidden" state
+  conditionally un-renders instead, letting the bottom-right cluster reflow
+  without a gap. "Chat" doesn't map to a persistent surface (TaskNook's chat
+  lives inside the Friends drawer, not a standalone window), so that toggle
+  instead fades/hides the unread-count badges in `FriendsPanel.jsx` — a
+  Do-Not-Disturb for the red dot, not a way to hide the thread list.
+  **Widget Mode hit this same trap for real**: its first cut rendered as a
+  separate `if (widgetMode) return (...)` branch in `App.jsx` with its own
+  fresh `<HudFocusCard />`, which unmounted the real one and replayed the
+  1.5s delay on every toggle — the card was invisible for a beat and a half
+  every time widget mode turned on. Fixed the same way: one persistent
+  `HudFocusCard` outside a hidden region, never a second mount.
 - **CSS animation classes must not share an element with an SVG `transform`
   attribute** — the animation's `transform` property overrides the attribute
   entirely (the desk plant's foliage once dropped 16px into its pot this way).

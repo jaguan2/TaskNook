@@ -16,6 +16,9 @@
 // that nudged items line up.
 export const GRID = 4;
 
+export const COTTAGE_SETTINGS = { city: "City lights", woodland: "Woodland", coast: "Seaside" };
+export const cottageSetting = (value) => Object.hasOwn(COTTAGE_SETTINGS, value) ? value : "city";
+
 // The one placement rule: the ORIGIN stays inside the room's frame, so every
 // item remains reachable in edit mode (sprites may overhang; roomClip trims).
 export const ROOM_BOUNDS = { x: 20, y: 20, w: 600, h: 446 };
@@ -38,6 +41,10 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 // items can never be overpainted by a rug edge; everything else sorts by y
 // (painter's algorithm — lower on screen = nearer = drawn later).
 export const ITEMS = {
+  mirror: { label: "Arched mirror", icon: "🪞", zone: "wall", hit: { x: -25, y: -45, w: 50, h: 90 } },
+  armchair: { label: "Reading chair", icon: "🛋️", zone: "floor", hit: { x: -48, y: -86, w: 96, h: 88 } },
+  sidetable: { label: "Tea table", icon: "🫖", zone: "floor", hit: { x: -31, y: -53, w: 62, h: 55 } },
+  plantstand: { label: "Plant stand", icon: "🪴", zone: "floor", hit: { x: -28, y: -113, w: 56, h: 115 } },
   // ---- wall ----
   frame: { label: "Picture frame", icon: "🖼️", zone: "wall", hit: { x: -24, y: -32, w: 48, h: 64 } },
   clock: { label: "Wall clock", icon: "🕰️", zone: "wall", hit: { x: -20, y: -20, w: 40, h: 40 } },
@@ -45,6 +52,7 @@ export const ITEMS = {
   poster: { label: "Sunrise poster", icon: "🌄", zone: "wall", hit: { x: -22, y: -29, w: 44, h: 58 } },
   polaroids: { label: "Polaroids", icon: "📸", zone: "wall", tintable: false, hit: { x: -26, y: -18, w: 52, h: 40 } },
   shelf: { label: "Floating shelf", icon: "🪵", zone: "wall", hit: { x: -36, y: -26, w: 72, h: 32 } },
+  bunting: { label: "Bunting", icon: "🎏", zone: "wall", hit: { x: -62, y: -12, w: 124, h: 32 } },
 
   // ---- desk ----
   deskplant: { label: "Potted plant", icon: "🪴", zone: "desk", hit: { x: -20, y: -74, w: 42, h: 76 } },
@@ -55,6 +63,9 @@ export const ITEMS = {
   desklamp: { label: "Desk lamp", icon: "💡", zone: "desk", hit: { x: -56, y: -64, w: 78, h: 66 } },
   cactus: { label: "Tiny cactus", icon: "🌵", zone: "desk", hit: { x: -12, y: -34, w: 24, h: 36 } },
   headphones: { label: "Headphones", icon: "🎧", zone: "desk", hit: { x: -24, y: -22, w: 48, h: 24 } },
+  radio: { label: "Little radio", icon: "📻", zone: "desk", hit: { x: -24, y: -48, w: 48, h: 50 } },
+  candle: { label: "Lit candle", icon: "🕯️", zone: "desk", hit: { x: -13, y: -48, w: 26, h: 50 } },
+  flowervase: { label: "Flower vase", icon: "🌷", zone: "desk", hit: { x: -16, y: -52, w: 32, h: 54 } },
 
   // ---- floor ----
   rug: { label: "Round rug", icon: "🟣", zone: "floor", layer: -1, hit: { x: -110, y: -26, w: 220, h: 52 } },
@@ -64,6 +75,8 @@ export const ITEMS = {
   cat: { label: "Sleeping cat", icon: "🐈", zone: "floor", hit: { x: -30, y: -26, w: 60, h: 28 } },
   bookshelf: { label: "Bookshelf", icon: "📖", zone: "floor", hit: { x: -42, y: -104, w: 84, h: 106 } },
   beanbag: { label: "Beanbag", icon: "🫘", zone: "floor", hit: { x: -40, y: -34, w: 80, h: 36 } },
+  basket: { label: "Yarn basket", icon: "🧺", zone: "floor", hit: { x: -24, y: -46, w: 48, h: 48 } },
+  slippers: { label: "Cozy slippers", icon: "🥿", zone: "floor", hit: { x: -28, y: -14, w: 56, h: 16 } },
 
   // ---- ceiling (fixed position; can be added/removed but not dragged) ----
   garland: { label: "String lights", icon: "✨", zone: "ceiling", fixed: true, hit: { x: -304, y: -6, w: 608, h: 30 } },
@@ -197,6 +210,7 @@ export const PRESETS = {
     ],
   },
   greenhouse: {
+    setting: "woodland",
     label: "Greenhouse",
     icon: "🌿",
     placements: [
@@ -210,11 +224,12 @@ export const PRESETS = {
       { item: "hangplant", x: 545, y: 76 },
       { item: "shelf", x: 520, y: 168 },
       { item: "monstera", x: 90, y: 428 },
-      { item: "monstera", x: 560, y: 436 },
+      { item: "plantstand", x: 556, y: 436, tint: "#7faf8f" },
       { item: "cat", x: 320, y: 448 },
     ],
   },
   library: {
+    setting: "city",
     label: "Library",
     icon: "📚",
     placements: [
@@ -228,6 +243,8 @@ export const PRESETS = {
       { item: "clock", x: 545, y: 80 },
       { item: "shelf", x: 512, y: 160 },
       { item: "bookshelf", x: 76, y: 424 },
+      { item: "armchair", x: 492, y: 444, tint: "#9b8bd6" },
+      { item: "sidetable", x: 576, y: 440 },
       { item: "garland", x: 320, y: 24 },
     ],
   },
@@ -246,6 +263,41 @@ export const PRESETS = {
       { item: "cat", x: 150, y: 446 },
       { item: "beanbag", x: 90, y: 440 },
       { item: "garland", x: 320, y: 24 },
+    ],
+  },
+  reading: {
+    label: "Woodland nook",
+    icon: "🍃",
+    setting: "woodland",
+    placements: [
+      { item: "rug", x: 456, y: 444, tint: "#7faf8f" },
+      { item: "bookshelf", x: 84, y: 432 },
+      { item: "armchair", x: 448, y: 444, tint: "#7faf8f" },
+      { item: "sidetable", x: 540, y: 444 },
+      { item: "floorlamp", x: 580, y: 436 },
+      { item: "mirror", x: 504, y: 124, tint: "#e8b04b" },
+      { item: "shelf", x: 524, y: 220 },
+      { item: "books", x: 144, y: 300 },
+      { item: "mug", x: 392, y: 300, tint: "#7faf8f" },
+      { item: "desklamp", x: 566, y: 296 },
+      { item: "cat", x: 316, y: 448 },
+    ],
+  },
+  seaside: {
+    label: "Seaside studio",
+    icon: "🐚",
+    setting: "coast",
+    placements: [
+      { item: "rugstripe", x: 240, y: 442, tint: "#6fb8cf" },
+      { item: "armchair", x: 132, y: 440, tint: "#6fb8cf" },
+      { item: "sidetable", x: 220, y: 442, tint: "#f7e9e2" },
+      { item: "plantstand", x: 556, y: 436, tint: "#f7e9e2" },
+      { item: "mirror", x: 516, y: 116, tint: "#f7e9e2" },
+      { item: "bunting", x: 516, y: 212, tint: "#6fb8cf" },
+      { item: "flowervase", x: 100, y: 300, tint: "#6fb8cf" },
+      { item: "notebook", x: 430, y: 304 },
+      { item: "radio", x: 552, y: 300, tint: "#6fb8cf" },
+      { item: "slippers", x: 332, y: 450 },
     ],
   },
 };

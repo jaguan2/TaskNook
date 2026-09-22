@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, PawPrint, RefreshCw, Shirt, UserRound } from "lucide-react";
+import { ChevronDown, PawPrint, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
 import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
+import { Glasses } from "./character/glasses";
 import {
   BIO_MAX,
   COATS,
   DEFAULT_CHARACTER,
   EXPRESSIONS,
+  GLASSES,
   HAIR_COLORS,
   HAIR_STYLES,
   HATS,
@@ -27,7 +29,7 @@ import {
   ZODIAC,
   profileSummary,
 } from "../lib/profile";
-import { WIDTH_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
+import { WIDTH_RANGE, SHOULDER_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 
 /**
@@ -50,18 +52,16 @@ const TABS = [
 ];
 
 /**
- * The dressing-room stage: drag sideways to SPIN the figure (a four-step
- * turntable — front, mirrored side-read, back, mirrored back; with two real
- * drawings plus their mirrors, quarter turns are the honest rotation), and
- * scroll to zoom. The frame stays FIXED per zoom level — it never refits to
- * the figure, because auto-fit is what once zoomed every slider change away.
+ * The dressing-room stage has the two useful views: front and back. The side
+ * model did not meet the quality bar, so it is never offered or reached by an
+ * automatic turntable. Drag pans and the wheel zooms; the frame stays fixed
+ * per zoom level so a slider change never resets the camera.
  */
-function CharacterStage({ character, angle, onSpin }) {
+function CharacterStage({ character, facing }) {
   const Resident = ISO_SPRITES.resident;
   const [zoom, setZoom] = useState(1.35);
-  // The camera can MOVE now, not just zoom: dragging the empty stage pans
-  // the view (the iso room's own grammar — drag-on-empty-space pans), while
-  // dragging the FIGURE spins it. Double-click brings the camera home.
+  // The camera can MOVE now, not just zoom: dragging the stage pans the view
+  // (the iso room's own grammar). Double-click brings the camera home.
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef(null);
   const dragRef = useRef(null);
@@ -78,11 +78,6 @@ function CharacterStage({ character, angle, onSpin }) {
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
   }, []);
-  const q = ((Math.round(angle / 90) % 4) + 4) % 4;
-  // Three real drawings plus one mirror: front, the PROFILE, back, and the
-  // profile mirrored — an honest turntable now that a side view exists.
-  const facing = q === 0 ? "front" : q === 2 ? "back" : "side";
-  const mirrored = q === 3;
   // Zoom scales the window, anchored a little above the figure's middle so
   // zooming in walks up toward the face rather than the floor.
   const w = 46 / zoom;
@@ -99,47 +94,33 @@ function CharacterStage({ character, angle, onSpin }) {
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label="Preview of your character — drag the figure to spin, drag the floor to move, scroll to zoom"
+      aria-label={`${facing === "back" ? "Back" : "Front"} view of your character — drag to move and scroll to zoom`}
       onPointerDown={(e) => {
-        // Hit-testing decides the gesture: the figure spins, everything
-        // else pans.
-        const spin = !!e.target.closest?.("[data-figure]");
         dragRef.current = {
           x: e.clientX,
           y: e.clientY,
-          a: angle,
           px: pan.x,
           py: pan.y,
-          spin,
         };
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
       onPointerMove={(e) => {
         const d = dragRef.current;
         if (!d) return;
-        if (d.spin) {
-          onSpin(d.a + (e.clientX - d.x) * 1.1);
-        } else {
-          // Pointer pixels → viewBox units, so the scene sticks to the
-          // cursor at every zoom. Clamped so the figure can't be lost.
-          const rect = svgRef.current?.getBoundingClientRect();
-          const k = rect ? w / rect.width : 0.15;
-          setPan({
-            x: Math.max(-26, Math.min(26, d.px - (e.clientX - d.x) * k)),
-            y: Math.max(-58, Math.min(58, d.py - (e.clientY - d.y) * k)),
-          });
-        }
+        // Pointer pixels → viewBox units, so the scene sticks to the cursor
+        // at every zoom. Clamped so the figure can't be lost.
+        const rect = svgRef.current?.getBoundingClientRect();
+        const k = rect ? w / rect.width : 0.15;
+        setPan({
+          x: Math.max(-26, Math.min(26, d.px - (e.clientX - d.x) * k)),
+          y: Math.max(-58, Math.min(58, d.py - (e.clientY - d.y) * k)),
+        });
       }}
       onPointerUp={() => {
-        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
-        // Settle on a clean quarter — a figure left mid-twist looks stuck.
-        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
       }}
       onPointerCancel={() => {
-        const wasSpin = dragRef.current?.spin;
         dragRef.current = null;
-        if (wasSpin) onSpin((a) => Math.round(a / 90) * 90);
       }}
       onDoubleClick={() => {
         setPan({ x: 0, y: 0 });
@@ -150,7 +131,7 @@ function CharacterStage({ character, angle, onSpin }) {
           shadow belongs under the FEET at ~y12, not at the origin where it
           floated at shin height. */}
       <ellipse cx="0" cy="12" rx="15" ry="2.5" fill="#000" opacity="0.18" />
-      <g transform={mirrored ? "scale(-1,1)" : undefined} data-figure>
+      <g>
         <Resident character={character} facing={facing} />
       </g>
     </svg>
@@ -227,6 +208,21 @@ function ScarfIcon({ character, scarf }) {
   return (
     <svg viewBox="-16 -52 32 28" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, scarf }} />
+    </svg>
+  );
+}
+
+/** Glasses on your own face — the head close-up, frames over the real eyes. */
+function GlassesIcon({ glasses, hair, hairColor, skin }) {
+  return (
+    <svg viewBox="-15 -14 30 30" className="h-12 w-full" aria-hidden="true">
+      <HairLength style={hair} headY={0} color={hairColor} />
+      <HairBehind style={hair} headY={0} color={hairColor} />
+      <circle cx="0" cy="0" r="7.3" fill={skin} />
+      <HairFront style={hair} headY={0} color={hairColor} />
+      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
+      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <Glasses kind={glasses} headY={0} />
     </svg>
   );
 }
@@ -326,11 +322,17 @@ function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swat
           className="absolute z-20 w-max max-w-[10.5rem] -translate-x-1/2 rounded-xl border border-white/10 bg-plum/95 p-2.5 shadow-xl backdrop-blur-md"
           style={{ top: pop.top + 4, left: pop.left }}
         >
+          {/* Picking a colour is the dialog's whole job, so the pick also
+              DISMISSES it (owner, 2026-08-19: it used to sit there until
+              you clicked away). The tile still reopens it any time. */}
           <Swatches
             label={`${label} colour`}
             options={swatches}
             value={swatchValue}
-            onPick={onSwatch}
+            onPick={(hex) => {
+              onSwatch(hex);
+              setPop(null);
+            }}
           />
         </div>
       )}
@@ -389,17 +391,60 @@ function Swatches({ options, value, onPick, label }) {
  * won't settle on a rug; a sleepy one barely leaves its spot. The name shows
  * when you pick the pet up in the room.
  */
-function PetsSection({ isoRoom, setPetIdentity }) {
+function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
   const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
+  // Rehoming confirms in a POPUP over the card (owner, 2026-08-19 — this
+  // one outranks the app's armed-button grammar): a pet has a name, and the
+  // dialog is where there's room to say plainly that it can't be undone.
+  const [confirmId, setConfirmId] = useState(null);
+  // ONE Adopt button beside the title (owner, 2026-08-19: three buttons was
+  // a row of shopping); the species pills appear only while adopting.
+  const [adopting, setAdopting] = useState(false);
   return (
     <section>
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
         <PawPrint size={15} className="text-petal/70" /> Your pets
+        {/* Adopt from right here — the section is "who lives here", and going
+            via the Room panel's furniture shelf to get a PET read as shopping.
+            addIsoItem already owns the cap and no-floor refusal toasts. */}
+        <button
+          type="button"
+          onClick={() => setAdopting((a) => !a)}
+          aria-expanded={adopting}
+          className={`ml-auto rounded-full border px-3 py-1 text-xs transition ${
+            adopting
+              ? "border-glow/60 bg-glow/15 text-cream"
+              : "border-white/10 bg-white/5 text-petal hover:border-glow/50 hover:text-cream"
+          }`}
+        >
+          🐾 Adopt
+        </button>
       </p>
+      {adopting && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {[
+            ["cat", "🐈 A cat"],
+            ["dog", "🐕 A dog"],
+            ["bunny", "🐇 A rabbit"],
+          ].map(([item, label]) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => {
+                addIsoItem(item);
+                setAdopting(false);
+              }}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-petal transition hover:border-glow/50 hover:text-cream"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {pets.length === 0 ? (
         <p className="text-xs text-petal/50">
-          No pets yet — adopt one from the Room panel&apos;s Living things shelf,
-          then name it here.
+          No pets yet — adopt one above and it appears in your room, ready to
+          name.
         </p>
       ) : (
         <div className="space-y-2">
@@ -408,8 +453,9 @@ function PetsSection({ isoRoom, setPetIdentity }) {
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2"
+                className="relative rounded-2xl border border-white/10 bg-white/5 p-2"
               >
+                <div className="flex items-center gap-3">
                 <svg
                   viewBox="-9 -26 32 40"
                   className="h-14 w-12 shrink-0"
@@ -419,22 +465,36 @@ function PetsSection({ isoRoom, setPetIdentity }) {
                   <Sprite awake facing="front" look={p.look} />
                 </svg>
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  {/* Save on BLUR, not per keystroke — every write saves the
-                      room. Keyed on the stored name so an outside change
-                      (validation trimming it) refreshes the field. */}
-                  <input
-                    key={`${p.id}:${p.name || ""}`}
-                    type="text"
-                    defaultValue={p.name || ""}
-                    placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
-                    maxLength={PET_NAME_MAX}
-                    aria-label="Pet name"
-                    onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
-                  />
+                  {/* The ✕ shares the name row so it's ALIGNED with
+                      something (owner: a corner-floated ✕ lined up with
+                      nothing). Save on BLUR, not per keystroke — every
+                      write saves the room. Keyed on the stored name so an
+                      outside change (validation trimming it) refreshes the
+                      field. */}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      key={`${p.id}:${p.name || ""}`}
+                      type="text"
+                      defaultValue={p.name || ""}
+                      placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
+                      maxLength={PET_NAME_MAX}
+                      aria-label="Pet name"
+                      onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(p.id)}
+                      title="Find them a new home"
+                      aria-label="Find them a new home"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm text-petal/40 transition hover:bg-white/10 hover:text-danger"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   <Choices
                     label="Temper"
                     options={PET_TEMPERS}
@@ -452,6 +512,46 @@ function PetsSection({ isoRoom, setPetIdentity }) {
                     />
                   )}
                 </div>
+                </div>
+                {/* The confirm POPUP, covering just this pet's card — a
+                    euphemism plus silence reads as a trick, so the dialog
+                    names what happens and that it's permanent. */}
+                {confirmId === p.id && (
+                  <div
+                    role="alertdialog"
+                    aria-label="Find them a new home?"
+                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-night/95 p-3 text-center backdrop-blur-sm"
+                  >
+                    <p className="text-xs font-semibold text-cream">
+                      Find {p.name || `this ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`} a
+                      new home?
+                    </p>
+                    <p className="text-[10px] leading-snug text-petal/60">
+                      They&apos;ll leave your room for good — this can&apos;t be
+                      undone.
+                    </p>
+                    <div className="mt-1 flex gap-2">
+                      <button
+                        type="button"
+                        autoFocus
+                        onClick={() => setConfirmId(null)}
+                        className="rounded-full bg-white/10 px-3 py-1 text-xs text-cream transition hover:bg-white/20"
+                      >
+                        Keep them
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeIsoItem(p.id);
+                          setConfirmId(null);
+                        }}
+                        className="rounded-full bg-danger/20 px-3 py-1 text-xs font-semibold text-danger transition hover:bg-danger/30"
+                      >
+                        New home
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -643,13 +743,12 @@ export default function ProfilePanel() {
     setVisitAccess,
     isoRoom,
     setPetIdentity,
+    addIsoItem,
+    removeIsoItem,
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("hair");
-  // The stage's turntable angle — dragging the figure spins it, the button
-  // advances a quarter turn.
-  const [spin, setSpin] = useState(0);
-
+  const [characterFacing, setCharacterFacing] = useState("front");
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
   // get a cursor that jumps to the end of the line mid-word.
@@ -714,19 +813,28 @@ export default function ProfilePanel() {
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            <CharacterStage character={shown} angle={spin} onSpin={setSpin} />
-            <button
-              type="button"
-              onClick={() => setSpin((a) => Math.round(a / 90) * 90 + 90)}
-              title="Turn around"
-              aria-label="Turn the character a quarter turn"
-              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-petal/80 transition hover:bg-white/20"
+            <CharacterStage character={shown} facing={characterFacing} />
+            <div
+              className="absolute right-2 top-2 flex rounded-full bg-plum/75 p-0.5 backdrop-blur-sm"
+              role="group"
+              aria-label="Character preview view"
             >
-              <RefreshCw size={13} />
-            </button>
-            <span className="pointer-events-none absolute bottom-1.5 right-2.5 text-[10px] text-petal/40">
-              drag me to spin · drag the floor to move · scroll to zoom
-            </span>
+              {["front", "back"].map((facing) => (
+                <button
+                  key={facing}
+                  type="button"
+                  onClick={() => setCharacterFacing(facing)}
+                  aria-pressed={characterFacing === facing}
+                  className={`rounded-full px-2 py-1 text-[10px] font-semibold capitalize transition ${
+                    characterFacing === facing
+                      ? "bg-glow text-plum"
+                      : "text-petal/70 hover:bg-white/10 hover:text-cream"
+                  }`}
+                >
+                  {facing}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
             {TABS.map((t) => (
@@ -774,6 +882,14 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.width}
                     onDraft={draftAxis("width")}
+                    onCommit={commitBody}
+                  />
+                  <BodySlider
+                    label="Chest"
+                    range={SHOULDER_RANGE}
+                    step="0.2"
+                    value={shown.shoulders}
+                    onDraft={draftAxis("shoulders")}
                     onCommit={commitBody}
                   />
                   {/* Legs and torso are separate axes — a long-legged figure
@@ -992,6 +1108,24 @@ export default function ProfilePanel() {
                   onSwatch={(hex) => saveCharacter({ scarfColor: hex })}
                 />
               </Field>
+              {/* No swatches on purpose: frames are a fixed neutral, the
+                  shoe-sole argument — see GLASSES in lib/profile.js. */}
+              <Field label="Glasses">
+                <IconGrid
+                  label="Glasses"
+                  options={GLASSES}
+                  value={character.glasses}
+                  onPick={(glasses) => saveCharacter({ glasses })}
+                  renderIcon={(key) => (
+                    <GlassesIcon
+                      glasses={key}
+                      hair={character.hair}
+                      hairColor={character.hairColor}
+                      skin={character.skin}
+                    />
+                  )}
+                />
+              </Field>
             </>
           )}
         </div>
@@ -999,7 +1133,12 @@ export default function ProfilePanel() {
 
       <hr className="border-white/10" />
 
-      <PetsSection isoRoom={isoRoom} setPetIdentity={setPetIdentity} />
+      <PetsSection
+        isoRoom={isoRoom}
+        setPetIdentity={setPetIdentity}
+        addIsoItem={addIsoItem}
+        removeIsoItem={removeIsoItem}
+      />
 
       <hr className="border-white/10" />
 
@@ -1012,8 +1151,8 @@ export default function ProfilePanel() {
         />
         <p className="mt-1 text-xs text-petal/50">
           {VISIT_ACCESS.find((v) => v.key === (user?.visitAccess || "friends"))?.hint}
-          . It&apos;ll matter the day friends can really drop by — for now
-          it&apos;s your door, set how you like it.
+          . Open means friends and simulated neighbours, not unrestricted public
+          access. Any drop-in can be asked to leave from the visitor chip.
         </p>
       </Field>
 

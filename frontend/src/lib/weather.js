@@ -1,5 +1,8 @@
 // Real-world weather via Open-Meteo — free, no API key or account needed.
 // WMO weather codes: https://open-meteo.com/en/docs (see "WMO Weather interpretation codes")
+export const WEATHER_MODES = ["off", "cloudy", "rain", "leaves", "snow", "storm"];
+export const TIMES_OF_DAY = ["night", "sunset", "day"];
+export const WEATHER_PRESET_LIMIT = 30;
 const WMO = {
   0: { label: "Clear sky", icon: "☀️", mode: "off" },
   1: { label: "Mostly clear", icon: "🌤️", mode: "off" },
@@ -45,6 +48,42 @@ function describeCode(code, isDay) {
     icon: NIGHT_ICONS[code] || base.icon,
   };
 }
+
+// Settings → "Random weather": an offline, no-forecast way to have the
+// scene's weather drift on its own, the way real weather does — conditions
+// persist and drift through neighbours rather than jumping between extremes
+// (clear rarely goes straight to storm; a storm eases back into rain before
+// clearing). Weights are relative, not percentages. `leaves` is excluded —
+// same reasoning as auto-match: it's a season, not a forecast, so it's
+// yours to set by hand.
+const WEATHER_TRANSITIONS = {
+  off: { off: 5, cloudy: 3, rain: 1, snow: 1, storm: 0 },
+  cloudy: { off: 2, cloudy: 4, rain: 2, snow: 1, storm: 1 },
+  rain: { off: 1, cloudy: 3, rain: 3, snow: 0, storm: 2 },
+  snow: { off: 1, cloudy: 2, rain: 0, snow: 4, storm: 0 },
+  storm: { off: 0, cloudy: 1, rain: 3, snow: 0, storm: 2 },
+};
+
+/**
+ * One weighted step from `current` toward its next condition. `rand` is
+ * injectable (defaults to `Math.random`) purely so tests can pin an exact
+ * roll — the transition table itself is what actually encodes "like real
+ * life"; the RNG is just the die.
+ */
+export function nextRandomWeather(current, rand = Math.random) {
+  const table = WEATHER_TRANSITIONS[current] || WEATHER_TRANSITIONS.off;
+  const entries = Object.entries(table);
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = rand() * total;
+  for (const [mode, weight] of entries) {
+    if (roll < weight) return mode;
+    roll -= weight;
+  }
+  return current;
+}
+
+// How long one condition holds before the next roll.
+export const RANDOM_WEATHER_INTERVAL_MS = 30 * 60 * 1000;
 
 export function locateBrowser(timeout = 8000) {
   return new Promise((resolve, reject) => {
@@ -109,6 +148,16 @@ async function getJSON(url, fallback) {
 
 const PLACE_LIMIT = 6;
 
+/** A coordinate pair Open-Meteo can actually accept. */
+export function normalizeWeatherCoords(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const lat = Number(value.lat);
+  const lon = Number(value.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+  return { lat, lon };
+}
+
 /** "140k" / "1.2m" — enough to tell two same-named towns apart at a glance. */
 export function formatPopulation(n) {
   if (!Number.isFinite(n) || n <= 0) return "";
@@ -139,12 +188,16 @@ export async function searchPlaces(name) {
   for (const hit of results) {
     // A row we can't fetch weather for is worse than no row.
     if (!Number.isFinite(hit?.latitude) || !Number.isFinite(hit?.longitude)) continue;
-    const region = [hit.admin1, hit.country].filter(Boolean).join(", ");
+    const region = [hit.admin2, hit.admin1, hit.country].filter(Boolean).join(", ");
     const label = [hit.name, region].filter(Boolean).join(", ");
     // Open-Meteo can list the same place twice under different feature codes.
     // Two identical rows in a "which one?" list are worse than useless.
-    if (seen.has(label)) continue;
-    seen.add(label);
+    // Same-named places can exist in the same state/region. Coordinates are
+    // the identity; using the display label here silently removed a valid
+    // choice from the disambiguation list.
+    const identity = `${hit.latitude},${hit.longitude}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     places.push({
       id: hit.id ?? `${hit.latitude},${hit.longitude}`,
       lat: hit.latitude,
@@ -163,12 +216,67 @@ export async function searchPlaces(name) {
 // hazy in-between the day/night lighting presets are meant to capture.
 const TWILIGHT_WINDOW_MS = 45 * 60 * 1000;
 
+/** Display temperature in the user's chosen unit without another API fetch. */
+export function temperatureFor(tempF, unit = "F") {
+  if (!Number.isFinite(tempF)) return null;
+  return unit === "C" ? Math.round(((tempF - 32) * 5) / 9) : Math.round(tempF);
+}
+
+/** Rename one saved ambience scene without changing the snapshot itself. */
+export function renameWeatherPreset(presets, oldName, nextName) {
+  const clean = typeof nextName === "string" ? nextName.trim().slice(0, 60) : "";
+  const from = presets.findIndex((preset) => preset.name === oldName);
+  if (!clean || from < 0 || clean === oldName) return presets;
+  if (presets.some((preset, index) => index !== from && preset.name === clean)) return presets;
+  return presets.map((preset, index) =>
+    index === from ? { ...preset, name: clean } : preset
+  );
+}
+
+/** Move one saved ambience scene by one slot, clamping at either end. */
+export function moveWeatherPreset(presets, name, direction) {
+  const from = presets.findIndex((preset) => preset.name === name);
+  if (from < 0) return presets;
+  const to = Math.max(0, Math.min(presets.length - 1, from + Math.sign(direction)));
+  if (to === from) return presets;
+  const next = [...presets];
+  const [preset] = next.splice(from, 1);
+  next.splice(to, 0, preset);
+  return next;
+}
+
+/** Validate the device-local ambience snapshots before rendering their names. */
+export function validateWeatherPresets(raw) {
+  if (!Array.isArray(raw)) return [];
+  const clean = [];
+  const names = new Set();
+  for (const preset of raw) {
+    if (!preset || typeof preset !== "object") continue;
+    const name = typeof preset.name === "string" ? preset.name.trim().slice(0, 60) : "";
+    if (!name || names.has(name)) continue;
+    if (!WEATHER_MODES.includes(preset.weatherMode) || !TIMES_OF_DAY.includes(preset.timeOfDay)) continue;
+    names.add(name);
+    clean.push({
+      name,
+      weatherMode: preset.weatherMode,
+      timeOfDay: preset.timeOfDay,
+      ...(preset.soundMix && typeof preset.soundMix === "object" && !Array.isArray(preset.soundMix)
+        ? { soundMix: preset.soundMix }
+        : {}),
+    });
+    if (clean.length >= WEATHER_PRESET_LIMIT) break;
+  }
+  return clean;
+}
+
 export async function fetchCurrentWeather(lat, lon) {
+  const coords = normalizeWeatherCoords({ lat, lon });
+  if (!coords) throw new Error("That location has invalid coordinates");
   // timeformat=unixtime matters: the default is a LOCAL-time ISO string with
   // no offset, which JS parses in the BROWSER's zone — wrong whenever the
   // queried city (manual search) isn't in the browser's timezone.
   const data = await getJSON(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}` +
       `&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset` +
       `&temperature_unit=fahrenheit&timezone=auto&timeformat=unixtime`,
     "Couldn't reach the weather service"

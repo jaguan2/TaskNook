@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derivePalette, hexToHsl, hslToHex, normalizeHex, PALETTE_VARS } from "./palette";
+import { derivePalette, hexToHsl, hslToHex, normalizeBrightness, normalizeHex, PALETTE_VARS } from "./palette";
 
 // Lightness (0-100) of a "r g b" channel string — the same HSL definition
 // the module uses, so the assertions measure what the CSS actually gets.
@@ -9,6 +9,17 @@ function lightnessOf(channels) {
 }
 
 const PICKS = ["#d98a93", "#e0a53f", "#63c07a", "#4fa3e3", "#9b8bd6", "#c47b5a"];
+
+describe("normalizeBrightness", () => {
+  it("clamps corrupted or out-of-range display preferences", () => {
+    expect(normalizeBrightness(null)).toBe(1);
+    expect(normalizeBrightness(undefined)).toBe(1);
+    expect(normalizeBrightness("")).toBe(1);
+    expect(normalizeBrightness("broken")).toBe(1);
+    expect(normalizeBrightness(0.1)).toBe(0.6);
+    expect(normalizeBrightness(9)).toBe(1.3);
+  });
+});
 
 describe("hex <-> hsl round trip", () => {
   // One colour per hue sextant plus the primaries — the three-branch hue
@@ -68,6 +79,31 @@ describe("derivePalette — the dark-floor legibility guarantee", () => {
         expect(vars[name]).toMatch(/^\d+ \d+ \d+$/);
       }
     }
+  });
+
+  // The separate backdrop hue (2026-08-19): the dark stops may take their own
+  // hue, but the legibility guarantee is lightness, and lightness never moves.
+  it.each(extremes)("a backdrop pick keeps the same dark floor for %s", (hex) => {
+    const vars = derivePalette("#4fa3e3", hex);
+    expect(lightnessOf(vars["--color-void"])).toBeLessThanOrEqual(11);
+    expect(lightnessOf(vars["--color-night"])).toBeLessThanOrEqual(16);
+    expect(lightnessOf(vars["--color-plum"])).toBeLessThanOrEqual(21);
+    expect(lightnessOf(vars["--color-wine"])).toBeLessThanOrEqual(27);
+    expect(lightnessOf(vars["--color-petal"])).toBeGreaterThanOrEqual(80);
+  });
+
+  it("the backdrop hue changes only the dark stops, and garbage means follow-accent", () => {
+    const plain = derivePalette("#4fa3e3");
+    const surfaced = derivePalette("#4fa3e3", "#6b5544");
+    // accents and text untouched…
+    for (const name of ["--color-rose", "--color-blush", "--color-petal"]) {
+      expect(surfaced[name]).toBe(plain[name]);
+    }
+    // …while the surfaces actually moved.
+    expect(surfaced["--color-night"]).not.toBe(plain["--color-night"]);
+    // Garbage (or null) backdrop = the classic one-colour behaviour, exactly.
+    expect(derivePalette("#4fa3e3", "not-a-color")).toEqual(plain);
+    expect(derivePalette("#4fa3e3", null)).toEqual(plain);
   });
 });
 
