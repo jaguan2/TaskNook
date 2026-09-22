@@ -25,6 +25,8 @@
  * at any production/dev server without editing this script:
  *   set TASKNOOK_SHOT_APP=http://localhost:5099
  *   set TASKNOOK_SHOT_DIR=art-sheet\preset-review
+ *   # To retry a subset on that same throwaway database without adding time:
+ *   set TASKNOOK_SHOT_SKIP_SEED=1
  *
  * `--experimental-websocket` is required on Node 20 (global WebSocket is
  * undefined without it); Node 22+ doesn't need the flag but tolerates it.
@@ -55,6 +57,33 @@ const W = Number(process.env.TASKNOOK_SHOT_WIDTH || 1600);
 const H = Number(process.env.TASKNOOK_SHOT_HEIGHT || 1000);
 
 const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
+
+// Complete snapshots: switching looks must not inherit the last one's coat
+// or accessories. These are saved through the same profile API as the editor.
+const LOOKS = {
+  study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", width: 7.8, height: 30 },
+  casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 34 },
+  winter: { model: "fem", skin: "#e8ad84", hair: "braids", hairColor: "#4d332c", garment: "turtleneck", outfit: "#ede0c9", coat: "puffer", coatColor: "#8e526c", pants: "trousers", trouser: "#5b526d", hat: "trapper", scarf: "wrapped", scarfColor: "#c9a24b", shoes: "boots", width: 7.4, height: 31 },
+  garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 32 },
+  cafe: { model: "fem", skin: "#f0cfb4", hair: "bob", hairColor: "#b57248", garment: "shirt", outfit: "#f2e4ca", coat: "cardigan", coatColor: "#ad6678", pants: "pleats", trouser: "#5f7384", shoes: "loafers", width: 6.6, height: 28 },
+  summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 33 },
+};
+const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer" };
+const CHARACTERS = [
+  ["33", "character-study", "study", "Body"],
+  ["34", "character-casual", "casual", "Outfit"],
+  ["35", "character-winter", "winter", "Extras"],
+  ["36", "character-garden", "garden", "Hair"],
+];
+
+async function setCharacter(page, look) {
+  await page.evaluate(`(async () => {
+    const response = await fetch('/api/profile', { method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') },
+      body: JSON.stringify({ character: ${JSON.stringify(LOOKS[look])} }) });
+    if (!response.ok) throw new Error('character save failed: ' + response.status);
+  })()`);
+}
 
 // --------------------------------------------------------------------------- //
 // A very small CDP client — no dependency, so this can't rot with the toolchain
@@ -205,7 +234,7 @@ function makePage(cdp) {
           if (el) { el.scrollIntoView({ block: 'center' }); el.click(); return 'ok'; }
           await new Promise(r => setTimeout(r, 200));
         }
-        return 'MISSING:' + want;
+        throw new Error('MISSING:' + want);
       })()`
     );
 
@@ -231,34 +260,26 @@ function makePage(cdp) {
  *
  * The personal presets ship their seats empty on purpose (a stranger at your
  * desk reads wrong), so a preset alone gives an unoccupied room — which is what
- * the shots are meant to show you living in. Done through the room API rather
- * than by dragging: the drop target is a specific chair, and `seatFor` snaps a
- * persona whose centre lands on a seat, so writing the placement at the seat's
- * own coordinates gets the pose for free.
- *
- * Returns the item the resident was sat on, or a reason it didn't happen.
+ * the shots are meant to show you living in. The profile's "In the room"
+ * toggle uses the app's own placement logic and survives preset changes.
  */
 async function seatResident(page) {
-  return page.evaluate(`(async () => {
-    const token = localStorage.getItem('tasknook.token');
-    const h = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
-    const room = await (await fetch('/api/room', { headers: h })).json();
-    const iso = room.iso;
-    if (!iso || !Array.isArray(iso.placements)) return 'no iso layout';
-    if (iso.placements.some(p => p.item === 'resident')) return 'already occupied';
-    // Prefer a desk chair (someone working), then any other seat.
-    const order = ['deskchair', 'chair', 'armchair', 'sofa', 'bench', 'stool'];
-    let seat = null;
-    for (const want of order) {
-      seat = iso.placements.find(p => p.item === want);
-      if (seat) break;
+  // Use the actual toggle: the store chooses a legal free seat and inserts
+  // `you`, which wears the saved profile. A generic `resident` does not.
+  await page.closePanels();
+  await page.clickText("Profile", { exact: true });
+  await page.evaluate(`(async () => {
+    for (let i = 0; i < 40; i++) {
+      const label = [...document.querySelectorAll('label')].find(e => e.textContent.includes('In the room'));
+      const input = label?.querySelector('input');
+      if (input) { if (!input.checked) input.click(); return; }
+      await new Promise(r => setTimeout(r, 200));
     }
-    if (!seat) return 'no seat in this room';
-    iso.placements.push({ id: 'shot-you', item: 'resident', gx: seat.gx, gy: seat.gy });
-    const res = await fetch('/api/room', { method: 'PUT', headers: h,
-      body: JSON.stringify({ placements: room.placements, iso }) });
-    return res.ok ? 'seated on ' + seat.item : 'save failed ' + res.status;
+    throw new Error('In the room toggle missing');
   })()`);
+  await sleep(1800);
+  await page.closePanels();
+  return 'profile character seated by the app';
 }
 
 /** Tasks, groups and focus time — the content every shot shares. */
@@ -272,7 +293,7 @@ async function seed(page) {
 
     const add = (name, group, duration, priority) =>
       fetch('/api/tasks', { method: 'POST', headers: h,
-        body: JSON.stringify({ name, group, duration, priority }) }).then(r => r.json());
+        body: JSON.stringify({ name, group, duration, priority, routine: group === 'Routines' }) }).then(r => r.json());
 
     await add('Finish the release notes', 'Today', 45, 'high');
     await add('Sketch the café layout', 'Today', 30, 'medium');
@@ -310,18 +331,21 @@ async function main() {
   const want = (n) => only.length === 0 || only.includes(n);
 
   await page.load();
-  console.log("seed:", await seed(page));
+  if (process.env.TASKNOOK_SHOT_SKIP_SEED !== "1") console.log("seed:", await seed(page));
 
   const ambient = (a) => ({
     "tasknook.weatherMode": a.weather,
     "tasknook.timeOfDay": a.time,
     "tasknook.timeOfDay.auto": "0",
-    "tasknook.autoMatchWeather": "0",
+    "tasknook.weather.automatch": "0",
+    "tasknook.weather.random": "0",
+    "tasknook.walkHinted": "1",
   });
 
   // ---- rooms ----
   for (const [n, name, preset, amb] of ROOMS) {
     if (!want(n)) continue;
+    await setCharacter(page, ROOM_LOOK[n]);
     // Room screenshots are specifically the isometric preset gallery. Make
     // that mode explicit: a previous interactive run may have persisted the
     // flat-room toggle, which made every iso preset label disappear and left
@@ -347,6 +371,14 @@ async function main() {
     if (n === "02") await page.shot(PREVIEW, "png"); // the README hero
   }
 
+  // Every section starts from an explicit room, including subset runs.
+  await page.setStorage({ ...ambient({ weather: "off", time: "day" }), "tasknook.isoView": "", "tasknook.isoPreview": "1" });
+  await setCharacter(page, "casual");
+  await page.load();
+  await page.clickText("Room", { exact: true });
+  await page.clickText("Loft");
+  await sleep(1800);
+  await seatResident(page);
   // ---- weather, all on the default room ----
   for (const [n, name, amb] of WEATHER) {
     if (!want(n)) continue;
@@ -362,6 +394,7 @@ async function main() {
   await page.setStorage(ambient({ weather: "off", time: "night" }));
   for (const [n, name, panel] of PANELS) {
     if (!want(n)) continue;
+    await setCharacter(page, n === "22" ? "study" : "casual");
     await page.load();
     if (panel) {
       const r = await page.clickText(panel, { exact: true });
@@ -377,10 +410,12 @@ async function main() {
     await page.load();
     await page.clickText("Room", { exact: true });
     await sleep(1600);
+    await page.clickText("Browse by category");
+    await page.clickText("Seating");
     await page.evaluate(`(() => {
       const h = [...document.querySelectorAll('*')].find(
-        e => e.children.length === 0 && /^(seating|furniture)$/i.test(e.textContent.trim()));
-      (h || document.querySelector('.cozy-scroll'))?.scrollIntoView({ block: 'center' });
+        e => e.children.length === 0 && /^seating/i.test(e.textContent.trim()));
+      h?.scrollIntoView({ block: 'start' });
       return 'ok';
     })()`);
     await sleep(1400);
@@ -430,7 +465,20 @@ async function main() {
     } else console.log("  27 visiting:", r);
   }
 
-  if (cdp.errors.length) console.log("page errors:", cdp.errors.slice(0, 5).join(" | "));
+  // Dedicated examples keep the real editor's larger preview in frame.
+  for (const [n, name, look, tab] of CHARACTERS) {
+    if (!want(n)) continue;
+    await setCharacter(page, look);
+    await page.setStorage(ambient({ weather: "off", time: "day" }));
+    await page.load();
+    await page.clickText("Profile", { exact: true });
+    await page.clickText(tab, { exact: true });
+    await sleep(1600);
+    await page.shot(join(OUT_DIR, `${n}-${name}.webp`));
+    console.log(`  ${n}-${name}.webp (${look})`);
+  }
+
+  if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));
   console.log("done ->", OUT_DIR);
   process.exit(0);
 }

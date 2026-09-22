@@ -13,13 +13,20 @@ accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
+Refreshed September 22, 2026. The room gallery rotates through six saved
+character looks, covering both body models, different builds and skin tones,
+hairstyles, layered outfits, skirts, denim, winter clothing and swimwear.
+These are ordinary profile selections, saved through the app's profile API.
+The “In the room” toggle seats your character using the app's placement rules.
+The weather comparison keeps one character and one room throughout.
+
 ## Rooms
 
 Each is a one-click preset: floor size, shape, environment and furniture all
 replaced together. Personal rooms stay deliberately clean, while functional
 public spaces use denser fixtures where the activity calls for them. Your own
-resident is dropped in from the picker and sat down where a person would
-actually sit; the communal rooms come with people already in them.
+character is seated through the Profile panel; communal rooms also retain
+their existing residents.
 
 | | |
 |---|---|
@@ -44,10 +51,22 @@ both the weather and the hour.
 
 ## Making it yours
 
+### Character examples
+
+The editor preview makes the model and clothing differences easier to see
+than the smaller residents in the room gallery.
+
 | | |
 |---|---|
-| ![Your character](22-character.webp) **Your character** — two models, nine hairstyles, skin/hair/outfit colours, expression, body sliders, and who's allowed to visit. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
-| ![Furniture](24-furniture.webp) **Furniture** — 140-odd pieces in themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
+| ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt, with body controls visible. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
+| ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — an afro, olive overalls, denim shorts and work boots. |
+
+### Personalization tools
+
+| | |
+|---|---|
+| ![Your character](22-character.webp) **Your character** — body models, hairstyles, skin/hair/outfit colours, expression, body sliders, and who's allowed to visit. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
+| ![Furniture](24-furniture.webp) **Furniture** — themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
 | ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 
 ## Friends & visiting
