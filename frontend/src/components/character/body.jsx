@@ -303,6 +303,34 @@ const PANTS_FORM = {
 };
 export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
 
+/** A skirt spans BOTH thighs. Separate cloth strokes turn it into shorts. */
+export function SeatedSkirt({ hem, thighW, ankle, pants, color }) {
+  const waist = hem - 0.5;
+  const kneeWidth = Math.max(hem + 1.2, SEAT_KNEE_X + thighW / 2);
+  const bottom = pants === "maxi" ? ankle - 1.5 : SEAT_KNEE_Y + (pants === "pleats" ? 4 : 2.8);
+  const edge = kneeWidth - (pants === "maxi" ? 0.6 : 0);
+  const tone = toneFor(color);
+  return (
+    <g data-seated-skirt={pants}>
+      <path d={`M ${-waist} -2 Q ${-kneeWidth} 1 ${-edge} ${bottom}
+        Q 0 ${bottom + 1.8} ${edge} ${bottom} Q ${kneeWidth} 1 ${waist} -2 Z`} fill={color} />
+      {/* The horizontal lap catches the light; the drop over the knees is
+          one shadowed plane, so the cloth still belongs to a sitting body. */}
+      <path d={`M ${-edge + 0.5} ${SEAT_KNEE_Y - 1} Q 0 ${SEAT_KNEE_Y + 2.6} ${edge - 0.5} ${SEAT_KNEE_Y - 1}
+        L ${edge} ${bottom} Q 0 ${bottom + 1.8} ${-edge} ${bottom} Z`}
+        fill={SHADE} opacity={0.16 * tone.shade} />
+      <path d={`M ${-waist + 1} 0 Q 1 4 ${waist - 1} 0`} fill="none" stroke={GLINT}
+        strokeWidth="1.3" opacity={0.18 * tone.glint} strokeLinecap="round" />
+      {(pants === "pleats" ? [-0.58, 0, 0.58] : [-0.4, 0.55]).map((f) => (
+        <path key={f} d={`M ${f * waist} 0 L ${f * edge - 0.8} ${bottom - 0.6}
+          L ${f * edge + 0.6} ${bottom - 0.6} Z`} fill={SHADE} opacity={0.18 * tone.shade} />
+      ))}
+      <path d={`M ${-edge} ${bottom} Q 0 ${bottom + 1.8} ${edge} ${bottom}`}
+        fill="none" stroke="#000" strokeWidth="1.1" opacity="0.18" />
+    </g>
+  );
+}
+
 export function SeatedLeg({
   side,
   ankle,
@@ -317,15 +345,24 @@ export function SeatedLeg({
 }) {
   const knee = side * SEAT_KNEE_X;
   const cloth = far ? farColor(trouser) : trouser;
-  // Pants styles reach every pose. Seated, shorts and skirts read the same
-  // honest way: cloth drapes the thigh (a skirt covers a lap), the shin is
-  // skin. The wide leg thickens both segments.
+  // Skirted legs are bare underneath a shared lap panel in the assembly.
+  // Shorts keep their separate cloth thighs; wide trousers widen both limbs.
   const form = pantsFormOf(pants);
   const bareShin = form.shorts || form.bare;
-  const thighPaint = form.bareThigh ? (far ? farColor(skin) : skin) : cloth;
+  const thighPaint = form.bare ? (far ? farColor(skin) : skin) : cloth;
   const extra = (form.wide || 0) * 0.75 + (form.slim || 0);
+  const tone = toneFor(trouser);
+  const clothWidth = (form.shorts ? thighW : shinW) + extra;
+  const hemY = form.shorts ? SEAT_KNEE_Y + 0.6 : ankle - 2.6;
   return (
     <g>
+      {/* Bare shins go behind the thigh: their round caps must not erase
+          the shorts' hem at the knee. */}
+      {bareShin && (
+        <path d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
+          stroke={far ? farColor(skin) : skin} strokeWidth={shinW - 1.4}
+          strokeLinecap="round" fill="none" />
+      )}
       <path
         d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
         stroke={thighPaint}
@@ -333,15 +370,28 @@ export function SeatedLeg({
         strokeLinecap="round"
         fill="none"
       />
-      <path
+      {!bareShin && <path
         d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
-        stroke={bareShin ? (far ? farColor(skin) : skin) : cloth}
-        strokeWidth={bareShin ? shinW - 1.4 : shinW + extra}
+        stroke={cloth}
+        strokeWidth={shinW + extra}
         strokeLinecap="round"
         fill="none"
-      />
-      {form.cuffBand && !bareShin && (
-        <rect x={knee - (shinW + extra) / 2 + 0.4} y={ankle - 2.6} width={shinW + extra - 0.8} height="1.8" fill="#fff" opacity="0.18" />
+      />}
+      {!form.bare && (
+        <g>
+          {!bareShin && <path d={`M ${knee - clothWidth / 4} ${SEAT_KNEE_Y + 1}
+              L ${knee - clothWidth / 4} ${ankle - 1}`}
+            stroke={SHADE} strokeWidth={clothWidth / 2.9} opacity={0.14 * tone.shade} fill="none" />}
+          {form.crease && <path d={`M ${knee} ${SEAT_KNEE_Y + 1} L ${knee} ${ankle - 2}`}
+            stroke={GLINT} strokeWidth="0.9" opacity={(far ? 0.1 : 0.17) * tone.glint} fill="none" />}
+          {!form.cleanHem && <rect x={knee - clothWidth / 2 + 0.4} y={hemY}
+            width={clothWidth - 0.8} height={form.turnup ? 2.1 : 1.8}
+            fill={form.turnup || form.cuffBand ? GLINT : "#000"}
+            opacity={form.turnup ? 0.2 * tone.glint : form.cuffBand ? 0.18 * tone.glint : 0.14} />}
+          {form.stitch && <path d={`M ${knee - clothWidth / 2 + 0.7} ${hemY - 0.6}
+              L ${knee + clothWidth / 2 - 0.7} ${hemY - 0.6}`}
+            stroke={STITCH} strokeWidth="0.55" strokeDasharray="0.9 0.8" fill="none" opacity={far ? 0.5 : 0.85} />}
+        </g>
       )}
       <g transform={`translate(0, ${ankle + 1.1})`}>
         <FrontShoe cx={knee} kind={shoes} color={shoeColor} far={far} />

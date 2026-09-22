@@ -2915,19 +2915,18 @@ function DeskChair({ back = false }) {
         {[0, 72, 144, 216, 288].map((deg) => {
           const r = (deg * Math.PI) / 180;
           return (
-            <line
-              key={deg}
-              x1="0"
-              y1="-2"
-              x2={Math.cos(r) * 13}
-              y2={-2 + Math.sin(r) * 6.5}
-              stroke="#3a3142"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
+            <g key={deg}>
+              <line x1="0" y1="-2" x2={Math.cos(r) * 13} y2={-2 + Math.sin(r) * 6.5}
+                stroke="#4d4355" strokeWidth="3" strokeLinecap="round" />
+              <line x1="0" y1="-2.6" x2={Math.cos(r) * 13} y2={-2.6 + Math.sin(r) * 6.5}
+                stroke="#a89b98" strokeWidth="1" strokeLinecap="round" />
+              <ellipse cx={Math.cos(r) * 13} cy={-0.8 + Math.sin(r) * 6.5}
+                rx="2.5" ry="1.8" fill="#4d4355" stroke="#a89b98" strokeWidth="0.65" />
+            </g>
           );
         })}
         <rect x="-1.6" y={-SEAT} width="3.2" height={SEAT - 2} fill="#3a3142" />
+        <rect x="0" y={-SEAT + 1} width="1.1" height={SEAT - 4} fill="#a89b98" />
       </g>
       <g transform={`translate(0,${-SEAT})`}>
         <TintedBox gx={0.1} gy={0.12} dx={0.6} dy={0.56} h={5} fallback="#5b6b9b" dark={0.28} mid={0.15} />

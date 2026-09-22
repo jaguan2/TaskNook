@@ -19,7 +19,7 @@ import IsoRoom from "./IsoRoom";
 import Cottage from "./Cottage";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
-import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, isoPresetLayout, seatFor } from "../lib/isoRoom";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, freeSeatSpot, isoPresetLayout, seatFor } from "../lib/isoRoom";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -64,6 +64,31 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    for (const { key: pants } of PANTS) {
+      for (const model of ["masc", "fem"]) {
+        save(`seated-${pants}-${model}`, <Resident character={dressed({ pants, model, trouser: "#a86d91" })} seated seatH={19} />, "-32 -60 64 100");
+      }
+    }
+    for (const pants of ["jeans", "jorts", "dress", "maxi"]) {
+      for (const [width, height] of [[6.2, 28], [8.4, 34]]) {
+        for (const facing of ["front", "back", "side"]) {
+          save(`fit-${pants}-${width}-${facing}`, <Resident facing={facing} seated seatH={22}
+            character={dressed({ pants, width, height, trouser: "#b39277" })} />, "-32 -60 64 100");
+        }
+      }
+    }
+    for (const key of ["chair", "deskchair", "armchair", "sofa", "bed", "wardrobe", "dresser", "bookshelf"]) {
+      const Sprite = ISO_SPRITES[key];
+      save(`furniture-${key}`, <Sprite />, "-80 -120 160 165");
+    }
+    for (const pants of ["skirt", "pleats", "maxi"]) {
+      for (const [way, trouser] of Object.entries({ dark: "#33305e", light: "#e7dcc7" })) {
+        for (const seatH of [4, 22]) {
+          save(`drape-${pants}-${way}-${seatH}`, <Resident seated seatH={seatH}
+            character={dressed({ pants, model: "fem", trouser })} />, "-32 -60 64 100");
+        }
+      }
+    }
     // Rear hair must read on a chair as well as standing. Keep the skin,
     // wardrobe and hair contrast cases visible together during art review.
     for (const hair of ["bob", "long"]) {
@@ -95,6 +120,25 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />
       );
       writeFileSync(`${DIR}/scene-${key}.svg`, presetScene.slice(presetScene.indexOf("<svg"), presetScene.lastIndexOf("</svg>") + 6)
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+    }
+    // Real furniture, occlusion and seat heights: the same wardrobe test in
+    // a furnished room, with no changes to the shipped preset placements.
+    for (const pants of ["skirt", "pleats", "maxi", "jeans", "jorts", "dress"]) {
+      const room = isoPresetLayout("loft");
+      const personas = {};
+      for (let i = 0; i < 3; i += 1) {
+        const spot = freeSeatSpot(room.placements);
+        if (spot) {
+          const id = `review-${i}`;
+          room.placements.push({ id, item: "resident", ...spot });
+          personas[id] = { character: dressed({ pants, model: "fem", trouser: "#a86d91" }) };
+        }
+      }
+      const scene = renderToStaticMarkup(<IsoRoom size={room} placements={room.placements}
+        personas={personas}
+        saveView={false} reduceMotion timeOfDay="day" />);
+      writeFileSync(`${DIR}/scene-wardrobe-${pants}.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
         .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
     }
     // Pose review belongs beside wardrobe review: this catches a bed model

@@ -323,7 +323,11 @@ describe("the profile view and the wardrobe slots", () => {
     const seen = new Map();
     for (const [key, node] of nodes) {
       const { container } = draw(node);
-      const html = container.innerHTML;
+      // Instance IDs and descriptive data attributes are not artwork. They
+      // must not make identical geometry pass as two different styles.
+      const html = container.innerHTML
+        .replace(/:r[0-9a-z]+:/g, ":instance:")
+        .replace(/ data-[\w-]+="[^"]*"/g, "");
       expect(
         seen.has(html),
         `${labelOf} "${key}" draws identically to "${seen.get(html)}"`
@@ -401,18 +405,14 @@ describe("the profile view and the wardrobe slots", () => {
     expect(markup("masc")).not.toBe(markup("fem"));
   });
 
-  it("the seated pose survives every bottom", () => {
-    for (const { key } of PANTS) {
-      expect(() =>
-        draw(
-          <Resident
-            character={{ ...DEFAULT_CHARACTER, pants: key }}
-            seated
-            seatH={19}
-          />
-        )
-      ).not.toThrow();
-      cleanup();
+  it("every bottom keeps distinct artwork when seated", () => {
+    for (const seatH of [4, 19, 26]) {
+      allDistinct(
+        `seated bottoms at height ${seatH}`,
+        PANTS.map(({ key }) => [key,
+          <Resident key={key} character={{ ...DEFAULT_CHARACTER, pants: key }} seated seatH={seatH} />,
+        ])
+      );
     }
   });
 

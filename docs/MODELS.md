@@ -75,6 +75,19 @@ piece so a new item sits correctly beside the existing ones.
 
 ### Persona proportions
 
+Seated skirts use one continuous lap panel over the bare legs, not separate
+cloth strokes on each thigh (which read as shorts). Keep skirt, pleated skirt
+and maxi hems distinct; the maxi follows the seat-adjusted ankle height so
+it stays long without covering the shoes. Review these on both low and high
+seats, in light and dark colours, and inside a furnished room. The opt-in
+art-sheet fixtures include these combinations.
+
+Seated trousers retain the same material cues as standing trousers: rolled
+hems and ochre stitching for denim, a pressed crease for dress trousers,
+and an elastic cuff for joggers. Bare shins draw behind the shorts' thighs
+so the shin's round cap cannot erase the cloth hem. Review every bottom
+seated as well as standing; the distinct-artwork test covers both poses.
+
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests

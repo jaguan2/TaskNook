@@ -29,6 +29,7 @@ import {
   TROUSER,
   Face,
   SeatedLeg,
+  SeatedSkirt,
   SideFace,
   SideLeg,
   StandingLeg,
@@ -582,9 +583,11 @@ export function Resident({
       <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
         <HairLength style={ch.hair} headY={headY} color={hairColor} back={back && !hatted} />
       </g>
-      {/* The skirt flare, over the bare legs and under the torso's hem.
-          Standing only — seated, the cloth already drapes the lap via the
-          leg drawing. */}
+      {/* Seated cloth spans the lap instead of painting two trouser thighs. */}
+      {skirted && seated && (
+        <SeatedSkirt hem={hem} thighW={thighW} ankle={ankle} pants={pants} color={trouser} />
+      )}
+      {/* The standing skirt flare, over the bare legs and under the torso. */}
       {skirted && !seated && (
         <g>
           <path
