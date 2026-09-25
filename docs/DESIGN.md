@@ -317,6 +317,21 @@ The screen has an ownership map — respect it:
     at noon, the exact bug the scene-cast pools were introduced to fix. The
     computed opacity goes on a wrapper `<g>` and the animation on the child;
     nested opacity multiplies, so the motion stays relative to the hour.
+- **Atmosphere belongs to the room and the weather.** `IsoAtmosphere` adds at
+  most nine slow dust motes beside a real daylight window, or six fireflies in
+  an open garden/terrace at sunset or night. Positions and animation phases
+  are deterministic, clipped to the floor, and independent of room area;
+  there are no extra timers or SVG filters. Decorating, reduced motion, and
+  active weather hide these particles. Cloudy weather also softens window
+  light, with rain/snow/storm dimming it further. The background mood glow
+  uses a radial falloff so its edge never reads as a solid disc.
+- **Small effects stay attached to their source.** `IsoAmbientEffects` gives
+  mugs, tea, soup and the espresso cup three staggered curling steam wisps.
+  Fireplaces get three intermittent embers, clipped inside their own arched
+  firebox with a unique clip ID per instance. Shelf vines sway about the stem
+  while the pot stays fixed. These are CSS loops with inherited per-item phase
+  and duration, no particle timers or filters. Steam and sparks rest invisible
+  when motion is reduced; foliage rests in its original pose.
 - **Measure before optimising motion**, and **measure unlocked**. A clean A/B
   (same protocol per arm, two rounds, 298 frames) says:
   - A realistic room — ~40 items, ~75 live animations — is **4.2ms median with

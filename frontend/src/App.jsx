@@ -359,6 +359,7 @@ export default function App() {
               placements={visiting.layout.placements}
               editMode={false}
               timeOfDay={timeOfDay}
+              weather={weatherMode}
               activity={running ? phase : null}
               character={character}
               reduceMotion={sceneReduceMotion}
@@ -374,6 +375,7 @@ export default function App() {
               placements={homeScene.layout.placements}
               editMode={roomEditMode}
               timeOfDay={timeOfDay}
+              weather={weatherMode}
               highlightId={lastIsoAddedId}
               activity={running ? phase : null}
               character={character}

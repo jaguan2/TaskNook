@@ -146,6 +146,7 @@ describe("nothing animates under reduced motion", () => {
     // presentation attribute guards against — this is the CSS-side twin.
     for (const cls of [
       "steam-puff", "bubble-rise", "pond-ripple",
+      "steam-wisp", "hearth-ember", "sun-mote", "garden-firefly",
       "shooting-star", "bird-fly", "window-rain", "window-snow",
     ]) {
       const block = css.match(new RegExp(`\\.${cls} \\{([^}]*)\\}`));
@@ -456,6 +457,7 @@ describe("ambient loops are desynchronised per item", () => {
     const mustPhase = [
       "room-sway", "room-sway-hanging", "room-twinkle", "room-breathe", "body-breathe",
       "steam-puff", "bubble-rise", "pond-ripple", "cat-breathe", "tail-flick",
+      "steam-wisp", "hearth-ember", "shelf-vine-sway", "sun-mote", "garden-firefly",
       "flame-dance", "disc-spin", "curtain-sway", "pool-breathe", "pool-flicker",
       // Fast loops, but a study hall seats eight residents: at 0.5s, unison is
       // MORE obvious, not less — eight people typing on one beat.
