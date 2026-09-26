@@ -122,8 +122,9 @@ so pre-slider saves keep their silhouette.
 The editor also offers **complete starting looks** from
 `lib/characterPresets.js`. A preset is a full validated character snapshot,
 not a mode or a second model format: applying one clears every prior hat,
-pattern, scarf and slider, then the normal Body/Face/Hair/Outfit/Extras tabs
-edit it immediately. Keep presets complete (`Object.keys(DEFAULT_CHARACTER)`),
+pattern, scarf and slider while `characterFromPreset` restores the user's
+current skin tone. Skin belongs to the person, never the outfit. The normal
+Body/Face/Hair/Outfit/Extras tabs edit it immediately. Keep presets complete (`Object.keys(DEFAULT_CHARACTER)`),
 draw their cards with the real `Resident`, and never gate wardrobe pieces by
 the preset's named model. The names describe the starting silhouette; any
 body can wear any garment afterward.

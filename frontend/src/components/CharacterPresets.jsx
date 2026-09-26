@@ -1,4 +1,8 @@
-import { CHARACTER_PRESETS, characterPresetMatches } from "../lib/characterPresets";
+import {
+  CHARACTER_PRESETS,
+  characterFromPreset,
+  characterPresetMatches,
+} from "../lib/characterPresets";
 import { ISO_SPRITES } from "./IsoItems";
 
 /** Complete starting looks, drawn by the same resident used in the room. */
@@ -8,11 +12,12 @@ export default function CharacterPresets({ character, onPick }) {
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="Character looks">
       {CHARACTER_PRESETS.map((preset) => {
         const active = characterPresetMatches(character, preset);
+        const shown = characterFromPreset(preset, character.skin);
         return (
           <button
             key={preset.key}
             type="button"
-            onClick={() => onPick(preset.character)}
+            onClick={() => onPick(shown)}
             aria-pressed={active}
             className={`group flex min-h-28 items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 py-1 text-left transition ${
               active
@@ -22,7 +27,7 @@ export default function CharacterPresets({ character, onPick }) {
           >
             <svg viewBox="-19 -66 38 80" className="h-24 w-[4.5rem] shrink-0" aria-hidden="true">
               <ellipse cx="0" cy="11" rx="13" ry="2.2" fill="#000" opacity="0.16" />
-              <Resident character={preset.character} facing="front" />
+              <Resident character={shown} facing="front" />
             </svg>
             <span className="min-w-0 py-2">
               <span className="block text-xs font-semibold leading-tight text-cream">

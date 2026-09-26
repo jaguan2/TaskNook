@@ -2,8 +2,9 @@ import { DEFAULT_CHARACTER, validateCharacter } from "./profile.js";
 
 // Complete, editable starting looks. Every preset carries every character
 // field so applying one never leaks a hat, pattern, or body slider from the
-// previous outfit. Afterward it is just ordinary character data: every tab
-// can refine it and no hidden "preset mode" remains.
+// previous outfit. Skin is the deliberate exception at APPLICATION time:
+// it belongs to the person, not the clothes, so characterFromPreset replaces
+// the baseline value with the user's current selection.
 const look = (key, label, tagline, character) => ({
   key,
   label,
@@ -14,7 +15,6 @@ const look = (key, label, tagline, character) => ({
 export const CHARACTER_PRESETS = [
   look("fall-girl", "Fall style girl", "Warm knits · boots", {
     model: "fem",
-    skin: "#edc39e",
     hair: "long",
     hairColor: "#8c4a2f",
     garment: "turtleneck",
@@ -35,7 +35,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("fall-guy", "Fall style guy", "Plaid layers · denim", {
     model: "masc",
-    skin: "#c68642",
     hair: "curtains",
     hairColor: "#5b3a29",
     garment: "shirt",
@@ -58,7 +57,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("school-girl", "School girl", "Blazer · pleated skirt", {
     model: "fem",
-    skin: "#f1c27d",
     hair: "bob",
     hairColor: "#3a3142",
     garment: "blouse",
@@ -78,7 +76,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("school-boy", "School boy", "Tie · tailored blazer", {
     model: "masc",
-    skin: "#edc39e",
     hair: "twoblock",
     hairColor: "#3a3142",
     garment: "tie",
@@ -98,7 +95,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("office-female", "Office wear female", "Soft blouse · tailoring", {
     model: "fem",
-    skin: "#8d5524",
     hair: "bun",
     hairColor: "#3a3142",
     garment: "blouse",
@@ -119,7 +115,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("office-male", "Office wear male", "Crisp shirt · suit", {
     model: "masc",
-    skin: "#c68642",
     hair: "short",
     hairColor: "#3a3142",
     garment: "tie",
@@ -139,7 +134,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("lofi-girl", "Lofi girl", "Headphones · roomy layers", {
     model: "fem",
-    skin: "#edc39e",
     hair: "highpony",
     hairColor: "#5b3a29",
     garment: "sweater",
@@ -160,7 +154,6 @@ export const CHARACTER_PRESETS = [
   }),
   look("cozy-gamer", "Cozy gamer", "Hoodie · headphones", {
     model: "masc",
-    skin: "#d9a066",
     hair: "messy",
     hairColor: "#3a3142",
     garment: "tee",
@@ -181,8 +174,15 @@ export const CHARACTER_PRESETS = [
 ];
 
 const CHARACTER_FIELDS = Object.keys(DEFAULT_CHARACTER);
+const STYLE_FIELDS = CHARACTER_FIELDS.filter((key) => key !== "skin");
+
+/** Materialize a look without ever replacing the user's selected skin. */
+export function characterFromPreset(preset, skin) {
+  if (!preset?.character) return null;
+  return validateCharacter({ ...preset.character, skin });
+}
 
 export function characterPresetMatches(character, preset) {
   if (!preset?.character) return false;
-  return CHARACTER_FIELDS.every((key) => character?.[key] === preset.character[key]);
+  return STYLE_FIELDS.every((key) => character?.[key] === preset.character[key]);
 }

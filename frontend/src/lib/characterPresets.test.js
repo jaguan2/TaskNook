@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CHARACTER, validateCharacter } from "./profile";
-import { CHARACTER_PRESETS, characterPresetMatches } from "./characterPresets";
+import {
+  CHARACTER_PRESETS,
+  characterFromPreset,
+  characterPresetMatches,
+} from "./characterPresets";
 
 describe("character presets", () => {
   it("ships the eight requested, uniquely named starting looks", () => {
@@ -30,10 +34,21 @@ describe("character presets", () => {
   it("matches only an unchanged preset and stops after a refinement", () => {
     const preset = CHARACTER_PRESETS[0];
     expect(characterPresetMatches(preset.character, preset)).toBe(true);
+    // Skin is identity, not styling: every tone still counts as this look.
+    expect(characterPresetMatches({ ...preset.character, skin: "#8d5524" }, preset)).toBe(true);
     expect(
       characterPresetMatches({ ...preset.character, hairColor: "#3a3142" }, preset)
     ).toBe(false);
     expect(characterPresetMatches(preset.character, null)).toBe(false);
+  });
+
+  it("applies every look with the user's existing skin tone", () => {
+    for (const preset of CHARACTER_PRESETS) {
+      const applied = characterFromPreset(preset, "#8d5524");
+      expect(applied.skin, preset.key).toBe("#8d5524");
+      expect(characterPresetMatches(applied, preset), preset.key).toBe(true);
+    }
+    expect(characterFromPreset(null, "#8d5524")).toBeNull();
   });
 
   it("does not leak accessories when switching between looks", () => {

@@ -583,8 +583,10 @@ running `git commit` yourself.
   **Complete starting looks** live in `lib/characterPresets.js`: fall girl/
   guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
   a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
-  not a mode — applying one clears incompatible leftovers, then the normal
-  tabs edit ordinary character data. Names describe starting silhouettes,
+  not a mode — applying one clears incompatible styling leftovers but always
+  restores the user's CURRENT `skin` through `characterFromPreset`; skin is
+  identity, never part of an outfit. The normal tabs then edit ordinary
+  character data. Names describe starting silhouettes,
   never wardrobe restrictions. `characterPresets.test.js` pins completeness;
   the art sheet renders every preset front/seated/back, and Profile's Looks
   cards draw the real `Resident` rather than separate thumbnails.
