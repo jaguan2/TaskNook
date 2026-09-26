@@ -119,6 +119,15 @@ thickness scales gently with width (a wide torso on stick legs reads as
 parts pasted together). Stored `build` keys survive as the width's default,
 so pre-slider saves keep their silhouette.
 
+The editor also offers **complete starting looks** from
+`lib/characterPresets.js`. A preset is a full validated character snapshot,
+not a mode or a second model format: applying one clears every prior hat,
+pattern, scarf and slider, then the normal Body/Face/Hair/Outfit/Extras tabs
+edit it immediately. Keep presets complete (`Object.keys(DEFAULT_CHARACTER)`),
+draw their cards with the real `Resident`, and never gate wardrobe pieces by
+the preset's named model. The names describe the starting silhouette; any
+body can wear any garment afterward.
+
 The 2026-08-19 **slimming retune** (owner: "they look like blobs", "make the
 two models more different"): every build's base half-width came down ~0.6px
 (the old average torso was 19.2 wide × 17 tall — nearly square, and no
@@ -379,7 +388,10 @@ established:
   level under the torso.
 - **Coats are the same registry with the colours rewired**: shell in
   `coatColor`, opening shows the top's colour. A coat's `side` must run its
-  opening sliver to the shell's own front edge, or it reads as a stripe.
+  opening sliver to the shell's own front edge, or it reads as a stripe. If
+  the shell covers the full torso first (the blazer does), restore the top in
+  the opening and repeat its defining accent via `topKind` / `topAccent`; a
+  blazer that hides the selected tie is not a layered outfit.
 - **Shoes are a slot** (`FrontShoe`/`SideShoe`, switched on `SHOES` kinds):
   the classic chunky oval IS the sneaker; each other kind is an outline
   change (boot shaft, heel spike + lifted arch) or one mark (loafer band,

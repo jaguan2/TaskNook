@@ -205,6 +205,10 @@ export const HATS = [
   // The ushanka: ear flaps past the jaw — the one hat that changes the
   // head-to-shoulder outline rather than just the crown.
   { key: "trapper", label: "Trapper hat" },
+  // Headphones sit OVER the hair instead of replacing its crown. They live
+  // in this slot because headwear is mutually exclusive at room scale (a
+  // beanie under headphones would become one noisy 14px silhouette).
+  { key: "headphones", label: "Headphones", coversHair: false },
 ];
 
 /**
@@ -273,6 +277,12 @@ export const OUTFITS = [
   // Button-up: collar wings + placket + buttons — the neck-and-centre marks
   // are what separate a shirt from a tee at this size.
   { key: "shirt", label: "Button-up" },
+  // A rounded contrast collar and bow make the blouse legible beside the
+  // sharp-winged button-up; the second colour owns those details.
+  { key: "blouse", label: "Blouse", inner: true },
+  // Shirt-and-tie is a complete top rather than a floating accessory: the
+  // tie occupies the second-colour slot and composes with an open blazer.
+  { key: "tie", label: "Shirt & tie", inner: true },
   { key: "overalls", label: "Overalls", inner: true },
   { key: "dress", label: "Dress", sleeves: "short" },
   // Cardigan/turtleneck notes live with their entries below and in COATS.
@@ -303,6 +313,7 @@ export const COATS = [
   { key: "hoodie", label: "Hoodie" },
   { key: "jacket", label: "Jacket" },
   { key: "cardigan", label: "Cardigan" },
+  { key: "blazer", label: "Blazer" },
   { key: "puffer", label: "Puffer" },
   // Varsity: the coat whose SLEEVES are the second colour — the classic wool
   // body / leather arms split, via the same `sleeves: "inner"` wiring as the
@@ -468,6 +479,8 @@ const LEGACY_COATS = new Set(["hoodie", "jacket", "cardigan", "puffer"]);
 export const garmentOf = (key) => OUTFITS.find((o) => o.key === key) || OUTFITS[0];
 /** The coat worn over it, "none" included. */
 export const coatOf = (key) => COATS.find((c) => c.key === key) || COATS[0];
+/** Headwear metadata, including whether it hides the hairstyle's crown. */
+export const hatOf = (key) => HATS.find((h) => h.key === key) || HATS[0];
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
 

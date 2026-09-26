@@ -60,6 +60,7 @@ than the smaller residents in the room gallery.
 |---|---|
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt, with body controls visible. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — an afro, olive overalls, denim shorts and work boots. |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — eight complete editable presets, including fall, school, office, lofi and gamer styles. | |
 
 ### Personalization tools
 

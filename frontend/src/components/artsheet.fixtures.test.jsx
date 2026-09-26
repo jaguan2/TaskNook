@@ -19,6 +19,7 @@ import IsoRoom from "./IsoRoom";
 import Cottage from "./Cottage";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
+import { CHARACTER_PRESETS } from "../lib/characterPresets";
 import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, freeSeatSpot, isoPresetLayout, seatFor } from "../lib/isoRoom";
 import {
   COATS,
@@ -64,6 +65,18 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    // Review the authored combinations as combinations too. Individual
+    // garment sheets cannot catch a scarf hiding a lapel or headphones
+    // erasing the hairstyle that made a preset coherent.
+    for (const preset of CHARACTER_PRESETS) {
+      save(`preset-${preset.key}-front`, <Resident character={preset.character} />);
+      save(
+        `preset-${preset.key}-seated`,
+        <Resident character={preset.character} seated seatH={19} />,
+        "-32 -60 64 100"
+      );
+      save(`preset-${preset.key}-back`, <Resident character={preset.character} facing="back" />);
+    }
     for (const { key: pants } of PANTS) {
       for (const model of ["masc", "fem"]) {
         save(`seated-${pants}-${model}`, <Resident character={dressed({ pants, model, trouser: "#a86d91" })} seated seatH={19} />, "-32 -60 64 100");

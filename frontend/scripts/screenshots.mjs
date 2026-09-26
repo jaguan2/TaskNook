@@ -74,6 +74,7 @@ const CHARACTERS = [
   ["34", "character-casual", "casual", "Outfit"],
   ["35", "character-winter", "winter", "Extras"],
   ["36", "character-garden", "garden", "Hair"],
+  ["37", "character-presets", null, "Looks"],
 ];
 
 async function setCharacter(page, look) {
@@ -468,14 +469,17 @@ async function main() {
   // Dedicated examples keep the real editor's larger preview in frame.
   for (const [n, name, look, tab] of CHARACTERS) {
     if (!want(n)) continue;
-    await setCharacter(page, look);
+    if (look) await setCharacter(page, look);
     await page.setStorage(ambient({ weather: "off", time: "day" }));
     await page.load();
     await page.clickText("Profile", { exact: true });
     await page.clickText(tab, { exact: true });
+    // The preset screenshot exercises the real one-click path rather than
+    // inserting the same payload through a second test-only route.
+    if (n === "37") await page.clickText("Lofi girl");
     await sleep(1600);
     await page.shot(join(OUT_DIR, `${n}-${name}.webp`));
-    console.log(`  ${n}-${name}.webp (${look})`);
+    console.log(`  ${n}-${name}.webp (${look || "preset UI"})`);
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

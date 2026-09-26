@@ -16,7 +16,7 @@
 import { useId } from "react";
 import { SKEW, project } from "../../lib/iso";
 import { tinted, toneFor } from "../../lib/tint";
-import { DEFAULT_CHARACTER, MOODS, coatOf, garmentOf } from "../../lib/profile";
+import { DEFAULT_CHARACTER, MOODS, coatOf, garmentOf, hatOf } from "../../lib/profile";
 import { HEAD_R, HEAD_R_EFF, HEAD_SCALE, figureMetrics, torsoGeom } from "../../lib/body";
 import {
   Arm,
@@ -214,7 +214,7 @@ export function Resident({
   // rule: a hat drawn over the full dome reads as a balloon perched on a
   // wig. LENGTH survives — drapes, plaits and tails keep falling from under
   // the rim, which is what makes the hat read as worn over a hairstyle.
-  const hatted = ch.hat && ch.hat !== "none";
+  const hatted = ch.hat && ch.hat !== "none" && hatOf(ch.hat).coversHair !== false;
   const typing = activity === "focus" && seated;
   // A break used to be indistinguishable from idle in the room: the phase
   // reached the app and stopped at the thought bubble. Now they put the keyboard
@@ -368,6 +368,8 @@ export function Resident({
                         kind={ch.coat}
                         {...geom}
                         topColor={`var(--tint, ${ch.outfit || "#7faf8f"})`}
+                        topKind={ch.garment}
+                        topAccent={ch.inner}
                         coatStyle={coatStyle}
                         view="side"
                       />
@@ -735,6 +737,8 @@ export function Resident({
                 bot={torsoY + torsoH}
                 waistY={torsoY + waistDrop}
                 topColor={`var(--tint, ${ch.outfit || "#7faf8f"})`}
+                topKind={ch.garment}
+                topAccent={ch.inner}
                 coatStyle={coatStyle}
                 view={back ? "back" : "front"}
               />

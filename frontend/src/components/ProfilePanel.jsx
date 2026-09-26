@@ -28,9 +28,11 @@ import {
   SKIN_TONES,
   ZODIAC,
   profileSummary,
+  hatOf,
 } from "../lib/profile";
 import { WIDTH_RANGE, SHOULDER_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
+import CharacterPresets from "./CharacterPresets";
 
 /**
  * The character editor's layout follows the convention every good creator
@@ -44,6 +46,7 @@ import { VISIT_ACCESS } from "../lib/visiting";
  * scene mode (ACNH's mirror is furniture, not a menu).
  */
 const TABS = [
+  { key: "looks", label: "Looks" },
   { key: "body", label: "Body" },
   { key: "face", label: "Face" },
   { key: "hair", label: "Hair" },
@@ -158,7 +161,7 @@ function HairIcon({ style, hairColor, skin }) {
 
 /** A hat worn over the CURRENT hair — crown replaced, length surviving. */
 function HatIcon({ hat, hair, hairColor, skin }) {
-  const worn = hat !== "none";
+  const worn = hat !== "none" && hatOf(hat).coversHair !== false;
   return (
     <svg viewBox="-15 -16 30 32" className="h-12 w-full" aria-hidden="true">
       <HairLength style={hair} headY={0} color={hairColor} />
@@ -747,7 +750,7 @@ export default function ProfilePanel() {
     removeIsoItem,
   } = useStore();
   const summary = profileSummary(profile);
-  const [tab, setTab] = useState("hair");
+  const [tab, setTab] = useState("looks");
   const [characterFacing, setCharacterFacing] = useState("front");
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
@@ -856,6 +859,15 @@ export default function ProfilePanel() {
         </div>
 
         <div className="mt-3 space-y-3">
+          {tab === "looks" && (
+            <>
+              <p className="text-xs leading-relaxed text-petal/65">
+                Start with a complete look, then make it yours in the other tabs.
+              </p>
+              <CharacterPresets character={character} onPick={saveCharacter} />
+            </>
+          )}
+
           {tab === "body" && (
             <>
               <Field label="Model">

@@ -31,10 +31,17 @@ Profile → the tab it lives in.
 | Bottoms | `profile.js` → `PANTS` | `character/body.jsx` → `PANTS_FORM` + the leg drawings |
 | Shoes | `profile.js` → `SHOES` | `character/body.jsx` → `FrontShoe` / `SideShoe` |
 | Hat | `profile.js` → `HATS` | `character/hats.jsx` → `HAT_REGISTRY` |
+| Complete look | `src/lib/characterPresets.js` | composed from the real `Resident` |
 
 A piece must exist in BOTH its catalog and its registry — tests pin the two
 key sets against each other, so forgetting one side is a failing test, not a
 silent bug.
+
+Complete looks are full snapshots rather than another artwork format. Keep
+every `DEFAULT_CHARACTER` field present, then run `npm run art`: each preset
+is rendered front, seated and back so layer collisions are visible. Headwear
+normally replaces the crown hair; set catalog metadata `coversHair: false`
+only for pieces such as headphones that must sit over the intact hairstyle.
 
 ## The coordinate system (draw over this)
 

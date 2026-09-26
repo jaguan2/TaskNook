@@ -551,11 +551,12 @@ running `git commit` yourself.
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
-  (`OUTFITS`: sweater/tee/button-up/overalls/dress/turtleneck/sweater vest,
+  (`OUTFITS`: sweater/tee/swimwear/button-up/blouse/shirt-and-tie/overalls/
+  dress/turtleneck/sweater vest,
   coloured by
   `outfit`; the vest's ARMS paint in the inner colour via `sleeves: "inner"`
   — a torso-vs-arms split no other top has), a COAT over it (`COATS`:
-  none/hoodie/jacket/cardigan/puffer/varsity/raincoat — the varsity shares
+  none/hoodie/jacket/cardigan/blazer/puffer/varsity/raincoat/robe — the varsity shares
   the vest's contrast-sleeve wiring, the raincoat drops past the hem,
   its own `coatColor` — the open fronts show the TOP through the opening,
   which is what makes two slots read as two garments), and BOTTOMS
@@ -565,9 +566,10 @@ running `git commit` yourself.
   heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
   BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
   and that two-material split is what makes a 5px shoe read as modelled).
-  7 tops × 8 coats (robe joined — the raincoat's drop plus an open front and
-  a belt) × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 2,800
-  silhouette combinations before any colour — times 7 hats (trapper: ear
+  10 tops × 9 coats (robe: the raincoat's drop plus an open front and a belt;
+  blazer: tailored lapels that preserve a blouse bow or tie in the opening)
+  × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 4,500
+  silhouette combinations before any colour — times 8 hats (trapper: ear
   flaps past the jaw, the one hat that changes the head-to-shoulder outline)
   and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
   `character/scarves.jsx` registry: wrapped/loop/long, drawn TORSO-anchored
@@ -578,6 +580,14 @@ running `git commit` yourself.
   are fixed rubber. Drawn inside the head's gesture group AFTER hair and
   hat so a fringe can't bury the rims; nothing from behind — temple tips
   at a 7.3px skull are noise. They stack with hats, unlike hair).
+  **Complete starting looks** live in `lib/characterPresets.js`: fall girl/
+  guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
+  a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
+  not a mode — applying one clears incompatible leftovers, then the normal
+  tabs edit ordinary character data. Names describe starting silhouettes,
+  never wardrobe restrictions. `characterPresets.test.js` pins completeness;
+  the art sheet renders every preset front/seated/back, and Profile's Looks
+  cards draw the real `Resident` rather than separate thumbnails.
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
@@ -601,7 +611,8 @@ running `git commit` yourself.
   There are no standalone colour rows left.
   **The owner designs artwork themselves via `npm run art`**
   (frontend/scripts/art-sheet.mjs + the SHEET_DIR-gated
-  artsheet.fixtures.test.jsx): renders every character piece side by side
+  artsheet.fixtures.test.jsx): renders every character piece and every full
+  preset (front/seated/back) side by side
   to frontend/art-sheet/index.html (gitignored). docs/CONTRIBUTING_ART.md
   is the guide — coordinate system, registry formats, the review loop. Keep
   that doc current when a registry's shape changes. What a
@@ -661,10 +672,12 @@ running `git commit` yourself.
   gives outer layers their proud outline + hem under-shadow) and `collar`
   (rendered AFTER the body's neck — the one spot `draw` can't reach, and how
   the turtleneck exists). `HAT_REGISTRY` (`character/hats.jsx`, catalog
-  `HATS` in profile.js) is the first ACCESSORY slot: a hat REPLACES the
+  `HATS` in profile.js) is the first ACCESSORY slot: a hat normally REPLACES the
   crown hair layers (front + behind + sheen) — drawn over the full dome it
   reads as a balloon on a wig — while LENGTH keeps falling from under the
-  rim, which is what makes it read as worn over a hairstyle. The Profile
+  rim, which is what makes it read as worn over a hairstyle. Headphones are
+  the declared exception (`coversHair: false`): their band/cups draw over the
+  intact hairstyle instead of erasing it. The Profile
   panel's hair and hat pickers render REAL worn previews (`HairIcon`/
   `HatIcon` — the style's actual layers on a head, in the user's colours),
   so the icon can never drift from the artwork; the character preview above
