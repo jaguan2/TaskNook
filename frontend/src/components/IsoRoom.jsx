@@ -33,6 +33,7 @@ import ExteriorWall from "./ExteriorWall";
 import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
 import PartitionWall from "./PartitionWall";
 import RoomTintPicker from "./RoomTintPicker";
+import IsoAtmosphere from "./IsoAtmosphere";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -118,7 +119,7 @@ const ISO_TIME = {
   // pasted onto a day sky.
   night: { skyTop: "#221b3f", skyBot: "#40355f", orb: "#f7e9e2", bulbs: 1, wash: "rgb(var(--color-wine))", washOpacity: 0.85, lift: null, liftOpacity: 0, glow: 1, windowLight: 0.12 },
   sunset: { skyTop: "#e2825e", skyBot: "#6d4470", orb: "#ffcf6a", bulbs: 0.75, wash: "#c9714a", washOpacity: 0.5, lift: "#ffb37a", liftOpacity: 0.14, glow: 0.7, windowLight: 0.68 },
-  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#c5a4ad", washOpacity: 0.38, lift: "#f0d0c5", liftOpacity: 0.14, glow: 0.25, windowLight: 0.78 },
+  day: { skyTop: "#8ec9ea", skyBot: "#d3ecf7", orb: "#ffd76a", bulbs: 0.3, wash: "#c5a4ad", washOpacity: 0.3, lift: "#ffe7ba", liftOpacity: 0.11, glow: 0.25, windowLight: 0.9 },
 };
 
 /**
@@ -470,6 +471,7 @@ function IsoSceneInner({
   placements = [],
   editMode = false,
   timeOfDay = "night",
+  weather = "off",
   selectedId = null,
   // "focus" | "break" | null — what the timer is doing. A string, not two
   // booleans: the states are exclusive, and it still changes rarely enough that
@@ -495,7 +497,8 @@ function IsoSceneInner({
   // The one being carried right now, drawn by the overlay instead of here.
   carriedId = null,
 }) {
-  const tod = ISO_TIME[timeOfDay] || ISO_TIME.night;
+  const hour = ISO_TIME[timeOfDay] || ISO_TIME.night;
+  const tod = { ...hour, windowLight: hour.windowLight * (weather === "off" ? 1 : weather === "cloudy" ? 0.55 : 0.3) };
 
   const { w, d } = size;
   const farL = project(0, d);
@@ -736,13 +739,13 @@ function IsoSceneInner({
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="isoWindowGlow">
-            <stop offset="0" stopColor="#ffd9a4" stopOpacity="0.42" />
-            <stop offset="0.58" stopColor="#ffc987" stopOpacity="0.18" />
+            <stop offset="0" stopColor="#ffe8ac" stopOpacity="0.65" />
+            <stop offset="0.58" stopColor="#ffc987" stopOpacity="0.24" />
             <stop offset="1" stopColor="#ffc987" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="isoWindowFloorLight" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#fff3ca" stopOpacity="0.38" />
-            <stop offset="0.52" stopColor="#ffd68d" stopOpacity="0.2" />
+            <stop offset="0" stopColor="#fff3ca" stopOpacity="0.62" />
+            <stop offset="0.52" stopColor="#ffd68d" stopOpacity="0.32" />
             <stop offset="1" stopColor="#ffc276" stopOpacity="0" />
           </linearGradient>
           {/* soft contact shadow under every grounded item — one gradient,
@@ -765,6 +768,11 @@ function IsoSceneInner({
             <stop offset="0" stopColor="#ffe9b0" stopOpacity="0.8" />
             <stop offset="1" stopColor="#ffe9b0" stopOpacity="0" />
           </linearGradient>
+          <radialGradient id="isoMoodGlow">
+            <stop offset="0" stopColor={lighting.color} stopOpacity="1" />
+            <stop offset="0.55" stopColor={lighting.color} stopOpacity="0.55" />
+            <stop offset="1" stopColor={lighting.color} stopOpacity="0" />
+          </radialGradient>
         </defs>
 
         <ellipse cx="320" cy="250" rx="430" ry="330" fill="url(#isoAmbient)" />
@@ -773,7 +781,7 @@ function IsoSceneInner({
           cy="250"
           rx="430"
           ry="330"
-          fill={lighting.color}
+          fill="url(#isoMoodGlow)"
           opacity={lighting.opacity}
           className={size.lighting === "candle" && !reduceMotion ? "iso-light-breathe" : undefined}
           pointerEvents="none"
@@ -928,7 +936,7 @@ function IsoSceneInner({
                   into the room. They stay in grid space so the projection is
                   correct for every room size, and remain subordinate to the
                   furniture painted above them. */}
-              <g data-window-pane-light="true" opacity={tod.windowLight * 0.12}>
+              <g data-window-pane-light="true" opacity={tod.windowLight * 0.24}>
                 <polygon points={floorPatch(0.3, 1.12, 0.9, 0.92)} fill="#fff5d5" />
                 <polygon points={floorPatch(0.3, 2.18, 0.9, 0.92)} fill="#fff5d5" />
                 <polygon points={floorPatch(1.36, 1.12, 0.9, 0.92)} fill="#ffe4aa" />
@@ -1078,6 +1086,10 @@ function IsoSceneInner({
             );
           })}
 
+          <IsoAtmosphere size={size} hasWindow={hasWindow}
+            outdoors={walls !== "full" && (size.env === "garden" || size.env === "terrace")}
+            timeOfDay={timeOfDay} weather={weather} quiet={reduceMotion || editMode} />
+
           {/* Name tags for a visited room's people — after the furniture so
               nothing buries a name (the selection-chrome rule), and OUTSIDE
               the sprite groups so a mirrored body never flips its label. */}
@@ -1205,6 +1217,7 @@ function IsoRoom({
   placements = [],
   editMode = false,
   timeOfDay = "night",
+  weather = "off",
   highlightId = null,
   activity = null,
   character,
@@ -1641,6 +1654,7 @@ function IsoRoom({
           placements={placements}
           editMode={editMode}
           timeOfDay={timeOfDay}
+          weather={weather}
           selectedId={selectedId}
           activity={activity}
           character={character}

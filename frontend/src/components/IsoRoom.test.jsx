@@ -168,6 +168,38 @@ describe("powered room decorations", () => {
   });
 });
 
+describe("room atmosphere follows the scene", () => {
+  const indoor = { size: { w: 9, d: 7, env: "room" }, placements: [], saveView: false };
+  it("puts sunlight motes only at a real window on a clear day", () => {
+    const { container, rerender } = render(<IsoRoom {...indoor} timeOfDay="day" />);
+    expect(container.querySelectorAll(".sun-mote")).toHaveLength(9);
+    for (const extra of [{ timeOfDay: "night" }, { weather: "storm" }, { weather: "cloudy" },
+      { reduceMotion: true }, { editMode: true }, { size: { ...indoor.size, walls: "none" } }]) {
+      rerender(<IsoRoom {...indoor} timeOfDay="day" {...extra} />);
+      expect(container.querySelector("[data-room-atmosphere]")).toBeNull();
+    }
+  });
+
+  it("keeps outdoor evening motion bounded and stops it for snow or reduced motion", () => {
+    const props = { ...indoor, size: { w: 48, d: 48, env: "garden" }, timeOfDay: "sunset" };
+    const { container, rerender } = render(<IsoRoom {...props} />);
+    expect(container.querySelectorAll(".garden-firefly")).toHaveLength(6);
+    for (const extra of [{ weather: "snow" }, { weather: "rain" }, { timeOfDay: "day" }, { reduceMotion: true },
+      { size: { w: 6, d: 6, env: "garden", mask: Array(6).fill("000000") } }]) {
+      rerender(<IsoRoom {...props} {...extra} />);
+      expect(container.querySelector(".garden-firefly")).toBeNull();
+    }
+  });
+
+  it("softens the window's floor light under rain", () => {
+    const { container, rerender } = render(<IsoRoom {...indoor} timeOfDay="day" />);
+    const strength = () => Number(container.querySelector('[data-window-floor-light] polygon').getAttribute("opacity"));
+    const clear = strength();
+    rerender(<IsoRoom {...indoor} timeOfDay="day" weather="rain" />);
+    expect(strength()).toBeLessThan(clear / 2);
+  });
+});
+
 describe("camera panning", () => {
   it("composites one translated layer during the gesture and commits viewBox on release", () => {
     const { container } = render(

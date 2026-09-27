@@ -167,6 +167,60 @@ export const HAT_REGISTRY = {
       </>
     ),
   },
+  headphones: {
+    // A padded band and large ear cups, drawn over (not instead of) the hair.
+    // The warm accent keeps the tiny dark cups from disappearing into dark
+    // hairstyles and echoes the app's lamp light.
+    draw: ({ headY }) => (
+      <>
+        <path
+          d={`M -8.9 ${headY + 1.5} Q -9.2 ${headY - 9.7} 0 ${headY - 10.8}
+              Q 9.2 ${headY - 9.7} 8.9 ${headY + 1.5}`}
+          fill="none"
+          stroke="#2b2942"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <path
+          d={`M -7.6 ${headY - 5.9} Q 0 ${headY - 11.8} 7.6 ${headY - 5.9}`}
+          fill="none"
+          stroke="#fff"
+          strokeWidth="0.8"
+          strokeLinecap="round"
+          opacity="0.16"
+        />
+        {[-1, 1].map((side) => (
+          <g key={side}>
+            <rect
+              x={side < 0 ? -10.4 : 7.1}
+              y={headY - 1.1}
+              width="3.3"
+              height="7.2"
+              rx="1.6"
+              fill="#2b2942"
+            />
+            <rect
+              x={side < 0 ? -9.5 : 7.7}
+              y={headY + 0.1}
+              width="2.4"
+              height="4.8"
+              rx="1.2"
+              fill="#c9a24b"
+            />
+            <rect
+              x={side < 0 ? -9.5 : 7.7}
+              y={headY + 2.9}
+              width="2.4"
+              height="2"
+              rx="1"
+              fill="#000"
+              opacity="0.15"
+            />
+          </g>
+        ))}
+      </>
+    ),
+  },
 };
 
 /** The hat being worn, over the finished hair. */

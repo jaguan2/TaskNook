@@ -248,6 +248,65 @@ export const GARMENT_REGISTRY = {
       </>
     ),
   },
+  blouse: {
+    // A broad Peter Pan collar and small bow in the second colour distinguish
+    // this soft silhouette from the button-up's sharp collar and placket.
+    finish: MATTE,
+    cuffs: true,
+    back: ({ top, inner }) => (
+      <path
+        d={`M -4.5 ${top + 0.4} Q 0 ${top + 3.4} 4.5 ${top + 0.4}
+            L 3.7 ${top + 2.8} Q 0 ${top + 5.2} -3.7 ${top + 2.8} Z`}
+        fill={inner}
+        opacity="0.92"
+      />
+    ),
+    side: ({ top, inner }) => (
+      <>
+        <path
+          d={`M -4 ${top + 0.4} Q -0.5 ${top + 3.5} 2.8 ${top + 1.2}
+              Q -0.2 ${top + 5.1} -4.5 ${top + 2.7} Z`}
+          fill={inner}
+          opacity="0.92"
+        />
+        <circle cx="-2.2" cy={top + 5.1} r="0.8" fill="#000" opacity="0.34" />
+      </>
+    ),
+    draw: ({ top, bot, inner }) => (
+      <>
+        <path d={`M -4.6 ${top + 0.3} Q -5 ${top + 4.8} -0.3 ${top + 5.2} L 0 ${top + 2.6} Q -2.1 ${top + 1} -4.6 ${top + 0.3} Z`} fill={inner} />
+        <path d={`M 4.6 ${top + 0.3} Q 5 ${top + 4.8} 0.3 ${top + 5.2} L 0 ${top + 2.6} Q 2.1 ${top + 1} 4.6 ${top + 0.3} Z`} fill={inner} />
+        <path d={`M -0.8 ${top + 5} L -3.1 ${top + 4.2} L -2.7 ${top + 7} L -0.5 ${top + 5.9} Z`} fill={inner} />
+        <path d={`M 0.8 ${top + 5} L 3.1 ${top + 4.2} L 2.7 ${top + 7} L 0.5 ${top + 5.9} Z`} fill={inner} />
+        <circle cx="0" cy={top + 5.3} r="1" fill={inner} />
+        <path d={`M 0 ${top + 6.3} L 0 ${bot - 0.8}`} stroke="#000" strokeWidth="0.8" opacity="0.14" />
+      </>
+    ),
+  },
+  tie: {
+    // Shirt-and-tie is complete top: the shirt uses the primary colour and
+    // the tie uses the second, staying visible inside an open blazer.
+    finish: CRISP,
+    cuffs: true,
+    back: ({ top }) => (
+      <path d={`M -4 ${top + 0.3} Q 0 ${top + 2.5} 4 ${top + 0.3}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.17" />
+    ),
+    side: ({ top, bot, inner }) => (
+      <>
+        <path d={`M -3.7 ${top + 0.4} L 0 ${top + 3} L -4.1 ${top + 4.2} Z`} fill="#fff" opacity="0.34" />
+        <path d={`M -1 ${top + 3.1} L 0.6 ${top + 4.5} L -0.4 ${bot - 4} L -2 ${bot - 2.3} L -2.4 ${top + 4.6} Z`} fill={inner} />
+      </>
+    ),
+    draw: ({ top, bot, inner }) => (
+      <>
+        <path d={`M -4.4 ${top + 0.4} L -0.3 ${top + 2.7} L -4.8 ${top + 4.4} Z`} fill="#fff" opacity="0.38" />
+        <path d={`M 4.4 ${top + 0.4} L 0.3 ${top + 2.7} L 4.8 ${top + 4.4} Z`} fill="#fff" opacity="0.38" />
+        <path d={`M -1.2 ${top + 2.8} L 1.2 ${top + 2.8} L 1.7 ${top + 4.6} L 0 ${top + 5.7} L -1.7 ${top + 4.6} Z`} fill={inner} />
+        <path d={`M 0 ${top + 5} L 2 ${bot - 4.1} L 0 ${bot - 1.4} L -2 ${bot - 4.1} Z`} fill={inner} />
+        <path d={`M 0 ${top + 5.2} L 0 ${bot - 2}`} stroke="#000" strokeWidth="0.7" opacity="0.15" />
+      </>
+    ),
+  },
   hoodie: {
     // The hood hangs DOWN THE BACK — the one garment whose rear view says
     // more than its front.
@@ -594,6 +653,60 @@ export const GARMENT_REGISTRY = {
         </>
       );
     },
+  },
+  blazer: {
+    // A tailored shell: long notched lapels form a deep V, the waist closes
+    // at one button, and the hem splits into two fronts. Those marks remain
+    // legible while seated, where the school and office presets usually live.
+    finish: CRISP,
+    cuffs: true,
+    back: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        <path d={`M -4.2 ${top + 0.7} Q 0 ${top + 3} 4.2 ${top + 0.7}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.18" />
+        <path d={`M 0 ${bot - 4} L 0 ${bot + 0.6}`} stroke="#000" strokeWidth="0.9" opacity="0.18" />
+        <rect x={-hem + 2} y={bot - 2.2} width={(hem - 2) * 2} height="1.2" fill="#000" opacity="0.1" />
+      </>
+    ),
+    side: ({ hem, top, bot, inner, topKind, topAccent, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        <path d={`M -3.8 ${top + 0.7} L 0.6 ${top + 5.4} L -2.1 ${top + 8.5} L -4.7 ${top + 3.7} Z`} fill={inner} />
+        {topKind === "tie" && (
+          <path d={`M -1.6 ${top + 3.2} L 0.2 ${top + 4.6} L -0.6 ${top + 8.1} L -2.1 ${top + 6.6} Z`} fill={topAccent} />
+        )}
+        <path d={`M -4.4 ${top + 3.4} L -1.4 ${top + 8.8} L ${-hem + 1.5} ${bot}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.2" />
+        <circle cx={-hem + 2.1} cy={bot - 5} r="0.85" fill={BRASS} opacity="0.85" />
+      </>
+    ),
+    draw: ({ hem, top, bot, inner, topKind, topAccent, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell()}</g>
+        {/* Restore the top inside the opening after the full coat shell, then
+            repeat only the top's defining mark so ties and bows survive. */}
+        <path d={`M -3.7 ${top + 0.5} L 0 ${top + 8.7} L 3.7 ${top + 0.5} L 3 ${top + 11.5} L -3 ${top + 11.5} Z`} fill={inner} />
+        {topKind === "tie" && (
+          <>
+            <path d={`M -1.1 ${top + 2.9} L 1.1 ${top + 2.9} L 1.5 ${top + 4.5} L 0 ${top + 5.5} L -1.5 ${top + 4.5} Z`} fill={topAccent} />
+            <path d={`M 0 ${top + 5} L 1.5 ${top + 9} L 0 ${top + 10.5} L -1.5 ${top + 9} Z`} fill={topAccent} />
+          </>
+        )}
+        {topKind === "blouse" && (
+          <>
+            <path d={`M -0.6 ${top + 3.4} L -2.7 ${top + 2.8} L -2.3 ${top + 5.2} L -0.3 ${top + 4.3} Z`} fill={topAccent} />
+            <path d={`M 0.6 ${top + 3.4} L 2.7 ${top + 2.8} L 2.3 ${top + 5.2} L 0.3 ${top + 4.3} Z`} fill={topAccent} />
+            <circle cx="0" cy={top + 3.8} r="0.8" fill={topAccent} />
+          </>
+        )}
+        <path d={`M -4.1 ${top + 0.3} L -1.2 ${top + 4} L -3.2 ${top + 5.1} L 0 ${top + 9.1} L -5.8 ${top + 4.2} Z`} style={outfit} />
+        <path d={`M 4.1 ${top + 0.3} L 1.2 ${top + 4} L 3.2 ${top + 5.1} L 0 ${top + 9.1} L 5.8 ${top + 4.2} Z`} style={outfit} />
+        <path d={`M -4.1 ${top + 0.3} L 0 ${top + 9.1} L 4.1 ${top + 0.3}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.24" strokeLinejoin="round" />
+        <circle cx="0" cy={top + 11.2} r="0.9" fill={BRASS} opacity="0.9" />
+        <path d={`M 0 ${top + 12.1} L 0 ${bot + 0.7}`} stroke="#000" strokeWidth="0.9" opacity="0.19" />
+        <path d={`M ${-hem + 1.5} ${bot - 3.7} L -2.7 ${bot - 3.1}`} stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M ${hem - 1.5} ${bot - 3.7} L 2.7 ${bot - 3.1}`} stroke="#000" strokeWidth="1.2" opacity="0.2" />
+      </>
+    ),
   },
   puffer: {
     // The fattest shell in the set — bulk IS the garment — quilted into
@@ -1012,7 +1125,7 @@ export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, mo
  * colour, and what shows through an open front (`ctx.inner`) is the TOP's
  * colour, so a red jacket over a cream shirt is exactly what it says.
  */
-export function Coat({ kind, sh, wa, hem, top, bot, waistY, topColor, coatStyle, view = "front" }) {
+export function Coat({ kind, sh, wa, hem, top, bot, waistY, topColor, topKind, topAccent, coatStyle, view = "front" }) {
   if (!kind || kind === "none") return null;
   const entry = GARMENT_REGISTRY[kind];
   if (!entry) return null;
@@ -1024,6 +1137,8 @@ export function Coat({ kind, sh, wa, hem, top, bot, waistY, topColor, coatStyle,
     bot,
     waistY: waistY ?? top + WAIST_DROP,
     inner: topColor,
+    topKind,
+    topAccent,
     outfit: coatStyle,
   };
   ctx.shell = shellFor(ctx);

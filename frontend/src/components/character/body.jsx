@@ -838,9 +838,19 @@ export function Face({ expression, headY }) {
     strokeWidth: 0.9,
     strokeLinecap: "round",
   };
+  // The warm cheek wash is the one extra facial detail that survives room
+  // scale. It softens the dot-and-line face without bringing back the heavy
+  // full-face outline that made the resident look mask-like.
+  const cheeks = (
+    <>
+      <ellipse cx="-4.4" cy={headY + 4} rx="1.45" ry="0.85" fill="#e8a3a8" opacity="0.34" />
+      <ellipse cx="4.4" cy={headY + 4} rx="1.45" ry="0.85" fill="#e8a3a8" opacity="0.34" />
+    </>
+  );
   if (expression === "happy")
     return (
       <>
+        {cheeks}
         {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
         <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
@@ -851,6 +861,7 @@ export function Face({ expression, headY }) {
   if (expression === "sleepy")
     return (
       <>
+        {cheeks}
         <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
@@ -859,8 +870,9 @@ export function Face({ expression, headY }) {
     );
   return (
     <>
-      <circle cx="-2.9" cy={headY + 2} r="0.95" fill={INK} />
-      <circle cx="2.9" cy={headY + 2} r="0.95" fill={INK} />
+      {cheeks}
+      <ellipse cx="-2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
+      <ellipse cx="2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
       <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
       <path d={`M-1.9 ${headY + 4.9} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
     </>

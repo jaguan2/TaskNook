@@ -10,6 +10,7 @@ import { Resident, You } from "./character";
 import { VolumeDefs, sphereFill } from "./character/volume";
 import { TintedBox } from "./IsoItemPrimitives";
 import { FairyLights } from "./IsoLightingItems";
+import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
 import {
   BeachBall,
   BirdBath,
@@ -1432,9 +1433,7 @@ function Teapot() {
       <path d="M-6.5 -8 q-4.5 -2 -1 -5.5" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2" strokeLinecap="round" />
       <ellipse cx="0" cy="-11" rx="3.6" ry="1.6" style={tinted("#d9a0ad")} />
       <circle cx="0" cy="-12.6" r="1.3" fill="#8a5a66" />
-      <g className="steam-puff">
-        <ellipse cx="9" cy="-15" rx="1.6" ry="2.6" fill="#fff" opacity="0.25" />
-      </g>
+      <SteamWisps x={9} y={-13} scale={0.65} />
     </g>
   );
 }
@@ -1531,9 +1530,7 @@ function Ramen() {
       <ellipse cx="3" cy="-9" rx="2.2" ry="1.3" fill="#f7f2ea" />
       <ellipse cx="3" cy="-9.1" rx="1.1" ry="0.7" fill="#e8b04b" />
       <path d="M-6 -11 l7 -4 M-4.6 -10.2 l7 -4" stroke="#b58c6a" strokeWidth="0.9" strokeLinecap="round" />
-      <g className="steam-puff">
-        <ellipse cx="0" cy="-13" rx="1.8" ry="2.8" fill="#fff" opacity="0.25" />
-      </g>
+      <SteamWisps y={-10} scale={0.8} />
     </g>
   );
 }
@@ -2039,6 +2036,48 @@ function PlantShelf() {
     </g>
   );
 }
+// Shelf contents use the same front-face coordinates in standing and wall
+// furniture. Broad spine bands and cream page blocks survive room-scale zoom.
+function ShelfBooks({ x, base, stacked = false }) {
+  return (
+    <g transform={`translate(${x},${base})`}>
+      {stacked ? (
+        <>
+          <rect x="0" y="-4" width="13" height="4" rx="0.5" fill="#668b79" />
+          <rect x="1" y="-3" width="11" height="1.7" fill="#eadbc1" />
+          <rect x="2" y="-8" width="12" height="4" rx="0.5" fill="#b57958" />
+          <rect x="3" y="-7" width="10" height="1.7" fill="#eadbc1" />
+        </>
+      ) : (
+        [[0, 12, "#668b79"], [4.8, 14, "#c6a56a"], [9.5, 11, "#a77660"]].map(([bx, h, color]) => (
+          <g key={bx}>
+            <rect x={bx} y={-h} width="4" height={h} rx="0.5" fill={color} />
+            <path d={`M${bx + 0.8} ${-h + 3} h2.4 M${bx + 0.8} -2 h2.4`} stroke="#f3e6cd" strokeWidth="0.7" opacity="0.65" />
+          </g>
+        ))
+      )}
+    </g>
+  );
+}
+
+function ShelfVine({ x, base }) {
+  return (
+    <g transform={`translate(${x},${base})`}>
+      <path d="M-4 -8 h8 l-1 8 h-6 z" fill="#bd805d" />
+      <ellipse cy="-8" rx="4" ry="1.6" fill="#694d3d" />
+      <g transform="translate(0,-8)">
+        <g className="shelf-vine-sway">
+          <g transform="translate(0,8)">
+            <path d="M0 -8 q-3 -7 -6 -5 q-1 5 6 5 M0 -8 q0 -9 4 -8 q4 4 -4 8" fill="#698e5a" />
+            <path d="M1 -9 C8 -9 9 0 7 7 S9 17 12 19" fill="none" stroke="#567a4c" strokeWidth="1.1" />
+            <path d="M6 -5 q8 -2 6 4 q-5 2 -6 -4 M8 2 q-8 -3 -6 3 q4 3 6 -3 M7 9 q8 -2 6 4 q-5 2 -6 -4 M9 16 q-7 -2 -5 3 q4 2 5 -3" fill="#759b63" />
+          </g>
+        </g>
+      </g>
+    </g>
+  );
+}
+
 // The wide sibling of Bookshelf, in the same idiom: a carcass with the books
 // drawn on its front face through the skew, which is what gives it depth
 // without needing a second drawing.
@@ -2046,37 +2085,29 @@ function Bookcase() {
   const W = 2;
   const D = 0.6;
   const H = 58;
-  const SHELVES = [-44, -28, -12];
-  const BOOKS = [
-    [3, "#7faf8f", 12],
-    [9, "#e8a3a8", 14],
-    [16, "#9b8bd6", 11],
-    [22, "#e8b04b", 13],
-    [30, "#cf8f93", 12],
-    [37, "#5b6b9b", 14],
-  ];
+  const SHELVES = [-40, -23, -6];
   return (
     <g>
       <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#a87f5f" dark={0.34} mid={0.2} />
       <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
         {/* the recessed interior, so the carcass reads as having a front */}
         <rect x="2.5" y={-H + 3} width="43" height={H - 6} fill="#000" opacity="0.16" />
+        <ShelfBooks x={5} base={-40} />
+        <ShelfBooks x={25} base={-40} stacked />
+        <ShelfBooks x={5} base={-23} stacked />
+        {/* A ceramic bowl, then a linen basket: useful gaps between books. */}
+        <path d="M28 -30 h13 q-1 7 -6.5 7 q-5.5 0 -6.5 -7" fill="#d5bca1" />
+        <ellipse cx="34.5" cy="-30" rx="6.5" ry="1.7" fill="#897059" />
+        <rect x="5" y="-18" width="18" height="12" rx="1.4" fill="#c4ad87" />
+        <path d="M5 -15 h18 M5 -9 h18" stroke="#8f7657" strokeWidth="1" opacity="0.5" />
+        <rect x="10" y="-15" width="8" height="3" rx="1" fill="#6d5847" />
+        <ShelfBooks x={28} base={-6} />
         {SHELVES.map((y) => (
-          <rect key={y} x="2.5" y={y} width="43" height="2.6" fill="#8f5d49" />
+          <g key={y}>
+            <rect x="2.5" y={y} width="43" height="2.6" style={tinted("#a87f5f")} />
+            <path d={`M2.5 ${y + 0.4} h43`} stroke="#fff" strokeWidth="0.7" opacity="0.18" />
+          </g>
         ))}
-        {SHELVES.map((shelf, row) =>
-          BOOKS.filter((_, i) => (i + row) % 3 !== 2).map(([x, c, h]) => (
-            <rect
-              key={`${shelf}-${x}`}
-              x={x + (row % 2 ? 4 : 0)}
-              y={shelf - h}
-              width="4.6"
-              height={h}
-              rx="0.8"
-              fill={c}
-            />
-          ))
-        )}
       </g>
     </g>
   );
@@ -2223,18 +2254,28 @@ function Counter() {
  *  what sells a café. */
 function CoffeeCounter() {
   const lift = COUNTER_H + COUNTER_TOP;
-  const spout = project(0.43, 0.28);
   return (
     <g>
       <Counter />
       <g transform={`translate(0,${-lift})`}>
-        <TintedBox gx={0.2} gy={0.08} dx={0.5} dy={0.3} h={16} fallback="#3a3142" tint={false} dark={0.32} mid={0.18} />
-        <g transform={`translate(${project(0.2, 0.38).x}, ${project(0.2, 0.38).y}) skewY(${SKEW})`}>
-          <rect x="1.5" y="-13.5" width="9" height="5" rx="1" fill="#e8b04b" opacity="0.85" />
-          <rect x="3" y="-5.5" width="6" height="4.5" rx="0.8" fill="#241d33" />
-        </g>
-        <g className="steam-puff">
-          <ellipse cx={spout.x} cy={spout.y - 19} rx="3" ry="4.5" fill="#fff" opacity="0.22" />
+        <TintedBox gx={0.16} gy={0.06} dx={0.68} dy={0.32} h={16} fallback="#c6bca9" tint={false} dark={0.32} mid={0.18} />
+        <g transform={`translate(${project(0.16, 0.38).x}, ${project(0.16, 0.38).y}) skewY(${SKEW})`}>
+          {/* Control fascia over an open brewing bay, not a glowing screen. */}
+          <rect x="1.2" y="-14.5" width="13.8" height="4.5" rx="0.7" fill="#403940" />
+          <circle cx="4" cy="-12.2" r="1.5" fill="#ead9b6" />
+          <path d="M4 -12.2 l0.5 -1" stroke="#665443" strokeWidth="0.7" />
+          <circle cx="9" cy="-12.2" r="0.8" fill="#dfa951" />
+          <circle cx="12" cy="-12.2" r="0.8" fill="#8aa68a" />
+          <rect x="1.8" y="-9" width="12.5" height="7.5" rx="0.6" fill="#493c3b" />
+          <path d="M7 -9 v2 h5" fill="none" stroke="#c9bda8" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M14 -10 v5 l-1 1" fill="none" stroke="#ddd0b8" strokeWidth="1" />
+          <rect x="1" y="-1.8" width="14.5" height="1.8" rx="0.4" fill="#d9ccba" />
+          <path d="M3 -1 h10" stroke="#7c6e64" strokeWidth="0.7" strokeDasharray="1 1" />
+          {/* Oversize cup handle and dark rim keep the cup readable. */}
+          <path d="M8.5 -5.5 h2 q2 2 -1 3" fill="none" stroke="#eee1c8" strokeWidth="1.1" />
+          <path d="M4.5 -6 h5 v2.5 q0 2 -2.5 2 q-2.5 0 -2.5 -2 z" fill="#eee1c8" />
+          <ellipse cx="7" cy="-6" rx="2.5" ry="0.8" fill="#72513c" />
+          <SteamWisps x={7} y={-7} scale={0.65} />
         </g>
       </g>
     </g>
@@ -2445,11 +2486,8 @@ function WallShelf() {
       <rect x="0" y="-78" width="38" height="5" rx="1.5" fill="#000" opacity="0.12" />
       <polygon points="4,-73 10,-73 4,-66" fill="#6b4a39" />
       <polygon points="30,-73 36,-73 30,-66" fill="#6b4a39" />
-      <rect x="4" y="-92" width="5" height="14" rx="1" fill="#7faf8f" />
-      <rect x="10" y="-90" width="5" height="12" rx="1" fill="#d98a93" />
-      <rect x="16" y="-93" width="5" height="15" rx="1" fill="#8a7ac2" />
-      {/* trailing plant spilling over the edge */}
-      <path d="M30 -80 q4 2 3 10 q-4 -2 -3 -10 z M33 -79 q5 4 3 14 q-5 -4 -3 -14 z" fill="#56a07c" />
+      <ShelfBooks x={3} base={-78} />
+      <ShelfVine x={25} base={-78} />
     </g>
   );
 }
@@ -2731,7 +2769,7 @@ function Flowerbed() {
 function Fireplace() {
   // Stone body with a wooden mantel slab; the firebox opening sits on the
   // front-left face (same skew trick as the bookshelf's books). Flames are
-  // CSS one-shots; the warm pool on the floor breathes with them.
+  // CSS loops; the warm pool on the floor breathes with them.
   const up = (p, h) => `${p.x},${p.y - h}`;
   const A = project(-0.05, -0.05);
   const B = project(1.65, -0.05);
@@ -2761,6 +2799,7 @@ function Fireplace() {
         <path className="flame-dance" d="M19 -13 q-6 -9 0 -20 q6 11 0 20 z" fill="#ffb45e" />
         <path className="flame-dance" style={{ animationDelay: "calc(var(--phase, 0s) + 0.5s)" }} d="M14.5 -13 q-4 -5 -1.5 -12 q4.5 7 1.5 12 z" fill="#e8874b" />
         <path className="flame-dance" style={{ animationDelay: "calc(var(--phase, 0s) + 0.9s)" }} d="M23.5 -13 q4 -6 1.5 -13 q-4.5 7 -1.5 13 z" fill="#ffd76a" />
+        <HearthEmbers />
       </g>
     </g>
   );
@@ -3275,9 +3314,7 @@ function Mug() {
       <path d="M5 -7.5 q4 1.5 0 5" fill="none" style={{ stroke: "var(--tint, #f2e9dd)" }} strokeWidth="1.6" />
       <ellipse cx="0" cy="-9" rx="5" ry="2.6" style={tinted("#f7f2ea")} />
       <ellipse cx="0" cy="-9" rx="3.6" ry="1.8" fill="#5a3a24" />
-      <g className="steam-puff">
-        <ellipse cx="0" cy="-13" rx="2" ry="3" fill="#fff" opacity="0.3" />
-      </g>
+      <SteamWisps y={-11} scale={0.8} />
     </g>
   );
 }
