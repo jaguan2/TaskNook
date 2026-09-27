@@ -135,7 +135,7 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 export const ISO_ITEMS = {
   rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
-  desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44, surface: 30 },
+  desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44, surface: 30, backView: true },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
   // Every item here is hand-drawn SVG (see the note atop IsoItems.jsx). The
   // Kenney PNG era left two flags behind that no catalog entry needs any
@@ -164,7 +164,7 @@ export const ISO_ITEMS = {
   // The set and the laptop are separate placeables as well as parts of the
   // TV unit and the desk: what sits ON furniture should be movable.
   tv: { label: "Television", icon: "📺", foot: [1.3, 0.5], hitH: 42, stacks: true, tintable: false, glow: [24, 0.3] },
-  laptop: { label: "Laptop", icon: "💻", foot: [0.7, 0.55], hitH: 20, stacks: true, tintable: false, glow: [13, 0.22] },
+  laptop: { label: "Laptop", icon: "💻", foot: [0.7, 0.55], hitH: 20, stacks: true, backView: true, tintable: false, glow: [13, 0.22] },
   // ---- autumn ----------------------------------------------------------
   // A seasonal set, grouped together in the picker so it reads as a set
   // rather than as seven unrelated things scattered through the catalog.

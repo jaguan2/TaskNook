@@ -762,7 +762,9 @@ describe("presets", () => {
     // assuming every desk was placed along the back wall.
     for (const key of ISO_PRESET_KEYS) {
       const items = ISO_PRESETS[key].items;
-      const terminals = items.filter((p) => p.item === "computer" || p.item === "laptop");
+      const screens = items.filter((p) => p.item === "computer" || p.item === "laptop");
+      // Workstations also include a laptop in their own artwork.
+      const terminals = screens.length ? screens : items.filter((p) => p.item === "desk");
       for (const chair of items.filter((p) => p.item === "deskchair")) {
         const terminal = terminals.reduce((nearest, p) => {
           const distance = Math.abs(p.gx - chair.gx) + Math.abs(p.gy - chair.gy);
@@ -804,9 +806,28 @@ describe("presets", () => {
     expect(ISO_PRESETS.home.items.length).toBeLessThanOrEqual(32);
     const loft = ISO_PRESETS.loft.items;
     const computer = loft.find((p) => p.item === "computer");
-    const window = loft.find((p) => p.item === "bigwindow");
-    expect(computer).toMatchObject({ gx: 5, gy: 0 });
-    expect(Math.abs(computer.gx - window.gx) + Math.abs(computer.gy - window.gy)).toBeLessThanOrEqual(0.5);
+    expect(computer).toMatchObject({ gx: 0, gy: 2, rot: 1 });
+    // The built-in left window spans gy 1.05–3.55. A desk facing the
+    // opposite wall can still be near a window, so pin the facing as well.
+    expect(loft.find((p) => p.item === "desk")).toMatchObject({ gx: 0, gy: 1.5, rot: 1 });
+    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1.5, gy: 2.5, rot: 3 });
+    expect(loft.some((p) => p.item === "mushroomlamp")).toBe(false);
+  });
+
+  it("pairs one sleeping corner with two opposing workstations", () => {
+    const items = ISO_PRESETS.home.items;
+    const beds = items.filter((p) => p.item === "bed");
+    const desks = items.filter((p) => p.item === "desk");
+    const chairs = items.filter((p) => p.item === "deskchair");
+    expect(beds).toHaveLength(1);
+    expect(desks).toHaveLength(2);
+    expect(desks.map((p) => p.rot || 0).sort()).toEqual([0, 2]);
+    expect(chairs.map((p) => p.rot).sort()).toEqual([0, 2]);
+    // One roommate is already settled; your arrival should take the other desk.
+    const layout = isoPresetLayout("home");
+    const free = freeSeatSpot(layout.placements);
+    expect(free).toBeTruthy();
+    expect(seatFor({ item: "resident", ...free }, layout.placements)?.placement.item).toBe("deskchair");
   });
 
   it("each application mints fresh ids (presets can be applied repeatedly)", () => {
@@ -1102,9 +1123,7 @@ describe("room atmosphere", () => {
     expect(out.lighting).toBe("golden");
   });
 
-  it("keeps the asymmetric shared home open-plan", () => {
-    const layout = isoPresetLayout("home");
-    expect(layout.mask).toBeTruthy();
+  it("keeps the roommate home and communal interiors open-plan", () => {
     for (const key of ["home", "loft", "cafeteria"]) {
       expect(isoPresetLayout(key).partitions, `${key} should stay open-plan`).toBeUndefined();
       expect(isoPresetLayout(key).arches, `${key} should stay open-plan`).toBeUndefined();

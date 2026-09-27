@@ -20,6 +20,8 @@ These are ordinary profile selections, saved through the app's profile API.
 The “In the room” toggle seats your character using the app's placement rules.
 The weather comparison keeps one character and one room throughout.
 
+Shared home, Cozy study, Secret garden and Study hall refreshed September 27, 2026.
+
 ## Rooms
 
 Each is a one-click preset: floor size, shape, environment and furniture all
@@ -30,10 +32,10 @@ their existing residents.
 
 | | |
 |---|---|
-| ![Shared home](28-shared-home.webp) **Shared home** — an asymmetric apartment with recessed sleeping and projecting kitchen wings around a shared living/work room. | ![Loft](01-loft-night.webp) **Loft** — the default. A compact open attic with a screened sleeping corner. |
+| ![Shared home](28-shared-home.webp) **Shared home** — a shared room with one bed, opposing laptop desks, wall-side bookshelves and a lilac reading chair. | ![Loft](01-loft-night.webp) **Loft** — the default. A compact open attic with a left-window workstation and a quiet sleeping corner. |
 | ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. | ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. |
 | ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. | ![Corner café](05-corner-cafe.webp) **Corner café** — an open bar run under the menu board, with tables across the floor. |
-| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a pond to sit by, a hammock, and the cat on a blanket. |
+| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a bench facing the pond, a hammock, and a dog on a blanket. |
 | ![Terrace](07-terrace.webp) **Terrace** — waist-high balustrade instead of walls, flagstones, string lights at sunset. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
 | ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — maples, a half-raked leaf pile, pumpkins, a scarecrow and a wandering turkey. | ![Winter yard](31-winter-yard.webp) **Winter yard** — snow play, a decorated tree and a smoking chimney under falling snow. |
 | ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and sun loungers. | |
@@ -60,7 +62,7 @@ than the smaller residents in the room gallery.
 |---|---|
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt, with body controls visible. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — an afro, olive overalls, denim shorts and work boots. |
-| ![Character starting looks](37-character-presets.webp) **Starting looks** — eight complete editable presets, including fall, school, office, lofi and gamer styles. | |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — eight complete editable presets, including fall, school, office, lofi and gamer styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Preview the pose** — compare standing, seated and back views before applying a look; your skin tone stays the same. |
 
 ### Personalization tools
 

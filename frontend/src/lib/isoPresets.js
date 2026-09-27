@@ -13,67 +13,47 @@ export function createIsoPresets(defaultIsoSize) {
     label: "Shared home",
     icon: "🏡",
     size: {
-      w: 14,
-      d: 11,
+      w: 10,
+      d: 9,
       env: "room",
-      wallColors: { left: "#9f756b", right: "#765d65" },
+      wallColors: { left: "#8b7974", right: "#666c79" },
       lighting: "golden",
-      // The reference is not a rectangle decorated into zones: its silhouette
-      // does the work. A recessed sleeping wing occupies the back-left and the
-      // kitchen projects from the right. The extension begins one row AFTER
-      // the bedroom threshold: putting both edges on gy 3 made their walls
-      // merge into one impossible diagonal in isometric projection. The old
-      // opposite front-left cut also added a wall return that appeared to sink
-      // into missing floor, so the shared room now keeps that usable floor.
-      mask: [
-        "11111111110000", "11111111110000", "11111111110000",
-        "11111111110000", "11111111111111", "11111111111111",
-        "11111111111111", "11111111111111", "11111111111111",
-        "11111111111111", "11111111111111",
-      ],
-      // Keep the shared home open-plan. Its asymmetric shell, recessed bed,
-      // projecting kitchen and furniture groups already define the zones;
-      // an interior arch here added architecture without separating rooms.
     },
     items: [
-      // Recessed sleeping wing, entirely behind the partition line at gy 3.
-      { item: "bed", gx: 0.5, gy: 0, tint: "#8d7897" },
-      { item: "nightstand", gx: 3, gy: 0, tint: "#d2a075" },
-      { item: "tablelamp", gx: 3, gy: 0, tint: "#d7a56f" },
-      { item: "wardrobe", gx: 4, gy: 0, tint: "#77576f" },
-      // Work zone sits between the sleeping and living areas.
-      { item: "desk", gx: 5, gy: 3.5, tint: "#c39a75" },
-      { item: "laptop", gx: 5.5, gy: 3.5 },
-      { item: "desklamp", gx: 6.5, gy: 3.5, tint: "#d19b67" },
-      { item: "ovalrug", gx: 5, gy: 4, tint: "#8f777b" },
-      // Turned around: its backrest belongs behind the resident, not wedged
-      // between them and the laptop.
-      { item: "deskchair", gx: 6, gy: 5, rot: 2, tint: "#b47c92" },
-      { item: "resident", gx: 6, gy: 5 },
-      // Main living room stays open around one clear circulation lane.
-      { item: "persianrug", gx: 2.5, gy: 5.5, tint: "#a9788e" },
-      { item: "sofa", gx: 3, gy: 7, tint: "#78648d" },
-      { item: "coffeetable", gx: 4.5, gy: 6, tint: "#c39a75" },
-      { item: "armchair", gx: 6, gy: 6, tint: "#c5828c" },
-      { item: "tvunit", gx: 0, gy: 4.5, rot: 1, tint: "#77576f" },
-      { item: "floorlamp", gx: 1.5, gy: 5.5, tint: "#d6a77e" },
-      { item: "dog", gx: 7, gy: 7, look: "husky" },
-      // Projecting kitchen wing and the dining transition into it.
-      { item: "counter", gx: 10.5, gy: 4, tint: "#c4a287" },
-      { item: "microwave", gx: 10.5, gy: 4 },
-      { item: "sink", gx: 12.5, gy: 4, tint: "#c4a287" },
-      { item: "oven", gx: 12.5, gy: 5, tint: "#8d7897" },
-      { item: "fridge", gx: 13, gy: 6, tint: "#7c6a91" },
-      { item: "stripedrug", gx: 10.5, gy: 7.5, tint: "#8d7897" },
-      { item: "diningtable", gx: 7.5, gy: 8.5, tint: "#c39a75" },
-      { item: "fruitbowl", gx: 7.5, gy: 8.5 },
-      { item: "chair", gx: 8, gy: 8, tint: "#9c7890" },
-      { item: "chair", gx: 8, gy: 10, rot: 2, tint: "#9c7890" },
-      // Wall detail follows the asymmetric shell rather than filling every run.
-      { item: "bigwindow", gx: 5.5, gy: 0 },
-      { item: "neon", gx: 0, gy: 5.5, rot: 1, tint: "#d887a4" },
-      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#bd705f" },
-      { item: "snakeplant", gx: 9, gy: 3.5 },
+      // One sleeping corner; the other end of the back wall is for reading.
+      { item: "bed", gx: 0, gy: 0, tint: "#78998d" },
+      { item: "bookshelf", gx: 8, gy: 0, tint: "#bb9674" },
+      { item: "nightstand", gx: 2.5, gy: 0, tint: "#bb9674" },
+      { item: "nightstand", gx: 6.5, gy: 0, tint: "#bb9674" },
+      { item: "tablelamp", gx: 2.5, gy: 0, tint: "#dfc591" },
+      { item: "moonlamp", gx: 6.5, gy: 0 },
+      { item: "wardrobe", gx: 0, gy: 4, rot: 1, tint: "#8b7969" },
+      // Back-to-back desks form one island. The roommates sit opposite one
+      // another, each looking at their own workstation's built-in laptop.
+      { item: "desk", gx: 3.5, gy: 3.5, rot: 2, tint: "#bb9674" },
+      { item: "desk", gx: 3.5, gy: 5, tint: "#bb9674" },
+      { item: "deskchair", gx: 4, gy: 2.5, rot: 0, tint: "#78998d" },
+      { item: "deskchair", gx: 4, gy: 6.5, rot: 2, tint: "#a383aa" },
+      { item: "resident", gx: 4, gy: 2.5, tint: "#78998d" },
+      { item: "armchair", gx: 8, gy: 1.5, tint: "#a383aa" },
+      { item: "desklamp", gx: 5, gy: 3.5, tint: "#dfc591" },
+      { item: "bookstack", gx: 4.5, gy: 3.5 },
+      { item: "succulent", gx: 5, gy: 5.5 },
+      { item: "mug", gx: 4.5, gy: 5.5 },
+      // A soft shared end of the room, leaving both sides of the desks open.
+      { item: "ovalrug", gx: 1, gy: 6.5, tint: "#aa8b7c" },
+      { item: "beanbag", gx: 1, gy: 7, tint: "#78998d" },
+      { item: "cushion", gx: 2.5, gy: 7.5, tint: "#a383aa" },
+      // Tall storage hugs the left wall so the desk island stays visible.
+      { item: "bookshelf", gx: 0, gy: 5.5, rot: 1, tint: "#bb9674" },
+      { item: "cat", gx: 6, gy: 7.5 },
+      // Common window, individual wall decorations and greenery.
+      { item: "bigwindow", gx: 3.5, gy: 0 },
+      { item: "corkboard", gx: 0, gy: 4, rot: 1 },
+      { item: "hangplant", gx: 6.5, gy: 0 },
+      { item: "pennant", gx: 0, gy: 0, tint: "#78998d" },
+      { item: "snakeplant", gx: 7.5, gy: 4.5 },
+      { item: "floorlamp", gx: 0, gy: 8, tint: "#dfc591" },
     ],
   },
   loft: {
@@ -97,30 +77,26 @@ export function createIsoPresets(defaultIsoSize) {
       // ---- SLEEPING, in the right-hand bay -------------------------------
       { item: "bed", gx: 8, gy: 0, tint: "#7f9ec9" },
       { item: "nightstand", gx: 7, gy: 0 },
-      { item: "mushroomlamp", gx: 7, gy: 0, tint: "#c58e9e" },
+      { item: "tablelamp", gx: 7, gy: 0, tint: "#e2c69b" },
       // ---- MEDIA WALL, along the back ------------------------------------
       { item: "tvunit", gx: 0, gy: 0 },
       { item: "recordplayer", gx: 2.5, gy: 0, tint: "#4a3a5b" },
       // The short media wall ends here instead of filling the whole back run.
-      // ---- WINDOW DESK: a compact work nook under the attic window ------
-      // Desk, computer, and window share one anchor: this is the focal point.
-      { item: "desk", gx: 4.5, gy: 0, tint: "#7f9ec9" },
-      { item: "computer", gx: 5, gy: 0 },
-      { item: "deskchair", gx: 5.5, gy: 1.5, rot: 2, tint: "#7f9ec9" },
+      // ---- WINDOW DESK: face the built-in LEFT window (gy 1.05–3.55) -----
+      // Transpose the desk and screen together; rot 3 puts the chair's back
+      // toward the room and its sitter looking along -gx, out the window.
+      { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#7f9ec9" },
+      { item: "computer", gx: 0, gy: 2, rot: 1 },
+      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 3, tint: "#7f9ec9" },
       // ---- LOUNGE: an L-group, both seats addressing the table -----------
-      // `rot` is a MIRROR, not a rotation — there are only two facings, so a
-      // true face-to-face across the table can't be expressed. An L works
-      // with what exists: the sofa on the left wall looks along +gx, the
-      // armchair on the back edge looks along +gy, and the coffee table sits
-      // where those two sightlines cross. Matching tints make them read as
-      // one suite rather than two stray chairs.
-      { item: "squarerug", gx: 0.5, gy: 2.5, tint: "#8a7ac2" },
-      { item: "sofa", gx: 0, gy: 2.5, rot: 1, tint: "#7f9ec9" },
-      { item: "coffeetable", gx: 1.5, gy: 3, rot: 1 },
-      { item: "armchair", gx: 1.5, gy: 1.5, tint: "#7f9ec9" },
-      // the lamp lights the sofa from the corner instead of standing in the
-      // middle of the room
-      { item: "floorlamp", gx: 0.5, gy: 1 },
+      // The lounge takes the old workstation's bay; the desk now owns the
+      // left wall. Keep a gap between the two chairs for carrying residents.
+      { item: "squarerug", gx: 4, gy: 1, tint: "#8a7ac2" },
+      { item: "sofa", gx: 4.5, gy: 0, tint: "#7f9ec9" },
+      { item: "coffeetable", gx: 4.5, gy: 1.5 },
+      { item: "armchair", gx: 3, gy: 1.5, rot: 1, tint: "#7f9ec9" },
+      // Light the outer edge of the lounge without covering the TV screen.
+      { item: "floorlamp", gx: 6.5, gy: 2.5 },
       // ---- QUIET NOOK ----------------------------------------------------
       { item: "ovalrug", gx: 2.5, gy: 5.5, tint: "#71658e" },
       { item: "beanbag", gx: 2.5, gy: 6, tint: "#8a7ac2" },
@@ -129,7 +105,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "moonlamp", gx: 5, gy: 6.5 },
       // ---- wall, spaced rather than crowded ------------------------------
       { item: "pennant", gx: 0, gy: 0, tint: "#5b6b9b" },
-      // The loft's defining window now belongs to the workstation.
+      // The second window lights the lounge; work faces the built-in left one.
       { item: "bigwindow", gx: 4.5, gy: 0 },
     ],
   },
@@ -147,7 +123,7 @@ export function createIsoPresets(defaultIsoSize) {
       // like the references, rather than floating it along the back wall.
       // It stays deliberately empty: in a personal room the chair is yours.
       { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#b78d67" },
-      { item: "computer", gx: 0, gy: 2 },
+      { item: "computer", gx: 0, gy: 2, rot: 1 },
       { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
       { item: "mug", gx: 0.5, gy: 3 },
       // The desk is on the left wall, so its chair faces sideways toward it.
@@ -239,7 +215,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "rock", gx: 2.5, gy: 2.5 },
       // the pond, with somewhere to sit facing it
       { item: "pond", gx: 6, gy: 0.5 },
-      { item: "bench", gx: 6, gy: 4 },
+      { item: "bench", gx: 6, gy: 4, rot: 2 },
       { item: "log", gx: 8, gy: 3.5 },
       { item: "bush", gx: 8.5, gy: 5.5 },
       // and the lying-down corner — the blanket well clear of the hammock,
@@ -486,6 +462,8 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "bookstack", gx: 10, gy: 3.5 },
       { item: "mug", gx: 4.5, gy: 8.0 },
       { item: "bookstack", gx: 5, gy: 8.0 },
+      { item: "mug", gx: 9.5, gy: 8 },
+      { item: "bookstack", gx: 10, gy: 8 },
       // ---- corners, greenery and light ----------------------------------
       { item: "ladder", gx: 14.5, gy: 0 },
       { item: "monstera", gx: 14.5, gy: 2 },

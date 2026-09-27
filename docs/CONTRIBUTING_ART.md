@@ -7,6 +7,12 @@ page gives you the coordinate system, the entry format, and the review loop.
 
 ## The loop
 
+Profile → Looks offers standing, seated and back previews of every complete
+outfit before applying it. Switching preview views does not change the
+character; applying a look preserves the current skin tone. The art sheet's
+`model-*` fixtures also show light/dark skin, body extremes, glasses and hats
+with the face and relaxed seated pose.
+
 ```bash
 cd frontend
 npm run art          # renders EVERY piece to art-sheet/index.html

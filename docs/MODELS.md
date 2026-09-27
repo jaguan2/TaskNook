@@ -75,6 +75,18 @@ piece so a new item sits correctly beside the existing ones.
 
 ### Persona proportions
 
+The front face keeps the existing crown size for hair and hats, but its
+cheek planes taper through an angled jaw to a narrow, softly squared chin.
+The previous curved jaw still read as a circle at room scale. Small ears and
+almond eyes share the same head anchors as the glasses. Cheek colour is
+drawn once, by `Face`; the assembly must not add another blush layer.
+
+Idle seated front-facing residents rest their hands toward the lap. This
+pose is disabled while typing, holding a break mug, moving, being carried,
+or facing away. Arm stretch and eye-rub gestures stand down together with
+the head's matching eye-rub while hands rest in the lap; props keep their
+original hand anchors. Check both short sleeves and coats at body extremes.
+
 Seated skirts use one continuous lap panel over the bare legs, not separate
 cloth strokes on each thigh (which read as shorts). Keep skirt, pleated skirt
 and maxi hems distinct; the maxi follows the seat-adjusted ankle height so

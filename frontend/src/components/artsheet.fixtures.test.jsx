@@ -65,6 +65,17 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    // Face and lap pose review: skin contrast, accessories and body extremes
+    // belong in the same sheet as the authored outfits.
+    for (const [name, extra] of Object.entries({
+      light: { skin: "#f0cfb4", hair: "bob", hairColor: "#e7dcc7", model: "fem", width: 6.2, height: 28 },
+      dark: { skin: "#774c37", hair: "buzz", model: "masc", width: 8.4, height: 34 },
+      glasses: { skin: "#b47c55", hair: "long", glasses: "round", hat: "headphones", garment: "blouse", coat: "blazer" },
+      winter: { skin: "#8d5524", hat: "trapper", coat: "puffer", expression: "sleepy" },
+    })) {
+      save(`model-${name}-front`, <Resident character={dressed(extra)} />);
+      save(`model-${name}-lap`, <Resident character={dressed(extra)} seated seatH={22} />, "-32 -45 64 85");
+    }
     // Review the authored combinations as combinations too. Individual
     // garment sheets cannot catch a scarf hiding a lapel or headphones
     // erasing the hairstyle that made a preset coherent.

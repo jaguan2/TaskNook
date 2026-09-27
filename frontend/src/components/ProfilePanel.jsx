@@ -862,7 +862,7 @@ export default function ProfilePanel() {
           {tab === "looks" && (
             <>
               <p className="text-xs leading-relaxed text-petal/65">
-                Start with a complete look, then make it yours in the other tabs.
+                Start with a complete look, then make it yours. Your skin tone stays the same.
               </p>
               <CharacterPresets character={character} onPick={saveCharacter} />
             </>

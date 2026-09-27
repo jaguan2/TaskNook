@@ -50,6 +50,15 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(() => draw(<Sprite rot={1} back />)).not.toThrow();
   });
 
+  it.each(["desk", "laptop"])("%s shows the lid back when facing away", (key) => {
+    expect(ISO_ITEMS[key].backView).toBe(true);
+    const Sprite = ISO_SPRITES[key];
+    const { container, rerender } = draw(<Sprite />);
+    expect(container.querySelector(".animate-flicker")).toBeTruthy();
+    rerender(<svg><Sprite back /></svg>);
+    expect(container.querySelector(".animate-flicker")).toBeNull();
+  });
+
   it("renders every colourway of every item that has them", () => {
     // Not it.each: the fabric pieces went back to free tinting when they
     // returned to SVG, so this list is legitimately empty now — and an empty
@@ -97,10 +106,11 @@ describe("the isometric catalog and its artwork agree", () => {
   describe("a seated persona actually sits", () => {
     const Resident = ISO_SPRITES.resident;
 
-    /** Every straight-line stroke in the sprite, as {x1,y1,x2,y2}. */
+    /** Limb-width straight strokes; exclude thin face/clothing accents. */
     const limbs = (node) => {
       const { container } = draw(node);
       return [...container.querySelectorAll("path[stroke-linecap='round']")]
+        .filter((p) => Number(p.getAttribute("stroke-width")) > 2)
         .map((p) => /^M(-?[\d.]+) (-?[\d.]+) L(-?[\d.]+) (-?[\d.]+)$/.exec(p.getAttribute("d")))
         .filter(Boolean)
         .map(([, x1, y1, x2, y2]) => ({ x1: +x1, y1: +y1, x2: +x2, y2: +y2 }));
@@ -150,6 +160,17 @@ describe("the isometric catalog and its artwork agree", () => {
 
       expect(head).toBeTruthy();
       expect(head.getAttribute("stroke")).toBeNull();
+    });
+
+    it("rests seated hands in the lap without stealing hands from activity or carrying", () => {
+      const { container, rerender } = draw(<Resident seated seatH={22} />);
+      expect(container.querySelectorAll('[data-arm-pose="lap"]')).toHaveLength(2);
+      expect(container.querySelector('.gesture-rub')).toBeNull();
+      expect(container.querySelector('.gesture-rub-head')).toBeNull();
+      for (const props of [{}, { seated: true, activity: "focus" }, { seated: true, activity: "break" }, { seated: true, held: true }, { seated: true, facing: "back" }]) {
+        rerender(<svg><Resident {...props} /></svg>);
+        expect(container.querySelector('[data-arm-pose="lap"]')).toBeNull();
+      }
     });
 
     it.each(

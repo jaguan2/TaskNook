@@ -28,6 +28,7 @@ import {
   SKIN,
   TROUSER,
   Face,
+  HeadSkin,
   SeatedLeg,
   SeatedSkirt,
   SideFace,
@@ -220,6 +221,9 @@ export function Resident({
   // reached the app and stopped at the thought bubble. Now they put the keyboard
   // down, pick up a mug and stretch — the one moment the room should notice.
   const resting = activity === "break";
+  // Hands settle toward the lap only when they have no other job. The
+  // original anchors remain the contract for props, gestures and carrying.
+  const lap = seated && !back && !typing && !resting && !moving && !held;
   // ---- the PROFILE: its own drawing, not a squeezed front ---------------- //
   // A body seen side-on is one leg wide: the torso narrows to its depth, both
   // legs stand near the centre line (near ahead of far), ONE arm shows, the
@@ -820,7 +824,7 @@ export function Resident({
           {/* Gestures stand down mid-stride, the same way they yield to typing:
               an arm reaching overhead while the legs scissor reads as a glitch,
               and both animations would be fighting the swing below. */}
-          <g className={typing || moving || held ? undefined : "gesture-stretch"}>
+          <g className={typing || moving || held || lap ? undefined : "gesture-stretch"}>
             <g className={typing ? "resident-type" : undefined}>
               {/* The FAR arm carries leg B's clock, so it opposes the far leg
                   (which is A) — contralateral swing, the thing that separates
@@ -831,6 +835,7 @@ export function Resident({
                     AT the joint and the forearm shows as skin. */}
                 <Arm
                   side={-1}
+                  lap={lap}
                   sh={sh}
                   torsoY={torsoY}
                   skin={skin}
@@ -847,10 +852,11 @@ export function Resident({
                   holding something: at 186° the mug would come up over the face
                   upside down. */}
               <g className={moving ? "walk-arm-a" : undefined}>
-              <g className={typing || resting || moving || held ? undefined : "gesture-rub"}>
+              <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub"}>
               <g style={hangLimb(held, 8)}>
                 <Arm
                   side={1}
+                  lap={lap}
                   sh={sh}
                   torsoY={torsoY}
                   skin={skin}
@@ -923,7 +929,7 @@ export function Resident({
               that isn't raised is worse than no gesture at all. The yawn and
               the glance above are head-only and keep playing — yawning on the
               way across the room is fine. */}
-          <g className={typing || resting || moving || held ? undefined : "gesture-rub-head"}>
+          <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
               {/* Inside the gesture wrappers on purpose: hair turns with the
                   head. Behind the face is what matters, not behind the body.
@@ -932,17 +938,7 @@ export function Resident({
               {!hatted && !back && (
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
-              <circle
-                data-character-head="front"
-                cx="0"
-                cy={headY}
-                r={HEAD_R}
-                fill={skin}
-                opacity="1"
-              />
-              {/* the head is a SPHERE now, not a disc — same gradient the
-                  pets' masses carry, so every round thing models alike */}
-              <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
+              <HeadSkin headY={headY} skin={skin} volume={sphereFill(clipId)} back={back} />
               {/* warm rim on the lit edge (VC2 reference pass): the window-
                   light cue their figures all carry. Under the hair, so it
                   reads on the cheek and jaw where skin shows. */}
@@ -970,12 +966,6 @@ export function Resident({
                   hovering while the head moves under it. */}
               <Hat kind={ch.hat} headY={headY} />
               {!back && <Face expression={ch.expression} headY={headY} />}
-              {!back && (
-                <>
-                  <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-                  <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-                </>
-              )}
               {/* Glasses land right after the eyes' layer — over the fringe
                   and the hat's rim, so no crown mass can bury the rims, and
                   inside the gesture group so they turn with a glance. Turned

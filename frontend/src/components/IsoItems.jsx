@@ -1762,7 +1762,7 @@ function Nightstand() {
 // A desk is a TOP on supports, not a solid block — the gap under it is what
 // separates it from a counter at this size. Side panels rather than four legs:
 // four 3px legs turn to mush, a panel reads at any zoom.
-function Desk() {
+function Desk({ back = false }) {
   const W = 2.2;
   const D = 1.2;
   const TOP = 26;
@@ -1771,20 +1771,20 @@ function Desk() {
       <TintedBox gx={0.05} gy={0.12} dx={0.16} dy={D - 0.24} h={TOP} fallback="#8f5d49" dark={0.36} mid={0.2} />
       {/* drawer stack under the right end, set back from the top's edge */}
       <TintedBox gx={1.38} gy={0.16} dx={0.7} dy={D - 0.32} h={TOP - 3} fallback="#a87f5f" dark={0.34} mid={0.2} />
-      <g transform={`translate(${project(1.38, D - 0.16).x}, ${project(1.38, D - 0.16).y}) skewY(${SKEW})`}>
+      {!back && <g transform={`translate(${project(1.38, D - 0.16).x}, ${project(1.38, D - 0.16).y}) skewY(${SKEW})`}>
         {[-19, -12, -5].map((y) => (
           <g key={y}>
             <rect x="2" y={y - 4} width="12.8" height="6" rx="1.2" fill="#000" opacity="0.13" />
             <rect x="6" y={y - 1.6} width="5" height="1.4" rx="0.7" fill="#fff" opacity="0.2" />
           </g>
         ))}
-      </g>
+      </g>}
       <g transform={`translate(0,${-TOP})`}>
         <TintedBox gx={0} gy={0} dx={W} dy={D} h={4} fallback="#b58c6a" dark={0.3} mid={0.16} />
         <g transform="translate(0,-4)">
           {/* a bare slab reads as flat-pack — same seams the tables get */}
           <Planks w={W} d={D} n={3} />
-          <Laptop />
+          <Laptop back={back} />
         </g>
       </g>
     </g>
@@ -1792,12 +1792,12 @@ function Desk() {
 }
 
 // Screen toward the chair (+gy), which is the face isoBox calls `left`.
-function Laptop() {
+function Laptop({ back = false }) {
   // Drawn around gx 0..0.7 so it works both as a placeable item and as the
   // thing sitting on the Desk sprite.
   const X = 0.06;
   const BASE_H = 3;
-  const lid = isoBox(X + 0.02, 0.17, 0.56, 0.045, 16);
+  const lid = isoBox(X + 0.02, back ? 0.5 : 0.17, 0.56, 0.045, 16);
   const keyRow = (gy, n, w) =>
     Array.from({ length: n }, (_, i) => (
       <polygon
@@ -1824,13 +1824,18 @@ function Laptop() {
       <polygon points={lid.left} fill="#2b2350" />
       <polygon points={lid.right} fill="#241d33" />
       <polygon points={lid.top} fill="#3a3142" />
-      <g transform={`translate(${project(X + 0.05, 0.215).x}, ${project(X + 0.05, 0.215).y}) skewY(${SKEW})`}>
+      {back ? (
+        <g transform={`translate(${project(X + 0.05, 0.545).x}, ${project(X + 0.05, 0.545).y}) skewY(${SKEW})`}>
+          <rect x="1" y="-13" width="10" height="10" rx="1" fill="#59566c" />
+          <circle cx="6" cy="-8" r="1.2" fill="#d7d4df" opacity="0.65" />
+        </g>
+      ) : <g transform={`translate(${project(X + 0.05, 0.215).x}, ${project(X + 0.05, 0.215).y}) skewY(${SKEW})`}>
         <rect x="0" y="-14" width="11.5" height="12" rx="0.6" fill="url(#isoScreen)" />
         <rect className="animate-flicker" x="0" y="-14" width="11.5" height="12" rx="0.6" fill="#9db4e8" opacity="0.32" />
         <rect x="1.2" y="-12.4" width="5" height="3.4" rx="0.5" fill="#f7e9e2" opacity="0.42" />
         <rect x="1.2" y="-8" width="7.5" height="0.9" rx="0.45" fill="#f7e9e2" opacity="0.3" />
         <rect x="1.2" y="-6" width="5.5" height="0.9" rx="0.45" fill="#f7e9e2" opacity="0.22" />
-      </g>
+      </g>}
     </g>
   );
 }

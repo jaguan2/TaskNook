@@ -668,7 +668,7 @@ export function SideFace({ expression, headY, skin }) {
       ) : expression === "sleepy" ? (
         <path d={`M-4.7 ${headY + 2} q1.2 0.9 2.4 0`} {...stroke} />
       ) : (
-        <circle cx="-3.5" cy={headY + 1.9} r="0.95" fill={INK} />
+        <OpenEye x={-3.5} y={headY + 1.9} />
       )}
       {/* the mouth sits ON the face, small and soft — the old longer stroke
           started so far back it read as a cut across the cheek */}
@@ -702,6 +702,7 @@ export function Arm({
   torsoY,
   skin,
   outfit,
+  lap = false,
   shortSleeve = false,
   bulk = 0,
   far = false,
@@ -724,8 +725,10 @@ export function Arm({
   // piece's root nests inside the piece it hangs from, and only its far end
   // shows.
   const S = { x: side * (sh - 0.5), y: torsoY + 4.4 }; // shoulder, inside the torso
-  const E = { x: side * (sh + 1.9), y: torsoY + 12 }; // elbow, bowed out
-  const H = { x: side * (sh + 0.9), y: torsoY + 17.5 }; // hand (fixed anchor)
+  const E = { x: side * (sh + (lap ? 0.5 : 1.9)), y: torsoY + 12 };
+  const H = lap
+    ? { x: side * 3.8, y: torsoY + 17 }
+    : { x: side * (sh + 0.9), y: torsoY + 17.5 };
   // ONE CONTINUOUS POLYLINE per layer, bent at the elbow — the joint reads
   // from the BEND in the outline, nothing else. Per-segment capsules with
   // per-segment washes grew a lens blob at every joint (owner screenshot);
@@ -734,8 +737,8 @@ export function Arm({
   // changes direction, but the silhouette no longer looks like two rulers
   // meeting at a vertex; the reference figures keep their limbs relaxed even
   // when the rendering itself stays low-detail.
-  const upperControl = { x: side * (sh + 2.35), y: torsoY + 8.1 };
-  const lowerControl = { x: side * (sh + 2.15), y: torsoY + 14.7 };
+  const upperControl = { x: side * (sh + (lap ? 0.9 : 2.35)), y: torsoY + 8.1 };
+  const lowerControl = { x: side * (lap ? sh - 1.2 : sh + 2.15), y: torsoY + (lap ? 16 : 14.7) };
   const whole = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y} Q ${lowerControl.x} ${lowerControl.y} ${H.x} ${H.y}`;
   const upper = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y}`;
   const w = 4.3 + bulk;
@@ -764,7 +767,7 @@ export function Arm({
     return line(`M ${x - px} ${y - py} L ${x + px} ${y + py}`, paint, sw, op);
   };
   return (
-    <g>
+    <g data-arm-pose={lap ? "lap" : "active"}>
       {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}
       {line(whole, skin, 4.1)}
       <SleeveSeg d={shortSleeve ? upper : whole} w={w} outfit={outfit} />
@@ -830,12 +833,46 @@ function SleeveSeg({ d, w, outfit }) {
   return <path d={d} stroke={colour} strokeWidth={w} strokeLinecap="round" fill="none" />;
 }
 
+/** Keep the crown's existing fit for hair/hats. Below the temples, distinct
+ * cheek planes taper to a narrow, softly squared chin instead of a sphere. */
+export function HeadSkin({ headY, skin, volume, back = false }) {
+  const outline = `M0 ${headY - HEAD_R}
+    C4.6 ${headY - HEAD_R} 7.1 ${headY - 4.5} 6.8 ${headY - 0.3}
+    L6 ${headY + 2.7} L3.2 ${headY + 6.2}
+    Q2 ${headY + 7.5} 1 ${headY + 7.6}
+    L-1 ${headY + 7.6} Q-2 ${headY + 7.5} -3.2 ${headY + 6.2}
+    L-6 ${headY + 2.7} L-6.8 ${headY - 0.3}
+    C-7.1 ${headY - 4.5} -4.6 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
+  if (back) return <><circle cy={headY} r={HEAD_R} fill={skin} /><circle cy={headY} r={HEAD_R} fill={volume} /></>;
+  return <>
+    {[-1, 1].map((side) => <g key={side}>
+      <ellipse cx={side * 6.5} cy={headY + 1.1} rx="1.1" ry="1.65" fill={skin} />
+      <path d={`M${side * 6.7} ${headY + 0.5} q${side * 0.6} 0.4 0 1.3`} fill="none" stroke={SHADE} strokeWidth="0.65" opacity="0.2" />
+    </g>)}
+    <path data-character-head="front" d={outline} fill={skin} />
+    <path d={outline} fill={volume} />
+    <path d={`M-6 ${headY + 1.7} L-5.4 ${headY + 3} L-2.6 ${headY + 6.1}`} fill="none" stroke={SHADE} strokeWidth="0.65" strokeLinecap="round" opacity="0.16" />
+    <path d={`M5.65 ${headY + 2.6} L3 ${headY + 6}`} fill="none" stroke={GLINT} strokeWidth="0.6" strokeLinecap="round" opacity="0.3" />
+  </>;
+}
+
+// A small almond-shaped eye, with a warm sclera and a single catchlight.
+// Shared with the profile so changing facing doesn't change the person.
+function OpenEye({ x, y }) {
+  return <g transform={`translate(${x},${y})`}>
+    <path d="M-1.45 0 Q0 -1.35 1.45 0 Q0 1.1 -1.45 0Z" fill="#fff3e0" opacity="0.8" />
+    <ellipse cy="0.02" rx="0.72" ry="0.92" fill={INK} />
+    <path d="M-1.45 0 Q0 -1.35 1.45 0" fill="none" stroke={INK} strokeWidth="0.45" strokeLinecap="round" />
+    <circle cx="0.22" cy="-0.3" r="0.22" fill="#fff3e0" />
+  </g>;
+}
+
 /** Eyes and mouth. Expression is the cheapest personality per pixel here. */
 export function Face({ expression, headY }) {
   const stroke = {
     fill: "none",
     stroke: INK,
-    strokeWidth: 0.9,
+    strokeWidth: 0.75,
     strokeLinecap: "round",
   };
   // The warm cheek wash is the one extra facial detail that survives room
@@ -855,7 +892,7 @@ export function Face({ expression, headY }) {
         <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
         <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-        <path d={`M-2.4 ${headY + 4.8} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
+        <path d={`M-1.7 ${headY + 4.8} q1.7 1.6 3.4 0`} {...stroke} />
       </>
     );
   if (expression === "sleepy")
@@ -865,16 +902,17 @@ export function Face({ expression, headY }) {
         <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-        <ellipse cx="0" cy={headY + 5.2} rx="1" ry="1.3" fill={INK} opacity="0.7" />
+        <path d={`M-0.8 ${headY + 5} q0.8 0.35 1.6 0`} {...stroke} opacity="0.65" />
       </>
     );
   return (
     <>
       {cheeks}
-      <ellipse cx="-2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
-      <ellipse cx="2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
+      <OpenEye x={-2.9} y={headY + 2} />
+      <OpenEye x={2.9} y={headY + 2} />
+      <path d={`M-4.1 ${headY - 0.3} q1 -0.5 2.2 -0.1 M1.9 ${headY - 0.4} q1 -0.4 2.2 0.1`} {...stroke} strokeWidth="0.55" opacity="0.5" />
       <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-      <path d={`M-1.9 ${headY + 4.9} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
+      <path d={`M-1.2 ${headY + 4.9} q1.2 0.8 2.4 0`} {...stroke} opacity="0.75" />
     </>
   );
 }
