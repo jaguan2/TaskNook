@@ -180,6 +180,21 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
 
+## Desktop update notifications
+
+`desktop_updates.py` checks a small `desktop-update.json` on GitHub in the
+background on every launch and every six hours while open, for frozen builds
+only. Startup bypasses the persisted check cooldown, but retains the reminder
+cooldown. It prompts at most once a day and opens the
+fixed repository executable URL after consent; replacing the file is still
+manual. Source launches and frozen self-tests must never check online.
+`build-exe.bat` embeds `build/desktop-build.json` and then generates the public
+manifest after packaging. **Commit `TaskNook.exe` and `desktop-update.json`
+together.** The default channel is `main`; `TASKNOOK_UPDATE_CHANNEL=dev` makes
+an explicitly development-channel build. Never infer the channel from the
+current checkout branch. Bundled build identities must match the manifest,
+and missing/malformed/offline feeds must never interrupt normal app use.
+
 ## Committing
 
 **Never put `Co-Authored-By: Codex …` (or any AI attribution) in a commit
