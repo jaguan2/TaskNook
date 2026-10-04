@@ -20,7 +20,8 @@ import Cottage from "./Cottage";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
 import { CHARACTER_PRESETS } from "../lib/characterPresets";
-import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, freeSeatSpot, isoPresetLayout, seatFor } from "../lib/isoRoom";
+import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, ISO_ITEMS, ISO_ITEM_GROUPS, freeSeatSpot, isoPresetLayout, seatFor, seatedPlacement } from "../lib/isoRoom";
+import { project } from "../lib/iso";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -53,11 +54,13 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     const Cat = ISO_SPRITES.cat;
     const Dog = ISO_SPRITES.dog;
     let count = 0;
-    const save = (name, node, viewBox = "-32 -60 64 78") => {
+    const save = (name, node, viewBox = "-32 -72 64 90") => {
       writeFileSync(
         `${DIR}/${name}.svg`,
         renderToStaticMarkup(
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox}
+            style={{ "--color-rose": "209 137 152", "--color-blush": "222 181 188",
+              "--color-petal": "232 222 224" }}>
             {node}
           </svg>
         )
@@ -65,6 +68,32 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    // The full catalog, including items absent from every preset. Reuse the
+    // scene's actual paint definitions so screens, glass and water review as
+    // they do in the app, rather than silently rendering black in isolation.
+    const roomMarkup = renderToStaticMarkup(<IsoRoom size={{ w: 4, d: 4 }} placements={[]}
+      saveView={false} reduceMotion timeOfDay="day" />);
+    const defs = roomMarkup.match(/<defs>([\s\S]*?)<\/defs>/)[1];
+    const inventory = [];
+    for (const [key, item] of Object.entries(ISO_ITEMS)) {
+      const Sprite = ISO_SPRITES[key];
+      const [w, d] = item.foot;
+      const left = project(0, d).x - 16;
+      const right = project(w, 0).x + 16;
+      const top = -(item.wall ? 128 : item.hitH + 18);
+      const bottom = project(w, d).y + 16;
+      const viewBox = `${left} ${top} ${right - left} ${bottom - top}`;
+      const views = item.backView ? [false, true] : [false];
+      for (const back of views) {
+        save(`catalog-${key}-${back ? "back" : "front"}`, <>
+          <defs dangerouslySetInnerHTML={{ __html: defs }} />
+          <Sprite back={back} character={DEFAULT_CHARACTER} />
+        </>, viewBox);
+      }
+      inventory.push({ key, label: item.label, group: ISO_ITEM_GROUPS.find((g) => g.keys.includes(key))?.label || "Other",
+        views: views.length, foot: item.foot, height: item.hitH });
+    }
+    writeFileSync(`${DIR}/../catalog.json`, JSON.stringify(inventory, null, 2));
     // Face and lap pose review: skin contrast, accessories and body extremes
     // belong in the same sheet as the authored outfits.
     for (const [name, extra] of Object.entries({
@@ -87,6 +116,13 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         "-32 -60 64 100"
       );
       save(`preset-${preset.key}-back`, <Resident character={preset.character} facing="back" />);
+      for (const facing of ["front", "back"]) {
+        for (const activity of ["idle", "focus", "break"]) {
+          save(`seated-look-${preset.key}-${facing}-${activity}`,
+            <Resident character={preset.character} facing={facing} activity={activity}
+              seated seatH={19} />, "-32 -48 64 85");
+        }
+      }
     }
     for (const { key: pants } of PANTS) {
       for (const model of ["masc", "fem"]) {
@@ -104,6 +140,41 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const key of ["chair", "deskchair", "armchair", "sofa", "bed", "wardrobe", "dresser", "bookshelf"]) {
       const Sprite = ISO_SPRITES[key];
       save(`furniture-${key}`, <Sprite />, "-80 -120 160 165");
+    }
+    // Fabric and shelf depth must survive both light and dark user tints.
+    for (const key of ["bed", "sofa", "armchair", "chair", "deskchair", "bench", "bookshelf", "monstera"]) {
+      const Sprite = ISO_SPRITES[key];
+      for (const [tone, color] of Object.entries({ sage: "#799a8c", dark: "#342b45", cream: "#e8d7b9" })) {
+        for (const back of [false, true]) {
+          if (back && !ISO_ITEMS[key].backView) continue;
+          save(`material-${key}-${tone}-${back ? "back" : "front"}`,
+            <g style={{ "--tint": color }}><Sprite back={back} /></g>, "-80 -105 160 150");
+        }
+      }
+    }
+    // Review furniture contact using the same anchor, seat height and facing
+    // resolver as the room. Front/rear body extremes expose arm and backrest
+    // occlusion that an empty chair or an isolated resident cannot show.
+    for (const key of ["armchair", "sofa", "deskchair", "bench"]) {
+      const Sprite = ISO_SPRITES[key];
+      for (const back of [false, true]) {
+        const chair = { id: "seat", item: key, gx: 0, gy: 0, rot: back ? 2 : 0 };
+        const anchor = seatedPlacement({ item: "resident" }, { placement: chair, height: ISO_ITEMS[key].seat });
+        const point = project(anchor.gx, anchor.gy);
+        for (const [body, character] of Object.entries({
+          slim: dressed({ model: "fem", width: 6.2, height: 28, coat: "cardigan", coatColor: "#e8d7b9", hair: "long", pants: "maxi" }),
+          wide: dressed({ model: "masc", width: 8.4, height: 34, skin: "#774c37", coat: "puffer", coatColor: "#342b45", pants: "jeans" }),
+        })) {
+          for (const activity of ["idle", "focus", "break"]) {
+            const furniture = <g style={{ "--tint": "#799a8c" }}><Sprite back={back} /></g>;
+            const person = <g transform={`translate(${point.x},${point.y - anchor._seat})`}>
+              <Resident seated seatH={anchor._seat} character={character} facing={anchor._facing} activity={activity === "idle" ? null : activity} />
+            </g>;
+            save(`seating-${key}-${back ? "back" : "front"}-${body}-${activity}`,
+              <>{back ? person : furniture}{back ? furniture : person}</>, "-45 -80 90 105");
+          }
+        }
+      }
     }
     for (const pants of ["skirt", "pleats", "maxi"]) {
       for (const [way, trouser] of Object.entries({ dark: "#33305e", light: "#e7dcc7" })) {

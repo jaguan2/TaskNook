@@ -5,6 +5,8 @@
  * sessions created through the actual endpoints, rooms applied by clicking the
  * same preset buttons a person would. Nothing here is mocked, which is the
  * whole point: a screenshot that can drift from the app is worse than none.
+ * Character examples isolate the editor's actual SVG models: 600x800 single
+ * portraits and 1600x1000 standing/seated sheets of all eight preset looks.
  *
  * This script is COMMITTED on purpose. It had been rebuilt from scratch in a
  * throwaway scratchpad at least twice, and each rebuild re-learned the same
@@ -75,6 +77,7 @@ const CHARACTERS = [
   ["35", "character-winter", "winter", "Extras"],
   ["36", "character-garden", "garden", "Hair"],
   ["37", "character-presets", null, "Looks"],
+  ["38", "character-presets-seated", null, "Looks"],
 ];
 
 async function setCharacter(page, look) {
@@ -321,6 +324,63 @@ async function seed(page) {
 }
 
 // --------------------------------------------------------------------------- //
+/** Closeups of the exact SVG models rendered by the editor. Extract the
+ * complete drawing, then render it at capture resolution; cropping the tiny
+ * preview out of a full-app bitmap would only enlarge blurry pixels.
+ */
+async function modelShot(cdp, page, file, presets) {
+  const models = await page.evaluate(`(() => {
+    const buttons = [...document.querySelectorAll('[aria-label="Character looks"] > button')];
+    const sources = ${presets} ? buttons.map(button => ({
+      svg: button.querySelector('svg'), label: button.querySelector('span > span')?.textContent.trim()
+    })) : [{ svg: document.querySelector('svg[aria-label^="Front view of your character"]'), label: '' }];
+    if (sources.length !== ${presets ? 8 : 1} || sources.some(source => !source.svg))
+      throw new Error('Character closeup sources missing');
+    return sources.map(({svg, label}) => {
+      const bounds = svg.getBBox();
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.removeAttribute('class'); clone.removeAttribute('style');
+      return { svg: clone.outerHTML, label,
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } };
+    });
+  })()`);
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: presets ? 1600 : 600, height: presets ? 1000 : 800, deviceScaleFactor: 1, mobile: false,
+  });
+  await page.evaluate(`(() => {
+    const models = ${JSON.stringify(models)};
+    const left = Math.min(...models.map(model => model.bounds.x)) - 5;
+    const top = Math.min(...models.map(model => model.bounds.y)) - 5;
+    const right = Math.max(...models.map(model => model.bounds.x + model.bounds.width)) + 5;
+    const bottom = Math.max(...models.map(model => model.bounds.y + model.bounds.height)) + 5;
+    const stage = document.createElement('main');
+    stage.style.cssText = 'width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${presets ? 4 : 1},minmax(0,1fr));grid-template-rows:repeat(${presets ? 2 : 1},minmax(0,1fr))';
+    for (const model of models) {
+      const figure = document.createElement('figure');
+      figure.style.cssText = 'margin:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px';
+      const svg = new DOMParser().parseFromString(model.svg, 'image/svg+xml').documentElement;
+      svg.setAttribute('viewBox', [left, top, right-left, bottom-top].join(' '));
+      svg.style.cssText = 'width:100%;height:100%;min-height:0;display:block';
+      figure.append(svg);
+      if (model.label) {
+        const caption = document.createElement('figcaption'); caption.textContent = model.label;
+        caption.style.cssText = 'font:600 20px/28px "Segoe UI",sans-serif;color:#493c43;text-align:center';
+        figure.append(caption);
+      }
+      stage.append(figure);
+    }
+    const still = document.createElement('style');
+    still.textContent = '*{animation:none!important;transition:none!important}body{margin:0!important}';
+    document.head.append(still);document.body.replaceChildren(stage);
+  })()`);
+  await sleep(200);
+  await page.shot(file);
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: W, height: H, deviceScaleFactor: 1, mobile: false,
+  });
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const cdp = await connect();
@@ -466,20 +526,39 @@ async function main() {
     } else console.log("  27 visiting:", r);
   }
 
-  // Dedicated examples keep the real editor's larger preview in frame.
+  // Dedicated examples show only the actual model, at full capture resolution.
   for (const [n, name, look, tab] of CHARACTERS) {
     if (!want(n)) continue;
-    if (look) await setCharacter(page, look);
+    await setCharacter(page, look || "casual");
     await page.setStorage(ambient({ weather: "off", time: "day" }));
     await page.load();
     await page.clickText("Profile", { exact: true });
     await page.clickText(tab, { exact: true });
     // The preset screenshot exercises the real one-click path rather than
     // inserting the same payload through a second test-only route.
-    if (n === "37") await page.clickText("Lofi girl");
+    if (n === "37" || n === "38") await page.clickText("Lofi girl");
+    if (n === "38") await page.clickText("Seated", { exact: true });
     await sleep(1600);
-    await page.shot(join(OUT_DIR, `${n}-${name}.webp`));
-    console.log(`  ${n}-${name}.webp (${look || "preset UI"})`);
+    await modelShot(cdp, page, join(OUT_DIR, `${n}-${name}.webp`), !look);
+    console.log(`  ${n}-${name}.webp (${look || "eight preset models"}, closeup)`);
+  }
+
+  // Fixed common place: join through the real drawer, then try the raised seat.
+  if (["39", "40", "41"].some(want)) {
+    await setCharacter(page, "casual");
+    await page.setStorage(ambient({ weather: "off", time: "day" }));
+    await page.load();
+    await page.clickText("Friends", { exact: true });
+    const joined = await page.clickText("Common Cottage");
+    if (joined !== "ok") throw new Error("Common Cottage entry: " + joined);
+    await sleep(2500);
+    if (want("39")) await page.shot(join(OUT_DIR, "39-common-cottage.webp"));
+    await page.clickText("Change seat");
+    if (want("41")) await page.shot(join(OUT_DIR, "41-common-cottage-seats.webp"));
+    await page.clickText("Reading armchair", { exact: true });
+    await sleep(500);
+    if (want("40")) await page.shot(join(OUT_DIR, "40-common-cottage-reading.webp"));
+    console.log("  common cottage: entry, open seats and raised reading nook");
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

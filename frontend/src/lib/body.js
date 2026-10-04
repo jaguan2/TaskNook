@@ -36,9 +36,9 @@ export const HEAD_R_EFF = HEAD_R * HEAD_SCALE;
 // Legs up, torso down: at 22/22 the visible leg was 32% of the figure's
 // height and the torso a near-square 23×22 block — which is what read as
 // "chunky" however it was shaded. The clay-toy retune took it to 29/17
-// (~43% leg, ~4 heads); the adult pivot adds two more px of leg against
-// the smaller head, landing at ~5 heads and ~47% leg with total height
-// still inside the 55–58px band everything seat- and camera-tuned assumes.
+// (~43% leg, ~4 heads); the current 31/17 stack keeps about 45% visible
+// leg at four heads. Exposing the short neck gives a 59.5px default figure,
+// still inside the resident hit region.
 export const LEG_H = 31;
 export const TORSO_H = 17;
 // How far the torso hem drops over the top of the legs.
@@ -46,8 +46,9 @@ export const TORSO_OVERLAP = 4;
 // Head centre above the torso top — the neck-and-collar gap that stops the
 // head sitting directly on the shoulders. Tuned WITH the head scale: the
 // chin sits at headY + HEAD_R_EFF now, so the lift shrinks alongside it or
-// the neck grows into a stalk.
-export const HEAD_LIFT = 6.7;
+// the neck grows into a stalk. The shaped chin ends slightly above this
+// radius, leaving a short visible neck instead of sinking into the collar.
+export const HEAD_LIFT = 8.2;
 // Waist depth below the torso top — 60% of the torso's height. The waist is
 // a property of the BODY, not of whatever garment happens to cover it — a
 // longer hem must never move it.

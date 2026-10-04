@@ -11,6 +11,8 @@ import { onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
+import CommonRoom from "./components/CommonRoom";
+import { COMMON_PLACES } from "./lib/commonRooms";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
 import Drawer from "./components/Drawer";
@@ -105,6 +107,8 @@ export default function App() {
     toggleIsoItem,
     character,
     visiting,
+    commonRoom,
+    chooseCommonSeat,
     leaveVisit,
     moveVisitGuest,
     homeVisitors,
@@ -154,11 +158,12 @@ export default function App() {
   // thread on integrated/disabled GPUs. Large home AND visited rooms use the
   // calm static treatment automatically; smaller rooms keep all authored
   // motion unless the user's reduced-motion setting says otherwise.
-  const activeIsoLayout = visiting?.layout || (isoPreview ? homeScene.layout : null);
+  const activeIsoLayout = commonRoom ? null : visiting?.layout || (isoPreview ? homeScene.layout : null);
   const heavyScene =
     activeIsoLayout &&
     (activeIsoLayout.w * activeIsoLayout.d > 120 || activeIsoLayout.placements.length > 48);
   const sceneReduceMotion = reduceMotion || !!heavyScene;
+  const commonSceneId = commonRoom?.sceneId;
   // The new 8% zoom is deliberately cheap enough for dense rooms; only an
   // explicit reduced-motion preference turns the entrance into a fade.
   const quietIntro = reduceMotion;
@@ -225,7 +230,7 @@ export default function App() {
       // Leaving a friend's room outranks everything — you can't be
       // decorating while visiting, and closing panels from inside a visit
       // would strand you there with less UI.
-      if (visiting) {
+      if (visiting || commonRoom) {
         leaveVisit();
         return;
       }
@@ -243,7 +248,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frontKey, roomEditMode, setRoomEditMode, visiting, leaveVisit, widgetMode, setWidgetMode]);
+  }, [frontKey, roomEditMode, setRoomEditMode, visiting, commonRoom, leaveVisit, widgetMode, setWidgetMode]);
 
   // Arriving somewhere closes the drawers — you visited to SEE the room, and
   // the Friends panel would be covering half of it — and EXITS decorating.
@@ -251,12 +256,12 @@ export default function App() {
   // decorating visibility wrapper, so a visit could begin mid-edit, leaving
   // the HUD hidden all visit and two chips stacked on one spot.
   useEffect(() => {
-    if (visiting) {
+    if (visiting || commonSceneId) {
       setOpenPanels([]);
       setFrontKey(null);
       setRoomEditMode(false);
     }
-  }, [visiting, setRoomEditMode]);
+  }, [visiting, commonSceneId, setRoomEditMode]);
 
   if (booting) {
     return (
@@ -345,7 +350,11 @@ export default function App() {
             </div>
           )}
         >
-          {visiting ? (
+          {commonRoom ? (
+            <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
+              activity={running ? phase : null} timeOfDay={timeOfDay}
+              reduceMotion={sceneReduceMotion} onChooseSeat={chooseCommonSeat} />
+          ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
                `activity` still flows to your guest; each NPC follows their
@@ -412,7 +421,7 @@ export default function App() {
       {/* Visiting chip: the way home is always on screen, same rule as the
           decorating chip below. */}
       <AnimatePresence>
-        {visiting && (
+        {(visiting || commonRoom) && (
           <motion.button
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -420,8 +429,8 @@ export default function App() {
             onClick={leaveVisit}
             className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
-            {visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room
-            <span className="ml-1 text-petal/60">· leave</span>
+            {commonRoom ? `🏡 ${COMMON_PLACES[commonRoom.sceneId].label}` : `${visiting.friend.avatar} In ${visiting.friend.displayName}'s room`}
+            <span className="ml-1 text-petal/60">· home</span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -430,7 +439,7 @@ export default function App() {
           guest is its own kick control: visible, keyboard reachable, and
           immediate because this only removes a simulated render layer. */}
       <AnimatePresence>
-        {!visiting && !roomEditMode && homeVisitors.length > 0 && (
+        {!visiting && !commonRoom && !roomEditMode && homeVisitors.length > 0 && (
           <motion.div
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -609,7 +618,7 @@ export default function App() {
             ? "invisible opacity-0"
             : "opacity-100"
         }`}
-        style={{ visibility: visiting ? "hidden" : undefined }}
+        style={{ visibility: visiting || commonRoom ? "hidden" : undefined }}
         title="Your profile"
       >
         <div className="glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft">

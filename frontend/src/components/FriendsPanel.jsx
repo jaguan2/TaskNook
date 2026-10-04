@@ -7,6 +7,7 @@ import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
 import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
+import { COMMON_PLACES } from "../lib/commonRooms";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
 
@@ -47,6 +48,8 @@ export default function FriendsPanel() {
     friendship,
     showToast,
     hudVisibility,
+    enterCommonRoom,
+    commonRoom,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -236,6 +239,20 @@ export default function FriendsPanel() {
 
   return (
     <div className="space-y-4">
+      <section className="space-y-2" aria-label="Common places">
+        <p className="text-xs font-semibold text-petal/65">Places to settle together</p>
+        {Object.values(COMMON_PLACES).map((place) => <button key={place.id} type="button"
+          onClick={() => enterCommonRoom(place.id)}
+          disabled={commonRoom?.sceneId === place.id}
+          className="flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-3 text-left transition hover:bg-white/10">
+          <span className="text-2xl" aria-hidden="true">{place.icon}</span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-cream">{place.label}</span>
+            <span className="mt-1 block text-[11px] text-petal/60">{place.description}</span>
+            <span className="mt-1 block text-[10px] text-petal/45">3 simulated neighbours · 3 guest seats</span>
+          </span>
+          <span className="text-xs text-glow">{commonRoom?.sceneId === place.id ? "Here" : "Join"}</span>
+        </button>)}
+      </section>
       {chatsError && (
         <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
           <p>Couldn't refresh conversations. Your saved chats are still there.</p>

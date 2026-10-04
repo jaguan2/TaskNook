@@ -1157,3 +1157,20 @@ export function GarmentCollar({ kind, headY, torsoY, outfit }) {
   if (!entry?.collar) return null;
   return entry.collar({ headY, torsoY, outfit });
 }
+
+/** A fitted neckline, instead of a broad oval covering the shirt opening and
+ * the neck. Tailored tops keep two collar leaves; knitwear has a narrow band. */
+export function Neckline({ kind, torsoY, outfit, view = "front" }) {
+  const tailored = ["shirt", "tie", "blouse"].includes(kind);
+  return <g transform={`translate(0,${torsoY})`}>
+    <g transform={view === "side" ? "scale(.72,1)" : undefined}>
+      {tailored && view !== "back" ? <>
+        <path d="M-3.7 .25 L-2.15 .75 L-.45 2.6 L-2.15 4.2 L-4 1.7 Z M3.7 .25 L2.15 .75 L.45 2.6 L2.15 4.2 L4 1.7 Z" style={outfit} />
+        <path d="M-3.7 .6 L-2.15 4.2 L-.45 2.6 M3.7 .6 L2.15 4.2 L.45 2.6" stroke={SHADE} strokeWidth=".45" fill="none" opacity=".25" />
+      </> : <>
+        <path d="M-3.25 .7 Q0 3.2 3.25 .7 L3.15 1.75 Q0 4.2 -3.15 1.75 Z" style={outfit} />
+        <path d="M-3.15 1.4 Q0 3.9 3.15 1.4" stroke={SHADE} strokeWidth=".55" fill="none" opacity=".22" />
+      </>}
+    </g>
+  </g>;
+}

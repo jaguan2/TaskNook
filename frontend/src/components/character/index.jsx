@@ -32,12 +32,13 @@ import {
   SeatedLeg,
   SeatedSkirt,
   SideFace,
+  SideHeadSkin,
   SideLeg,
   StandingLeg,
   hangLimb,
   pantsFormOf,
 } from "./body";
-import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar } from "./garments";
+import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar, Neckline } from "./garments";
 import { VolumeDefs, cylFill, sphereFill } from "./volume";
 import {
   HairBack,
@@ -458,9 +459,8 @@ export function Resident({
                   </g>
                 </g>
                 <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill={skin} />
-                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill="#000" opacity="0.16" />
-                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" style={outfit} />
-                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" fill="#fff" opacity="0.1" />
+                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="2.6" height={torsoY - headY - HEAD_R_EFF + 4} fill={SHADE} opacity="0.16" />
+                <Neckline kind={ch.garment} torsoY={torsoY} outfit={outfit} view="side" />
                 <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
                 {/* the scarf wraps OVER whatever the neck wears — people do
                     wear a scarf over a turtleneck. Torso-anchored: it must
@@ -476,18 +476,7 @@ export function Resident({
                 <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
                 <g className="gesture-yawn">
                   <g className="gesture-look">
-                    <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-                    {/* The volume gradient FLIPS for the profile: the shared
-                        sphere lights from +x (screen right — "slightly in
-                        front" for the front view), but a profile faces -x,
-                        so unflipped it lit the BACK of the skull and put the
-                        whole face in shade — most of what read as a dirty
-                        smudge on the side view. Mirroring just the gradient
-                        circle keeps the doctrine's light where it claims to
-                        be: on the face. */}
-                    <g transform="scale(-1,1)">
-                      <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
-                    </g>
+                    <SideHeadSkin headY={headY} skin={skin} />
                     {/* the same warm rim the front carries, on the face
                         edge — the side's light sits in front */}
                     <path
@@ -515,7 +504,7 @@ export function Resident({
                     />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
-                    <SideFace expression={ch.expression} headY={headY} skin={skin} />
+                    <SideFace expression={ch.expression} headY={headY} />
                     {/* glasses over the finished face — after the hair's side
                         mass and the hat, so neither can bury the lens */}
                     <Glasses kind={ch.glasses} headY={headY} view="side" />
@@ -761,7 +750,8 @@ export function Resident({
                   coat, so their marks dim inside the shadow the way fabric
                   detail really does. Strength = the outer layer's declared
                   finish × its colour's luminance tone. */}
-              <ellipse cx="0" cy={torsoY + 4.6} rx="3.6" ry="1.3" fill="#000" opacity="0.1" />
+              <path d={`M-3 ${torsoY + 2.2} Q0 ${torsoY + 4.2} 3 ${torsoY + 2.2}`}
+                fill="none" stroke={SHADE} strokeWidth="0.7" opacity="0.14" />
               <path
                 d={`M ${-sh + 0.5} ${torsoY + 4.5}
                     Q ${-wa + 0.5} ${torsoY + waistDrop} ${-hem + 0.5} ${torsoY + torsoH - 1.8}
@@ -773,11 +763,9 @@ export function Resident({
                 opacity={finish.shade * bodyTone.shade}
               />
               {/* the lit shoulder, biased toward the light */}
-              <ellipse
-                cx="1.2"
-                cy={torsoY + 3.5}
-                rx={sh - 1.5}
-                ry="4.6"
+              <path
+                d={`M1.4 ${torsoY + 1.2} Q${sh - 1} ${torsoY + 1.6} ${sh - 0.5} ${torsoY + 5}
+                  L${sh - 2.3} ${torsoY + 6.5} Q${sh - 3} ${torsoY + 3} 1.4 ${torsoY + 1.2} Z`}
                 fill={GLINT}
                 opacity={finish.glint * 1.3 * bodyTone.glint}
               />
@@ -902,8 +890,7 @@ export function Resident({
           fill="#000"
           opacity="0.16"
         />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" style={outfit} />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" fill="#fff" opacity="0.1" />
+        <Neckline kind={ch.garment} torsoY={torsoY} outfit={outfit} view={back ? "back" : "front"} />
         {/* A garment's own neck piece (the turtleneck's roll) — after the
             skin neck and the collar ellipse, or they'd paint over it. */}
         <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />

@@ -84,6 +84,7 @@ export default function RoomPanel() {
     applyRoomPreset,
     clearRoom,
     visiting,
+    commonRoom,
     leaveVisit,
     isoPreview,
     setIsoPreview,
@@ -157,14 +158,14 @@ export default function RoomPanel() {
   // silently re-floor your own home, and adding furniture even flips edit
   // mode on mid-visit. One hint and the way back instead. (All hooks above
   // run unconditionally, so the early return is rules-of-hooks safe.)
-  if (visiting) {
+  if (visiting || commonRoom) {
     return (
       <div className="space-y-3 rounded-2xl bg-white/5 px-4 py-6 text-center">
         <p className="text-sm font-semibold text-cream">
-          You&apos;re at {visiting.friend.displayName}&apos;s place ☕
+          {commonRoom ? "You're in a furnished common place 🏡" : `You're at ${visiting.friend.displayName}'s place ☕`}
         </p>
         <p className="text-xs text-petal/60">
-          Decorating works on your own room — head home first.
+          {commonRoom ? "Pick an open seat and settle in. This shared space is already furnished." : "Decorating works on your own room — head home first."}
         </p>
         <button
           onClick={leaveVisit}

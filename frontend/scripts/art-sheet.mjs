@@ -34,13 +34,26 @@ if (run.status !== 0) {
 const names = readdirSync(svgDir)
   .filter((f) => f.endsWith(".svg"))
   .map((f) => f.replace(/\.svg$/, ""));
-const groupOf = (n) => n.split("-").slice(0, n.startsWith("hair-") || n.startsWith("pants-side") || n.startsWith("shoes-side") ? 2 : 1).join("-");
+const inventory = JSON.parse(readFileSync(join(outDir, "catalog.json"), "utf8"));
+const catalog = new Map(inventory.map((item) => [item.key, item]));
+const catalogPiece = (n) => {
+  const match = n.match(/^catalog-(.+)-(front|back)$/);
+  return match ? { item: catalog.get(match[1]), view: match[2] } : null;
+};
+const escape = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
+const groupOf = (n) => catalogPiece(n)
+  ? `Catalog: ${catalogPiece(n).item.group}`
+  : n.split("-").slice(0, n.startsWith("hair-") || n.startsWith("pants-side") || n.startsWith("shoes-side") ? 2 : 1).join("-");
+const labelOf = (n) => {
+  const piece = catalogPiece(n);
+  return piece ? `${piece.item.label} (${piece.item.key}, ${piece.view})` : n;
+};
 const groups = [...new Set(names.map(groupOf))].sort();
 const svg = (n) => readFileSync(join(svgDir, `${n}.svg`), "utf8");
 const section = (g) => {
   const members = names.filter((n) => groupOf(n) === g).sort();
-  return `<h2>${g} <small>(${members.length})</small></h2><div class="grid">${members
-    .map((n) => `<figure><div class="shot">${svg(n)}</div><figcaption>${n}</figcaption></figure>`)
+  return `<h2>${escape(g)} <small>(${members.length})</small></h2><div class="grid">${members
+    .map((n) => `<figure><div class="shot">${svg(n)}</div><figcaption>${escape(labelOf(n))}</figcaption></figure>`)
     .join("")}</div>`;
 };
 writeFileSync(
@@ -55,7 +68,7 @@ writeFileSync(
   .shot svg { width: 150px; height: auto; display: block; }
   figcaption { text-align: center; font-size: 11px; color: #b9a3c4; padding-top: 2px; }
 </style>
-<main><h1 style="font-size:18px">Character art — every piece, side by side</h1>
+<main><h1 style="font-size:18px">TaskNook models — complete catalog and wardrobe</h1>
 ${groups.map(section).join("")}
 </main>`
 );

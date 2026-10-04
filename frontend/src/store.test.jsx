@@ -9,7 +9,7 @@ vi.mock("./lib/api", () => ({
   getToken: () => "test-token", setToken: vi.fn(), setReauthorizer: vi.fn(),
   api: Object.fromEntries([
     "me", "listTasks", "stats", "listFriends", "sessionDays", "listEvents", "listChats",
-    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "openChat", "deleteChat",
+    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "openChat", "deleteChat", "friendRoom",
   ].map((name) => [name, vi.fn()])),
 }));
 
@@ -44,6 +44,37 @@ async function boot() {
   render(<StoreProvider><Reader /></StoreProvider>);
   await waitFor(() => expect(store.tasks).toEqual([original]));
 }
+
+describe("common-place sessions", () => {
+  it("enters, changes seats and leaves without changing the home or saving it", async () => {
+    await boot();
+    const home = store.isoRoom;
+    const homeWrites = api.saveRoom.mock.calls.length;
+    act(() => store.enterCommonRoom("common-cottage"));
+    expect(store.activePlace.kind).toBe("common");
+    act(() => store.chooseCommonSeat("window-right"));
+    expect(store.commonRoom.guestSeatId).toBe("window-right");
+    act(() => store.chooseCommonSeat("window-left"));
+    expect(store.commonRoom.guestSeatId).toBe("window-right");
+    expect(store.toast.message).toContain("already taken");
+    act(() => store.leaveVisit());
+    expect(store.activePlace.kind).toBe("home");
+    expect(store.commonRoom).toBeNull();
+    expect(store.isoRoom).toBe(home);
+    expect(api.saveRoom.mock.calls.length).toBe(homeWrites);
+  });
+  it("does not let a stale friend-room response replace the common place", async () => {
+    await boot();
+    const pending = deferred();
+    api.friendRoom.mockReturnValue(pending.promise);
+    let visit;
+    act(() => { visit = store.visitFriend({ id: 2 }); });
+    act(() => store.enterCommonRoom("common-cottage"));
+    await act(async () => { pending.resolve({ id: 2, username: "kai" }); await visit; });
+    expect(store.visiting).toBeNull();
+    expect(store.commonRoom.sceneId).toBe("common-cottage");
+  });
+});
 
 describe("task completion durability", () => {
   it("does not let an older refresh erase another task's completed save", async () => {

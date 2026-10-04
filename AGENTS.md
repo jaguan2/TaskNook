@@ -180,6 +180,23 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
 
+## Fixed common places
+
+`lib/commonRooms.js` defines the Common Cottage as an authored scene with two
+floor heights, fixed props and six explicit seat slots. `CommonRoom.jsx` draws
+it separately from the editable home, reusing the catalog/character sprites.
+Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
+three simulated neighbours and the user's selected seat. `activePlace` is
+home/friend/common; `leaveVisit` returns home from either kind of destination.
+Common entry cancels pending knocks and invalidates earlier friend-room
+requests. It disables home visitor arrivals and RoomPanel editing. Seat
+selection changes only the guest's seat ID, never the home API, furniture,
+NPC occupancy, timer or saved camera. Keep these state boundaries and the
+store/common-room regression tests when adding places. The scene is bounded
+to its viewport; a percentage-height SVG inside the scene grid once expanded
+the page and made seat selection scroll the entire app. Details and remaining
+art work are in `docs/COMMON_ROOMS.md`.
+
 ## Desktop update notifications
 
 `desktop_updates.py` checks a small `desktop-update.json` on GitHub in the

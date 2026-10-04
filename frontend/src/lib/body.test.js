@@ -64,7 +64,7 @@ describe("figure proportions", () => {
     // ...while total height stays inside the band everything seat-, wall-
     // and camera-tuned was built against.
     expect(height).toBeGreaterThan(55);
-    expect(height).toBeLessThanOrEqual(59);
+    expect(height).toBeLessThanOrEqual(60);
   });
 
   it("seated and standing share one head lift", () => {
@@ -194,7 +194,7 @@ describe("figureMetrics", () => {
           const total = -m.standHeadY + HEAD_R_EFF;
           const legShare = (m.legH - TORSO_OVERLAP) / total;
           expect(legShare, `${model} h${height} t${torso}`).toBeGreaterThanOrEqual(0.33);
-          expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(65);
+          expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(66);
         }
       }
     }

@@ -642,27 +642,33 @@ export function SideLeg({
  * edge, and one cheek's blush. Drawn for a figure facing -x; the scene's
  * mirror handles the other way.
  */
-export function SideFace({ expression, headY, skin }) {
+export function SideHeadSkin({ headY, skin }) {
+  // A complete profile, including the jaw beneath the ear. A circle behind
+  // a nose strip always keeps its round lower edge, however shaped the strip.
+  const outline = `M-1 ${headY - HEAD_R}
+    Q-6.8 ${headY - 7.5} -6.6 ${headY - 3}
+    L-6.7 ${headY - 0.5} L-8.2 ${headY + 0.9}
+    Q-8.5 ${headY + 1.5} -7.4 ${headY + 1.8}
+    L-6.8 ${headY + 2} Q-6.8 ${headY + 2.7} -7 ${headY + 3}
+    L-6.5 ${headY + 4} L-5.3 ${headY + 5.3}
+    Q-4.4 ${headY + 6.6} -2.8 ${headY + 6.7}
+    L0.9 ${headY + 4.1} Q6 ${headY + 2.3} 6.4 ${headY - 1}
+    Q7.2 ${headY - 6.4} -1 ${headY - HEAD_R} Z`;
+  return <>
+    <path d={outline} fill={skin} />
+    <path d={`M1 ${headY - 3} Q5 ${headY - 1} 4.3 ${headY + 2.5}
+      L0.9 ${headY + 4.1} L-2.8 ${headY + 6.7} L-4.2 ${headY + 6}
+      Q0 ${headY + 3.8} 1 ${headY - 3} Z`} fill={SHADE} opacity="0.12" />
+    <path d={`M-6.2 ${headY - 2.5} L-6.3 ${headY - 0.4} L-7.6 ${headY + 1}`}
+      fill="none" stroke={GLINT} strokeWidth="0.7" strokeLinecap="round" opacity="0.35" />
+  </>;
+}
+
+export function SideFace({ expression, headY }) {
   const R = HEAD_R;
   const stroke = { fill: "none", stroke: INK, strokeWidth: 0.9, strokeLinecap: "round" };
   return (
     <>
-      {/* The face's front edge as ONE continuous profile — brow, a small
-          nose, the under-nose step, a lip hint, a chin that curves back to
-          the jaw. It used to be a bolt-on nose wedge on a bare circle, and
-          the wedge's return edge cut a beak-like notch under the nose
-          (owner screenshot, 2026-08-19: "the side model is really bad").
-          A profile is a LINE, not a circle plus a bump. */}
-      <path
-        d={`M ${-R + 1.3} ${headY - 4.4}
-            Q ${-R - 0.2} ${headY - 2.4} ${-R + 0.1} ${headY - 0.7}
-            Q ${-R - 2.1} ${headY + 0.5} ${-R - 1.5} ${headY + 1.9}
-            Q ${-R - 1.1} ${headY + 2.6} ${-R + 0.1} ${headY + 2.6}
-            Q ${-R - 0.7} ${headY + 3.7} ${-R + 0.5} ${headY + 4.4}
-            Q ${-R + 0.2} ${headY + 5.5} ${-R + 2.1} ${headY + 6.1}
-            L ${-R + 3.2} ${headY - 3.2} Z`}
-        fill={skin}
-      />
       {expression === "happy" ? (
         <path d={`M-4.7 ${headY + 2} q1.2 -1.6 2.4 0`} {...stroke} />
       ) : expression === "sleepy" ? (
@@ -811,12 +817,12 @@ export function Arm({
       {/* A softly tapered mitten rather than a perfect ball. At room scale
           separate fingers become noise, but a thumb-side bump keeps the hand
           from reading as another joint capsule. */}
-      <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill={skin} />
-      <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill={skin} />
+      <path d={`M${H.x - 1.55} ${H.y - 1.6} Q${H.x - 2.15} ${H.y + 0.2} ${H.x - 1.1} ${H.y + 2.05} Q${H.x + 0.4} ${H.y + 2.9} ${H.x + 1.6} ${H.y + 1.15} L${H.x + 1.8} ${H.y - 1.3} Z`} fill={skin} />
+      <circle cx={H.x - side * 1.45} cy={H.y + 0.3} r="0.8" fill={skin} />
       {far && (
         <>
-          <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill="#000" opacity="0.12" />
-          <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill="#000" opacity="0.12" />
+          <path d={`M${H.x - 1.55} ${H.y - 1.6} Q${H.x - 2.15} ${H.y + 0.2} ${H.x - 1.1} ${H.y + 2.05} Q${H.x + 0.4} ${H.y + 2.9} ${H.x + 1.6} ${H.y + 1.15} L${H.x + 1.8} ${H.y - 1.3} Z`} fill="#000" opacity="0.12" />
+          <circle cx={H.x - side * 1.45} cy={H.y + 0.3} r="0.8" fill="#000" opacity="0.12" />
         </>
       )}
     </g>
@@ -838,9 +844,9 @@ function SleeveSeg({ d, w, outfit }) {
 export function HeadSkin({ headY, skin, volume, back = false }) {
   const outline = `M0 ${headY - HEAD_R}
     C4.6 ${headY - HEAD_R} 7.1 ${headY - 4.5} 6.8 ${headY - 0.3}
-    L6 ${headY + 2.7} L3.2 ${headY + 6.2}
-    Q2 ${headY + 7.5} 1 ${headY + 7.6}
-    L-1 ${headY + 7.6} Q-2 ${headY + 7.5} -3.2 ${headY + 6.2}
+    L5.8 ${headY + 2.7} L2.7 ${headY + 5.7}
+    Q1.7 ${headY + 6.6} 0.8 ${headY + 6.6}
+    L-0.8 ${headY + 6.6} Q-1.7 ${headY + 6.6} -2.7 ${headY + 5.7}
     L-6 ${headY + 2.7} L-6.8 ${headY - 0.3}
     C-7.1 ${headY - 4.5} -4.6 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
   if (back) return <><circle cy={headY} r={HEAD_R} fill={skin} /><circle cy={headY} r={HEAD_R} fill={volume} /></>;

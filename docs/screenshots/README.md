@@ -3,7 +3,10 @@
 Captured by driving the real app in a headless browser, not mocked up: every
 shot is the built SPA talking to the Flask API, with tasks and focus sessions
 created through the actual REST endpoints, and rooms applied by clicking the
-same preset buttons you would. 1600×1000 WebP.
+same preset buttons you would. Room/UI captures are 1600×1000 WebP.
+Character examples extract the real editor SVG and render it as a sharp model
+closeup: individual portraits are 600×800, and eight-look sheets are 1600×1000.
+They contain model artwork and preset labels, without application chrome.
 
 Regenerate them with `frontend/scripts/screenshots.mjs` — the capture pipeline
 is committed rather than rebuilt from scratch each time, and its header carries
@@ -13,14 +16,22 @@ accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
-Refreshed September 22, 2026. The room gallery rotates through six saved
+Refreshed for the item-modeling pass and restored seated rig. The room gallery rotates through six saved
 character looks, covering both body models, different builds and skin tones,
 hairstyles, layered outfits, skirts, denim, winter clothing and swimwear.
 These are ordinary profile selections, saved through the app's profile API.
 The “In the room” toggle seats your character using the app's placement rules.
 The weather comparison keeps one character and one room throughout.
 
-Shared home, Cozy study, Secret garden and Study hall refreshed September 27, 2026.
+The seating follow-up replaces the armchair/sofa's slab sides with curved
+upholstery over visible timber frames, layers the desk-chair cushion and
+back shell, and gives the garden bench separate slats and an open frame.
+The gallery uses these updated sprites; [before/after comparisons](../model-review/seating-comparison.webp)
+and [seated contact views](../model-review/seating-contact-front.webp) isolate the changes.
+
+The October pass includes shaped chair frames, padded upholstery, layered bed linen,
+recessed bookshelves, split-leaf plants and the refined character jaw, neck and bun.
+See [the reference review](../ART_REVIEW.md) for the design findings and remaining gaps.
 
 ## Rooms
 
@@ -55,14 +66,14 @@ both the weather and the hour.
 
 ### Character examples
 
-The editor preview makes the model and clothing differences easier to see
-than the smaller residents in the room gallery.
+These closeups show the actual model artwork at a useful scale. The preset
+sheets include all eight looks, in standing and restored seated poses.
 
 | | |
 |---|---|
-| ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt, with body controls visible. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
-| ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — an afro, olive overalls, denim shorts and work boots. |
-| ![Character starting looks](37-character-presets.webp) **Starting looks** — eight complete editable presets, including fall, school, office, lofi and gamer styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Preview the pose** — compare standing, seated and back views before applying a look; your skin tone stays the same. |
+| ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
+| ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — a buzz cut, olive overalls, denim shorts and work boots. |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all eight presets, including fall, school, office, lofi and gamer styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all eight presets on the restored seated rig, with no app UI obscuring the models. |
 
 ### Personalization tools
 
@@ -77,6 +88,17 @@ than the smaller residents in the room gallery.
 | | |
 |---|---|
 | ![Friends](26-friends.webp) **Friends** — who's about, what they're up to right now, and whose room is open. | ![Visiting](27-visiting.webp) **Visiting** — walk into someone else's room, and drag yourself over to sit with them. |
+
+## Common places
+
+Fixed furnished spaces have their own architecture and seat selection. The
+Common Cottage includes a raised reading nook, lounge, shared study and three
+local simulated neighbours. Enter through Friends; the home remains editable.
+
+| | |
+|---|---|
+| ![Common Cottage](39-common-cottage.webp) **Arriving** — an open study seat with neighbours already settled. | ![Raised reading nook](40-common-cottage-reading.webp) **Reading nook** — choose the raised armchair without moving the furniture. |
+| ![Choosing a seat](41-common-cottage-seats.webp) **Seat selection** — open seats highlighted in the scene and listed as accessible buttons; occupied seats name their neighbour. | |
 
 ## Features
 

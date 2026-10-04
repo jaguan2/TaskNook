@@ -67,19 +67,51 @@ piece so a new item sits correctly beside the existing ones.
 | On a table | 9–20 | pie 9, kettle 15, mug 16, microwave 18, laptop 20 |
 | Seat height | 12–26 | log 12, cushion 13, bench 16, chair 19, haybale 26 |
 | Low furniture | 19–32 | coffeetable 19*, cafetable 21*, sidetable 28 |
-| Table / worktop | 26–44 | diningtable 26.5*, counter 29.5*, oven 40*, desk 44 |
+| Table / worktop | 26–40 | diningtable 26.5*, counter 29.5*, desk 30*, oven 40* |
 | Tall furniture | 76–96 | coatrack 76, floorlamp 84, wardrobe 92, bookshelf 96 |
 | Full height | 104–118 | archway 104, pillar 118, pendant 118 |
 
 \* these are `surface` values (where things stacked on it rest), not `hitH`.
+
+### Soft furniture and constructed detail
+
+`SoftBox` projects a rounded footprint using the same grid and extrusion as
+`TintedBox`. Use it for cushions, mattresses and upholstery; solid timber
+stays on `TintedBox`. Fabric needs its own readable construction: a raised
+cushion edge, a gathered fold or a throw that crosses the top and side planes.
+Do not replace these with a dense grid of decorative seams.
+
+`PaddedPanel` draws upright upholstery with a bowed crown, rounded lower
+corners and an offset shell. The armchair/sofa project it onto their back and
+arm planes; the desk chair adds a shallow waist. Rounding a footprint alone
+does not soften a tall extruded side. Keep timber structure separate: the
+upholstered seats expose their frame below the cushions, and the garden bench
+uses individual seat/back slats over an open frame. All existing `seat` heights,
+footprints and front/rear facing rules stay unchanged.
+
+Chair frames leave negative space below their bowed, upholstered back rails.
+Bookshelves use a continuous dark recess behind the rails and varied books,
+ceramics and baskets. Keep contents warm and muted so the selected furniture
+tint still dominates. Material review fixtures cover light, dark and sage
+paint, including front and rear chair/sofa views.
 
 ### Persona proportions
 
 The front face keeps the existing crown size for hair and hats, but its
 cheek planes taper through an angled jaw to a narrow, softly squared chin.
 The previous curved jaw still read as a circle at room scale. Small ears and
-almond eyes share the same head anchors as the glasses. Cheek colour is
+almond eyes share the same head anchors as the glasses. The profile uses one
+complete skull-and-jaw outline; never leave a round skull underneath a
+separate nose strip. A short visible neck separates chin and collar in
+both poses. Cheek colour is
 drawn once, by `Face`; the assembly must not add another blush layer.
+
+The neckline is fitted to the top: shirt, tie and blouse have two collar
+leaves; knitwear uses a narrow curved band. `Neckline` in `garments.jsx`
+replaces the large assembly-level ellipse that covered the visible neck and
+the blazer opening. Its profile and rear treatments share the same seam.
+Hands keep the existing pose anchor, with a smaller tapered palm and thumb
+instead of a large round mass. Neither change introduces a new seated rig.
 
 Idle seated front-facing residents rest their hands toward the lap. This
 pose is disabled while typing, holding a break mug, moving, being carried,
@@ -104,7 +136,7 @@ The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests
 all read that one copy). **The figure uses the soft, illustrated proportions
-of the Virtual Cottage 2 references**: ~58px tall at **~4 heads**, visible leg
+of the Virtual Cottage 2 references**: ~60px tall at **~4 heads**, visible leg
 ~47%. The mechanism is `HEAD_SCALE` (1):
 `HEAD_R` 7.3 stays the DRAWING radius every hair/hat/glasses/face asset is
 authored against, and the assembly scales the finished head unit about its
@@ -252,12 +284,14 @@ time only — the stored gx/gy never changes.
 
 ## 3. Construction
 
-Reach for a shared helper before drawing faces by hand. There are eight, and
-between them they cover most of the catalog:
+Reach for a shared helper before drawing faces by hand. These cover most
+of the catalog:
 
 | Helper | For | Why it's shared |
 |---|---|---|
 | `TintedBox` | any box | contact shading + correct face tones in one place |
+| `SoftBox` | horizontal upholstery | rounded footprint with thickness and two shaded sides |
+| `PaddedPanel` | upright upholstery | curved crown/corners, shell thickness and optional waist |
 | `PlantPot` | potted plants | taper + lip + soil (see §5) |
 | `Vessel` | cylinders | kettle, stockpot, cake — bottom ellipse, side, top ellipse |
 | `RugGround` | rugs | ground + inset lighter field, so the border is an AREA |
@@ -457,6 +491,23 @@ which is most of why clothes read flatter than the body wearing them.
   verified; the art sheet renders tops and coats in three colourways
   (mid/dark/light), because single-colourway review is exactly how the
   first too-faint mark set shipped.
+
+## Shared construction and seated-pose status
+
+The experimental chair perspective rig was removed after the owner's visual
+review. Seating uses the original front/rear assembly, with the existing lap
+clothing, front shoes and activity gestures. The removed prototype combined
+a skewed torso, substituted profile head, overlapping knees and fixed hand
+anchors; that assembly must not be reinstated as a completed design.
+A replacement needs an authored seated silhouette with matching garment and
+limb planes, reviewed in closeups and on actual furniture before animation.
+
+`TintedBox` projects its subtle top bevel from the box's own `gx`/`gy`, so
+raised/off-centre volumes receive the same edge construction. It keeps the
+existing footprint, height and contact shading. `LeafCluster` supplies an
+irregular canopy outline with broad lit/shaded masses; compose unequal
+clusters and visible branches, rather than using it to give every species
+the same tree silhouette. New plant species still require authored leaves.
 
 ## 11. Soft volume (2026-08-19)
 

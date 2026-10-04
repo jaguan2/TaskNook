@@ -107,6 +107,8 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "pennant", gx: 0, gy: 0, tint: "#5b6b9b" },
       // The second window lights the lounge; work faces the built-in left one.
       { item: "bigwindow", gx: 4.5, gy: 0 },
+      // A low specimen softens the quiet nook without obscuring the window desk.
+      { item: "fern", gx: 0.5, gy: 5.5 },
     ],
   },
   classic: {
@@ -271,6 +273,7 @@ export function createIsoPresets(defaultIsoSize) {
       // toward −gy — possible since chairs ship real back-view artwork).
       { item: "persianrug", gx: 0.5, gy: 2, tint: "#7a4034" },
       { item: "cafetable", gx: 2, gy: 3 },
+      { item: "orchid", gx: 2.5, gy: 3.5 },
       { item: "chair", gx: 2.5, gy: 2 },
       { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
       // a customer — a café with nobody in it reads as closed
@@ -283,6 +286,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
       // green in the far corner
       { item: "monstera", gx: 9, gy: 6 },
+      { item: "fern", gx: 0.5, gy: 5.5 },
     ],
   },
   // A working little nursery rather than a generic green room: merchandise
@@ -388,7 +392,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "chair", gx: 4, gy: 5.5 },
       { item: "resident", gx: 4, gy: 5.5, tint: "#8a5346" },
       { item: "sidetable", gx: 1.5, gy: 3 },
-      { item: "lightjar", gx: 1.5, gy: 3 },
+      { item: "tablelamp", gx: 1.5, gy: 3, tint: "#d9b178" },
       { item: "floorlamp", gx: 8.5, gy: 3 },
       // ---- a writing corner, tucked out of the middle ----------------------
       { item: "desk", gx: 6.5, gy: 6.5 },
@@ -402,7 +406,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "bookstack", gx: 5.5, gy: 1.5 },
       { item: "crates", gx: 6, gy: 8, tint: "#5c3a2c" },
       { item: "cat", gx: 5, gy: 7, tint: "#3a2a24" },
-      { item: "monstera", gx: 9.5, gy: 8 },
+      { item: "fern", gx: 9.5, gy: 8 },
       // Arched entrance, a tall window, and a game waiting on the big table.
       { item: "archway", gx: 3.5, gy: 0 },
       { item: "bigwindow", gx: 9, gy: 0 },
