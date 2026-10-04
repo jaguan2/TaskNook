@@ -160,6 +160,9 @@ describe("the isometric catalog and its artwork agree", () => {
 
       expect(head).toBeTruthy();
       expect(head.getAttribute("stroke")).toBeNull();
+      // The cheek-to-chin silhouette is authored entirely with curves. Hard
+      // line segments made the tiny face read as a downward-pointing triangle.
+      expect(head.getAttribute("d")).not.toMatch(/\bL/i);
     });
 
     it("rests seated hands in the lap without stealing hands from activity or carrying", () => {

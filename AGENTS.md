@@ -188,6 +188,9 @@ it separately from the editable home, reusing the catalog/character sprites.
 Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
 three simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
+The cozy second art pass deliberately concentrates curtains, wall decor,
+plants, desk clutter and catalog-driven light pools around edges and the open
+vine-and-bulb partition; preserve that density without covering seat anchors.
 Common entry cancels pending knocks and invalidates earlier friend-room
 requests. It disables home visitor arrivals and RoomPanel editing. Seat
 selection changes only the guest's seat ID, never the home API, furniture,
@@ -1493,7 +1496,20 @@ running `git commit` yourself.
   from `IsoItemPrimitives.jsx`'s `TintedBox`, so its contact shading — a short dark band where each box
   meets whatever it stands on — gives the WHOLE catalog weight from one edit;
   without it a box looks pasted onto the floor rather than resting on it. Same
-  reasoning for `RugGround` (ground + inset lighter field, so the border is an
+  reasoning for `SoftBox` (rounded horizontal upholstery), `PaddedPanel`
+  (bowed upright cushions with real thickness), and `LeafCluster` (irregular
+  organic canopies instead of stacked ellipses). Upholstered chairs/sofas now
+  keep their timber frames and supports visible around those soft forms; do
+  not turn them back into floor-to-back slabs that hide seated residents.
+  The October 2026 reference pass also replaced the resident's layered-circle
+  profile treatment with one continuous skull/jaw, while the front and side
+  cheeks use uninterrupted curves into a softly rounded chin — straight jaw
+  facets read as a triangle at room scale. Keep the visible neck, fitted
+  garment necklines and smaller shaped palms. `docs/ART_REVIEW.md` is
+  the short gap report and `docs/model-review/` holds the reviewed captures;
+  the detailed contracts remain in `docs/MODELS.md` and
+  `docs/MODELING_ROADMAP.md`. Existing geometry helpers include `RugGround`
+  (ground + inset lighter field, so the border is an
   AREA and not a hairline), `Fringe` (strands expressed in grid space, so they
   land at the right screen angle for free) and `Planks` (seams across a
   tabletop — a bare slab reads as flat-pack). Reach for a per-sprite fix only

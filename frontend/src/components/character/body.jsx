@@ -645,15 +645,17 @@ export function SideLeg({
 export function SideHeadSkin({ headY, skin }) {
   // A complete profile, including the jaw beneath the ear. A circle behind
   // a nose strip always keeps its round lower edge, however shaped the strip.
+  // Keep the cheek-to-chin run curved: straight facets made the small head
+  // read as a triangle as soon as the resident turned sideways.
   const outline = `M-1 ${headY - HEAD_R}
     Q-6.8 ${headY - 7.5} -6.6 ${headY - 3}
-    L-6.7 ${headY - 0.5} L-8.2 ${headY + 0.9}
+    C-6.7 ${headY - 1.7} -6.8 ${headY - 0.9} -6.7 ${headY - 0.5}
+    L-8.2 ${headY + 0.9}
     Q-8.5 ${headY + 1.5} -7.4 ${headY + 1.8}
-    L-6.8 ${headY + 2} Q-6.8 ${headY + 2.7} -7 ${headY + 3}
-    L-6.5 ${headY + 4} L-5.3 ${headY + 5.3}
-    Q-4.4 ${headY + 6.6} -2.8 ${headY + 6.7}
-    L0.9 ${headY + 4.1} Q6 ${headY + 2.3} 6.4 ${headY - 1}
-    Q7.2 ${headY - 6.4} -1 ${headY - HEAD_R} Z`;
+    C-6.7 ${headY + 2.2} -6.9 ${headY + 3.3} -6.1 ${headY + 4.3}
+    C-5.2 ${headY + 5.6} -3.8 ${headY + 6.5} -2.2 ${headY + 6.6}
+    C-0.2 ${headY + 5.8} 4.9 ${headY + 3.5} 6.1 ${headY + 1.2}
+    Q6.9 ${headY - 4.8} -1 ${headY - HEAD_R} Z`;
   return <>
     <path d={outline} fill={skin} />
     <path d={`M1 ${headY - 3} Q5 ${headY - 1} 4.3 ${headY + 2.5}
@@ -839,16 +841,16 @@ function SleeveSeg({ d, w, outfit }) {
   return <path d={d} stroke={colour} strokeWidth={w} strokeLinecap="round" fill="none" />;
 }
 
-/** Keep the crown's existing fit for hair/hats. Below the temples, distinct
- * cheek planes taper to a narrow, softly squared chin instead of a sphere. */
+/** Keep the crown's existing fit for hair/hats. Below the temples, one
+ * continuous curve rounds the cheeks into a gentle chin. It is still a
+ * shaped face rather than a perfect sphere, but never a faceted triangle. */
 export function HeadSkin({ headY, skin, volume, back = false }) {
   const outline = `M0 ${headY - HEAD_R}
-    C4.6 ${headY - HEAD_R} 7.1 ${headY - 4.5} 6.8 ${headY - 0.3}
-    L5.8 ${headY + 2.7} L2.7 ${headY + 5.7}
-    Q1.7 ${headY + 6.6} 0.8 ${headY + 6.6}
-    L-0.8 ${headY + 6.6} Q-1.7 ${headY + 6.6} -2.7 ${headY + 5.7}
-    L-6 ${headY + 2.7} L-6.8 ${headY - 0.3}
-    C-7.1 ${headY - 4.5} -4.6 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
+    C4.9 ${headY - HEAD_R} 7.2 ${headY - 4.4} 7.2 ${headY}
+    C7.2 ${headY + 4} 4.8 ${headY + 6.6} 1.8 ${headY + 7.05}
+    C0.6 ${headY + 7.25} -0.6 ${headY + 7.25} -1.8 ${headY + 7.05}
+    C-4.8 ${headY + 6.6} -7.2 ${headY + 4} -7.2 ${headY}
+    C-7.2 ${headY - 4.4} -4.9 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
   if (back) return <><circle cy={headY} r={HEAD_R} fill={skin} /><circle cy={headY} r={HEAD_R} fill={volume} /></>;
   return <>
     {[-1, 1].map((side) => <g key={side}>
@@ -857,8 +859,8 @@ export function HeadSkin({ headY, skin, volume, back = false }) {
     </g>)}
     <path data-character-head="front" d={outline} fill={skin} />
     <path d={outline} fill={volume} />
-    <path d={`M-6 ${headY + 1.7} L-5.4 ${headY + 3} L-2.6 ${headY + 6.1}`} fill="none" stroke={SHADE} strokeWidth="0.65" strokeLinecap="round" opacity="0.16" />
-    <path d={`M5.65 ${headY + 2.6} L3 ${headY + 6}`} fill="none" stroke={GLINT} strokeWidth="0.6" strokeLinecap="round" opacity="0.3" />
+    <path d={`M-6 ${headY + 1.7} Q-5.3 ${headY + 4.6} -2.5 ${headY + 6.1}`} fill="none" stroke={SHADE} strokeWidth="0.65" strokeLinecap="round" opacity="0.16" />
+    <path d={`M5.65 ${headY + 2.6} Q4.6 ${headY + 4.8} 2.8 ${headY + 6.1}`} fill="none" stroke={GLINT} strokeWidth="0.6" strokeLinecap="round" opacity="0.3" />
   </>;
 }
 

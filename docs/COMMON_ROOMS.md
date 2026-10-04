@@ -6,8 +6,12 @@ Home or Escape to leave. The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
 
 The first pass includes a raised reading floor with solid steps, a shared
-study and lounge, six explicit seats and three simulated neighbours. Fixed
-props reuse the refined seating, storage, lamps and species-specific plants.
+study and lounge, six explicit seats and three simulated neighbours. Its
+second art pass follows the supplied warm communal-study reference with
+panelled walls, curtained windows, wall art and shelves, a vine-and-bulb
+partition, clustered plants, layered rugs, active desktops and catalog-driven
+lamp pools. Detail stays around edges and thresholds so all six seats remain
+readable. Fixed props reuse the refined seating, storage, lamps and species-specific plants.
 The renderer is `components/CommonRoom.jsx`; the scene manifest and seat
 rules are `lib/commonRooms.js`. Occupancy lives only in the store's common-room
 session. Entry cancels pending knocks and supersedes stale friend-room

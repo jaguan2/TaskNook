@@ -10,7 +10,7 @@ characters. More particles or a brighter palette alone will not close it.
 | Soft sofas and bedding in the room references | Identical sharp extrusions and rigid bed grids make cloth read as timber. | Rounded cushion/mattress footprints, raised back cushions, a loose linen pillow, a throw around the sofa arm, gathered duvet folds and a folded bed blanket. |
 | Shelves full of everyday objects | Uniform vertical books and flat shelves read as decorative stripes. | Recessed interiors, projecting rails, varied/leaning books, stacked volumes, ceramics and woven baskets. |
 | Broad, sculpted foliage beside the desk | Three paddle leaves do not identify a monstera. | Split/lobed leaf silhouettes, curved stems and restrained vein/shadow detail. |
-| Shaped human profile and gathered hair | A circle under the profile strip keeps the lower face round; the chin sinks into the collar. | One continuous side-head outline, tapered front jaw, a short visible neck, wrapped bun coils and a shaped nape. Reduced the circular chest highlight so clothes follow the shoulder. |
+| Shaped human profile and gathered hair | A circle under the profile strip keeps the lower face round; the chin sinks into the collar. The first shaped front jaw over-corrected into visible straight facets. | One continuous side-head outline, softly curved cheeks and chin, a short visible neck, wrapped bun coils and a shaped nape. Reduced the circular chest highlight so clothes follow the shoulder. |
 
 These changes preserve room placements and the furniture footprints/seat
 heights. Custom clothing, skin, hair and furniture colours still apply.

@@ -42,6 +42,14 @@ describe("fixed common places", () => {
     expect(scene.surfaces.nook.z).toBeGreaterThan(scene.surfaces.ground.z);
     expect(scene.seats.filter((s) => s.furniture === "lounge-sofa")).toHaveLength(2);
   });
+  it("authors cozy wall, light and lived-in detail around the fixed seats", () => {
+    const scene = COMMON_PLACES["common-cottage"];
+    const items = new Set(scene.props.map((p) => p.item));
+    for (const item of ["curtain", "fairylights", "corkboard", "frame", "wallshelf", "palm", "basket", "candle"])
+      expect(items.has(item), item).toBe(true);
+    expect(scene.props.filter((p) => ISO_ITEMS[p.item].wall).length).toBeGreaterThanOrEqual(8);
+    expect(scene.props.filter((p) => ISO_ITEMS[p.item].glow).length).toBeGreaterThanOrEqual(8);
+  });
   it("arrives in a reserved free seat with a stable, varied population", () => {
     const session = createCommonSession("common-cottage");
     expect(session).toEqual(createCommonSession("common-cottage"));

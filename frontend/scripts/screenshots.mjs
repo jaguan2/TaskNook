@@ -546,7 +546,7 @@ async function main() {
   // Fixed common place: join through the real drawer, then try the raised seat.
   if (["39", "40", "41"].some(want)) {
     await setCharacter(page, "casual");
-    await page.setStorage(ambient({ weather: "off", time: "day" }));
+    await page.setStorage(ambient({ weather: "off", time: "sunset" }));
     await page.load();
     await page.clickText("Friends", { exact: true });
     const joined = await page.clickText("Common Cottage");

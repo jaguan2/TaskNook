@@ -30,6 +30,13 @@ describe("common-room seats", () => {
     expect(onChooseSeat).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("group", { name: "Common room seats" })).toBeNull();
   });
+  it("casts catalog light and dresses the open partition without adding interactions", () => {
+    const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
+      character={DEFAULT_CHARACTER} timeOfDay="sunset" />);
+    expect(container.querySelectorAll("[data-common-light]").length).toBeGreaterThanOrEqual(8);
+    expect(container.querySelectorAll('[data-partition-bulb="true"]')).toHaveLength(8);
+    expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);
+  });
   it("updates the user's floor and outfit without moving the neighbours", () => {
     const session = createCommonSession("common-cottage");
     const { rerender, container } = render(<CommonRoom session={session} character={DEFAULT_CHARACTER} />);

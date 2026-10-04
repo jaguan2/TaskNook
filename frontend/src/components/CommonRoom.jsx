@@ -1,7 +1,7 @@
 import { memo, useEffect, useId, useState } from "react";
 import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
 import { floorPatch, isoBox, project, wallRect } from "../lib/iso";
-import { isoDepth, ISO_ITEMS } from "../lib/isoRoom";
+import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
 import { npcActivity } from "../lib/visiting";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
@@ -64,7 +64,9 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const guestSeat = scene.seats.find((seat) => seat.id === session.guestSeatId);
   const choose = (seat) => { onChooseSeat(seat.id); setChoosing(false); };
   const clip = (level) => `${uid}-${level}`;
-  const glow = timeOfDay === "night" ? 0.5 : timeOfDay === "sunset" ? 0.3 : 0.12;
+  const glow = timeOfDay === "night" ? 0.62 : timeOfDay === "sunset" ? 0.52 : 0.2;
+  const lampGlow = timeOfDay === "night" ? 1 : timeOfDay === "sunset" ? 0.82 : 0.34;
+  const windowFill = timeOfDay === "night" ? "#4d4a67" : timeOfDay === "sunset" ? "#d79a68" : "#b7cbcb";
   const props = resolveCommonProps(scene);
   const layers = (level) => {
     const entries = props.filter((p) => (p.level || "ground") === level)
@@ -81,27 +83,68 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
       .map((entry) => entry.p ? <Prop key={entry.id} p={entry.p} scene={scene} /> :
         <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now} />);
   };
+  const lightPools = (level) => props.filter((p) => (p.level || "ground") === level).map((p) => {
+    const item = ISO_ITEMS[p.item];
+    if (!item.glow || p.off) return null;
+    const [w, d] = footOf(p.item, p.rot);
+    const at = project(p.gx + w / 2, p.gy + d / 2);
+    const [radius, strength] = item.glow;
+    const z = scene.surfaces[level].z;
+    return <g key={`pool-${p.id}`} data-common-light={p.id} transform={`translate(0,${-z})`}
+      opacity={strength * lampGlow} style={ambienceVars(p.gx, p.gy)}>
+      <ellipse className={item.flicker ? "pool-flicker" : "pool-breathe"}
+        cx={at.x} cy={at.y} rx={radius} ry={radius * 0.5} fill={`url(#${uid}-lamp-pool)`} />
+    </g>;
+  });
   const P = (gx, gy, z = 0) => { const p = project(gx, gy); return `${p.x},${p.y - z}`; };
+  const partitionStart = project(6.5, 0);
+  const partitionEnd = project(6.5, 4);
+  const partitionBulbs = Array.from({ length: 8 }, (_, i) => {
+    const t = (i + 0.5) / 8;
+    return {
+      x: partitionStart.x + (partitionEnd.x - partitionStart.x) * t,
+      y: partitionStart.y + (partitionEnd.y - partitionStart.y) * t - 104 + Math.sin(t * Math.PI) * 7,
+    };
+  });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
     <svg viewBox="-260 -190 580 470" className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label="Common Cottage: study, lounge and raised reading nook">
       <defs>
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
         </linearGradient>
+        <linearGradient id="isoSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={timeOfDay === "night" ? "#343754" : timeOfDay === "sunset" ? "#b96f69" : "#9fc5cc"} />
+          <stop offset="1" stopColor={timeOfDay === "night" ? "#67617b" : timeOfDay === "sunset" ? "#efb276" : "#d5e2dc"} />
+        </linearGradient>
         {Object.entries(scene.surfaces).map(([level, s]) => <clipPath key={level} id={clip(level)}>
           <polygon points={floorPatch(s.gx, s.gy, s.dx, s.dy)} />
         </clipPath>)}
         <radialGradient id={`${uid}-light`}><stop stopColor="#ffe8ab" /><stop offset="1" stopColor="#ffe8ab" stopOpacity="0" /></radialGradient>
+        <radialGradient id={`${uid}-lamp-pool`}><stop stopColor="#ffe6a7" stopOpacity=".85" /><stop offset="1" stopColor="#ffe6a7" stopOpacity="0" /></radialGradient>
       </defs>
       <g pointerEvents="none">
         <ellipse cx="20" cy="208" rx="215" ry="33" fill="#241d2b" opacity=".17" />
         {/* Rear walls and windows are deliberately behind every floor level. */}
-        <polygon points={`${P(0, 0)} ${P(0, 9)} ${P(0, 9, 118)} ${P(0, 3.1, 118)} ${P(0, 3.1, 154)} ${P(0, 0, 154)}`} fill="#a59687" />
-        <polygon points={`${P(0, 0)} ${P(11, 0)} ${P(11, 0, 118)} ${P(4.4, 0, 118)} ${P(4.4, 0, 154)} ${P(0, 0, 154)}`} fill="#847b79" />
+        <polygon points={`${P(0, 0)} ${P(0, 9)} ${P(0, 9, 118)} ${P(0, 3.1, 118)} ${P(0, 3.1, 154)} ${P(0, 0, 154)}`} fill="#a89484" />
+        <polygon points={`${P(0, 0)} ${P(11, 0)} ${P(11, 0, 118)} ${P(4.4, 0, 118)} ${P(4.4, 0, 154)} ${P(0, 0, 154)}`} fill="#8f817c" />
+        {/* Panelling and a continuous rail make the walls feel furnished even
+            where a shelf cannot fit, echoing the reference's blue wainscot. */}
+        <polygon points={wallRect("left", 0, 9, 0, 43)} fill="#746e69" opacity=".55" />
+        <polygon points={wallRect("right", 0, 11, 0, 43)} fill="#6a625f" opacity=".5" />
+        <polygon points={wallRect("left", 0, 9, 41, 4)} fill="#d0b18c" />
+        <polygon points={wallRect("right", 0, 11, 41, 4)} fill="#c39f7d" />
+        {[1.5, 3, 4.5, 6, 7.5].map((t) => <path key={`left-panel-${t}`}
+          d={`M${P(0, t)} L${P(0, t, 40)}`} stroke="#4f4a49" strokeWidth="1" opacity=".22" />)}
+        {[1.6, 3.2, 4.8, 8.8, 10.4].map((t) => <path key={`right-panel-${t}`}
+          d={`M${P(t, 0)} L${P(t, 0, 40)}`} stroke="#4f4746" strokeWidth="1" opacity=".22" />)}
         <polygon points={wallRect("left", 0.4, 2.3, 55, 70)} fill="#c6a980" stroke="#e0c59d" strokeWidth="4" />
-        <polygon points={wallRect("left", 0.5, 2.1, 59, 62)} fill={timeOfDay === "night" ? "#424968" : "#aec4c9"} />
+        <polygon points={wallRect("left", 0.5, 2.1, 59, 62)} fill={windowFill} />
         <polygon points={wallRect("right", 6.1, 2.3, 36, 66)} fill="#c6a980" stroke="#d8bd94" strokeWidth="4" />
-        <polygon points={wallRect("right", 6.2, 2.1, 40, 58)} fill={timeOfDay === "night" ? "#424968" : "#aec4c9"} />
+        <polygon points={wallRect("right", 6.2, 2.1, 40, 58)} fill={windowFill} />
+        {(timeOfDay === "night" || timeOfDay === "sunset") && <>
+          <polygon points={wallRect("left", 0.5, 2.1, 59, 62)} fill="#ffd38b" opacity=".16" />
+          <polygon points={wallRect("right", 6.2, 2.1, 40, 58)} fill="#ffd38b" opacity=".2" />
+        </>}
         <path d={`M${P(0, 1.55, 59)} L${P(0, 1.55, 121)} M${P(7.25, 0, 40)} L${P(7.25, 0, 98)}`} stroke="#ddc29b" strokeWidth="3" />
         <Surface surface={scene.surfaces.ground} clipId={clip("ground")} />
         <Surface surface={scene.surfaces.nook} clipId={clip("nook")} />
@@ -112,11 +155,24 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <g transform="translate(0,-36)" clipPath={`url(#${clip("nook")})`}>
           <ellipse cx="-10" cy="40" rx="55" ry="30" fill={`url(#${uid}-light)`} opacity={glow} />
         </g>
+        <g clipPath={`url(#${clip("nook")})`}>{lightPools("nook")}</g>
         {layers("nook")}
-        {/* The open partition separates the study without covering its seats. */}
-        <path d={`M${P(6.5, 0, 111)} L${P(6.5, 4, 111)} L${P(6.5, 4, 0)}`} fill="none" stroke="#ad8c6d" strokeWidth="5" />
-        <path d={`M${P(6.5, 0, 105)} L${P(6.5, 4, 105)}`} stroke="#dbc3a3" strokeWidth="2" />
+        {/* A dressed open partition gives the two lower zones a threshold
+            without covering either study seat: timber, vine and dim bulbs. */}
+        <path d={`M${P(6.5, 0, 111)} L${P(6.5, 4, 111)} L${P(6.5, 4)}`}
+          fill="none" stroke="#8f694f" strokeWidth="11" strokeLinejoin="round" />
+        <path d={`M${P(6.5, 0, 106)} L${P(6.5, 4, 106)}`}
+          fill="none" stroke="#d1ae83" strokeWidth="2.5" />
+        <path d={`M${partitionStart.x} ${partitionStart.y - 105} Q${(partitionStart.x + partitionEnd.x) / 2} ${partitionEnd.y - 91} ${partitionEnd.x} ${partitionEnd.y - 105}`}
+          fill="none" stroke="#544b43" strokeWidth="1.2" />
+        {partitionBulbs.map((bulb, i) => <g key={`partition-bulb-${i}`} data-partition-bulb="true">
+          <circle cx={bulb.x} cy={bulb.y} r="5" fill="#ffd890" opacity=".11" />
+          <circle cx={bulb.x} cy={bulb.y} r="1.7" fill="#ffe5a5" />
+          {i % 2 === 0 && <ellipse cx={bulb.x - 3} cy={bulb.y - 4} rx="4.2" ry="1.8"
+            fill="#4f7f60" transform={`rotate(${-24 + i * 7} ${bulb.x - 3} ${bulb.y - 4})`} />}
+        </g>)}
         <g clipPath={`url(#${clip("ground")})`}><ellipse cx="-7" cy="161" rx="90" ry="45" fill={`url(#${uid}-light)`} opacity={glow} /></g>
+        <g clipPath={`url(#${clip("ground")})`}>{lightPools("ground")}</g>
         {layers("ground")}
       </g>
       {/* Seat targets are the only interactive scene elements. A separate HTML

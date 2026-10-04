@@ -98,12 +98,13 @@ paint, including front and rear chair/sofa views.
 ### Persona proportions
 
 The front face keeps the existing crown size for hair and hats, but its
-cheek planes taper through an angled jaw to a narrow, softly squared chin.
-The previous curved jaw still read as a circle at room scale. Small ears and
-almond eyes share the same head anchors as the glasses. The profile uses one
-complete skull-and-jaw outline; never leave a round skull underneath a
-separate nose strip. A short visible neck separates chin and collar in
-both poses. Cheek colour is
+cheeks now flow through one continuous curve into a softly rounded chin.
+Straight cheek-to-chin facets made the tiny face look triangular; a perfect
+circle remains too flat, so the lower curve narrows gently without corners.
+Small ears and almond eyes share the same head anchors as the glasses. The profile uses one
+complete skull-and-jaw outline with the same rounded lower-face rhythm; never
+leave a round skull underneath a separate nose strip. A short visible neck
+separates chin and collar in both poses. Cheek colour is
 drawn once, by `Face`; the assembly must not add another blush layer.
 
 The neckline is fitted to the top: shirt, tie and blouse have two collar
