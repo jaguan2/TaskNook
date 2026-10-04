@@ -101,7 +101,9 @@ The front face keeps the existing crown size for hair and hats, but its
 cheeks now flow through one continuous curve into a softly rounded chin.
 Straight cheek-to-chin facets made the tiny face look triangular; a perfect
 circle remains too flat, so the lower curve narrows gently without corners.
-Small ears and almond eyes share the same head anchors as the glasses. The profile uses one
+Small ears and almond eyes share the same head anchors as the glasses. Glasses keep only
+their lens rims—round, softly square, or low half-moon—because bridge and temple strokes
+read as stray lines across the tiny face. The profile uses one
 complete skull-and-jaw outline with the same rounded lower-face rhythm; never
 leave a round skull underneath a separate nose strip. A short visible neck
 separates chin and collar in both poses. Cheek colour is

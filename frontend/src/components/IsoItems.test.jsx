@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
-import { GLASSES_REGISTRY } from "./character/glasses";
+import { Glasses, GLASSES_REGISTRY } from "./character/glasses";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
 import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
@@ -215,6 +215,19 @@ describe("the isometric catalog and its artwork agree", () => {
         ).toBe(false);
         seen.set(html, key);
         cleanup();
+      }
+    });
+
+    it("keeps glasses to clean lens rims without bridge or temple lines", () => {
+      for (const kind of ["round", "square", "halfmoon"]) {
+        for (const view of ["front", "side"]) {
+          const { container } = draw(<Glasses kind={kind} headY={0} view={view} />);
+          expect(container.querySelector("line, polyline")).toBeNull();
+          for (const path of container.querySelectorAll("path")) {
+            expect(path.getAttribute("d"), `${kind} ${view}`).not.toMatch(/\bL\b/);
+          }
+          cleanup();
+        }
       }
     });
 

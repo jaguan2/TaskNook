@@ -612,9 +612,10 @@ running `git commit` yourself.
   slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
   `character/glasses.jsx`: round/square/halfmoon — the third accessory
   slot, deliberately colour-less: frames are a fixed ink like shoe soles
-  are fixed rubber. Drawn inside the head's gesture group AFTER hair and
-  hat so a fringe can't bury the rims; nothing from behind — temple tips
-  at a 7.3px skull are noise. They stack with hats, unlike hair).
+  are fixed rubber. Each style draws only its LENS RIMS; bridges and temple
+  arms become stray face lines at this scale. Drawn inside the head's gesture
+  group AFTER hair and hat so a fringe can't bury the rims; nothing from
+  behind. They stack with hats, unlike hair).
   **Complete starting looks** live in `lib/characterPresets.js`: fall girl/
   guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
   a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
