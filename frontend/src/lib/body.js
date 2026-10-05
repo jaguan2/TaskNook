@@ -77,7 +77,7 @@ export const SEAT_HEAD_Y = SEAT_TORSO_Y - HEAD_LIFT;
 // The previous floor was also why dragging Body Width fully left appeared to
 // stop changing the upper body. Keep a small margin around the authored head,
 // then let the dedicated chest axis do its job.
-export const MIN_SHOULDER = 7.7;
+export const MIN_SHOULDER = 7.4;
 
 /**
  * The two bodies, as offsets from the build's half-width.
@@ -101,8 +101,8 @@ export const MODEL_SHAPE = {
   // figure. `limb` is per-model too — the same silhouette-only doctrine,
   // just applied to arms and legs: fem's are visibly finer, and that
   // difference survives 57px where a 0.4px waist tweak would not.
-  masc: { shoulder: +2.8, waist: -1.0, hem: +0.6, limb: +0.1 },
-  fem: { shoulder: +0.6, waist: -3.2, hem: +2.2, limb: -0.5 },
+  masc: { shoulder: +2.2, waist: -1.0, hem: +0.6, limb: +0.1 },
+  fem: { shoulder: +0.5, waist: -3.2, hem: +2.2, limb: -0.5 },
 };
 
 /**
@@ -147,6 +147,28 @@ export const SHOULDER_RANGE = [-1.6, 1.0];
 export const DEFAULT_SHOULDER = -0.6;
 export const HEIGHT_RANGE = [28, 34];
 export const TORSO_RANGE = [14, 20];
+
+// Neutral starting proportions for the four body axes. These are templates,
+// not identities: applying one changes only geometry and deliberately leaves
+// model, skin, face, hair, and every wardrobe choice untouched.
+export const BODY_SIZE_PRESETS = [
+  { key: "compact", label: "Compact", width: 6.2, shoulders: -0.8, height: 28, torso: 14.5 },
+  { key: "balanced", label: "Balanced", width: 6.8, shoulders: -0.6, height: 31, torso: 17 },
+  { key: "tall", label: "Tall", width: 6.6, shoulders: -0.6, height: 34, torso: 18.5 },
+  { key: "broad", label: "Broad", width: 8.2, shoulders: 0.2, height: 32, torso: 18 },
+];
+
+export function bodySizePresetPatch(preset) {
+  if (!preset) return {};
+  const { width, shoulders, height, torso } = preset;
+  return { width, shoulders, height, torso };
+}
+
+export function bodySizePresetMatches(character, preset) {
+  return ["width", "shoulders", "height", "torso"].every(
+    (key) => Number(character?.[key]) === preset[key]
+  );
+}
 
 function clampNum(value, [lo, hi], fallback) {
   return typeof value === "number" && Number.isFinite(value)
@@ -201,10 +223,11 @@ export function figureMetrics(ch = {}) {
     // torso's bottom edge stays at the seat line whatever its height.
     seatTorsoY: 1 - torsoH,
     seatHeadY: 1 - torsoH - HEAD_LIFT,
-    // Bases came down ~0.2 in the slimming retune; with masc's +0.1 model
-    // limb the male figure lands a hair under the old classics, and fem's
-    // -0.5 puts real daylight between the two bodies' arms and legs.
-    armW: 4.7 + limb,
+    // Arms are deliberately finer than legs and, unlike the old hard-coded
+    // 4.3px sleeve in Arm, this value is consumed by every pose. The smaller
+    // base keeps bowed sleeves from making the chest look wider than its
+    // torso; masc's +0.1 and fem's -0.5 remain a visible model distinction.
+    armW: 4.1 + limb,
     legW: 5.4 + limb,
     thighW: 7.3 + limb,
     shinW: 6.3 + limb,

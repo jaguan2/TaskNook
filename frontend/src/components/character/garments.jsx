@@ -19,7 +19,7 @@
 //   outfit — the tinted() style carrying the outfit colour ({fill}, never
 //     `color`: currentColor resolves to inherited cream — a trap already hit)
 //   shell() — the OUTER-layer helper below
-import { BRASS, GLINT, OUTER_BULK, SHADE } from "./body";
+import { BRASS, GLINT, OUTER_BULK, SHADE, SKIN } from "./body";
 import { WAIST_DROP, torsoGeom } from "../../lib/body";
 
 /**
@@ -154,6 +154,34 @@ export const GARMENT_REGISTRY = {
         opacity="0.2"
         strokeLinecap="round"
       />
+    ),
+  },
+  tank: {
+    finish: MATTE,
+    // The plain torso underneath is outfit-coloured, so the armholes are
+    // painted back to the selected skin. This changes the shoulder outline
+    // at room scale instead of relying on a neckline that disappears.
+    draw: ({ sh, top, skin }) => (
+      <>
+        <path d={`M ${-sh + 0.1} ${top + 0.8} Q ${-sh + 0.2} ${top + 5.8} ${-sh + 2.8} ${top + 7}
+          L -3.7 ${top + 1.1} Z`} fill={skin} />
+        <path d={`M ${sh - 0.1} ${top + 0.8} Q ${sh - 0.2} ${top + 5.8} ${sh - 2.8} ${top + 7}
+          L 3.7 ${top + 1.1} Z`} fill={skin} />
+        <path d={`M -3.7 ${top + 1} Q 0 ${top + 5.2} 3.7 ${top + 1}`}
+          fill="none" stroke="#000" strokeWidth="1" opacity="0.2" strokeLinecap="round" />
+      </>
+    ),
+    back: ({ sh, top, skin }) => (
+      <>
+        <path d={`M ${-sh + 0.1} ${top + 0.8} Q ${-sh + 0.2} ${top + 5.8} ${-sh + 2.8} ${top + 7}
+          L -3.5 ${top + 1} Z`} fill={skin} />
+        <path d={`M ${sh - 0.1} ${top + 0.8} Q ${sh - 0.2} ${top + 5.8} ${sh - 2.8} ${top + 7}
+          L 3.5 ${top + 1} Z`} fill={skin} />
+      </>
+    ),
+    side: ({ sh, top, skin }) => (
+      <path d={`M ${-sh + 0.2} ${top + 0.8} Q ${-sh + 0.3} ${top + 5.8} ${-sh + 2.8} ${top + 7}
+        L ${-sh + 3.6} ${top + 1} Z`} fill={skin} />
     ),
   },
   swim: {
@@ -1107,13 +1135,13 @@ const viewDraw = (entry, view) => {
  * "side"); garments whose artwork is symmetric (overalls' straps, the
  * puffer's seams) simply draw the same both ways.
  */
-export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, model = "masc", view = "front" }) {
+export function Garment({ kind, sh, wa, hem, top, bot, waistY, inner, outfit, skin = SKIN, model = "masc", view = "front" }) {
   const entry = GARMENT_REGISTRY[kind];
   if (!entry) return null;
   // waistY arrives from the body's own metrics (the torso is user-tunable
   // now); the WAIST_DROP default keeps previews and tests that don't pass
   // one on the classic figure.
-  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit, model };
+  const ctx = { sh, wa, hem, top, bot, waistY: waistY ?? top + WAIST_DROP, inner, outfit, skin, model };
   ctx.shell = shellFor(ctx);
   const drawFn = viewDraw(entry, view);
   return drawFn ? drawFn(ctx) : null;

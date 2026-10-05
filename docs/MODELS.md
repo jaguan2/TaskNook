@@ -101,9 +101,12 @@ The front face keeps the existing crown size for hair and hats, but its
 cheeks now flow through one continuous curve into a softly rounded chin.
 Straight cheek-to-chin facets made the tiny face look triangular; a perfect
 circle remains too flat, so the lower curve narrows gently without corners.
-Small ears and almond eyes share the same head anchors as the glasses. Glasses keep only
-their lens rims—round, softly square, or low half-moon—because bridge and temple strokes
-read as stray lines across the tiny face. The profile uses one
+Small ears and rounded dot eyes share the same head anchors as the glasses.
+Each open eye is one dark oval plus one catchlight; the earlier sclera, pupil,
+lid and brow stack became busy at room scale. Glasses keep only their lens
+rims—round, softly square, or smaller low-set circular readers—because bridge,
+temple and open half-moon strokes read as stray lines across the tiny face.
+The profile uses one
 complete skull-and-jaw outline with the same rounded lower-face rhythm; never
 leave a round skull underneath a separate nose strip. A short visible neck
 separates chin and collar in both poses. Cheek colour is
@@ -160,10 +163,12 @@ must-be-BIG rule as the model deltas.
 Body width and height are **user-tunable** (Profile panel sliders, stored on
 the character). `WIDTH_RANGE`/`HEIGHT_RANGE` in `lib/body.js` are
 guard-derived, not taste — tests pin each endpoint against the shoulder
-floor, the ≤1.55×-head chunky ceiling, the hem-covers-stance rule and the
+floor, the ≤1.6×-head chunky ceiling, the hem-covers-stance rule and the
 ≥40% leg share, so widening a range without re-deriving it fails CI. Limb
 thickness scales gently with width (a wide torso on stick legs reads as
-parts pasted together). Stored `build` keys survive as the width's default,
+parts pasted together). `Resident` must pass the resulting `armW` into every
+front, profile and seated arm; a hard-coded sleeve silently erases the model
+difference. Stored `build` keys survive as the width's default,
 so pre-slider saves keep their silhouette.
 
 The editor also offers **complete starting looks** from
@@ -185,6 +190,13 @@ became a MODEL axis too — fem's arms and legs run 0.6px finer than masc's,
 because a sub-half-pixel model delta is invisible at 57px. Old saves with
 widths above the new 8.4 ceiling clamp down on load: that is the retune
 applied, not data loss.
+
+The 2026-10 arm-and-face pass finished that retune in the rendered sprite.
+Standing and seated sleeves now consume model/build-specific `armW`, their
+resting elbow and hand anchors bow less far outside the torso, and the masc
+shoulder offset dropped from +2.8 to +2.2. The shoulder floor is now 7.4px,
+just proud of the 7.3px head radius, so low chest settings visibly change the
+silhouette without becoming top-heavy. Puffer and coat bulk remains additive.
 
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
@@ -496,6 +508,20 @@ which is most of why clothes read flatter than the body wearing them.
   first too-faint mark set shipped.
 
 ## Shared construction and seated-pose status
+
+Body customization now has two layers. `BODY_SIZE_PRESETS` supplies Compact,
+Balanced, Tall and Broad starting geometry, while the existing width,
+shoulder, leg and torso sliders remain independent. Applying a body template
+changes only those four numeric axes; it never replaces skin, model, face,
+hair or clothing. The wardrobe adds a tank with genuinely bare arms and
+skin-cut armholes, cargo pants with pose-specific flap pockets, and sandals
+whose exposed foot uses the selected skin colour in front and profile.
+
+These pieces follow the existing silhouette rule: they earn catalog entries
+through visible construction at room scale, not a renamed colourway. Tests
+pin catalog/art registry parity, bare-sleeve wiring, pockets in standing,
+profile and seated poses, skin-aware sandals, and meaningful size-template
+differences across both models.
 
 The experimental chair perspective rig was removed after the owner's visual
 review. Seating uses the original front/rear assembly, with the existing lap

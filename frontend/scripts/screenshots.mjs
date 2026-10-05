@@ -69,6 +69,7 @@ const LOOKS = {
   garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 32 },
   cafe: { model: "fem", skin: "#f0cfb4", hair: "bob", hairColor: "#b57248", garment: "shirt", outfit: "#f2e4ca", coat: "cardigan", coatColor: "#ad6678", pants: "pleats", trouser: "#5f7384", shoes: "loafers", width: 6.6, height: 28 },
   summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 33 },
+  maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 28, torso: 14.5 },
 };
 const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer" };
 const CHARACTERS = [
@@ -78,6 +79,7 @@ const CHARACTERS = [
   ["36", "character-garden", "garden", "Hair"],
   ["37", "character-presets", null, "Looks"],
   ["38", "character-presets-seated", null, "Looks"],
+  ["42", "character-customization", "maker", "Outfit"],
 ];
 
 async function setCharacter(page, look) {
@@ -358,14 +360,14 @@ async function modelShot(cdp, page, file, presets) {
     stage.style.cssText = 'width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${presets ? 4 : 1},minmax(0,1fr));grid-template-rows:repeat(${presets ? 2 : 1},minmax(0,1fr))';
     for (const model of models) {
       const figure = document.createElement('figure');
-      figure.style.cssText = 'margin:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px';
+      figure.style.cssText = 'margin:0;min-width:0;min-height:0;overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px';
       const svg = new DOMParser().parseFromString(model.svg, 'image/svg+xml').documentElement;
       svg.setAttribute('viewBox', [left, top, right-left, bottom-top].join(' '));
-      svg.style.cssText = 'width:100%;height:100%;min-height:0;display:block';
+      svg.style.cssText = 'width:100%;max-width:100%;height:100%;min-width:0;min-height:0;display:block';
       figure.append(svg);
       if (model.label) {
         const caption = document.createElement('figcaption'); caption.textContent = model.label;
-        caption.style.cssText = 'font:600 20px/28px "Segoe UI",sans-serif;color:#493c43;text-align:center';
+        caption.style.cssText = 'min-width:0;overflow:hidden;white-space:nowrap;font:600 18px/26px "Segoe UI",sans-serif;color:#493c43;text-align:center';
         figure.append(caption);
       }
       stage.append(figure);
@@ -461,6 +463,10 @@ async function main() {
       const r = await page.clickText(panel, { exact: true });
       if (r !== "ok") { console.log(`  ${n} ${name}: ${r}`); continue; }
       await sleep(1800);
+      if (n === "22") {
+        await page.clickText("Body", { exact: true });
+        await sleep(700);
+      }
     }
     const bytes = await page.shot(join(OUT_DIR, `${n}-${name}.webp`));
     console.log(`  ${n}-${name}.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);

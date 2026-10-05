@@ -579,14 +579,14 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, **a wardrobe**, expression, and body width/height sliders — `build`
+  hair + colour, **a wardrobe**, expression, and body width/shoulder/leg/torso sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
-  (`OUTFITS`: sweater/tee/swimwear/button-up/blouse/shirt-and-tie/overalls/
+  (`OUTFITS`: sweater/tee/tank/swimwear/button-up/blouse/shirt-and-tie/overalls/
   dress/turtleneck/sweater vest,
   coloured by
   `outfit`; the vest's ARMS paint in the inner colour via `sleeves: "inner"`
@@ -595,15 +595,15 @@ running `git commit` yourself.
   the vest's contrast-sleeve wiring, the raincoat drops past the hem,
   its own `coatColor` — the open fronts show the TOP through the opening,
   which is what makes two slots read as two garments), and BOTTOMS
-  (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
+  (`PANTS`: trousers/dress pants/jeans/joggers/cargo/wide/shorts/jorts/skirt/
   pleated skirt, coloured by `trouser`; khakis are trousers in a khaki
   colour), plus SHOES (`SHOES` + `shoeColor`: sneakers, loafers, boots,
-  heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
+  heels, Mary Janes, sandals — `FrontShoe`/`SideShoe` in character/body.jsx, each
   BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
   and that two-material split is what makes a 5px shoe read as modelled).
-  10 tops × 9 coats (robe: the raincoat's drop plus an open front and a belt;
+  11 tops × 9 coats (robe: the raincoat's drop plus an open front and a belt;
   blazer: tailored lapels that preserve a blouse bow or tie in the opening)
-  × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 4,500
+  × 11 bottoms (maxi skirt: the cone to the ankle) × 6 shoes = 6,534
   silhouette combinations before any colour — times 8 hats (trapper: ear
   flaps past the jaw, the one hat that changes the head-to-shoulder outline)
   and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
@@ -613,7 +613,9 @@ running `git commit` yourself.
   `character/glasses.jsx`: round/square/halfmoon — the third accessory
   slot, deliberately colour-less: frames are a fixed ink like shoe soles
   are fixed rubber. Each style draws only its LENS RIMS; bridges and temple
-  arms become stray face lines at this scale. Drawn inside the head's gesture
+  arms become stray face lines at this scale; the legacy `halfmoon` key now
+  draws smaller low-set circular readers because open arcs resembled a
+  moustache. Drawn inside the head's gesture
   group AFTER hair and hat so a fringe can't bury the rims; nothing from
   behind. They stack with hats, unlike hair).
   **Complete starting looks** live in `lib/characterPresets.js`: fall girl/
@@ -626,6 +628,10 @@ running `git commit` yourself.
   never wardrobe restrictions. `characterPresets.test.js` pins completeness;
   the art sheet renders every preset front/seated/back, and Profile's Looks
   cards draw the real `Resident` rather than separate thumbnails.
+  **Body-size templates are geometry only** (`BODY_SIZE_PRESETS` in
+  `lib/body.js`): Compact/Balanced/Tall/Broad change width, shoulders, legs
+  and torso together but preserve the user's model, skin and entire look.
+  The four sliders remain available underneath for continuous adjustment.
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`

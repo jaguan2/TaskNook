@@ -165,6 +165,37 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(head.getAttribute("d")).not.toMatch(/\bL/i);
     });
 
+    it("keeps open eyes to one dark oval and one catchlight", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const eyes = [...container.querySelectorAll('[data-character-eye="open"]')];
+
+      expect(eyes).toHaveLength(2);
+      for (const eye of eyes) {
+        expect(eye.querySelectorAll("ellipse")).toHaveLength(1);
+        expect(eye.querySelectorAll("circle")).toHaveLength(1);
+        expect(eye.querySelector("path")).toBeNull();
+      }
+    });
+
+    it("uses the model-specific arm width in the rendered sprite", () => {
+      const widths = (model) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, model }} />
+        );
+        const values = [...container.querySelectorAll("[data-arm-width]")]
+          .map((arm) => Number(arm.dataset.armWidth));
+        cleanup();
+        return values;
+      };
+
+      const masc = widths("masc");
+      const fem = widths("fem");
+      expect(masc).toHaveLength(2);
+      expect(fem).toHaveLength(2);
+      for (const width of masc) expect(width).toBeCloseTo(4.2, 9);
+      for (const width of fem) expect(width).toBeCloseTo(3.6, 9);
+    });
+
     it("rests seated hands in the lap without stealing hands from activity or carrying", () => {
       const { container, rerender } = draw(<Resident seated seatH={22} />);
       expect(container.querySelectorAll('[data-arm-pose="lap"]')).toHaveLength(2);
@@ -440,6 +471,35 @@ describe("the profile view and the wardrobe slots", () => {
     };
 
     expect(markup("masc")).not.toBe(markup("fem"));
+  });
+
+  it("renders a tank top with genuinely bare arms", () => {
+    const { container } = draw(
+      <Resident character={{ ...DEFAULT_CHARACTER, garment: "tank", coat: "none", skin: "#8d5524" }} />
+    );
+    expect(container.querySelectorAll('[data-sleeve="none"]')).toHaveLength(2);
+    expect(container.innerHTML).toContain("#8d5524");
+  });
+
+  it("keeps cargo pockets visible in standing, profile, and seated poses", () => {
+    for (const props of [{}, { facing: "side" }, { seated: true, seatH: 19 }]) {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, pants: "cargo" }} {...props} />
+      );
+      expect(container.querySelector('[data-cargo-pocket]')).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("sandals expose the selected skin tone in front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, shoes: "sandals", skin: "#c08552" }} facing={facing} />
+      );
+      expect(container.querySelector('[data-sandal-foot]')).toBeTruthy();
+      expect(container.innerHTML).toContain("#c08552");
+      cleanup();
+    }
   });
 
   it("every bottom keeps distinct artwork when seated", () => {

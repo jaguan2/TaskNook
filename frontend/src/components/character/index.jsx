@@ -110,6 +110,7 @@ export function Resident({
     sh,
     wa,
     hem,
+    armW,
     legW,
     thighW,
     shinW,
@@ -174,6 +175,7 @@ export function Resident({
   const coatWorn = !!ch.coat && ch.coat !== "none";
   const coatStyle = tinted(ch.coatColor || "#8a5346");
   const sleeveShort = !coatWorn && wornGarment.sleeves === "short";
+  const sleeveless = !coatWorn && wornGarment.sleeves === "none";
   const sleeveBulk = coatWorn ? (ch.coat === "puffer" ? 1.6 : 0.9) : 0;
   // The arm's sleeve is painted by whatever's outermost — except the
   // `sleeves: "inner"` garments, whose whole point is arms in the SECOND
@@ -367,7 +369,7 @@ export function Resident({
                         </>
                       )}
                       <g style={outfit}>
-                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} model={ch.model} view="side" />
+                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} skin={skin} model={ch.model} view="side" />
                       </g>
                       <Coat
                         kind={ch.coat}
@@ -447,10 +449,12 @@ export function Resident({
                     <Arm
                       side={1}
                       sh={2.2}
+                      armW={armW}
                       torsoY={torsoY}
                       skin={skin}
                       outfit={armStyle}
                       shortSleeve={sleeveShort}
+                      sleeveless={sleeveless}
                       bulk={sleeveBulk}
                       cuff={cuff}
                       tone={bodyTone}
@@ -717,6 +721,7 @@ export function Resident({
                   waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
+                  skin={skin}
                   model={ch.model}
                   view={back ? "back" : "front"}
                 />
@@ -825,10 +830,12 @@ export function Resident({
                   side={-1}
                   lap={lap}
                   sh={sh}
+                  armW={armW}
                   torsoY={torsoY}
                   skin={skin}
                   outfit={armStyle}
                   shortSleeve={sleeveShort}
+                  sleeveless={sleeveless}
                   bulk={sleeveBulk}
                   cuff={cuff}
                   tone={bodyTone}
@@ -846,10 +853,12 @@ export function Resident({
                   side={1}
                   lap={lap}
                   sh={sh}
+                  armW={armW}
                   torsoY={torsoY}
                   skin={skin}
                   outfit={armStyle}
                   shortSleeve={sleeveShort}
+                  sleeveless={sleeveless}
                   bulk={sleeveBulk}
                   cuff={cuff}
                   tone={bodyTone}

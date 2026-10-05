@@ -14,6 +14,9 @@ import {
   SHOULDER_RANGE,
   HEIGHT_RANGE,
   TORSO_RANGE,
+  BODY_SIZE_PRESETS,
+  bodySizePresetMatches,
+  bodySizePresetPatch,
   STAND_TORSO_Y,
   STAND_HEAD_Y,
   SEAT_TORSO_Y,
@@ -36,7 +39,7 @@ describe("figure proportions", () => {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
         expect(sh, `${model} × ${build}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF + 0.3);
+        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF);
       }
     }
   });
@@ -76,6 +79,27 @@ describe("figure proportions", () => {
 });
 
 describe("figureMetrics", () => {
+  it("body templates span meaningfully different proportions on both models", () => {
+    const compact = BODY_SIZE_PRESETS.find(({ key }) => key === "compact");
+    const broad = BODY_SIZE_PRESETS.find(({ key }) => key === "broad");
+    const tall = BODY_SIZE_PRESETS.find(({ key }) => key === "tall");
+    for (const model of MODELS) {
+      const small = figureMetrics({ model, ...compact });
+      const wide = figureMetrics({ model, ...broad });
+      const long = figureMetrics({ model, ...tall });
+      expect(wide.hem - small.hem, `${model} width span`).toBeCloseTo(2, 9);
+      expect(long.legH - small.legH, `${model} height span`).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it("a body template patch preserves every non-body character choice", () => {
+    const character = { skin: "#123456", hair: "wolf", garment: "tank", width: 7.1 };
+    const patch = bodySizePresetPatch(BODY_SIZE_PRESETS[2]);
+    expect({ ...character, ...patch }).toMatchObject({ skin: "#123456", hair: "wolf", garment: "tank" });
+    expect(bodySizePresetMatches({ ...character, ...patch }, BODY_SIZE_PRESETS[2])).toBe(true);
+    expect(bodySizePresetMatches(character, BODY_SIZE_PRESETS[2])).toBe(false);
+  });
+
   // The geometry pin. These numbers are the reviewed silhouette — a change
   // here must be a deliberate retune re-baselined against a contact sheet,
   // never a drive-by.
@@ -85,17 +109,17 @@ describe("figureMetrics", () => {
     // masc keeps its shoulder line but the waist pinches to a V; fem is a
     // smaller hourglass; both hems came in with the base widths.
     masc: {
-      slim: { sh: 8.2, wa: 5, hem: 6.6, kneeX: 8.5 },
-      average: { sh: 9, wa: 5.8, hem: 7.4, kneeX: 8.5 },
-      sturdy: { sh: 10.2, wa: 7, hem: 8.6, kneeX: 8.5 },
+      slim: { sh: 7.6, wa: 5, hem: 6.6, kneeX: 8.5 },
+      average: { sh: 8.4, wa: 5.8, hem: 7.4, kneeX: 8.5 },
+      sturdy: { sh: 9.6, wa: 7, hem: 8.6, kneeX: 8.5 },
     },
     fem: {
       // All three builds now sit at MIN_SHOULDER (sturdy lands there
       // exactly) — the whole fem silhouette lives in the waist-to-hem
       // contrast and the finer limbs, exactly as documented.
-      slim: { sh: 7.7, wa: 2.8, hem: 8.2, kneeX: 8.5 },
-      average: { sh: 7.7, wa: 3.6, hem: 9, kneeX: 8.5 },
-      sturdy: { sh: 8, wa: 4.8, hem: 10.2, kneeX: 9.7 },
+      slim: { sh: 7.4, wa: 2.8, hem: 8.2, kneeX: 8.5 },
+      average: { sh: 7.4, wa: 3.6, hem: 9, kneeX: 8.5 },
+      sturdy: { sh: 7.9, wa: 4.8, hem: 10.2, kneeX: 9.7 },
     },
   };
 
@@ -128,7 +152,7 @@ describe("figureMetrics", () => {
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
-        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(1.6);
       }
     }
   });
@@ -150,7 +174,7 @@ describe("figureMetrics", () => {
     // than masc's at the same build — a 0.6px full-width difference, which
     // is the floor of what survives 57px.
     const base = figureMetrics({});
-    expect(base.armW).toBeCloseTo(4.8, 9);
+    expect(base.armW).toBeCloseTo(4.2, 9);
     expect(base.legW).toBeCloseTo(5.5, 9);
     expect(base.thighW).toBeCloseTo(7.4, 9);
     expect(base.shinW).toBeCloseTo(6.4, 9);
@@ -169,13 +193,13 @@ describe("figureMetrics", () => {
       for (const width of WIDTH_RANGE) {
         const { sh, hem, legW } = figureMetrics({ model, width });
         expect(sh, `${model} w${width}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(1.6);
         expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
       }
       for (const shoulders of SHOULDER_RANGE) {
         const { sh } = figureMetrics({ model, shoulders });
         expect(sh, `${model} chest${shoulders}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh / HEAD_R_EFF, `${model} chest${shoulders}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} chest${shoulders}`).toBeLessThanOrEqual(1.6);
       }
       for (const height of HEIGHT_RANGE) {
         // At the DEFAULT torso, the leg range keeps the figure leggy — the

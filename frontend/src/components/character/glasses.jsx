@@ -17,8 +17,6 @@ const FRAME = "#2b2350";
 const LENS = "#fff";
 const LENS_OP = 0.16;
 
-const frameStroke = { fill: "none", stroke: FRAME, strokeLinecap: "round" };
-
 export const GLASSES_REGISTRY = {
   none: {},
   round: {
@@ -87,39 +85,35 @@ export const GLASSES_REGISTRY = {
     ),
   },
   halfmoon: {
-    // Reading glasses sit low on the nose with open top rims, so the eyes
-    // look over them. The low placement supplies the whole signature.
+    // Small circular readers sit low on the nose. The old open arcs looked
+    // like a moustache once bridges and temple strokes were removed; closed
+    // rims keep the lightweight reading-glasses idea without face-lines.
     front: ({ headY }) => (
       <>
         {[-2.9, 2.9].map((cx) => (
-          <g key={cx}>
-            <path
-              d={`M ${cx - 1.9} ${headY + 3.1} A 1.9 1.9 0 0 0 ${cx + 1.9} ${headY + 3.1} Z`}
-              fill={LENS}
-              fillOpacity={LENS_OP}
-            />
-            <path
-              d={`M ${cx - 1.9} ${headY + 3.1} A 1.9 1.9 0 0 0 ${cx + 1.9} ${headY + 3.1}`}
-              {...frameStroke}
-              strokeWidth="0.7"
-            />
-          </g>
+          <circle
+            key={cx}
+            cx={cx}
+            cy={headY + 2.75}
+            r="1.75"
+            fill={LENS}
+            fillOpacity={LENS_OP}
+            stroke={FRAME}
+            strokeWidth="0.7"
+          />
         ))}
       </>
     ),
     side: ({ headY }) => (
-      <>
-        <path
-          d={`M -5.7 ${headY + 3.1} A 1.8 1.8 0 0 0 -2.1 ${headY + 3.1} Z`}
-          fill={LENS}
-          fillOpacity={LENS_OP}
-        />
-        <path
-          d={`M -5.7 ${headY + 3.1} A 1.8 1.8 0 0 0 -2.1 ${headY + 3.1}`}
-          {...frameStroke}
-          strokeWidth="0.7"
-        />
-      </>
+      <circle
+        cx="-3.7"
+        cy={headY + 2.65}
+        r="1.7"
+        fill={LENS}
+        fillOpacity={LENS_OP}
+        stroke={FRAME}
+        strokeWidth="0.7"
+      />
     ),
   },
 };
