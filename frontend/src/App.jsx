@@ -429,7 +429,7 @@ export default function App() {
             onClick={leaveVisit}
             className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
-            {commonRoom ? `🏡 ${COMMON_PLACES[commonRoom.sceneId].label}` : `${visiting.friend.avatar} In ${visiting.friend.displayName}'s room`}
+            {commonRoom ? `${COMMON_PLACES[commonRoom.sceneId].icon} ${COMMON_PLACES[commonRoom.sceneId].label}` : `${visiting.friend.avatar} In ${visiting.friend.displayName}'s room`}
             <span className="ml-1 text-petal/60">· home</span>
           </motion.button>
         )}

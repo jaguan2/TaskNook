@@ -100,12 +100,14 @@ sheets include all eight looks, in standing and restored seated poses.
 
 Fixed furnished spaces have their own architecture and seat selection. The
 Common Cottage includes a raised reading nook, lounge, shared study and three
-local simulated neighbours. Enter through Friends; the home remains editable.
+local simulated neighbours. Willow Pond adds an outdoor stone study terrace,
+pond bench and picnic lawn. Enter through Friends; the home remains editable.
 
 | | |
 |---|---|
 | ![Common Cottage](39-common-cottage.webp) **Arriving** — an open study seat with neighbours already settled. | ![Raised reading nook](40-common-cottage-reading.webp) **Reading nook** — choose the raised armchair without moving the furniture. |
 | ![Choosing a seat](41-common-cottage-seats.webp) **Seat selection** — open seats highlighted in the scene and listed as accessible buttons; occupied seats name their neighbour. | |
+| ![Willow Pond at sunset](43-willow-pond.webp) **Willow Pond** — a raised stone study terrace, pergola lights, pond bench and picnic lawn with one neighbour in each zone. | ![Willow Pond seat selection](44-willow-pond-seats.webp) **Garden seats** — the three occupied and three open places remain selectable at night. |
 
 ## Features
 

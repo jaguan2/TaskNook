@@ -3,6 +3,32 @@ import { COMMON_PLACES, availableCommonSeats, createCommonSession, resolveCommon
 import { footOf, isoDepth, ISO_ITEMS } from "./isoRoom";
 
 describe("fixed common places", () => {
+  it("keeps every authored place internally valid and guarantees three open seats", () => {
+    for (const scene of Object.values(COMMON_PLACES)) {
+      const anchors = new Set();
+      const seatIds = new Set(scene.seats.map((seat) => seat.id));
+      for (const seat of scene.seats) {
+        const furniture = scene.props.find((p) => p.id === seat.furniture);
+        const surface = scene.surfaces[seat.level];
+        expect(furniture, `${scene.id}/${seat.id} furniture`).toBeTruthy();
+        expect(surface, `${scene.id}/${seat.id} surface`).toBeTruthy();
+        expect(seat.height, `${scene.id}/${seat.id} height`).toBe(ISO_ITEMS[furniture.item].seat);
+        expect(seat.gx, `${scene.id}/${seat.id} gx`).toBeGreaterThanOrEqual(surface.gx);
+        expect(seat.gy, `${scene.id}/${seat.id} gy`).toBeGreaterThanOrEqual(surface.gy);
+        expect(seat.gx + 0.8, `${scene.id}/${seat.id} gx end`).toBeLessThanOrEqual(surface.gx + surface.dx);
+        expect(seat.gy + 0.8, `${scene.id}/${seat.id} gy end`).toBeLessThanOrEqual(surface.gy + surface.dy);
+        anchors.add(`${seat.level}:${seat.gx}:${seat.gy}`);
+      }
+      expect(anchors.size, scene.id).toBe(scene.seats.length);
+      expect(scene.neighbours.every((person) => seatIds.has(person.seatId)), scene.id).toBe(true);
+      expect(new Set(scene.neighbours.map((person) => person.seatId)).size, scene.id).toBe(scene.neighbours.length);
+      const session = createCommonSession(scene.id);
+      expect(session, scene.id).toEqual(createCommonSession(scene.id));
+      expect(availableCommonSeats(session), scene.id).toHaveLength(3);
+      expect(availableCommonSeats(session).map((seat) => seat.id), scene.id).toContain(scene.arrivalSeat);
+    }
+  });
+
   it("supports tabletop details at catalog heights and paints them after their hosts", () => {
     const scene = COMMON_PLACES["common-cottage"];
     const before = JSON.stringify(scene);
@@ -69,5 +95,20 @@ describe("fixed common places", () => {
     expect(settleCommonGuest(moved, "window-left")).toBe(moved);
     expect(settleCommonGuest(moved, "missing")).toBe(moved);
     expect(availableCommonSeats(null)).toEqual([]);
+  });
+
+  it("authors Willow Pond as an outdoor social scene rather than another cottage", () => {
+    const scene = COMMON_PLACES["willow-pond"];
+    const items = new Set(scene.props.map((p) => p.item));
+    for (const item of ["pond", "tree", "bush", "bench", "picnic", "cushion", "diningtable", "lantern", "flowers", "cat"])
+      expect(items.has(item), item).toBe(true);
+    expect(scene.kind).toBe("garden");
+    expect(scene.surfaces.ground.style).toBe("grass");
+    expect(scene.surfaces.patio.style).toBe("stone");
+    expect(scene.props.filter((p) => ISO_ITEMS[p.item].glow)).toHaveLength(5);
+    expect(scene.props.filter((p) => p.item === "lantern")).toHaveLength(3);
+    expect(scene.props.filter((p) => ["tree", "bush", "fern", "flowers", "flowerbed", "tulips"].includes(p.item)).length)
+      .toBeGreaterThanOrEqual(18);
+    expect(scene.seats.filter((seat) => seat.furniture === "pond-bench")).toHaveLength(2);
   });
 });

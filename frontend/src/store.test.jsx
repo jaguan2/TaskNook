@@ -74,6 +74,17 @@ describe("common-place sessions", () => {
     expect(store.visiting).toBeNull();
     expect(store.commonRoom.sceneId).toBe("common-cottage");
   });
+  it("switches between common places without touching the saved home", async () => {
+    await boot();
+    const home = store.isoRoom;
+    const homeWrites = api.saveRoom.mock.calls.length;
+    act(() => store.enterCommonRoom("common-cottage"));
+    act(() => store.enterCommonRoom("willow-pond"));
+    expect(store.activePlace).toEqual({ kind: "common", id: "willow-pond" });
+    expect(store.commonRoom.guestSeatId).toBe("patio-right");
+    expect(store.isoRoom).toBe(home);
+    expect(api.saveRoom.mock.calls.length).toBe(homeWrites);
+  });
 });
 
 describe("task completion durability", () => {

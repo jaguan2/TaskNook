@@ -248,7 +248,9 @@ export default function FriendsPanel() {
           <span className="text-2xl" aria-hidden="true">{place.icon}</span>
           <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-cream">{place.label}</span>
             <span className="mt-1 block text-[11px] text-petal/60">{place.description}</span>
-            <span className="mt-1 block text-[10px] text-petal/45">3 simulated neighbours · 3 guest seats</span>
+            <span className="mt-1 block text-[10px] text-petal/45">
+              {place.neighbours.length} simulated neighbours · {place.seats.length - place.neighbours.length} guest seats
+            </span>
           </span>
           <span className="text-xs text-glow">{commonRoom?.sceneId === place.id ? "Here" : "Join"}</span>
         </button>)}

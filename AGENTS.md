@@ -182,9 +182,13 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 
 ## Fixed common places
 
-`lib/commonRooms.js` defines the Common Cottage as an authored scene with two
-floor heights, fixed props and six explicit seat slots. `CommonRoom.jsx` draws
-it separately from the editable home, reusing the catalog/character sprites.
+`lib/commonRooms.js` defines authored common places with fixed props and six
+explicit seat slots. Common Cottage uses two floor heights; Willow Pond uses
+a lawn plus raised stone terrace, pond bench and picnic cluster.
+`CommonRoom.jsx` owns shared props, people, lights and seat interaction;
+`CommonGardenScene.jsx` owns Willow Pond's outdoor surface/path/pergola while
+the cottage architecture remains isolated from it. Both reuse catalog and
+character sprites separately from the editable home.
 Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
 three simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
@@ -195,7 +199,8 @@ Common entry cancels pending knocks and invalidates earlier friend-room
 requests. It disables home visitor arrivals and RoomPanel editing. Seat
 selection changes only the guest's seat ID, never the home API, furniture,
 NPC occupancy, timer or saved camera. Keep these state boundaries and the
-store/common-room regression tests when adding places. The scene is bounded
+store/common-room regression tests when adding places. Each shipped place
+keeps three deterministic neighbours and three open seats. The scene is bounded
 to its viewport; a percentage-height SVG inside the scene grid once expanded
 the page and made seat selection scroll the entire app. Details and remaining
 art work are in `docs/COMMON_ROOMS.md`.

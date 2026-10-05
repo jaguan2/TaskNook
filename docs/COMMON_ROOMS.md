@@ -1,7 +1,7 @@
 # Common rooms: fixed places to settle together
 
-Status: first usable Common Cottage implemented. Enter through Friends →
-Common Cottage; choose a seat through the scene's Change seat control; use
+Status: Common Cottage and Willow Pond implemented. Enter through Friends,
+choose a seat through the scene's Change seat control, and use
 Home or Escape to leave. The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
 
@@ -19,7 +19,36 @@ requests. Choosing a seat does not write to the home API or its saved camera.
 
 Current captures: [arrival](screenshots/39-common-cottage.webp),
 [raised reading seat](screenshots/40-common-cottage-reading.webp), and
-[seat selection](screenshots/41-common-cottage-seats.webp).
+[seat selection](screenshots/41-common-cottage-seats.webp). Willow Pond is
+shown at [sunset](screenshots/43-willow-pond.webp) and with its
+[seat choices open](screenshots/44-willow-pond-seats.webp).
+
+## Second place: Willow Pond
+
+Willow Pond is deliberately not another timber-and-books interior. It takes
+the pond, broad canopy, stone study area and picnic blanket from
+`ss_2e86b624b56035de6e9bac0c0320ad7c11326dbf.1920x1080.jpg`, the settled
+social clusters from `ss_18f591f3e019a2fa4e390c661167a536b08d6ded.1920x1080.jpg`,
+and the edge foliage from `b603fdd9497a472249116e7dc02960438ef96cee.jpg`.
+These are composition cues, not copied assets.
+
+The scene keeps the same six-seat contract as Common Cottage: two chairs on
+a slightly raised stone study terrace, two positions on one pond bench, and
+two floor cushions on a picnic blanket. Luna, Kai and Mochi occupy one place
+in each cluster, leaving three distinct choices for the user. A slim pergola
+and dim bulbs frame the terrace, while three garden lanterns provide the
+night light pools. The denser art pass follows the reference's layered edge
+grammar: overlapping shrubs, rocks, ferns and reeds wrap the pond; tiny meadow
+flowers interrupt open grass; pots, seedlings, a radio and light jar make the
+terrace feel used; and tea, fruit, books and a sleeping cat turn the picnic
+into a small story. The middle remains visually quiet enough that occupants
+and seat targets stay readable.
+
+`CommonRoom.jsx` retains the shared prop, person, lighting and interaction
+layers. `CommonGardenScene.jsx` owns the lawn, raised terrace, curved stepping
+stones and pergola; Cottage walls, windows, platform and stairs therefore
+cannot leak into the outdoor place. The manifest continues to live in
+`lib/commonRooms.js`, and no backend or saved-home schema is involved.
 
 ## Experience
 

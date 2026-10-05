@@ -567,6 +567,30 @@ async function main() {
     console.log("  common cottage: entry, open seats and raised reading nook");
   }
 
+  // Outdoor common place: sunset arrival plus the same garden at night with
+  // all seat targets visible. Both go through the real Friends card.
+  if (["43", "44"].some(want)) {
+    await setCharacter(page, "garden");
+    if (want("43")) {
+      await page.setStorage(ambient({ weather: "off", time: "sunset" }));
+      await page.load();
+      await page.clickText("Friends", { exact: true });
+      if (await page.clickText("Willow Pond") !== "ok") throw new Error("Willow Pond sunset entry failed");
+      await sleep(2500);
+      await page.shot(join(OUT_DIR, "43-willow-pond.webp"));
+    }
+    if (want("44")) {
+      await page.setStorage(ambient({ weather: "off", time: "night" }));
+      await page.load();
+      await page.clickText("Friends", { exact: true });
+      if (await page.clickText("Willow Pond") !== "ok") throw new Error("Willow Pond night entry failed");
+      await sleep(2500);
+      await page.clickText("Change seat");
+      await page.shot(join(OUT_DIR, "44-willow-pond-seats.webp"));
+    }
+    console.log("  willow pond: garden arrival and open-seat view");
+  }
+
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));
   console.log("done ->", OUT_DIR);
   process.exit(0);

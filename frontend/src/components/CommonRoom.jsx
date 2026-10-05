@@ -6,6 +6,7 @@ import { npcActivity } from "../lib/visiting";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
 import FloorSurface from "./IsoFloorSurface";
+import CommonGardenScene from "./CommonGardenScene";
 
 function Surface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color } = surface;
@@ -107,7 +108,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg viewBox="-260 -190 580 470" className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label="Common Cottage: study, lounge and raised reading nook">
+    <svg viewBox="-260 -190 580 470" className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
       <defs>
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
@@ -123,6 +124,10 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <radialGradient id={`${uid}-lamp-pool`}><stop stopColor="#ffe6a7" stopOpacity=".85" /><stop offset="1" stopColor="#ffe6a7" stopOpacity="0" /></radialGradient>
       </defs>
       <g pointerEvents="none">
+        {scene.kind === "garden" ? (
+          <CommonGardenScene scene={scene} uid={uid} clip={clip} glow={glow}
+            layers={layers} lightPools={lightPools} />
+        ) : <>
         <ellipse cx="20" cy="208" rx="215" ry="33" fill="#241d2b" opacity=".17" />
         {/* Rear walls and windows are deliberately behind every floor level. */}
         <polygon points={`${P(0, 0)} ${P(0, 9)} ${P(0, 9, 118)} ${P(0, 3.1, 118)} ${P(0, 3.1, 154)} ${P(0, 0, 154)}`} fill="#a89484" />
@@ -174,6 +179,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <g clipPath={`url(#${clip("ground")})`}><ellipse cx="-7" cy="161" rx="90" ry="45" fill={`url(#${uid}-light)`} opacity={glow} /></g>
         <g clipPath={`url(#${clip("ground")})`}>{lightPools("ground")}</g>
         {layers("ground")}
+        </>}
       </g>
       {/* Seat targets are the only interactive scene elements. A separate HTML
           list offers larger touch targets and the same choices by keyboard. */}
