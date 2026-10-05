@@ -102,10 +102,11 @@ cheeks now flow through one continuous curve into a softly rounded chin.
 Straight cheek-to-chin facets made the tiny face look triangular; a perfect
 circle remains too flat, so the lower curve narrows gently without corners.
 Small ears and rounded dot eyes share the same head anchors as the glasses.
-Each open eye is one dark oval plus one catchlight; the earlier sclera, pupil,
-lid and brow stack became busy at room scale. Glasses keep only their lens
-rims—round, softly square, or smaller low-set circular readers—because bridge,
-temple and open half-moon strokes read as stray lines across the tiny face.
+Each open eye is one uninterrupted dark oval; even a pinprick catchlight
+competed with the rims at room scale, while the earlier sclera, pupil, lid and
+brow stack was busier still. Glasses keep only small, low-contrast lens rims—
+round, softly square, or low-set circular readers—because bridge, temple and
+open half-moon strokes read as stray lines across the tiny face.
 The profile uses one
 complete skull-and-jaw outline with the same rounded lower-face rhythm; never
 leave a round skull underneath a separate nose strip. A short visible neck
@@ -201,13 +202,16 @@ instead of stacking it with the near arm's side shadow. The shoulder floor is
 6.45px beneath an effective 7.81px head radius:
 the rounded head can overhang the body as it does in the reference instead of
 forcing every chest to match the skull. The masc/fem waist-to-hem contrast
-remains, but the fem hem no longer makes a pronounced triangle. Eyes,
-catchlights, blush, nose and mouth were reduced together; blush is now a faint
-supporting cue rather than the face's strongest feature. Clothed pants keep
+remains, but the fem hem no longer makes a pronounced triangle. Eyes, blush,
+nose and mouth were reduced together; blush is now a faint supporting cue
+rather than the face's strongest feature. Clothed pants keep
 one quieter side shade plus their silhouette-defining crease, stitch, cuff or
 pocket; generic knee patches are reserved for bare legs, and cargo uses a
 single pocket without an extra cuff or bright flap. Puffer and coat bulk
-remains additive.
+remains additive, but the puffer uses one quilt seam rather than a stripe stack.
+The maxi uses one broad fold, curly hair gets one shadow curl plus one glint,
+and smooth wigs cap their crown sheen at two marks. These are detail budgets,
+not missing polish: the resident must read first at room scale.
 
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading

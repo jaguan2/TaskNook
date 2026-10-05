@@ -94,7 +94,7 @@ export const GARMENT_REGISTRY = {
           strokeLinecap="round"
         />
         <rect x={-hem + 1.6} y={bot - 2.3} width={(hem - 1.6) * 2} height="2.3" fill="#000" opacity="0.15" />
-        {[-hem + 3, -hem + 5.4, -hem + 7.8, hem - 7.8, hem - 5.4, hem - 3].map((x) => (
+        {[-hem + 3.2, -hem + 6, hem - 6, hem - 3.2].map((x) => (
           <path
             key={x}
             d={`M ${x} ${bot - 2.1} L ${x} ${bot - 0.3}`}
@@ -562,14 +562,14 @@ export const GARMENT_REGISTRY = {
         {/* The straps and bib are a LAYER over the shirt, so each drops a
             shadow onto it — offset down-left, the way every contact shadow in
             the scene leans. Painted-on was exactly how they read without it. */}
-        <g fill="#000" opacity="0.18">
+        <g fill="#000" opacity="0.16">
           <rect x={-sh + 1.1} y={top + 1.8} width="2.6" height={waistY - top - 1} rx="1" />
           <rect x={sh - 4.7} y={top + 1.8} width="2.6" height={waistY - top - 1} rx="1" />
-          <rect x={-wa + 0.5} y={waistY - 5.2} width={(wa - 1) * 2} height="6" rx="1" />
+          <rect x={-wa + 1.1} y={waistY - 5.2} width={(wa - 1.6) * 2} height="6" rx="2.2" />
         </g>
         <rect x={-sh + 1.6} y={top + 1} width="2.6" height={waistY - top - 1} rx="1" />
         <rect x={sh - 4.2} y={top + 1} width="2.6" height={waistY - top - 1} rx="1" />
-        <rect x={-wa + 1} y={waistY - 6} width={(wa - 1) * 2} height="6" rx="1" />
+        <rect x={-wa + 1.6} y={waistY - 6} width={(wa - 1.6) * 2} height="6" rx="2.2" />
         {/* below the waist it's all denim, following the body's own hem */}
         <path
           d={`M ${-wa} ${waistY - 1} L ${wa} ${waistY - 1} L ${hem} ${bot - 3}
@@ -581,8 +581,8 @@ export const GARMENT_REGISTRY = {
             touches is what makes any strap colour read as dungarees */}
         {[-1, 1].map((s) => (
           <g key={s}>
-            <circle cx={s * (wa - 1.9)} cy={waistY - 5} r="1" fill={BRASS} />
-            <circle cx={s * (wa - 1.9)} cy={waistY - 5} r="1" fill="none" stroke="#000" strokeWidth="0.45" opacity="0.35" />
+            <circle cx={s * (wa - 2.2)} cy={waistY - 5} r="0.9" fill={BRASS} />
+            <circle cx={s * (wa - 2.2)} cy={waistY - 5} r="0.9" fill="none" stroke="#000" strokeWidth="0.4" opacity="0.3" />
           </g>
         ))}
       </g>
@@ -737,71 +737,33 @@ export const GARMENT_REGISTRY = {
     ),
   },
   puffer: {
-    // The fattest shell in the set — bulk IS the garment — quilted into
-    // TUBES. Two seams, not five (at 57px more segments read as stripes),
-    // but the seams alone read as pinstripes on a sweatshirt: what says
-    // "inflated" is each tube catching its own light along the top and
-    // pinching dark INTO the seam below — per-bulge modelling, the one
-    // fabric whose sheen is the material. A zip in fixed neutral closes it.
-    // Profile: the same tubes wrap the body, so the story survives side-on.
+    // The fattest shell in the set — bulk IS the garment. One quilt seam and
+    // the fixed-neutral zip are enough at resident scale; repeated highlight
+    // and shadow stripes made the coat read as a stack of rigid bands.
     finish: { shade: 0.19, glint: 0.2 },
     side: ({ wa, top, outfit, shell }) => (
       <>
         <g style={outfit}>{shell(1.9)}</g>
-        {[top + 6.5, top + 11.5].map((y) => (
-          <g key={y}>
-            <path
-              d={`M ${-wa - 2} ${y - 3} Q 0 ${y - 1.4} ${wa + 2} ${y - 3}`}
-              fill="none"
-              stroke={GLINT}
-              strokeWidth="1.5"
-              opacity="0.14"
-              strokeLinecap="round"
-            />
-            <path
-              d={`M ${-wa - 2.2} ${y} Q 0 ${y + 1.8} ${wa + 2.2} ${y}`}
-              fill="none"
-              stroke={SHADE}
-              strokeWidth="1.1"
-              opacity="0.3"
-              strokeLinecap="round"
-            />
-          </g>
-        ))}
+        <path
+          data-puffer-seam="side"
+          d={`M ${-wa - 2.2} ${top + 9.4} Q 0 ${top + 11} ${wa + 2.2} ${top + 9.4}`}
+          fill="none"
+          stroke={SHADE}
+          strokeWidth="1"
+          opacity="0.24"
+          strokeLinecap="round"
+        />
       </>
     ),
     draw: ({ wa, top, bot, outfit, shell }) => (
       <>
         <g style={outfit}>{shell(1.9)}</g>
-        {[top + 6.5, top + 11.5].map((y) => (
-          <g key={y}>
-            {/* the tube above each seam: lit along its crown… */}
-            <path
-              d={`M ${-wa - 2} ${y - 3} Q 0 ${y - 1.4} ${wa + 2} ${y - 3}`}
-              fill="none"
-              stroke={GLINT}
-              strokeWidth="1.5"
-              opacity="0.14"
-              strokeLinecap="round"
-            />
-            {/* …pinching dark into the quilt seam below it */}
-            <path
-              d={`M ${-wa - 2.2} ${y} Q 0 ${y + 1.8} ${wa + 2.2} ${y}`}
-              fill="none"
-              stroke={SHADE}
-              strokeWidth="1.1"
-              opacity="0.3"
-              strokeLinecap="round"
-            />
-          </g>
-        ))}
-        {/* the bottom tube's crown, so the last segment inflates too */}
-        <path
-          d={`M ${-wa - 1.8} ${bot - 2.6} Q 0 ${bot - 1} ${wa + 1.8} ${bot - 2.6}`}
+        <path data-puffer-seam="front"
+          d={`M ${-wa - 2.2} ${top + 9.4} Q 0 ${top + 11.2} ${wa + 2.2} ${top + 9.4}`}
           fill="none"
-          stroke={GLINT}
-          strokeWidth="1.4"
-          opacity="0.12"
+          stroke={SHADE}
+          strokeWidth="1"
+          opacity="0.24"
           strokeLinecap="round"
         />
         {/* the zip: fixed neutral, its pull at the collar */}

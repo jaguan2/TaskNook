@@ -165,14 +165,14 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(head.getAttribute("d")).not.toMatch(/\bL/i);
     });
 
-    it("keeps open eyes to one dark oval and one catchlight", () => {
+    it("keeps open eyes to one dark oval without room-scale sparkle noise", () => {
       const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
       const eyes = [...container.querySelectorAll('[data-character-eye="open"]')];
 
       expect(eyes).toHaveLength(2);
       for (const eye of eyes) {
         expect(eye.querySelectorAll("ellipse")).toHaveLength(1);
-        expect(eye.querySelectorAll("circle")).toHaveLength(1);
+        expect(eye.querySelectorAll("circle")).toHaveLength(0);
         expect(eye.querySelector("path")).toBeNull();
       }
     });
@@ -289,6 +289,25 @@ describe("the isometric catalog and its artwork agree", () => {
           cleanup();
         }
       }
+    });
+
+    it("keeps glasses lighter than the facial features", () => {
+      for (const kind of ["round", "square", "halfmoon"]) {
+        const { container } = draw(<Glasses kind={kind} headY={0} />);
+        for (const lens of container.querySelectorAll("circle, rect")) {
+          expect(Number(lens.getAttribute("stroke-width"))).toBeLessThanOrEqual(0.6);
+          expect(Number(lens.getAttribute("fill-opacity"))).toBeLessThanOrEqual(0.1);
+        }
+        cleanup();
+      }
+    });
+
+    it("limits the puffer and maxi skirt to one strong internal division", () => {
+      const puffer = draw(<Resident character={{ ...DEFAULT_CHARACTER, coat: "puffer" }} />);
+      expect(puffer.container.querySelectorAll("[data-puffer-seam]")).toHaveLength(1);
+      cleanup();
+      const maxi = draw(<Resident character={{ ...DEFAULT_CHARACTER, pants: "maxi" }} />);
+      expect(maxi.container.querySelectorAll('[data-skirt-fold="maxi"]')).toHaveLength(1);
     });
 
     it("every scarf renders, and each draws its own geometry", () => {

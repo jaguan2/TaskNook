@@ -315,7 +315,7 @@ const PANTS_FORM = {
   cargo: { wide: 0.7, cargo: true, cleanHem: true },
   wide: { wide: 2.4, straight: true },
   shorts: { shorts: true },
-  jorts: { shorts: true, turnup: true, stitch: true },
+  jorts: { shorts: true, turnup: true, stitch: true, wide: 0.35 },
   skirt: { bare: true, skirt: true },
   pleats: { bare: true, skirt: true },
   // The maxi's legs are entirely covered — bare wiring, with the assembly
@@ -346,8 +346,8 @@ export function SeatedSkirt({ hem, thighW, ankle, pants, color }) {
         fill={SHADE} opacity={0.16 * tone.shade} />
       <path d={`M ${-waist + 1} 0 Q 1 4 ${waist - 1} 0`} fill="none" stroke={GLINT}
         strokeWidth="1.3" opacity={0.18 * tone.glint} strokeLinecap="round" />
-      {(pants === "pleats" ? [-0.58, 0, 0.58] : [-0.4, 0.55]).map((f) => (
-        <path key={f} d={`M ${f * waist} 0 L ${f * edge - 0.8} ${bottom - 0.6}
+      {(pants === "pleats" ? [-0.58, 0, 0.58] : pants === "maxi" ? [-0.38] : [-0.4, 0.55]).map((f) => (
+        <path data-skirt-fold={pants} key={f} d={`M ${f * waist} 0 L ${f * edge - 0.8} ${bottom - 0.6}
           L ${f * edge + 0.6} ${bottom - 0.6} Z`} fill={SHADE} opacity={0.18 * tone.shade} />
       ))}
       <path d={`M ${-edge} ${bottom} Q 0 ${bottom + 1.8} ${edge} ${bottom}`}
@@ -882,13 +882,12 @@ export function HeadSkin({ headY, skin, volume, back = false }) {
   </>;
 }
 
-// A small rounded eye with one catchlight. At room scale the previous white
-// almond + pupil + upper lid became three competing marks, especially under
-// glasses. One dark shape stays warm and readable on every skin tone.
+// One small rounded mark per eye. Even the old pinprick catchlight competed
+// with glasses at room scale; the silhouette and expression now do all the
+// work, like the restrained faces in the room reference.
 function OpenEye({ x, y }) {
   return <g data-character-eye="open" transform={`translate(${x},${y})`}>
     <ellipse cy="0.05" rx="0.66" ry="0.84" fill={INK} />
-    <circle cx="0.2" cy="-0.26" r="0.15" fill="#fff3e0" opacity="0.82" />
   </g>;
 }
 
@@ -905,11 +904,11 @@ export function Face({ expression, headY }) {
   // full-face outline that made the resident look mask-like.
   const cheeks = (
     <>
-      <ellipse data-character-cheek cx="-4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.18" />
-      <ellipse data-character-cheek cx="4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.18" />
+      <ellipse data-character-cheek cx="-4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.14" />
+      <ellipse data-character-cheek cx="4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.14" />
     </>
   );
-  const nose = <circle data-character-nose cx="0" cy={headY + 3.65} r="0.18" fill={SHADE} opacity="0.16" />;
+  const nose = <circle data-character-nose cx="0" cy={headY + 3.65} r="0.18" fill={SHADE} opacity="0.12" />;
   if (expression === "happy")
     return (
       <>
