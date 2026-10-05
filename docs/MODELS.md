@@ -67,13 +67,63 @@ piece so a new item sits correctly beside the existing ones.
 | On a table | 9–20 | pie 9, kettle 15, mug 16, microwave 18, laptop 20 |
 | Seat height | 12–26 | log 12, cushion 13, bench 16, chair 19, haybale 26 |
 | Low furniture | 19–32 | coffeetable 19*, cafetable 21*, sidetable 28 |
-| Table / worktop | 26–44 | diningtable 26.5*, counter 29.5*, oven 40*, desk 44 |
+| Table / worktop | 26–40 | diningtable 26.5*, counter 29.5*, desk 30*, oven 40* |
 | Tall furniture | 76–96 | coatrack 76, floorlamp 84, wardrobe 92, bookshelf 96 |
 | Full height | 104–118 | archway 104, pillar 118, pendant 118 |
 
 \* these are `surface` values (where things stacked on it rest), not `hitH`.
 
+### Soft furniture and constructed detail
+
+`SoftBox` projects a rounded footprint using the same grid and extrusion as
+`TintedBox`. Use it for cushions, mattresses and upholstery; solid timber
+stays on `TintedBox`. Fabric needs its own readable construction: a raised
+cushion edge, a gathered fold or a throw that crosses the top and side planes.
+Do not replace these with a dense grid of decorative seams.
+
+`PaddedPanel` draws upright upholstery with a bowed crown, rounded lower
+corners and an offset shell. The armchair/sofa project it onto their back and
+arm planes; the desk chair adds a shallow waist. Rounding a footprint alone
+does not soften a tall extruded side. Keep timber structure separate: the
+upholstered seats expose their frame below the cushions, and the garden bench
+uses individual seat/back slats over an open frame. All existing `seat` heights,
+footprints and front/rear facing rules stay unchanged.
+
+Chair frames leave negative space below their bowed, upholstered back rails.
+Bookshelves use a continuous dark recess behind the rails and varied books,
+ceramics and baskets. Keep contents warm and muted so the selected furniture
+tint still dominates. Material review fixtures cover light, dark and sage
+paint, including front and rear chair/sofa views.
+
 ### Persona proportions
+
+The front face keeps the existing crown size for hair and hats, but its
+cheeks now flow through one continuous curve into a softly rounded chin.
+Straight cheek-to-chin facets made the tiny face look triangular; a perfect
+circle remains too flat, so the lower curve narrows gently without corners.
+Small ears and rounded dot eyes share the same head anchors as the glasses.
+Each open eye is one dark oval plus one catchlight; the earlier sclera, pupil,
+lid and brow stack became busy at room scale. Glasses keep only their lens
+rims—round, softly square, or smaller low-set circular readers—because bridge,
+temple and open half-moon strokes read as stray lines across the tiny face.
+The profile uses one
+complete skull-and-jaw outline with the same rounded lower-face rhythm; never
+leave a round skull underneath a separate nose strip. A short visible neck
+separates chin and collar in both poses. Cheek colour is
+drawn once, by `Face`; the assembly must not add another blush layer.
+
+The neckline is fitted to the top: shirt, tie and blouse have two collar
+leaves; knitwear uses a narrow curved band. `Neckline` in `garments.jsx`
+replaces the large assembly-level ellipse that covered the visible neck and
+the blazer opening. Its profile and rear treatments share the same seam.
+Hands keep the existing pose anchor, with a smaller tapered palm and thumb
+instead of a large round mass. Neither change introduces a new seated rig.
+
+Idle seated front-facing residents rest their hands toward the lap. This
+pose is disabled while typing, holding a break mug, moving, being carried,
+or facing away. Arm stretch and eye-rub gestures stand down together with
+the head's matching eye-rub while hands rest in the lap; props keep their
+original hand anchors. Check both short sleeves and coats at body extremes.
 
 Seated skirts use one continuous lap panel over the bare legs, not separate
 cloth strokes on each thigh (which read as shorts). Keep skirt, pleated skirt
@@ -91,9 +141,9 @@ seated as well as standing; the distinct-artwork test covers both poses.
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests
-all read that one copy). **The figure uses the soft, illustrated proportions
-of the Virtual Cottage 2 references**: ~58px tall at **~4 heads**, visible leg
-~47%. The mechanism is `HEAD_SCALE` (1):
+all read that one copy). **The figure uses the compact miniature proportions
+of the Virtual Cottage 2 references**: about 58px tall at **~3.7 heads** by
+default, with a 26–32px leg range. The mechanism is `HEAD_SCALE` (1.07):
 `HEAD_R` 7.3 stays the DRAWING radius every hair/hat/glasses/face asset is
 authored against, and the assembly scales the finished head unit about its
 own centre — one number retunes the whole wardrobe. Layout code (neck
@@ -101,22 +151,24 @@ seams, height guards, shoulder ratios) must use `HEAD_R_EFF`, the radius
 the head actually occupies; new head-adjacent art keeps authoring at 7.3. An
 earlier 0.75 scale made the character's most expressive silhouette disappear
 beside the furniture; the supplied rear and seated references made that
-mismatch especially clear. The long-leg rebuild still prevents the original
-squat read: the 2026-08 "chunky" retune
-raised the legs, shortened the torso, and drew the standing legs as
+mismatch especially clear. The 2026-08 rebuild still prevents the original
+squat read: it separated leg and torso axes and drew the standing legs as
 GARMENTS — tapered trousers with a cuff band ending in deliberately chunky
-shoes (the owner's clay-toy reference kits carry nearly half the figure as
-leg, and the oversized shoe is half the toy-like read). A first pass at 37%
-leg still read as the old body: proportion deltas obey the same
-must-be-BIG rule as the model deltas.
+shoes. The reference comparison then exposed the opposite drift: 31px legs
+made the otherwise compact figure feel long below the waist. The current
+29px default keeps about 43% visible leg; old saved values above the new 32px
+ceiling clamp to the tall end of the new range.
 
 Body width and height are **user-tunable** (Profile panel sliders, stored on
 the character). `WIDTH_RANGE`/`HEIGHT_RANGE` in `lib/body.js` are
-guard-derived, not taste — tests pin each endpoint against the shoulder
-floor, the ≤1.55×-head chunky ceiling, the hem-covers-stance rule and the
-≥40% leg share, so widening a range without re-deriving it fails CI. Limb
+guard-derived, not taste — tests pin each endpoint against the compact
+shoulder band, the ≤1.6×-head chunky ceiling, the hem-covers-stance rule and the
+≥40% default-torso leg share, so widening a range without re-deriving it
+fails CI. Limb
 thickness scales gently with width (a wide torso on stick legs reads as
-parts pasted together). Stored `build` keys survive as the width's default,
+parts pasted together). `Resident` must pass the resulting `armW` into every
+front, profile and seated arm; a hard-coded sleeve silently erases the model
+difference. Stored `build` keys survive as the width's default,
 so pre-slider saves keep their silhouette.
 
 The editor also offers **complete starting looks** from
@@ -139,6 +191,24 @@ because a sub-half-pixel model delta is invisible at 57px. Old saves with
 widths above the new 8.4 ceiling clamp down on load: that is the retune
 applied, not data loss.
 
+The 2026-10 compact-human passes finished that retune in the rendered sprite.
+Standing and seated sleeves consume model/build-specific `armW`; arms use one
+soft side shadow with no elbow mark, their bow is restrained, and hands taper
+to a smaller mitten. The torso gradient and lower shade band were removed;
+one broad side shadow now models the clothing, while the head's sphere wash is
+reduced and separate skin glints are gone. The far arm uses its depth wash
+instead of stacking it with the near arm's side shadow. The shoulder floor is
+6.45px beneath an effective 7.81px head radius:
+the rounded head can overhang the body as it does in the reference instead of
+forcing every chest to match the skull. The masc/fem waist-to-hem contrast
+remains, but the fem hem no longer makes a pronounced triangle. Eyes,
+catchlights, blush, nose and mouth were reduced together; blush is now a faint
+supporting cue rather than the face's strongest feature. Clothed pants keep
+one quieter side shade plus their silhouette-defining crease, stitch, cuff or
+pocket; generic knee patches are reserved for bare legs, and cargo uses a
+single pocket without an extra cuff or bright flap. Puffer and coat bulk
+remains additive.
+
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
 fixed it ("blocky and lifeless", user). Three things carried the redraw, in
@@ -157,28 +227,24 @@ Two rules that come out of it:
   shoes) may keep a hand-tuned FAR constant; a USER-COLOURABLE material must
   DERIVE its far hue (`farColor` in `lib/body.js` — the trousers pair this
   way), because a fixed darker hue only matches the one colour it was tuned
-  against. The near arm gets a white catch so it doesn't vanish into a torso
-  it shares a colour with.
-- **Limbs are SEGMENTS meeting at joints** (owner call, 2026-08-16 — this
-  revises the old "a bend is invisible noise" line). The way Roblox split R6
-  limbs into R15 parts: an arm is upper + forearm meeting at an elbow, a
-  standing leg is thigh + shin meeting at a knee, and the joint reads from
-  the SEAM — the width step and the angle change — not from anatomical
-  detail. Rest poses are Sims-soft: the elbow bows slightly out and returns
-  to the hand, the knee sits a hair off the hip-ankle line; a limb is never
-  a straight column. **Each limb is ONE CONTINUOUS POLYLINE bent at the
+  against. Arms use one soft side shadow; a second white edge made them look
+  glossy and more detailed than the surrounding room art.
+- **Limbs use articulated paths, not anatomical joint marks.** The elbow and
+  knee remain useful anchors for poses, but the arm is a smooth tube with no
+  visible elbow seam or crease. Rest poses are Sims-soft: the elbow bows only
+  slightly out and returns to the hand, while the knee sits a hair off the
+  hip-ankle line. **Each limb is ONE CONTINUOUS POLYLINE bent at the
   joint, washed ONCE** — never per-segment capsules with per-segment washes:
   where round caps overlap, translucent layers double into lens-shaped blobs
   and the limb reads as sausage links (v2 shipped exactly that; the owner's
-  in-app screenshot caught it). Joint creases go on the INSIDE of the bend
-  and faint (centred, they read as stains). Each limb stays ONE `<g>` so the
+  in-app screenshot caught it). Each limb stays ONE `<g>` so the
   walk/gesture/held wrappers rotate it whole; a short sleeve ends AT the
   elbow, which is what makes bare forearms read. **Parts NEST, and one light
   runs through them** (owner: "it should look like one cohesive piece"): a
   limb's root is buried INSIDE the part it hangs from — the shoulder starts
   within the torso outline, the hip under the hem — with a faint occlusion
-  crease where they meet, and every limb carries the same outer-light /
-  inner-shade edge treatment. A capsule started beside the torso leaves a
+  crease where they meet, and every limb carries the same quiet side shade.
+  A capsule started beside the torso leaves a
   step at the armpit and reads as a part from a different kit. Hair
   masses carry the same three-tone treatment as every box (`volumeFor` in
   `character/hair.jsx`): lit upper curve, shadowed underside — one flat
@@ -226,9 +292,11 @@ outfit and expression works on both.
 
 **Learned from:** the first deltas were ±1.5px, invisible at this size — both
 rows of the contact sheet were the same body twice. Then `fem` + `slim` gave
-shoulders of 14.4px against a 14.6px head, the exact top-heavy proportion this
-section exists to prevent; hence `MIN_SHOULDER`, and the narrow read now comes
-from waist-to-hem contrast rather than from shrinking the shoulders. Anything
+shoulders of 14.4px against a 14.6px head. Treating that as a failure was the
+wrong guard: the target reference intentionally uses a rounded head wider than
+the narrow shoulder line. `MIN_SHOULDER` now protects miniature readability,
+not head-width parity, and the model difference combines real shoulder width
+with restrained waist-to-hem contrast. Anything
 hung off the body — arms, hands, collar — derives from the model's shoulder, not
 the build's half-width, or it floats in a gap beside the chest.
 
@@ -240,12 +308,14 @@ time only — the stored gx/gy never changes.
 
 ## 3. Construction
 
-Reach for a shared helper before drawing faces by hand. There are eight, and
-between them they cover most of the catalog:
+Reach for a shared helper before drawing faces by hand. These cover most
+of the catalog:
 
 | Helper | For | Why it's shared |
 |---|---|---|
 | `TintedBox` | any box | contact shading + correct face tones in one place |
+| `SoftBox` | horizontal upholstery | rounded footprint with thickness and two shaded sides |
+| `PaddedPanel` | upright upholstery | curved crown/corners, shell thickness and optional waist |
 | `PlantPot` | potted plants | taper + lip + soil (see §5) |
 | `Vessel` | cylinders | kettle, stockpot, cake — bottom ellipse, side, top ellipse |
 | `RugGround` | rugs | ground + inset lighter field, so the border is an AREA |
@@ -446,16 +516,46 @@ which is most of why clothes read flatter than the body wearing them.
   (mid/dark/light), because single-colourway review is exactly how the
   first too-faint mark set shipped.
 
+## Shared construction and seated-pose status
+
+Body customization now has two layers. `BODY_SIZE_PRESETS` supplies Compact,
+Balanced, Tall and Broad starting geometry, while the existing width,
+shoulder, leg and torso sliders remain independent. Applying a body template
+changes only those four numeric axes; it never replaces skin, model, face,
+hair or clothing. The wardrobe adds a tank with genuinely bare arms and
+skin-cut armholes, cargo pants with pose-specific flap pockets, and sandals
+whose exposed foot uses the selected skin colour in front and profile.
+
+These pieces follow the existing silhouette rule: they earn catalog entries
+through visible construction at room scale, not a renamed colourway. Tests
+pin catalog/art registry parity, bare-sleeve wiring, pockets in standing,
+profile and seated poses, skin-aware sandals, and meaningful size-template
+differences across both models.
+
+The experimental chair perspective rig was removed after the owner's visual
+review. Seating uses the original front/rear assembly, with the existing lap
+clothing, front shoes and activity gestures. The removed prototype combined
+a skewed torso, substituted profile head, overlapping knees and fixed hand
+anchors; that assembly must not be reinstated as a completed design.
+A replacement needs an authored seated silhouette with matching garment and
+limb planes, reviewed in closeups and on actual furniture before animation.
+
+`TintedBox` projects its subtle top bevel from the box's own `gx`/`gy`, so
+raised/off-centre volumes receive the same edge construction. It keeps the
+existing footprint, height and contact shading. `LeafCluster` supplies an
+irregular canopy outline with broad lit/shaded masses; compose unequal
+clusters and visible branches, rather than using it to give every species
+the same tree silhouette. New plant species still require authored leaves.
+
 ## 11. Soft volume (2026-08-19)
 
 The "actual modelling" pass (decision record: docs/MODELING_ROADMAP.md).
-`character/volume.jsx` defines two reusable gradients — a SPHERE (off-centre
-radial: highlight biased up toward screen right, cool core shadow at the
-lower-left rim) and a CYLINDER (horizontal linear: shaded left edge, lit band
-just inside the right edge, easing off at the very edge — the ease is what
-separates a cylinder from a box). They draw UNDER the hard cel marks: on the
-resident's head and torso in every view, and on every pet mass (`vol` prop
-on CatFace/DogHead, overlay ellipses on the body masses).
+`character/volume.jsx` defines one reusable SPHERE gradient: an off-centre
+radial highlight biased up toward screen right with a cool core shadow at the
+lower-left rim. It draws under the hard cel marks on the resident's head and
+pet masses (`vol` on CatFace/DogHead, overlay ellipses on body masses). The
+former torso cylinder was retired in the compact-human pass: combined with a
+hard crescent and lower band it modeled one tiny garment three times.
 
 Rules, each load-bearing:
 
@@ -463,7 +563,8 @@ Rules, each load-bearing:
   solid mid-tone) — the same recolour bargain as every crescent.
 - **Subtle by rule.** The furniture is deliberately flat three-tone; a
   figure shaded much softer than its sofa reads as pasted from another kit.
-  Gradient + crescent together model; either alone fails differently.
+  The head gradient is deliberately reduced; clothing uses a single hard
+  side-shadow instead.
 - **Per-instance ids** via useId — SVG ids are document-global and one room
   renders many bodies (the print-clipPath lesson).
 - **Marks paint under the volume**, so stripes and patches curve with the

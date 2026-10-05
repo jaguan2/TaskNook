@@ -16,6 +16,7 @@ import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
+import { createCommonSession, settleCommonGuest } from "./lib/commonRooms";
 import {
   HOME_VISITOR_KICK_COOLDOWN_MS,
   HOME_VISITOR_TICK_MS,
@@ -1611,6 +1612,10 @@ export function StoreProvider({ children }) {
   // lib/visiting derive the rest (their home, their look, you as the guest),
   // and hand IsoRoom a read-only layout + personas. Never persisted.
   const [visiting, setVisiting] = useState(null);
+  const [commonRoom, setCommonRoom] = useState(null);
+  const commonRoomRef = useRef(null);
+  // A stale friend-room response must not replace a newer destination.
+  const placeRequest = useRef(0);
   // Friends dropping into YOUR open room. Also render-only: these placements
   // never enter isoRoom or its local/server mirrors.
   const [homeVisitors, setHomeVisitors] = useState([]);
@@ -1681,6 +1686,31 @@ export function StoreProvider({ children }) {
   // fetches, and whichever RESOLVES last wins — potentially landing you in
   // the first friend's room after clicking the second.
   const visitBusyRef = useRef(false);
+  const enterCommonRoom = useCallback((sceneId) => {
+    const session = createCommonSession(sceneId);
+    if (!session) { showToast("That common place isn't available"); return false; }
+    placeRequest.current += 1;
+    clearTimeout(knockTimer.current);
+    setKnockingId(null);
+    setVisiting(null);
+    setRoomEditMode(false);
+    setLastIsoAddedId(null);
+    commonRoomRef.current = session;
+    setCommonRoom(session);
+    return true;
+  }, [showToast]);
+  const chooseCommonSeat = useCallback((seatId) => {
+    const previous = commonRoomRef.current;
+    if (!previous) return false;
+    const next = settleCommonGuest(previous, seatId);
+    if (next === previous && previous.guestSeatId !== seatId) {
+      showToast("That seat is already taken — choose an open one");
+      return false;
+    }
+    commonRoomRef.current = next;
+    setCommonRoom(next);
+    return true;
+  }, [showToast]);
   // Walk orders are invisible until you know your character is grabbable, so
   // teach it ONCE PER DEVICE. This was a ref, which meant every launch, and a
   // tip you've already read is nagging. Shared by both rooms — whichever you
@@ -1695,15 +1725,19 @@ export function StoreProvider({ children }) {
   // else in there), and there is actually somebody standing in the room to
   // walk. Advice about a character you haven't placed is just noise.
   useEffect(() => {
-    if (booting || visiting || roomEditMode || !isoPreview) return;
+    if (booting || visiting || commonRoom || roomEditMode || !isoPreview) return;
     if (!isoRoom.placements.some((p) => ISO_ITEMS[p.item]?.persona)) return;
     hintWalk();
-  }, [booting, visiting, roomEditMode, isoPreview, isoRoom, hintWalk]);
+  }, [booting, visiting, commonRoom, roomEditMode, isoPreview, isoRoom, hintWalk]);
   const visitFriend = async (friend) => {
     if (visitBusyRef.current) return false;
     visitBusyRef.current = true;
+    const request = ++placeRequest.current;
     try {
       const data = await api.friendRoom(friend.id);
+      if (request !== placeRequest.current) return false;
+      commonRoomRef.current = null;
+      setCommonRoom(null);
       // A long-ago-added item must not arrive pre-selected (tint picker and
       // all) when the home scene remounts after the visit.
       setLastIsoAddedId(null);
@@ -1811,7 +1845,7 @@ export function StoreProvider({ children }) {
   // only exist while the home is visible and the door admits friends;
   // decorating or leaving home clears the temporary layer rather than letting
   // simulated people interfere with room editing.
-  const isVisiting = Boolean(visiting);
+  const isVisiting = Boolean(visiting || commonRoom);
   useEffect(() => {
     const open = homeVisitorsEnabled({ access: user?.visitAccess,
       isVisiting, editing: roomEditMode, isometric: isoPreview, widgetMode });
@@ -1918,7 +1952,14 @@ export function StoreProvider({ children }) {
       if (ok) showToast(`${friend.avatar} ${friend.displayName} lets you in!`, 2500);
     }, KNOCK_WAIT_MS);
   };
-  const leaveVisit = useCallback(() => setVisiting(null), []);
+  const leaveVisit = useCallback(() => {
+    placeRequest.current += 1;
+    clearTimeout(knockTimer.current);
+    setKnockingId(null);
+    setVisiting(null);
+    commonRoomRef.current = null;
+    setCommonRoom(null);
+  }, []);
 
   // Time TOGETHER is the slow, honest way the bond grows: one point per
   // minute spent in a friend's room, however you spend it — studying
@@ -2723,6 +2764,10 @@ export function StoreProvider({ children }) {
     setIsoWallColor,
     setIsoLighting,
     visiting,
+    commonRoom,
+    activePlace: commonRoom ? { kind: "common", id: commonRoom.sceneId } : visiting ? { kind: "friend", id: visiting.friend.id } : { kind: "home" },
+    enterCommonRoom,
+    chooseCommonSeat,
     visitFriend,
     knockFriend,
     knockingId,

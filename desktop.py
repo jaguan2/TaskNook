@@ -15,6 +15,7 @@ import socket
 import threading
 import time
 import urllib.request
+from desktop_updates import read_json, valid_build, watch_updates
 
 if getattr(sys, "frozen", False):
     # Running from a PyInstaller bundle: assets are extracted under _MEIPASS.
@@ -373,6 +374,11 @@ def main():
         try:
             import webview  # noqa: F401
 
+            if getattr(sys, "frozen", False) and not valid_build(
+                read_json(os.path.join(BASE_DIR, "desktop-build.json"))
+            ):
+                raise RuntimeError("missing or invalid bundled desktop-build.json")
+
             print("SELFTEST OK (webview import OK)")
         except Exception as exc:  # pragma: no cover
             # From source pywebview is genuinely optional (browser fallback),
@@ -380,7 +386,7 @@ def main():
             # this self-test exists to catch — it must exit non-zero or CI's
             # exit-code check passes a broken artifact.
             if getattr(sys, "frozen", False):
-                print(f"SELFTEST FAILED: pywebview missing from the bundle: {exc}")
+                print(f"SELFTEST FAILED: desktop dependencies or build metadata invalid: {exc}")
                 sys.exit(1)
             print(f"SELFTEST OK (webview unavailable from source: {exc})")
         return
@@ -411,6 +417,8 @@ def main():
         # pywebview defaults to an incognito-style session that throws away
         # localStorage (settings, the auth token, everything) on every close.
         webview.start(
+            func=watch_updates if getattr(sys, "frozen", False) else None,
+            args=(window, BASE_DIR, APP_DATA_DIR),
             storage_path=os.path.join(APP_DATA_DIR, "webview"),
             private_mode=False,
         )  # blocks until the window is closed; daemon server exits

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   CHARACTER_PRESETS,
   characterFromPreset,
@@ -8,7 +9,18 @@ import { ISO_SPRITES } from "./IsoItems";
 /** Complete starting looks, drawn by the same resident used in the room. */
 export default function CharacterPresets({ character, onPick }) {
   const Resident = ISO_SPRITES.resident;
+  const [view, setView] = useState("standing");
   return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Look preview view">
+        {[["standing", "Standing"], ["seated", "Seated"], ["back", "Back"]].map(([key, label]) => (
+          <button key={key} type="button" aria-pressed={view === key}
+            onClick={() => setView(key)}
+            className={`pill px-3 py-1 text-xs ${view === key ? "bg-glow/15 text-glow" : "text-petal/60"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="Character looks">
       {CHARACTER_PRESETS.map((preset) => {
         const active = characterPresetMatches(character, preset);
@@ -25,9 +37,10 @@ export default function CharacterPresets({ character, onPick }) {
                 : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
             }`}
           >
-            <svg viewBox="-19 -66 38 80" className="h-24 w-[4.5rem] shrink-0" aria-hidden="true">
-              <ellipse cx="0" cy="11" rx="13" ry="2.2" fill="#000" opacity="0.16" />
-              <Resident character={shown} facing="front" />
+            <svg viewBox={view === "seated" ? "-22 -40 44 80" : "-19 -66 38 80"} className="h-24 w-[4.5rem] shrink-0" aria-hidden="true">
+              <ellipse cx="0" cy={view === "seated" ? 32 : 11} rx="13" ry="2.2" fill="#000" opacity="0.16" />
+              <Resident character={shown} facing={view === "back" ? "back" : "front"}
+                seated={view === "seated"} seatH={22} />
             </svg>
             <span className="min-w-0 py-2">
               <span className="block text-xs font-semibold leading-tight text-cream">
@@ -47,6 +60,7 @@ export default function CharacterPresets({ character, onPick }) {
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

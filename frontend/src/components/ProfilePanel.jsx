@@ -30,7 +30,15 @@ import {
   profileSummary,
   hatOf,
 } from "../lib/profile";
-import { WIDTH_RANGE, SHOULDER_RANGE, HEIGHT_RANGE, TORSO_RANGE } from "../lib/body";
+import {
+  BODY_SIZE_PRESETS,
+  HEIGHT_RANGE,
+  SHOULDER_RANGE,
+  TORSO_RANGE,
+  WIDTH_RANGE,
+  bodySizePresetMatches,
+  bodySizePresetPatch,
+} from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 import CharacterPresets from "./CharacterPresets";
 
@@ -592,9 +600,11 @@ function Choices({ options, value, onPick, label }) {
 }
 
 function BodySlider({ label, range, step, value, onDraft, onCommit }) {
+  const midpoint = (range[0] + range[1]) / 2;
+  const size = value < midpoint - Number(step) / 2 ? "Smaller" : value > midpoint + Number(step) / 2 ? "Larger" : "Middle";
   return (
-    <label className="flex items-center gap-2 text-xs text-petal/70">
-      <span className="w-11 shrink-0">{label}</span>
+    <label className="grid grid-cols-[4.25rem_1fr_3rem] items-center gap-2 text-xs text-petal/70">
+      <span className="shrink-0">{label}</span>
       <input
         type="range"
         min={range[0]}
@@ -607,6 +617,7 @@ function BodySlider({ label, range, step, value, onDraft, onCommit }) {
         onBlur={onCommit}
         className="h-1 flex-1 accent-glow"
       />
+      <span className="text-right text-[10px] text-petal/45">{size}</span>
     </label>
   );
 }
@@ -862,7 +873,7 @@ export default function ProfilePanel() {
           {tab === "looks" && (
             <>
               <p className="text-xs leading-relaxed text-petal/65">
-                Start with a complete look, then make it yours in the other tabs.
+                Start with a complete look, then make it yours. Your skin tone stays the same.
               </p>
               <CharacterPresets character={character} onPick={saveCharacter} />
             </>
@@ -888,6 +899,24 @@ export default function ProfilePanel() {
               </Field>
               <Field label="Build">
                 <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Body size templates">
+                    {BODY_SIZE_PRESETS.map((preset) => {
+                      const selected = bodySizePresetMatches(shown, preset);
+                      return (
+                        <button
+                          key={preset.key}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => saveCharacter(bodySizePresetPatch(preset))}
+                          className={`pill px-2.5 py-1 text-[11px] font-semibold transition ${
+                            selected ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <BodySlider
                     label="Width"
                     range={WIDTH_RANGE}
@@ -897,7 +926,7 @@ export default function ProfilePanel() {
                     onCommit={commitBody}
                   />
                   <BodySlider
-                    label="Chest"
+                    label="Shoulders"
                     range={SHOULDER_RANGE}
                     step="0.2"
                     value={shown.shoulders}

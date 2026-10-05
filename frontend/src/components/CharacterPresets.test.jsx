@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import CharacterPresets from "./CharacterPresets";
 import { CHARACTER_PRESETS, characterFromPreset } from "../lib/characterPresets";
 
@@ -12,7 +12,7 @@ describe("CharacterPresets", () => {
     const current = { ...CHARACTER_PRESETS[0].character, skin: "#8d5524" };
     render(<CharacterPresets character={current} onPick={onPick} />);
 
-    expect(screen.getAllByRole("button")).toHaveLength(CHARACTER_PRESETS.length);
+    expect(within(screen.getByRole("group", { name: "Character looks" })).getAllByRole("button")).toHaveLength(CHARACTER_PRESETS.length);
     fireEvent.click(screen.getByRole("button", { name: /School boy/i }));
     expect(onPick).toHaveBeenCalledWith(
       characterFromPreset(
@@ -33,5 +33,19 @@ describe("CharacterPresets", () => {
     expect(screen.getByRole("button", { name: /Lofi girl/i }).getAttribute("aria-pressed")).toBe(
       "false"
     );
+  });
+
+  it("previews seated and back views without changing the selected character", () => {
+    const onPick = vi.fn();
+    render(<CharacterPresets character={CHARACTER_PRESETS[0].character} onPick={onPick} />);
+    fireEvent.click(screen.getByRole("button", { name: "Seated", exact: true }));
+    expect(screen.getByRole("button", { name: "Seated", exact: true }).getAttribute("aria-pressed")).toBe("true");
+    const looks = screen.getByRole("group", { name: "Character looks" });
+    expect(looks.querySelectorAll('[data-arm-pose="lap"]')).toHaveLength(CHARACTER_PRESETS.length * 2);
+    fireEvent.click(screen.getByRole("button", { name: "Back", exact: true }));
+    expect(looks.querySelector('[data-character-head="front"]')).toBeNull();
+    expect(onPick).not.toHaveBeenCalled();
+    fireEvent.click(within(looks).getByRole("button", { name: /School boy/ }));
+    expect(onPick).toHaveBeenCalledTimes(1);
   });
 });

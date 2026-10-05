@@ -14,6 +14,9 @@ import {
   SHOULDER_RANGE,
   HEIGHT_RANGE,
   TORSO_RANGE,
+  BODY_SIZE_PRESETS,
+  bodySizePresetMatches,
+  bodySizePresetPatch,
   STAND_TORSO_Y,
   STAND_HEAD_Y,
   SEAT_TORSO_Y,
@@ -27,43 +30,41 @@ const MODELS = Object.keys(MODEL_SHAPE);
 const BUILDS = Object.keys(BUILD_SHAPE);
 
 describe("figure proportions", () => {
-  it("no model × build produces shoulders narrower than the head", () => {
-    // The top-heavy guard: fem + slim once produced a body narrower than its
-    // own skull. Parametric over the real tables so a new build or model is
-    // covered the day it's added. Against the EFFECTIVE head — the radius
-    // the finished illustrated head actually occupies.
+  it("keeps every shoulder line compact but readable beneath the head", () => {
+    // The reference deliberately allows the rounded head to overhang narrow
+    // shoulders. Parametric bounds keep that softness without letting a new
+    // model collapse into an unreadable stem or return to the broad toy body.
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
         expect(sh, `${model} × ${build}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh, `${model} × ${build}`).toBeGreaterThan(HEAD_R_EFF + 0.3);
+        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeGreaterThanOrEqual(0.8);
+        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(1.25);
       }
     }
   });
 
-  it("the head unit scales as one and the figure lands near four heads", () => {
+  it("the head unit scales as one and the figure lands in the compact-human band", () => {
     // The drawing radius never moves (every asset is authored against it),
     // and the whole unit scales together. VC2's soft figures read at roughly
-    // four heads, with the hair silhouette doing far more work than facial
+    // 3.5–4 heads, with the hair silhouette doing far more work than facial
     // detail at room scale.
     expect(HEAD_R_EFF).toBeCloseTo(HEAD_R * HEAD_SCALE, 9);
     const height = -STAND_HEAD_Y + HEAD_R_EFF;
     const heads = height / (HEAD_R_EFF * 2);
-    expect(heads).toBeGreaterThanOrEqual(3.75);
-    expect(heads).toBeLessThanOrEqual(4.35);
+    expect(heads).toBeGreaterThanOrEqual(3.5);
+    expect(heads).toBeLessThanOrEqual(4);
   });
 
-  it("the standing figure stays leggy enough not to read squat", () => {
-    // The "chunky" complaint, as arithmetic: visible leg (floor up to the
-    // torso's hem) must be at least 40% of total height. The pre-retune
-    // 22/22 stack sat at 32%; a first fix at 37% was rejected against the
-    // owner's reference art, which carries nearly half the figure as leg.
+  it("the standing figure keeps short but readable legs", () => {
+    // Visible leg (floor up to the torso's hem) stays above the original
+    // squat body without returning to the later long-legged illustration.
     const height = -STAND_HEAD_Y + HEAD_R_EFF;
     const visibleLeg = -(STAND_TORSO_Y + TORSO_H);
     expect(visibleLeg / height).toBeGreaterThanOrEqual(0.4);
     // ...while total height stays inside the band everything seat-, wall-
     // and camera-tuned was built against.
-    expect(height).toBeGreaterThan(55);
+    expect(height).toBeGreaterThan(54);
     expect(height).toBeLessThanOrEqual(59);
   });
 
@@ -76,26 +77,43 @@ describe("figure proportions", () => {
 });
 
 describe("figureMetrics", () => {
+  it("body templates span meaningfully different proportions on both models", () => {
+    const compact = BODY_SIZE_PRESETS.find(({ key }) => key === "compact");
+    const broad = BODY_SIZE_PRESETS.find(({ key }) => key === "broad");
+    const tall = BODY_SIZE_PRESETS.find(({ key }) => key === "tall");
+    for (const model of MODELS) {
+      const small = figureMetrics({ model, ...compact });
+      const wide = figureMetrics({ model, ...broad });
+      const long = figureMetrics({ model, ...tall });
+      expect(wide.hem - small.hem, `${model} width span`).toBeCloseTo(2, 9);
+      expect(long.legH - small.legH, `${model} height span`).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it("a body template patch preserves every non-body character choice", () => {
+    const character = { skin: "#123456", hair: "wolf", garment: "tank", width: 7.1 };
+    const patch = bodySizePresetPatch(BODY_SIZE_PRESETS[2]);
+    expect({ ...character, ...patch }).toMatchObject({ skin: "#123456", hair: "wolf", garment: "tank" });
+    expect(bodySizePresetMatches({ ...character, ...patch }, BODY_SIZE_PRESETS[2])).toBe(true);
+    expect(bodySizePresetMatches(character, BODY_SIZE_PRESETS[2])).toBe(false);
+  });
+
   // The geometry pin. These numbers are the reviewed silhouette — a change
   // here must be a deliberate retune re-baselined against a contact sheet,
   // never a drive-by.
   const PINNED = {
-    // Re-baselined for the 2026-08-19 slimming retune (owner: "they look
-    // like blobs") — reviewed on the contact sheet and in the dressing room.
-    // masc keeps its shoulder line but the waist pinches to a V; fem is a
-    // smaller hourglass; both hems came in with the base widths.
+    // Re-baselined for the compact-human pass: shoulders may sit inside the
+    // head width, hips are no longer an exaggerated triangle, and limb mass
+    // no longer supplies the missing chest width.
     masc: {
-      slim: { sh: 8.2, wa: 5, hem: 6.6, kneeX: 8.5 },
-      average: { sh: 9, wa: 5.8, hem: 7.4, kneeX: 8.5 },
-      sturdy: { sh: 10.2, wa: 7, hem: 8.6, kneeX: 8.5 },
+      slim: { sh: 6.9, wa: 5.2, hem: 6.3, kneeX: 8.5 },
+      average: { sh: 7.7, wa: 6, hem: 7.1, kneeX: 8.5 },
+      sturdy: { sh: 8.9, wa: 7.2, hem: 8.3, kneeX: 8.5 },
     },
     fem: {
-      // All three builds now sit at MIN_SHOULDER (sturdy lands there
-      // exactly) — the whole fem silhouette lives in the waist-to-hem
-      // contrast and the finer limbs, exactly as documented.
-      slim: { sh: 7.7, wa: 2.8, hem: 8.2, kneeX: 8.5 },
-      average: { sh: 7.7, wa: 3.6, hem: 9, kneeX: 8.5 },
-      sturdy: { sh: 8, wa: 4.8, hem: 10.2, kneeX: 9.7 },
+      slim: { sh: 6.45, wa: 4, hem: 7.2, kneeX: 8.5 },
+      average: { sh: 6.45, wa: 4.8, hem: 8, kneeX: 8.5 },
+      sturdy: { sh: 7.4, wa: 6, hem: 9.2, kneeX: 8.7 },
     },
   };
 
@@ -128,7 +146,7 @@ describe("figureMetrics", () => {
     for (const model of MODELS) {
       for (const build of BUILDS) {
         const { sh } = figureMetrics({ model, build });
-        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} × ${build}`).toBeLessThanOrEqual(1.6);
       }
     }
   });
@@ -146,19 +164,18 @@ describe("figureMetrics", () => {
   it("limbs scale gently with width, and the models' limbs differ", () => {
     // A wide torso on unchanged stick legs reads as parts pasted together;
     // a narrow one on thick limbs reads stuffed. Since the slimming retune
-    // the limb is also a MODEL axis: fem's arms and legs are visibly finer
-    // than masc's at the same build — a 0.6px full-width difference, which
-    // is the floor of what survives 57px.
+    // the limb is also a MODEL axis: fem's arms and legs remain visibly finer
+    // than masc's at the same build, while both share the new slender base.
     const base = figureMetrics({});
-    expect(base.armW).toBeCloseTo(4.8, 9);
-    expect(base.legW).toBeCloseTo(5.5, 9);
-    expect(base.thighW).toBeCloseTo(7.4, 9);
-    expect(base.shinW).toBeCloseTo(6.4, 9);
+    expect(base.armW).toBeCloseTo(3.5, 9);
+    expect(base.legW).toBeCloseTo(4.9, 9);
+    expect(base.thighW).toBeCloseTo(6.5, 9);
+    expect(base.shinW).toBeCloseTo(5.7, 9);
     expect(figureMetrics({ width: WIDTH_RANGE[0] }).legW).toBeLessThan(base.legW);
     expect(figureMetrics({ width: WIDTH_RANGE[1] }).legW).toBeGreaterThan(base.legW);
     const fem = figureMetrics({ model: "fem" });
-    expect(base.armW - fem.armW).toBeCloseTo(0.6, 9);
-    expect(base.legW - fem.legW).toBeCloseTo(0.6, 9);
+    expect(base.armW - fem.armW).toBeCloseTo(0.45, 9);
+    expect(base.legW - fem.legW).toBeCloseTo(0.45, 9);
   });
 
   it("the slider extremes stay inside every guard", () => {
@@ -169,13 +186,13 @@ describe("figureMetrics", () => {
       for (const width of WIDTH_RANGE) {
         const { sh, hem, legW } = figureMetrics({ model, width });
         expect(sh, `${model} w${width}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} w${width}`).toBeLessThanOrEqual(1.6);
         expect(hem, `${model} w${width}`).toBeGreaterThanOrEqual(4 + legW / 2);
       }
       for (const shoulders of SHOULDER_RANGE) {
         const { sh } = figureMetrics({ model, shoulders });
         expect(sh, `${model} chest${shoulders}`).toBeGreaterThanOrEqual(MIN_SHOULDER);
-        expect(sh / HEAD_R_EFF, `${model} chest${shoulders}`).toBeLessThanOrEqual(2.1);
+        expect(sh / HEAD_R_EFF, `${model} chest${shoulders}`).toBeLessThanOrEqual(1.6);
       }
       for (const height of HEIGHT_RANGE) {
         // At the DEFAULT torso, the leg range keeps the figure leggy — the
@@ -194,7 +211,7 @@ describe("figureMetrics", () => {
           const total = -m.standHeadY + HEAD_R_EFF;
           const legShare = (m.legH - TORSO_OVERLAP) / total;
           expect(legShare, `${model} h${height} t${torso}`).toBeGreaterThanOrEqual(0.33);
-          expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(65);
+          expect(total, `${model} h${height} t${torso}`).toBeLessThanOrEqual(66);
         }
       }
     }

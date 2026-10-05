@@ -17,10 +17,9 @@ import { useId } from "react";
 import { SKEW, project } from "../../lib/iso";
 import { tinted, toneFor } from "../../lib/tint";
 import { DEFAULT_CHARACTER, MOODS, coatOf, garmentOf, hatOf } from "../../lib/profile";
-import { HEAD_R, HEAD_R_EFF, HEAD_SCALE, figureMetrics, torsoGeom } from "../../lib/body";
+import { HEAD_R_EFF, HEAD_SCALE, figureMetrics, torsoGeom } from "../../lib/body";
 import {
   Arm,
-  GLINT,
   HAIR,
   INK,
   SEAT_KNEE_Y,
@@ -28,16 +27,18 @@ import {
   SKIN,
   TROUSER,
   Face,
+  HeadSkin,
   SeatedLeg,
   SeatedSkirt,
   SideFace,
+  SideHeadSkin,
   SideLeg,
   StandingLeg,
   hangLimb,
   pantsFormOf,
 } from "./body";
-import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar } from "./garments";
-import { VolumeDefs, cylFill, sphereFill } from "./volume";
+import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar, Neckline } from "./garments";
+import { VolumeDefs, sphereFill } from "./volume";
 import {
   HairBack,
   HairBehind,
@@ -108,6 +109,7 @@ export function Resident({
     sh,
     wa,
     hem,
+    armW,
     legW,
     thighW,
     shinW,
@@ -172,6 +174,7 @@ export function Resident({
   const coatWorn = !!ch.coat && ch.coat !== "none";
   const coatStyle = tinted(ch.coatColor || "#8a5346");
   const sleeveShort = !coatWorn && wornGarment.sleeves === "short";
+  const sleeveless = !coatWorn && wornGarment.sleeves === "none";
   const sleeveBulk = coatWorn ? (ch.coat === "puffer" ? 1.6 : 0.9) : 0;
   // The arm's sleeve is painted by whatever's outermost — except the
   // `sleeves: "inner"` garments, whose whole point is arms in the SECOND
@@ -186,9 +189,9 @@ export function Resident({
     : outfit;
   // THE LIGHT, resolved once for the whole figure: the OUTERMOST layer's
   // registry entry declares its finish (how strongly the shared form shadow
-  // and highlight land — knit is matte, nylon sheens), its cuffs, and
+  // lands), its cuffs, and
   // whether it drapes past the hem; its colour's luminance rebalances the
-  // shadow/highlight pair so near-black and cream garments still model.
+  // shadow strength so near-black and cream garments still model.
   const outerEntry = GARMENT_REGISTRY[coatWorn ? ch.coat : ch.garment] || {};
   const finish = outerEntry.finish || DEFAULT_FINISH;
   const bodyTone = toneFor(coatWorn ? ch.coatColor || "#8a5346" : ch.outfit || "#7faf8f");
@@ -220,6 +223,9 @@ export function Resident({
   // reached the app and stopped at the thought bubble. Now they put the keyboard
   // down, pick up a mug and stretch — the one moment the room should notice.
   const resting = activity === "break";
+  // Hands settle toward the lap only when they have no other job. The
+  // original anchors remain the contract for props, gestures and carrying.
+  const lap = seated && !back && !typing && !resting && !moving && !held;
   // ---- the PROFILE: its own drawing, not a squeezed front ---------------- //
   // A body seen side-on is one leg wide: the torso narrows to its depth, both
   // legs stand near the centre line (near ahead of far), ONE arm shows, the
@@ -250,9 +256,8 @@ export function Resident({
           <g className={moving ? "walk-bob" : undefined}>
             <g className={moving ? "walk-roll" : undefined}>
               {/* Length masses ride the SAME head-unit scale as the dome they
-                  hang from (lib/body.js HEAD_SCALE) — left unscaled after the
-                  adult-proportion pivot they jutted ~25% wide of the shrunken
-                  head and read as a ghost cape behind the shoulders. */}
+                  hang from (lib/body.js HEAD_SCALE). Scaling only the skull
+                  would detach long hair from the head it belongs to. */}
               <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
                 <HairSideLength style={ch.hair} headY={headY} color={hairColor} />
               </g>
@@ -295,7 +300,6 @@ export function Resident({
                     bot: torsoY + torsoH,
                     waistY: torsoY + waistDrop,
                   };
-                  const { band } = torsoGeom(geom);
                   // The profile torso is NOT the front torso squeezed — a
                   // symmetric slab is what made the side view read as a
                   // plank (owner: "really unflattering"). A body seen
@@ -362,7 +366,7 @@ export function Resident({
                         </>
                       )}
                       <g style={outfit}>
-                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} model={ch.model} view="side" />
+                        <Garment kind={ch.garment} {...geom} inner={ch.inner} outfit={outfit} skin={skin} model={ch.model} view="side" />
                       </g>
                       <Coat
                         kind={ch.coat}
@@ -373,19 +377,11 @@ export function Resident({
                         coatStyle={coatStyle}
                         view="side"
                       />
-                      {/* SOFT VOLUME under the hard marks: the cylinder
-                          gradient rounds the whole dressed mass, then the
-                          crescent/glint below add the local contrast. See
-                          volume.jsx — gradient alone is airbrush, crescent
-                          alone is flat; together they model. */}
-                      <path d={body} fill={cylFill(clipId)} />
-                      {/* the same ONE-light pass the front gets — and the
-                          same LIGHT as the head's flipped gradient: it sits
-                          slightly in FRONT, so the form shadow runs down the
-                          BACK edge and the glint leans toward the face side.
-                          It used to shade the front, which contradicted the
-                          face and deepened the hunched read. */}
+                      {/* The same one-light pass the front gets. It sits
+                          slightly in front, so the broad form shadow runs
+                          down the back edge. */}
                       <path
+                        data-torso-shadow="broad"
                         d={`M ${sSh - 0.4} ${torsoY + 4.5}
                             Q ${sWa - 0.4} ${torsoY + waistDrop} ${sHem - 0.4} ${torsoY + torsoH - 1.8}
                             L ${sHem - 0.6} ${torsoY + torsoH - 0.3}
@@ -395,15 +391,6 @@ export function Resident({
                         fill={SHADE}
                         opacity={finish.shade * bodyTone.shade}
                       />
-                      <ellipse
-                        cx="-0.8"
-                        cy={torsoY + 3.5}
-                        rx={sSh - 1.2}
-                        ry="4.6"
-                        fill={GLINT}
-                        opacity={finish.glint * 1.3 * bodyTone.glint}
-                      />
-                      <path d={band} fill="#000" opacity="0.14" />
                       {!drape && (
                         <rect
                           x={-sHem + 1.2}
@@ -442,10 +429,12 @@ export function Resident({
                     <Arm
                       side={1}
                       sh={2.2}
+                      armW={armW}
                       torsoY={torsoY}
                       skin={skin}
                       outfit={armStyle}
                       shortSleeve={sleeveShort}
+                      sleeveless={sleeveless}
                       bulk={sleeveBulk}
                       cuff={cuff}
                       tone={bodyTone}
@@ -454,9 +443,8 @@ export function Resident({
                   </g>
                 </g>
                 <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill={skin} />
-                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="5.2" height={torsoY - headY - HEAD_R_EFF + 4} fill="#000" opacity="0.16" />
-                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" style={outfit} />
-                <ellipse cx="0" cy={torsoY + 1.5} rx={Math.max(2.8, sSh - 2)} ry="2.4" fill="#fff" opacity="0.1" />
+                <rect x="-2.6" y={headY + HEAD_R_EFF - 1} width="2.6" height={torsoY - headY - HEAD_R_EFF + 4} fill={SHADE} opacity="0.16" />
+                <Neckline kind={ch.garment} torsoY={torsoY} outfit={outfit} view="side" />
                 <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
                 {/* the scarf wraps OVER whatever the neck wears — people do
                     wear a scarf over a turtleneck. Torso-anchored: it must
@@ -464,36 +452,15 @@ export function Resident({
                 <Scarf kind={ch.scarf} torsoY={torsoY} color={ch.scarfColor} view="side" />
                 {/* head-only gestures keep playing in profile; the arm ones
                     stand down — they're front-view choreography. The OUTER
-                    wrapper carries a WHISPER of forward set plus the
-                    adult-proportion head scale (see lib/body.js HEAD_SCALE —
-                    the unit shrinks about its own centre, every side-view
-                    asset riding along); an attribute transform can't share
+                    wrapper carries a WHISPER of forward set plus the shared
+                    head scale (see lib/body.js HEAD_SCALE — the complete unit
+                    scales about its own centre, every side-view asset riding
+                    along); an attribute transform can't share
                     the animated gesture elements, hence its own <g>. */}
                 <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
                 <g className="gesture-yawn">
                   <g className="gesture-look">
-                    <circle cx="0" cy={headY} r={HEAD_R} fill={skin} />
-                    {/* The volume gradient FLIPS for the profile: the shared
-                        sphere lights from +x (screen right — "slightly in
-                        front" for the front view), but a profile faces -x,
-                        so unflipped it lit the BACK of the skull and put the
-                        whole face in shade — most of what read as a dirty
-                        smudge on the side view. Mirroring just the gradient
-                        circle keeps the doctrine's light where it claims to
-                        be: on the face. */}
-                    <g transform="scale(-1,1)">
-                      <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
-                    </g>
-                    {/* the same warm rim the front carries, on the face
-                        edge — the side's light sits in front */}
-                    <path
-                      d={`M ${-(HEAD_R - 0.55) * 0.93} ${headY + (HEAD_R - 0.55) * 0.15} A ${HEAD_R - 0.55} ${HEAD_R - 0.55} 0 0 1 ${-(HEAD_R - 0.55) * 0.15} ${headY - (HEAD_R - 0.55) * 0.93}`}
-                      stroke={GLINT}
-                      strokeWidth="1.1"
-                      strokeLinecap="round"
-                      fill="none"
-                      opacity="0.2"
-                    />
+                    <SideHeadSkin headY={headY} skin={skin} />
                     {/* the EAR — a profile skull without one reads as an egg
                         (VC2 reference pass). Mid-skull, slightly aft of
                         centre, BEFORE the hair so a wig tucks over it; a
@@ -511,7 +478,7 @@ export function Resident({
                     />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} />
-                    <SideFace expression={ch.expression} headY={headY} skin={skin} />
+                    <SideFace expression={ch.expression} headY={headY} />
                     {/* glasses over the finished face — after the hair's side
                         mass and the hat, so neither can bury the lens */}
                     <Glasses kind={ch.glasses} headY={headY} view="side" />
@@ -634,7 +601,7 @@ export function Resident({
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
         {(() => {
-          const { body, band } = torsoGeom({
+          const { body } = torsoGeom({
             sh,
             wa,
             hem,
@@ -709,9 +676,8 @@ export function Resident({
                 </>
               )}
               {/* The garment, over the plain torso — see garments.jsx. Drawn
-                  before the volume shading so the light catch and the waist
-                  band fall across the whole dressed body, not just the bits of
-                  torso the garment left showing. The COAT goes over the
+                  before the shared broad side shadow so the light direction
+                  crosses the whole dressed body. The COAT goes over the
                   finished top, in its own colour — the two-slot wardrobe. */}
               <g style={outfit}>
                 <Garment
@@ -724,6 +690,7 @@ export function Resident({
                   waistY={torsoY + waistDrop}
                   inner={ch.inner}
                   outfit={outfit}
+                  skin={skin}
                   model={ch.model}
                   view={back ? "back" : "front"}
                 />
@@ -742,23 +709,18 @@ export function Resident({
                 coatStyle={coatStyle}
                 view={back ? "back" : "front"}
               />
-              {/* SOFT VOLUME under the hard marks (volume.jsx): the cylinder
-                  gradient rounds the dressed torso as one mass; the crescent
-                  and lit shoulder below then add the local contrast. Subtle
-                  BY RULE — the furniture is deliberately flat, and a figure
-                  shaded much softer than its sofa reads as pasted from
-                  another kit. */}
-              <path d={body} fill={cylFill(clipId)} />
-              {/* Volume via the ONE light (docs/MODELS.md): a form-shadow
-                  CRESCENT down the whole shadow side, following the torso's
+              {/* Volume via the ONE light (docs/MODELS.md): one broad shadow
+                  down the whole away side, following the torso's
                   own curve — the garment canvas was the only unshaded surface
                   on the figure, which is most of why clothes read flatter
                   than the body wearing them. It rides OVER the garment and
                   coat, so their marks dim inside the shadow the way fabric
                   detail really does. Strength = the outer layer's declared
                   finish × its colour's luminance tone. */}
-              <ellipse cx="0" cy={torsoY + 4.6} rx="3.6" ry="1.3" fill="#000" opacity="0.1" />
+              <path d={`M-3 ${torsoY + 2.2} Q0 ${torsoY + 4.2} 3 ${torsoY + 2.2}`}
+                fill="none" stroke={SHADE} strokeWidth="0.7" opacity="0.14" />
               <path
+                data-torso-shadow="broad"
                 d={`M ${-sh + 0.5} ${torsoY + 4.5}
                     Q ${-wa + 0.5} ${torsoY + waistDrop} ${-hem + 0.5} ${torsoY + torsoH - 1.8}
                     L ${-hem + 0.7} ${torsoY + torsoH - 0.3}
@@ -768,16 +730,6 @@ export function Resident({
                 fill={SHADE}
                 opacity={finish.shade * bodyTone.shade}
               />
-              {/* the lit shoulder, biased toward the light */}
-              <ellipse
-                cx="1.2"
-                cy={torsoY + 3.5}
-                rx={sh - 1.5}
-                ry="4.6"
-                fill={GLINT}
-                opacity={finish.glint * 1.3 * bodyTone.glint}
-              />
-              <path d={band} fill="#000" opacity="0.14" />
               {/* the hem's occlusion onto whatever's below — what grounds the
                   top ON the bottoms instead of floating beside them. Draping
                   layers (dress, cardigan) opt out: their own cloth is what's
@@ -802,9 +754,9 @@ export function Resident({
                 d={body}
                 fill="none"
                 stroke={INK}
-                strokeWidth="1.05"
+                strokeWidth="0.8"
                 strokeLinejoin="round"
-                opacity="0.24"
+                opacity="0.12"
               />
             </>
           );
@@ -820,7 +772,7 @@ export function Resident({
           {/* Gestures stand down mid-stride, the same way they yield to typing:
               an arm reaching overhead while the legs scissor reads as a glitch,
               and both animations would be fighting the swing below. */}
-          <g className={typing || moving || held ? undefined : "gesture-stretch"}>
+          <g className={typing || moving || held || lap ? undefined : "gesture-stretch"}>
             <g className={typing ? "resident-type" : undefined}>
               {/* The FAR arm carries leg B's clock, so it opposes the far leg
                   (which is A) — contralateral swing, the thing that separates
@@ -831,11 +783,14 @@ export function Resident({
                     AT the joint and the forearm shows as skin. */}
                 <Arm
                   side={-1}
+                  lap={lap}
                   sh={sh}
+                  armW={armW}
                   torsoY={torsoY}
                   skin={skin}
                   outfit={armStyle}
                   shortSleeve={sleeveShort}
+                  sleeveless={sleeveless}
                   bulk={sleeveBulk}
                   cuff={cuff}
                   tone={bodyTone}
@@ -847,15 +802,18 @@ export function Resident({
                   holding something: at 186° the mug would come up over the face
                   upside down. */}
               <g className={moving ? "walk-arm-a" : undefined}>
-              <g className={typing || resting || moving || held ? undefined : "gesture-rub"}>
+              <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub"}>
               <g style={hangLimb(held, 8)}>
                 <Arm
                   side={1}
+                  lap={lap}
                   sh={sh}
+                  armW={armW}
                   torsoY={torsoY}
                   skin={skin}
                   outfit={armStyle}
                   shortSleeve={sleeveShort}
+                  sleeveless={sleeveless}
                   bulk={sleeveBulk}
                   cuff={cuff}
                   tone={bodyTone}
@@ -896,8 +854,7 @@ export function Resident({
           fill="#000"
           opacity="0.16"
         />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" style={outfit} />
-        <ellipse cx="0" cy={torsoY + 1.5} rx={sh - 3.4} ry="2.4" fill="#fff" opacity="0.1" />
+        <Neckline kind={ch.garment} torsoY={torsoY} outfit={outfit} view={back ? "back" : "front"} />
         {/* A garment's own neck piece (the turtleneck's roll) — after the
             skin neck and the collar ellipse, or they'd paint over it. */}
         <GarmentCollar kind={ch.garment} headY={headY} torsoY={torsoY} outfit={outfit} />
@@ -911,8 +868,8 @@ export function Resident({
             (the crown sheen has one) — the rule is only that an animation may
             not share an ELEMENT with one. The neck and collar stay outside, so
             a turning head turns against a body that doesn't. */}
-        {/* THE ADULT-PROPORTION SCALE (see lib/body.js HEAD_SCALE): the whole
-            finished head unit — skull, hair, hat, glasses, face — shrinks
+        {/* THE HEAD-UNIT SCALE (see lib/body.js HEAD_SCALE): the whole
+            finished head unit — skull, hair, hat, glasses, face — scales
             about its own centre, so every asset authored at HEAD_R rides
             along. Its own wrapper: an attribute transform may never share
             the gesture elements' animations. */}
@@ -923,7 +880,7 @@ export function Resident({
               that isn't raised is worse than no gesture at all. The yawn and
               the glance above are head-only and keep playing — yawning on the
               way across the room is fine. */}
-          <g className={typing || resting || moving || held ? undefined : "gesture-rub-head"}>
+          <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub-head"}>
             <g className="gesture-look">
               {/* Inside the gesture wrappers on purpose: hair turns with the
                   head. Behind the face is what matters, not behind the body.
@@ -932,28 +889,7 @@ export function Resident({
               {!hatted && !back && (
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
-              <circle
-                data-character-head="front"
-                cx="0"
-                cy={headY}
-                r={HEAD_R}
-                fill={skin}
-                opacity="1"
-              />
-              {/* the head is a SPHERE now, not a disc — same gradient the
-                  pets' masses carry, so every round thing models alike */}
-              <circle cx="0" cy={headY} r={HEAD_R} fill={sphereFill(clipId)} />
-              {/* warm rim on the lit edge (VC2 reference pass): the window-
-                  light cue their figures all carry. Under the hair, so it
-                  reads on the cheek and jaw where skin shows. */}
-              <path
-                d={`M ${(HEAD_R - 0.55) * 0.15} ${headY - (HEAD_R - 0.55) * 0.93} A ${HEAD_R - 0.55} ${HEAD_R - 0.55} 0 0 1 ${(HEAD_R - 0.55) * 0.93} ${headY + (HEAD_R - 0.55) * 0.15}`}
-                stroke={GLINT}
-                strokeWidth="1.1"
-                strokeLinecap="round"
-                fill="none"
-                opacity="0.22"
-              />
+              <HeadSkin headY={headY} skin={skin} volume={sphereFill(clipId)} back={back} />
               {back && !hatted && (
                 <HairBack style={ch.hair} headY={headY} color={hairColor} />
               )}
@@ -970,12 +906,6 @@ export function Resident({
                   hovering while the head moves under it. */}
               <Hat kind={ch.hat} headY={headY} />
               {!back && <Face expression={ch.expression} headY={headY} />}
-              {!back && (
-                <>
-                  <ellipse cx="-5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-                  <ellipse cx="5.2" cy={headY + 3.3} rx="1.7" ry="1" fill="#e8a3a8" opacity="0.4" />
-                </>
-              )}
               {/* Glasses land right after the eyes' layer — over the fringe
                   and the hat's rim, so no crown mass can bury the rims, and
                   inside the gesture group so they turn with a glance. Turned

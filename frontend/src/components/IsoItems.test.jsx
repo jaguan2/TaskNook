@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
-import { GLASSES_REGISTRY } from "./character/glasses";
+import { Glasses, GLASSES_REGISTRY } from "./character/glasses";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
 import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
@@ -48,6 +48,15 @@ describe("the isometric catalog and its artwork agree", () => {
     // sprite has to tolerate the prop even if it ignores it.
     expect(() => draw(<Sprite rot={0} back />)).not.toThrow();
     expect(() => draw(<Sprite rot={1} back />)).not.toThrow();
+  });
+
+  it.each(["desk", "laptop"])("%s shows the lid back when facing away", (key) => {
+    expect(ISO_ITEMS[key].backView).toBe(true);
+    const Sprite = ISO_SPRITES[key];
+    const { container, rerender } = draw(<Sprite />);
+    expect(container.querySelector(".animate-flicker")).toBeTruthy();
+    rerender(<svg><Sprite back /></svg>);
+    expect(container.querySelector(".animate-flicker")).toBeNull();
   });
 
   it("renders every colourway of every item that has them", () => {
@@ -97,10 +106,11 @@ describe("the isometric catalog and its artwork agree", () => {
   describe("a seated persona actually sits", () => {
     const Resident = ISO_SPRITES.resident;
 
-    /** Every straight-line stroke in the sprite, as {x1,y1,x2,y2}. */
+    /** Limb-width straight strokes; exclude thin face/clothing accents. */
     const limbs = (node) => {
       const { container } = draw(node);
       return [...container.querySelectorAll("path[stroke-linecap='round']")]
+        .filter((p) => Number(p.getAttribute("stroke-width")) > 2)
         .map((p) => /^M(-?[\d.]+) (-?[\d.]+) L(-?[\d.]+) (-?[\d.]+)$/.exec(p.getAttribute("d")))
         .filter(Boolean)
         .map(([, x1, y1, x2, y2]) => ({ x1: +x1, y1: +y1, x2: +x2, y2: +y2 }));
@@ -150,6 +160,80 @@ describe("the isometric catalog and its artwork agree", () => {
 
       expect(head).toBeTruthy();
       expect(head.getAttribute("stroke")).toBeNull();
+      // The cheek-to-chin silhouette is authored entirely with curves. Hard
+      // line segments made the tiny face read as a downward-pointing triangle.
+      expect(head.getAttribute("d")).not.toMatch(/\bL/i);
+    });
+
+    it("keeps open eyes to one dark oval and one catchlight", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const eyes = [...container.querySelectorAll('[data-character-eye="open"]')];
+
+      expect(eyes).toHaveLength(2);
+      for (const eye of eyes) {
+        expect(eye.querySelectorAll("ellipse")).toHaveLength(1);
+        expect(eye.querySelectorAll("circle")).toHaveLength(1);
+        expect(eye.querySelector("path")).toBeNull();
+      }
+    });
+
+    it("uses the model-specific arm width in the rendered sprite", () => {
+      const widths = (model) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, model }} />
+        );
+        const values = [...container.querySelectorAll("[data-arm-width]")]
+          .map((arm) => Number(arm.dataset.armWidth));
+        cleanup();
+        return values;
+      };
+
+      const masc = widths("masc");
+      const fem = widths("fem");
+      expect(masc).toHaveLength(2);
+      expect(fem).toHaveLength(2);
+      for (const width of masc) expect(width).toBeCloseTo(3.5, 9);
+      for (const width of fem) expect(width).toBeCloseTo(3.05, 9);
+    });
+
+    it("keeps each arm to one depth treatment without an elbow mark", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const arms = [...container.querySelectorAll("[data-arm-pose]")];
+
+      expect(arms).toHaveLength(2);
+      for (const arm of arms) {
+        const expectedSideShadows = arm.dataset.armDepth === "near" ? 1 : 0;
+        expect(arm.querySelectorAll("[data-arm-shade]")).toHaveLength(expectedSideShadows);
+        expect(arm.querySelector("ellipse")).toBeNull();
+      }
+    });
+
+    it("uses one broad torso shadow instead of stacking a gradient and a band", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+
+      expect(container.querySelectorAll('[data-torso-shadow="broad"]')).toHaveLength(1);
+      expect(container.querySelectorAll('path[fill^="url(#"][d]')).toHaveLength(1);
+    });
+
+    it("keeps blush and nose subordinate to the eyes", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const cheeks = [...container.querySelectorAll("[data-character-cheek]")];
+      const nose = container.querySelector("[data-character-nose]");
+
+      expect(cheeks).toHaveLength(2);
+      for (const cheek of cheeks) expect(Number(cheek.getAttribute("opacity"))).toBeLessThanOrEqual(0.2);
+      expect(Number(nose.getAttribute("r"))).toBeLessThanOrEqual(0.2);
+    });
+
+    it("rests seated hands in the lap without stealing hands from activity or carrying", () => {
+      const { container, rerender } = draw(<Resident seated seatH={22} />);
+      expect(container.querySelectorAll('[data-arm-pose="lap"]')).toHaveLength(2);
+      expect(container.querySelector('.gesture-rub')).toBeNull();
+      expect(container.querySelector('.gesture-rub-head')).toBeNull();
+      for (const props of [{}, { seated: true, activity: "focus" }, { seated: true, activity: "break" }, { seated: true, held: true }, { seated: true, facing: "back" }]) {
+        rerender(<svg><Resident {...props} /></svg>);
+        expect(container.querySelector('[data-arm-pose="lap"]')).toBeNull();
+      }
     });
 
     it.each(
@@ -191,6 +275,19 @@ describe("the isometric catalog and its artwork agree", () => {
         ).toBe(false);
         seen.set(html, key);
         cleanup();
+      }
+    });
+
+    it("keeps glasses to clean lens rims without bridge or temple lines", () => {
+      for (const kind of ["round", "square", "halfmoon"]) {
+        for (const view of ["front", "side"]) {
+          const { container } = draw(<Glasses kind={kind} headY={0} view={view} />);
+          expect(container.querySelector("line, polyline")).toBeNull();
+          for (const path of container.querySelectorAll("path")) {
+            expect(path.getAttribute("d"), `${kind} ${view}`).not.toMatch(/\bL\b/);
+          }
+          cleanup();
+        }
       }
     });
 
@@ -403,6 +500,35 @@ describe("the profile view and the wardrobe slots", () => {
     };
 
     expect(markup("masc")).not.toBe(markup("fem"));
+  });
+
+  it("renders a tank top with genuinely bare arms", () => {
+    const { container } = draw(
+      <Resident character={{ ...DEFAULT_CHARACTER, garment: "tank", coat: "none", skin: "#8d5524" }} />
+    );
+    expect(container.querySelectorAll('[data-sleeve="none"]')).toHaveLength(2);
+    expect(container.innerHTML).toContain("#8d5524");
+  });
+
+  it("keeps cargo pockets visible in standing, profile, and seated poses", () => {
+    for (const props of [{}, { facing: "side" }, { seated: true, seatH: 19 }]) {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, pants: "cargo" }} {...props} />
+      );
+      expect(container.querySelector('[data-cargo-pocket]')).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("sandals expose the selected skin tone in front and profile", () => {
+    for (const facing of ["front", "side"]) {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, shoes: "sandals", skin: "#c08552" }} facing={facing} />
+      );
+      expect(container.querySelector('[data-sandal-foot]')).toBeTruthy();
+      expect(container.innerHTML).toContain("#c08552");
+      cleanup();
+    }
   });
 
   it("every bottom keeps distinct artwork when seated", () => {

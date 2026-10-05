@@ -42,6 +42,22 @@ import { GLINT, SHADE, HAIR_LIFT } from "./body";
 
 const R = HEAD_R;
 
+/** Gathered coils give the bun a wrapped silhouette rather than a ball. */
+function WoundBun({ x, y, color }) {
+  return <g transform={`translate(${x},${y})`}>
+    <path d="M-1.5 -3.8 Q-0.3 -4.8 1.8 -4 Q4.5 -3.2 4.2 -0.5
+      Q4.6 2 2.5 3.2 Q0.1 4.6 -2.7 2.5 Q-4.8 1.2 -3.9 -1.7
+      Q-3.6 -3.5 -1.5 -3.8 Z" fill={color} />
+    <path d="M-3.6 0 Q-1.8 3.3 1.8 2.8 Q3.5 2.5 4.2 0.3
+      Q4 3.5 1 3.9 Q-2.9 3.7 -3.6 0 Z" fill={SHADE} opacity="0.2" />
+    <path d="M-2.7 -1.8 Q0.4 -3.5 2 -1.5 Q3 0.3 0.8 1.4
+      Q-0.7 2.2 -1.5 0.8" fill="none" stroke={SHADE} strokeWidth="0.85"
+      strokeLinecap="round" opacity="0.35" />
+    <path d="M-2.5 -2.2 Q-0.8 -3.4 0.8 -2.8" fill="none" stroke={GLINT}
+      strokeWidth="0.85" strokeLinecap="round" opacity="0.22" />
+  </g>;
+}
+
 /** The inflated dome: left base → elliptical arc over the apex → right base. */
 const domeArc = (headY, { sideX, apex, baseY }) =>
   `M ${-sideX} ${headY + baseY} A ${sideX} ${apex} 0 0 1 ${sideX} ${headY + baseY}`;
@@ -575,8 +591,13 @@ export const HAIR_REGISTRY = {
     // resident walking away lost the hairstyle (sheet, 2026-08-17).
     back: ({ headY, color }) => (
       <>
-        <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
-        <circle cx="0" cy={headY - 9.4} r="3.9" fill={color} />
+        <path d={`M-7.8 ${headY - 2} Q-8.4 ${headY - 8} 0 ${headY - 9}
+          Q8.4 ${headY - 8} 7.8 ${headY - 2} L6.3 ${headY + 3}
+          Q3 ${headY + 6.2} 0 ${headY + 5.6} Q-3 ${headY + 6.2} -6.3 ${headY + 3} Z`} fill={color} />
+        <path d={`M-6 ${headY - 3} Q-3 ${headY - 6} 0 ${headY - 7}
+          M6 ${headY - 2} Q4 ${headY - 5} 1 ${headY - 7}`}
+          fill="none" stroke={SHADE} strokeWidth="0.85" opacity="0.2" />
+        <WoundBun x={0} y={headY - 9.4} color={color} />
         <path
           d={`M-2.8 ${headY - 7.2} a3.9 3.9 0 0 0 5.6 0 q-1.6 1.9 -5.6 0 z`}
           fill="#000"
@@ -590,7 +611,7 @@ export const HAIR_REGISTRY = {
     side: ({ headY, color }) => (
       <>
         <path d={sideWigPath(headY, { apex: 8.6, napeY: 2, earY: 1.6, fringeY: -2.6 })} fill={color} />
-        <circle cx="4.6" cy={headY - 8.4} r="3.7" fill={color} />
+        <WoundBun x={4.6} y={headY - 8.4} color={color} />
         <path
           d={`M 2 ${headY - 6.6} a 3.7 3.7 0 0 0 5.2 -0.6 q -2 2.2 -5.2 0.6 z`}
           fill="#000"
@@ -616,7 +637,7 @@ export const HAIR_REGISTRY = {
           ])}
           fill={color}
         />
-        <circle cx="0" cy={headY - 9.4} r="3.9" fill={color} />
+        <WoundBun x={0} y={headY - 9.4} color={color} />
         <path
           d={`M-2.8 ${headY - 7.2} a3.9 3.9 0 0 0 5.6 0 q-1.6 1.9 -5.6 0 z`}
           fill="#000"

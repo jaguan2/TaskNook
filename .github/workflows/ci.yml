@@ -88,9 +88,12 @@ jobs:
         working-directory: frontend
       - run: pip install -r requirements-desktop.txt pyinstaller
       - name: Build TaskNook.exe
+        run: python scripts/desktop_update_manifest.py prepare
+      - name: Package TaskNook.exe
         run: >
           python -m PyInstaller --onefile --windowed --name TaskNook
           --distpath . --workpath build
+          --add-data "build/desktop-build.json;."
           --add-data "backend/*.py;backend"
           --add-data "backend/migrations/*.py;backend/migrations"
           --add-data "backend/migrations/*.ini;backend/migrations"

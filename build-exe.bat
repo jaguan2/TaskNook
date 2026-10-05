@@ -23,6 +23,8 @@ echo Installing build dependencies (pywebview, waitress, pyinstaller)...
 %PY% -m pip install -r requirements-desktop.txt pyinstaller || goto :error
 
 echo Building TaskNook.exe (this can take a minute)...
+if not defined TASKNOOK_UPDATE_CHANNEL set "TASKNOOK_UPDATE_CHANNEL=main"
+%PY% scripts\desktop_update_manifest.py prepare --channel "%TASKNOOK_UPDATE_CHANNEL%" || goto :error
 REM  IMPORTANT: bundle backend source EXPLICITLY, never the whole folder.
 REM  "--add-data backend;backend" would sweep in your local tasknook.db (real
 REM  tasks), its .bak backups and __pycache__ — publishing personal data inside
@@ -36,6 +38,7 @@ REM    set TASKNOOK_SELFTEST=1 && TaskNook.exe   (exit code must be 0)
 %PY% -m PyInstaller --onefile --windowed --name TaskNook ^
   --distpath . ^
   --workpath build ^
+  --add-data "build\desktop-build.json;." ^
   --add-data "backend\*.py;backend" ^
   --add-data "backend\migrations\*.py;backend\migrations" ^
   --add-data "backend\migrations\*.ini;backend\migrations" ^
@@ -49,8 +52,11 @@ REM    set TASKNOOK_SELFTEST=1 && TaskNook.exe   (exit code must be 0)
   --noconfirm ^
   desktop.py || goto :error
 
+%PY% scripts\desktop_update_manifest.py publish || goto :error
+
 echo.
 echo Done! TaskNook.exe (repo root) is ready to share/run standalone.
+echo Commit TaskNook.exe and desktop-update.json together to publish the update.
 pause
 goto :eof
 

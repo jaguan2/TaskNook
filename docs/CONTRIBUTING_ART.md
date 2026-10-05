@@ -7,6 +7,12 @@ page gives you the coordinate system, the entry format, and the review loop.
 
 ## The loop
 
+Profile → Looks offers standing, seated and back previews of every complete
+outfit before applying it. Switching preview views does not change the
+character; applying a look preserves the current skin tone. The art sheet's
+`model-*` fixtures also show light/dark skin, body extremes, glasses and hats
+with the face and relaxed seated pose.
+
 ```bash
 cd frontend
 npm run art          # renders EVERY piece to art-sheet/index.html
@@ -17,6 +23,24 @@ run `npm run art` again, refresh the tab. Judge pieces **side by side with
 the whole set** — that is how every dud so far was caught (two styles
 sharing a silhouette, a fringe reading as a blindfold, shoes that were just
 circles). Never judge one piece alone.
+
+The sheet also renders **every catalog item**, grouped and labelled by the
+18 catalog families, including advertised rear views. It writes
+`art-sheet/catalog.json` with keys, labels, groups, footprints and heights.
+Compare it against the per-item ledger in `docs/MODELING_ROADMAP.md`; a piece
+missing from presets must still receive a catalog review.
+
+`seating-*` fixtures show armchair, sofa, desk chair and garden bench contact
+with slim/wide characters, front/rear, in idle/focus/break. They reuse the
+room's seat placement rules. Review these after changing furniture: an empty
+chair can look good while its backrest hides the sitter or its seat floats
+under them. The bench also joins the cream/dark/sage material fixtures.
+
+`seated-look-*` fixtures show all eight complete looks, front/rear and
+idle/focus/break, using the established seated rig. Check them alongside
+standing, carried and ordinary seated views. The experimental skewed chair
+pose was rejected and removed; a future seated perspective needs a coherent
+figure and garment silhouette before adding joints and animation.
 
 To see a piece in the real app afterwards: `npm run dev` + the backend, then
 Profile → the tab it lives in.

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
-const mocks = vi.hoisted(() => ({ openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
+const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
   user: { id: 9 },
   friends: [
@@ -17,6 +17,13 @@ beforeEach(() => { vi.clearAllMocks(); mocks.chatsError = false; });
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("offers both authored common places with their real population counts", () => {
+    render(<FriendsPanel />);
+    expect(screen.getAllByText("3 simulated neighbours · 3 guest seats")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: /Common Cottage/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Willow Pond/ }));
+    expect(mocks.enterCommonRoom.mock.calls).toEqual([["common-cottage"], ["willow-pond"]]);
+  });
   it("offers a retry when the conversation list could not load", () => {
     mocks.chatsError = true;
     render(<FriendsPanel />);

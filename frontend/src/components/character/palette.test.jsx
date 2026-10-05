@@ -15,8 +15,9 @@ import { GARMENT_REGISTRY, Garment, GarmentCollar } from "./garments";
 // Sentinel colours standing in for the user's picks.
 const OUTFIT = "#123456";
 const INNER = "#654321";
+const SKIN = "#abcdef";
 const CTX = { sh: 9, wa: 8, hem: 9, top: -44, bot: -27, waistY: -34 };
-const ALLOWED = new Set(["none", "#000", "#fff", SHADE, GLINT, STITCH, BRASS, OUTFIT, INNER]);
+const ALLOWED = new Set(["none", "#000", "#fff", SHADE, GLINT, STITCH, BRASS, OUTFIT, INNER, SKIN]);
 
 const paintsOf = (markup) => {
   const found = [];
@@ -33,7 +34,7 @@ describe("garment palette lint", () => {
       for (const view of ["front", "back", "side"]) {
         const markup = renderToStaticMarkup(
           <svg>
-            <Garment kind={kind} {...CTX} inner={INNER} outfit={{ fill: OUTFIT }} view={view} />
+            <Garment kind={kind} {...CTX} inner={INNER} outfit={{ fill: OUTFIT }} skin={SKIN} view={view} />
           </svg>
         );
         for (const paint of paintsOf(markup)) {

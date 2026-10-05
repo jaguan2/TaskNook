@@ -269,6 +269,9 @@ export const GLASSES = [
 export const OUTFITS = [
   { key: "sweater", label: "Sweater" },
   { key: "tee", label: "T-shirt", sleeves: "short" },
+  // The first truly sleeveless top: arms stay skin from shoulder to hand and
+  // the torso art cuts the shoulder corners away to leave narrow straps.
+  { key: "tank", label: "Tank top", sleeves: "none" },
   // One picker choice, two authored cuts: the masc model wears a surf top,
   // while the fem model gets a one-piece neckline and dropped hip panel.
   // The registry receives `model` so this remains presentation rather than
@@ -343,6 +346,7 @@ export const PANTS = [
   { key: "dress", label: "Dress pants" },
   { key: "jeans", label: "Jeans" },
   { key: "joggers", label: "Joggers" },
+  { key: "cargo", label: "Cargo pants" },
   { key: "wide", label: "Wide leg" },
   { key: "shorts", label: "Shorts" },
   { key: "jorts", label: "Jorts" },
@@ -368,6 +372,7 @@ export const SHOES = [
   { key: "boots", label: "Boots" },
   { key: "heels", label: "Heels" },
   { key: "maryjanes", label: "Mary Janes" },
+  { key: "sandals", label: "Sandals" },
 ];
 
 export const SHOE_COLORS = [

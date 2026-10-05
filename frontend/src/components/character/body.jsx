@@ -81,7 +81,7 @@ const farShoe = (hex) => (hex === SHOE ? SHOE_FAR : farColor(hex));
 const SOLE = "#ded5c4";
 const SOCK = "#f2ede4";
 
-export function FrontShoe({ cx, kind = "sneakers", color = SHOE, far = false }) {
+export function FrontShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false }) {
   // Far depth comes from DERIVING each material darker (farColor), never
   // from a wash rect over the whole piece — a rect is wider than the leg,
   // and its spill painted a grey slab onto the floor beside the far foot
@@ -89,6 +89,7 @@ export function FrontShoe({ cx, kind = "sneakers", color = SHOE, far = false }) 
   const c = far ? farShoe(color) : color;
   const sole = far ? farColor(SOLE) : SOLE;
   const sock = far ? farColor(SOCK) : SOCK;
+  const foot = far ? farColor(skin) : skin;
   if (kind === "loafers") {
     return (
       <g>
@@ -159,6 +160,16 @@ export function FrontShoe({ cx, kind = "sneakers", color = SHOE, far = false }) 
       </g>
     );
   }
+  if (kind === "sandals") {
+    return (
+      <g data-sandal-foot="front">
+        <rect x={cx - 4.5} y="1.7" width="9" height="1.15" rx="0.55" fill={sole} />
+        <path d={`M ${cx - 4.1} 1.7 Q ${cx - 4} -1.2 ${cx} -1.8 Q ${cx + 4} -1.2 ${cx + 4.1} 1.7 Z`} fill={foot} />
+        <path d={`M ${cx - 3.4} 0.7 Q ${cx} -1.7 ${cx + 3.4} 0.7`} fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
+        <path d={`M ${cx} -1.2 L ${cx} 1.3`} stroke={c} strokeWidth="1.15" strokeLinecap="round" />
+      </g>
+    );
+  }
   // sneakers: a chunky light SOLE under a laced upper — the two-material
   // split that says "trainer" at any size
   return (
@@ -181,11 +192,12 @@ export function FrontShoe({ cx, kind = "sneakers", color = SHOE, far = false }) 
  * The shoe in PROFILE, toe pointing -x — same modelled construction, and
  * the view where each silhouette really earns its name.
  */
-export function SideShoe({ cx, kind = "sneakers", color = SHOE, far = false }) {
+export function SideShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false }) {
   // Same far rule as FrontShoe: derive materials darker, no wash rect.
   const c = far ? farShoe(color) : color;
   const sole = far ? farColor(SOLE) : SOLE;
   const sock = far ? farColor(SOCK) : SOCK;
+  const foot = far ? farColor(skin) : skin;
   if (kind === "loafers") {
     return (
       <g>
@@ -250,6 +262,16 @@ export function SideShoe({ cx, kind = "sneakers", color = SHOE, far = false }) {
       </g>
     );
   }
+  if (kind === "sandals") {
+    return (
+      <g data-sandal-foot="side">
+        <rect x={cx - 7.2} y="1.8" width="10" height="1.05" rx="0.5" fill={sole} />
+        <path d={`M ${cx - 6.8} 1.8 Q ${cx - 6.1} 0 ${cx - 3.8} -0.5 L ${cx + 2.2} -0.8 L ${cx + 2.7} 1.8 Z`} fill={foot} />
+        <path d={`M ${cx - 4.5} 0.3 Q ${cx - 2.4} -2 ${cx - 0.2} 0.3`} fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
+        <path d={`M ${cx + 0.6} -0.3 L ${cx + 1.9} 1.2`} stroke={c} strokeWidth="1.3" strokeLinecap="round" />
+      </g>
+    );
+  }
   // sneakers: the light sole runs the whole length; laces cross the instep;
   // a heel tab finishes the back
   return (
@@ -288,6 +310,9 @@ const PANTS_FORM = {
   // dyes the denim.
   jeans: { turnup: true, stitch: true },
   joggers: { slim: -0.5, cuffBand: true },
+  // Cargo is named by one broad pocket. A cuff and bright pocket flap on top
+  // of the shared side shade made the leg read as a stack of patches.
+  cargo: { wide: 0.7, cargo: true, cleanHem: true },
   wide: { wide: 2.4, straight: true },
   shorts: { shorts: true },
   jorts: { shorts: true, turnup: true, stitch: true },
@@ -381,20 +406,25 @@ export function SeatedLeg({
         <g>
           {!bareShin && <path d={`M ${knee - clothWidth / 4} ${SEAT_KNEE_Y + 1}
               L ${knee - clothWidth / 4} ${ankle - 1}`}
-            stroke={SHADE} strokeWidth={clothWidth / 2.9} opacity={0.14 * tone.shade} fill="none" />}
+            stroke={SHADE} strokeWidth={clothWidth / 2.9} opacity={0.1 * tone.shade} fill="none" />}
           {form.crease && <path d={`M ${knee} ${SEAT_KNEE_Y + 1} L ${knee} ${ankle - 2}`}
-            stroke={GLINT} strokeWidth="0.9" opacity={(far ? 0.1 : 0.17) * tone.glint} fill="none" />}
+            stroke={GLINT} strokeWidth="0.8" opacity={(far ? 0.07 : 0.12) * tone.glint} fill="none" />}
           {!form.cleanHem && <rect x={knee - clothWidth / 2 + 0.4} y={hemY}
             width={clothWidth - 0.8} height={form.turnup ? 2.1 : 1.8}
             fill={form.turnup || form.cuffBand ? GLINT : "#000"}
-            opacity={form.turnup ? 0.2 * tone.glint : form.cuffBand ? 0.18 * tone.glint : 0.14} />}
+            opacity={form.turnup ? 0.16 * tone.glint : form.cuffBand ? 0.13 * tone.glint : 0.1} />}
           {form.stitch && <path d={`M ${knee - clothWidth / 2 + 0.7} ${hemY - 0.6}
               L ${knee + clothWidth / 2 - 0.7} ${hemY - 0.6}`}
             stroke={STITCH} strokeWidth="0.55" strokeDasharray="0.9 0.8" fill="none" opacity={far ? 0.5 : 0.85} />}
+          {form.cargo && (
+            <g data-cargo-pocket="seated" opacity={far ? 0.55 : 0.9}>
+              <rect x={knee - side * 1.1 - 2.1} y={SEAT_KNEE_Y - 5.8} width="4.2" height="3.8" rx="0.6" fill="#000" opacity="0.1" />
+            </g>
+          )}
         </g>
       )}
       <g transform={`translate(0, ${ankle + 1.1})`}>
-        <FrontShoe cx={knee} kind={shoes} color={shoeColor} far={far} />
+        <FrontShoe cx={knee} kind={shoes} color={shoeColor} skin={skin} far={far} />
       </g>
     </g>
   );
@@ -465,9 +495,9 @@ export function StandingLeg({
     return (
       <g>
         {line(bent(0), skinTone, legW - 0.5)}
-        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08, "butt")}
-        <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
-        <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} far={far} />
+        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.06, "butt")}
+        <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1" ry="0.6" fill="#000" opacity="0.06" />
+        <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} skin={skin} far={far} />
       </g>
     );
   }
@@ -482,18 +512,9 @@ export function StandingLeg({
           tube (VC2 reference: trousers are a matte mass; the lit read
           belongs to the torso and the knee's crease). Luminance-scaled so
           near-black denim still models. */}
-      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade, "butt")}
+      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.1 * tone.shade, "butt")}
       {/* dress pants press a CREASE down the front of each leg */}
-      {form.crease && line(edgeD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint, "butt")}
-      {/* the crease inside the bend — the knee's only mark */}
-      <ellipse
-        cx={K.x - side * 1.2}
-        cy={K.y + 0.5}
-        rx="1.2"
-        ry="0.8"
-        fill="#000"
-        opacity="0.11"
-      />
+      {form.crease && line(edgeD(0), GLINT, 0.8, (far ? 0.07 : 0.12) * tone.glint, "butt")}
       {/* The hem, per form: shorts hem at the knee; a turn-up is a LIGHT
           band (rolled denim shows its underside); joggers cinch to an
           elastic cuff; dress pants break clean with no band at all. */}
@@ -504,14 +525,14 @@ export function StandingLeg({
           width={w - 0.6}
           height={form.turnup ? 2.1 : 1.6}
           fill={form.turnup ? "#fff" : "#000"}
-          opacity={form.turnup ? 0.2 : 0.14}
+          opacity={form.turnup ? 0.16 : 0.1}
         />
       ) : form.turnup ? (
-        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.2" />
+        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
       ) : form.cuffBand ? (
-        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.18" />
+        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
       ) : form.cleanHem ? null : (
-        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
+        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
       )}
       {/* denim's contrast topstitch, riding above the hem or shorts hem */}
       {form.stitch && (
@@ -525,10 +546,15 @@ export function StandingLeg({
           opacity={far ? 0.5 : 0.85}
         />
       )}
+      {form.cargo && (
+        <g data-cargo-pocket="front" opacity={far ? 0.55 : 0.9}>
+          <rect x={K.x - w / 2 - 0.3} y={K.y - 6.2} width={w + 0.6} height="4.4" rx="0.7" fill="#000" opacity="0.1" />
+        </g>
+      )}
       {/* The shoe has to TERMINATE the leg (the sneaker's bright sole and
           top catch exist so the foot doesn't dissolve into a dark trouser
           on a dark floor) — and it's a wardrobe slot now, see FrontShoe. */}
-      <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} far={far} />
+      <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} skin={skin} far={far} />
     </g>
   );
 }
@@ -581,13 +607,13 @@ export function SideLeg({
     />
   );
   // toe forward, heel behind — the asymmetry is the profile
-  const shoe = <SideShoe cx={cx} kind={shoes} color={shoeColor} far={far} />;
+  const shoe = <SideShoe cx={cx} kind={shoes} color={shoeColor} skin={skin} far={far} />;
   if (form.bare) {
     return (
       <g>
         {line(bent(0), skinTone, legW - 0.5)}
-        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.08, "butt")}
-        <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.7" fill="#000" opacity="0.09" />
+        {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.06, "butt")}
+        <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1" ry="0.6" fill="#000" opacity="0.06" />
         {shoe}
       </g>
     );
@@ -599,10 +625,8 @@ export function SideLeg({
       {line(clothD(0), cloth, w)}
       {/* shade only, flush-capped — the glint stripe made glass tubes of
           the trousers (same call as StandingLeg) */}
-      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.14 * tone.shade, "butt")}
-      {form.crease && line(edgeD(0), GLINT, 0.9, (far ? 0.1 : 0.17) * tone.glint, "butt")}
-      {/* the crease sits BEHIND the knee in profile — inside the bend */}
-      <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1.1" ry="0.8" fill="#000" opacity="0.11" />
+      {line(edgeD(-w / 4), SHADE, w / 2.9, 0.1 * tone.shade, "butt")}
+      {form.crease && line(edgeD(0), GLINT, 0.8, (far ? 0.07 : 0.12) * tone.glint, "butt")}
       {form.stitch && (
         <path
           d={`M ${(form.shorts ? K.x : cx) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : -7}
@@ -614,6 +638,11 @@ export function SideLeg({
           opacity={far ? 0.5 : 0.85}
         />
       )}
+      {form.cargo && (
+        <g data-cargo-pocket="side" opacity={far ? 0.55 : 0.9}>
+          <rect x={K.x - w / 2 - 0.7} y={K.y - 6.2} width={w + 1.4} height="4.5" rx="0.7" fill="#000" opacity="0.1" />
+        </g>
+      )}
       {form.shorts ? (
         <rect
           x={K.x - w / 2 + 0.3}
@@ -621,14 +650,14 @@ export function SideLeg({
           width={w - 0.6}
           height={form.turnup ? 2.1 : 1.6}
           fill={form.turnup ? "#fff" : "#000"}
-          opacity={form.turnup ? 0.2 : 0.14}
+          opacity={form.turnup ? 0.16 : 0.1}
         />
       ) : form.turnup ? (
-        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.2" />
+        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
       ) : form.cuffBand ? (
-        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.18" />
+        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
       ) : form.cleanHem ? null : (
-        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.14" />
+        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
       )}
       {shoe}
     </g>
@@ -642,50 +671,53 @@ export function SideLeg({
  * edge, and one cheek's blush. Drawn for a figure facing -x; the scene's
  * mirror handles the other way.
  */
-export function SideFace({ expression, headY, skin }) {
+export function SideHeadSkin({ headY, skin }) {
+  // A complete profile, including the jaw beneath the ear. A circle behind
+  // a nose strip always keeps its round lower edge, however shaped the strip.
+  // Keep the cheek-to-chin run curved: straight facets made the small head
+  // read as a triangle as soon as the resident turned sideways.
+  const outline = `M-1 ${headY - HEAD_R}
+    Q-6.8 ${headY - 7.5} -6.6 ${headY - 3}
+    C-6.7 ${headY - 1.7} -6.8 ${headY - 0.9} -6.7 ${headY - 0.5}
+    L-8.2 ${headY + 0.9}
+    Q-8.5 ${headY + 1.5} -7.4 ${headY + 1.8}
+    C-6.7 ${headY + 2.2} -6.9 ${headY + 3.3} -6.1 ${headY + 4.3}
+    C-5.2 ${headY + 5.6} -3.8 ${headY + 6.5} -2.2 ${headY + 6.6}
+    C-0.2 ${headY + 5.8} 4.9 ${headY + 3.5} 6.1 ${headY + 1.2}
+    Q6.9 ${headY - 4.8} -1 ${headY - HEAD_R} Z`;
+  return <>
+    <path d={outline} fill={skin} />
+    <path d={`M1 ${headY - 3} Q5 ${headY - 1} 4.3 ${headY + 2.5}
+      L0.9 ${headY + 4.1} L-2.8 ${headY + 6.7} L-4.2 ${headY + 6}
+      Q0 ${headY + 3.8} 1 ${headY - 3} Z`} fill={SHADE} opacity="0.1" />
+  </>;
+}
+
+export function SideFace({ expression, headY }) {
   const R = HEAD_R;
-  const stroke = { fill: "none", stroke: INK, strokeWidth: 0.9, strokeLinecap: "round" };
+  const stroke = { fill: "none", stroke: INK, strokeWidth: 0.62, strokeLinecap: "round" };
   return (
     <>
-      {/* The face's front edge as ONE continuous profile — brow, a small
-          nose, the under-nose step, a lip hint, a chin that curves back to
-          the jaw. It used to be a bolt-on nose wedge on a bare circle, and
-          the wedge's return edge cut a beak-like notch under the nose
-          (owner screenshot, 2026-08-19: "the side model is really bad").
-          A profile is a LINE, not a circle plus a bump. */}
-      <path
-        d={`M ${-R + 1.3} ${headY - 4.4}
-            Q ${-R - 0.2} ${headY - 2.4} ${-R + 0.1} ${headY - 0.7}
-            Q ${-R - 2.1} ${headY + 0.5} ${-R - 1.5} ${headY + 1.9}
-            Q ${-R - 1.1} ${headY + 2.6} ${-R + 0.1} ${headY + 2.6}
-            Q ${-R - 0.7} ${headY + 3.7} ${-R + 0.5} ${headY + 4.4}
-            Q ${-R + 0.2} ${headY + 5.5} ${-R + 2.1} ${headY + 6.1}
-            L ${-R + 3.2} ${headY - 3.2} Z`}
-        fill={skin}
-      />
       {expression === "happy" ? (
         <path d={`M-4.7 ${headY + 2} q1.2 -1.6 2.4 0`} {...stroke} />
       ) : expression === "sleepy" ? (
         <path d={`M-4.7 ${headY + 2} q1.2 0.9 2.4 0`} {...stroke} />
       ) : (
-        <circle cx="-3.5" cy={headY + 1.9} r="0.95" fill={INK} />
+        <OpenEye x={-3.5} y={headY + 1.9} />
       )}
       {/* the mouth sits ON the face, small and soft — the old longer stroke
           started so far back it read as a cut across the cheek */}
-      <path d={`M${-R + 1.1} ${headY + 4.5} q0.75 0.55 1.6 0.2`} {...stroke} opacity="0.7" />
-      <ellipse cx="-2.4" cy={headY + 3.5} rx="1.6" ry="1" fill="#e8a3a8" opacity="0.4" />
+      <path d={`M${-R + 1.1} ${headY + 4.5} q0.6 0.45 1.3 0.16`} {...stroke} opacity="0.68" />
+      <ellipse data-character-cheek cx="-2.4" cy={headY + 3.5} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.2" />
     </>
   );
 }
 
 /**
- * One arm: TWO segments meeting at an elbow, the way Roblox split R6 limbs
- * into R15 parts — the joint is what makes a low-fi body read as 3D, and it
- * reads from the seam and the angle, not from anatomical detail. The upper
- * arm bows slightly OUT from the shoulder and the forearm returns IN to the
- * hand, the Sims-style relaxed rest pose: a limb that is never a straight
- * column. (Owner call, 2026-08-16 — this replaces the one-rect arm and
- * revises the old "no joints" doctrine.)
+ * One arm: a single smooth tube whose path passes through an elbow anchor.
+ * The anchor gives the rest pose a slight bow without drawing a joint seam,
+ * crease or anatomical bulge. This keeps the useful articulation added in
+ * 2026-08 while matching the miniature reference's simpler limb language.
  *
  * The HAND stays at the same anchor the one-rect arm ended at, on purpose:
  * the mug, the typing bob, the walk swing and the held-pose dangle all hang
@@ -699,18 +731,21 @@ export function SideFace({ expression, headY, skin }) {
 export function Arm({
   side,
   sh,
+  armW = 4.1,
   torsoY,
   skin,
   outfit,
+  lap = false,
   shortSleeve = false,
+  sleeveless = false,
   bulk = 0,
   far = false,
   // Ribbed cuff at the wrist — knitwear's tell, declared by the outermost
   // garment's registry entry (`cuffs: true`), never inferred by name here.
   cuff = false,
-  // Luminance-adaptive strengths from toneFor(the sleeve's colour) — the
-  // assembly computes it once, since only it knows which hex is outermost.
-  tone = { shade: 1, glint: 1 },
+  // Luminance-adaptive shadow strength from toneFor(the sleeve's colour) —
+  // the assembly computes it once, since only it knows what is outermost.
+  tone = { shade: 1 },
   // The PROFILE arm rests ON a like-coloured torso: edge tones there turn
   // the limb into a painted stripe (owner screenshot, twice), so the side
   // view switches them off and lets the contact shadow do the separating.
@@ -724,21 +759,22 @@ export function Arm({
   // piece's root nests inside the piece it hangs from, and only its far end
   // shows.
   const S = { x: side * (sh - 0.5), y: torsoY + 4.4 }; // shoulder, inside the torso
-  const E = { x: side * (sh + 1.9), y: torsoY + 12 }; // elbow, bowed out
-  const H = { x: side * (sh + 0.9), y: torsoY + 17.5 }; // hand (fixed anchor)
-  // ONE CONTINUOUS POLYLINE per layer, bent at the elbow — the joint reads
-  // from the BEND in the outline, nothing else. Per-segment capsules with
-  // per-segment washes grew a lens blob at every joint (owner screenshot);
-  // clean low-poly bodies keep each part ONE flat tone.
-  // Curve through the same shoulder, elbow and hand anchors. The elbow still
-  // changes direction, but the silhouette no longer looks like two rulers
-  // meeting at a vertex; the reference figures keep their limbs relaxed even
-  // when the rendering itself stays low-detail.
-  const upperControl = { x: side * (sh + 2.35), y: torsoY + 8.1 };
-  const lowerControl = { x: side * (sh + 2.15), y: torsoY + 14.7 };
+  const E = { x: side * (sh + (lap ? 0.1 : 0.45)), y: torsoY + 12 };
+  const H = lap
+    ? { x: side * 3.6, y: torsoY + 17 }
+    : { x: side * (sh + 0.05), y: torsoY + 17.5 };
+  // ONE CONTINUOUS CURVE per layer. Per-segment capsules with per-segment
+  // washes grew a lens blob at every joint; the softened control points keep
+  // the pose relaxed while the elbow itself remains visually unmarked.
+  const upperControl = { x: side * (sh + (lap ? 0.35 : 0.65)), y: torsoY + 8.1 };
+  const lowerControl = { x: side * (lap ? sh - 1.5 : sh + 0.3), y: torsoY + (lap ? 16 : 14.7) };
   const whole = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y} Q ${lowerControl.x} ${lowerControl.y} ${H.x} ${H.y}`;
   const upper = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y}`;
-  const w = 4.3 + bulk;
+  // Bare arms should read as anatomy, not as an outfit-coloured sleeve with
+  // the paint removed. Pull them in more than a sleeve while retaining the
+  // model's width difference and enough weight to survive room scale.
+  const skinW = Math.max(2.4, armW - (sleeveless ? 0.7 : 0.15));
+  const w = sleeveless ? skinW : armW + bulk;
   const line = (d, paint, width, opacity, cap = "round") => (
     <path
       d={d}
@@ -764,10 +800,12 @@ export function Arm({
     return line(`M ${x - px} ${y - py} L ${x + px} ${y + py}`, paint, sw, op);
   };
   return (
-    <g>
+    <g data-arm-pose={lap ? "lap" : "active"} data-arm-width={armW}
+      data-arm-depth={far ? "far" : "near"}
+      data-sleeve={sleeveless ? "none" : shortSleeve ? "short" : "long"}>
       {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}
-      {line(whole, skin, 4.1)}
-      <SleeveSeg d={shortSleeve ? upper : whole} w={w} outfit={outfit} />
+      {line(whole, skin, skinW)}
+      {!sleeveless && <SleeveSeg d={shortSleeve ? upper : whole} w={w} outfit={outfit} />}
       {/* ONE light logic across the whole body: lit on the screen-right edge,
           shaded screen-left — the same single light the legs and torso answer
           to. It used to be "lit on the outer edge", which lit the two arms
@@ -777,23 +815,15 @@ export function Arm({
       {/* flush flat caps, tucked inside both ends — round caps stuck wash
           blobs past the shoulder and wrist (the glass-tube read, same
           de-glassing pass as the legs) */}
-      {edges && line(`M ${S.x + w / 4} ${S.y + 2.4} Q ${upperControl.x + w / 4} ${upperControl.y} ${E.x + w / 4} ${E.y} Q ${lowerControl.x + w / 4} ${lowerControl.y} ${H.x + w / 4} ${H.y - 2}`, GLINT, w / 2.7, far ? 0.05 : 0.1 * tone.glint, "butt")}
-      {edges && line(`M ${S.x - w / 4} ${S.y + 2.6} Q ${upperControl.x - w / 4} ${upperControl.y} ${E.x - w / 4} ${E.y} Q ${lowerControl.x - w / 4} ${lowerControl.y} ${H.x - w / 4} ${H.y - 2}`, SHADE, w / 2.9, 0.13 * tone.shade, "butt")}
+      {edges && !far && <g data-arm-shade="soft">
+        {line(`M ${S.x - w / 4} ${S.y + 2.6} Q ${upperControl.x - w / 4} ${upperControl.y} ${E.x - w / 4} ${E.y} Q ${lowerControl.x - w / 4} ${lowerControl.y} ${H.x - w / 4} ${H.y - 2}`, SHADE, w / 2.9, 0.09 * tone.shade, "butt")}
+      </g>}
       {/* a short sleeve's HEM — the crossbar is what makes the bare forearm
           read as a hemline rather than a glitch in the sleeve */}
-      {shortSleeve && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}
+      {shortSleeve && !sleeveless && bar(S, E, 0.94, 0.3, "#000", 1.2, 0.16)}
       {/* the knit cuff, cinched just above the hand */}
-      {cuff && !shortSleeve && bar(E, H, 0.78, 0.1, "#000", 1.5, 0.15)}
-      {far && line(whole, "#000", w, 0.12)}
-      {/* the crease inside the bend, barely there */}
-      <ellipse
-        cx={E.x - side * 1.1}
-        cy={E.y + 0.2}
-        rx="1"
-        ry="0.7"
-        fill="#000"
-        opacity="0.09"
-      />
+      {cuff && !shortSleeve && !sleeveless && bar(E, H, 0.78, 0.1, "#000", 1.5, 0.15)}
+      {far && line(whole, "#000", w, 0.09)}
       {/* the armpit's occlusion — the one mark that says these two parts
           MEET: a soft shade tucked where the arm leaves the torso, the same
           contact shading every box in the catalog gets where it touches. */}
@@ -803,17 +833,17 @@ export function Arm({
         strokeWidth="1"
         strokeLinecap="round"
         fill="none"
-        opacity="0.1"
+        opacity="0.07"
       />
       {/* A softly tapered mitten rather than a perfect ball. At room scale
           separate fingers become noise, but a thumb-side bump keeps the hand
           from reading as another joint capsule. */}
-      <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill={skin} />
-      <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill={skin} />
+      <path d={`M${H.x - 1.15} ${H.y - 1.2} Q${H.x - 1.55} ${H.y + 0.12} ${H.x - 0.8} ${H.y + 1.55} Q${H.x + 0.3} ${H.y + 2.02} ${H.x + 1.15} ${H.y + 0.82} L${H.x + 1.28} ${H.y - 0.92} Z`} fill={skin} />
+      <circle cx={H.x - side * 1.05} cy={H.y + 0.22} r="0.58" fill={skin} />
       {far && (
         <>
-          <ellipse cx={H.x} cy={H.y + 0.25} rx="2.25" ry="2.65" fill="#000" opacity="0.12" />
-          <circle cx={H.x - side * 1.75} cy={H.y + 0.55} r="1" fill="#000" opacity="0.12" />
+          <path d={`M${H.x - 1.15} ${H.y - 1.2} Q${H.x - 1.55} ${H.y + 0.12} ${H.x - 0.8} ${H.y + 1.55} Q${H.x + 0.3} ${H.y + 2.02} ${H.x + 1.15} ${H.y + 0.82} L${H.x + 1.28} ${H.y - 0.92} Z`} fill="#000" opacity="0.1" />
+          <circle cx={H.x - side * 1.05} cy={H.y + 0.22} r="0.58" fill="#000" opacity="0.1" />
         </>
       )}
     </g>
@@ -830,12 +860,44 @@ function SleeveSeg({ d, w, outfit }) {
   return <path d={d} stroke={colour} strokeWidth={w} strokeLinecap="round" fill="none" />;
 }
 
+/** Keep the crown's existing fit for hair/hats. Below the temples, one
+ * continuous curve rounds the cheeks into a gentle chin. It is still a
+ * shaped face rather than a perfect sphere, but never a faceted triangle. */
+export function HeadSkin({ headY, skin, volume, back = false }) {
+  const outline = `M0 ${headY - HEAD_R}
+    C4.9 ${headY - HEAD_R} 7.2 ${headY - 4.4} 7.2 ${headY}
+    C7.2 ${headY + 4} 4.8 ${headY + 6.6} 1.8 ${headY + 7.05}
+    C0.6 ${headY + 7.25} -0.6 ${headY + 7.25} -1.8 ${headY + 7.05}
+    C-4.8 ${headY + 6.6} -7.2 ${headY + 4} -7.2 ${headY}
+    C-7.2 ${headY - 4.4} -4.9 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
+  if (back) return <><circle cy={headY} r={HEAD_R} fill={skin} /><circle cy={headY} r={HEAD_R} fill={volume} opacity="0.55" /></>;
+  return <>
+    {[-1, 1].map((side) => <g key={side}>
+      <ellipse cx={side * 6.5} cy={headY + 1.1} rx="1.1" ry="1.65" fill={skin} />
+      <path d={`M${side * 6.7} ${headY + 0.5} q${side * 0.6} 0.4 0 1.3`} fill="none" stroke={SHADE} strokeWidth="0.6" opacity="0.14" />
+    </g>)}
+    <path data-character-head="front" d={outline} fill={skin} />
+    <path d={outline} fill={volume} opacity="0.55" />
+    <path d={`M-6 ${headY + 1.7} Q-5.3 ${headY + 4.6} -2.5 ${headY + 6.1}`} fill="none" stroke={SHADE} strokeWidth="0.6" strokeLinecap="round" opacity="0.12" />
+  </>;
+}
+
+// A small rounded eye with one catchlight. At room scale the previous white
+// almond + pupil + upper lid became three competing marks, especially under
+// glasses. One dark shape stays warm and readable on every skin tone.
+function OpenEye({ x, y }) {
+  return <g data-character-eye="open" transform={`translate(${x},${y})`}>
+    <ellipse cy="0.05" rx="0.66" ry="0.84" fill={INK} />
+    <circle cx="0.2" cy="-0.26" r="0.15" fill="#fff3e0" opacity="0.82" />
+  </g>;
+}
+
 /** Eyes and mouth. Expression is the cheapest personality per pixel here. */
 export function Face({ expression, headY }) {
   const stroke = {
     fill: "none",
     stroke: INK,
-    strokeWidth: 0.9,
+    strokeWidth: 0.58,
     strokeLinecap: "round",
   };
   // The warm cheek wash is the one extra facial detail that survives room
@@ -843,10 +905,11 @@ export function Face({ expression, headY }) {
   // full-face outline that made the resident look mask-like.
   const cheeks = (
     <>
-      <ellipse cx="-4.4" cy={headY + 4} rx="1.45" ry="0.85" fill="#e8a3a8" opacity="0.34" />
-      <ellipse cx="4.4" cy={headY + 4} rx="1.45" ry="0.85" fill="#e8a3a8" opacity="0.34" />
+      <ellipse data-character-cheek cx="-4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.18" />
+      <ellipse data-character-cheek cx="4.4" cy={headY + 4} rx="1" ry="0.56" fill="#e8a3a8" opacity="0.18" />
     </>
   );
+  const nose = <circle data-character-nose cx="0" cy={headY + 3.65} r="0.18" fill={SHADE} opacity="0.16" />;
   if (expression === "happy")
     return (
       <>
@@ -854,8 +917,8 @@ export function Face({ expression, headY }) {
         {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
         <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
-        <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-        <path d={`M-2.4 ${headY + 4.8} q2.4 2.4 4.8 0`} {...stroke} strokeWidth={1} />
+        {nose}
+        <path d={`M-1.4 ${headY + 4.8} q1.4 1.3 2.8 0`} {...stroke} />
       </>
     );
   if (expression === "sleepy")
@@ -864,17 +927,17 @@ export function Face({ expression, headY }) {
         {cheeks}
         <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
         <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
-        <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-        <ellipse cx="0" cy={headY + 5.2} rx="1" ry="1.3" fill={INK} opacity="0.7" />
+        {nose}
+        <path d={`M-0.65 ${headY + 5} q0.65 0.3 1.3 0`} {...stroke} opacity="0.65" />
       </>
     );
   return (
     <>
       {cheeks}
-      <ellipse cx="-2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
-      <ellipse cx="2.9" cy={headY + 2} rx="0.88" ry="1.05" fill={INK} />
-      <path d={`M 0 ${headY + 3.05} q -0.7 0.65 0.15 1`} {...stroke} opacity="0.35" />
-      <path d={`M-1.9 ${headY + 4.9} q1.9 1.5 3.8 0`} {...stroke} opacity="0.75" />
+      <OpenEye x={-2.9} y={headY + 2} />
+      <OpenEye x={2.9} y={headY + 2} />
+      {nose}
+      <path d={`M-1 ${headY + 4.9} q1 0.65 2 0`} {...stroke} opacity="0.72" />
     </>
   );
 }

@@ -180,6 +180,46 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
 
+## Fixed common places
+
+`lib/commonRooms.js` defines authored common places with fixed props and six
+explicit seat slots. Common Cottage uses two floor heights; Willow Pond uses
+a lawn plus raised stone terrace, pond bench and picnic cluster.
+`CommonRoom.jsx` owns shared props, people, lights and seat interaction;
+`CommonGardenScene.jsx` owns Willow Pond's outdoor surface/path/pergola while
+the cottage architecture remains isolated from it. Both reuse catalog and
+character sprites separately from the editable home.
+Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
+three simulated neighbours and the user's selected seat. `activePlace` is
+home/friend/common; `leaveVisit` returns home from either kind of destination.
+The cozy second art pass deliberately concentrates curtains, wall decor,
+plants, desk clutter and catalog-driven light pools around edges and the open
+vine-and-bulb partition; preserve that density without covering seat anchors.
+Common entry cancels pending knocks and invalidates earlier friend-room
+requests. It disables home visitor arrivals and RoomPanel editing. Seat
+selection changes only the guest's seat ID, never the home API, furniture,
+NPC occupancy, timer or saved camera. Keep these state boundaries and the
+store/common-room regression tests when adding places. Each shipped place
+keeps three deterministic neighbours and three open seats. The scene is bounded
+to its viewport; a percentage-height SVG inside the scene grid once expanded
+the page and made seat selection scroll the entire app. Details and remaining
+art work are in `docs/COMMON_ROOMS.md`.
+
+## Desktop update notifications
+
+`desktop_updates.py` checks a small `desktop-update.json` on GitHub in the
+background on every launch and every six hours while open, for frozen builds
+only. Startup bypasses the persisted check cooldown, but retains the reminder
+cooldown. It prompts at most once a day and opens the
+fixed repository executable URL after consent; replacing the file is still
+manual. Source launches and frozen self-tests must never check online.
+`build-exe.bat` embeds `build/desktop-build.json` and then generates the public
+manifest after packaging. **Commit `TaskNook.exe` and `desktop-update.json`
+together.** The default channel is `main`; `TASKNOOK_UPDATE_CHANNEL=dev` makes
+an explicitly development-channel build. Never infer the channel from the
+current checkout branch. Bundled build identities must match the manifest,
+and missing/malformed/offline feeds must never interrupt normal app use.
+
 ## Committing
 
 **Never put `Co-Authored-By: Codex …` (or any AI attribution) in a commit
@@ -544,14 +584,14 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, **a wardrobe**, expression, and body width/height sliders — `build`
+  hair + colour, **a wardrobe**, expression, and body width/shoulder/leg/torso sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
-  (`OUTFITS`: sweater/tee/swimwear/button-up/blouse/shirt-and-tie/overalls/
+  (`OUTFITS`: sweater/tee/tank/swimwear/button-up/blouse/shirt-and-tie/overalls/
   dress/turtleneck/sweater vest,
   coloured by
   `outfit`; the vest's ARMS paint in the inner colour via `sleeves: "inner"`
@@ -560,15 +600,15 @@ running `git commit` yourself.
   the vest's contrast-sleeve wiring, the raincoat drops past the hem,
   its own `coatColor` — the open fronts show the TOP through the opening,
   which is what makes two slots read as two garments), and BOTTOMS
-  (`PANTS`: trousers/dress pants/jeans/joggers/wide/shorts/jorts/skirt/
+  (`PANTS`: trousers/dress pants/jeans/joggers/cargo/wide/shorts/jorts/skirt/
   pleated skirt, coloured by `trouser`; khakis are trousers in a khaki
   colour), plus SHOES (`SHOES` + `shoeColor`: sneakers, loafers, boots,
-  heels, Mary Janes — `FrontShoe`/`SideShoe` in character/body.jsx, each
+  heels, Mary Janes, sandals — `FrontShoe`/`SideShoe` in character/body.jsx, each
   BUILT as sole + upper + hardware; the sole is a fixed light rubber tone,
   and that two-material split is what makes a 5px shoe read as modelled).
-  10 tops × 9 coats (robe: the raincoat's drop plus an open front and a belt;
+  11 tops × 9 coats (robe: the raincoat's drop plus an open front and a belt;
   blazer: tailored lapels that preserve a blouse bow or tie in the opening)
-  × 10 bottoms (maxi skirt: the cone to the ankle) × 5 shoes = 4,500
+  × 11 bottoms (maxi skirt: the cone to the ankle) × 6 shoes = 6,534
   silhouette combinations before any colour — times 8 hats (trapper: ear
   flaps past the jaw, the one hat that changes the head-to-shoulder outline)
   and the SCARF slot (`SCARVES` + `scarfColor` in profile.js,
@@ -577,9 +617,12 @@ running `git commit` yourself.
   slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
   `character/glasses.jsx`: round/square/halfmoon — the third accessory
   slot, deliberately colour-less: frames are a fixed ink like shoe soles
-  are fixed rubber. Drawn inside the head's gesture group AFTER hair and
-  hat so a fringe can't bury the rims; nothing from behind — temple tips
-  at a 7.3px skull are noise. They stack with hats, unlike hair).
+  are fixed rubber. Each style draws only its LENS RIMS; bridges and temple
+  arms become stray face lines at this scale; the legacy `halfmoon` key now
+  draws smaller low-set circular readers because open arcs resembled a
+  moustache. Drawn inside the head's gesture
+  group AFTER hair and hat so a fringe can't bury the rims; nothing from
+  behind. They stack with hats, unlike hair).
   **Complete starting looks** live in `lib/characterPresets.js`: fall girl/
   guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
   a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
@@ -590,6 +633,10 @@ running `git commit` yourself.
   never wardrobe restrictions. `characterPresets.test.js` pins completeness;
   the art sheet renders every preset front/seated/back, and Profile's Looks
   cards draw the real `Resident` rather than separate thumbnails.
+  **Body-size templates are geometry only** (`BODY_SIZE_PRESETS` in
+  `lib/body.js`): Compact/Balanced/Tall/Broad change width, shoulders, legs
+  and torso together but preserve the user's model, skin and entire look.
+  The four sliders remain available underneath for continuous adjustment.
   **The wardrobe is LIT by the ASSEMBLY, not per garment** (2026-08-17,
   research-backed — docs/MODELS.md §10 is the doctrine): one light (above,
   slightly in front, screen RIGHT), a cool-dark `SHADE` / warm-light `GLINT`
@@ -1461,7 +1508,20 @@ running `git commit` yourself.
   from `IsoItemPrimitives.jsx`'s `TintedBox`, so its contact shading — a short dark band where each box
   meets whatever it stands on — gives the WHOLE catalog weight from one edit;
   without it a box looks pasted onto the floor rather than resting on it. Same
-  reasoning for `RugGround` (ground + inset lighter field, so the border is an
+  reasoning for `SoftBox` (rounded horizontal upholstery), `PaddedPanel`
+  (bowed upright cushions with real thickness), and `LeafCluster` (irregular
+  organic canopies instead of stacked ellipses). Upholstered chairs/sofas now
+  keep their timber frames and supports visible around those soft forms; do
+  not turn them back into floor-to-back slabs that hide seated residents.
+  The October 2026 reference pass also replaced the resident's layered-circle
+  profile treatment with one continuous skull/jaw, while the front and side
+  cheeks use uninterrupted curves into a softly rounded chin — straight jaw
+  facets read as a triangle at room scale. Keep the visible neck, fitted
+  garment necklines and smaller shaped palms. `docs/ART_REVIEW.md` is
+  the short gap report and `docs/model-review/` holds the reviewed captures;
+  the detailed contracts remain in `docs/MODELS.md` and
+  `docs/MODELING_ROADMAP.md`. Existing geometry helpers include `RugGround`
+  (ground + inset lighter field, so the border is an
   AREA and not a hairline), `Fringe` (strands expressed in grid space, so they
   land at the right screen angle for free) and `Planks` (seams across a
   tabletop — a bare slab reads as flat-pack). Reach for a per-sprite fix only

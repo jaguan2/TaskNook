@@ -103,6 +103,27 @@ purpose, so visitors can download and run it without building anything. Your
 tasks live in `%LOCALAPPDATA%\TaskNook\tasknook.db`, never inside the
 read-only bundle, so replacing the exe never touches your data.
 
+**Update notifications:** packaged builds check the `main` branch for a newer
+build in the background on every launch, then every six hours while open.
+Startup checks run even if the previous launch checked recently.
+An available update offers to open the executable download in your browser.
+Close TaskNook, replace the old executable with the downloaded one, and reopen
+it; tasks and settings stay in `%LOCALAPPDATA%\TaskNook`. Cancelling keeps the
+app running and postpones the next reminder for a day. Offline checks quietly
+retry later. This is a download reminder, not an automatic installer.
+Copies from before this feature need one manual update to gain notifications.
+
+**Publishing an update:** run `build-exe.bat`, then commit and push
+**both `TaskNook.exe` and `desktop-update.json` in the same commit** to `main`.
+The script stamps the executable with its build identity and generates the
+matching manifest only after packaging succeeds. Ordinary source/docs pushes
+without a new build do not trigger a notification. No GitHub Release or token
+is required. For a separate development build, set
+`TASKNOOK_UPDATE_CHANNEL=dev` before building and publish both files to `dev`;
+that executable follows `dev`. The default stays `main` even when building
+from a local development branch. Set `TASKNOOK_NO_UPDATE_CHECK=1` when launching
+to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
+
 > **The PyInstaller flags in `build-exe.bat` are the authoritative list — read
 > them there rather than copying them here** (this README has drifted from
 > them twice already). They aren't optional decoration:
