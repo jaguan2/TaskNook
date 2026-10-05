@@ -30,7 +30,7 @@ export const CHARACTER_PRESETS = [
     expression: "happy",
     width: 6.4,
     shoulders: -1.0,
-    height: 30.5,
+    height: 28.5,
     torso: 16.5,
   }),
   look("fall-guy", "Fall style guy", "Plaid layers · denim", {
@@ -52,7 +52,7 @@ export const CHARACTER_PRESETS = [
     expression: "calm",
     width: 6.7,
     shoulders: -1.0,
-    height: 32.5,
+    height: 30.5,
     torso: 17,
   }),
   look("school-girl", "School girl", "Blazer · pleated skirt", {
@@ -71,7 +71,7 @@ export const CHARACTER_PRESETS = [
     expression: "happy",
     width: 6.3,
     shoulders: -1.2,
-    height: 29.5,
+    height: 27.5,
     torso: 16,
   }),
   look("school-boy", "School boy", "Tie · tailored blazer", {
@@ -90,7 +90,7 @@ export const CHARACTER_PRESETS = [
     expression: "calm",
     width: 6.5,
     shoulders: -1.1,
-    height: 31,
+    height: 29,
     torso: 16.5,
   }),
   look("office-female", "Office wear female", "Soft blouse · tailoring", {
@@ -110,7 +110,7 @@ export const CHARACTER_PRESETS = [
     expression: "calm",
     width: 6.5,
     shoulders: -0.8,
-    height: 33,
+    height: 31,
     torso: 17.5,
   }),
   look("office-male", "Office wear male", "Crisp shirt · suit", {
@@ -129,7 +129,7 @@ export const CHARACTER_PRESETS = [
     expression: "calm",
     width: 6.8,
     shoulders: -0.8,
-    height: 33.5,
+    height: 31.5,
     torso: 17.5,
   }),
   look("lofi-girl", "Lofi girl", "Headphones · roomy layers", {
@@ -149,7 +149,7 @@ export const CHARACTER_PRESETS = [
     expression: "calm",
     width: 6.4,
     shoulders: -1.1,
-    height: 30.5,
+    height: 28.5,
     torso: 17,
   }),
   look("cozy-gamer", "Cozy gamer", "Hoodie · headphones", {
@@ -168,7 +168,7 @@ export const CHARACTER_PRESETS = [
     expression: "happy",
     width: 6.6,
     shoulders: -1.2,
-    height: 30,
+    height: 28,
     torso: 17.5,
   }),
 ];

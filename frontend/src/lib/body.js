@@ -29,17 +29,18 @@ export const HEAD_R = 7.3;
 // soft head and a strong hair silhouette, especially in the seated rear view.
 // The long-leg rebuild already solved the original toddler problem, so the
 // head can now render at its authored size without making the body squat.
-// Keep the scale constant even at 1: it remains the single wardrobe-wide
-// tuning point, and layout code still consumes HEAD_R_EFF.
-export const HEAD_SCALE = 1;
+// A 1.07× lift puts the finished figure in the reference's 3.5–4-head band
+// and makes the face/hair the identity carrier without drifting into a full
+// super-deformed chibi. This scales the complete authored unit together.
+export const HEAD_SCALE = 1.07;
 export const HEAD_R_EFF = HEAD_R * HEAD_SCALE;
 // Legs up, torso down: at 22/22 the visible leg was 32% of the figure's
 // height and the torso a near-square 23×22 block — which is what read as
 // "chunky" however it was shaded. The clay-toy retune took it to 29/17
-// (~43% leg, ~4 heads); the current 31/17 stack keeps about 45% visible
-// leg at four heads. Exposing the short neck gives a 59.5px default figure,
-// still inside the resident hit region.
-export const LEG_H = 31;
+// (~43% visible leg). That is the better reference fit: the later 31/17
+// stack stretched the lower body back toward an illustrated child rather
+// than a compact room-scale person.
+export const LEG_H = 29;
 export const TORSO_H = 17;
 // How far the torso hem drops over the top of the legs.
 export const TORSO_OVERLAP = 4;
@@ -48,7 +49,7 @@ export const TORSO_OVERLAP = 4;
 // chin sits at headY + HEAD_R_EFF now, so the lift shrinks alongside it or
 // the neck grows into a stalk. The shaped chin ends slightly above this
 // radius, leaving a short visible neck instead of sinking into the collar.
-export const HEAD_LIFT = 8.2;
+export const HEAD_LIFT = 8;
 // Waist depth below the torso top — 60% of the torso's height. The waist is
 // a property of the BODY, not of whatever garment happens to cover it — a
 // longer hem must never move it.
@@ -67,17 +68,12 @@ export const SEAT_TORSO_Y = 1 - TORSO_H;
 export const SEAT_HEAD_Y = SEAT_TORSO_Y - HEAD_LIFT;
 
 // ---- the two bodies and the build axis ------------------------------------ //
-// Every shoulder must clear the head, whatever build and model combine.
-// Cheaper to assert once here than to rediscover it on one of the
-// combinations: fem + slim once produced a body narrower than its own skull,
-// which is exactly the top-heavy proportion docs/MODELS.md exists to prevent.
-// The narrow read comes from the WAIST-to-hem contrast instead.
-// Arms add their own width outside this anchor, so the chest can sit much
-// closer to the head than the old +1.3px guard without becoming top-heavy.
-// The previous floor was also why dragging Body Width fully left appeared to
-// stop changing the upper body. Keep a small margin around the authored head,
-// then let the dedicated chest axis do its job.
-export const MIN_SHOULDER = 7.4;
+// The reference's head is deliberately wider than its narrow shoulder line.
+// This floor keeps the torso readable beneath the effective 15.62px head
+// without forcing it to equal the skull — the old 7.4px guard inflated
+// chest even with the shoulder slider fully left. Arms still add a little
+// outer width, so 6.45px is visually compact rather than fragile at room size.
+export const MIN_SHOULDER = 6.45;
 
 /**
  * The two bodies, as offsets from the build's half-width.
@@ -92,17 +88,13 @@ export const MIN_SHOULDER = 7.4;
  * looked like the same body twice.
  */
 export const MODEL_SHAPE = {
-  // The 2026-08-19 slimming retune (owner: "they look like blobs", "make the
-  // two models more different"): base widths came down ~0.6px per build and
-  // the difference moved INTO these offsets. masc keeps its shoulder width
-  // (+2.8 on the narrower base lands on the same 9.6 as before) but the
-  // waist pinches to -1.0, so the male body is now a V rather than a slab;
-  // fem drops both waist and hem so the hourglass reads against a smaller
-  // figure. `limb` is per-model too — the same silhouette-only doctrine,
-  // just applied to arms and legs: fem's are visibly finer, and that
-  // difference survives 57px where a 0.4px waist tweak would not.
-  masc: { shoulder: +2.2, waist: -1.0, hem: +0.6, limb: +0.1 },
-  fem: { shoulder: +0.5, waist: -3.2, hem: +2.2, limb: -0.5 },
+  // The compact-human pass keeps the two outlines distinct without turning
+  // either into a geometric symbol. Masc is a soft V; fem has a narrower
+  // shoulder and modest in/out waist rhythm, not the old triangular flare.
+  // `limb` remains a model axis, but the delta is restrained now that the
+  // shared limb bases themselves are visibly slender.
+  masc: { shoulder: +1.5, waist: -0.8, hem: +0.3, limb: 0 },
+  fem: { shoulder: 0, waist: -2.0, hem: +1.2, limb: -0.45 },
 };
 
 /**
@@ -133,10 +125,9 @@ export const BUILD_SHAPE = {
 // range keeps the DEFAULT-torso figure's leg share ≥ 40%; the torso range is
 // bounded so no combination drops the leg share under 33% (the anti-toddler
 // floor) or grows past the resident's hit region.
-// Retuned with the slimming pass: the floor is where masc's hem still tucks
-// the ±4 trouser stance (6.2 + 0.6 hem ≥ 4 + legW/2, with legW at its
-// narrowest), the ceiling is where masc's shoulder grazes the 1.55×-head
-// chunky ceiling (8.4 + 2.8 = 11.2 → 1.53×). Old saves stored up to 9;
+// The floor is where masc's hem still tucks the ±4 trouser stance; the ceiling
+// keeps the broadest user-selected chest beneath the 1.6×-head guard even at
+// the shoulder slider's maximum. Old saves stored up to 9;
 // clampNum folds them to 8.4, which is the retune applied, not data loss.
 export const WIDTH_RANGE = [6.2, 8.4];
 // Independent upper-body shaping. Width still owns waist, hem and limb mass;
@@ -145,17 +136,17 @@ export const WIDTH_RANGE = [6.2, 8.4];
 // the broad classic sweater while preserving room-scale legibility.
 export const SHOULDER_RANGE = [-1.6, 1.0];
 export const DEFAULT_SHOULDER = -0.6;
-export const HEIGHT_RANGE = [28, 34];
+export const HEIGHT_RANGE = [26, 32];
 export const TORSO_RANGE = [14, 20];
 
 // Neutral starting proportions for the four body axes. These are templates,
 // not identities: applying one changes only geometry and deliberately leaves
 // model, skin, face, hair, and every wardrobe choice untouched.
 export const BODY_SIZE_PRESETS = [
-  { key: "compact", label: "Compact", width: 6.2, shoulders: -0.8, height: 28, torso: 14.5 },
-  { key: "balanced", label: "Balanced", width: 6.8, shoulders: -0.6, height: 31, torso: 17 },
-  { key: "tall", label: "Tall", width: 6.6, shoulders: -0.6, height: 34, torso: 18.5 },
-  { key: "broad", label: "Broad", width: 8.2, shoulders: 0.2, height: 32, torso: 18 },
+  { key: "compact", label: "Compact", width: 6.2, shoulders: -0.8, height: 26, torso: 14.5 },
+  { key: "balanced", label: "Balanced", width: 6.8, shoulders: -0.6, height: 29, torso: 17 },
+  { key: "tall", label: "Tall", width: 6.6, shoulders: -0.6, height: 32, torso: 18.5 },
+  { key: "broad", label: "Broad", width: 8.2, shoulders: 0.2, height: 30, torso: 18 },
 ];
 
 export function bodySizePresetPatch(preset) {
@@ -223,14 +214,14 @@ export function figureMetrics(ch = {}) {
     // torso's bottom edge stays at the seat line whatever its height.
     seatTorsoY: 1 - torsoH,
     seatHeadY: 1 - torsoH - HEAD_LIFT,
-    // Arms are deliberately finer than legs and, unlike the old hard-coded
-    // 4.3px sleeve in Arm, this value is consumed by every pose. The smaller
-    // base keeps bowed sleeves from making the chest look wider than its
-    // torso; masc's +0.1 and fem's -0.5 remain a visible model distinction.
-    armW: 4.1 + limb,
-    legW: 5.4 + limb,
-    thighW: 7.3 + limb,
-    shinW: 6.3 + limb,
+    // Limbs stay visibly slimmer than the torso. The old 4.1px arm plus its
+    // outward elbow added nearly another head-width to the figure and made
+    // every coat look padded. These bases retain a readable model/build delta
+    // without overpowering the face at miniature room scale.
+    armW: 3.5 + limb,
+    legW: 4.9 + limb,
+    thighW: 6.5 + limb,
+    shinW: 5.7 + limb,
     kneeX: Math.max(8.5, hem - 0.5),
   };
 }

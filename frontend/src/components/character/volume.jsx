@@ -1,18 +1,13 @@
 // SOFT VOLUME — the "actual modelling" pass (owner call, 2026-08-19: the
 // models should read as 3D, cohesive, normal). The flat cel marks told you
-// where the LIGHT was; these gradients tell you the SHAPE. Two reusable
-// gradients cover every mass in the figure and the pets:
+// where the LIGHT was; this restrained gradient gives rounded heads and pet
+// masses a little volume without adding another hard detail:
 //
 //   sphere — an off-centre radial for heads and round masses: highlight
 //            biased up toward screen RIGHT (the one light every mark in
 //            docs/MODELS.md §10 answers to), falling away to a cool core
 //            shadow at the lower-left rim.
-//   cyl    — a horizontal linear for upright masses (the torso): shaded
-//            left edge, a lit band just inside the right edge, with the
-//            very edge easing off — that ease is what separates a cylinder
-//            from a box.
-//
-// Both are stacks of TRANSLUCENT neutral stops (GLINT/SHADE with opacity,
+// It is a stack of TRANSLUCENT neutral stops (GLINT/SHADE with opacity,
 // never a solid mid-tone), so they model whatever colour the user picked —
 // the same recolour bargain as every crescent they now sit alongside. The
 // hard marks stay: gradient alone is airbrush-soft, crescent alone is cel-
@@ -41,17 +36,9 @@ export function VolumeDefs({ id }) {
         <stop offset="0.68" stopColor={SHADE} stopOpacity="0" />
         <stop offset="1" stopColor={SHADE} stopOpacity="0.28" />
       </radialGradient>
-      <linearGradient id={`${id}-cyl`} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor={SHADE} stopOpacity="0.24" />
-        <stop offset="0.3" stopColor={SHADE} stopOpacity="0" />
-        <stop offset="0.6" stopColor={GLINT} stopOpacity="0" />
-        <stop offset="0.85" stopColor={GLINT} stopOpacity="0.18" />
-        <stop offset="1" stopColor={GLINT} stopOpacity="0.05" />
-      </linearGradient>
     </defs>
   );
 }
 
-/** Fill refs for the two gradients — pass the same id given to VolumeDefs. */
+/** Fill ref for the sphere gradient — pass the same id given to VolumeDefs. */
 export const sphereFill = (id) => `url(#${id}-sph)`;
-export const cylFill = (id) => `url(#${id}-cyl)`;

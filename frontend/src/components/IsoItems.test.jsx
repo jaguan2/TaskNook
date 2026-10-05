@@ -192,8 +192,37 @@ describe("the isometric catalog and its artwork agree", () => {
       const fem = widths("fem");
       expect(masc).toHaveLength(2);
       expect(fem).toHaveLength(2);
-      for (const width of masc) expect(width).toBeCloseTo(4.2, 9);
-      for (const width of fem) expect(width).toBeCloseTo(3.6, 9);
+      for (const width of masc) expect(width).toBeCloseTo(3.5, 9);
+      for (const width of fem) expect(width).toBeCloseTo(3.05, 9);
+    });
+
+    it("keeps each arm to one depth treatment without an elbow mark", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const arms = [...container.querySelectorAll("[data-arm-pose]")];
+
+      expect(arms).toHaveLength(2);
+      for (const arm of arms) {
+        const expectedSideShadows = arm.dataset.armDepth === "near" ? 1 : 0;
+        expect(arm.querySelectorAll("[data-arm-shade]")).toHaveLength(expectedSideShadows);
+        expect(arm.querySelector("ellipse")).toBeNull();
+      }
+    });
+
+    it("uses one broad torso shadow instead of stacking a gradient and a band", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+
+      expect(container.querySelectorAll('[data-torso-shadow="broad"]')).toHaveLength(1);
+      expect(container.querySelectorAll('path[fill^="url(#"][d]')).toHaveLength(1);
+    });
+
+    it("keeps blush and nose subordinate to the eyes", () => {
+      const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
+      const cheeks = [...container.querySelectorAll("[data-character-cheek]")];
+      const nose = container.querySelector("[data-character-nose]");
+
+      expect(cheeks).toHaveLength(2);
+      for (const cheek of cheeks) expect(Number(cheek.getAttribute("opacity"))).toBeLessThanOrEqual(0.2);
+      expect(Number(nose.getAttribute("r"))).toBeLessThanOrEqual(0.2);
     });
 
     it("rests seated hands in the lap without stealing hands from activity or carrying", () => {

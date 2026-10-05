@@ -63,13 +63,13 @@ const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
 // Complete snapshots: switching looks must not inherit the last one's coat
 // or accessories. These are saved through the same profile API as the editor.
 const LOOKS = {
-  study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", width: 7.8, height: 30 },
-  casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 34 },
-  winter: { model: "fem", skin: "#e8ad84", hair: "braids", hairColor: "#4d332c", garment: "turtleneck", outfit: "#ede0c9", coat: "puffer", coatColor: "#8e526c", pants: "trousers", trouser: "#5b526d", hat: "trapper", scarf: "wrapped", scarfColor: "#c9a24b", shoes: "boots", width: 7.4, height: 31 },
-  garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 32 },
-  cafe: { model: "fem", skin: "#f0cfb4", hair: "bob", hairColor: "#b57248", garment: "shirt", outfit: "#f2e4ca", coat: "cardigan", coatColor: "#ad6678", pants: "pleats", trouser: "#5f7384", shoes: "loafers", width: 6.6, height: 28 },
-  summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 33 },
-  maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 28, torso: 14.5 },
+  study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", width: 7.8, height: 28 },
+  casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 32 },
+  winter: { model: "fem", skin: "#e8ad84", hair: "braids", hairColor: "#4d332c", garment: "turtleneck", outfit: "#ede0c9", coat: "puffer", coatColor: "#8e526c", pants: "trousers", trouser: "#5b526d", hat: "trapper", scarf: "wrapped", scarfColor: "#c9a24b", shoes: "boots", width: 7.4, height: 29 },
+  garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 30 },
+  cafe: { model: "fem", skin: "#f0cfb4", hair: "bob", hairColor: "#b57248", garment: "shirt", outfit: "#f2e4ca", coat: "cardigan", coatColor: "#ad6678", pants: "pleats", trouser: "#5f7384", shoes: "loafers", width: 6.6, height: 26 },
+  summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 31 },
+  maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 26, torso: 14.5 },
 };
 const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer" };
 const CHARACTERS = [

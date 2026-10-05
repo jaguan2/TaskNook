@@ -97,8 +97,8 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // Face and lap pose review: skin contrast, accessories and body extremes
     // belong in the same sheet as the authored outfits.
     for (const [name, extra] of Object.entries({
-      light: { skin: "#f0cfb4", hair: "bob", hairColor: "#e7dcc7", model: "fem", width: 6.2, height: 28 },
-      dark: { skin: "#774c37", hair: "buzz", model: "masc", width: 8.4, height: 34 },
+      light: { skin: "#f0cfb4", hair: "bob", hairColor: "#e7dcc7", model: "fem", width: 6.2, height: 26 },
+      dark: { skin: "#774c37", hair: "buzz", model: "masc", width: 8.4, height: 32 },
       glasses: { skin: "#b47c55", hair: "long", glasses: "round", hat: "headphones", garment: "blouse", coat: "blazer" },
       winter: { skin: "#8d5524", hat: "trapper", coat: "puffer", expression: "sleepy" },
     })) {
@@ -130,7 +130,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       }
     }
     for (const pants of ["jeans", "jorts", "dress", "maxi"]) {
-      for (const [width, height] of [[6.2, 28], [8.4, 34]]) {
+      for (const [width, height] of [[6.2, 26], [8.4, 32]]) {
         for (const facing of ["front", "back", "side"]) {
           save(`fit-${pants}-${width}-${facing}`, <Resident facing={facing} seated seatH={22}
             character={dressed({ pants, width, height, trouser: "#b39277" })} />, "-32 -60 64 100");
@@ -162,8 +162,8 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         const anchor = seatedPlacement({ item: "resident" }, { placement: chair, height: ISO_ITEMS[key].seat });
         const point = project(anchor.gx, anchor.gy);
         for (const [body, character] of Object.entries({
-          slim: dressed({ model: "fem", width: 6.2, height: 28, coat: "cardigan", coatColor: "#e8d7b9", hair: "long", pants: "maxi" }),
-          wide: dressed({ model: "masc", width: 8.4, height: 34, skin: "#774c37", coat: "puffer", coatColor: "#342b45", pants: "jeans" }),
+          slim: dressed({ model: "fem", width: 6.2, height: 26, coat: "cardigan", coatColor: "#e8d7b9", hair: "long", pants: "maxi" }),
+          wide: dressed({ model: "masc", width: 8.4, height: 32, skin: "#774c37", coat: "puffer", coatColor: "#342b45", pants: "jeans" }),
         })) {
           for (const activity of ["idle", "focus", "break"]) {
             const furniture = <g style={{ "--tint": "#799a8c" }}><Sprite back={back} /></g>;
