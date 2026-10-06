@@ -5,6 +5,7 @@ import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
 import { Glasses, GLASSES_REGISTRY } from "./character/glasses";
+import { Hat } from "./character/hats";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
 import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
@@ -338,6 +339,28 @@ describe("the isometric catalog and its artwork agree", () => {
           `"${key}" draws identically to "${seen.get(html)}"`
         ).toBe(false);
         seen.set(html, key);
+        cleanup();
+      }
+    });
+
+    it("keeps headgear close to the head and gives directional caps a real profile", () => {
+      const frontCap = draw(<Hat kind="cap" headY={0} view="front" />);
+      const frontMarkup = frontCap.container.innerHTML;
+      expect(frontCap.container.querySelector('[data-cap-bill="front"]')).toBeTruthy();
+      cleanup();
+
+      const sideCap = draw(<Hat kind="cap" headY={0} view="side" />);
+      expect(sideCap.container.querySelector('[data-cap-bill="side"]')).toBeTruthy();
+      expect(sideCap.container.innerHTML).not.toBe(frontMarkup);
+      cleanup();
+
+      for (const [view, count] of [["front", 2], ["side", 1]]) {
+        const { container } = draw(<Hat kind="headphones" headY={0} view={view} />);
+        const cups = [...container.querySelectorAll("[data-headphone-cup]")];
+        expect(cups).toHaveLength(count);
+        for (const cup of cups) {
+          expect(Number(cup.getAttribute("height"))).toBeLessThanOrEqual(5.2);
+        }
         cleanup();
       }
     });

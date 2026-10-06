@@ -288,6 +288,24 @@ Three follow-on traps, each found by rendering the set rather than one sprite:
 - **Put length behind the body, not on it.** In the head group it lay across
   the chest as a bib.
 
+**Headgear is authored against the head unit, not the final screen size.** Keep
+all coordinates in the unscaled `HEAD_R` 7.3 space; the assembly's `HEAD_SCALE`
+then carries hats and headphones with the face, hair, and glasses in every pose.
+Close-fitting hats should follow the crown with a lower, slightly asymmetric
+silhouette instead of adding another full sphere around it. Hats may replace
+the crown layer while preserving the hairstyle's length behind the body;
+headphones set `coversHair: false`, hug the crown, and stop their cups above the
+jaw so the selected hair still reads.
+
+Direction belongs in the registry entry when the object materially changes:
+`Hat` accepts the resident view and selects a `side` renderer when present. The
+cap therefore uses a centred shallow front visor and a directional profile
+bill; headphones use two compact cups in front and one in profile. Symmetrical
+hats continue to share one renderer. Do not bake a side-facing bill into the
+default/front drawing or patch seated/preset previews independently—they use
+the same registry art. The art-sheet fixtures exercise every hat front, side,
+and seated; geometry tests pin the cap views and headphone cup count/height.
+
 **Two bodies, silhouette only.** `MODEL_SHAPE` gives `masc` broad shoulders
 dropping nearly straight and `fem` narrow shoulders, a drawn-in waist and a hem
 that flares back out; the sides are ONE quadratic through the waist, because a

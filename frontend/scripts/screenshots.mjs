@@ -250,9 +250,11 @@ function makePage(cdp) {
   const closePanels = () =>
     evaluate(`document.querySelectorAll('button[aria-label^="Close"]').forEach(b => b.click()); 'ok'`);
 
-  const shot = async (file, format = "webp") => {
-    const r = await send("Page.captureScreenshot",
-      format === "webp" ? { format: "webp", quality: 92 } : { format: "png" });
+  const shot = async (file, format = "webp", capture = {}) => {
+    const r = await send("Page.captureScreenshot", {
+      ...(format === "webp" ? { format: "webp", quality: 92 } : { format: "png" }),
+      ...capture,
+    });
     if (!r?.data) throw new Error(`empty capture for ${file}`);
     writeFileSync(file, Buffer.from(r.data, "base64"));
     return r.data.length;
@@ -378,12 +380,42 @@ async function modelShot(cdp, page, file, presets) {
     const still = document.createElement('style');
     still.textContent = '*{animation:none!important;transition:none!important}body{margin:0!important}';
     document.head.append(still);
-    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.cssText = 'overflow:hidden;width:100%;height:100%';
+    document.body.style.cssText = 'margin:0!important;position:fixed;inset:0;width:100%;height:100%;overflow:hidden';
     document.body.replaceChildren(stage);
-    window.scrollTo(0, 0);
+    if (document.scrollingElement) {
+      document.scrollingElement.scrollLeft = 0;
+      document.scrollingElement.scrollTop = 0;
+    }
+    window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
   })()`);
   await sleep(200);
-  await page.shot(file);
+  const layout = await page.evaluate(`(() => {
+    const stage = document.querySelector('main');
+    const captions = [...document.querySelectorAll('figcaption')].map(node => {
+      const box = node.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const textBox = range.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return { text: node.textContent, left: box.left, right: box.right,
+        textLeft: textBox.left, textRight: textBox.right, transform: style.transform,
+        position: style.position, width: style.width };
+    });
+    const box = stage?.getBoundingClientRect();
+    return {
+      stage: box && { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+      viewport: { width: innerWidth, height: innerHeight },
+      clippedCaptions: captions.filter(caption => caption.textLeft < 0 || caption.textRight > innerWidth),
+      scroll: { x: scrollX, y: scrollY },
+    };
+  })()`);
+  if (!layout.stage || layout.stage.left !== 0 || layout.stage.top !== 0 ||
+      layout.stage.right !== layout.viewport.width || layout.stage.bottom !== layout.viewport.height ||
+      layout.clippedCaptions.length || layout.scroll.x || layout.scroll.y) {
+    throw new Error(`Character sheet escaped its viewport: ${JSON.stringify(layout)}`);
+  }
+  await page.shot(file, "webp", { captureBeyondViewport: false });
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: W, height: H, deviceScaleFactor: 1, mobile: false,
   });

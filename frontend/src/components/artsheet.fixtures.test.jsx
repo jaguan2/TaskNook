@@ -297,6 +297,8 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     }
     for (const { key } of HATS) {
       save(`hat-${key}`, <Resident character={dressed({ hat: key })} />);
+      save(`hat-${key}-side`, <Resident character={dressed({ hat: key })} facing="side" />);
+      save(`hat-${key}-seated`, <Resident character={dressed({ hat: key })} seated seatH={22} />);
     }
     for (const { key } of SCARVES) {
       save(`scarf-${key}`, <Resident character={dressed({ scarf: key })} />);
