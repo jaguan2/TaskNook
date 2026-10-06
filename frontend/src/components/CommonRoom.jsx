@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useState } from "react";
+import { memo, useEffect, useId, useRef, useState } from "react";
 import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
 import { floorPatch, isoBox, project, wallRect } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
@@ -55,6 +55,7 @@ function SeatedPerson({ seat, scene, person, character, activity, now, guest }) 
 export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, onChooseSeat }) {
   const scene = COMMON_PLACES[session.sceneId];
   const uid = useId();
+  const chooserRef = useRef(null);
   const [choosing, setChoosing] = useState(false);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -63,7 +64,13 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   }, []);
   const people = new Map(session.occupants.map((person) => [person.seatId, person]));
   const guestSeat = scene.seats.find((seat) => seat.id === session.guestSeatId);
-  const choose = (seat) => { onChooseSeat(seat.id); setChoosing(false); };
+  const choose = (seat) => {
+    onChooseSeat(seat.id);
+    setChoosing(false);
+    // The selected target unmounts with the list. Keep keyboard users on the
+    // persistent chooser rather than dropping focus onto the document body.
+    chooserRef.current?.focus({ preventScroll: true });
+  };
   const clip = (level) => `${uid}-${level}`;
   const glow = timeOfDay === "night" ? 0.62 : timeOfDay === "sunset" ? 0.52 : 0.2;
   const lampGlow = timeOfDay === "night" ? 1 : timeOfDay === "sunset" ? 0.82 : 0.34;
@@ -84,19 +91,22 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
       .map((entry) => entry.p ? <Prop key={entry.id} p={entry.p} scene={scene} /> :
         <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now} />);
   };
-  const lightPools = (level) => props.filter((p) => (p.level || "ground") === level).map((p) => {
-    const item = ISO_ITEMS[p.item];
-    if (!item.glow || p.off) return null;
-    const [w, d] = footOf(p.item, p.rot);
-    const at = project(p.gx + w / 2, p.gy + d / 2);
-    const [radius, strength] = item.glow;
-    const z = scene.surfaces[level].z;
-    return <g key={`pool-${p.id}`} data-common-light={p.id} transform={`translate(0,${-z})`}
-      opacity={strength * lampGlow} style={ambienceVars(p.gx, p.gy)}>
-      <ellipse className={item.flicker ? "pool-flicker" : "pool-breathe"}
-        cx={at.x} cy={at.y} rx={radius} ry={radius * 0.5} fill={`url(#${uid}-lamp-pool)`} />
-    </g>;
-  });
+  // Floor lift and clip share one coordinate space. Lifting only each pool
+  // left the raised nook's wall-sconce glow outside an unlifted floor clip.
+  const lightPools = (level) => <g transform={`translate(0,${-scene.surfaces[level].z})`} clipPath={`url(#${clip(level)})`}>
+    {props.filter((p) => (p.level || "ground") === level).map((p) => {
+      const item = ISO_ITEMS[p.item];
+      if (!item.glow || p.off) return null;
+      const [w, d] = footOf(p.item, p.rot);
+      const at = project(p.gx + w / 2, p.gy + d / 2);
+      const [radius, strength] = item.glow;
+      return <g key={`pool-${p.id}`} data-common-light={p.id}
+        opacity={strength * lampGlow} style={ambienceVars(p.gx, p.gy)}>
+        <ellipse className={item.flicker ? "pool-flicker" : "pool-breathe"}
+          cx={at.x} cy={at.y} rx={radius} ry={radius * 0.5} fill={`url(#${uid}-lamp-pool)`} />
+      </g>;
+    })}
+  </g>;
   const P = (gx, gy, z = 0) => { const p = project(gx, gy); return `${p.x},${p.y - z}`; };
   const partitionStart = project(6.5, 0);
   const partitionEnd = project(6.5, 4);
@@ -160,7 +170,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <g transform="translate(0,-36)" clipPath={`url(#${clip("nook")})`}>
           <ellipse cx="-10" cy="40" rx="55" ry="30" fill={`url(#${uid}-light)`} opacity={glow} />
         </g>
-        <g clipPath={`url(#${clip("nook")})`}>{lightPools("nook")}</g>
+        {lightPools("nook")}
         {layers("nook")}
         {/* A dressed open partition gives the two lower zones a threshold
             without covering either study seat: timber, vine and dim bulbs. */}
@@ -177,7 +187,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
             fill="#4f7f60" transform={`rotate(${-24 + i * 7} ${bulb.x - 3} ${bulb.y - 4})`} />}
         </g>)}
         <g clipPath={`url(#${clip("ground")})`}><ellipse cx="-7" cy="161" rx="90" ry="45" fill={`url(#${uid}-light)`} opacity={glow} /></g>
-        <g clipPath={`url(#${clip("ground")})`}>{lightPools("ground")}</g>
+        {lightPools("ground")}
         {layers("ground")}
         </>}
       </g>
@@ -198,7 +208,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
       })}
     </svg>
     <div className="absolute bottom-20 left-6 z-20 max-w-[min(28rem,calc(100%-3rem))]">
-      <button type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
+      <button ref={chooserRef} type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
         className="pill glass px-3 py-2 text-xs font-semibold text-cream hover:bg-white/10">
         {choosing ? "Done choosing" : `Change seat · ${guestSeat.label}`}
       </button>

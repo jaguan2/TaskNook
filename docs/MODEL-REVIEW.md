@@ -16,6 +16,11 @@ Common Cottage is implemented with six seats and three simulated neighbours;
 see [the scene and remaining work](COMMON_ROOMS.md). It is a first art pass,
 not a claim that the catalog or character modeling is complete.
 
+The later compact resident, quieter face/glasses and fitted headgear work is
+recorded in [the October 6 handoff](HANDOFF-2026-10-06.md). The subsequent
+[stability review](STABILITY-REVIEW-2026-10-06.md) fixes transformed clipping,
+seat focus and obsolete visit feedback while retaining that character baseline.
+
 Reviewed all **161 catalog items across 18 groups**, including advertised
 rear views and items not used by any preset. The art generator now renders
 that inventory alongside the wardrobe, with actual scene paint definitions
@@ -57,7 +62,7 @@ furniture alone does not finish the resident rig.
 
 ## Evidence and validation
 
-`npm run art` generates 684 SVG review pieces: the full catalog, complete
+`npm run art` generates 709 SVG review pieces: the full catalog, complete
 wardrobe, material colour variants, body extremes, preset scenes and eight
 looks in front/rear seated views for idle/focus/break. The sheet groups catalog
 items by their actual catalog family and labels each item/view.
@@ -81,7 +86,7 @@ not a claim of reference parity or proof that animation is flawless.
 | [Seating colours](model-review/seating-colours.webp) | Cream/dark/sage in both facings |
 | [Seated contact front](model-review/seating-contact-front.webp), [rear](model-review/seating-contact-back.webp) | Body extremes on the four pieces, idle/focus/break |
 
-All 1,147 frontend tests pass after the common-room and seating follow-ups. Existing
+All 1,175 frontend tests pass after the handoff stability follow-up. Existing
 wardrobe, palette, seat height, placement and rendering checks remain in
 place. The rejected prototype's reach/mirror tests were removed with its
 implementation. Lint, production build, art generation and the frozen desktop

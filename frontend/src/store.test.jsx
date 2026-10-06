@@ -74,6 +74,26 @@ describe("common-place sessions", () => {
     expect(store.visiting).toBeNull();
     expect(store.commonRoom.sceneId).toBe("common-cottage");
   });
+  it("ignores an old friend-room failure after choosing a new destination", async () => {
+    await boot();
+    const pending = deferred();
+    api.friendRoom.mockReturnValue(pending.promise);
+    let visit;
+    act(() => { visit = store.visitFriend({ id: 2 }); });
+    act(() => store.enterCommonRoom("willow-pond"));
+    const toast = store.toast;
+    await act(async () => { pending.reject(new Error("old request failed")); await visit; });
+    expect(store.activePlace).toEqual({ kind: "common", id: "willow-pond" });
+    expect(store.toast).toBe(toast);
+  });
+  it("still gives feedback when the current friend-room request fails", async () => {
+    await boot();
+    api.friendRoom.mockRejectedValueOnce(new Error("current request failed"));
+    await act(async () => { expect(await store.visitFriend({ id: 2 })).toBe(false); });
+    expect(store.activePlace.kind).toBe("home");
+    expect(store.toast.message).toContain("Couldn't visit");
+    expect(store.toast.message).toContain("current request failed");
+  });
   it("switches between common places without touching the saved home", async () => {
     await boot();
     const home = store.isoRoom;

@@ -20,8 +20,11 @@ so plant structure, glass, cabinet recesses and clothing overlaps are visible.
   room's seat anchors and original character rig.
 
 These are current-state review evidence, not finished reference-quality models.
+The October 4 seating/contact captures retain their earlier resident proportions;
+screenshots 37/38 and `docs/HANDOFF-2026-10-06.md` show the current compact
+character baseline. Regenerate contact views before the next seating-art pass.
 See [the findings](../MODEL-REVIEW.md) and [per-item backlog](../MODELING_ROADMAP.md).
 Generate the complete catalog and wardrobe locally with `cd frontend` followed
 by `npm run art`, then open `frontend/art-sheet/index.html`. That sheet has
-684 SVG fixtures across all 18 catalog families and the character registries.
+709 SVG fixtures across all 18 catalog families and the character registries.
 The app screenshot gallery remains in `docs/screenshots/`.

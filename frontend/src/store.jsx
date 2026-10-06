@@ -1754,6 +1754,7 @@ export function StoreProvider({ children }) {
       addBond(data.username, BOND_POINTS.visit);
       return true;
     } catch (err) {
+      if (request !== placeRequest.current) return false;
       showToast(`Couldn't visit — ${err.message}`);
       return false;
     } finally {

@@ -190,6 +190,12 @@ Contact shadows and lamp pools are clipped to the supporting surface, rather
 than leaking onto the ground floor below. Camera bounds include the upper
 architecture and the tops of its occupants.
 
+The floor clip uses room coordinates. Offset floor materials translate only
+their child drawing; moving the clip as well hides Willow Pond's flagstones.
+Light layers apply the floor lift to both the clip and every pool together.
+Do not wrap their result in an unlifted clip. These coordinate-space regressions
+are covered in `CommonRoom.test.jsx`.
+
 Tabletop props name their supporting furniture through `on`. The renderer
 reuses `stackedPlacement` for its catalog surface height, bounded placement
 and paint depth after the host, avoiding duplicated heights and hidden pots.
