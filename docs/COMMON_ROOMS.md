@@ -136,15 +136,16 @@ SVG models and character renderer, with custom architecture where the scene
 needs it. A single flattened room image would make character placement,
 occlusion, theme colours and live lighting harder to maintain.
 
-## What the current code supports
+## Current implementation
 
-| Existing piece | Reuse | Gap |
+| Module | Responsibility | Boundary |
 |---|---|---|
-| `lib/visiting.js` / `resolveVisitRoom` | Render-only occupants, derived NPC looks and a seated guest | A friend's home has one owner; a common place needs several occupants and explicit seat slots |
-| `lib/isoRoom.js` / `seatFor`, `freeSeatSpot` | Current chair heights, poses and seating conventions | Seating is inferred from overlapping footprints on one floor; a fixed scene needs stable seat IDs and floor levels |
-| `IsoRoom.jsx` | Item sprites, character activity, lighting/motion conventions and camera behaviour | Floor geometry, clipping, contact shadows and input currently assume one floor plane |
-| `App.jsx` | Scene boundary, persistent HUD and a visible way home | Place selection must cover home, friend visit and common room without assuming every destination has `visiting.friend` |
-| `store.jsx` | Character, tasks and a render-only scene session | Common-room occupancy must not run friend-home visit rewards or save a layout into the user's home |
+| `lib/commonRooms.js` | Place manifests, floor heights, fixed props and explicit seats | Stable place/seat IDs; occupancy is separate from authored furniture |
+| `CommonRoom.jsx` | Shared props, characters, lighting and seat interaction | Supports each place's floor heights without editable-home validation |
+| `CommonGardenScene.jsx` | Willow Pond's lawn, terrace, paths and pergola | Outdoor geometry stays separate from cottage architecture |
+| `lib/isoRoom.js` / `IsoRoom.jsx` | Catalog sprites, placement helpers and editable-home rendering | The home format remains a single editable floor; its stair sprite does not add an upper storey |
+| `App.jsx` | Chooses home, friend visit or common place; keeps HUD/audio mounted | A common place does not require `visiting.friend` |
+| `store.jsx` | In-memory population and selected seat; entry and return | Seat changes do not save the home or award an arbitrary friend's visit bond |
 
 The present stair sprite is architecture on the ground floor, not an actual
 upper floor. `_lift` for a seated person or tabletop prop is also not a floor
@@ -153,12 +154,12 @@ selection targets.
 
 ## Implementation boundaries
 
-Use a dedicated fixed-scene manifest and renderer for the first common room,
+The common places use fixed-scene manifests and a dedicated renderer,
 sharing models and geometric helpers with the home renderer. Do not feed
 extra floor metadata through `validateIsoLayout`: its contract is the existing
 editable home format. No database migration is needed for local scene data.
 
-The proposed manifest carries:
+Place manifests and future extensions describe:
 
 - A stable scene ID and title; framing bounds belong to the first renderer.
   Add a scene version before persisting any remembered seat preference.
@@ -213,22 +214,22 @@ That is a substantial benefit of limiting interaction to seat selection.
 
 ## Delivery and visual acceptance
 
-The first interaction and scene pass is implemented. The following sequence
-remains the acceptance path for further architecture, art and motion polish.
-The camera is deliberately fixed; pan/zoom and additional places remain open.
+Both places are implemented. Use the following review sequence when adding a
+place or refining its architecture, art and motion. The camera is fixed;
+pan/zoom and additional places remain future work.
 
-1. Author the Common Cottage static scene with all six seats, three neighbours
-   and a sample user. Review the lounge/study separation and raised nook at
+1. Author a static scene with six seats, three neighbours
+   and a sample user. Review its separate areas and raised floors at
    room scale, including visible supports, step direction and platform edges.
-2. Add the scene session, entry/exit and seat selection. Keep home and friend
-   visits working independently. Reuse the settled character baseline.
+2. Connect it to the existing scene session, entry/exit and seat selection.
+   Keep home and friend visits independent. Reuse the settled character baseline.
 3. Add restrained light, steam, foliage and activity gestures. Preserve the
    existing reduced-motion preference and dense-scene performance treatment;
    detailed architecture alone is not permission to animate every object.
 4. Capture every selectable seat in idle/focus/break states, with light/dark
    outfits and body extremes. Only then add another common place.
 
-The first feature is ready when all of the following hold:
+Every place must preserve the following:
 
 - All six seats have distinct anchors, correct floor contact and readable
   occupants; no wall, shelf or platform unexpectedly hides them.

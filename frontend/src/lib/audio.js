@@ -8,8 +8,7 @@
 let ctx = null;
 const channels = {}; // name -> { master, nodes: [], timers: [] }
 
-// Birds used to hold the last slot — replaced (user request): page turns and
-// a café suit a study nook better than chirps ever did.
+// Catalog shared by the mixer controls and persisted mix normalization.
 export const SOUND_CHANNELS = [
   { key: "rain", label: "Rain", icon: "🌧️" },
   { key: "storm", label: "Storm", icon: "⛈️" },

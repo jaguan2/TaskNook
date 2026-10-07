@@ -3,13 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { StoreProvider, useStore } from "./store";
 import { api } from "./lib/api";
-import { removeStored } from "./lib/storage";
+import { removeStored, writeJSON } from "./lib/storage";
+import { localTodayISO } from "./lib/stats";
 
 vi.mock("./lib/api", () => ({
   getToken: () => "test-token", setToken: vi.fn(), setReauthorizer: vi.fn(),
   api: Object.fromEntries([
     "me", "listTasks", "stats", "listFriends", "sessionDays", "listEvents", "listChats",
-    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "openChat", "deleteChat", "friendRoom",
+    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "createTask", "sendMessage", "openChat", "deleteChat", "friendRoom",
   ].map((name) => [name, vi.fn()])),
 }));
 
@@ -20,6 +21,7 @@ function Reader() {
 }
 const original = { id: 1, name: "Write notes", completed: false, completedAt: null };
 const saved = { ...original, completed: true, completedAt: "2026-09-20T16:00:00+00:00" };
+const doneIds = () => store.challenges.daily.filter(({ progress }) => progress === 1).map(({ id }) => id);
 const deferred = () => {
   let resolve, reject;
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
@@ -29,6 +31,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
   removeStored("tasknook.room.dirty");
+  removeStored("tasknook.progression");
+  writeJSON("tasknook.challenges", { version: 1, day: localTodayISO(), completed: [] });
   api.me.mockResolvedValue({ user: { id: 1, username: "you" } });
   api.listTasks.mockResolvedValue([original]);
   api.stats.mockResolvedValue({ tasksTotal: 1, tasksDone: 0 });
@@ -44,6 +48,132 @@ async function boot() {
   render(<StoreProvider><Reader /></StoreProvider>);
   await waitFor(() => expect(store.tasks).toEqual([original]));
 }
+
+describe("profile XP", () => {
+  it("backs study XP with saved history and does not repeat credit on refresh", async () => {
+    api.sessionDays.mockResolvedValue({ "2026-10-01": 90 });
+    await boot();
+    await waitFor(() => expect(store.progression.studyXP).toBe(90));
+    expect(store.progression.bonusXP).toBe(10);
+    await act(async () => store.refreshAll());
+    expect(store.progression.studyXP).toBe(90);
+    expect(store.progression.bonusXP).toBe(10);
+  });
+
+  it("rewards manual goals once through reset/redo, with claims surviving relaunch", async () => {
+    await boot();
+    act(() => store.addCustomChallenge({ title: "Read", target: 1, tracking: "manual", cadence: "ongoing" }));
+    const id = store.challenges.custom[0].id;
+    act(() => store.advanceChallenge(id));
+    expect(store.progression.bonusXP).toBe(20);
+    act(() => { store.resetChallenge(id); store.advanceChallenge(id); });
+    expect(store.progression.bonusXP).toBe(20);
+    cleanup();
+    await boot();
+    act(() => { store.resetChallenge(id); store.advanceChallenge(id); });
+    expect(store.progression.bonusXP).toBe(20);
+  });
+
+  it("does not grant XP for a rejected outgoing message and shares NPC credit across repeated messages", async () => {
+    await boot();
+    const chat = { id: 8, members: [{ id: 1 }, { id: 2, username: "luna" }] };
+    api.sendMessage.mockRejectedValueOnce(new Error("failed"));
+    await act(async () => store.sendChatMessage(chat, "hello"));
+    expect(store.progression.bonusXP).toBe(10);
+    api.sendMessage.mockResolvedValue({});
+    await act(async () => store.sendChatMessage(chat, "hello"));
+    expect(store.progression.bonusXP).toBe(25); // login + challenge + neighbour
+    await act(async () => store.sendChatMessage(chat, "hello again"));
+    expect(store.progression.bonusXP).toBe(25);
+  });
+});
+
+describe("challenge action credit", () => {
+  it("counts actual task creation and completion for personal goals, without credit for unchecking", async () => {
+    await boot();
+    act(() => {
+      store.addCustomChallenge({ title: "Plan two tasks", target: 2, tracking: "task-created", cadence: "ongoing" });
+      store.addCustomChallenge({ title: "Finish two tasks", target: 2, tracking: "task-completed", cadence: "daily" });
+    });
+    api.createTask.mockResolvedValue(original);
+    await act(async () => { await store.addTask({ name: "First" }); await store.addTask({ name: "Second" }); });
+    expect(store.challenges.custom[0].progress).toBe(2);
+    api.updateTask.mockResolvedValueOnce(saved);
+    await act(async () => store.toggleTask(original));
+    expect(store.challenges.custom[1].progress).toBe(1);
+    api.updateTask.mockResolvedValueOnce(original);
+    await act(async () => store.toggleTask(saved));
+    expect(store.challenges.custom[1].progress).toBe(1);
+  });
+
+  it("credits only accepted visits, never a refused place or an obsolete friend response", async () => {
+    await boot();
+    act(() => {
+      store.addCustomChallenge({ title: "Visit friends", target: 2, tracking: "friend-visited", cadence: "ongoing" });
+      store.addCustomChallenge({ title: "Common place", target: 2, tracking: "common-visited", cadence: "daily" });
+      store.enterCommonRoom("unknown");
+    });
+    expect(store.challenges.custom[1].progress).toBe(0);
+    const request = deferred();
+    api.friendRoom.mockReturnValueOnce(request.promise);
+    let visit;
+    act(() => { visit = store.visitFriend({ id: 2 }); store.enterCommonRoom("willow-pond"); });
+    await act(async () => { request.resolve({ id: 2, username: "kai" }); await visit; });
+    expect(store.challenges.custom.map(({ progress }) => progress)).toEqual([0, 1]);
+    api.friendRoom.mockResolvedValueOnce({ id: 2, username: "kai" });
+    await act(async () => store.visitFriend({ id: 2 }));
+    expect(store.challenges.custom.map(({ progress }) => progress)).toEqual([1, 1]);
+  });
+
+  it("gives feedback for an invalid personal goal instead of losing the draft silently", async () => {
+    await boot();
+    act(() => expect(store.addCustomChallenge({ title: " ", target: 1, cadence: "daily", tracking: "manual" })).toBe(false));
+    expect(store.toast.message).toContain("Give your challenge a name");
+    expect(store.challenges.custom).toEqual([]);
+  });
+
+  it("does not count bootstrap, optimistic toggles or rejected saves", async () => {
+    await boot();
+    expect(doneIds()).toEqual([]);
+    const request = deferred();
+    api.updateTask.mockReturnValueOnce(request.promise);
+    let toggle;
+    act(() => { toggle = store.toggleTask(original); });
+    expect(doneIds()).toEqual([]);
+    await act(async () => { request.reject(new Error("failed")); await toggle; });
+    expect(doneIds()).toEqual([]);
+    api.updateTask.mockRejectedValueOnce(new Error("failed"));
+    await act(async () => store.editTask(1, { notes: "draft" }));
+    expect(doneIds()).toEqual([]);
+    api.createTask.mockRejectedValueOnce(new Error("failed"));
+    await act(async () => { await expect(store.addTask({ name: "new" })).rejects.toThrow("failed"); });
+    expect(doneIds()).toEqual([]);
+  });
+
+  it.each(["add", "edit", "toggle"])("counts a saved %s even when its later refresh fails", async (action) => {
+    await boot();
+    api.createTask.mockResolvedValue(original);
+    api.updateTask.mockResolvedValue(saved);
+    api.listTasks.mockRejectedValueOnce(new Error("refresh failed"));
+    await act(async () => {
+      if (action === "add") await expect(store.addTask({ name: "new" })).rejects.toThrow("refresh failed");
+      else if (action === "edit") await store.editTask(1, { notes: "saved" });
+      else await store.toggleTask(original);
+    });
+    expect(doneIds()).toEqual(["update-todos"]);
+  });
+
+  it("counts an outgoing friend message only after the send succeeds", async () => {
+    await boot();
+    const chat = { id: 8, members: [{ id: 1 }, { id: 2, username: "luna" }] };
+    api.sendMessage.mockRejectedValueOnce(new Error("failed"));
+    await act(async () => { expect(await store.sendChatMessage(chat, "hello")).toBe(false); });
+    expect(doneIds()).toEqual([]);
+    api.sendMessage.mockResolvedValue({});
+    await act(async () => store.sendChatMessage(chat, "hello"));
+    expect(doneIds()).toEqual(["talk-to-friend"]);
+  });
+});
 
 describe("common-place sessions", () => {
   it("enters, changes seats and leaves without changing the home or saving it", async () => {

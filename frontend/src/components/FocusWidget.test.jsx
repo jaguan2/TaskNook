@@ -12,7 +12,7 @@ const timer = vi.hoisted(() => ({
 }));
 vi.mock("../timer", () => ({ useTimer: () => timer }));
 vi.mock("../store", () => ({ useStore: () => ({ activeTask: { name: "A thoughtful task with a very long title" }, sessionDays: {}, dailyGoal: 60, unlockBalance: 0 }) }));
-afterEach(() => { cleanup(); vi.clearAllMocks(); Object.assign(timer, { remaining: 1500, running: false, phase: "focus", timerMode: "timer", elapsed: 0 }); });
+afterEach(() => { cleanup(); delete window.pywebview; vi.clearAllMocks(); Object.assign(timer, { remaining: 1500, running: false, phase: "focus", timerMode: "timer", elapsed: 0 }); });
 
 it("uses the existing timer actions and provides its own way back to the room", () => {
   const expand = vi.fn();
@@ -57,4 +57,25 @@ it("shows long stopwatch times and logs through the existing finish action", () 
   expect(screen.getByRole("img", { name: "50% of daily goal" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Finish and log the tracked time" }));
   expect(timer.finishStopwatch).toHaveBeenCalledOnce();
+});
+
+it("makes the native header draggable when the bridge arrives, keeping controls outside it", () => {
+  const { container } = render(<HudFocusCard compact />);
+  expect(container.querySelector(".pywebview-drag-region")).toBeNull();
+  window.pywebview = { api: { set_widget_mode: vi.fn() } };
+  fireEvent(window, new Event("pywebviewready"));
+  const handle = container.querySelector(".pywebview-drag-region");
+  expect(handle.textContent).toBe("Focus");
+  expect(handle.contains(screen.getByRole("button", { name: "Exit Widget Mode" }))).toBe(false);
+  expect(handle.querySelector("button")).toBeNull();
+});
+
+it("plays the timer intro only on boot, keeping the HUD immediately visible after widget exit", () => {
+  const { container, rerender } = render(<HudFocusCard />);
+  expect(container.querySelector(".intro-chrome")).toBeTruthy();
+  rerender(<HudFocusCard compact />);
+  expect(screen.getByRole("timer")).toBeTruthy();
+  rerender(<HudFocusCard />);
+  expect(container.querySelector(".intro-chrome")).toBeNull();
+  expect(screen.getByRole("button", { name: "Start focusing" })).toBeTruthy();
 });

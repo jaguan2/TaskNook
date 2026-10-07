@@ -54,8 +54,8 @@ The screen has an ownership map — respect it:
   Every environment names a `floorStyle`, and walls carry a skirting, a picture
   rail and one panel seam per tile. Keep it SUBTLE — wall decor hangs on that
   surface, so it wants texture, not pattern.
-- **Derive texture from position, never randomness.** The scene re-renders on
-  a timer tick; a floor seeded from `Math.random` would crawl. Flagstone jitter
+- **Derive texture from position, never randomness.** Unrelated scene updates
+  must not redraw random texture. Flagstone jitter
   and plank stagger both come from the tile index.
 - **A big floor needs a centre.** Grain alone still reads as a uniform plane at
   20×16 and up, so the floor carries a vignette — clear in the middle, 0.18
@@ -118,8 +118,8 @@ The screen has an ownership map — respect it:
 
 ## Motion
 
-- **CSS keyframes only** for ambient motion. The app re-renders every second
-  (timer tick); CSS animations live on the element and survive for free.
+- **CSS keyframes only** for ambient motion. Timer ticks stay in their own
+  provider; CSS animations keep scene motion independent of React updates.
   JS-driven frames do not. (Wander glides are the one exception: a CSS
   `transform` + `transition` set from state, on personas/roamers only.)
 - **SVG trap** (hit twice): a CSS animation's `transform` property overrides
@@ -200,8 +200,8 @@ The screen has an ownership map — respect it:
     reachable positions, so a study hall's eight residents typed on four beats;
     hundredths gives all eight their own. Fast loops are where unison is most
     obvious, not least — check the shortest phased loop, not the longest.
-  - **Never `Math.random`** — the scene re-renders on a timer and every
-    animation would restart. Derive from the tile with coprime multipliers, and
+  - **Never `Math.random`** — unrelated renders must preserve every item's
+    animation phase. Derive from the tile with coprime multipliers, and
     use two different hashes so an item's speed isn't readable from its offset.
   - The mechanism is worth testing by **mutation**, not inspection: this pass
     found that the original test mirrored the implementation, so flipping the
@@ -427,8 +427,13 @@ HUD. Its large timer, session ring, current task, transport controls, and daily
 total fit the native 340×300 window. Stopwatch mode uses daily-goal progress for
 the ring instead of a repeating minute sweep. Timer state and destructive-reset
 confirmation remain in `HudFocusCard`; expanding restores the room without
-starting another clock. The desktop still supplies the native title bar and
-window movement. Browser mode presents the same face as a rounded floating card.
+starting another clock or replaying the HUD's boot-only entrance. On Windows the native frame and its window buttons
+disappear in widget mode. Drag the mode label and empty space beside it to move
+the timer; the expand button stays outside that drag region. Expand or Escape
+restores the original window size, position and maximized state. Always On Top
+remains in effect. Native decoration changes run on the WinForms UI thread, and
+widget size limits use the monitor's DPI. Browser mode presents the same face
+as a rounded floating card; other native platforms retain their compact frame.
 
 ## Decorating & room presets
 

@@ -28,6 +28,8 @@ import {
 } from "./lib/homeVisitors";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import { createChatSignals } from "./lib/chatSignals";
+import { useChallenges } from "./lib/useChallenges";
+import { useProgression } from "./lib/useProgression";
 import {
   MESSAGE_MAX,
   botReply,
@@ -43,7 +45,7 @@ const CHECKIN_KEY = "tasknook.chat.checkin";
 // Marks a local room mirror that has not yet been acknowledged by SQLite.
 // It is intentionally separate from the room JSON: an empty room is valid.
 const ROOM_DIRTY_KEY = "tasknook.room.dirty";
-import { balance as unlockBalance, canAfford, costOf, owns, validateUnlocked } from "./lib/unlocks";
+import { balance as unlockBalance, canAfford, costOf, owns, totalEarned, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
 import {
@@ -172,6 +174,14 @@ export function StoreProvider({ children }) {
     setToast(null);
   }, []);
 
+  const { progression, syncStudy, recordNeighbour, recordChallenges } = useProgression(!!user && !booting, showToast);
+  const { challenges, recordChallengeEvent, replaceChallenge,
+    addChallenge, advanceChallenge, resetChallenge, removeChallenge } = useChallenges(showToast, recordChallenges);
+  const addCustomChallenge = useCallback((draft) => {
+    try { addChallenge(draft); return true; }
+    catch (err) { showToast(err.message); return false; }
+  }, [addChallenge, showToast]);
+
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -187,6 +197,9 @@ export function StoreProvider({ children }) {
   const [sessionDays, setSessionDays] = useState({});
   const sessionDaysRef = useRef(sessionDays);
   sessionDaysRef.current = sessionDays;
+  useEffect(() => { syncStudy(totalEarned(sessionDays)); }, [sessionDays, syncStudy]);
+  // Prune claims for removed goals, without retroactively rewarding old completions.
+  useEffect(() => { recordChallenges(challenges, challenges); }, [challenges, recordChallenges]);
   // Furniture bought with focus minutes. Mirrored to localStorage for an
   // instant paint, same as the room layout; the server copy wins on boot.
   const [unlocked, setUnlocked] = useState(() => {
@@ -549,23 +562,8 @@ export function StoreProvider({ children }) {
     return defaultIsoLayout();
   });
   const isoRef = useRef(isoRoom);
-  // The user's own size preference for the scene, multiplied onto the
-  // responsive base size. A display preference, so it stays device-local
-  // (localStorage) rather than in the DB.
-  const [roomScale, setRoomScaleState] = useState(() => {
-    const saved = Number(readStored("tasknook.roomScale"));
-    return saved >= 0.6 && saved <= 1.2 ? saved : 1;
-  });
-  const setRoomScale = useCallback((value) => {
-    const clamped = Math.min(1.2, Math.max(0.6, Number(value) || 1));
-    setRoomScaleState(clamped);
-    writeStored("tasknook.roomScale", String(clamped));
-  }, []);
-  // Experimental: swap the flat scene for the static isometric mock (the
-  // first look at the future Sims-style room). Decorating is disabled while
-  // previewing — the mock has no placement engine yet.
-  // The isometric room is the DEFAULT scene (user decision — the flat 2D
-  // cottage is the opt-in throwback now).
+  // The interactive isometric home is the default; the flat cottage is an
+  // alternative. Keep the legacy isoPreview key for preference compatibility.
   const [isoPreview, setIsoPreviewState] = useState(
     () => readStored("tasknook.isoPreview") !== "0"
   );
@@ -1112,6 +1110,7 @@ export function StoreProvider({ children }) {
     }));
   }, []);
 
+
   const refreshAll = useCallback(async () => {
     const request = ++taskReadVersion.current;
     const completionVersion = taskCompletionVersion.current;
@@ -1320,6 +1319,8 @@ export function StoreProvider({ children }) {
   // ---------- Task actions ----------
   const addTask = async (payload) => {
     await api.createTask(payload);
+    recordChallengeEvent("task-updated");
+    recordChallengeEvent("task-created");
     await refreshTasks();
   };
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
@@ -1337,6 +1338,8 @@ export function StoreProvider({ children }) {
       : row));
     try {
       const saved = await api.updateTask(task.id, { completed });
+      recordChallengeEvent("task-updated");
+      if (saved.completed) recordChallengeEvent("task-completed");
       pendingTaskToggles.current.set(task.id, { completed: saved.completed, completedAt: saved.completedAt });
       taskCompletionVersion.current += 1;
       setTasks((prev) => prev.map((row) => row.id === task.id
@@ -1366,6 +1369,7 @@ export function StoreProvider({ children }) {
   const editTask = async (id, payload) => {
     try {
       await api.updateTask(id, payload);
+      recordChallengeEvent("task-updated");
       await refreshTasks();
     } catch (err) {
       console.error("Failed to update task:", err);
@@ -1697,8 +1701,9 @@ export function StoreProvider({ children }) {
     setLastIsoAddedId(null);
     commonRoomRef.current = session;
     setCommonRoom(session);
+    recordChallengeEvent("common-visited");
     return true;
-  }, [showToast]);
+  }, [showToast, recordChallengeEvent]);
   const chooseCommonSeat = useCallback((seatId) => {
     const previous = commonRoomRef.current;
     if (!previous) return false;
@@ -1752,6 +1757,8 @@ export function StoreProvider({ children }) {
       // Showing up is how friendship starts; staying accrues by the minute
       // (the effect below).
       addBond(data.username, BOND_POINTS.visit);
+      recordNeighbour(data.username);
+      recordChallengeEvent("friend-visited");
       return true;
     } catch (err) {
       if (request !== placeRequest.current) return false;
@@ -2061,6 +2068,9 @@ export function StoreProvider({ children }) {
     if (!text || !chat) return false;
     try {
       await api.sendMessage(chat.id, text);
+      if ((chat.members || []).some((member) => member.id !== userRef.current?.id)) {
+        recordChallengeEvent("friend-message");
+      }
       notifyChat(chat.id);
       refreshChats();
     } catch (err) {
@@ -2075,6 +2085,7 @@ export function StoreProvider({ children }) {
     // everyone who heard you gets it, which makes a group line worth more in
     // total but no more per person.
     others.forEach((m) => addBond(m.username, BOND_POINTS.message));
+    others.forEach((m) => recordNeighbour(m.username));
     const now = Date.now();
     const seed = Date.now() % 1000;
     const speaking = chat.isGroup
@@ -2677,6 +2688,15 @@ export function StoreProvider({ children }) {
     showToast,
     dismissToast,
 
+    challenges,
+    progression,
+    recordChallengeEvent,
+    replaceChallenge,
+    addCustomChallenge,
+    advanceChallenge,
+    resetChallenge,
+    removeChallenge,
+
     tasks,
     events,
     orderedTasks,
@@ -2739,8 +2759,6 @@ export function StoreProvider({ children }) {
     applyRoomPreset,
     clearRoom,
     setRoomItemTint,
-    roomScale,
-    setRoomScale,
     isoPreview,
     setIsoPreview,
     isoRoom,

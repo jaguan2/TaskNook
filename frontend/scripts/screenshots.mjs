@@ -629,6 +629,100 @@ async function main() {
     console.log("  willow pond: garden arrival and open-seat view");
   }
 
+  if (want("45") || want("46")) {
+    // These are daily device markers, not seeded task/session totals. Reset
+    // them on the throwaway capture profile for a reproducible first look.
+    await page.evaluate(`localStorage.removeItem('tasknook.challenges')`);
+    await page.setStorage({ "tasknook.timerMode": "timer" });
+    await page.load();
+    await page.clickText("Challenges", { exact: true });
+    await sleep(1000);
+    if (want("45")) {
+      await page.shot(join(OUT_DIR, "45-challenges.webp"));
+      console.log("  challenges: varied daily developer prompts");
+    }
+    if (want("46")) {
+      await page.clickText("My challenges", { exact: true });
+      const createGoal = async (draft) => {
+        await page.clickText("New challenge", { exact: true });
+        await page.evaluate(`(() => {
+          const form = document.querySelector('form[aria-label="New personal challenge"]');
+          const draft = ${JSON.stringify(draft)};
+          for (const [input, value] of [
+            [form.querySelector('input:not([type="number"])'), draft.title],
+            [form.querySelector('input[type="number"]'), String(draft.target)],
+          ]) {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          const selects = form.querySelectorAll('select');
+          selects[0].value = draft.tracking;
+          selects[0].dispatchEvent(new Event('change', { bubbles: true }));
+          selects[1].value = draft.cadence;
+          selects[1].dispatchEvent(new Event('change', { bubbles: true }));
+        })()`);
+        await page.clickText("Add challenge", { exact: true });
+      };
+      await createGoal({ title: "Read three chapters", target: 3, cadence: "ongoing", tracking: "manual" });
+      await page.clickText("+1 step", { exact: true });
+      await createGoal({ title: "Stretch today", target: 1, cadence: "daily", tracking: "manual" });
+      await createGoal({ title: "Finish two tasks", target: 2, cadence: "daily", tracking: "task-completed" });
+      await page.closePanels();
+      if (!await page.evaluate(`!!document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]')`)) {
+        // Subset runs may skip the normal seed and have no unfinished task.
+        await page.evaluate(`(() => {
+          const input = document.querySelector('input[placeholder$="New Task"]');
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Read another chapter');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        })()`);
+        await page.evaluate(`document.querySelector('input[placeholder$="New Task"]').closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))`);
+        await page.evaluate(`(async () => {
+          for (let i = 0; i < 40; i++) {
+            if (document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]')) return;
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          throw new Error('Could not prepare a personal-challenge task');
+        })()`);
+      }
+      await page.evaluate(`(() => {
+        const button = document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]');
+        if (!button) throw new Error('Personal challenge capture needs an unfinished task');
+        button.click();
+      })()`);
+      await page.evaluate(`(async () => {
+        for (let i = 0; i < 40; i++) {
+          if (JSON.parse(localStorage.getItem('tasknook.challenges')).custom.find(g => g.title === 'Finish two tasks')?.progress === 1) return;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        throw new Error('Personal challenge task credit did not arrive');
+      })()`);
+      await page.clickText("Challenges", { exact: true });
+      await page.clickText("My challenges", { exact: true });
+      await sleep(1000);
+      await page.shot(join(OUT_DIR, "46-personal-challenges.webp"));
+      console.log("  challenges: daily and ongoing personal goals");
+    }
+  }
+
+  if (want("47")) {
+    // Reset the throwaway device's bonus marker; SQLite study history still
+    // supplies real XP, avoiding a prior review's simulated future check-in.
+    await page.evaluate(`localStorage.removeItem('tasknook.progression')`);
+    await page.load();
+    await page.clickText("Profile", { exact: true });
+    await page.evaluate(`(async () => {
+      for (let i = 0; i < 40; i++) {
+        const card = document.querySelector('[aria-label="Your level"]');
+        if (card) { card.querySelector('details').open = true; return; }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error('Profile level card did not load');
+    })()`);
+    await sleep(1000);
+    await page.shot(join(OUT_DIR, "47-profile-levels.webp"));
+    console.log("  profile: level, XP and check-in streak");
+  }
+
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));
   console.log("done ->", OUT_DIR);
   process.exit(0);

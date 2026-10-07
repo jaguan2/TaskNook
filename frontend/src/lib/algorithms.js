@@ -109,10 +109,8 @@ export const ALGORITHMS = {
     label: "Random",
     hint: "Shuffled — click again for a new shuffle.",
     icon: "🎲",
-    // Needs an explicit shuffled order (see store.jsx's shuffleRandom): the
-    // list re-renders far more often than the user clicks (e.g. every timer
-    // tick), so sorting with Math.random() here would reshuffle constantly
-    // instead of only when asked.
+    // StoreProvider's setAlgorithm creates the shuffled ID order on selection.
+    // Sorting must remain deterministic across unrelated renders and writes.
     sort: (tasks, { randomOrder = [] } = {}) => {
       const { active, done } = splitDone(tasks);
       // MAX_SAFE_INTEGER, not Infinity, for ids missing from the shuffle
@@ -122,7 +120,7 @@ export const ALGORITHMS = {
       // guarantee — a finite sentinel makes "unranked sinks, stably" real.
       // Built ONCE, not per comparison: `indexOf` is a linear scan, and a
       // comparator runs O(n log n) times, so this was O(n² log n) on a value
-      // recomputed on every render (including every timer tick).
+      // recomputed whenever the task list or ordering context changes.
       const rank = new Map(randomOrder.map((id, i) => [id, i]));
       const at = (t) => rank.get(t.id) ?? Number.MAX_SAFE_INTEGER;
       return [...active.sort((a, b) => at(a) - at(b)), ...done];

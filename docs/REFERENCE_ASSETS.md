@@ -7,6 +7,10 @@ grid; do not trace or import the reference artwork.
 
 ## Pieces visible in the references
 
+The implementation notes in this table describe the initial furniture pass.
+Use [the model spec](MODELS.md) and [catalog roadmap](MODELING_ROADMAP.md) to
+check current artwork and remaining work before changing a sprite.
+
 | Reference and visible piece | TaskNook equivalent | Useful difference / next step |
 | --- | --- | --- |
 | [Café](inpso/ss_18f591f3e019a2fa4e390c661167a536b08d6ded.1920x1080.jpg): espresso machine at the left counter | `coffeecounter` | **Improved:** metal housing, dark brewing bay, gauge/buttons, portafilter, steam wand, cup and drip tray. Existing steam remains. |
@@ -20,7 +24,7 @@ grid; do not trace or import the reference artwork.
 | Loft: compact sink, hob and toaster run | `sink`, `oven`, `counter`, `toaster` | Assets already exist. Arrange them as a coherent kitchenette before adding duplicate appliances. |
 | Loft: raised sleeping platform, rail and stairs | No functional raised floor | Larger architecture work: needs elevation, placement, sorting and access rules together. A decorative ladder alone would imply functionality the room does not have. |
 
-## This pass
+## Initial furniture pass
 
 The three updated sprites keep their catalog keys, footprints, heights and
 placement rules, so existing rooms gain the artwork without a migration.

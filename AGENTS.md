@@ -205,6 +205,45 @@ to its viewport; a percentage-height SVG inside the scene grid once expanded
 the page and made seat selection scroll the entire app. Details and remaining
 art work are in `docs/COMMON_ROOMS.md`.
 
+## Daily challenges
+
+`lib/challenges.js` selects three prompts from nine developer-authored choices,
+one each for focus, tasks and social activities. Each category changes on
+adjacent LOCAL days. Replacing an unfinished prompt preserves the other slots,
+avoids active duplicates and prefers unseen choices. `lib/useChallenges.js`
+keeps the bounded v2 `{version, day, daily, seen, custom}` device marker in
+`tasknook.challenges` through the storage gateway. V1 migration preserves
+today's original prompts and earned credit. Daily selections/progress and daily
+custom progress reset on boot, actions, focus/visibility return and a slow day
+check; ongoing custom progress and all custom definitions survive rollover.
+Unchanged checks do not render. Personal goals (up to 12, targets 1–999) use
+manual steps or explicit automatic events. The store credits successful task
+creates/completions/edits, outgoing messages and accepted visits BEFORE later
+reads. Incoming bots, optimistic/rejected writes and obsolete visits don't
+count. `timer.jsx` credits focus starts and successfully saved session counts
+and minutes; breaks/ticks never count. Keep its 1 Hz provider separate. The
+lazy panel has Daily/My challenges tabs; reset/delete and replacing partial
+progress use the two-tap `useArmed` control. Completions earn profile XP; there
+is no missed-goal backlog. See `docs/CHALLENGES.md`.
+
+## Profile levels
+
+`lib/progression.js` owns the level curve (100 XP for level 2, then 150, 200,
+etc.) and reward eligibility. `lib/useProgression.js` persists the device marker
+in `tasknook.progression`, outside React updaters. Saved study minutes from the
+existing all-history `sessionDays` map give 1 XP/minute, including old sessions;
+the stored high-water mark prevents duplicate refresh credit or stale-read
+regressions. Challenge completions give 10 XP: once per daily goal per LOCAL day
+or once per ongoing goal. `useChallenges` reports before/after snapshots;
+claims survive undo/reset and are pruned only when a definition disappears.
+Already completed snapshots do not earn retroactive bonus XP. Accepted outgoing
+messages/visits give 5 XP per neighbour per day, shared between those actions;
+incoming bots never count. Successful bootstrap/return/user input marks a daily
+check-in (10 XP + 1 per additional consecutive day, capped at 20 XP). An idle
+overnight window doesn't extend a streak. No XP work runs on the timer's 1 Hz
+tick. `LevelCard.jsx` sits in Profile; levels are cosmetic and have no separate
+currency or gated catalog. See `docs/LEVELS.md`.
+
 ## Desktop update notifications
 
 `desktop_updates.py` checks a small `desktop-update.json` on GitHub in the
@@ -286,7 +325,7 @@ running `git commit` yourself.
   any web page in any browser drive the localhost API with the well-known
   local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, `Conversation`,
-  `ConversationMember`, `Message`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
+  `ConversationMember`, `Message`, `CalendarEvent`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
   columns per field — same bargain as `room_config`/`unlocked`, and the whole
   point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
@@ -359,8 +398,8 @@ running `git commit` yourself.
   grab cursor there (unreachable while visiting, immediate at home). Two ways
   to arm it: `walkId` (exactly one placement — a visit's guest, since your
   host's people aren't yours to move) or `walkPersonas` (every persona — at
-  home they're all yours and all drawn with your character, so singling out a
-  "real" you is a distinction the room can't show). `onWalkTo(id, gx, gy)`
+  home they're all yours). `you` uses the profile character; generic residents
+  use their default look unless a persona supplies one. `onWalkTo(id, gx, gy)`
   carries the id for that reason, matching `onMoveItem`'s signature.
   The home handler is the store's `walkIsoPersona`, and unlike a visit it
   **PERSISTS** — it moves that resident's home and the room saves: finding
@@ -524,13 +563,12 @@ running `git commit` yourself.
 - **Ordering algorithms** live in `lib/algorithms.js` as pure
   `(tasks, context) => orderedTasks` functions (the `context` arg only matters for
   `random`). Completed tasks always sink to the bottom.
-  Keys: `custom` (manual drag), `shortest`, `longest`, `alternate`, `priority`, `random`.
+  Keys: `custom` (manual drag), `shortest`, `longest`, `alternate`, `priority`, `deadline`, `random`.
   The selected key is persisted in `localStorage` (`tasknook.algo`).
   `random` needs an explicit shuffled-ID list (`store.jsx`'s `randomOrder`,
   regenerated by `shuffledIds()` every time "Random" is clicked) rather than
-  sorting with `Math.random()` directly — `orderedTasks` recomputes on every
-  render (e.g. every timer tick), so a naive random sort would reshuffle
-  constantly instead of only on click.
+  sorting with `Math.random()` directly — unrelated renders and task updates
+  must preserve the order until the user requests another shuffle.
 - **Two time windows in `/api/stats`, don't mix them.** `tasksTotal` /
   `tasksDone` / `completion` describe the **current list** — a standing to-do
   list isn't recreated each morning — while `tasksDoneToday` and
@@ -845,39 +883,35 @@ running `git commit` yourself.
   a single ☰ button (`tasknook.dockCollapsed`) and its top is
   `max(172px, calc(50% - 220px))` — clamped so a centred column can never
   climb into the focus card's corner on short windows.
-  **Widget Mode** (`store.jsx`'s `widgetMode`, `tasknook.widgetMode`,
-  toggled from the icon beside the clock in `TopBar.jsx`) collapses the app
-  to just the already-draggable `HudFocusCard`, floating over the plain
-  themed backdrop — meant to sit alongside other work, not replace the
-  cottage, so everything else (scene, weather/sky overlays, TopBar, Dock,
-  drawers, HudTasks, MusicDock, the signature) folds away too. **It is a
-  visibility toggle in `App.jsx`, never a separate early return** — the
-  first cut rendered widget mode as its own `if (widgetMode) return (...)`
-  branch with a fresh `<HudFocusCard />`, which unmounted the real one and
-  remounted a new instance carrying `.intro-chrome` — replaying its 1.5s
-  boot delay on every single toggle, exactly the trap this file's
-  `.intro-chrome` gotcha (below) warns about. The fix is the same pattern
-  `hudWrapClass` already uses elsewhere: one persistent `HudFocusCard`
-  outside the hidden region, and `hudWrapClass(roomEditMode || widgetMode,
-  ...)` for `HudTasks`/`MusicDock` (so music keeps playing, just out of
-  sight) — except the focus card's OWN wrapper ignores `widgetMode`
-  entirely and stays force-visible, since showing it is the whole point and
-  it should override even a Settings "Hidden" for Session & timer while
-  active. MusicDock and the toast (failed writes are never silent, widget
-  or not) are deliberately untouched by the hidden region. Exits: a
-  dedicated Minimize2 button (top-right, mounted only while active — a
-  plain button with no persistent state, unlike the timer card, so
-  mount/unmount costs nothing) and Escape, which checks `widgetMode` FIRST
-  in App's keydown handler, ahead of leaving a visit or closing a panel,
-  since none of those states are even reachable while it's on.
+  **Widget Mode** (`widgetMode`, persisted as `tasknook.widgetMode`) is
+  toggled in `TopBar.jsx`. `HudFocusCard` owns both the normal HUD and the
+  dedicated `FocusWidget` face; timer state remains in its existing provider.
+  Keep this component mounted across mode changes so reset confirmation and
+  timer controls retain their state. Its `skipIntro` ref prevents the normal
+  HUD DOM from replaying its boot entrance when expanding from the widget.
+  `App.jsx` hides the scene, drawers, dock and other HUD surfaces through
+  visibility wrappers. Music stays mounted and playing; failure toasts remain
+  visible. Widget mode overrides the timer's hidden/faded HUD preference.
+  On Windows, `DesktopApi.set_widget_mode` removes the native frame and window
+  buttons, fixes the window at 340x300 logical pixels, and restores the saved
+  size, position and maximized state on exit. Native objects and saved chrome
+  MUST stay private. `_set_widget_chrome` runs on the WinForms UI thread.
+  Capture normal bounds AFTER restoring a maximized window, so later
+  unmaximizing returns to the original app size. The mode label and header
+  space use `.pywebview-drag-region` only after the bridge is ready; buttons
+  stay outside it. This uses pywebview's existing drag handler and adds no
+  public API methods. Browser mode uses a floating card; other native
+  platforms keep their compact frame. Exit through the expand arrow or
+  Escape. App handles widget Escape before visits, panels and decoration.
   **Always On Top** pairs with it, desktop-only: `desktop.py`'s
   `DesktopApi` class is passed as pywebview's `js_api` at `create_window()`
-  (its `window` attribute is set right after, since the Api instance has to
+  (its private `_window` attribute is set right after, since the Api instance has to
   exist before that call), exposing `set_always_on_top(value)` to the
   frontend as `window.pywebview.api.set_always_on_top(...)` — a real
-  Promise-returning call straight through to `Window.on_top`'s runtime
-  setter (confirmed against the installed pywebview version; no restart
-  needed). `lib/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
+  Promise-returning call through to `Window.on_top`'s runtime
+  setter, dispatched on the WinForms UI thread by `_on_native_thread`
+  (bridge calls run on workers; a direct property write can fail in the exe).
+  No restart is needed. `lib/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
   it, `onDesktopApiReady()` listens for pywebview's `pywebviewready` event
   (the bridge injects asynchronously, so it may not exist yet on first
   render even inside the real desktop window). `TopBar.jsx` only renders the
@@ -897,11 +931,9 @@ running `git commit` yourself.
   sheet (zone ownership map, motion rules, composition, tinting, the
   new-feature checklist). It is the authority on visual decisions.
 - **Ambient audio**: `lib/audio.js` is a procedural **mixer** — channels
-  (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, birds) play
+  (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, cafe, paper) play
   simultaneously, each at its own volume, via `setChannel(name, 0..1)` /
-  `applyMix`. No audio files, works offline. The mixer's channels are rain,
-  storm, snow, wind, fireplace, cafe and paper (birds were replaced — page
-  turns and a café suit a study nook better). The noise channels share one
+  `applyMix`. No audio files, works offline. The noise channels share one
   filtered-noise engine with per-channel presets; storm schedules thunder
   AND its own heavier droplet layer (its bed was the one that broke the
   dark-beds rule — lowpass 3200 at gain 0.8 read as static; retuned
@@ -1148,8 +1180,8 @@ running `git commit` yourself.
   with a `tasknook.room` localStorage mirror for instant paint; saves are
   debounced 600ms; on boot the server copy wins, and an empty server adopts
   the local layout. RoomPanel previews reuse the same sprites in tiny SVGs
-  (no local `<defs>` — `url(#lampPool)` resolves to the Cottage's, which is
-  always mounted). Pointer capture is taken on the **`<svg>`**, not the item's
+  with instance-scoped lamp definitions; cottage thumbnails also scope their
+  paint IDs. Pointer capture is taken on the **`<svg>`**, not the item's
   `<g>`: `sortForRender` reorders those groups as `y` changes mid-drag, and a
   moved/recreated captured element silently drops the capture. `pointercancel`
   is handled alongside `pointerup` (touch drags fire cancel, not up) and
@@ -1168,23 +1200,22 @@ running `git commit` yourself.
   so saved placements land where they always did, and `clampToRoom` still
   bounds them to the original room area around the desk. Verified by
   headless screenshot at 16:9. Idle ambience (plant sway, garland twinkle, lamp breathe) is **CSS**
-  keyframes, not framer-motion, because the scene re-renders every second (the
-  focus timer ticks) and CSS animations live on the element, so they survive
-  re-renders for free; all are disabled under `prefers-reduced-motion`. SVG
+  keyframes, not framer-motion: CSS owns ambient motion independently of
+  React updates; the resolved reduced-motion preference disables it. SVG
   needs `transform-box: fill-box` or those rotations pivot about the canvas
   origin. Item pop-in/drag-lift *is* framer-motion, on an **inner** `<g>` —
   framer-motion writes its own inline `transform`, which on the positioning
   `<g>` would overwrite `translate(x,y)` and fling the item to the origin.
-  `Cottage` is `memo`'d and the room actions are `useCallback`'d so the
-  per-second context change doesn't re-render the whole scene.
-- **Isometric room (beta)**: a real, decoratable Sims-style room toggled from
+  `Cottage` is memoized and room callbacks stay stable. Timer ticks remain
+  confined to the separate timer provider and its consumers.
+- **Isometric home**: the default decoratable room, toggled from
   the Room panel (`isoPreview`, localStorage) — it swaps in for `Cottage` and
   keeps its OWN layout:
   `{ w, d, placements: [{id, item, gx, gy, rot?, tint?}] }`
   in tile coordinates, resizable 3–48 per axis (resizing re-clamps footprints
   onto the floor; the camera's zoom-out limit scales with the room, and
   IsoRoom is `memo`'d — a 48×48 lot is thousands of SVG nodes and must not
-  re-render on the store's per-second timer tick). **The iso room is the DEFAULT scene** (`isoPreview`
+  re-render on timer ticks). **The iso room is the DEFAULT scene** (`isoPreview`
   defaults on; the flat cottage is the opt-out throwback, its card
   drop-shadow removed so it sits into the backdrop). Layouts also carry
   `env` ("room" default, stored
@@ -1623,7 +1654,7 @@ running `git commit` yourself.
   They now compare placement counts and `showToast` the difference, same rule
   as the item cap.
   **Every sprite is hand-drawn SVG again — the Kenney PNG renders are GONE**
-  (see IsoItems.jsx's header for the paid-for verdict): the kit was TRUE
+  (see `docs/archive/RENDERER-EVALUATION-2026-08-19.md` for renderer history): the kit was TRUE
   isometric (0.5774 base) vs this room's 2:1 dimetric (0.5), so every PNG sat
   ~15% tall of its tile; raster blurred under the viewBox camera's zoom; and
   a PNG can't read `--tint` (30 committed colourway files to fake four fixed
@@ -1664,7 +1695,7 @@ running `git commit` yourself.
   floor-lamp pole) blanket everything behind them (found the hard way).
   Persistence: `room_config` now stores `{"placements": [...], "iso": {...}}`;
   GET still understands the legacy bare-list shape; the backend's
-  `_clean_layout` passes `rot` through only as exactly int 0/1 (dropping 0).
+  `_clean_layout` accepts integer `rot` values 0–3, rejects booleans, and omits 0.
   `IsoRoom` re-declares the
   `lampPool`/`lampCone` gradient ids — RoomPanel previews reference them
   document-wide and only one scene is ever mounted. Built-in wall decor (the
@@ -1705,8 +1736,8 @@ running `git commit` yourself.
   of truth** for the schema: there is no `create_all()` fallback, so a model
   change without a migration will break on a fresh DB immediately — which is
   the point (better than silently diverging from what shipped users have).
-- **New panel**: create `components/XxxPanel.jsx`, register it in the `PANELS`
-  map and `Dock` items in `App.jsx`. Panels are `React.lazy` — each is its own
+- **New panel**: create `components/XxxPanel.jsx`, register its loader and
+  metadata in `App.jsx`, and add its item to `Dock.jsx`. Panels are `React.lazy` — each is its own
   chunk behind a dock click, and `App` renders them inside one `<Suspense>`.
   Keep new ones lazy; an eager import pulls the panel back into the entry
   bundle.
@@ -1751,12 +1782,10 @@ running `git commit` yourself.
   lives inside the Friends drawer, not a standalone window), so that toggle
   instead fades/hides the unread-count badges in `FriendsPanel.jsx` — a
   Do-Not-Disturb for the red dot, not a way to hide the thread list.
-  **Widget Mode hit this same trap for real**: its first cut rendered as a
-  separate `if (widgetMode) return (...)` branch in `App.jsx` with its own
-  fresh `<HudFocusCard />`, which unmounted the real one and replayed the
-  1.5s delay on every toggle — the card was invisible for a beat and a half
-  every time widget mode turned on. Fixed the same way: one persistent
-  `HudFocusCard` outside a hidden region, never a second mount.
+  Widget mode keeps one `HudFocusCard` mounted outside the hidden scene
+  region. Its normal HUD skips the boot animation after a widget visit;
+  switching faces must never introduce another timer or entrance delay.
+
 - **CSS animation classes must not share an element with an SVG `transform`
   attribute** — the animation's `transform` property overrides the attribute
   entirely (the desk plant's foliage once dropped 16px into its pot this way).
@@ -1806,4 +1835,5 @@ running `git commit` yourself.
   no console). The only real check is running the artifact:
   `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0. CI does this on
   every push (`.github/workflows/ci.yml`).
-- No UI/component tests yet — verify visual changes by running both servers.
+- Component tests cover interaction and rendering contracts. Verify visual
+  changes in the running app as well; tests cannot approve artwork or layout.

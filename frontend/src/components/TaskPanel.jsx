@@ -20,8 +20,7 @@ const PRIORITY_STYLE = {
 };
 
 // VC2-style daily goal ring: today's focus minutes against a user-set target.
-// Lived in the Progress panel until that panel was dissolved (2026-08-16) —
-// the goal is set here now, beside the list it exists to serve.
+// Goal configuration lives beside the task list; the calendar owns history.
 function GoalRing({ minutes, goal }) {
   const r = 34;
   const c = 2 * Math.PI * r;
@@ -383,8 +382,7 @@ export default function TaskPanel() {
         </div>
       )}
 
-      {/* Daily goal ring + streak. Configured here since the Progress panel
-          was dissolved; the scene's goal chip reads the same numbers. */}
+      {/* Daily goal and focus streak share the scene chip's numbers. */}
       <div className="flex items-center gap-4 rounded-2xl bg-white/5 p-3">
         <div className="relative grid place-items-center">
           <GoalRing minutes={focusMinutesLive} goal={dailyGoal} />

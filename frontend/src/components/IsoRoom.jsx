@@ -460,10 +460,9 @@ function PersonaTag({ p, label, glides }) {
   );
 }
 
-// The SCENE, split from the camera. `view` state lives in the IsoRoom
-// wrapper below and reaches only the svg's viewBox attribute — nothing in
-// here reads it, so a 60Hz pan or zoom updates one attribute instead of
-// re-rendering the thousands of SVG nodes a 48×48 lot puts in this subtree.
+// Scene content is independent of camera state. Pan transforms and viewBox
+// updates belong to the wrapper, so camera movement does not rebuild this
+// subtree's SVG nodes.
 // Every prop holds its identity through a camera move; that is what lets
 // the memo hold, and why the wrapper useCallback's what it passes down.
 function IsoSceneInner({
@@ -541,18 +540,15 @@ function IsoSceneInner({
     leftSeg.from <= WINDOW_GLOW_FROM &&
     leftSeg.to >= WINDOW_GLOW_FROM + WINDOW_GLOW_LENGTH;
 
-  // Personas: seated ones snap onto their seat (slightly forward so they
-  // draw in front of the backrest, lifted by the seat height); standing ones
-  // idle-wander via a VISUAL-ONLY offset (never persisted — their stored
-  // spot is "home"), collision-checked against the floor shape AND furniture.
+  // People stay at their saved spots and resolve onto seats when applicable.
+  // Pets roam through visual-only offsets, checked against floor and furniture;
+  // their stored home positions do not change while roaming.
   const roamRef = useRef({});
   const [, setRoamTick] = useState(0);
   useEffect(() => {
-    // Reduced motion stops the wander outright rather than just removing the
-    // glide: a figure that teleported a tile every few seconds would be worse
-    // than one that walks. This is also the only motion in the room driven by
-    // a TIMER, so switching it off actually retires an interval and the
-    // re-render it causes — the CSS animations cost nothing to leave in place.
+    // Reduced motion stops pet roaming, rather than replacing glides with
+    // jumps. This retires the interval and its renders; ambient CSS animation
+    // is controlled separately by the reduced-motion styles.
     if (editMode || reduceMotion) {
       roamRef.current = {};
       return undefined;
@@ -1206,12 +1202,9 @@ function IsoSceneInner({
 
 const IsoScene = memo(IsoSceneInner);
 
-// The camera, and every pointer/keyboard interaction. This wrapper is the
-// perf boundary: `view` changes at pointer rate during a pan or zoom, and
-// from here it reaches ONLY the svg's viewBox attribute — IsoScene's props
-// all hold their identity through a camera move, so its memo skips the
-// whole subtree. (memo on the wrapper itself: App re-renders every second
-// on the focus timer's tick, and all store callbacks are useCallback'd.)
+// Camera and input boundary. Panning moves one DOM layer until release;
+// zooming changes the SVG viewBox. Stable scene props keep camera updates
+// out of the memoized IsoScene subtree. App reads timer status, not its tick.
 function IsoRoom({
   size,
   placements = [],
@@ -1229,19 +1222,11 @@ function IsoRoom({
   // wherever home was last zoomed. (App remounts the scene per room via
   // `key`, so this initializer runs fresh for every visit.)
   saveView = true,
-  // Walk orders. A walkable placement is grabbable OUTSIDE edit mode: dragging
-  // moves a target marker, not the person, and releasing on a legal tile calls
-  // `onWalkTo(id, gx, gy)` once so the glide walks them over. Deliberately not
-  // the edit-mode drag — walking is fiction, so it obeys the wander engine's
-  // rules (no void, no furniture, but a free SEAT is legal, which is how a walk
-  // order ends in sitting down).
-  //
-  // Two ways to arm it, because the two rooms mean different things by "you":
-  //   * `walkId` — exactly one placement walks. VISITING: your guest is yours
-  //     to move and your host's people are not.
-  //   * `walkPersonas` — every persona walks. AT HOME: they're all your little
-  //     people, all drawn with your character, so singling one out as the "real"
-  //     you would be a distinction the room can't show.
+  // Carrying is available outside edit mode. HeldFigure follows the pointer;
+  // the target diamond reports whether the drop is legal. Release calls
+  // onWalkTo(id, gx, gy), and the remounted person appears at the new spot.
+  // walkId allows only the guest while visiting; walkPersonas allows every
+  // owned persona at home. Furniture still moves only through edit mode.
   walkId = null,
   walkPersonas = false,
   onWalkTo,
