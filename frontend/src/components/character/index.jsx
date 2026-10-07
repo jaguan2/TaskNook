@@ -477,7 +477,7 @@ export function Resident({
                       opacity="0.22"
                     />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
-                    <Hat kind={ch.hat} headY={headY} />
+                    <Hat kind={ch.hat} headY={headY} view="side" />
                     <SideFace expression={ch.expression} headY={headY} />
                     {/* glasses over the finished face — after the hair's side
                         mass and the hat, so neither can bury the lens */}
@@ -570,12 +570,12 @@ export function Resident({
             fill="#000"
             opacity="0.14"
           />
-          {/* two pipe folds falling from the waistband — hanging cloth
-              gathers where it's suspended; wedges, not lines, and
-              deliberately off-symmetric */}
+          {/* A maxi gets one broad fall of shade; the shorter skirt keeps two
+              small pipe folds. Pleats retain the busiest fold rhythm. */}
           {(pants === "skirt" || pants === "maxi") &&
-            [-0.5, 0.58].map((f) => (
+            (pants === "maxi" ? [-0.4] : [-0.5, 0.58]).map((f) => (
               <path
+                data-skirt-fold={pants}
                 key={f}
                 d={`M ${f * hem * 0.7} ${-legH + 3} L ${f * (hem + 2.8) - 0.8} ${skirtHem - 2.6}
                     L ${f * (hem + 2.8) + 0.8} ${skirtHem - 2.6} z`}
@@ -904,7 +904,7 @@ export function Resident({
               {/* The hat, worn OVER the finished hair and its sheen — inside
                   the gesture group, so it turns with a glance instead of
                   hovering while the head moves under it. */}
-              <Hat kind={ch.hat} headY={headY} />
+              <Hat kind={ch.hat} headY={headY} view={view} />
               {!back && <Face expression={ch.expression} headY={headY} />}
               {/* Glasses land right after the eyes' layer — over the fringe
                   and the hat's rim, so no crown mass can bury the rims, and

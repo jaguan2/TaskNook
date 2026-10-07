@@ -45,15 +45,9 @@ import {
   Wreath,
 } from "./IsoSeasonalItems";
 
-// Every sprite in this room is now hand-drawn SVG. The Kenney Furniture Kit
-// renders that used to live here are gone: the kit is TRUE isometric (base
-// diamond 0.5774) while this room is 2:1 dimetric (0.5), so every PNG sat on
-// a base ~15% taller than its floor tile and never landed on the grid; raster
-// blurred the moment the camera zoomed; and a PNG can't read `--tint`, which
-// cost 30 pre-shaded colourway files to fake four fixed colours.
-//
-// Drawing from project() fixes all three by construction — correct on the
-// grid, sharp at any zoom, and every material takes a colour.
+// SVG construction follows the room's 2:1 dimetric projection, stays sharp
+// under zoom and supports live material tints. Renderer alternatives and the
+// retired raster experiment are recorded in docs/archive/RENDERER-EVALUATION-2026-08-19.md.
 
 // Sprites for the isometric room. Each is drawn for its footprint anchored at
 // grid (0,0) — the scene places it with translate(project(gx,gy)), which

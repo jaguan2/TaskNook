@@ -36,7 +36,7 @@ export async function setDesktopWidgetMode(value) {
   } catch (error) {
     // A native-window failure must not take down the timer UI. Web mode still
     // works, and desktop users retain the in-page compact fallback.
-    console.error("Could not resize TaskNook for Widget Mode:", error);
+    console.error("Could not change TaskNook's desktop Widget Mode:", error);
     return false;
   }
 }

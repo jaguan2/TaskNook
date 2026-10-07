@@ -1,5 +1,11 @@
 # Catalog and resident modeling review
 
+This records the October 4 catalog/seating work and its October 6 stability
+follow-up. Comparison images are review snapshots. The later character
+baseline is documented in [the model spec](MODELS.md) and
+[the archived handoff](archive/HANDOFF-2026-10-06.md); remaining work lives in
+[the modeling roadmap](MODELING_ROADMAP.md).
+
 The main gap from the Virtual Cottage 2 references is the design of each
 object: physical construction, distinct silhouettes, layered materials and
 characters convincingly settled into furniture. Better colours and more
@@ -15,6 +21,11 @@ refined plant/lamp models more deliberately. The first fixed split-level
 Common Cottage is implemented with six seats and three simulated neighbours;
 see [the scene and remaining work](COMMON_ROOMS.md). It is a first art pass,
 not a claim that the catalog or character modeling is complete.
+
+The later compact resident, quieter face/glasses and fitted headgear work is
+recorded in [the October 6 handoff](archive/HANDOFF-2026-10-06.md). The subsequent
+[stability review](archive/STABILITY-REVIEW-2026-10-06.md) fixes transformed clipping,
+seat focus and obsolete visit feedback while retaining that character baseline.
 
 Reviewed all **161 catalog items across 18 groups**, including advertised
 rear views and items not used by any preset. The art generator now renders
@@ -57,7 +68,7 @@ furniture alone does not finish the resident rig.
 
 ## Evidence and validation
 
-`npm run art` generates 684 SVG review pieces: the full catalog, complete
+`npm run art` generates SVG review pieces for the full catalog, complete
 wardrobe, material colour variants, body extremes, preset scenes and eight
 looks in front/rear seated views for idle/focus/break. The sheet groups catalog
 items by their actual catalog family and labels each item/view.
@@ -81,11 +92,11 @@ not a claim of reference parity or proof that animation is flawless.
 | [Seating colours](model-review/seating-colours.webp) | Cream/dark/sage in both facings |
 | [Seated contact front](model-review/seating-contact-front.webp), [rear](model-review/seating-contact-back.webp) | Body extremes on the four pieces, idle/focus/break |
 
-All 1,147 frontend tests pass after the common-room and seating follow-ups. Existing
-wardrobe, palette, seat height, placement and rendering checks remain in
-place. The rejected prototype's reach/mirror tests were removed with its
-implementation. Lint, production build, art generation and the frozen desktop
-self-test complete the review loop.
+Wardrobe, palette, seat height, placement and rendering checks protect the
+current implementation. The rejected prototype's reach/mirror tests were
+removed with it. Run lint, tests, the production build, art generation and the
+frozen desktop self-test when changing this artwork. Dated validation results
+are preserved in [the stability review](archive/STABILITY-REVIEW-2026-10-06.md).
 
 Live checks cover all three open seats, timer continuity, unchanged home
 layout/camera, the fixed-room decoration guard, reduced motion and the

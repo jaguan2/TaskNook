@@ -122,12 +122,8 @@ export default function CalendarPanel() {
     return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
   };
 
-  // Headline history — the numbers the Progress panel's heatmap used to carry.
-  // The month grid above already IS the history (it shades every day by
-  // intensity), so what moved here is just the summary line. No live minutes:
-  // that would mean useTimer, and a panel that redraws a whole month grid
-  // every second to keep one number warm is the wrong trade — the line
-  // updates when a block logs.
+  // Summarize the same saved history that shades the month grid. Update when
+  // a session logs; reading the live timer would redraw this panel every second.
   const summary = focusSummary(sessionDays, localTodayISO());
 
   const scheduled = tasks.filter((t) => t.scheduledDate === selected);

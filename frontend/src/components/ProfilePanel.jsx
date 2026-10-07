@@ -41,6 +41,7 @@ import {
 } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 import CharacterPresets from "./CharacterPresets";
+import LevelCard from "./LevelCard";
 
 /**
  * The character editor's layout follows the convention every good creator
@@ -747,6 +748,7 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
 
 export default function ProfilePanel() {
   const {
+    progression,
     selfInRoom,
     setSelfInRoom,
     profile,
@@ -791,6 +793,7 @@ export default function ProfilePanel() {
 
   return (
     <div className="space-y-4">
+      <LevelCard progression={progression} />
       <AboutPanel
         profile={profile}
         summary={summary}

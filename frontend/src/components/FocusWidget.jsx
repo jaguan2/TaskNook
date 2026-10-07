@@ -1,16 +1,22 @@
 import { ArrowUpRight, Check, Coffee, Pause, Play, RotateCcw, Timer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { hasDesktopWidgetApi, onDesktopApiReady } from "../lib/desktop";
 
 // A dedicated small-window surface. Timer state and actions stay in the HUD's
 // existing provider; entering or leaving this view never starts a second clock.
 export default function FocusWidget({ clock, running, inBreak, stopwatch, task,
   progress, round, rounds, today, goal, confirmReset, canFinish,
   onToggle, onReset, onFinish, onSkip, onNudge, onExpand }) {
+  const [desktop, setDesktop] = useState(hasDesktopWidgetApi);
+  useEffect(() => onDesktopApiReady(() => setDesktop(hasDesktopWidgetApi())), []);
   const mode = inBreak ? "Take a breath" : stopwatch ? "Stopwatch" : "Focus";
   const status = running ? "In progress" : canFinish ? "Paused" : "Ready when you are";
   const ring = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
   return <section className={`focus-widget ${inBreak ? "focus-widget-break" : ""}`} aria-label="Focus widget">
     <header className="focus-widget-header">
-      <span className="focus-widget-mode">{inBreak ? <Coffee size={15} /> : <Timer size={15} />}{mode}</span>
+      {/* Keep buttons OUTSIDE the native drag region so clicking Expand can
+          never move the OS window. pywebview handles window movement itself. */}
+      <span className={`focus-widget-mode ${desktop ? "pywebview-drag-region" : ""}`} title={desktop ? "Drag to move the timer" : undefined}>{inBreak ? <Coffee size={15} /> : <Timer size={15} />}{mode}</span>
       <button className="focus-widget-icon" onClick={onExpand} aria-label="Exit Widget Mode" title="Back to your room (Escape)"><ArrowUpRight size={18} /></button>
     </header>
     <p className="focus-widget-task" title={task || undefined}>{inBreak ? "A little room to recharge." : task || "Make space for one thing."}</p>

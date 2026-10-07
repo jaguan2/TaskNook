@@ -13,9 +13,9 @@
 // strokes turn into stray lines across a face at resident scale. The back
 // view draws nothing.
 
-const FRAME = "#2b2350";
+const FRAME = "#51465b";
 const LENS = "#fff";
-const LENS_OP = 0.16;
+const LENS_OP = 0.06;
 
 export const GLASSES_REGISTRY = {
   none: {},
@@ -24,29 +24,29 @@ export const GLASSES_REGISTRY = {
     // read as a pair without drawing a dark bar over the nose and cheeks.
     front: ({ headY }) => (
       <>
-        {[-2.9, 2.9].map((cx) => (
+        {[-2.45, 2.45].map((cx) => (
           <circle
             key={cx}
             cx={cx}
             cy={headY + 2}
-            r="2.3"
+            r="1.75"
             fill={LENS}
             fillOpacity={LENS_OP}
             stroke={FRAME}
-            strokeWidth="0.8"
+            strokeWidth="0.5"
           />
         ))}
       </>
     ),
     side: ({ headY }) => (
       <circle
-        cx="-3.6"
+        cx="-3.2"
         cy={headY + 1.9}
-        r="2.2"
+        r="1.72"
         fill={LENS}
         fillOpacity={LENS_OP}
         stroke={FRAME}
-        strokeWidth="0.8"
+        strokeWidth="0.5"
       />
     ),
   },
@@ -54,33 +54,33 @@ export const GLASSES_REGISTRY = {
     // Rounded rectangles alone remain visibly distinct from the round pair.
     front: ({ headY }) => (
       <>
-        {[-5.1, 0.7].map((x) => (
+        {[-4.65, 0.65].map((x) => (
           <rect
             key={x}
             x={x}
             y={headY + 0.35}
-            width="4.4"
-            height="3.3"
+            width="4"
+            height="3"
             rx="0.7"
             fill={LENS}
             fillOpacity={LENS_OP}
             stroke={FRAME}
-            strokeWidth="0.8"
+            strokeWidth="0.55"
           />
         ))}
       </>
     ),
     side: ({ headY }) => (
       <rect
-        x="-5.7"
+        x="-5.25"
         y={headY + 0.35}
-        width="4.1"
-        height="3.2"
+        width="3.8"
+        height="3"
         rx="0.6"
         fill={LENS}
         fillOpacity={LENS_OP}
         stroke={FRAME}
-        strokeWidth="0.8"
+        strokeWidth="0.55"
       />
     ),
   },
@@ -99,7 +99,7 @@ export const GLASSES_REGISTRY = {
             fill={LENS}
             fillOpacity={LENS_OP}
             stroke={FRAME}
-            strokeWidth="0.7"
+            strokeWidth="0.5"
           />
         ))}
       </>
@@ -112,7 +112,7 @@ export const GLASSES_REGISTRY = {
         fill={LENS}
         fillOpacity={LENS_OP}
         stroke={FRAME}
-        strokeWidth="0.7"
+        strokeWidth="0.5"
       />
     ),
   },

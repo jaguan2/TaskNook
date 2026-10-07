@@ -5,6 +5,7 @@ import { ISO_SPRITES } from "./IsoItems";
 import { GARMENT_REGISTRY, HAIR_REGISTRY, HAT_REGISTRY } from "./character";
 import { SCARF_REGISTRY } from "./character/scarves";
 import { Glasses, GLASSES_REGISTRY } from "./character/glasses";
+import { Hat } from "./character/hats";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
 import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
 
@@ -165,14 +166,14 @@ describe("the isometric catalog and its artwork agree", () => {
       expect(head.getAttribute("d")).not.toMatch(/\bL/i);
     });
 
-    it("keeps open eyes to one dark oval and one catchlight", () => {
+    it("keeps open eyes to one dark oval without room-scale sparkle noise", () => {
       const { container } = draw(<Resident character={DEFAULT_CHARACTER} />);
       const eyes = [...container.querySelectorAll('[data-character-eye="open"]')];
 
       expect(eyes).toHaveLength(2);
       for (const eye of eyes) {
         expect(eye.querySelectorAll("ellipse")).toHaveLength(1);
-        expect(eye.querySelectorAll("circle")).toHaveLength(1);
+        expect(eye.querySelectorAll("circle")).toHaveLength(0);
         expect(eye.querySelector("path")).toBeNull();
       }
     });
@@ -291,6 +292,25 @@ describe("the isometric catalog and its artwork agree", () => {
       }
     });
 
+    it("keeps glasses lighter than the facial features", () => {
+      for (const kind of ["round", "square", "halfmoon"]) {
+        const { container } = draw(<Glasses kind={kind} headY={0} />);
+        for (const lens of container.querySelectorAll("circle, rect")) {
+          expect(Number(lens.getAttribute("stroke-width"))).toBeLessThanOrEqual(0.6);
+          expect(Number(lens.getAttribute("fill-opacity"))).toBeLessThanOrEqual(0.1);
+        }
+        cleanup();
+      }
+    });
+
+    it("limits the puffer and maxi skirt to one strong internal division", () => {
+      const puffer = draw(<Resident character={{ ...DEFAULT_CHARACTER, coat: "puffer" }} />);
+      expect(puffer.container.querySelectorAll("[data-puffer-seam]")).toHaveLength(1);
+      cleanup();
+      const maxi = draw(<Resident character={{ ...DEFAULT_CHARACTER, pants: "maxi" }} />);
+      expect(maxi.container.querySelectorAll('[data-skirt-fold="maxi"]')).toHaveLength(1);
+    });
+
     it("every scarf renders, and each draws its own geometry", () => {
       const seen = new Map();
       for (const { key } of SCARVES) {
@@ -319,6 +339,28 @@ describe("the isometric catalog and its artwork agree", () => {
           `"${key}" draws identically to "${seen.get(html)}"`
         ).toBe(false);
         seen.set(html, key);
+        cleanup();
+      }
+    });
+
+    it("keeps headgear close to the head and gives directional caps a real profile", () => {
+      const frontCap = draw(<Hat kind="cap" headY={0} view="front" />);
+      const frontMarkup = frontCap.container.innerHTML;
+      expect(frontCap.container.querySelector('[data-cap-bill="front"]')).toBeTruthy();
+      cleanup();
+
+      const sideCap = draw(<Hat kind="cap" headY={0} view="side" />);
+      expect(sideCap.container.querySelector('[data-cap-bill="side"]')).toBeTruthy();
+      expect(sideCap.container.innerHTML).not.toBe(frontMarkup);
+      cleanup();
+
+      for (const [view, count] of [["front", 2], ["side", 1]]) {
+        const { container } = draw(<Hat kind="headphones" headY={0} view={view} />);
+        const cups = [...container.querySelectorAll("[data-headphone-cup]")];
+        expect(cups).toHaveLength(count);
+        for (const cup of cups) {
+          expect(Number(cup.getAttribute("height"))).toBeLessThanOrEqual(5.2);
+        }
         cleanup();
       }
     });

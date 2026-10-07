@@ -102,10 +102,11 @@ cheeks now flow through one continuous curve into a softly rounded chin.
 Straight cheek-to-chin facets made the tiny face look triangular; a perfect
 circle remains too flat, so the lower curve narrows gently without corners.
 Small ears and rounded dot eyes share the same head anchors as the glasses.
-Each open eye is one dark oval plus one catchlight; the earlier sclera, pupil,
-lid and brow stack became busy at room scale. Glasses keep only their lens
-rims—round, softly square, or smaller low-set circular readers—because bridge,
-temple and open half-moon strokes read as stray lines across the tiny face.
+Each open eye is one uninterrupted dark oval; even a pinprick catchlight
+competed with the rims at room scale, while the earlier sclera, pupil, lid and
+brow stack was busier still. Glasses keep only small, low-contrast lens rims—
+round, softly square, or low-set circular readers—because bridge, temple and
+open half-moon strokes read as stray lines across the tiny face.
 The profile uses one
 complete skull-and-jaw outline with the same rounded lower-face rhythm; never
 leave a round skull underneath a separate nose strip. A short visible neck
@@ -201,13 +202,16 @@ instead of stacking it with the near arm's side shadow. The shoulder floor is
 6.45px beneath an effective 7.81px head radius:
 the rounded head can overhang the body as it does in the reference instead of
 forcing every chest to match the skull. The masc/fem waist-to-hem contrast
-remains, but the fem hem no longer makes a pronounced triangle. Eyes,
-catchlights, blush, nose and mouth were reduced together; blush is now a faint
-supporting cue rather than the face's strongest feature. Clothed pants keep
+remains, but the fem hem no longer makes a pronounced triangle. Eyes, blush,
+nose and mouth were reduced together; blush is now a faint supporting cue
+rather than the face's strongest feature. Clothed pants keep
 one quieter side shade plus their silhouette-defining crease, stitch, cuff or
 pocket; generic knee patches are reserved for bare legs, and cargo uses a
 single pocket without an extra cuff or bright flap. Puffer and coat bulk
-remains additive.
+remains additive, but the puffer uses one quilt seam rather than a stripe stack.
+The maxi uses one broad fold, curly hair gets one shadow curl plus one glint,
+and smooth wigs cap their crown sheen at two marks. These are detail budgets,
+not missing polish: the resident must read first at room scale.
 
 **Learned from:** the first figure was a 15.6px head over a 15px leg — a third
 of its height was skull, which is toddler proportion, and no amount of shading
@@ -283,6 +287,24 @@ Three follow-on traps, each found by rendering the set rather than one sprite:
   A tail hangs to one side; braids clear the skull at ±6.6.
 - **Put length behind the body, not on it.** In the head group it lay across
   the chest as a bib.
+
+**Headgear is authored against the head unit, not the final screen size.** Keep
+all coordinates in the unscaled `HEAD_R` 7.3 space; the assembly's `HEAD_SCALE`
+then carries hats and headphones with the face, hair, and glasses in every pose.
+Close-fitting hats should follow the crown with a lower, slightly asymmetric
+silhouette instead of adding another full sphere around it. Hats may replace
+the crown layer while preserving the hairstyle's length behind the body;
+headphones set `coversHair: false`, hug the crown, and stop their cups above the
+jaw so the selected hair still reads.
+
+Direction belongs in the registry entry when the object materially changes:
+`Hat` accepts the resident view and selects a `side` renderer when present. The
+cap therefore uses a centred shallow front visor and a directional profile
+bill; headphones use two compact cups in front and one in profile. Symmetrical
+hats continue to share one renderer. Do not bake a side-facing bill into the
+default/front drawing or patch seated/preset previews independently—they use
+the same registry art. The art-sheet fixtures exercise every hat front, side,
+and seated; geometry tests pin the cap views and headphone cup count/height.
 
 **Two bodies, silhouette only.** `MODEL_SHAPE` gives `masc` broad shoulders
 dropping nearly straight and `fem` narrow shoulders, a drawn-in waist and a hem

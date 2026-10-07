@@ -80,26 +80,20 @@ const wigPath = (headY, cfg, clumps) => {
 };
 
 /**
- * The crown light — a NOTCHED band, not one arc: one major dash rising to
- * the crown, a smaller one falling on the light side (screen right), and a
- * short third below, each aligned with the flow. The zigzag break between
- * them is what reads as many strands catching light.
+ * The crown light — one broad broken band plus a smaller echo on the light
+ * side. More streaks survive in a close-up but turn into texture noise on a
+ * room-sized resident, so smooth styles share this two-mark ceiling.
  */
 const shine = (headY, apex, color = GLINT) => (
   <g stroke={color} strokeLinecap="round" fill="none">
     <path
       d={`M${-R * 0.66} ${headY - apex * 0.48} q ${R * 0.4} ${-apex * 0.26} ${R * 0.86} ${-apex * 0.14}`}
       strokeWidth="1.9"
-      opacity="0.16"
+      opacity="0.13"
     />
     <path
       d={`M${R * 0.36} ${headY - apex * 0.6} q ${R * 0.3} ${apex * 0.1} ${R * 0.44} ${apex * 0.26}`}
       strokeWidth="1.4"
-      opacity="0.13"
-    />
-    <path
-      d={`M${-R * 0.16} ${headY - apex * 0.34} q ${R * 0.22} ${-apex * 0.1} ${R * 0.44} ${-apex * 0.08}`}
-      strokeWidth="0.9"
       opacity="0.1"
     />
   </g>
@@ -680,8 +674,6 @@ export const HAIR_REGISTRY = {
         {/* interior curl marks — the same C-arc grammar as the front */}
         {[
           [-3.4, -2.6, 2],
-          [2.8, -4, 2.2],
-          [-0.4, 1.8, 1.7],
         ].map(([x, dy, r]) => (
           <path
             key={`${x},${dy}`}
@@ -689,14 +681,13 @@ export const HAIR_REGISTRY = {
             stroke="#000"
             strokeWidth="0.7"
             fill="none"
-            opacity="0.13"
+            opacity="0.11"
             strokeLinecap="round"
           />
         ))}
         {/* coil-top glints on the light side, never a straight band */}
         {[
           [2, -6.4, 2.4],
-          [5.4, -2.4, 2],
         ].map(([x, dy, r]) => (
           <path
             key={`g${x},${dy}`}
@@ -704,7 +695,7 @@ export const HAIR_REGISTRY = {
             stroke={GLINT}
             strokeWidth="1.3"
             fill="none"
-            opacity="0.16"
+            opacity="0.13"
             strokeLinecap="round"
           />
         ))}
@@ -745,8 +736,6 @@ export const HAIR_REGISTRY = {
             straight flow lines are the wrong grammar for curls */}
         {[
           [-3.6, -2.4, 2],
-          [2.6, -3.8, 2.2],
-          [0.2, 0.4, 1.7],
         ].map(([x, dy, r]) => (
           <path
             key={`${x},${dy}`}
@@ -754,7 +743,7 @@ export const HAIR_REGISTRY = {
             stroke="#000"
             strokeWidth="0.7"
             fill="none"
-            opacity="0.13"
+            opacity="0.11"
             strokeLinecap="round"
           />
         ))}
@@ -762,7 +751,6 @@ export const HAIR_REGISTRY = {
             straight band across a cloud of curls */}
         {[
           [2.2, -6.2, 2.4],
-          [5.2, -2.6, 2],
         ].map(([x, dy, r]) => (
           <path
             key={`g${x},${dy}`}
@@ -770,7 +758,7 @@ export const HAIR_REGISTRY = {
             stroke={GLINT}
             strokeWidth="1.3"
             fill="none"
-            opacity="0.16"
+            opacity="0.13"
             strokeLinecap="round"
           />
         ))}

@@ -11,11 +11,9 @@ export const DEFAULT_ISO_SIZE = { w: 9, d: 7 };
 // Versioned because normalization occasionally needs to repair an old saved
 // arrangement without forever overriding choices the user makes afterward.
 export const ISO_LAYOUT_VERSION = 2;
-// Raised from 60 for group rooms: a study hall with four tables, sixteen
-// chairs, people in them and shelving along two walls lands around 75, and 60
-// silently truncated it. Room SIZE was never the constraint — the floor has
-// gone to 48x48 all along. The scene is memo'd and each placement is a handful
-// of SVG nodes, so the ceiling here is legibility, not frame rate.
+// Shared item cap for editable rooms. Large lots can still be expensive to
+// rasterize; scene memoization, camera transforms and dense-scene motion
+// treatment handle separate performance costs.
 export const ISO_MAX_ITEMS = 150;
 // Irregular floors, the full Sims way: a TILE MASK. `mask` is d row-strings
 // of w chars ("1" = floor, "0" = void) painted in the panel's floor-plan
@@ -286,7 +284,7 @@ export const ISO_ITEMS = {
   orchid: { label: "Orchid", icon: "🌸", foot: [0.4, 0.4], hitH: 36, stacks: true },
   plant: { label: "Potted plant", icon: "🪴", foot: [0.6, 0.6], hitH: 46, stacks: true },
   floorlamp: { label: "Floor lamp", icon: "💡", hitH: 84, foot: [0.8, 0.8], glow: [34, 0.72] },
-  // roamer: wanders like a persona, but with cat rules — finds a rug, naps.
+  // Pets roam independently and settle on soft ground; people stay placed.
   cat: { label: "Cat", icon: "🐈", foot: [1.2, 0.8], hitH: 34, roamer: true },
   // Architecture: openings that give a wall somewhere to look through.
   archway: { label: "Archway", icon: "🏛️", foot: [2, 0.3], wall: true, hitH: 104 },
@@ -332,8 +330,8 @@ export const ISO_ITEMS = {
   picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10 },
   bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16, backView: true },
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
-  // the resident — a little person you drop anywhere: onto a seat (they sit)
-  // or the open floor (they idle-wander). Tint = their sweater.
+  // Residents stay where placed: seated on furniture/soft ground or standing
+  // on clear floor. They move only when carried. Tint = their sweater.
   // YOU. A persona like the resident, but the only one drawn with the
   // character from your profile — and `unique` so a saved layout can never
   // contain two of you, however it got there. The generic residents stay
@@ -568,8 +566,7 @@ export function personaCanSit(gx, gy, layout, placements, selfId) {
       return s && !s.soft && s.placement.id === seat.placement.id;
     });
   }
-  // Soft ground and bare floor both refuse furniture overlap — the wander
-  // engine's "bumped into furniture" rule.
+  // Floor drops refuse furniture overlap; soft ground can host several people.
   return !others.some((o) => {
     const it = ISO_ITEMS[o.item];
     if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;

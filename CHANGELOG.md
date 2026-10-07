@@ -4,7 +4,8 @@ A human-readable history of TaskNook — the git log written out in full
 sentences, with the reasoning put back in. `git log` tells you *what* changed;
 this file tries to also say *why*, and calls out the actual decisions (and
 reversed decisions) made along the way. Feature-level "why" that stays true
-going forward lives in `CLAUDE.md`; this file is the day-by-day record of how
+going forward lives in `AGENTS.md` and the guides indexed in `docs/README.md`;
+this file is the day-by-day record of how
 it got there.
 
 Newest entries at the top. Entries are grouped by day (local time), tagged

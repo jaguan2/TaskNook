@@ -64,9 +64,9 @@ const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
 // or accessories. These are saved through the same profile API as the editor.
 const LOOKS = {
   study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", width: 7.8, height: 28 },
-  casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 32 },
+  casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 29 },
   winter: { model: "fem", skin: "#e8ad84", hair: "braids", hairColor: "#4d332c", garment: "turtleneck", outfit: "#ede0c9", coat: "puffer", coatColor: "#8e526c", pants: "trousers", trouser: "#5b526d", hat: "trapper", scarf: "wrapped", scarfColor: "#c9a24b", shoes: "boots", width: 7.4, height: 29 },
-  garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 30 },
+  garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 29 },
   cafe: { model: "fem", skin: "#f0cfb4", hair: "bob", hairColor: "#b57248", garment: "shirt", outfit: "#f2e4ca", coat: "cardigan", coatColor: "#ad6678", pants: "pleats", trouser: "#5f7384", shoes: "loafers", width: 6.6, height: 26 },
   summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 31 },
   maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 26, torso: 14.5 },
@@ -250,9 +250,11 @@ function makePage(cdp) {
   const closePanels = () =>
     evaluate(`document.querySelectorAll('button[aria-label^="Close"]').forEach(b => b.click()); 'ok'`);
 
-  const shot = async (file, format = "webp") => {
-    const r = await send("Page.captureScreenshot",
-      format === "webp" ? { format: "webp", quality: 92 } : { format: "png" });
+  const shot = async (file, format = "webp", capture = {}) => {
+    const r = await send("Page.captureScreenshot", {
+      ...(format === "webp" ? { format: "webp", quality: 92 } : { format: "png" }),
+      ...capture,
+    });
     if (!r?.data) throw new Error(`empty capture for ${file}`);
     writeFileSync(file, Buffer.from(r.data, "base64"));
     return r.data.length;
@@ -357,7 +359,10 @@ async function modelShot(cdp, page, file, presets) {
     const right = Math.max(...models.map(model => model.bounds.x + model.bounds.width)) + 5;
     const bottom = Math.max(...models.map(model => model.bounds.y + model.bounds.height)) + 5;
     const stage = document.createElement('main');
-    stage.style.cssText = 'width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${presets ? 4 : 1},minmax(0,1fr));grid-template-rows:repeat(${presets ? 2 : 1},minmax(0,1fr))';
+    // Pin the review sheet to the viewport. Clicking a preview control inside
+    // the right-hand drawer can leave the document horizontally scrolled;
+    // a normal-flow stage inherited that offset and clipped the first caption.
+    stage.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${presets ? 4 : 1},minmax(0,1fr));grid-template-rows:repeat(${presets ? 2 : 1},minmax(0,1fr))';
     for (const model of models) {
       const figure = document.createElement('figure');
       figure.style.cssText = 'margin:0;min-width:0;min-height:0;overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px';
@@ -374,10 +379,43 @@ async function modelShot(cdp, page, file, presets) {
     }
     const still = document.createElement('style');
     still.textContent = '*{animation:none!important;transition:none!important}body{margin:0!important}';
-    document.head.append(still);document.body.replaceChildren(stage);
+    document.head.append(still);
+    document.documentElement.style.cssText = 'overflow:hidden;width:100%;height:100%';
+    document.body.style.cssText = 'margin:0!important;position:fixed;inset:0;width:100%;height:100%;overflow:hidden';
+    document.body.replaceChildren(stage);
+    if (document.scrollingElement) {
+      document.scrollingElement.scrollLeft = 0;
+      document.scrollingElement.scrollTop = 0;
+    }
+    window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
   })()`);
   await sleep(200);
-  await page.shot(file);
+  const layout = await page.evaluate(`(() => {
+    const stage = document.querySelector('main');
+    const captions = [...document.querySelectorAll('figcaption')].map(node => {
+      const box = node.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const textBox = range.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return { text: node.textContent, left: box.left, right: box.right,
+        textLeft: textBox.left, textRight: textBox.right, transform: style.transform,
+        position: style.position, width: style.width };
+    });
+    const box = stage?.getBoundingClientRect();
+    return {
+      stage: box && { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+      viewport: { width: innerWidth, height: innerHeight },
+      clippedCaptions: captions.filter(caption => caption.textLeft < 0 || caption.textRight > innerWidth),
+      scroll: { x: scrollX, y: scrollY },
+    };
+  })()`);
+  if (!layout.stage || layout.stage.left !== 0 || layout.stage.top !== 0 ||
+      layout.stage.right !== layout.viewport.width || layout.stage.bottom !== layout.viewport.height ||
+      layout.clippedCaptions.length || layout.scroll.x || layout.scroll.y) {
+    throw new Error(`Character sheet escaped its viewport: ${JSON.stringify(layout)}`);
+  }
+  await page.shot(file, "webp", { captureBeyondViewport: false });
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: W, height: H, deviceScaleFactor: 1, mobile: false,
   });
@@ -589,6 +627,100 @@ async function main() {
       await page.shot(join(OUT_DIR, "44-willow-pond-seats.webp"));
     }
     console.log("  willow pond: garden arrival and open-seat view");
+  }
+
+  if (want("45") || want("46")) {
+    // These are daily device markers, not seeded task/session totals. Reset
+    // them on the throwaway capture profile for a reproducible first look.
+    await page.evaluate(`localStorage.removeItem('tasknook.challenges')`);
+    await page.setStorage({ "tasknook.timerMode": "timer" });
+    await page.load();
+    await page.clickText("Challenges", { exact: true });
+    await sleep(1000);
+    if (want("45")) {
+      await page.shot(join(OUT_DIR, "45-challenges.webp"));
+      console.log("  challenges: varied daily developer prompts");
+    }
+    if (want("46")) {
+      await page.clickText("My challenges", { exact: true });
+      const createGoal = async (draft) => {
+        await page.clickText("New challenge", { exact: true });
+        await page.evaluate(`(() => {
+          const form = document.querySelector('form[aria-label="New personal challenge"]');
+          const draft = ${JSON.stringify(draft)};
+          for (const [input, value] of [
+            [form.querySelector('input:not([type="number"])'), draft.title],
+            [form.querySelector('input[type="number"]'), String(draft.target)],
+          ]) {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          const selects = form.querySelectorAll('select');
+          selects[0].value = draft.tracking;
+          selects[0].dispatchEvent(new Event('change', { bubbles: true }));
+          selects[1].value = draft.cadence;
+          selects[1].dispatchEvent(new Event('change', { bubbles: true }));
+        })()`);
+        await page.clickText("Add challenge", { exact: true });
+      };
+      await createGoal({ title: "Read three chapters", target: 3, cadence: "ongoing", tracking: "manual" });
+      await page.clickText("+1 step", { exact: true });
+      await createGoal({ title: "Stretch today", target: 1, cadence: "daily", tracking: "manual" });
+      await createGoal({ title: "Finish two tasks", target: 2, cadence: "daily", tracking: "task-completed" });
+      await page.closePanels();
+      if (!await page.evaluate(`!!document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]')`)) {
+        // Subset runs may skip the normal seed and have no unfinished task.
+        await page.evaluate(`(() => {
+          const input = document.querySelector('input[placeholder$="New Task"]');
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Read another chapter');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        })()`);
+        await page.evaluate(`document.querySelector('input[placeholder$="New Task"]').closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))`);
+        await page.evaluate(`(async () => {
+          for (let i = 0; i < 40; i++) {
+            if (document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]')) return;
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          throw new Error('Could not prepare a personal-challenge task');
+        })()`);
+      }
+      await page.evaluate(`(() => {
+        const button = document.querySelector('button[aria-label^="Mark "][aria-label$=" complete"]');
+        if (!button) throw new Error('Personal challenge capture needs an unfinished task');
+        button.click();
+      })()`);
+      await page.evaluate(`(async () => {
+        for (let i = 0; i < 40; i++) {
+          if (JSON.parse(localStorage.getItem('tasknook.challenges')).custom.find(g => g.title === 'Finish two tasks')?.progress === 1) return;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        throw new Error('Personal challenge task credit did not arrive');
+      })()`);
+      await page.clickText("Challenges", { exact: true });
+      await page.clickText("My challenges", { exact: true });
+      await sleep(1000);
+      await page.shot(join(OUT_DIR, "46-personal-challenges.webp"));
+      console.log("  challenges: daily and ongoing personal goals");
+    }
+  }
+
+  if (want("47")) {
+    // Reset the throwaway device's bonus marker; SQLite study history still
+    // supplies real XP, avoiding a prior review's simulated future check-in.
+    await page.evaluate(`localStorage.removeItem('tasknook.progression')`);
+    await page.load();
+    await page.clickText("Profile", { exact: true });
+    await page.evaluate(`(async () => {
+      for (let i = 0; i < 40; i++) {
+        const card = document.querySelector('[aria-label="Your level"]');
+        if (card) { card.querySelector('details').open = true; return; }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error('Profile level card did not load');
+    })()`);
+    await sleep(1000);
+    await page.shot(join(OUT_DIR, "47-profile-levels.webp"));
+    console.log("  profile: level, XP and check-in streak");
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

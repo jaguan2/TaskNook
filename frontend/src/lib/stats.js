@@ -73,9 +73,7 @@ export function intensityOf(minutes, scale) {
 /**
  * Headline numbers for a history view: your best day, this week's total, and how
  * that compares with the seven days before it. Shown under the calendar's month
- * grid — the grid itself is the history (it shades every day by intensity), so
- * there is no separate heatmap. One existed, in the retired Progress panel;
- * it restated the same days the calendar was already drawing.
+ * grid, which shades the same saved history by daily focus intensity.
  *
  * `deltaPct` is null rather than 0 when last week was empty — "up 0%" and "your
  * first week" are different things, and dividing by zero says the wrong one.

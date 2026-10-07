@@ -15,3 +15,15 @@ it("warms a panel before selecting it", () => {
   fireEvent.click(room);
   expect(select).toHaveBeenCalledWith("room");
 });
+
+it("opens Challenges and reveals its label on keyboard focus", () => {
+  const select = vi.fn();
+  render(<Dock active={[]} onSelect={select} />);
+  const challenges = screen.getByRole("button", { name: "Challenges" });
+  fireEvent.focus(challenges);
+  expect(screen.getAllByText("Challenges")).toHaveLength(2);
+  fireEvent.click(challenges);
+  expect(select).toHaveBeenCalledWith("challenges");
+  fireEvent.blur(challenges);
+  expect(screen.getAllByText("Challenges")).toHaveLength(1);
+});

@@ -12,8 +12,12 @@ function GardenSurface({ surface, clipId }) {
     </g>
     <g transform={`translate(0,${-z})`}>
       <polygon points={floorPatch(gx, gy, dx, dy)} fill={color} />
-      <g clipPath={`url(#${clipId})`} transform={`translate(${origin.x},${origin.y})`}>
-        <FloorSurface w={dx} d={dy} style={style} />
+      {/* The clip already uses room coordinates. Translate only the local
+          material; moving its clip too would exclude the entire terrace. */}
+      <g clipPath={`url(#${clipId})`}>
+        <g transform={`translate(${origin.x},${origin.y})`}>
+          <FloorSurface w={dx} d={dy} style={style} />
+        </g>
       </g>
     </g>
   </>;
@@ -107,8 +111,8 @@ export default function CommonGardenScene({ scene, uid, clip, glow, layers, ligh
           fill="#4f7651" transform={`rotate(${-20 + i * 6} ${bulb.x - 3} ${bulb.y - 4})`} />}
       </g>)}
     </g>
-    <g clipPath={`url(#${lawnClip})`}>{lightPools("ground")}</g>
-    <g clipPath={`url(#${patioClip})`}>{lightPools("patio")}</g>
+    {lightPools("ground")}
+    {lightPools("patio")}
     {layers("ground")}
     {layers("patio")}
   </g>;

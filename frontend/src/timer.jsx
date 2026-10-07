@@ -65,7 +65,7 @@ export const useTimer = () => useContext(TimerContext);
 export const useTimerStatus = () => useContext(TimerStatusContext);
 
 export function TimerProvider({ children }) {
-  const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend } = useStore();
+  const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend, recordChallengeEvent } = useStore();
 
   const [focusMinutes, setFocusMinutes] = useState(() =>
     normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 30)
@@ -244,6 +244,7 @@ export function TimerProvider({ children }) {
       /* older webviews may not implement it */
     }
     setRunning(true);
+    if (!running && phase === "focus") recordChallengeEvent("focus-started");
   };
   const pauseTimer = () => {
     // Sample the anchor BEFORE stopping. In a throttled/minimised window the
@@ -306,8 +307,9 @@ export function TimerProvider({ children }) {
       return;
     }
     try {
+      const minutes = Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60));
       await api.logSession({
-        minutes: Math.max(1, Math.round((focusMinutes * 60 + nudgeSeconds) / 60)),
+        minutes,
         // No active task sends NOTHING, not a placeholder. These used to log
         // the literals "Focus" and "Stopwatch", which the calendar's day
         // breakdown then showed as two ordinary tasks by those names — so the
@@ -316,6 +318,8 @@ export function TimerProvider({ children }) {
         // "Focus". Absent means absent; the panel decides how to word it.
         taskName: activeTask ? activeTask.name : null,
       });
+      recordChallengeEvent("focus-session-completed");
+      recordChallengeEvent("focus-minutes", minutes);
       await refreshFocus();
     } catch (err) {
       // Not ignorable: a silently-unlogged block reads as a frozen streak.
@@ -339,7 +343,7 @@ export function TimerProvider({ children }) {
     }
     // `setClock` is a stable useCallback with no deps of its own, so listing it
     // costs nothing and keeps the rule satisfied honestly rather than suppressed.
-  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock, chimeVolume]);
+  }, [phase, round, focusMinutes, nudgeSeconds, pomodoro, activeTask, refreshFocus, showToast, setClock, chimeVolume, recordChallengeEvent]);
 
   // Ends a break early and moves straight into the next focus round — before
   // this, the only way out of a break was ✕, which discards the whole cycle.
@@ -460,6 +464,8 @@ export function TimerProvider({ children }) {
         // Absent rather than the literal "Stopwatch" — see finishFocus above.
         taskName: activeTask ? activeTask.name : null,
       });
+      recordChallengeEvent("focus-session-completed");
+      recordChallengeEvent("focus-minutes", minutes);
       await refreshFocus();
     } catch (err) {
       console.error("Failed to log the stopwatch session:", err);

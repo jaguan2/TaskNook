@@ -52,6 +52,9 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
   const cardRef = useRef(null);
+  // Returning from the widget creates the HUD's DOM again. Its boot-only
+  // animation must not hide a running timer during that return.
+  const skipIntro = useRef(compact);
   // The card remains mounted when Settings hides it, so an edge dismissal
   // must also reset its retained motion values. Otherwise restoring "Session
   // & timer" would reveal it at the same unreachable off-screen position.
@@ -63,6 +66,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
   // Returning to the cottage restores the control in its collapsed state.
   useEffect(() => {
     if (!compact) return;
+    skipIntro.current = true;
     setExpanded(false);
     // A card dragged around the full cottage keeps motion values even while
     // mounted. The small window has no room for that old offset, so centre it.
@@ -118,15 +122,11 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     // reach the dock's territory — it should overlay it like a dropdown, not
     // slide underneath.
     <div
-      className={`intro-chrome pointer-events-none absolute z-30 ${
-        compact
-          ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-          : "left-6 top-6"
-      }`}
+      className={`${skipIntro.current ? "" : "intro-chrome "}pointer-events-none absolute left-6 top-6 z-30`}
     >
       <motion.div
         ref={cardRef}
-        drag={!compact}
+        drag
         dragListener={false}
         dragControls={dragControls}
         dragMomentum={false}
@@ -147,13 +147,11 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
         )}
 
         <div className="glass relative w-full rounded-2xl px-4 pb-3 pt-2 shadow-soft">
-          {!compact && (
-            <div
-              onPointerDown={(e) => dragControls.start(e)}
-              title="Drag to move"
-              className="mx-auto mb-1 h-1.5 w-10 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
-            />
-          )}
+          <div
+            onPointerDown={(e) => dragControls.start(e)}
+            title="Drag to move"
+            className="mx-auto mb-1 h-1.5 w-10 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
+          />
 
           {/* pomodoro round pips */}
           {!stopwatch && pomodoro.enabled && (
@@ -262,23 +260,21 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                 <Check size={15} />
               </button>
             )}
-            {!compact && (
-              <button
-                onClick={() => setExpanded((e) => !e)}
-                title="Timer options"
-                aria-label="Timer options"
-                aria-expanded={expanded}
-                className={`pill grid h-8 w-8 place-items-center transition ${
-                  expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
-                }`}
-              >
-                {expanded ? <ChevronLeft size={15} /> : <Settings2 size={14} />}
-              </button>
-            )}
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              title="Timer options"
+              aria-label="Timer options"
+              aria-expanded={expanded}
+              className={`pill grid h-8 w-8 place-items-center transition ${
+                expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
+              }`}
+            >
+              {expanded ? <ChevronLeft size={15} /> : <Settings2 size={14} />}
+            </button>
           </div>
 
           {/* options, tucked away by default */}
-          {expanded && !compact && (
+          {expanded && (
             <div className="glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
               <div className="flex justify-center gap-1">
                 {[

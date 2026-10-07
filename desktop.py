@@ -240,6 +240,7 @@ class DesktopApi:
         self._window = None
         self._widget_mode = False
         self._normal_bounds = None
+        self._normal_chrome = None
         self._normal_was_maximized = False
         self._is_maximized = False
         self._window_lock = threading.Lock()
@@ -281,18 +282,73 @@ class DesktopApi:
         if window is None:
             return False
         requested = bool(value)
-        window.on_top = requested
+
+        def apply():
+            window.on_top = requested
+
+        self._on_native_thread(apply)
         # The bridge returns whether the OPERATION succeeded, not the resulting
         # state. Returning `window.on_top` made a successful "turn it off"
         # indistinguishable from failure to the frontend.
         return bool(window.on_top) == requested
 
+    def _on_native_thread(self, action):
+        """Bridge callbacks are workers; WinForms setters belong to its UI thread."""
+        if sys.platform != "win32":
+            action()
+            return
+        from System import Action
+
+        native = self._window.native
+        if native.InvokeRequired:
+            native.Invoke(Action(action))
+        else:
+            action()
+
+    def _set_widget_chrome(self, enabled):
+        """Change WinForms decorations on its UI thread, never a bridge worker.
+
+        Other desktop platforms retain their normal frame around the compact
+        timer. Windows is the shipped executable's native window backend.
+        """
+        if sys.platform != "win32":
+            return
+
+        from System.Drawing import Size
+        from System.Windows.Forms import FormBorderStyle
+
+        native = self._window.native
+
+        def apply():
+            if enabled:
+                self._normal_chrome = (
+                    native.FormBorderStyle, native.MinimumSize,
+                    native.MaximumSize, native.MaximizeBox,
+                )
+                native.FormBorderStyle = getattr(FormBorderStyle, "None")
+                native.MaximizeBox = False
+                # WinForms bounds are physical pixels; pywebview's resize and
+                # saved geometry are logical pixels. Match the monitor's DPI.
+                scale = native.DeviceDpi / 96
+                size = Size(*(int(dimension * scale) for dimension in WIDGET_WINDOW_SIZE))
+                native.MinimumSize = size
+                native.MaximumSize = size
+            elif self._normal_chrome is not None:
+                style, minimum, maximum, maximize = self._normal_chrome
+                native.MaximumSize = maximum
+                native.MinimumSize = minimum
+                native.MaximizeBox = maximize
+                native.FormBorderStyle = style
+                self._normal_chrome = None
+
+        self._on_native_thread(apply)
+
     def set_widget_mode(self, value):
         """Resize the native app around the timer and restore it exactly.
 
         The frontend still owns which React surfaces render. This method owns
-        only OS-window geometry/title, keeping web mode fully supported. Bounds
-        are captured once on entry; moving the small widget never overwrites
+        only OS-window geometry/title/chrome, keeping web mode supported.
+        Bounds are captured once on entry; moving the small widget never overwrites
         the full app's remembered home.
         """
         window = self._window
@@ -304,24 +360,26 @@ class DesktopApi:
                 return True
 
             if enabled:
+                self._normal_was_maximized = self._is_maximized
+                if self._normal_was_maximized:
+                    window.restore()
+                # Capture the restored bounds, not the monitor-sized maximized
+                # bounds, so unmaximizing later still returns to the old size.
                 self._normal_bounds = {
                     "x": window.x,
                     "y": window.y,
                     "width": window.width,
                     "height": window.height,
                 }
-                self._normal_was_maximized = self._is_maximized
-                if self._is_maximized:
-                    window.restore()
+                self._set_widget_chrome(True)
                 window.resize(*WIDGET_WINDOW_SIZE)
                 window.set_title("TaskNook Timer")
             else:
                 bounds = self._normal_bounds
                 window.restore()
+                self._set_widget_chrome(False)
                 if bounds:
-                    # Normal mode keeps the application's established usable
-                    # floor even though the creation-time minimum must permit
-                    # the much smaller widget shell.
+                    # Keep restored app bounds within its usable minimum.
                     width = max(NORMAL_MIN_SIZE[0], bounds["width"])
                     height = max(NORMAL_MIN_SIZE[1], bounds["height"])
                     window.resize(width, height)
@@ -406,10 +464,9 @@ def main():
             url,
             width=NORMAL_WINDOW_SIZE[0],
             height=NORMAL_WINDOW_SIZE[1],
-            # Widget Mode temporarily needs a much smaller native shell. The
-            # API restores normal geometry on exit; this creation-time minimum
-            # is the hard floor enforced by the platform toolkit.
-            min_size=WIDGET_WINDOW_SIZE,
+            # Windows changes its native minimum together with the frame when
+            # entering Widget Mode. Other platforms keep the compact fallback.
+            min_size=NORMAL_MIN_SIZE if sys.platform == "win32" else WIDGET_WINDOW_SIZE,
             js_api=api,
         )
         api._attach_window(window)

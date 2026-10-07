@@ -1,5 +1,5 @@
-// Isometric (2:1 dimetric) projection math — the seed of the future
-// Sims-style room. Pure functions only; the artwork lives in components.
+// Projection math for the shipped 2:1 dimetric room. Pure functions only;
+// the artwork lives in components.
 //
 // Grid convention: (gx, gy) are floor-tile coordinates. +gx runs toward the
 // viewer's lower-RIGHT, +gy toward the lower-LEFT, so the room's back corner
@@ -9,8 +9,8 @@
 //   screenX = (gx - gy) · TILE_W/2
 //   screenY = (gx + gy) · TILE_H/2
 //
-// The matrix is invertible, which is what will make dragging possible later:
-// pointer → scene px (via getScreenCTM, as today) → unproject → grid tile.
+// Dragging converts pointer coordinates through getScreenCTM().inverse(),
+// then unproject() maps the scene point back onto the floor grid.
 
 export const TILE_W = 48; // a floor diamond is twice as wide…
 export const TILE_H = 24; // …as it is tall (2:1 isometric)

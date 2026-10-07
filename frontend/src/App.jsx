@@ -7,7 +7,7 @@ import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
-import { onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
+import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
 import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
@@ -30,6 +30,7 @@ const PANEL_LOADERS = {
   tasks: () => import("./components/TaskPanel"),
   calendar: () => import("./components/CalendarPanel"),
   friends: () => import("./components/FriendsPanel"),
+  challenges: () => import("./components/ChallengesPanel"),
   music: () => import("./components/MusicPanel"),
   weather: () => import("./components/WeatherPanel"),
   room: () => import("./components/RoomPanel"),
@@ -39,6 +40,7 @@ const PANEL_LOADERS = {
 const TaskPanel = lazy(PANEL_LOADERS.tasks);
 const CalendarPanel = lazy(PANEL_LOADERS.calendar);
 const FriendsPanel = lazy(PANEL_LOADERS.friends);
+const ChallengesPanel = lazy(PANEL_LOADERS.challenges);
 const MusicPanel = lazy(PANEL_LOADERS.music);
 const WeatherPanel = lazy(PANEL_LOADERS.weather);
 const RoomPanel = lazy(PANEL_LOADERS.room);
@@ -49,14 +51,11 @@ const ProfilePanel = lazy(PANEL_LOADERS.profile);
 const warmPanel = (key) => PANEL_LOADERS[key]?.().catch(() => undefined);
 
 const PANELS = {
-  // There is deliberately no Progress panel. It existed, and it was mostly a
-  // mirror: the goal/streak chip already lives on the scene, the calendar
-  // already shades every day by focus intensity, and what remained (goal
-  // config, list completion) moved into Tasks — dissolved 2026-08-16, owner
-  // call ("not really worthwhile having").
+  // Tasks owns goals and list completion; Calendar owns focus history.
   tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
   calendar: { title: "Calendar", subtitle: "Plan tasks across your days", Comp: CalendarPanel },
   friends: { title: "Friends", subtitle: "Cheer on your cottage neighbours", Comp: FriendsPanel },
+  challenges: { title: "Challenges", subtitle: "Little things to try today", Comp: ChallengesPanel },
   music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
   weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },
   room: { title: "Room", subtitle: "Make the space yours — drag to arrange", Comp: RoomPanel },
@@ -80,6 +79,7 @@ export default function App() {
     bootError,
     toast,
     dismissToast,
+    showToast,
     weatherMode,
     timeOfDay,
     brightness,
@@ -173,10 +173,16 @@ export default function App() {
   // once more on `pywebviewready` for a persisted mode during startup. In a
   // browser this safely remains a compact in-page timer view.
   useEffect(() => {
-    const apply = () => setDesktopWidgetMode(widgetMode);
+    let cancelled = false;
+    const apply = async () => {
+      if (!hasDesktopWidgetApi()) return;
+      const success = await setDesktopWidgetMode(widgetMode);
+      if (!success && !cancelled) showToast("Could not change the desktop window. Your timer is still available.");
+    };
     apply();
-    return onDesktopApiReady(apply);
-  }, [widgetMode]);
+    const unsubscribe = onDesktopApiReady(apply);
+    return () => { cancelled = true; unsubscribe(); };
+  }, [widgetMode, showToast]);
 
   // data-theme lives on <html> (not this component's root) so the CSS
   // variables it swaps also reach <body>'s own themed background gradient.
