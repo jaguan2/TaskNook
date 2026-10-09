@@ -465,6 +465,32 @@ unchanged. The woodland nook and seaside studio use reading chairs, tea tables,
 plant stands, and arched mirrors to give the floor and wall areas distinct uses.
 The cottage catalog searches by piece name, across all placement groups.
 
+The classic shell uses an open laptop with a keyboard deck and trackpad. Its
+wider floor separates the study and lounge areas and leaves an open foreground
+path. Cozy lounge places the sofa against the wall beyond the desk's end,
+with a broad coffee table centered in front and within reach. Its study chair
+is proportioned to the desk, with a wider seat and an appropriate seat height;
+Classic study also includes that chair. The bookshelf sits beside the desk,
+and both drawer fronts remain accessible. Existing saved layouts keep their
+placements; choose a preset to load the revised arrangement.
+
+**Practical use comes before decorative density.** Decide how someone enters,
+pulls out their chair, opens storage, reaches a table and uses each seat before
+placing accents. Review the chair, desk, laptop and sofa together at room
+scale; a catalog closeup cannot establish that they fit one another. A seat
+must face its purpose, and furniture zones need space between them. Do not
+solve crowding by hiding an obstruction behind another sprite. The flat-room
+preset tests reserve drawer access and guard study-chair size/clearance and
+the lounge table's alignment and reach. These checks apply to authored presets;
+user decoration remains freeform. Walkways and convincing proportions still
+need a visual review.
+
+A possible next direction for 2D is a side-view study composition: a person
+in profile at the desk, a large nearby window, and a quieter room behind them.
+That needs an authored seated figure and coordinated desk/window geometry.
+Treat it as a new composition with its own placement mapping, rather than
+silently moving existing decorations into a different coordinate system.
+
 Rooms must read as *real rooms*, not scattered objects (user feedback,
 learned the hard way):
 

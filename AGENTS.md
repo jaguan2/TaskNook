@@ -183,7 +183,17 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 ## Classic cottage and saved outfits
 
 The 2D catalog lives in `lib/room.js` and `components/RoomItems.jsx`. It has
-35 decorations and seven presets, including Cozy lounge. `Cottage.jsx` keeps
+36 decorations and seven presets, including Cozy lounge. The fixed study desk
+uses an open laptop. `COTTAGE_FRAME` owns the wider room's render/clip bounds
+and reachable placement area; fit the frame so both furniture zones stay
+visible. `COTTAGE_DESK` supplies drawing geometry and preset clearance checks.
+Cozy lounge places the larger sofa in its own bay beside the study, with the
+coffee table centered in front. The larger rear-view study chair faces the
+desk; Classic study also includes that chair. Authored presets must keep
+drawer faces/opening space clear and leave room to use and reach furniture.
+`room.test.js` guards drawer access, study-chair clearance/size and the lounge
+table's alignment/reach; visual checks must also judge proportions and paths.
+`Cottage.jsx` keeps
 selection and dragging local; `CottageItemControls.jsx` provides grid nudges,
 copy and two-tap removal. Arrow keys move the selection; Shift moves five grid
 steps. Text inputs use the shared typing-target guard. Copy preserves tint,
@@ -1730,9 +1740,9 @@ running `git commit` yourself.
   document-wide and only one scene is ever mounted. Built-in wall decor (the
   window, string lights) only renders when the wall is long enough.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
-  assets, no isometric projection) — a desk by a window. It takes `focused`
-  (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
-  matches `WeatherOverlay`), and `timeOfDay` (`night`/`sunset`/`day`, swaps the sky
+  assets, no isometric projection) — a desk by a window plus a separate seating
+  area. It takes `setting`, `weather` (matches `WeatherOverlay`) and
+  `timeOfDay` (`night`/`sunset`/`day`, swaps the sky
   gradient/building colors/sun-or-moon position/lamp prominence via `TIME_PRESETS`).
   Remember SVG quirks: `skewY()` takes only an angle; use `rotate(angle cx cy)`
   for centered rotation.

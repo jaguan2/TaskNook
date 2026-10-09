@@ -3,7 +3,7 @@
 // components/RoomItems.jsx.
 //
 // A layout ("placements") is an array of { id, item, x, y, tint? } in the
-// scene's 640x480 viewBox coordinates. (x, y) is the item's ORIGIN — the point
+// scene's SVG coordinates. (x, y) is the item's ORIGIN — the point
 // of the sprite that touches its surface (base of a plant pot, centre of a
 // wall frame). Placement is deliberately unbounded: an item's `zone` is only
 // its spawn point and panel grouping, never a constraint — a plant can sit on
@@ -21,7 +21,16 @@ export const cottageSetting = (value) => Object.hasOwn(COTTAGE_SETTINGS, value) 
 
 // The one placement rule: the ORIGIN stays inside the room's frame, so every
 // item remains reachable in edit mode (sprites may overhang; roomClip trims).
-export const ROOM_BOUNDS = { x: 20, y: 20, w: 600, h: 446 };
+export const COTTAGE_FRAME = { x: -128, y: 0, w: 1152, h: 648 };
+export const ROOM_BOUNDS = { x: COTTAGE_FRAME.x + 20, y: 20, w: COTTAGE_FRAME.w - 40, h: COTTAGE_FRAME.h - 36 };
+
+// Shared with the fixed desk drawing and authored-preset clearance checks.
+export const COTTAGE_DESK = {
+  left: 30, right: 610, floorY: 400,
+  drawers: { x: 444, y: 316, w: 150 },
+  kneeLeft: 68,
+  laptopScale: 0.8,
+};
 
 // Curated tint swatches shown on a selected item — drawn from the app's own
 // palette so any recolour still feels at home in the scene.
@@ -42,7 +51,7 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 // (painter's algorithm — lower on screen = nearer = drawn later).
 export const ITEMS = {
   mirror: { label: "Arched mirror", icon: "🪞", zone: "wall", hit: { x: -25, y: -45, w: 50, h: 90 } },
-  armchair: { label: "Reading chair", icon: "🛋️", zone: "floor", hit: { x: -48, y: -86, w: 96, h: 88 } },
+  armchair: { label: "Reading chair", icon: "🛋️", zone: "floor", hit: { x: -68, y: -120, w: 136, h: 128 } },
   sidetable: { label: "Tea table", icon: "🫖", zone: "floor", hit: { x: -31, y: -53, w: 62, h: 55 } },
   plantstand: { label: "Plant stand", icon: "🪴", zone: "floor", hit: { x: -28, y: -113, w: 56, h: 115 } },
   // ---- wall ----
@@ -77,8 +86,9 @@ export const ITEMS = {
   beanbag: { label: "Beanbag", icon: "🫘", zone: "floor", hit: { x: -40, y: -34, w: 80, h: 36 } },
   basket: { label: "Yarn basket", icon: "🧺", zone: "floor", hit: { x: -24, y: -46, w: 48, h: 48 } },
   slippers: { label: "Cozy slippers", icon: "🥿", zone: "floor", hit: { x: -28, y: -14, w: 56, h: 16 } },
-  sofa: { label: "Cozy sofa", icon: "🛋️", zone: "floor", hit: { x: -75, y: -87, w: 150, h: 89 } },
-  coffeetable: { label: "Coffee table", icon: "☕", zone: "floor", hit: { x: -52, y: -49, w: 104, h: 51 } },
+  sofa: { label: "Cozy sofa", icon: "🛋️", zone: "floor", hit: { x: -137, y: -126, w: 274, h: 132 } },
+  deskchair: { label: "Study chair", icon: "🪑", zone: "floor", hit: { x: -68, y: -136, w: 136, h: 142 } },
+  coffeetable: { label: "Coffee table", icon: "☕", zone: "floor", hit: { x: -80, y: -50, w: 160, h: 55 } },
   floorcushion: { label: "Floor cushion", icon: "🧸", zone: "floor", hit: { x: -36, y: -27, w: 72, h: 29 } },
   terrarium: { label: "Glass terrarium", icon: "🌱", zone: "desk", hit: { x: -24, y: -49, w: 48, h: 51 } },
 
@@ -201,20 +211,19 @@ export function validatePlacements(raw) {
 }
 
 // --------------------------------------------------------------------------- #
-// Presets — starting points, not limits. "default" reproduces the classic
-// hand-arranged scene exactly (each position matches the original artwork).
+// Presets — starting points, not limits. "default" keeps the classic desk
+// decorations and adds the study chair facing the laptop.
 // --------------------------------------------------------------------------- #
 export const PRESETS = {
   lounge: {
     label: "Cozy lounge", icon: "🛋️", setting: "woodland",
     placements: [
-      { item: "rugstripe", x: 228, y: 440, tint: "#7faf8f" },
-      { item: "sofa", x: 212, y: 416, tint: "#7faf8f" },
-      { item: "coffeetable", x: 334, y: 450 },
-      { item: "floorcushion", x: 418, y: 450, tint: "#e8b04b" },
-      { item: "floorlamp", x: 120, y: 426 },
-      { item: "bookshelf", x: 568, y: 442 },
-      { item: "terrarium", x: 146, y: 300 },
+      { item: "sofa", x: 840, y: 408, tint: "#7faf8f" },
+      { item: "coffeetable", x: 840, y: 472 },
+      { item: "deskchair", x: 292, y: 416, tint: "#9b8bd6" },
+      { item: "floorlamp", x: 1000, y: 408 },
+      { item: "bookshelf", x: 656, y: 404 },
+      { item: "terrarium", x: 148, y: 300 },
       { item: "mug", x: 400, y: 300 },
       { item: "desklamp", x: 566, y: 296 },
       { item: "frame", x: 496, y: 88 },
@@ -223,9 +232,10 @@ export const PRESETS = {
   },
   default: {
     label: "Classic study",
-    icon: "🖥️",
+    icon: "💻",
     placements: [
       { item: "rug", x: 320, y: 440 },
+      { item: "deskchair", x: 292, y: 416, tint: "#9b8bd6" },
       { item: "deskplant", x: 86, y: 302 },
       { item: "books", x: 156, y: 300 },
       { item: "mug", x: 394, y: 300 },
@@ -252,8 +262,8 @@ export const PRESETS = {
       { item: "hangplant", x: 470, y: 76 },
       { item: "hangplant", x: 545, y: 76 },
       { item: "shelf", x: 520, y: 168 },
-      { item: "monstera", x: 90, y: 428 },
-      { item: "plantstand", x: 556, y: 436, tint: "#7faf8f" },
+      { item: "monstera", x: 656, y: 408 },
+      { item: "plantstand", x: 968, y: 408, tint: "#7faf8f" },
       { item: "cat", x: 320, y: 448 },
     ],
   },
@@ -262,7 +272,7 @@ export const PRESETS = {
     label: "Library",
     icon: "📚",
     placements: [
-      { item: "rug", x: 320, y: 440 },
+      { item: "rug", x: 800, y: 448 },
       { item: "books", x: 120, y: 300 },
       { item: "books", x: 190, y: 300 },
       { item: "notebook", x: 400, y: 306 },
@@ -271,9 +281,9 @@ export const PRESETS = {
       { item: "frame", x: 480, y: 80 },
       { item: "clock", x: 545, y: 80 },
       { item: "shelf", x: 512, y: 160 },
-      { item: "bookshelf", x: 76, y: 424 },
-      { item: "armchair", x: 492, y: 444, tint: "#9b8bd6" },
-      { item: "sidetable", x: 576, y: 440 },
+      { item: "bookshelf", x: 656, y: 404 },
+      { item: "armchair", x: 800, y: 436, tint: "#9b8bd6" },
+      { item: "sidetable", x: 900, y: 440 },
       { item: "garland", x: 320, y: 24 },
     ],
   },
@@ -281,16 +291,16 @@ export const PRESETS = {
     label: "Night owl",
     icon: "🌙",
     placements: [
-      { item: "rugstripe", x: 320, y: 442 },
+      { item: "rugstripe", x: 792, y: 444 },
       { item: "mug", x: 150, y: 300 },
-      { item: "headphones", x: 220, y: 302 },
+      { item: "headphones", x: 196, y: 302 },
       { item: "cactus", x: 420, y: 300 },
       { item: "desklamp", x: 566, y: 296 },
       { item: "poster", x: 480, y: 90 },
       { item: "polaroids", x: 552, y: 88 },
-      { item: "floorlamp", x: 580, y: 430 },
+      { item: "floorlamp", x: 968, y: 416 },
       { item: "cat", x: 150, y: 446 },
-      { item: "beanbag", x: 90, y: 440 },
+      { item: "beanbag", x: 792, y: 440 },
       { item: "garland", x: 320, y: 24 },
     ],
   },
@@ -299,11 +309,11 @@ export const PRESETS = {
     icon: "🍃",
     setting: "woodland",
     placements: [
-      { item: "rug", x: 456, y: 444, tint: "#7faf8f" },
-      { item: "bookshelf", x: 84, y: 432 },
-      { item: "armchair", x: 448, y: 444, tint: "#7faf8f" },
-      { item: "sidetable", x: 540, y: 444 },
-      { item: "floorlamp", x: 580, y: 436 },
+      { item: "rug", x: 800, y: 448, tint: "#7faf8f" },
+      { item: "bookshelf", x: 656, y: 404 },
+      { item: "armchair", x: 800, y: 436, tint: "#7faf8f" },
+      { item: "sidetable", x: 900, y: 440 },
+      { item: "floorlamp", x: 968, y: 424 },
       { item: "mirror", x: 504, y: 124, tint: "#e8b04b" },
       { item: "shelf", x: 524, y: 220 },
       { item: "books", x: 144, y: 300 },
@@ -317,10 +327,10 @@ export const PRESETS = {
     icon: "🐚",
     setting: "coast",
     placements: [
-      { item: "rugstripe", x: 240, y: 442, tint: "#6fb8cf" },
-      { item: "armchair", x: 132, y: 440, tint: "#6fb8cf" },
-      { item: "sidetable", x: 220, y: 442, tint: "#f7e9e2" },
-      { item: "plantstand", x: 556, y: 436, tint: "#f7e9e2" },
+      { item: "rugstripe", x: 792, y: 448, tint: "#6fb8cf" },
+      { item: "armchair", x: 792, y: 436, tint: "#6fb8cf" },
+      { item: "sidetable", x: 892, y: 440, tint: "#f7e9e2" },
+      { item: "plantstand", x: 656, y: 408, tint: "#f7e9e2" },
       { item: "mirror", x: 516, y: 116, tint: "#f7e9e2" },
       { item: "bunting", x: 516, y: 212, tint: "#6fb8cf" },
       { item: "flowervase", x: 100, y: 300, tint: "#6fb8cf" },

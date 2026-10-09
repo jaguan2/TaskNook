@@ -117,7 +117,7 @@ the home remains editable.
 
 | | |
 |---|---|
-| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a sofa, coffee table, floor cushion and glass terrarium in the woodland cottage. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal. |
+| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a separate sofa bay, a broad coffee table within reach, a larger study chair facing the laptop, and accessible desk storage. The expanded floor keeps the central path open. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal across the expanded room. |
 | ![Saved outfits](52-saved-outfits.webp) **My outfits** — save a named look, wear it again and keep the preview visible while navigating the controls. | |
 
 ## Features

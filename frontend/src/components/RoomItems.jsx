@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 // frame) — so the scene can place it with a single translate. Items that were
 // originally hand-placed in Cottage.jsx keep their exact artwork, wrapped in a
 // translate that moves the old coordinates onto the origin; the "default"
-// preset then reproduces the classic scene pixel-for-pixel.
+// preset keeps that desk-decoration arrangement alongside newer furniture.
 //
 // Every sprite receives `time` (the active TIME_PRESETS entry) so lamps and
 // lights can dim with the sky.
@@ -490,7 +490,7 @@ function Garland({ time }) {
 }
 
 function Armchair() {
-  return <g>
+  return <g transform="scale(1.4)">
     <ellipse cy="0" rx="47" ry="5" fill="#000" opacity=".16" />
     <path d="M-33 -17 l-3 17 M33 -17 l3 17" stroke="#493444" strokeWidth="6" />
     <rect x="-37" y="-84" width="74" height="65" rx="18" style={tinted("#9b8bd6")} />
@@ -543,27 +543,41 @@ function Mirror() {
 
 function Sofa() {
   return <g>
-    <ellipse cy="0" rx="74" ry="4" fill="#000" opacity=".16" />
-    <path d="M-60 -15 l-3 15 M60 -15 l3 15" stroke="#694b52" strokeWidth="6" />
-    <rect x="-64" y="-85" width="128" height="66" rx="18" style={tinted("#7faf8f")} />
-    <rect x="-55" y="-77" width="51" height="43" rx="12" fill="#fff" opacity=".1" />
-    <rect x="4" y="-77" width="51" height="43" rx="12" fill="#fff" opacity=".1" />
-    <rect x="-64" y="-35" width="128" height="23" rx="9" style={tinted("#7faf8f")} />
-    <path d="M-60 -17 H60 M0 -34 v19" stroke="#000" strokeWidth="2" opacity=".16" />
-    <rect x="-74" y="-51" width="17" height="39" rx="8" style={tinted("#7faf8f")} />
-    <rect x="57" y="-51" width="17" height="39" rx="8" style={tinted("#7faf8f")} />
-    <path d="M23 -51 Q39 -59 52 -47 L48 -22 Q33 -17 22 -26Z" fill="#eed8b9" />
-    <path d="M27 -44 l20 3 M26 -36 l20 3 M25 -28 l20 3" stroke="#af8b79" strokeWidth="2" opacity=".5" />
+    <ellipse cy="0" rx="135" ry="5" fill="#000" opacity=".16" />
+    <path d="M-111 -17 l-4 17 M111 -17 l4 17" stroke="#694b52" strokeWidth="7" />
+    <path d="M-120 -35 V-101 Q-120 -124 -96 -124 H96 Q120 -124 120 -101 V-35Z" style={tinted("#7faf8f")} />
+    {[-107, -34, 39].map((x) => <rect key={x} x={x} y="-113" width="68" height="67" rx="15" fill="#fff" opacity=".1" />)}
+    <rect x="-119" y="-45" width="238" height="29" rx="12" style={tinted("#7faf8f")} />
+    <path d="M-113 -22 H113 M-39 -43 v21 M39 -43 v21" stroke="#000" strokeWidth="2" opacity=".16" />
+    <path d="M-116 -43 Q0 -50 116 -43" fill="none" stroke="#fff" strokeWidth="2" opacity=".15" />
+    <rect x="-135" y="-73" width="32" height="57" rx="15" style={tinted("#7faf8f")} />
+    <rect x="103" y="-73" width="32" height="57" rx="15" style={tinted("#7faf8f")} />
+    <path d="M72 -78 Q94 -88 110 -72 L104 -31 Q84 -23 69 -37Z" fill="#eed8b9" />
+    <path d="M75 -66 l29 4 M73 -54 l29 4 M72 -43 l28 4" stroke="#af8b79" strokeWidth="2" opacity=".5" />
+  </g>;
+}
+
+// Rear view: the upholstered back is between the viewer and the desk.
+function StudyChair() {
+  return <g>
+    <ellipse cy="0" rx="66" ry="5" fill="#000" opacity=".15" />
+    <path d="M-42 -60 l-11 60 M42 -60 l11 60 M-30 -60 l8 49 M30 -60 l-8 49" fill="none" stroke="#694b52" strokeWidth="7" strokeLinecap="round" />
+    <path d="M-59 -70 Q0 -82 59 -70 L62 -51 Q0 -34 -62 -51Z" style={tinted("#9b8bd6")} />
+    <path d="M-60 -55 Q0 -40 60 -55" fill="none" stroke="#000" opacity=".16" strokeWidth="2" />
+    <path d="M-41 -68 l-7 -35 M41 -68 l7 -35" stroke="#694b52" strokeWidth="6" />
+    <path d="M-53 -78 L-58 -106 Q-61 -133 -24 -133 H24 Q61 -133 58 -106 L53 -78 Q0 -60 -53 -78Z" style={tinted("#9b8bd6")} />
+    <path d="M-47 -109 Q-47 -125 -22 -125 H22 Q47 -125 47 -109" fill="none" stroke="#fff" strokeWidth="3" opacity=".15" strokeLinecap="round" />
+    <path d="M-51 -79 Q0 -64 51 -79" fill="none" stroke="#000" strokeWidth="2" opacity=".14" />
   </g>;
 }
 
 function CoffeeTable() {
   return <g>
-    <ellipse cy="0" rx="49" ry="4" fill="#000" opacity=".15" />
-    <path d="M-39 -26 l-4 26 M39 -26 l4 26" stroke="#694b52" strokeWidth="5" />
-    <ellipse cy="-26" rx="51" ry="10" style={tinted("#be8e70")} />
-    <ellipse cy="-30" rx="51" ry="10" style={tinted("#be8e70")} />
-    <path d="M-34 -32 h35 M-27 -27 h23" stroke="#fff" opacity=".13" />
+    <ellipse cy="0" rx="78" ry="5" fill="#000" opacity=".15" />
+    <path d="M-61 -28 l-5 28 M61 -28 l5 28" stroke="#694b52" strokeWidth="6" />
+    <ellipse cy="-28" rx="78" ry="12" style={tinted("#be8e70")} />
+    <ellipse cy="-32" rx="78" ry="12" style={tinted("#be8e70")} />
+    <path d="M-61 -34 h57 M-50 -29 h34" stroke="#fff" opacity=".13" />
     <path d="M-27 -40 h24 v8 h-24Z" fill="#8f788d" />
     <path d="M-25 -37 h20" stroke="#eed8b9" strokeWidth="2" />
     <path d="M19 -46 h13 v9 q-6 7 -13 0Z" fill="#f7e9e2" />
@@ -597,6 +611,7 @@ function Terrarium() {
 
 export const ITEM_SPRITES = {
   sofa: Sofa,
+  deskchair: StudyChair,
   coffeetable: CoffeeTable,
   floorcushion: FloorCushion,
   terrarium: Terrarium,

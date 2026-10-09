@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   GRID,
   COTTAGE_SETTINGS,
+  COTTAGE_DESK,
   cottageSetting,
   ITEMS,
   ITEM_KEYS,
@@ -28,6 +29,13 @@ const inRoom = (x, y) =>
 const ZONE_NAMES = ["wall", "desk", "floor", "ceiling"];
 
 describe("catalog integrity", () => {
+  it("keeps both adult chair styles at the workstation's usable seating scale", () => {
+    for (const key of ["deskchair", "armchair"]) {
+      expect(ITEMS[key].hit.w, `${ITEMS[key].label} is too narrow beside the desk`).toBeGreaterThanOrEqual(120);
+      expect(ITEMS[key].hit.h, `${ITEMS[key].label} is too small beside the desk`).toBeGreaterThanOrEqual(120);
+    }
+  });
+
   it("every item has a sprite, a spawn category, and a hit box", () => {
     for (const key of ITEM_KEYS) {
       const item = ITEMS[key];
@@ -223,17 +231,50 @@ describe("validatePlacements", () => {
 
 describe("copying decorations", () => {
   it("copies material with a new identity and keeps edge placements reachable", () => {
-    const original = { id: "sofa", item: "sofa", x: 620, y: 464, tint: "#7faf8f" };
+    const original = { id: "sofa", item: "sofa", x: ROOM_BOUNDS.x + ROOM_BOUNDS.w, y: ROOM_BOUNDS.y + ROOM_BOUNDS.h, tint: "#7faf8f" };
     const copy = duplicatePlacement([original], "sofa");
-    expect(copy).toEqual({ ...original, id: copy.id, x: 596, y: 452 });
+    expect(copy).toEqual({ ...original, id: copy.id, x: original.x - 24, y: original.y - 12 });
     expect(copy.id).not.toBe(original.id);
-    expect(original.x).toBe(620);
+    expect(original.x).toBe(ROOM_BOUNDS.x + ROOM_BOUNDS.w);
     expect(duplicatePlacement([{ id: "lights", item: "garland", x: 320, y: 24 }], "lights")).toBeNull();
     expect(duplicatePlacement(Array.from({ length: MAX_ITEMS }, () => original), "sofa")).toBeNull();
   });
 });
 
 describe("presets", () => {
+  it("keeps authored floor furniture out of the desk drawers and their opening space", () => {
+    const drawers = COTTAGE_DESK.drawers;
+    // Includes the cabinet face and floor in front of it; users remain free
+    // to place their own decor anywhere, but authored rooms must be usable.
+    const access = { x: drawers.x, y: drawers.y, w: drawers.w, bottom: COTTAGE_DESK.floorY + 100 };
+    for (const [name, preset] of Object.entries(PRESETS)) {
+      for (const p of preset.placements) {
+        const item = ITEMS[p.item];
+        if (item.zone !== "floor" || item.layer === -1 || ["cat", "slippers"].includes(p.item)) continue;
+        const h = item.hit;
+        const overlaps = p.x + h.x < access.x + access.w && p.x + h.x + h.w > access.x &&
+          p.y + h.y < access.bottom && p.y + h.y + h.h > access.y;
+        expect(overlaps, `${name}: ${item.label} blocks the desk drawers`).toBe(false);
+      }
+    }
+  });
+
+  it("gives the lounge a usable study seat and a separate couch with its table in front", () => {
+    const chair = PRESETS.lounge.placements.find((p) => p.item === "deskchair");
+    const sofa = PRESETS.lounge.placements.find((p) => p.item === "sofa");
+    const table = PRESETS.lounge.placements.find((p) => p.item === "coffeetable");
+    const h = ITEMS.deskchair.hit;
+    expect(h.w).toBeGreaterThanOrEqual(120);
+    expect(chair.x + h.x).toBeGreaterThan(COTTAGE_DESK.kneeLeft);
+    expect(chair.x + h.x + h.w).toBeLessThan(COTTAGE_DESK.drawers.x);
+    expect(sofa.x + ITEMS.sofa.hit.x).toBeGreaterThan(COTTAGE_DESK.right);
+    expect(table.x).toBe(sofa.x);
+    // Separation at the floor anchors: enough room to sit, with a table
+    // close enough to reach. Comparing the mug's top gave a misleading gap.
+    expect(table.y - sofa.y).toBeGreaterThanOrEqual(56);
+    expect(table.y - sofa.y).toBeLessThanOrEqual(88);
+  });
+
   it("keeps scenery choices valid and preserves furniture tints through saved layouts", () => {
     for (const [key, preset] of Object.entries(PRESETS)) {
       expect(COTTAGE_SETTINGS[cottageSetting(preset.setting)]).toBeTruthy();

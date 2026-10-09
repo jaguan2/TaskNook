@@ -153,7 +153,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 
 | Feature | What it does |
 |---|---|
-| **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with a glowing monitor, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
+| **Cozy desk scene** | A hand-built flat SVG scene — a desk by a rainy window — with an open laptop, desk lamp and string lights that dim and brighten with the time of day. Opening the app pulls back from a peek through the window. |
 | **Tasks, groups & routines** | Add tasks with a duration & priority, check them off, and drag to reorder — organised under named groups right in the on-screen to-do list. Mark a task ↻ as a daily routine and it un-checks itself each morning. |
 | **Ordering algorithms** | Keep your manual order or sort by duration, priority, deadline or a saved shuffle *(see below)*. |
 | **Focus timer, Pomodoro & stopwatch** | Always on screen as a cozy HUD: a compact transport-style timer card top-left (durations, Pomodoro plan and mode tucked behind ⚙, −1:00/+1:00 nudges mid-session), to-do list top-right, and a collapsible side menu so the scene can breathe. Focus blocks (15 / 25 / 45 / 60 min); switch on Pomodoro mode for automatic focus → break rounds, or switch to **stopwatch** to count up open-ended — finished time is logged either way. Quick-add tasks right from the HUD. |
