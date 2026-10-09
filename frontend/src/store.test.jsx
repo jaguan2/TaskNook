@@ -10,7 +10,7 @@ vi.mock("./lib/api", () => ({
   getToken: () => "test-token", setToken: vi.fn(), setReauthorizer: vi.fn(),
   api: Object.fromEntries([
     "me", "listTasks", "stats", "listFriends", "sessionDays", "listEvents", "listChats",
-    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "createTask", "sendMessage", "openChat", "deleteChat", "friendRoom",
+    "getRoom", "saveRoom", "getUnlocks", "getProfile", "saveProfile", "updateTask", "createTask", "deleteTask", "sendMessage", "openChat", "deleteChat", "friendRoom",
   ].map((name) => [name, vi.fn()])),
 }));
 
@@ -88,6 +88,36 @@ describe("profile XP", () => {
   });
 });
 
+describe("durable task writes", () => {
+  it("keeps created and edited rows visible when list refreshes fail", async () => {
+    await boot();
+    const created = { ...original, id: 9, name: "New saved task" };
+    api.createTask.mockResolvedValueOnce(created);
+    api.listTasks.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => expect(store.addTask({ name: created.name })).resolves.toEqual(created));
+    expect(store.tasks.map((task) => task.name)).toEqual([original.name, "New saved task"]);
+    api.updateTask.mockResolvedValueOnce({ ...created, notes: "Saved notes" });
+    api.listTasks.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => store.editTask(9, { notes: "Saved notes" }));
+    expect(store.tasks.find((task) => task.id === 9).notes).toBe("Saved notes");
+    expect(store.toast.message).toBe("Task saved, but couldn't refresh the list 🌧️");
+  });
+  it("keeps rejected deletions attached to the timer, but honours saved deletions even when refreshing fails", async () => {
+    await boot();
+    act(() => store.setActiveTaskId(1));
+    api.deleteTask.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => store.removeTask(1));
+    expect(store.tasks).toEqual([original]);
+    expect(store.activeTaskId).toBe(1);
+    api.deleteTask.mockResolvedValueOnce({});
+    api.listTasks.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => store.removeTask(1));
+    expect(store.tasks).toEqual([]);
+    expect(store.activeTaskId).toBeNull();
+    expect(store.toast.message).toBe("Task removed, but couldn't refresh the list 🌧️");
+  });
+});
+
 describe("challenge action credit", () => {
   it("counts actual task creation and completion for personal goals, without credit for unchecking", async () => {
     await boot();
@@ -156,7 +186,7 @@ describe("challenge action credit", () => {
     api.updateTask.mockResolvedValue(saved);
     api.listTasks.mockRejectedValueOnce(new Error("refresh failed"));
     await act(async () => {
-      if (action === "add") await expect(store.addTask({ name: "new" })).rejects.toThrow("refresh failed");
+      if (action === "add") await expect(store.addTask({ name: "new" })).resolves.toEqual(original);
       else if (action === "edit") await store.editTask(1, { notes: "saved" });
       else await store.toggleTask(original);
     });
@@ -176,16 +206,20 @@ describe("challenge action credit", () => {
 });
 
 describe("common-place sessions", () => {
-  it("enters, changes seats and leaves without changing the home or saving it", async () => {
+  it.each([
+    ["common-cottage", "window-right", "window-left"],
+    ["willow-pond", "pond-bench-right", "pond-bench-left"],
+    ["grand-library", "gallery-right", "gallery-left"],
+  ])("enters %s, changes seats and leaves without changing the home or saving it", async (place, freeSeat, occupiedSeat) => {
     await boot();
     const home = store.isoRoom;
     const homeWrites = api.saveRoom.mock.calls.length;
-    act(() => store.enterCommonRoom("common-cottage"));
+    act(() => store.enterCommonRoom(place));
     expect(store.activePlace.kind).toBe("common");
-    act(() => store.chooseCommonSeat("window-right"));
-    expect(store.commonRoom.guestSeatId).toBe("window-right");
-    act(() => store.chooseCommonSeat("window-left"));
-    expect(store.commonRoom.guestSeatId).toBe("window-right");
+    act(() => store.chooseCommonSeat(freeSeat));
+    expect(store.commonRoom.guestSeatId).toBe(freeSeat);
+    act(() => store.chooseCommonSeat(occupiedSeat));
+    expect(store.commonRoom.guestSeatId).toBe(freeSeat);
     expect(store.toast.message).toContain("already taken");
     act(() => store.leaveVisit());
     expect(store.activePlace.kind).toBe("home");

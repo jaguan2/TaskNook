@@ -7,9 +7,9 @@ import {
 } from "./characterPresets";
 
 describe("character presets", () => {
-  it("ships the eight requested, uniquely named starting looks", () => {
-    expect(CHARACTER_PRESETS).toHaveLength(8);
-    expect(new Set(CHARACTER_PRESETS.map((preset) => preset.key)).size).toBe(8);
+  it("ships uniquely named starting looks including winter and gardening outfits", () => {
+    expect(CHARACTER_PRESETS).toHaveLength(10);
+    expect(new Set(CHARACTER_PRESETS.map((preset) => preset.key)).size).toBe(10);
     expect(CHARACTER_PRESETS.map((preset) => preset.label)).toEqual([
       "Fall style girl",
       "Fall style guy",
@@ -19,6 +19,8 @@ describe("character presets", () => {
       "Office wear male",
       "Lofi girl",
       "Cozy gamer",
+      "Winter reader",
+      "Garden helper",
     ]);
   });
 

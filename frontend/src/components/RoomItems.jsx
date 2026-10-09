@@ -541,7 +541,65 @@ function Mirror() {
   </g>;
 }
 
+function Sofa() {
+  return <g>
+    <ellipse cy="0" rx="74" ry="4" fill="#000" opacity=".16" />
+    <path d="M-60 -15 l-3 15 M60 -15 l3 15" stroke="#694b52" strokeWidth="6" />
+    <rect x="-64" y="-85" width="128" height="66" rx="18" style={tinted("#7faf8f")} />
+    <rect x="-55" y="-77" width="51" height="43" rx="12" fill="#fff" opacity=".1" />
+    <rect x="4" y="-77" width="51" height="43" rx="12" fill="#fff" opacity=".1" />
+    <rect x="-64" y="-35" width="128" height="23" rx="9" style={tinted("#7faf8f")} />
+    <path d="M-60 -17 H60 M0 -34 v19" stroke="#000" strokeWidth="2" opacity=".16" />
+    <rect x="-74" y="-51" width="17" height="39" rx="8" style={tinted("#7faf8f")} />
+    <rect x="57" y="-51" width="17" height="39" rx="8" style={tinted("#7faf8f")} />
+    <path d="M23 -51 Q39 -59 52 -47 L48 -22 Q33 -17 22 -26Z" fill="#eed8b9" />
+    <path d="M27 -44 l20 3 M26 -36 l20 3 M25 -28 l20 3" stroke="#af8b79" strokeWidth="2" opacity=".5" />
+  </g>;
+}
+
+function CoffeeTable() {
+  return <g>
+    <ellipse cy="0" rx="49" ry="4" fill="#000" opacity=".15" />
+    <path d="M-39 -26 l-4 26 M39 -26 l4 26" stroke="#694b52" strokeWidth="5" />
+    <ellipse cy="-26" rx="51" ry="10" style={tinted("#be8e70")} />
+    <ellipse cy="-30" rx="51" ry="10" style={tinted("#be8e70")} />
+    <path d="M-34 -32 h35 M-27 -27 h23" stroke="#fff" opacity=".13" />
+    <path d="M-27 -40 h24 v8 h-24Z" fill="#8f788d" />
+    <path d="M-25 -37 h20" stroke="#eed8b9" strokeWidth="2" />
+    <path d="M19 -46 h13 v9 q-6 7 -13 0Z" fill="#f7e9e2" />
+    <path d="M32 -44 q10 0 4 7 h-4" fill="none" stroke="#f7e9e2" strokeWidth="2" />
+    <ellipse cx="25.5" cy="-46" rx="6.5" ry="2" fill="#6c4b4a" />
+  </g>;
+}
+
+function FloorCushion() {
+  return <g>
+    <ellipse cy="0" rx="35" ry="3" fill="#000" opacity=".14" />
+    <path d="M-34 -15 Q-37 -2 -25 0 H25 Q37 -2 34 -15Z" style={tinted("#e8b04b")} />
+    <ellipse cy="-14" rx="35" ry="12" style={tinted("#e8b04b")} />
+    <ellipse cy="-14" rx="28" ry="8" fill="none" stroke="#fff" opacity=".16" />
+    <path d="M-31 -4 Q0 4 31 -4" fill="none" stroke="#000" opacity=".14" />
+    <circle cy="-14" r="2.5" fill="#000" opacity=".14" />
+  </g>;
+}
+
+function Terrarium() {
+  return <g>
+    <ellipse cy="0" rx="23" ry="3" fill="#000" opacity=".13" />
+    <path d="M-22 -31 L0 -48 L22 -31 V-6 Q0 3 -22 -6Z" fill="#a3c8bd" fillOpacity=".2" style={tintedStroke("#be8e70")} strokeWidth="2" />
+    <path d="M-20 -9 Q0 -16 20 -9 V-5 Q0 2 -20 -5Z" fill="#775044" />
+    <path d="M-8 -8 v-18 M8 -8 v-13" stroke="#658c73" strokeWidth="3" />
+    <path d="M-8 -18 Q-24 -34 -20 -21 Q-14 -10 -8 -13 M-8 -23 Q5 -40 4 -27 Q1 -17 -8 -17 M8 -15 Q-1 -27 3 -23 Q11 -19 8 -15 M8 -18 Q22 -29 19 -18 Q14 -11 8 -13" fill="#7faf8f" />
+    <path d="M0 -47 v43 M-21 -31 h42" fill="none" style={tintedStroke("#be8e70")} strokeWidth="1.5" />
+    <path d="M-16 -29 v14" stroke="#fff" strokeWidth="2" opacity=".25" />
+  </g>;
+}
+
 export const ITEM_SPRITES = {
+  sofa: Sofa,
+  coffeetable: CoffeeTable,
+  floorcushion: FloorCushion,
+  terrarium: Terrarium,
   armchair: Armchair,
   sidetable: SideTable,
   plantstand: PlantStand,

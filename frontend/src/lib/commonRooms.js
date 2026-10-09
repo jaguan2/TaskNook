@@ -5,6 +5,69 @@ import { ISO_ITEMS, stackedPlacement } from "./isoRoom";
 // Fixed places are authored scenes, not editable home layouts. A surface's
 // height lifts its floor, architecture, furniture, shadows AND seat anchors.
 const prop = (id, item, gx, gy, extra = {}) => ({ id, item, gx, gy, ...extra });
+
+// Each library seating plan drives both furniture and seat anchors. Table
+// partners sit on opposite sides; sofa slots share one physical support.
+const libraryGallery = [
+  { id: "gallery-left", label: "Gallery reading chair", gx: 1.9, gy: 1.1, tint: "#8e5954" },
+  { id: "gallery-middle-left", label: "Gallery globe chair", gx: 6.4, gy: 1.45, tint: "#8f7860" },
+  { id: "gallery-middle-right", label: "Gallery arch chair", gx: 11.9, gy: .95, tint: "#8e5954" },
+  { id: "gallery-far-left", label: "Gallery candle chair", gx: 17.4, gy: 1.55, tint: "#687d69" },
+  { id: "gallery-far-right", label: "Gallery ladder chair", gx: 22.9, gy: 1.3, tint: "#8f7860" },
+  { id: "gallery-right", label: "Gallery window chair", gx: 27.4, gy: 1.1, tint: "#687d69" },
+];
+const libraryTables = [
+  { id: "hall-table-left", item: "diningtable", gx: 9, gy: 5.8, seats: [
+    { id: "table-left", label: "Left reading desk", facing: "back" }, { id: "hall-middle", label: "Left table partner", facing: "front" },
+  ] },
+  { id: "hall-table-middle", item: "diningtable", gx: 10.8, gy: 5.8, seats: [
+    { id: "table-right", label: "Right reading desk", facing: "back" }, { id: "hall-right", label: "Centre table partner", facing: "front" },
+  ] },
+  { id: "hall-table-right", item: "diningtable", gx: 12.6, gy: 5.8, seats: [
+    { id: "hall-far", label: "Hall candle desk", facing: "back" }, { id: "hall-end", label: "Hall table partner", facing: "front" },
+  ] },
+  { id: "centre-table-left", item: "diningtable", gx: 15.2, gy: 11.3, seats: [
+    { id: "front-left", label: "Centre reading desk", facing: "back" }, { id: "front-right", label: "Centre reading partner", facing: "front" },
+  ] },
+  { id: "centre-table-middle", item: "diningtable", gx: 17, gy: 11.3, seats: [
+    { id: "front-middle-right", label: "Centre candle desk", facing: "back" }, { id: "front-middle-left", label: "Centre candle partner", facing: "front" },
+  ] },
+  { id: "centre-table-right", item: "diningtable", gx: 18.8, gy: 11.3, seats: [
+    { id: "front-far", label: "Centre lamp desk", facing: "back" }, { id: "front-end", label: "Centre lamp partner", facing: "front" },
+  ] },
+  { id: "window-table", item: "diningtable", gx: 5.3, gy: 10.2, seats: [
+    { id: "middle-left", label: "Window study partner", facing: "front" }, { id: "middle-inner-left", label: "Window study desk", facing: "back" },
+  ] },
+  { id: "map-table", item: "diningtable", gx: 22, gy: 6.25, seats: [
+    { id: "middle-inner-right", label: "Map study partner", facing: "front" }, { id: "middle-right", label: "Map study desk", facing: "back" },
+  ] },
+  { id: "tea-table", item: "cafetable", gx: 9, gy: 15.6, seats: [
+    { id: "middle-centre-left", label: "Round tea table", facing: "back" }, { id: "middle-centre-right", label: "Tea table partner", facing: "front" },
+  ] },
+  { id: "entry-table", item: "cafetable", gx: 19.8, gy: 16.6, seats: [
+    { id: "entry-left", label: "Round reading table", facing: "back" }, { id: "entry-right", label: "Round table partner", facing: "front" },
+  ] },
+];
+const libraryTableSeats = libraryTables.flatMap(({ item, gx, gy, seats }) => {
+  const [w, d] = ISO_ITEMS[item].foot;
+  return seats.map((seat) => ({ ...seat, gx: gx + w / 2 - .4, gy: gy + (seat.facing === "back" ? d + .35 : -1) }));
+});
+const libraryArmchairs = [
+  { id: "fireside", label: "Fireside armchair", gx: 1.9, gy: 7.25, tint: "#9a6954" },
+  { id: "fireside-front", label: "Hearth reading chair", gx: 3.4, gy: 12.1, tint: "#8e5954" },
+  { id: "fireside-end", label: "Tall window armchair", gx: 1.8, gy: 16.3, tint: "#8f7860" },
+  { id: "quiet-corner", label: "Quiet corner armchair", gx: 25.4, gy: 6.5, tint: "#71826b" },
+  { id: "quiet-front", label: "Quiet aisle armchair", gx: 27, gy: 11.4, tint: "#8f7860" },
+  { id: "quiet-end", label: "Quiet window armchair", gx: 25.1, gy: 16.2, tint: "#8e5954" },
+];
+const librarySofas = [
+  { id: "hearth-sofa", gx: 3.8, gy: 5.1, tint: "#8e5954", seats: [
+    { id: "entry-centre-left", label: "Hearth sofa left" }, { id: "entry-centre-right", label: "Hearth sofa right" },
+  ] },
+  { id: "quiet-sofa", gx: 24, gy: 12.6, tint: "#71826b", seats: [
+    { id: "entry-inner-left", label: "Quiet sofa left" }, { id: "entry-inner-right", label: "Quiet sofa right" },
+  ] },
+];
 export const COMMON_PLACES = {
   "common-cottage": {
     id: "common-cottage", label: "Common Cottage", icon: "🏡",
@@ -78,6 +141,82 @@ export const COMMON_PLACES = {
       prop("entry-runner", "runner", 7.35, 7.65, { tint: "#8c6961" }),
       prop("entry-coatrack", "coatrack", 9.9, 7.35, { tint: "#795b45" }),
       prop("entry-fern", "fern", 10.05, 5.85),
+    ],
+  },
+  "grand-library": {
+    id: "grand-library", label: "Grand Library", icon: "📚",
+    kind: "library", viewBox: "-510 -275 1260 920",
+    ariaLabel: "Grand Library: vaulted book hall, raised reading gallery and fireside study",
+    description: "A candlelit book hall, arched windows and a raised reading gallery",
+    w: 30, d: 20,
+    surfaces: {
+      ground: { gx: 0, gy: 0, dx: 30, dy: 20, z: 0, color: "#ac9779" },
+      gallery: { gx: 0, gy: 0, dx: 30, dy: 3.2, z: 40, color: "#856344" },
+    },
+    seats: [
+      ...libraryGallery.map(({ id, label, gx, gy }) => ({ id, label, level: "gallery", gx: gx + .1, gy: gy + .175,
+        height: 22, furniture: `${id}-chair` })),
+      ...libraryTableSeats.map((seat) => ({ ...seat, level: "ground", height: 19, furniture: `${seat.id}-chair` })),
+      ...libraryArmchairs.map(({ id, label, gx, gy }) => ({ id, label, level: "ground", gx: gx + .1, gy: gy + .175,
+        height: 22, furniture: `${id}-chair` })),
+      ...librarySofas.flatMap(({ id, gx, gy, seats }) => seats.map((seat, i) => ({ ...seat, level: "ground",
+        gx: gx + i * 1.2, gy: gy + .175, height: 22, furniture: id }))),
+    ],
+    arrivalSeat: "table-right",
+    neighbours: [
+      { username: "kai", label: "Kai", seatId: "gallery-left", look: "fall-guy" },
+      { username: "luna", label: "Luna", seatId: "table-left", look: "school-girl" },
+      { username: "sora", label: "Sora", seatId: "fireside", look: "lofi-girl" },
+      { username: "mochi", label: "Mochi", seatId: "front-middle-right", look: "cozy-gamer" },
+      { username: "ivy", label: "Ivy", seatId: "gallery-middle-right", look: "fall-girl" },
+      { username: "theo", label: "Theo", seatId: "quiet-corner", look: "school-boy" },
+      { username: "fern", label: "Fern", seatId: "gallery-far-left", look: "office-female" },
+      { username: "robin", label: "Robin", seatId: "hall-end", look: "office-male" },
+      { username: "nico", label: "Nico", seatId: "middle-left", look: "school-boy" },
+      { username: "aria", label: "Aria", seatId: "middle-right", look: "office-female" },
+      { username: "jun", label: "Jun", seatId: "entry-centre-right", look: "cozy-gamer" },
+      { username: "hazel", label: "Hazel", seatId: "fireside-end", look: "fall-girl" },
+    ],
+    props: [
+      ...libraryGallery.flatMap(({ id, gx, gy, tint }) => [
+        prop(`${id}-rug`, "persianrug", gx - 1, gy - .75, { level: "gallery", tint }),
+        prop(`${id}-chair`, "armchair", gx, gy, { level: "gallery", tint }),
+        prop(`${id}-table`, "sidetable", gx + 1.3, gy + .15, { level: "gallery", tint: "#705039" }),
+        prop(`${id}-books`, "bookstack", gx + 1.95, gy + .4, { level: "gallery", on: `${id}-table` }),
+      ]),
+      prop("gallery-globe", "globe", 7.75, 1.65, { level: "gallery", on: "gallery-middle-left-table" }),
+      prop("gallery-lamp", "tablelamp", 28.75, 1.3, { level: "gallery", on: "gallery-right-table", tint: "#dbbe88" }),
+      prop("gallery-sconce-left", "sconce", 0.6, 0, { level: "gallery", tint: "#d5b379" }),
+      prop("gallery-sconce-middle", "sconce", 10.2, 0, { level: "gallery", tint: "#d5b379" }),
+      prop("gallery-sconce-far", "sconce", 20.2, 0, { level: "gallery", tint: "#d5b379" }),
+      prop("gallery-sconce-right", "sconce", 29, 0, { level: "gallery", tint: "#d5b379" }),
+      ...libraryTables.flatMap(({ id, item, gx, gy }) => [
+        prop(id, item, gx, gy, { tint: "#785338" }),
+        prop(`${id}-lamp`, item === "cafetable" ? "candle" : "desklamp", gx + .15, gy + .1, { on: id, tint: "#53775e" }),
+        prop(`${id}-books`, "bookstack", gx + ISO_ITEMS[item].foot[0] - .6, gy + .15, { on: id }),
+      ]),
+      ...libraryTableSeats.map(({ id, gx, gy, facing }) => prop(`${id}-chair`, "chair", gx, gy,
+        { rot: facing === "back" ? 2 : 0, tint: "#785338" })),
+      ...libraryArmchairs.flatMap(({ id, gx, gy, tint }) => [
+        prop(`${id}-rug`, "persianrug", gx - .85, gy - .4, { tint }),
+        prop(`${id}-chair`, "armchair", gx, gy, { tint }),
+        prop(`${id}-table`, "sidetable", gx + 1.35, gy + .4, { tint: "#785338" }),
+        prop(`${id}-candle`, "candle", gx + 1.4, gy + .45, { on: `${id}-table`, tint: "#e1c59a" }),
+        prop(`${id}-books`, "bookstack", gx + 1.95, gy + .65, { on: `${id}-table` }),
+      ]),
+      ...librarySofas.flatMap(({ id, gx, gy, tint }) => [
+        prop(`${id}-rug`, "persianrug", gx - .35, gy - .5, { tint }),
+        prop(id, "sofa", gx, gy, { tint }),
+        prop(`${id}-table`, "coffeetable", gx + .15, gy + 1.45, { tint: "#785338" }),
+        prop(`${id}-books`, "bookstack", gx + .25, gy + 1.5, { on: `${id}-table` }),
+        prop(`${id}-mug`, "mug", gx + 1.05, gy + 1.6, { on: `${id}-table`, tint: "#ddd0ae" }),
+      ]),
+      prop("tea-rug", "persianrug", 8.15, 15.3, { tint: "#8f7860" }),
+      prop("entry-table-rug", "persianrug", 18.95, 16.3, { tint: "#71826b" }),
+      prop("fireplace", "fireplace", 0.05, 7.15, { rot: 1, tint: "#9b927f" }),
+      prop("fireside-fern", "fern", .9, 9, { tint: "#637255" }),
+      prop("quiet-palm", "palm", 29, 6.15, { tint: "#617358" }),
+      prop("entry-runner", "runner", 12.1, 18.7, { tint: "#76514e" }),
     ],
   },
   "willow-pond": {

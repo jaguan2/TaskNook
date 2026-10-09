@@ -5,6 +5,8 @@ import { GRID, ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
 import { ambienceVars } from "../lib/motion";
 import { ITEM_SPRITES } from "./RoomItems";
 import RoomTintPicker from "./RoomTintPicker";
+import CottageItemControls from "./CottageItemControls";
+import { isTypingTarget } from "../lib/typing";
 
 // The scene is FULL-BLEED, like the iso room: the wall runs edge to edge
 // behind everything and the composition (window, desk) sits centred on a
@@ -82,6 +84,7 @@ function Cottage({
   onMoveItem,
   onRemoveItem,
   onTintItem,
+  onDuplicateItem,
   // resolved by App from the Motion setting + the OS preference
   reduceMotion = false,
 }) {
@@ -129,13 +132,25 @@ function Cottage({
   useEffect(() => {
     if (!editMode || !selectedId) return undefined;
     const onKey = (e) => {
-      if (e.key !== "Escape") return;
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setSelectedId(null);
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+      const deltas = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      const delta = deltas[e.key];
+      const selected = room.find((p) => p.id === selectedId);
+      if (!delta || !selected || ITEMS[selected.item]?.fixed) return;
+      e.preventDefault();
       e.stopPropagation();
-      setSelectedId(null);
+      const step = GRID * (e.shiftKey ? 5 : 1);
+      const next = clampToRoom(selected.item, selected.x + delta[0] * step, selected.y + delta[1] * step);
+      onMoveItem?.(selected.id, next.x, next.y);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [editMode, selectedId]);
+  }, [editMode, selectedId, room, onMoveItem]);
 
   const isRainy = weather === "rain" || weather === "storm";
 
@@ -203,6 +218,12 @@ function Cottage({
           ...(p.tint ? { "--tint": p.tint } : null),
         }}
         className={editMode ? (item.fixed ? "room-item-fixed" : "room-item") : undefined}
+        role={editMode ? "button" : undefined}
+        tabIndex={editMode ? 0 : undefined}
+        aria-label={editMode ? `Select ${item.label}` : undefined}
+        onKeyDown={(e) => {
+          if (editMode && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelectedId(p.id); }
+        }}
         onPointerDown={startDrag(p)}
       >
         {/* generous invisible grab target */}
@@ -243,22 +264,6 @@ function Cottage({
               strokeDasharray="5 4"
               opacity="0.9"
             />
-            <g
-              className="room-remove"
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                onRemoveItem?.(p.id);
-                setSelectedId(null);
-              }}
-            >
-              <circle cx={item.hit.x + item.hit.w + 6} cy={item.hit.y - 6} r="9" fill="#d96a6a" />
-              <path
-                d={`M${item.hit.x + item.hit.w + 2} ${item.hit.y - 10} l8 8 M${item.hit.x + item.hit.w + 10} ${item.hit.y - 10} l-8 8`}
-                stroke="#fff"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </g>
           </>
         )}
       </g>
@@ -507,9 +512,13 @@ function Cottage({
           <polygon points="228,202 268,202 240,272 228,272" fill="#fff" opacity="0.05" />
         </g>
 
-        {/* ================= PLACED ITEMS (+ the resident) ================= */}
+        {/* ================= PLACED DECORATIONS ================= */}
         <g clipPath={`url(#${uid}-roomClip)`}>{sceneChildren}</g>
       </svg>
+
+      {selectedPlacement && <CottageItemControls key={selectedPlacement.id} placement={selectedPlacement}
+        onMove={onMoveItem} onDuplicate={onDuplicateItem} onClose={() => setSelectedId(null)}
+        onRemove={(id) => { onRemoveItem?.(id); setSelectedId(null); }} />}
 
       {/* Colour popover for the selected item — HTML, not SVG, because it
           needs a real text input for hex codes. Anchored inside the scene
@@ -521,9 +530,6 @@ function Cottage({
   );
 }
 
-// The store's context value changes every second (the focus timer ticks), so
-// every consumer — including this fairly heavy SVG — re-renders each second by
-// default. None of Cottage's props change on a tick, so memoising skips that
-// work entirely and keeps the idle animations smooth. Relies on the room
-// action props being stable (they're useCallback'd in store.jsx).
+// Stable room actions let unrelated store updates skip this heavy SVG. The
+// timer has its own provider, so its one-second tick never reaches the scene.
 export default memo(Cottage);

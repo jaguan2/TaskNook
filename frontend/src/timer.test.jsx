@@ -80,6 +80,7 @@ describe("persisted timer preferences", () => {
     if (mode === "stopwatch") await act(async () => fireEvent.click(screen.getByText("finish stopwatch")));
     expect(mockStore.recordChallengeEvent).toHaveBeenCalledWith("focus-session-completed");
     expect(mockStore.recordChallengeEvent).toHaveBeenCalledWith("focus-minutes", mode === "timer" ? 30 : 3);
+    expect(mockStore.showToast).toHaveBeenCalledWith("Session saved, but couldn't refresh your stats 🌧️");
     log.mockRestore();
   });
 

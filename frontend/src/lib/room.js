@@ -77,6 +77,10 @@ export const ITEMS = {
   beanbag: { label: "Beanbag", icon: "🫘", zone: "floor", hit: { x: -40, y: -34, w: 80, h: 36 } },
   basket: { label: "Yarn basket", icon: "🧺", zone: "floor", hit: { x: -24, y: -46, w: 48, h: 48 } },
   slippers: { label: "Cozy slippers", icon: "🥿", zone: "floor", hit: { x: -28, y: -14, w: 56, h: 16 } },
+  sofa: { label: "Cozy sofa", icon: "🛋️", zone: "floor", hit: { x: -75, y: -87, w: 150, h: 89 } },
+  coffeetable: { label: "Coffee table", icon: "☕", zone: "floor", hit: { x: -52, y: -49, w: 104, h: 51 } },
+  floorcushion: { label: "Floor cushion", icon: "🧸", zone: "floor", hit: { x: -36, y: -27, w: 72, h: 29 } },
+  terrarium: { label: "Glass terrarium", icon: "🌱", zone: "desk", hit: { x: -24, y: -49, w: 48, h: 51 } },
 
   // ---- ceiling (fixed position; can be added/removed but not dragged) ----
   garland: { label: "String lights", icon: "✨", zone: "ceiling", fixed: true, hit: { x: -304, y: -6, w: 608, h: 30 } },
@@ -151,6 +155,15 @@ export function newPlacement(itemKey, existing = []) {
  *  rendering cost and the persisted payload, far above any real room. */
 export const MAX_ITEMS = 60;
 
+/** Copy a movable decoration, including its material, into a nearby spot. */
+export function duplicatePlacement(placements, id) {
+  const source = placements.find((p) => p.id === id);
+  if (!source || !ITEMS[source.item] || ITEMS[source.item].fixed || placements.length >= MAX_ITEMS) return null;
+  const x = source.x + 24 <= ROOM_BOUNDS.x + ROOM_BOUNDS.w ? source.x + 24 : source.x - 24;
+  const y = source.y + 12 <= ROOM_BOUNDS.y + ROOM_BOUNDS.h ? source.y + 12 : source.y - 12;
+  return { ...source, id: makeId(), ...clampToRoom(source.item, snap(x), snap(y)) };
+}
+
 /** Coerce anything (old saves, server data, garbage) into a valid layout, or
  *  null if it isn't a layout at all. Unknown items are dropped so removing a
  *  catalog entry can never brick a saved room. */
@@ -192,6 +205,22 @@ export function validatePlacements(raw) {
 // hand-arranged scene exactly (each position matches the original artwork).
 // --------------------------------------------------------------------------- #
 export const PRESETS = {
+  lounge: {
+    label: "Cozy lounge", icon: "🛋️", setting: "woodland",
+    placements: [
+      { item: "rugstripe", x: 228, y: 440, tint: "#7faf8f" },
+      { item: "sofa", x: 212, y: 416, tint: "#7faf8f" },
+      { item: "coffeetable", x: 334, y: 450 },
+      { item: "floorcushion", x: 418, y: 450, tint: "#e8b04b" },
+      { item: "floorlamp", x: 120, y: 426 },
+      { item: "bookshelf", x: 568, y: 442 },
+      { item: "terrarium", x: 146, y: 300 },
+      { item: "mug", x: 400, y: 300 },
+      { item: "desklamp", x: 566, y: 296 },
+      { item: "frame", x: 496, y: 88 },
+      { item: "garland", x: 320, y: 24 },
+    ],
+  },
   default: {
     label: "Classic study",
     icon: "🖥️",

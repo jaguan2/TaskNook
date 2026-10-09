@@ -11,6 +11,7 @@ import {
   TINT_SWATCHES,
   clampToRoom,
   newPlacement,
+  duplicatePlacement,
   presetPlacements,
   snap,
   sortForRender,
@@ -217,6 +218,18 @@ describe("validatePlacements", () => {
       y: 300,
     }));
     expect(validatePlacements(many)).toHaveLength(MAX_ITEMS);
+  });
+});
+
+describe("copying decorations", () => {
+  it("copies material with a new identity and keeps edge placements reachable", () => {
+    const original = { id: "sofa", item: "sofa", x: 620, y: 464, tint: "#7faf8f" };
+    const copy = duplicatePlacement([original], "sofa");
+    expect(copy).toEqual({ ...original, id: copy.id, x: 596, y: 452 });
+    expect(copy.id).not.toBe(original.id);
+    expect(original.x).toBe(620);
+    expect(duplicatePlacement([{ id: "lights", item: "garland", x: 320, y: 24 }], "lights")).toBeNull();
+    expect(duplicatePlacement(Array.from({ length: MAX_ITEMS }, () => original), "sofa")).toBeNull();
   });
 });
 

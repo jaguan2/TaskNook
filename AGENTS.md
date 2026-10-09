@@ -180,17 +180,42 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
 
+## Classic cottage and saved outfits
+
+The 2D catalog lives in `lib/room.js` and `components/RoomItems.jsx`. It has
+35 decorations and seven presets, including Cozy lounge. `Cottage.jsx` keeps
+selection and dragging local; `CottageItemControls.jsx` provides grid nudges,
+copy and two-tap removal. Arrow keys move the selection; Shift moves five grid
+steps. Text inputs use the shared typing-target guard. Copy preserves tint,
+uses a fresh ID, stays in bounds and refuses fixed singletons or the item cap.
+All writes use existing store room actions and persistence.
+
+Profile Looks combines ten authored starts with up to twelve device outfits.
+`lib/savedLooks.js` validates complete named snapshots; `useSavedLooks` lives
+inside the store and writes `tasknook.characterLooks` through the storage
+gateway, outside React updaters. Storage failures keep the draft and report a
+toast. Saving an existing name updates its snapshot; applying preserves the
+current skin tone. `SavedCharacterLooks.jsx` owns only its draft and two-tap
+delete state. Focused controls stay below the sticky character preview.
+
+Task creates, edits and deletions retain their committed API result when the
+following list refresh fails. Timer logging distinguishes a saved session
+from a failed stats refresh too. Preserve that feedback boundary: a read
+failure must never tell the user to repeat an already successful write.
+
 ## Fixed common places
 
-`lib/commonRooms.js` defines authored common places with fixed props and six
+`lib/commonRooms.js` defines authored common places with fixed props and
 explicit seat slots. Common Cottage uses two floor heights; Willow Pond uses
 a lawn plus raised stone terrace, pond bench and picnic cluster.
+Grand Library adds a 30×20 book hall, arched windows, three candle chandeliers and a
+40-pixel reading gallery. `CommonLibraryScene.jsx` owns that architecture.
 `CommonRoom.jsx` owns shared props, people, lights and seat interaction;
 `CommonGardenScene.jsx` owns Willow Pond's outdoor surface/path/pergola while
-the cottage architecture remains isolated from it. Both reuse catalog and
+the cottage architecture remains isolated from it. All three reuse catalog and
 character sprites separately from the editable home.
 Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
-three simulated neighbours and the user's selected seat. `activePlace` is
+the place's simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
 The cozy second art pass deliberately concentrates curtains, wall decor,
 plants, desk clutter and catalog-driven light pools around edges and the open
@@ -199,8 +224,12 @@ Common entry cancels pending knocks and invalidates earlier friend-room
 requests. It disables home visitor arrivals and RoomPanel editing. Seat
 selection changes only the guest's seat ID, never the home API, furniture,
 NPC occupancy, timer or saved camera. Keep these state boundaries and the
-store/common-room regression tests when adding places. Each shipped place
-keeps three deterministic neighbours and three open seats. The scene is bounded
+store/common-room regression tests when adding places. Common Cottage and
+Willow Pond each have six seats, three deterministic neighbours and three guest
+choices; Grand Library has thirty-six seats, twelve neighbours and twenty-four guest choices.
+Library seating plans drive both catalog seating and its anchors; shared tables
+seat people on both sides, with study pairs, round tables and sofa corners.
+Four shelf ladders share their bookcases' positions and floor heights. The scene is bounded
 to its viewport; a percentage-height SVG inside the scene grid once expanded
 the page and made seat selection scroll the entire app. Details and remaining
 art work are in `docs/COMMON_ROOMS.md`.
@@ -1837,3 +1866,19 @@ running `git commit` yourself.
   every push (`.github/workflows/ci.yml`).
 - Component tests cover interaction and rendering contracts. Verify visual
   changes in the running app as well; tests cannot approve artwork or layout.
+
+
+## Agent engineering workflow
+
+For substantive feature, bug-fix or refactor work, read
+[the engineering skill](.agents/skills/tasknook-engineering/SKILL.md).
+Trace/reproduce the behavior, implement, apply
+[structural self-review](.agents/skills/tasknook-thermonuclear-review/SKILL.md)
+to the actual diff, fix supported issues within the requested scope, then
+[verify](.agents/skills/tasknook-verify/SKILL.md). Review design changes again;
+failed checks return to investigation. Reuse valid evidence for unchanged code
+and skip this loop for documentation-only or trivial cosmetic changes.
+Standalone review requests remain report-only. These skills load pinned,
+complete upstream instructions; source pins and update commands are documented
+in [the skill guide](docs/AGENT_SKILLS.md). Repository/user rules take precedence
+over upstream model-provider, delegation, rebasing and commit examples.

@@ -96,6 +96,7 @@ export default function App() {
     roomEditMode,
     setRoomEditMode,
     moveRoomItem,
+    duplicateRoomItem,
     removeRoomItem,
     setRoomItemTint,
     isoPreview,
@@ -416,6 +417,7 @@ export default function App() {
               room={roomPlacements}
               editMode={roomEditMode}
               onMoveItem={moveRoomItem}
+              onDuplicateItem={duplicateRoomItem}
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
               reduceMotion={reduceMotion}

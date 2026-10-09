@@ -36,7 +36,7 @@ describe("common-room seats", () => {
     const floor = material.parentElement.querySelector(":scope > polygon");
     expect(resolvedClip(container, material)).toEqual(scenePoints(floor, points(floor.getAttribute("points"))));
   });
-  it.each([["common-cottage", "nook-sconce", "nook"], ["willow-pond", "patio-lightjar", "patio"]])(
+  it.each([["common-cottage", "nook-sconce", "nook"], ["willow-pond", "patio-lightjar", "patio"], ["grand-library", "gallery-lamp", "gallery"]])(
     "clips %s raised lights at their supporting floor height", (sceneId, lightId, level) => {
       const { container } = render(<CommonRoom session={createCommonSession(sceneId)} character={DEFAULT_CHARACTER} timeOfDay="night" />);
       const pool = container.querySelector(`[data-common-light="${lightId}"]`);
@@ -62,8 +62,8 @@ describe("common-room seats", () => {
     fireEvent.click(seat);
     expect(document.activeElement === screen.getByRole("button", { name: /Change seat/ })).toBe(true);
   });
-  it("defines every SVG paint and clip used by both authored scenes", () => {
-    for (const sceneId of ["common-cottage", "willow-pond"]) {
+  it("defines every SVG paint and clip used by all authored scenes", () => {
+    for (const sceneId of Object.keys(COMMON_PLACES)) {
       const { container } = render(<CommonRoom session={createCommonSession(sceneId)} character={DEFAULT_CHARACTER} />);
       const refs = new Set();
       for (const element of container.querySelectorAll("*")) {
@@ -71,7 +71,7 @@ describe("common-room seats", () => {
           for (const match of attribute.value.matchAll(/url\(#([^)]*)\)/g)) refs.add(match[1]);
         }
       }
-      expect(refs.has("isoScreen")).toBe(true);
+      expect(refs.size).toBeGreaterThan(0);
       for (const id of refs) expect(document.getElementById(id), `${sceneId}/${id}`).not.toBeNull();
       cleanup();
     }
@@ -120,5 +120,45 @@ describe("common-room seats", () => {
     fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
     fireEvent.click(screen.getByRole("button", { name: "Willow bench right" }));
     expect(onChooseSeat).toHaveBeenCalledWith("pond-bench-right");
+  });
+
+  it("lets the library guest move to the raised gallery while occupied seats and neighbours stay fixed", () => {
+    let session = createCommonSession("grand-library");
+    const onChooseSeat = vi.fn((id) => { session = settleCommonGuest(session, id); });
+    const { container, rerender } = render(<CommonRoom session={session}
+      character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
+    expect(screen.getByRole("img", { name: /Grand Library/ })).toBeTruthy();
+    expect(container.querySelector("svg").classList.contains("cottage-preview")).toBe(true);
+    const neighbours = [...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
+      .map((p) => p.getAttribute("transform"));
+    expect(neighbours).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    const choices = screen.getByRole("group", { name: "Common room seats" });
+    expect(choices.querySelectorAll("button")).toHaveLength(36);
+    expect(choices.querySelectorAll("button:not(:disabled)")).toHaveLength(24);
+    expect(screen.getByRole("button", { name: "Gallery reading chair · Kai" }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Gallery window chair" }));
+    rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
+    expect(onChooseSeat).toHaveBeenCalledOnce();
+    const seat = COMMON_PLACES["grand-library"].seats.find((s) => s.id === "gallery-right");
+    const at = project(seat.gx, seat.gy);
+    const guest = container.querySelector('[data-common-person="you"]');
+    expect(guest.getAttribute("data-seat")).toBe("gallery-right");
+    expect(guest.getAttribute("transform")).toBe(`translate(${at.x},${at.y - 40})`);
+    expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
+      .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
+    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Sit at Quiet window armchair" }), { key: "Enter" });
+    rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
+    expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("quiet-end");
+    expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
+      .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
+    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Quiet sofa left" }));
+    rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
+    expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("entry-inner-left");
+    expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
+      .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
+    expect(container.querySelectorAll(".room-item")).toHaveLength(0);
   });
 });

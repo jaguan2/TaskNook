@@ -1,6 +1,6 @@
 # Common rooms: fixed places to settle together
 
-Status: Common Cottage and Willow Pond implemented. Enter through Friends,
+Status: Common Cottage, Willow Pond and Grand Library implemented. Enter through Friends,
 choose a seat through the scene's Change seat control, and use
 Home or Escape to leave. The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
@@ -49,6 +49,39 @@ layers. `CommonGardenScene.jsx` owns the lawn, raised terrace, curved stepping
 stones and pergola; Cottage walls, windows, platform and stairs therefore
 cannot leak into the outdoor place. The manifest continues to live in
 `lib/commonRooms.js`, and no backend or saved-home schema is involved.
+
+## Third place: Grand Library
+
+Grand Library is a tall castle-style book hall with pointed arched windows,
+carved bookcase bays, four rolling shelf ladders, three brass candle chandeliers and a raised
+reading gallery. Warm stone, dark timber, patterned rugs and green reading lamps
+give it an old academic atmosphere. It uses original SVG architecture and
+existing catalog furniture; no external scene assets are required.
+
+The 30×20 floor has just over twice the area of the previous 20×14 hall.
+Thirty-six seats include six gallery armchairs, twenty chairs around two
+staggered shared tables, two study pairs and two round reading tables, plus
+six fireside/quiet-corner armchairs and four places on two sofas. Shared tables
+have seats on both sides, while staggered armchairs and sofa corners keep the
+hall from becoming repeated rows of desks.
+Twelve deterministic neighbours leave twenty-four choices available; the user
+arrives at the right reading desk. The gallery has its own 40-pixel floor height, solid steps and an
+open balustrade. Its seat anchors, props and light clips share that elevation.
+Tall shelving stays against the rear walls to preserve foreground views.
+Shelf ladders share their bookcase's position and floor elevation. Their feet
+project away from the wall and their tops meet brass rails near the upper
+shelves; three serve the raised gallery and one serves the lower book wall.
+The seat list scrolls within its bounded panel so the larger capacity never
+expands the page or makes the last seats unreachable in smaller windows.
+
+`CommonLibraryScene.jsx` owns only the library architecture. The shared
+`CommonRoom.jsx` still owns prop stacking, people, lamp pools and seat selection.
+Windows respond to time of day; candle flicker and a few drifting dust motes
+reuse the existing motion rules and stop under reduced motion. The library
+does not change decoration, saved-home state, timer or visit permissions.
+
+Current captures: [library arrival](screenshots/48-grand-library.webp) and
+[library seat choices](screenshots/49-grand-library-seats.webp).
 
 ## Experience
 
@@ -214,12 +247,12 @@ That is a substantial benefit of limiting interaction to seat selection.
 
 ## Delivery and visual acceptance
 
-Both places are implemented. Use the following review sequence when adding a
+All three places are implemented. Use the following review sequence when adding a
 place or refining its architecture, art and motion. The camera is fixed;
 pan/zoom and additional places remain future work.
 
-1. Author a static scene with six seats, three neighbours
-   and a sample user. Review its separate areas and raised floors at
+1. Author a static scene with explicit seats, settled neighbours
+   and space for a sample user. Review its separate areas and raised floors at
    room scale, including visible supports, step direction and platform edges.
 2. Connect it to the existing scene session, entry/exit and seat selection.
    Keep home and friend visits independent. Reuse the settled character baseline.
@@ -231,7 +264,7 @@ pan/zoom and additional places remain future work.
 
 Every place must preserve the following:
 
-- All six seats have distinct anchors, correct floor contact and readable
+- All authored seats have distinct anchors, correct floor contact and readable
   occupants; no wall, shelf or platform unexpectedly hides them.
 - Arrival guarantees a free seat, and changing seats cannot move a neighbour
   or put two people in one slot.

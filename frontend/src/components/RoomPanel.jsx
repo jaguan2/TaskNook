@@ -203,7 +203,7 @@ export default function RoomPanel() {
           {roomEditMode
             ? isoPreview
               ? "Drag furniture across the grid — half-tile snapping. Tap an item for colours and ✕ to put it away."
-              : "Drag anything anywhere — wall, desk or floor. Tap an item for colours and ✕ to put it away."
+              : "Drag to arrange, or select an item for arrow-key movement, duplicate, colours and two-tap removal."
             : "Turn on decorating to drag things around the room."}
         </p>
       </section>

@@ -31,7 +31,7 @@ export default function CharacterPresets({ character, onPick }) {
             type="button"
             onClick={() => onPick(shown)}
             aria-pressed={active}
-            className={`group flex min-h-28 items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 py-1 text-left transition ${
+            className={`group flex min-h-28 scroll-mt-64 items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 py-1 text-left transition ${
               active
                 ? "border-glow/70 bg-glow/15 ring-1 ring-glow/40"
                 : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"

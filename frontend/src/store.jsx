@@ -30,6 +30,7 @@ import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import { createChatSignals } from "./lib/chatSignals";
 import { useChallenges } from "./lib/useChallenges";
 import { useProgression } from "./lib/useProgression";
+import { useSavedLooks } from "./lib/useSavedLooks";
 import {
   MESSAGE_MAX,
   botReply,
@@ -78,6 +79,7 @@ import {
   PRESETS as COTTAGE_PRESETS,
   MAX_ITEMS,
   newPlacement,
+  duplicatePlacement,
   presetPlacements,
   validatePlacements,
 } from "./lib/room";
@@ -175,6 +177,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   const { progression, syncStudy, recordNeighbour, recordChallenges } = useProgression(!!user && !booting, showToast);
+  const { savedLooks, saveCharacterLook, removeCharacterLook } = useSavedLooks(showToast);
   const { challenges, recordChallengeEvent, replaceChallenge,
     addChallenge, advanceChallenge, resetChallenge, removeChallenge } = useChallenges(showToast, recordChallenges);
   const addCustomChallenge = useCallback((draft) => {
@@ -1318,10 +1321,20 @@ export function StoreProvider({ children }) {
 
   // ---------- Task actions ----------
   const addTask = async (payload) => {
-    await api.createTask(payload);
+    const saved = await api.createTask(payload);
+    // Invalidate reads that began before this creation. The POST's row is
+    // already durable even if the later list refresh is unavailable.
+    taskReadVersion.current += 1;
+    setTasks((prev) => [...prev.filter((row) => row.id !== saved.id), saved]);
     recordChallengeEvent("task-updated");
     recordChallengeEvent("task-created");
-    await refreshTasks();
+    try {
+      await refreshTasks();
+    } catch (err) {
+      console.error("Couldn't refresh after creating task:", err);
+      showToast("Task saved, but couldn't refresh the list 🌧️");
+    }
+    return saved;
   };
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
   // as an unhandled promise rejection from an onClick handler.
@@ -1368,9 +1381,13 @@ export function StoreProvider({ children }) {
   };
   const editTask = async (id, payload) => {
     try {
-      await api.updateTask(id, payload);
+      const saved = await api.updateTask(id, payload);
+      taskReadVersion.current += 1;
+      setTasks((prev) => prev.map((row) => row.id === id
+        ? { ...row, ...saved, ...pendingTaskToggles.current.get(id) } : row));
       recordChallengeEvent("task-updated");
-      await refreshTasks();
+      try { await refreshTasks(); }
+      catch (err) { console.error("Couldn't refresh after editing task:", err); showToast("Task saved, but couldn't refresh the list 🌧️"); }
     } catch (err) {
       console.error("Failed to update task:", err);
       showToast("Couldn't save that change 🌧️");
@@ -1379,11 +1396,14 @@ export function StoreProvider({ children }) {
   const removeTask = async (id) => {
     try {
       await api.deleteTask(id);
+      taskReadVersion.current += 1;
+      setTasks((prev) => prev.filter((row) => row.id !== id));
       // Do not detach a running timer from its task until deletion is durable.
       // A failed request used to leave the task visible but silently clear the
       // active-task label from the eventual session log.
       if (activeTaskId === id) setActiveTaskId(null);
-      await refreshTasks();
+      try { await refreshTasks(); }
+      catch (err) { console.error("Couldn't refresh after removing task:", err); showToast("Task removed, but couldn't refresh the list 🌧️"); }
     } catch (err) {
       console.error("Failed to delete task:", err);
       showToast("Couldn't delete the task 🌧️");
@@ -2628,8 +2648,7 @@ export function StoreProvider({ children }) {
 
   // ---------- Room actions ----------
   // useCallback throughout: these are handed to <Cottage/>, which is memo'd so
-  // it can skip the per-second focus-timer re-render. New function identities
-  // every tick would defeat that entirely.
+  // it can skip unrelated store updates. The timer ticks in its own provider.
   const moveRoomItem = useCallback((id, x, y) => {
     // Same bail-out as moveIsoItem: the flat scene snaps to GRID, so most
     // pointermoves during a drag ask for the position the item is already at.
@@ -2639,6 +2658,15 @@ export function StoreProvider({ children }) {
       return prev.map((p) => (p.id === id ? { ...p, x, y } : p));
     });
   }, []);
+  const duplicateRoomItem = useCallback((id) => {
+    const prev = roomRef.current;
+    if (prev.length >= MAX_ITEMS) { showToast(`That's all ${MAX_ITEMS} pieces — put something away first 🪴`); return; }
+    const placement = duplicatePlacement(prev, id);
+    if (!placement) return;
+    const next = [...prev, placement];
+    roomRef.current = next;
+    setRoomPlacements(next);
+  }, [showToast]);
   const addRoomItem = useCallback(
     (key) => {
       // Logic outside the updater: updaters must stay pure (StrictMode
@@ -2652,7 +2680,9 @@ export function StoreProvider({ children }) {
       // the panel already shows as a disabled "up ✓" button — no toast needed.
       const placement = newPlacement(key, prev);
       if (!placement) return;
-      setRoomPlacements([...prev, placement]);
+      const next = [...prev, placement];
+      roomRef.current = next;
+      setRoomPlacements(next);
       setRoomEditMode(true); // they'll want to drag the new arrival into place
     },
     [showToast]
@@ -2720,6 +2750,9 @@ export function StoreProvider({ children }) {
     character,
     saveProfile,
     saveCharacter,
+    savedLooks,
+    saveCharacterLook,
+    removeCharacterLook,
 
     friends,
     stats,
@@ -2755,6 +2788,7 @@ export function StoreProvider({ children }) {
     setRoomEditMode,
     moveRoomItem,
     addRoomItem,
+    duplicateRoomItem,
     removeRoomItem,
     applyRoomPreset,
     clearRoom,

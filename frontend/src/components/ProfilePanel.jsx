@@ -41,6 +41,7 @@ import {
 } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 import CharacterPresets from "./CharacterPresets";
+import SavedCharacterLooks from "./SavedCharacterLooks";
 import LevelCard from "./LevelCard";
 
 /**
@@ -755,6 +756,9 @@ export default function ProfilePanel() {
     character,
     saveProfile,
     saveCharacter,
+    savedLooks,
+    saveCharacterLook,
+    removeCharacterLook,
     user,
     setVisitAccess,
     isoRoom,
@@ -878,6 +882,8 @@ export default function ProfilePanel() {
               <p className="text-xs leading-relaxed text-petal/65">
                 Start with a complete look, then make it yours. Your skin tone stays the same.
               </p>
+              <SavedCharacterLooks character={character} looks={savedLooks} onPick={saveCharacter}
+                onSave={saveCharacterLook} onRemove={removeCharacterLook} />
               <CharacterPresets character={character} onPick={saveCharacter} />
             </>
           )}

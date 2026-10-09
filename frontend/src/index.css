@@ -1386,9 +1386,6 @@ body {
 .room-item-fixed {
   cursor: pointer; /* selectable for removal, but pinned in place */
 }
-.room-remove {
-  cursor: pointer;
-}
 
 /* Soft pill buttons */
 .pill {

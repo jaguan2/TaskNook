@@ -629,6 +629,21 @@ async function main() {
     console.log("  willow pond: garden arrival and open-seat view");
   }
 
+  if (want("48") || want("49")) {
+    await setCharacter(page, "casual");
+    await page.setStorage(ambient({ weather: "off", time: "night" }));
+    await page.load();
+    await page.clickText("Friends", { exact: true });
+    if (await page.clickText("Grand Library") !== "ok") throw new Error("Grand Library entry failed");
+    await sleep(2500);
+    if (want("48")) await page.shot(join(OUT_DIR, "48-grand-library.webp"));
+    if (want("49")) {
+      await page.clickText("Change seat");
+      await page.shot(join(OUT_DIR, "49-grand-library-seats.webp"));
+    }
+    console.log("  grand library: candlelit book hall and gallery seat choices");
+  }
+
   if (want("45") || want("46")) {
     // These are daily device markers, not seeded task/session totals. Reset
     // them on the throwaway capture profile for a reproducible first look.

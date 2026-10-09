@@ -7,6 +7,7 @@ import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
 import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
+import CommonLibraryScene from "./CommonLibraryScene";
 
 function Surface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color } = surface;
@@ -118,7 +119,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg viewBox="-260 -190 580 470" className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
+    <svg viewBox={scene.viewBox || "-260 -190 580 470"} className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
       <defs>
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
@@ -134,7 +135,10 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <radialGradient id={`${uid}-lamp-pool`}><stop stopColor="#ffe6a7" stopOpacity=".85" /><stop offset="1" stopColor="#ffe6a7" stopOpacity="0" /></radialGradient>
       </defs>
       <g pointerEvents="none">
-        {scene.kind === "garden" ? (
+        {scene.kind === "library" ? (
+          <CommonLibraryScene scene={scene} uid={uid} clip={clip} glow={glow} lampGlow={lampGlow}
+            timeOfDay={timeOfDay} layers={layers} lightPools={lightPools} />
+        ) : scene.kind === "garden" ? (
           <CommonGardenScene scene={scene} uid={uid} clip={clip} glow={glow}
             layers={layers} lightPools={lightPools} />
         ) : <>
@@ -207,12 +211,12 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         </g>;
       })}
     </svg>
-    <div className="absolute bottom-20 left-6 z-20 max-w-[min(28rem,calc(100%-3rem))]">
+    <div className="absolute bottom-20 left-24 z-20 max-w-[min(28rem,calc(100%-7.5rem))]">
       <button ref={chooserRef} type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
         className="pill glass px-3 py-2 text-xs font-semibold text-cream hover:bg-white/10">
         {choosing ? "Done choosing" : `Change seat · ${guestSeat.label}`}
       </button>
-      {choosing && <div className="glass mt-2 flex flex-wrap gap-1.5 rounded-2xl p-2" role="group" aria-label="Common room seats">
+      {choosing && <div className="glass mt-2 flex max-h-[min(20rem,50vh)] flex-wrap gap-1.5 overflow-y-auto rounded-2xl p-2" role="group" aria-label="Common room seats">
         {scene.seats.map((seat) => { const person = people.get(seat.id); return <button key={seat.id} type="button"
           disabled={!!person} aria-pressed={seat.id === session.guestSeatId} onClick={() => choose(seat)}
           className={`pill px-3 py-2 text-xs disabled:opacity-50 ${seat.id === session.guestSeatId ? "bg-glow/20 text-glow" : "text-cream hover:bg-white/10"}`}>

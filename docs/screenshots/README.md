@@ -1,9 +1,10 @@
 # TaskNook — screenshots
 
-Captured by driving the real app in a headless browser, not mocked up: every
-shot is the built SPA talking to the Flask API, with tasks and focus sessions
-created through the actual REST endpoints, and rooms applied by clicking the
-same preset buttons you would. Room/UI captures are 1600×1000 WebP.
+Captured by driving the real app in a browser, not mocked up: room/UI shots
+show the built SPA talking to the Flask API. Feature examples use tasks and
+focus sessions created through the actual REST endpoints; rooms are entered
+through the same controls you would use. Room/UI captures are WebP, usually 1600×1000;
+the Grand Library captures use the review browser's 1280×720 viewport.
 Character examples extract the real editor SVG and render it as a sharp model
 closeup: individual portraits are 600×800, and eight-look sheets are 1600×1000.
 They contain model artwork and preset labels, without application chrome.
@@ -101,13 +102,23 @@ sheets include all eight looks, in standing and restored seated poses.
 Fixed furnished spaces have their own architecture and seat selection. The
 Common Cottage includes a raised reading nook, lounge, shared study and three
 local simulated neighbours. Willow Pond adds an outdoor stone study terrace,
-pond bench and picnic lawn. Enter through Friends; the home remains editable.
+pond bench and picnic lawn. Grand Library adds tall carved bookcases, arched
+windows, candlelight and a raised reading gallery. Enter through Friends;
+the home remains editable.
 
 | | |
 |---|---|
 | ![Common Cottage](39-common-cottage.webp) **Arriving** — an open study seat with neighbours already settled. | ![Raised reading nook](40-common-cottage-reading.webp) **Reading nook** — choose the raised armchair without moving the furniture. |
 | ![Choosing a seat](41-common-cottage-seats.webp) **Seat selection** — open seats highlighted in the scene and listed as accessible buttons; occupied seats name their neighbour. | |
 | ![Willow Pond at sunset](43-willow-pond.webp) **Willow Pond** — a raised stone study terrace, pergola lights, pond bench and picnic lawn with one neighbour in each zone. | ![Willow Pond seat selection](44-willow-pond-seats.webp) **Garden seats** — the three occupied and three open places remain selectable at night. |
+| ![Grand Library](48-grand-library.webp) **Grand Library** — a 30×20 castle-style book hall with staggered shared tables, study pairs, round reading tables, sofa corners and four shelf ladders. Six arched windows, three chandeliers and the raised gallery keep its castle-library style. | ![Grand Library seat selection](49-grand-library-seats.webp) **Library seats** — thirty-six places across table pairs, sofas and armchairs; twelve neighbours leave twenty-four guest choices in the scrollable seat list. |
+
+## 2D room and saved outfits
+
+| | |
+|---|---|
+| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a sofa, coffee table, floor cushion and glass terrarium in the woodland cottage. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal. |
+| ![Saved outfits](52-saved-outfits.webp) **My outfits** — save a named look, wear it again and keep the preview visible while navigating the controls. | |
 
 ## Features
 

@@ -171,6 +171,16 @@ export const CHARACTER_PRESETS = [
     height: 28,
     torso: 17.5,
   }),
+  look("winter-reader", "Winter reader", "Puffer · knitted layers", {
+    model: "fem", hair: "bob", hairColor: "#5b3a29", garment: "turtleneck", outfit: "#e9dcc9",
+    coat: "puffer", coatColor: "#53775e", pants: "wide", trouser: "#6b4a6e", shoes: "boots", shoeColor: "#5b3a29",
+    hat: "beanie", scarf: "long", scarfColor: "#c9a24b", expression: "calm", width: 6.4, shoulders: -1, height: 28.5, torso: 17,
+  }),
+  look("garden-helper", "Garden helper", "Overalls · sturdy boots", {
+    model: "masc", hair: "curtains", hairColor: "#8c4a2f", garment: "overalls", outfit: "#53775e", inner: "#e9dcc9",
+    pants: "jeans", trouser: "#3f5a7a", shoes: "boots", shoeColor: "#5b3a29", expression: "happy",
+    width: 6.6, shoulders: -.6, height: 29, torso: 17,
+  }),
 ];
 
 const CHARACTER_FIELDS = Object.keys(DEFAULT_CHARACTER);
