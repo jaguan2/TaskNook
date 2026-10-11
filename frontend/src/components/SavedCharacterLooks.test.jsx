@@ -13,12 +13,12 @@ function Harness() {
   const [character, setCharacter] = useState({ ...DEFAULT_CHARACTER, garment: "turtleneck" });
   const { savedLooks, saveCharacterLook, removeCharacterLook } = useSavedLooks(toast);
   return <>
-    <output aria-label="Current outfit">{character.garment} {character.skin}</output>
-    <button onClick={() => setCharacter({ ...DEFAULT_CHARACTER, garment: "overalls", skin: "#8d5524" })}>Change outfit</button>
+    <output aria-label="Current outfit">{character.garment} {character.skin} {character.eyeColor} {character.eyeX} {character.eyeY}</output>
+    <button onClick={() => setCharacter({ ...DEFAULT_CHARACTER, garment: "overalls", skin: "#8d5524", eyeColor: "#405877", eyeX: 3.6, eyeY: 1.7 })}>Change outfit</button>
     <SavedCharacterLooks character={character} looks={savedLooks} onPick={setCharacter} onSave={saveCharacterLook} onRemove={removeCharacterLook} />
   </>;
 }
-it("saves, restores an outfit while preserving skin and confirms deletion", () => {
+it("saves, restores an outfit while preserving skin and face identity", () => {
   removeStored("tasknook.characterLooks");
   render(<Harness />);
   fireEvent.change(screen.getByLabelText("Outfit name"), { target: { value: "My knits" } });
@@ -26,7 +26,8 @@ it("saves, restores an outfit while preserving skin and confirms deletion", () =
   expect(screen.getByLabelText("Outfit name").value).toBe("");
   fireEvent.click(screen.getByText("Change outfit"));
   fireEvent.click(screen.getByRole("button", { name: "Wear My knits" }));
-  expect(screen.getByLabelText("Current outfit").textContent).toBe("turtleneck #8d5524");
+  expect(screen.getByLabelText("Current outfit").textContent)
+    .toBe("turtleneck #8d5524 #405877 3.6 1.7");
   fireEvent.click(screen.getByRole("button", { name: "Remove outfit My knits" }));
   expect(screen.getByRole("button", { name: "Wear My knits" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Remove outfit My knits" }));

@@ -129,7 +129,7 @@ function IsoPresetPreviewInner({ preset }) {
     const at = project(p.gx, p.gy);
     const sprite = item.persona ? (
       <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-        <Sprite seated={!!p._seat} seatH={p._seat || 0} />
+        <Sprite seated={!!p._seat} seatH={p._seat || 0} seatPose={p._seatPose} />
       </g>
     ) : (
       <Sprite

@@ -9,9 +9,13 @@ page gives you the coordinate system, the entry format, and the review loop.
 
 Profile → Looks offers standing, seated and back previews of every complete
 outfit before applying it. Switching preview views does not change the
-character; applying a look preserves the current skin tone. The art sheet's
-`model-*` fixtures also show light/dark skin, body extremes, glasses and hats
-with the face and relaxed seated pose.
+character; applying a look preserves the current skin tone, eye color and eye
+placement. The art sheet's
+`model-*` fixtures also show light/dark skin, body extremes, glasses and hats.
+`eyes-*` renders every curated eye color on light and rich skin, while
+`eyes-spacing-*` checks both safe spacing extremes with and without glasses.
+`seat-pose-*` isolates Relaxed, Ankles crossed and Cross-legged, while the
+preset sheet reviews how those silhouettes read as a cast.
 
 ```bash
 cd frontend
@@ -36,7 +40,7 @@ room's seat placement rules. Review these after changing furniture: an empty
 chair can look good while its backrest hides the sitter or its seat floats
 under them. The bench also joins the cream/dark/sage material fixtures.
 
-`seated-look-*` fixtures show all eight complete looks, front/rear and
+`seated-look-*` fixtures show all ten complete looks, front/rear and
 idle/focus/break, using the established seated rig. Check them alongside
 standing, carried and ordinary seated views. The experimental skewed chair
 pose was rejected and removed; a future seated perspective needs a coherent
@@ -63,7 +67,8 @@ silent bug.
 
 Complete looks are full snapshots rather than another artwork format. Keep
 every `DEFAULT_CHARACTER` field present; `characterFromPreset` replaces the
-baseline skin with the user's current selection because skin is not styling.
+baseline skin and eye fields with the user's current identity because those
+are not outfit styling.
 Then run `npm run art`: each preset
 is rendered front, seated and back so layer collisions are visible. Headwear
 normally replaces the crown hair; set catalog metadata `coversHair: false`

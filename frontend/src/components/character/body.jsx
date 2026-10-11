@@ -328,108 +328,6 @@ const PANTS_FORM = {
 };
 export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
 
-/** A skirt spans BOTH thighs. Separate cloth strokes turn it into shorts. */
-export function SeatedSkirt({ hem, thighW, ankle, pants, color }) {
-  const waist = hem - 0.5;
-  const kneeWidth = Math.max(hem + 1.2, SEAT_KNEE_X + thighW / 2);
-  const bottom = pants === "maxi" ? ankle - 1.5 : SEAT_KNEE_Y + (pants === "pleats" ? 4 : 2.8);
-  const edge = kneeWidth - (pants === "maxi" ? 0.6 : 0);
-  const tone = toneFor(color);
-  return (
-    <g data-seated-skirt={pants}>
-      <path d={`M ${-waist} -2 Q ${-kneeWidth} 1 ${-edge} ${bottom}
-        Q 0 ${bottom + 1.8} ${edge} ${bottom} Q ${kneeWidth} 1 ${waist} -2 Z`} fill={color} />
-      {/* The horizontal lap catches the light; the drop over the knees is
-          one shadowed plane, so the cloth still belongs to a sitting body. */}
-      <path d={`M ${-edge + 0.5} ${SEAT_KNEE_Y - 1} Q 0 ${SEAT_KNEE_Y + 2.6} ${edge - 0.5} ${SEAT_KNEE_Y - 1}
-        L ${edge} ${bottom} Q 0 ${bottom + 1.8} ${-edge} ${bottom} Z`}
-        fill={SHADE} opacity={0.16 * tone.shade} />
-      <path d={`M ${-waist + 1} 0 Q 1 4 ${waist - 1} 0`} fill="none" stroke={GLINT}
-        strokeWidth="1.3" opacity={0.18 * tone.glint} strokeLinecap="round" />
-      {(pants === "pleats" ? [-0.58, 0, 0.58] : pants === "maxi" ? [-0.38] : [-0.4, 0.55]).map((f) => (
-        <path data-skirt-fold={pants} key={f} d={`M ${f * waist} 0 L ${f * edge - 0.8} ${bottom - 0.6}
-          L ${f * edge + 0.6} ${bottom - 0.6} Z`} fill={SHADE} opacity={0.18 * tone.shade} />
-      ))}
-      <path d={`M ${-edge} ${bottom} Q 0 ${bottom + 1.8} ${edge} ${bottom}`}
-        fill="none" stroke="#000" strokeWidth="1.1" opacity="0.18" />
-    </g>
-  );
-}
-
-export function SeatedLeg({
-  side,
-  ankle,
-  thighW = 7.5,
-  shinW = 6.5,
-  far = false,
-  trouser = TROUSER,
-  pants = "trousers",
-  skin = SKIN,
-  shoes = "sneakers",
-  shoeColor = SHOE,
-}) {
-  const knee = side * SEAT_KNEE_X;
-  const cloth = far ? farColor(trouser) : trouser;
-  // Skirted legs are bare underneath a shared lap panel in the assembly.
-  // Shorts keep their separate cloth thighs; wide trousers widen both limbs.
-  const form = pantsFormOf(pants);
-  const bareShin = form.shorts || form.bare;
-  const thighPaint = form.bare ? (far ? farColor(skin) : skin) : cloth;
-  const extra = (form.wide || 0) * 0.75 + (form.slim || 0);
-  const tone = toneFor(trouser);
-  const clothWidth = (form.shorts ? thighW : shinW) + extra;
-  const hemY = form.shorts ? SEAT_KNEE_Y + 0.6 : ankle - 2.6;
-  return (
-    <g>
-      {/* Bare shins go behind the thigh: their round caps must not erase
-          the shorts' hem at the knee. */}
-      {bareShin && (
-        <path d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
-          stroke={far ? farColor(skin) : skin} strokeWidth={shinW - 1.4}
-          strokeLinecap="round" fill="none" />
-      )}
-      <path
-        d={`M${side * 3.6} 0 L${knee} ${SEAT_KNEE_Y}`}
-        stroke={thighPaint}
-        strokeWidth={thighW + extra}
-        strokeLinecap="round"
-        fill="none"
-      />
-      {!bareShin && <path
-        d={`M${knee} ${SEAT_KNEE_Y} L${knee} ${ankle}`}
-        stroke={cloth}
-        strokeWidth={shinW + extra}
-        strokeLinecap="round"
-        fill="none"
-      />}
-      {!form.bare && (
-        <g>
-          {!bareShin && <path d={`M ${knee - clothWidth / 4} ${SEAT_KNEE_Y + 1}
-              L ${knee - clothWidth / 4} ${ankle - 1}`}
-            stroke={SHADE} strokeWidth={clothWidth / 2.9} opacity={0.1 * tone.shade} fill="none" />}
-          {form.crease && <path d={`M ${knee} ${SEAT_KNEE_Y + 1} L ${knee} ${ankle - 2}`}
-            stroke={GLINT} strokeWidth="0.8" opacity={(far ? 0.07 : 0.12) * tone.glint} fill="none" />}
-          {!form.cleanHem && <rect x={knee - clothWidth / 2 + 0.4} y={hemY}
-            width={clothWidth - 0.8} height={form.turnup ? 2.1 : 1.8}
-            fill={form.turnup || form.cuffBand ? GLINT : "#000"}
-            opacity={form.turnup ? 0.16 * tone.glint : form.cuffBand ? 0.13 * tone.glint : 0.1} />}
-          {form.stitch && <path d={`M ${knee - clothWidth / 2 + 0.7} ${hemY - 0.6}
-              L ${knee + clothWidth / 2 - 0.7} ${hemY - 0.6}`}
-            stroke={STITCH} strokeWidth="0.55" strokeDasharray="0.9 0.8" fill="none" opacity={far ? 0.5 : 0.85} />}
-          {form.cargo && (
-            <g data-cargo-pocket="seated" opacity={far ? 0.55 : 0.9}>
-              <rect x={knee - side * 1.1 - 2.1} y={SEAT_KNEE_Y - 5.8} width="4.2" height="3.8" rx="0.6" fill="#000" opacity="0.1" />
-            </g>
-          )}
-        </g>
-      )}
-      <g transform={`translate(0, ${ankle + 1.1})`}>
-        <FrontShoe cx={knee} kind={shoes} color={shoeColor} skin={skin} far={far} />
-      </g>
-    </g>
-  );
-}
-
 /**
  * One standing trouser leg: a garment, not a stick. It tapers from the hip
  * to a cuff just above the shoe — the cuff's shade band is what makes the
@@ -693,17 +591,18 @@ export function SideHeadSkin({ headY, skin }) {
   </>;
 }
 
-export function SideFace({ expression, headY }) {
+export function SideFace({ expression, headY, eyeY = 2, eyeColor = INK }) {
   const R = HEAD_R;
   const stroke = { fill: "none", stroke: INK, strokeWidth: 0.62, strokeLinecap: "round" };
+  const lidY = headY + eyeY;
   return (
     <>
       {expression === "happy" ? (
-        <path d={`M-4.7 ${headY + 2} q1.2 -1.6 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M-4.7 ${lidY} q1.2 -1.6 2.4 0`} {...stroke} />
       ) : expression === "sleepy" ? (
-        <path d={`M-4.7 ${headY + 2} q1.2 0.9 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M-4.7 ${lidY} q1.2 0.9 2.4 0`} {...stroke} />
       ) : (
-        <OpenEye x={-3.5} y={headY + 1.9} />
+        <OpenEye x={-3.5} y={lidY} color={eyeColor} />
       )}
       {/* the mouth sits ON the face, small and soft — the old longer stroke
           started so far back it read as a cut across the cheek */}
@@ -885,14 +784,23 @@ export function HeadSkin({ headY, skin, volume, back = false }) {
 // One small rounded mark per eye. Even the old pinprick catchlight competed
 // with glasses at room scale; the silhouette and expression now do all the
 // work, like the restrained faces in the room reference.
-function OpenEye({ x, y }) {
+export function OpenEye({ x, y, color = INK }) {
   return <g data-character-eye="open" transform={`translate(${x},${y})`}>
-    <ellipse cy="0.05" rx="0.66" ry="0.84" fill={INK} />
+    <ellipse cy="0.05" rx="0.66" ry="0.84" fill={color} stroke={INK}
+      strokeWidth="0.16" strokeOpacity="0.32" />
   </g>;
 }
 
+/** A mirrored pair: one spacing value makes inward/crossed eyes impossible. */
+export function EyePair({ headY, eyeX = 3.3, eyeY = 2, eyeColor = INK }) {
+  return <>
+    <OpenEye x={-eyeX} y={headY + eyeY} color={eyeColor} />
+    <OpenEye x={eyeX} y={headY + eyeY} color={eyeColor} />
+  </>;
+}
+
 /** Eyes and mouth. Expression is the cheapest personality per pixel here. */
-export function Face({ expression, headY }) {
+export function Face({ expression, headY, eyeX = 3.3, eyeY = 2, eyeColor = INK }) {
   const stroke = {
     fill: "none",
     stroke: INK,
@@ -909,13 +817,16 @@ export function Face({ expression, headY }) {
     </>
   );
   const nose = <circle data-character-nose cx="0" cy={headY + 3.65} r="0.18" fill={SHADE} opacity="0.12" />;
+  const leftLid = -eyeX - 1.2;
+  const rightLid = eyeX - 1.2;
+  const lidY = headY + eyeY;
   if (expression === "happy")
     return (
       <>
         {cheeks}
         {/* closed, upturned eyes — the "^ ^" that reads as delight at 8px */}
-        <path d={`M-4.1 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
-        <path d={`M1.7 ${headY + 2.2} q1.2 -1.6 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M${leftLid} ${lidY} q1.2 -1.6 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M${rightLid} ${lidY} q1.2 -1.6 2.4 0`} {...stroke} />
         {nose}
         <path d={`M-1.4 ${headY + 4.8} q1.4 1.3 2.8 0`} {...stroke} />
       </>
@@ -924,8 +835,8 @@ export function Face({ expression, headY }) {
     return (
       <>
         {cheeks}
-        <path d={`M-4.1 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
-        <path d={`M1.7 ${headY + 2.2} q1.2 0.9 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M${leftLid} ${lidY} q1.2 0.9 2.4 0`} {...stroke} />
+        <path data-character-eye="closed" d={`M${rightLid} ${lidY} q1.2 0.9 2.4 0`} {...stroke} />
         {nose}
         <path d={`M-0.65 ${headY + 5} q0.65 0.3 1.3 0`} {...stroke} opacity="0.65" />
       </>
@@ -933,8 +844,7 @@ export function Face({ expression, headY }) {
   return (
     <>
       {cheeks}
-      <OpenEye x={-2.9} y={headY + 2} />
-      <OpenEye x={2.9} y={headY + 2} />
+      <EyePair headY={headY} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
       {nose}
       <path d={`M-1 ${headY + 4.9} q1 0.65 2 0`} {...stroke} opacity="0.72" />
     </>

@@ -25,12 +25,15 @@ import { project } from "../lib/iso";
 import {
   COATS,
   DEFAULT_CHARACTER,
+  EYE_COLORS,
+  EYE_X_RANGE,
   GLASSES,
   HAIR_STYLES,
   HATS,
   OUTFITS,
   PANTS,
   SCARVES,
+  SEATED_POSES,
   SHOES,
 } from "../lib/profile";
 
@@ -105,6 +108,22 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       save(`model-${name}-front`, <Resident character={dressed(extra)} />);
       save(`model-${name}-lap`, <Resident character={dressed(extra)} seated seatH={22} />, "-32 -45 64 85");
     }
+    // Face-system review: every curated hue on light and rich skin, followed
+    // by both safe spacing extremes with and without frames. At room scale an
+    // eye colour that only works in the editor is not a usable option.
+    for (const skin of ["#f2d3bb", "#5c3317"]) {
+      for (const { key, hex: eyeColor } of EYE_COLORS) {
+        save(`eyes-${skin.slice(1)}-${key}`, <Resident character={dressed({ skin, eyeColor })} />);
+      }
+    }
+    for (const eyeX of EYE_X_RANGE) {
+      for (const glasses of ["none", "round"]) {
+        save(`eyes-spacing-${eyeX}-${glasses}`, <Resident character={dressed({ eyeX, glasses })} />);
+      }
+    }
+    for (const { key } of SEATED_POSES) {
+      save(`seat-pose-${key}`, <Resident character={dressed({ seatPose: key })} seated seatH={22} />, "-32 -45 64 85");
+    }
     // Review the authored combinations as combinations too. Individual
     // garment sheets cannot catch a scarf hiding a lapel or headphones
     // erasing the hairstyle that made a preset coherent.
@@ -168,7 +187,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
           for (const activity of ["idle", "focus", "break"]) {
             const furniture = <g style={{ "--tint": "#799a8c" }}><Sprite back={back} /></g>;
             const person = <g transform={`translate(${point.x},${point.y - anchor._seat})`}>
-              <Resident seated seatH={anchor._seat} character={character} facing={anchor._facing} activity={activity === "idle" ? null : activity} />
+              <Resident seated seatH={anchor._seat} seatPose={anchor._seatPose} character={character} facing={anchor._facing} activity={activity === "idle" ? null : activity} />
             </g>;
             save(`seating-${key}-${back ? "back" : "front"}-${body}-${activity}`,
               <>{back ? person : furniture}{back ? furniture : person}</>, "-45 -80 90 105");
@@ -307,6 +326,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     for (const { key } of GLASSES) {
       save(`glasses-${key}`, <Resident character={dressed({ glasses: key })} />);
       save(`glasses-${key}-side`, <Resident character={dressed({ glasses: key })} facing="side" />);
+      save(`glasses-${key}-seated`, <Resident character={dressed({ glasses: key })} seated seatH={22} />);
     }
     // Every coat and breed, every pose — a pattern that only works on the
     // barrel but not the curl is exactly what side-by-side review catches.

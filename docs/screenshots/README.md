@@ -35,10 +35,12 @@ recessed bookshelves, split-leaf plants and the refined character jaw, neck and 
 See [the reference review](../ART_REVIEW.md) for the design findings and remaining gaps.
 
 The character sheets were refreshed again after the compact-model pass: open
-eyes are quiet dark ovals, eyewear has no bridge or temple strokes, sleeves use
-the selected model's real arm width, and the resting arms and shoulders sit
-closer to the torso. The standing and seated preset sheets share fixed grid
-bounds so every label remains visible under wider seated poses.
+eyes are quiet dark ovals, eyewear uses a short centred bridge without temple
+strokes, sleeves use the selected model's real arm width, and the resting arms
+and shoulders sit closer to the torso. The standing and seated preset sheets
+share fixed grid bounds so every label remains visible. Seated looks now carry
+Relaxed, Ankles crossed or Cross-legged lower-body silhouettes instead of one
+identical pose across the cast.
 
 ## Rooms
 
@@ -74,20 +76,21 @@ both the weather and the hour.
 ### Character examples
 
 These closeups show the actual model artwork at a useful scale. The preset
-sheets include all eight looks, in standing and restored seated poses.
+sheets include all ten looks, with their standing and personality-specific
+seated poses.
 
 | | |
 |---|---|
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — a buzz cut, olive overalls, denim shorts and work boots. |
-| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all eight presets, including fall, school, office, lofi and gamer styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all eight presets on the restored seated rig, with no app UI obscuring the models. |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all ten presets, including fall, school, office, lofi, gamer, winter and garden styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all ten presets using relaxed, ankle-crossed and cross-legged silhouettes, with no app UI obscuring the models. |
 | ![Sleeveless maker outfit](42-character-customization.webp) **Expanded customization** — a compact body template with a true sleeveless tank, pocketed cargo pants and skin-aware sandals. | |
 
 ### Personalization tools
 
 | | |
 |---|---|
-| ![Your character](22-character.webp) **Your character** — four neutral body templates plus independent width, shoulder, leg and torso controls; skin and every style choice stay yours. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
+| ![Your character](22-character.webp) **Your character** — expression, readable eye colors, and symmetric spacing/height controls keep the miniature face personal without allowing crossed eyes. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
 | ![Furniture](24-furniture.webp) **Furniture** — themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
 | ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 

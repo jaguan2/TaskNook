@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "build_id": "0ea2e002c6b04d5ba84a5065c29810c6",
-  "built_at": "2026-10-09T20:13:11.305029+00:00",
+  "build_id": "4d471327721e467e8c5fa5716e088a88",
+  "built_at": "2026-10-11T15:50:05.534144+00:00",
   "channel": "main",
-  "sha256": "8405ba9915dff2177dbce8ed42f91bab8eb764ef98780868e37c4854ec933e31",
-  "size": 45397499
+  "sha256": "ec3723789cea7990b844f502e39adadd51ec5de797f3707dafa59809c48ed942",
+  "size": 44501609
 }

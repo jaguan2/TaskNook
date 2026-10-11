@@ -61,13 +61,14 @@ room-scale captures together; tests cannot approve the art direction.
 The following common-room pass refines the shared figure without changing
 that seated rig: fitted shirt/blouse collars, narrow knit necklines and
 smaller shaped palms replace the broad neck oval and round mitten masses.
-All eight starting looks remain complete and editable. Loft, Corner café and
+All ten starting looks remain complete and editable. Loft, Corner café and
 Reading room now make more deliberate use of the refined fern, orchid and
 table-lamp models; new common-room props also use the updated upholstery and
 storage. These are refinements, not completion of the resident backlog.
 
-Review both body models and all eight complete looks (fall girl/guy,
-school girl/boy, office female/male, lofi girl, cozy gamer), front and rear,
+Review both body models and all ten complete looks (fall girl/guy,
+school girl/boy, office female/male, lofi girl, cozy gamer, winter reader and
+garden helper), front and rear,
 in idle/focus/break poses. Test every bottom at multiple seat heights, all
 body-slider extremes, long hair, hats, glasses and light/dark custom colours.
 Keep these individual art passes open:

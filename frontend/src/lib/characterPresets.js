@@ -2,9 +2,8 @@ import { DEFAULT_CHARACTER, validateCharacter } from "./profile.js";
 
 // Complete, editable starting looks. Every preset carries every character
 // field so applying one never leaks a hat, pattern, or body slider from the
-// previous outfit. Skin is the deliberate exception at APPLICATION time:
-// it belongs to the person, not the clothes, so characterFromPreset replaces
-// the baseline value with the user's current selection.
+// previous outfit. Identity fields are the deliberate exception at
+// APPLICATION time: skin and face belong to the person, not the clothes.
 const look = (key, label, tagline, character) => ({
   key,
   label,
@@ -28,6 +27,7 @@ export const CHARACTER_PRESETS = [
     scarf: "long",
     scarfColor: "#8e3a3f",
     expression: "happy",
+    seatPose: "ankles",
     width: 6.4,
     shoulders: -1.0,
     height: 28.5,
@@ -50,6 +50,7 @@ export const CHARACTER_PRESETS = [
     scarf: "loop",
     scarfColor: "#c9a24b",
     expression: "calm",
+    seatPose: "relaxed",
     width: 6.7,
     shoulders: -1.0,
     height: 30.5,
@@ -69,6 +70,7 @@ export const CHARACTER_PRESETS = [
     shoes: "maryjanes",
     shoeColor: "#26232b",
     expression: "happy",
+    seatPose: "ankles",
     width: 6.3,
     shoulders: -1.2,
     height: 27.5,
@@ -88,6 +90,7 @@ export const CHARACTER_PRESETS = [
     shoes: "loafers",
     shoeColor: "#26232b",
     expression: "calm",
+    seatPose: "relaxed",
     width: 6.5,
     shoulders: -1.1,
     height: 29,
@@ -108,6 +111,7 @@ export const CHARACTER_PRESETS = [
     shoeColor: "#26232b",
     glasses: "halfmoon",
     expression: "calm",
+    seatPose: "ankles",
     width: 6.5,
     shoulders: -0.8,
     height: 31,
@@ -127,6 +131,7 @@ export const CHARACTER_PRESETS = [
     shoes: "loafers",
     shoeColor: "#5b3a29",
     expression: "calm",
+    seatPose: "relaxed",
     width: 6.8,
     shoulders: -0.8,
     height: 31.5,
@@ -147,6 +152,7 @@ export const CHARACTER_PRESETS = [
     hat: "headphones",
     glasses: "round",
     expression: "calm",
+    seatPose: "crossed",
     width: 6.4,
     shoulders: -1.1,
     height: 28.5,
@@ -166,6 +172,7 @@ export const CHARACTER_PRESETS = [
     shoeColor: "#26232b",
     hat: "headphones",
     expression: "happy",
+    seatPose: "crossed",
     width: 6.6,
     shoulders: -1.2,
     height: 28,
@@ -174,22 +181,28 @@ export const CHARACTER_PRESETS = [
   look("winter-reader", "Winter reader", "Puffer · knitted layers", {
     model: "fem", hair: "bob", hairColor: "#5b3a29", garment: "turtleneck", outfit: "#e9dcc9",
     coat: "puffer", coatColor: "#53775e", pants: "wide", trouser: "#6b4a6e", shoes: "boots", shoeColor: "#5b3a29",
-    hat: "beanie", scarf: "long", scarfColor: "#c9a24b", expression: "calm", width: 6.4, shoulders: -1, height: 28.5, torso: 17,
+    hat: "beanie", scarf: "long", scarfColor: "#c9a24b", expression: "calm", seatPose: "crossed", width: 6.4, shoulders: -1, height: 28.5, torso: 17,
   }),
   look("garden-helper", "Garden helper", "Overalls · sturdy boots", {
     model: "masc", hair: "curtains", hairColor: "#8c4a2f", garment: "overalls", outfit: "#53775e", inner: "#e9dcc9",
-    pants: "jeans", trouser: "#3f5a7a", shoes: "boots", shoeColor: "#5b3a29", expression: "happy",
+    pants: "jeans", trouser: "#3f5a7a", shoes: "boots", shoeColor: "#5b3a29", expression: "happy", seatPose: "relaxed",
     width: 6.6, shoulders: -.6, height: 29, torso: 17,
   }),
 ];
 
 const CHARACTER_FIELDS = Object.keys(DEFAULT_CHARACTER);
-const STYLE_FIELDS = CHARACTER_FIELDS.filter((key) => key !== "skin");
+export const CHARACTER_IDENTITY_FIELDS = ["skin", "eyeColor", "eyeX", "eyeY"];
+const STYLE_FIELDS = CHARACTER_FIELDS.filter(
+  (key) => !CHARACTER_IDENTITY_FIELDS.includes(key)
+);
 
-/** Materialize a look without ever replacing the user's selected skin. */
-export function characterFromPreset(preset, skin) {
+/** Materialize a look without replacing the user's skin or face identity. */
+export function characterFromPreset(preset, currentCharacter) {
   if (!preset?.character) return null;
-  return validateCharacter({ ...preset.character, skin });
+  const identity = Object.fromEntries(
+    CHARACTER_IDENTITY_FIELDS.map((key) => [key, currentCharacter?.[key]])
+  );
+  return validateCharacter({ ...preset.character, ...identity });
 }
 
 export function characterPresetMatches(character, preset) {

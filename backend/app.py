@@ -1071,6 +1071,11 @@ def register_routes(app):
     # profile question or a new hairstyle is then a frontend change with no
     # migration — which is the whole reason these are JSON and not columns.
     PROFILE_MAX_KEYS = 24
+    # Character customization has many independent scalar axes (wardrobe,
+    # body, face, accessories). It already outgrew the smaller about-you map;
+    # keep a separate bounded budget so adding a legitimate appearance field
+    # cannot make every complete character save fail with a 400.
+    CHARACTER_MAX_KEYS = 40
     PROFILE_MAX_VALUE = 280  # a bio, not an essay
 
     def _clean_json_map(value, max_keys, max_len):
@@ -1161,7 +1166,7 @@ def register_routes(app):
 
         if "character" in data:
             # Appearance values are keys and hex colours, never prose.
-            cleaned = _clean_json_map(data.get("character"), PROFILE_MAX_KEYS, 32)
+            cleaned = _clean_json_map(data.get("character"), CHARACTER_MAX_KEYS, 32)
             if cleaned is None:
                 return jsonify({"error": "Invalid character"}), 400
             user.character = json.dumps(cleaned)

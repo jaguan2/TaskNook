@@ -6,11 +6,15 @@ import { ISO_SPRITES } from "./IsoItems";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
 import { Glasses } from "./character/glasses";
+import { EyePair } from "./character/body";
 import {
   BIO_MAX,
   COATS,
   DEFAULT_CHARACTER,
   EXPRESSIONS,
+  EYE_COLORS,
+  EYE_X_RANGE,
+  EYE_Y_RANGE,
   GLASSES,
   HAIR_COLORS,
   HAIR_STYLES,
@@ -20,6 +24,7 @@ import {
   PATTERNS,
   SCARF_COLORS,
   SCARVES,
+  SEATED_POSES,
   SHOES,
   SHOE_COLORS,
   TROUSER_COLORS,
@@ -65,12 +70,12 @@ const TABS = [
 ];
 
 /**
- * The dressing-room stage has the two useful views: front and back. The side
- * model did not meet the quality bar, so it is never offered or reached by an
- * automatic turntable. Drag pans and the wheel zooms; the frame stays fixed
+ * The dressing-room stage has front, seated and back views. The seated view is
+ * where sitting-style choices earn their slot; the side model still does not
+ * meet the quality bar. Drag pans and the wheel zooms; the frame stays fixed
  * per zoom level so a slider change never resets the camera.
  */
-function CharacterStage({ character, facing }) {
+function CharacterStage({ character, view }) {
   const Resident = ISO_SPRITES.resident;
   const [zoom, setZoom] = useState(1.35);
   // The camera can MOVE now, not just zoom: dragging the stage pans the view
@@ -107,7 +112,7 @@ function CharacterStage({ character, facing }) {
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label={`${facing === "back" ? "Back" : "Front"} view of your character — drag to move and scroll to zoom`}
+      aria-label={`${view === "back" ? "Back" : view === "seated" ? "Seated" : "Front"} view of your character — drag to move and scroll to zoom`}
       onPointerDown={(e) => {
         dragRef.current = {
           x: e.clientX,
@@ -143,9 +148,11 @@ function CharacterStage({ character, facing }) {
       {/* The figure draws 9.6px below the origin (project(0.4,0.4)), so the
           shadow belongs under the FEET at ~y12, not at the origin where it
           floated at shin height. */}
-      <ellipse cx="0" cy="12" rx="15" ry="2.5" fill="#000" opacity="0.18" />
-      <g>
-        <Resident character={character} facing={facing} />
+      <ellipse cx="0" cy={view === "seated" && character.seatPose === "crossed" ? 4 : 12}
+        rx="15" ry="2.5" fill="#000" opacity="0.18" />
+      <g transform={view === "seated" ? "translate(0,-22)" : undefined}>
+        <Resident character={character} facing={view === "back" ? "back" : "front"}
+          seated={view === "seated"} seatH={view === "seated" ? 22 : 0} />
       </g>
     </svg>
   );
@@ -156,21 +163,20 @@ function CharacterStage({ character, facing }) {
  * user's own hair colour and skin. The icon IS the artwork, so it can never
  * drift from what the room draws.
  */
-function HairIcon({ style, hairColor, skin }) {
+function HairIcon({ style, hairColor, skin, eyeX, eyeY, eyeColor }) {
   return (
     <svg viewBox="-15 -14 30 38" className="h-12 w-full" aria-hidden="true">
       <HairLength style={style} headY={0} color={hairColor} />
       <HairBehind style={style} headY={0} color={hairColor} />
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       <HairFront style={style} headY={0} color={hairColor} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
     </svg>
   );
 }
 
 /** A hat worn over the CURRENT hair — crown replaced, length surviving. */
-function HatIcon({ hat, hair, hairColor, skin }) {
+function HatIcon({ hat, hair, hairColor, skin, eyeX, eyeY, eyeColor }) {
   const worn = hat !== "none" && hatOf(hat).coversHair !== false;
   return (
     <svg viewBox="-15 -16 30 32" className="h-12 w-full" aria-hidden="true">
@@ -179,8 +185,7 @@ function HatIcon({ hat, hair, hairColor, skin }) {
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       {!worn && <HairFront style={hair} headY={0} color={hairColor} />}
       <Hat kind={hat} headY={0} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
     </svg>
   );
 }
@@ -226,16 +231,15 @@ function ScarfIcon({ character, scarf }) {
 }
 
 /** Glasses on your own face — the head close-up, frames over the real eyes. */
-function GlassesIcon({ glasses, hair, hairColor, skin }) {
+function GlassesIcon({ glasses, hair, hairColor, skin, eyeX, eyeY, eyeColor }) {
   return (
     <svg viewBox="-15 -14 30 30" className="h-12 w-full" aria-hidden="true">
       <HairLength style={hair} headY={0} color={hairColor} />
       <HairBehind style={hair} headY={0} color={hairColor} />
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       <HairFront style={hair} headY={0} color={hairColor} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
-      <Glasses kind={glasses} headY={0} />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
+      <Glasses kind={glasses} headY={0} eyeX={eyeX} eyeY={eyeY} />
     </svg>
   );
 }
@@ -601,9 +605,22 @@ function Choices({ options, value, onPick, label }) {
   );
 }
 
-function BodySlider({ label, range, step, value, onDraft, onCommit }) {
-  const midpoint = (range[0] + range[1]) / 2;
-  const size = value < midpoint - Number(step) / 2 ? "Smaller" : value > midpoint + Number(step) / 2 ? "Larger" : "Middle";
+function BodySlider({
+  label,
+  range,
+  step,
+  value,
+  onDraft,
+  onCommit,
+  ariaPrefix = "Body",
+  labels = ["Smaller", "Middle", "Larger"],
+  neutralValue = (range[0] + range[1]) / 2,
+}) {
+  const size = value < neutralValue - Number(step) / 2
+    ? labels[0]
+    : value > neutralValue + Number(step) / 2
+      ? labels[2]
+      : labels[1];
   return (
     <label className="grid grid-cols-[4.25rem_1fr_3rem] items-center gap-2 text-xs text-petal/70">
       <span className="shrink-0">{label}</span>
@@ -613,7 +630,7 @@ function BodySlider({ label, range, step, value, onDraft, onCommit }) {
         max={range[1]}
         step={step}
         value={value}
-        aria-label={`Body ${label.toLowerCase()}`}
+        aria-label={`${ariaPrefix} ${label.toLowerCase()}`}
         onChange={(e) => onDraft(Number(e.target.value))}
         onPointerUp={onCommit}
         onBlur={onCommit}
@@ -768,7 +785,7 @@ export default function ProfilePanel() {
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("looks");
-  const [characterFacing, setCharacterFacing] = useState("front");
+  const [characterView, setCharacterView] = useState("front");
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
   // get a cursor that jumps to the end of the line mid-word.
@@ -782,18 +799,18 @@ export default function ProfilePanel() {
     if ((profile[key] || "") !== value) saveProfile({ [key]: value });
   };
 
-  // The body sliders are local until release for the same reason: a drag
+  // Character sliders are local until release for the same reason: a drag
   // emits dozens of change events and saveCharacter round-trips. The draft
   // still feeds the preview, so the figure follows the thumb live.
-  const [bodyDraft, setBodyDraft] = useState(null);
-  const shown = bodyDraft ? { ...character, ...bodyDraft } : character;
-  const commitBody = () => {
-    if (bodyDraft) {
-      saveCharacter(bodyDraft);
-      setBodyDraft(null);
+  const [axisDraft, setAxisDraft] = useState(null);
+  const shown = axisDraft ? { ...character, ...axisDraft } : character;
+  const commitAxes = () => {
+    if (axisDraft) {
+      saveCharacter(axisDraft);
+      setAxisDraft(null);
     }
   };
-  const draftAxis = (key) => (v) => setBodyDraft({ ...(bodyDraft || {}), [key]: v });
+  const draftAxis = (key) => (v) => setAxisDraft({ ...(axisDraft || {}), [key]: v });
 
   return (
     <div className="space-y-4">
@@ -834,25 +851,25 @@ export default function ProfilePanel() {
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            <CharacterStage character={shown} facing={characterFacing} />
+            <CharacterStage character={shown} view={characterView} />
             <div
               className="absolute right-2 top-2 flex rounded-full bg-plum/75 p-0.5 backdrop-blur-sm"
               role="group"
               aria-label="Character preview view"
             >
-              {["front", "back"].map((facing) => (
+              {["front", "seated", "back"].map((view) => (
                 <button
-                  key={facing}
+                  key={view}
                   type="button"
-                  onClick={() => setCharacterFacing(facing)}
-                  aria-pressed={characterFacing === facing}
+                  onClick={() => setCharacterView(view)}
+                  aria-pressed={characterView === view}
                   className={`rounded-full px-2 py-1 text-[10px] font-semibold capitalize transition ${
-                    characterFacing === facing
+                    characterView === view
                       ? "bg-glow text-plum"
                       : "text-petal/70 hover:bg-white/10 hover:text-cream"
                   }`}
                 >
-                  {facing}
+                  {view}
                 </button>
               ))}
             </div>
@@ -880,7 +897,7 @@ export default function ProfilePanel() {
           {tab === "looks" && (
             <>
               <p className="text-xs leading-relaxed text-petal/65">
-                Start with a complete look, then make it yours. Your skin tone stays the same.
+                Start with a complete outfit, then make it yours. Your skin and face stay the same.
               </p>
               <SavedCharacterLooks character={character} looks={savedLooks} onPick={saveCharacter}
                 onSave={saveCharacterLook} onRemove={removeCharacterLook} />
@@ -932,7 +949,7 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.width}
                     onDraft={draftAxis("width")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   <BodySlider
                     label="Shoulders"
@@ -940,7 +957,7 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.shoulders}
                     onDraft={draftAxis("shoulders")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   {/* Legs and torso are separate axes — a long-legged figure
                       and a long-bodied one are different people. */}
@@ -950,7 +967,7 @@ export default function ProfilePanel() {
                     step="0.5"
                     value={shown.height}
                     onDraft={draftAxis("height")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   <BodySlider
                     label="Torso"
@@ -958,22 +975,68 @@ export default function ProfilePanel() {
                     step="0.5"
                     value={shown.torso}
                     onDraft={draftAxis("torso")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                 </div>
+              </Field>
+              <Field label="Sitting style">
+                <Choices
+                  label="Sitting style"
+                  options={SEATED_POSES}
+                  value={character.seatPose}
+                  onPick={(seatPose) => {
+                    setCharacterView("seated");
+                    saveCharacter({ seatPose });
+                  }}
+                />
               </Field>
             </>
           )}
 
           {tab === "face" && (
-            <Field label="Expression">
-              <Choices
-                label="Expression"
-                options={EXPRESSIONS}
-                value={character.expression}
-                onPick={(expression) => saveCharacter({ expression })}
-              />
-            </Field>
+            <>
+              <Field label="Expression">
+                <Choices
+                  label="Expression"
+                  options={EXPRESSIONS}
+                  value={character.expression}
+                  onPick={(expression) => saveCharacter({ expression })}
+                />
+              </Field>
+              <Field label="Eye color">
+                <Swatches
+                  label="Eye color"
+                  options={EYE_COLORS}
+                  value={character.eyeColor}
+                  onPick={(eyeColor) => saveCharacter({ eyeColor })}
+                />
+              </Field>
+              <Field label="Eye placement">
+                <div className="space-y-2">
+                  <BodySlider
+                    label="Spacing"
+                    ariaPrefix="Eye"
+                    labels={["Closer", "Balanced", "Wider"]}
+                    neutralValue={DEFAULT_CHARACTER.eyeX}
+                    range={EYE_X_RANGE}
+                    step="0.1"
+                    value={shown.eyeX}
+                    onDraft={draftAxis("eyeX")}
+                    onCommit={commitAxes}
+                  />
+                  <BodySlider
+                    label="Height"
+                    ariaPrefix="Eye"
+                    labels={["Higher", "Middle", "Lower"]}
+                    range={EYE_Y_RANGE}
+                    step="0.05"
+                    value={shown.eyeY}
+                    onDraft={draftAxis("eyeY")}
+                    onCommit={commitAxes}
+                  />
+                </div>
+              </Field>
+            </>
           )}
 
           {tab === "hair" && (
@@ -997,6 +1060,9 @@ export default function ProfilePanel() {
                         key === character.hair ? character.hairColor : DEFAULT_CHARACTER.hairColor
                       }
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                   swatchesFor={() => HAIR_COLORS}
@@ -1133,6 +1199,9 @@ export default function ProfilePanel() {
                       hair={character.hair}
                       hairColor={character.hairColor}
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                 />
@@ -1172,6 +1241,9 @@ export default function ProfilePanel() {
                       hair={character.hair}
                       hairColor={character.hairColor}
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                 />

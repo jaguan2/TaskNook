@@ -424,7 +424,7 @@ running `git commit` yourself.
   free seat + soft ground BREATHES AMBER (the seat glow — choosing a spot
   is reading the room); release calls `onWalkTo` → the store's
   `moveVisitGuest`. The rule is `personaCanSit` in lib/isoRoom.js — a FREE
-  seat or SOFT GROUND (layer −1 minus the pond; `seatFor` resolves a
+  seat or SOFT GROUND (explicit catalog `softSeat: true`; `seatFor` resolves a
   floor-sit with `soft: true`, shared by many, so a rug is never "taken");
   BARE floor anywhere clear of furniture just STANDS them there (owner:
   drop anywhere is fine — standing is a chosen spot, not a walk).
@@ -661,7 +661,7 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, **a wardrobe**, expression, and body width/shoulder/leg/torso sliders — `build`
+  hair + colour, **a wardrobe**, expression, saved sitting style, and body width/shoulder/leg/torso sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
   room and the unlock list — the backend guarantees only a bounded flat map of
@@ -694,8 +694,9 @@ running `git commit` yourself.
   slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
   `character/glasses.jsx`: round/square/halfmoon — the third accessory
   slot, deliberately colour-less: frames are a fixed ink like shoe soles
-  are fixed rubber. Each style draws only its LENS RIMS; bridges and temple
-  arms become stray face lines at this scale; the legacy `halfmoon` key now
+  are fixed rubber. Each style draws its LENS RIMS plus one short bridge
+  centred over the nose; temple arms become stray face lines at this scale
+  and stay omitted. The legacy `halfmoon` key now
   draws smaller low-set circular readers because open arcs resembled a
   moustache. Drawn inside the head's gesture
   group AFTER hair and hat so a fringe can't bury the rims; nothing from
@@ -704,8 +705,10 @@ running `git commit` yourself.
   guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
   a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
   not a mode — applying one clears incompatible styling leftovers but always
-  restores the user's CURRENT `skin` through `characterFromPreset`; skin is
-  identity, never part of an outfit. The normal tabs then edit ordinary
+  restores the user's CURRENT `skin`, `eyeColor`, `eyeX` and `eyeY` through
+  `characterFromPreset`; those are identity, never part of an outfit. `eyeX`
+  is mirrored half-spacing, so independent offsets can never make crossed
+  eyes. The normal tabs then edit ordinary
   character data. Names describe starting silhouettes,
   never wardrobe restrictions. `characterPresets.test.js` pins completeness;
   the art sheet renders every preset front/seated/back, and Profile's Looks
@@ -1302,8 +1305,11 @@ running `git commit` yourself.
   height (stool/sofa/bench/cushion/bed) and `seatFor` seats them there at
   render time (snapped to the seat's centre, +0.15 gy so they draw in front
   of the backrest, lifted by the seat height, sitting pose); over SOFT
-  GROUND (layer −1 minus the pond) `seatFor` resolves a floor-sit with
-  `soft: true` — shared, so one rug seats many. **Humans never wander**
+  GROUND (explicit catalog `softSeat: true`, currently rugs and blankets)
+  `seatFor` resolves a floor-sit with
+  `soft: true` — shared, so one rug seats many — and forces the Cross-legged
+  pose. Chairs keep the character's saved Relaxed / Ankles crossed /
+  Cross-legged style. **Humans never wander**
   (the seated life, 2026-08-19): the wander interval is the PETS' engine
   now, and a persona stays exactly where you settled them. Personas still
   use a CSS transform + transition (the glide) instead of the attribute

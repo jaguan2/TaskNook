@@ -28,8 +28,6 @@ import {
   TROUSER,
   Face,
   HeadSkin,
-  SeatedLeg,
-  SeatedSkirt,
   SideFace,
   SideHeadSkin,
   SideLeg,
@@ -37,6 +35,7 @@ import {
   hangLimb,
   pantsFormOf,
 } from "./body";
+import { SeatedLeg, SeatedSkirt } from "./seated";
 import { Coat, DEFAULT_FINISH, GARMENT_REGISTRY, Garment, GarmentCollar, Neckline } from "./garments";
 import { VolumeDefs, sphereFill } from "./volume";
 import {
@@ -67,6 +66,9 @@ export function Resident({
   seated = false,
   lying = false,
   seatH = 0,
+  // A rug can override this to the cross-legged floor pose. Otherwise the
+  // character's saved sitting style supplies their chair personality.
+  seatPose = null,
   // What the timer is doing: "focus" | "break" | null. One string rather than a
   // pair of booleans, because the states are mutually exclusive and two flags
   // can be set at once; it also still changes rarely, which is what the memo'd
@@ -95,6 +97,7 @@ export function Resident({
   // rendered by panel previews and tests, so it stands alone with the classic
   // resident as its default.
   const ch = character || DEFAULT_CHARACTER;
+  const sittingPose = seatPose || ch.seatPose || DEFAULT_CHARACTER.seatPose;
   const skin = ch.skin || SKIN;
   const hairColor = ch.hairColor || HAIR;
   // The sweater stays the placement's --tint when one is set, falling back to
@@ -478,10 +481,12 @@ export function Resident({
                     />
                     {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
                     <Hat kind={ch.hat} headY={headY} view="side" />
-                    <SideFace expression={ch.expression} headY={headY} />
+                    <SideFace expression={ch.expression} headY={headY}
+                      eyeY={ch.eyeY} eyeColor={ch.eyeColor} />
                     {/* glasses over the finished face — after the hair's side
                         mass and the hat, so neither can bury the lens */}
-                    <Glasses kind={ch.glasses} headY={headY} view="side" />
+                    <Glasses kind={ch.glasses} headY={headY} view="side"
+                      eyeX={ch.eyeX} eyeY={ch.eyeY} />
                   </g>
                 </g>
                 </g>
@@ -504,10 +509,10 @@ export function Resident({
         style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
       >
       {seated ? (
-        <>
-          <SeatedLeg side={-1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} far />
-          <SeatedLeg side={1} ankle={ankle} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
-        </>
+        <g data-seat-pose={sittingPose}>
+          <SeatedLeg side={-1} ankle={ankle} pose={sittingPose} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} far />
+          <SeatedLeg side={1} ankle={ankle} pose={sittingPose} thighW={thighW} shinW={shinW} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
+        </g>
       ) : (
         <>
           {/* Legs run the full LEG_H — at 15px they were stubs under a long
@@ -554,7 +559,7 @@ export function Resident({
       </g>
       {/* Seated cloth spans the lap instead of painting two trouser thighs. */}
       {skirted && seated && (
-        <SeatedSkirt hem={hem} thighW={thighW} ankle={ankle} pants={pants} color={trouser} />
+        <SeatedSkirt hem={hem} thighW={thighW} ankle={ankle} pose={sittingPose} pants={pants} color={trouser} />
       )}
       {/* The standing skirt flare, over the bare legs and under the torso. */}
       {skirted && !seated && (
@@ -905,13 +910,15 @@ export function Resident({
                   the gesture group, so it turns with a glance instead of
                   hovering while the head moves under it. */}
               <Hat kind={ch.hat} headY={headY} view={view} />
-              {!back && <Face expression={ch.expression} headY={headY} />}
+              {!back && <Face expression={ch.expression} headY={headY}
+                eyeX={ch.eyeX} eyeY={ch.eyeY} eyeColor={ch.eyeColor} />}
               {/* Glasses land right after the eyes' layer — over the fringe
                   and the hat's rim, so no crown mass can bury the rims, and
                   inside the gesture group so they turn with a glance. Turned
                   away they draw nothing: from behind, glasses are temple tips
                   at most, which at 7px is noise. */}
-              {!back && <Glasses kind={ch.glasses} headY={headY} />}
+              {!back && <Glasses kind={ch.glasses} headY={headY}
+                eyeX={ch.eyeX} eyeY={ch.eyeY} />}
               {/* The yawn itself. `opacity` is a presentation ATTRIBUTE, which the
                   keyframes outrank while they run but which takes over the moment
                   they don't — so under reduced motion the mouth is simply shut,

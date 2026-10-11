@@ -7,7 +7,7 @@ import { SCARF_REGISTRY } from "./character/scarves";
 import { Glasses, GLASSES_REGISTRY } from "./character/glasses";
 import { Hat } from "./character/hats";
 import { ISO_ITEM_KEYS, ISO_ITEMS, ISO_PRESETS, ISO_PRESET_KEYS } from "../lib/isoRoom";
-import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SHOES } from "../lib/profile";
+import { COATS, DEFAULT_CHARACTER, GLASSES, HAIR_STYLES, HATS, MODELS, OUTFITS, PANTS, SCARVES, SEATED_POSES, SHOES } from "../lib/profile";
 
 afterEach(cleanup);
 
@@ -145,6 +145,20 @@ describe("the isometric catalog and its artwork agree", () => {
     it("stands with straight legs — the bend belongs to sitting only", () => {
       expect(limbs(<Resident />)).toHaveLength(0);
     });
+
+    it("draws every sitting style as a distinct lower-body silhouette", () => {
+      const silhouettes = SEATED_POSES.map(({ key }) => {
+        const { container } = draw(
+          <Resident character={{ ...DEFAULT_CHARACTER, seatPose: key }} seated seatH={22} />
+        );
+        const pose = container.querySelector(`[data-seat-pose="${key}"]`);
+        expect(pose, key).not.toBeNull();
+        const drawing = pose.innerHTML;
+        cleanup();
+        return drawing;
+      });
+      expect(new Set(silhouettes).size).toBe(SEATED_POSES.length);
+    });
   });
 
   describe("the character vocabulary and the sprite agree", () => {
@@ -176,6 +190,64 @@ describe("the isometric catalog and its artwork agree", () => {
         expect(eye.querySelectorAll("circle")).toHaveLength(0);
         expect(eye.querySelector("path")).toBeNull();
       }
+    });
+
+    it("keeps the front eyes symmetric and applies placement and colour together", () => {
+      const character = {
+        ...DEFAULT_CHARACTER,
+        eyeX: 3.6,
+        eyeY: 1.5,
+        eyeColor: "#405877",
+      };
+      const { container } = draw(<Resident character={character} />);
+      const eyes = [...container.querySelectorAll('[data-character-eye="open"]')];
+
+      expect(eyes.map((eye) => eye.getAttribute("transform")))
+        .toEqual(["translate(-3.6,-48.5)", "translate(3.6,-48.5)"]);
+      for (const eye of eyes) {
+        expect(eye.querySelector("ellipse").getAttribute("fill")).toBe("#405877");
+      }
+    });
+
+    it("centres glasses on the customized eye line", () => {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, glasses: "round", eyeX: 3.6, eyeY: 1.5 }} />
+      );
+      const lenses = [...container.querySelectorAll('[data-glasses-lens]')];
+
+      expect(lenses.map((lens) => Number(lens.getAttribute("cx"))))
+        .toEqual([-3.6, 3.6]);
+      expect(lenses.map((lens) => Number(lens.getAttribute("cy"))))
+        .toEqual([-48.5, -48.5]);
+    });
+
+    it.each(["happy", "sleepy"])("moves both %s eyelids with the eye controls", (expression) => {
+      const { container } = draw(
+        <Resident character={{ ...DEFAULT_CHARACTER, expression, eyeX: 3.6, eyeY: 1.7 }} />
+      );
+      const lids = [...container.querySelectorAll('[data-character-eye="closed"]')];
+
+      expect(lids).toHaveLength(2);
+      expect(lids.map((lid) => lid.getAttribute("d")))
+        .toEqual(expect.arrayContaining([
+          expect.stringContaining("M-4.8 -48.3"),
+          expect.stringContaining("M2.4000000000000004 -48.3"),
+        ]));
+    });
+
+    it("moves and recolors the profile eye without applying front-view spacing", () => {
+      const { container } = draw(
+        <Resident facing="side" character={{
+          ...DEFAULT_CHARACTER,
+          eyeX: 3.6,
+          eyeY: 1.7,
+          eyeColor: "#405846",
+        }} />
+      );
+      const eye = container.querySelector('[data-character-eye="open"]');
+
+      expect(eye.getAttribute("transform")).toBe("translate(-3.5,-48.3)");
+      expect(eye.querySelector("ellipse").getAttribute("fill")).toBe("#405846");
     });
 
     it("uses the model-specific arm width in the rendered sprite", () => {
@@ -279,16 +351,17 @@ describe("the isometric catalog and its artwork agree", () => {
       }
     });
 
-    it("keeps glasses to clean lens rims without bridge or temple lines", () => {
+    it("renders one front bridge without adding temple lines", () => {
       for (const kind of ["round", "square", "halfmoon"]) {
-        for (const view of ["front", "side"]) {
-          const { container } = draw(<Glasses kind={kind} headY={0} view={view} />);
-          expect(container.querySelector("line, polyline")).toBeNull();
-          for (const path of container.querySelectorAll("path")) {
-            expect(path.getAttribute("d"), `${kind} ${view}`).not.toMatch(/\bL\b/);
-          }
-          cleanup();
-        }
+        const front = draw(<Glasses kind={kind} headY={0} view="front" />);
+        expect(front.container.querySelectorAll("[data-glasses-bridge]")).toHaveLength(1);
+        expect(front.container.querySelectorAll("path")).toHaveLength(1);
+        expect(front.container.querySelector("line, polyline")).toBeNull();
+        cleanup();
+
+        const side = draw(<Glasses kind={kind} headY={0} view="side" />);
+        expect(side.container.querySelector("[data-glasses-bridge], path, line, polyline")).toBeNull();
+        cleanup();
       }
     });
 

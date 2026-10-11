@@ -636,9 +636,14 @@ describe("a sitter is placed by which way the seat faces", () => {
     const rug = { id: "r", item: "roundrug", gx: 1, gy: 1, rot: 0 };
     const out = seatedPlacement(
       { id: "p", item: "resident", gx: 1, gy: 1 },
-      { placement: rug, height: 1.5, lie: false, soft: true }
+      { placement: rug, height: 14, lie: false, soft: true }
     );
     expect(out._facing).toBe("front");
+    expect(out._seatPose).toBe("crossed");
+  });
+
+  it("leaves chair sitting style to the character", () => {
+    expect(sit(0).out._seatPose).toBeUndefined();
   });
 });
 
@@ -1317,6 +1322,26 @@ describe("personaCanSit — the seated-life landing rule", () => {
     expect(personaCanSit(1, 1, ROOM, [bookcase], SELF)).toBe(true);
   });
 
+  it("only explicit rugs and blankets become human floor seats", () => {
+    const centredResident = (item) => {
+      const [w, d] = footOf(item);
+      const [pw, pd] = footOf("resident");
+      return { id: SELF, item: "resident", gx: (w - pw) / 2, gy: (d - pd) / 2 };
+    };
+    for (const item of ["rug", "squarerug", "runner", "ovalrug", "picnic", "persianrug", "stripedrug", "sheepskin"]) {
+      expect(
+        seatFor(centredResident(item), [{ id: item, item, gx: 0, gy: 0 }])?.soft,
+        item
+      ).toBe(true);
+    }
+    for (const item of ["pool", "pond", "snowangel", "petbed", "matrug"]) {
+      expect(
+        seatFor(centredResident(item), [{ id: item, item, gx: 0, gy: 0 }]),
+        item
+      ).toBeNull();
+    }
+  });
+
   it("a free seat is legal; a seat someone else resolves onto is taken", () => {
     const stool = { id: "s1", item: "stool", gx: 4, gy: 4 };
     // Centred over the stool → seatFor will seat them there.
@@ -1340,7 +1365,9 @@ describe("personaCanSit — the seated-life landing rule", () => {
     // Stool taken → the rug (a floor-sit) is next.
     const owner = { id: "o1", item: "resident", gx: 4, gy: 4 };
     const soft = freeSeatSpot([stool, rug, owner]);
-    expect(seatFor({ id: "g", item: "resident", ...soft }, [stool, rug, owner])?.soft).toBe(true);
+    const floorSeat = seatFor({ id: "g", item: "resident", ...soft }, [stool, rug, owner]);
+    expect(floorSeat?.soft).toBe(true);
+    expect(floorSeat?.height).toBe(14);
     // Nothing to sit on at all → null (the caller stands them up instead).
     expect(freeSeatSpot([{ id: "b1", item: "bookcase", gx: 1, gy: 1 }])).toBe(null);
   });

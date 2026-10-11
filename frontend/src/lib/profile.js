@@ -421,10 +421,35 @@ export const HAIR_COLORS = [
   { key: "mint", hex: "#7faf8f" },
 ];
 
+// Eye colours stay intentionally dark: at room scale the eye is one small
+// oval, not a white/pupil/iris stack. These hues remain readable on every skin
+// tone while still giving the face a visible identity close up.
+export const EYE_COLORS = [
+  { key: "ink", hex: "#3a3142" },
+  { key: "brown", hex: "#52362f" },
+  { key: "hazel", hex: "#66583b" },
+  { key: "green", hex: "#405846" },
+  { key: "blue", hex: "#405877" },
+  { key: "plum", hex: "#60465f" },
+];
+
+// `eyeX` is the positive half-spacing of a mirrored pair, never a free offset
+// for either eye. That makes a crossed-eye configuration unrepresentable.
+export const EYE_X_RANGE = [2.8, 3.6];
+export const EYE_Y_RANGE = [1.7, 2.35];
+
 export const EXPRESSIONS = [
   { key: "calm", label: "Calm" },
   { key: "happy", label: "Happy" },
   { key: "sleepy", label: "Sleepy" },
+];
+
+// A resident keeps their preferred sitting silhouette as part of their look.
+// Seats still own height and facing; this is personality, not furniture state.
+export const SEATED_POSES = [
+  { key: "relaxed", label: "Relaxed" },
+  { key: "ankles", label: "Ankles crossed" },
+  { key: "crossed", label: "Cross-legged" },
 ];
 
 // Legacy vocabulary: the panel now offers body width/height SLIDERS instead
@@ -461,6 +486,10 @@ export const DEFAULT_CHARACTER = {
   glasses: "none",
   print: "none",
   expression: "calm",
+  eyeColor: "#3a3142",
+  eyeX: 3.3,
+  eyeY: 2,
+  seatPose: "relaxed",
   build: "average",
   width: BUILD_SHAPE.average.halfW,
   shoulders: DEFAULT_SHOULDER,
@@ -487,6 +516,8 @@ export const coatOf = (key) => COATS.find((c) => c.key === key) || COATS[0];
 /** Headwear metadata, including whether it hides the hairstyle's crown. */
 export const hatOf = (key) => HATS.find((h) => h.key === key) || HATS[0];
 const EXPRESSION_KEYS = new Set(EXPRESSIONS.map((e) => e.key));
+const EYE_COLOR_HEXES = new Set(EYE_COLORS.map((color) => color.hex));
+const SEATED_POSE_KEYS = new Set(SEATED_POSES.map((pose) => pose.key));
 const BUILD_KEYS = new Set(BUILDS.map((b) => b.key));
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -495,6 +526,11 @@ function pickHex(value, fallback) {
   return typeof value === "string" && HEX.test(value.trim())
     ? value.trim().toLowerCase()
     : fallback;
+}
+
+function pickEyeColor(value) {
+  const normalized = pickHex(value, DEFAULT_CHARACTER.eyeColor);
+  return EYE_COLOR_HEXES.has(normalized) ? normalized : DEFAULT_CHARACTER.eyeColor;
 }
 
 function pickKey(value, allowed, fallback) {
@@ -563,6 +599,10 @@ export function validateCharacter(raw) {
     glasses: pickKey(c.glasses, GLASSES_KEYS, DEFAULT_CHARACTER.glasses),
     print: pickKey(c.print, PATTERN_KEYS, DEFAULT_CHARACTER.print),
     expression: pickKey(c.expression, EXPRESSION_KEYS, DEFAULT_CHARACTER.expression),
+    eyeColor: pickEyeColor(c.eyeColor),
+    eyeX: pickNum(c.eyeX, EYE_X_RANGE, DEFAULT_CHARACTER.eyeX),
+    eyeY: pickNum(c.eyeY, EYE_Y_RANGE, DEFAULT_CHARACTER.eyeY),
+    seatPose: pickKey(c.seatPose, SEATED_POSE_KEYS, DEFAULT_CHARACTER.seatPose),
     build,
     // Width defaults from the BUILD, not from a fixed number — a pre-slider
     // save that chose "slim" keeps its silhouette instead of snapping to

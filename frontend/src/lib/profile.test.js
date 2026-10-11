@@ -5,6 +5,9 @@ import {
   MODELS,
   ZODIAC,
   DEFAULT_CHARACTER,
+  EYE_COLORS,
+  EYE_X_RANGE,
+  EYE_Y_RANGE,
   HAIR_STYLES,
   OUTFITS,
   isMbti,
@@ -14,6 +17,7 @@ import {
   validateCharacter,
   validateProfile,
   MOODS,
+  SEATED_POSES,
   moodFor,
   profileSummary,
 } from "./profile";
@@ -153,6 +157,10 @@ describe("validateCharacter", () => {
       scarfColor: DEFAULT_CHARACTER.scarfColor,
       glasses: "none",
       print: "none",
+      seatPose: DEFAULT_CHARACTER.seatPose,
+      eyeColor: DEFAULT_CHARACTER.eyeColor,
+      eyeX: DEFAULT_CHARACTER.eyeX,
+      eyeY: DEFAULT_CHARACTER.eyeY,
       width: BUILD_SHAPE.slim.halfW,
       shoulders: DEFAULT_CHARACTER.shoulders,
       height: LEG_H,
@@ -182,6 +190,13 @@ describe("validateCharacter", () => {
     // A pre-glasses save has no key at all — it falls back to "none", the
     // JSON blob's whole bargain.
     expect(validateCharacter({}).glasses).toBe("none");
+  });
+
+  it("sitting style: keeps authored poses and heals unknown saved values", () => {
+    expect(SEATED_POSES.map((pose) => pose.key)).toEqual(["relaxed", "ankles", "crossed"]);
+    expect(validateCharacter({ seatPose: "crossed" }).seatPose).toBe("crossed");
+    expect(validateCharacter({ seatPose: "levitating" }).seatPose).toBe("relaxed");
+    expect(validateCharacter({}).seatPose).toBe("relaxed");
   });
 
   it("the wardrobe: keeps a real garment, refuses an invented one", () => {
@@ -283,6 +298,29 @@ describe("validateCharacter", () => {
     for (const bad of ["red", "#fff", "#12345g", "rgb(0,0,0)", "#1234567"]) {
       expect(validateCharacter({ skin: bad }).skin).toBe(DEFAULT_CHARACTER.skin);
     }
+  });
+
+  it("keeps eye placement symmetric, bounded, and recoverable", () => {
+    expect(validateCharacter({ eyeX: EYE_X_RANGE[0], eyeY: EYE_Y_RANGE[1] }))
+      .toMatchObject({ eyeX: EYE_X_RANGE[0], eyeY: EYE_Y_RANGE[1] });
+    expect(validateCharacter({ eyeX: -99, eyeY: 99 })).toMatchObject({
+      eyeX: EYE_X_RANGE[0],
+      eyeY: EYE_Y_RANGE[1],
+    });
+    expect(validateCharacter({ eyeX: Number.NaN, eyeY: "high" })).toMatchObject({
+      eyeX: DEFAULT_CHARACTER.eyeX,
+      eyeY: DEFAULT_CHARACTER.eyeY,
+    });
+  });
+
+  it("accepts only the curated readable eye colours", () => {
+    for (const { hex } of EYE_COLORS) {
+      expect(validateCharacter({ eyeColor: hex.toUpperCase() }).eyeColor).toBe(hex);
+    }
+    expect(validateCharacter({ eyeColor: "#ffffff" }).eyeColor)
+      .toBe(DEFAULT_CHARACTER.eyeColor);
+    expect(validateCharacter({ eyeColor: "blue" }).eyeColor)
+      .toBe(DEFAULT_CHARACTER.eyeColor);
   });
 
   it("every declared hairstyle survives validation", () => {

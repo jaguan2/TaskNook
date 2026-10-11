@@ -104,9 +104,17 @@ circle remains too flat, so the lower curve narrows gently without corners.
 Small ears and rounded dot eyes share the same head anchors as the glasses.
 Each open eye is one uninterrupted dark oval; even a pinprick catchlight
 competed with the rims at room scale, while the earlier sclera, pupil, lid and
-brow stack was busier still. Glasses keep only small, low-contrast lens rims—
-round, softly square, or low-set circular readers—because bridge, temple and
-open half-moon strokes read as stray lines across the tiny face.
+brow stack was busier still. Glasses keep small, low-contrast lens rims—round,
+softly square, or low-set circular readers—with one short bridge centred over
+the nose. Temple arms and open half-moon strokes remain omitted because they
+read as stray lines across the tiny face.
+The face stores a mirrored eye half-spacing (`eyeX`, 2.8–3.6) and vertical
+anchor (`eyeY`, 1.7–2.35). A single positive spacing value moves the eyes
+apart symmetrically, so customization cannot create crossed eyes. The wider
+3.3 default replaces the pinched old ±2.9 anchors. Open eyes accept only the
+curated dark `EYE_COLORS`; closed happy/sleepy lids stay fixed ink but follow
+the same placement. Front glasses follow both anchors, while the profile eye
+and lens follow vertical position only.
 The profile uses one
 complete skull-and-jaw outline with the same rounded lower-face rhythm; never
 leave a round skull underneath a separate nose strip. A short visible neck
@@ -120,8 +128,19 @@ the blazer opening. Its profile and rear treatments share the same seam.
 Hands keep the existing pose anchor, with a smaller tapered palm and thumb
 instead of a large round mass. Neither change introduces a new seated rig.
 
-Idle seated front-facing residents rest their hands toward the lap. This
-pose is disabled while typing, holding a break mug, moving, being carried,
+Idle seated front-facing residents rest their hands toward the lap. Their
+saved `seatPose` supplies one of three authored lower-body silhouettes:
+Relaxed keeps both feet under the knees, Ankles crossed converges the shins at
+the floor, and Cross-legged folds both legs up under the lap. Explicit soft
+ground (rugs and blankets) overrides the saved choice with Cross-legged;
+its seat height is the resident's hip lift, not the textile's thickness, so
+the folded shoes actually meet the floor. Chair height and facing remain
+furniture contracts. `softSeat: true` is deliberate catalog metadata; generic
+flat layers such as pools, ponds, snow angels, pet beds and door mats are not
+human seats. The pose artwork lives in `character/seated.jsx`, not in
+the standing/profile body module.
+
+The lap pose is disabled while typing, holding a break mug, moving, being carried,
 or facing away. Arm stretch and eye-rub gestures stand down together with
 the head's matching eye-rub while hands rest in the lap; props keep their
 original hand anchors. Check both short sleeves and coats at body extremes.
@@ -176,7 +195,8 @@ The editor also offers **complete starting looks** from
 `lib/characterPresets.js`. A preset is a full validated character snapshot,
 not a mode or a second model format: applying one clears every prior hat,
 pattern, scarf and slider while `characterFromPreset` restores the user's
-current skin tone. Skin belongs to the person, never the outfit. The normal
+current skin tone, eye color and eye placement. Those are identity, never the
+outfit. The normal
 Body/Face/Hair/Outfit/Extras tabs edit it immediately. Keep presets complete (`Object.keys(DEFAULT_CHARACTER)`),
 draw their cards with the real `Resident`, and never gate wardrobe pieces by
 the preset's named model. The names describe the starting silhouette; any
@@ -555,12 +575,13 @@ profile and seated poses, skin-aware sandals, and meaningful size-template
 differences across both models.
 
 The experimental chair perspective rig was removed after the owner's visual
-review. Seating uses the original front/rear assembly, with the existing lap
-clothing, front shoes and activity gestures. The removed prototype combined
+review. Seating keeps the coherent front/rear assembly, now with three
+authored lower-body poses sharing the existing lap clothing, front shoes and
+activity gestures. The removed prototype combined
 a skewed torso, substituted profile head, overlapping knees and fixed hand
 anchors; that assembly must not be reinstated as a completed design.
-A replacement needs an authored seated silhouette with matching garment and
-limb planes, reviewed in closeups and on actual furniture before animation.
+Any future three-quarter desk pose still needs matching garment and limb
+planes, reviewed in closeups and on actual furniture before animation.
 
 `TintedBox` projects its subtle top bevel from the box's own `gx`/`gy`, so
 raised/off-centre volumes receive the same edge construction. It keeps the

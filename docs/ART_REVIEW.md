@@ -24,11 +24,12 @@ database.
 
 - The raised platform beds, ladders and under-bed book storage are distinct
   furniture designs; our standard bed still does not provide that structure.
-- The reference desk pose is a three-quarter seated figure reaching forward
-  to a keyboard. The experimental skewed chair rig was rejected by the owner
-  and reverted. The established seated pose is restored. A new approach must
-  start with a coherent figure/garment silhouette, then solve limb overlap
-  and desk contact before adding animation. See `MODEL-REVIEW.md`.
+- The preset cast now varies between relaxed, ankle-crossed and cross-legged
+  front-facing silhouettes, and soft-ground residents sit cross-legged. The
+  reference desk pose remains a separate gap: it is a three-quarter figure
+  reaching toward a keyboard. The rejected skewed-chair prototype must not be
+  revived; a future attempt needs coherent garment planes, limb overlap and
+  desk contact before animation. See `MODEL-REVIEW.md`.
 - Large plants, desk accessories and window lamps still have room for
   individually authored shapes. Extend them as readable silhouettes and
   material construction rather than adding tiny surface marks everywhere.

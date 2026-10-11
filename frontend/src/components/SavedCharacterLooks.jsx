@@ -20,7 +20,7 @@ export default function SavedCharacterLooks({ character, looks, onPick, onSave, 
     <p className="text-[10px] text-petal/55">Saved on this device. Saving the same name updates that outfit.</p>
     {looks.map((look) => <div key={look.key} className="flex gap-1 rounded-xl bg-white/5">
       <button type="button" onFocus={revealControl} aria-label={`Wear ${look.label}`} aria-pressed={characterPresetMatches(character, look)}
-        onClick={() => onPick(characterFromPreset(look, character.skin))} className="flex-1 scroll-mt-64 truncate px-3 py-2 text-left text-xs text-cream hover:text-glow">
+        onClick={() => onPick(characterFromPreset(look, character))} className="flex-1 scroll-mt-64 truncate px-3 py-2 text-left text-xs text-cream hover:text-glow">
         {look.label}{characterPresetMatches(character, look) ? " · wearing" : ""}
       </button>
       <button type="button" onFocus={revealControl} aria-label={`Remove outfit ${look.label}`} onClick={() => arm(look.key, () => onRemove(look.key))}
