@@ -68,7 +68,7 @@ function Cloud({ top, scale, duration, delay, opacity, dark, night, sunset }) {
   );
 }
 
-function SkyOverlay({ weatherMode, timeOfDay }) {
+function SkyOverlay({ weatherMode, timeOfDay, showOrb = true }) {
   // Deterministic star field (no Math.random — positions must not reshuffle
   // on re-render), scattered across the upper half of the screen.
   const stars = useMemo(
@@ -175,8 +175,9 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
           lights about where light comes from. Sunset is the exception: the
           sun drops LOW on the left and half-sinks behind the room's
           silhouette — a horizon. */}
-      {night ? (
+      {showOrb && (night ? (
         <div
+          data-sky-orb="moon"
           className="absolute rounded-full"
           style={{
             left: "63%",
@@ -196,6 +197,7 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
         // The sun is layered, not flat: a wide soft halo, then a core with
         // an off-centre hotspot so it reads as a glowing ball, not a coin.
         <div
+          data-sky-orb="sun"
           className="absolute"
           style={{
             left: sunset ? "12%" : "63%",
@@ -223,7 +225,7 @@ function SkyOverlay({ weatherMode, timeOfDay }) {
             }}
           />
         </div>
-      )}
+      ))}
 
       {/* rare delights: shooting stars at night, a bird passing by day.
           All pure CSS — the "rarity" is a long animation cycle where the

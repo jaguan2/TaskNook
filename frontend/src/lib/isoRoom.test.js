@@ -756,6 +756,8 @@ describe("presets", () => {
     ]);
     expect(shop.size.env).toBe("cafe");
     expect(keys.filter((key) => key === "plantshelf")).toHaveLength(6);
+    expect(keys.filter((key) => key === "doorway")).toHaveLength(0);
+    expect(keys.filter((key) => key === "bigwindow")).toHaveLength(1);
     expect(keys.filter((key) => greenery.has(key)).length).toBeGreaterThanOrEqual(18);
     expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
   });

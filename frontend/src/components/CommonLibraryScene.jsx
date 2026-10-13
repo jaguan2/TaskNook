@@ -149,8 +149,6 @@ export default function CommonLibraryScene({ scene, uid, clip, glow, lampGlow, t
         <stop stopColor={glass[0]} /><stop offset="1" stopColor={glass[1]} />
       </linearGradient>
     </defs>
-    <ellipse cx={(scene.w - scene.d) * 12} cy={(scene.w + scene.d) * 12 - 8}
-      rx={(scene.w + scene.d) * 12} ry="35" fill="#1c1722" opacity=".2" />
     <polygon points={wallRect("left", 0, scene.d, 0, 240)} fill="#99907d" />
     <polygon points={wallRect("right", 0, scene.w, 0, 240)} fill="#7d7469" />
     {["left", "right"].map((wall) => <g key={wall}>

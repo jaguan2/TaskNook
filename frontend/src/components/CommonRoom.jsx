@@ -1,6 +1,6 @@
 import { memo, useEffect, useId, useRef, useState } from "react";
 import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
-import { floorPatch, isoBox, project, wallRect } from "../lib/iso";
+import { floorPatch, isoBox, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
 import { npcActivity } from "../lib/visiting";
 import { ambienceVars } from "../lib/motion";
@@ -109,6 +109,10 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     })}
   </g>;
   const P = (gx, gy, z = 0) => { const p = project(gx, gy); return `${p.x},${p.y - z}`; };
+  // The raised nook used to lift only the rear portion of the shell, leaving
+  // a tower-like step in the cottage silhouette. Keep its existing ceiling
+  // clearance, but carry that roof elevation continuously across both walls.
+  const cottageRoofH = WALL_H + (scene.surfaces.nook?.z || 0);
   const partitionStart = project(6.5, 0);
   const partitionEnd = project(6.5, 4);
   const partitionBulbs = Array.from({ length: 8 }, (_, i) => {
@@ -142,10 +146,9 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
           <CommonGardenScene scene={scene} uid={uid} clip={clip} glow={glow}
             layers={layers} lightPools={lightPools} />
         ) : <>
-        <ellipse cx="20" cy="208" rx="215" ry="33" fill="#241d2b" opacity=".17" />
         {/* Rear walls and windows are deliberately behind every floor level. */}
-        <polygon points={`${P(0, 0)} ${P(0, 9)} ${P(0, 9, 118)} ${P(0, 3.1, 118)} ${P(0, 3.1, 154)} ${P(0, 0, 154)}`} fill="#a89484" />
-        <polygon points={`${P(0, 0)} ${P(11, 0)} ${P(11, 0, 118)} ${P(4.4, 0, 118)} ${P(4.4, 0, 154)} ${P(0, 0, 154)}`} fill="#8f817c" />
+        <polygon data-common-shell-wall="left" points={wallRect("left", 0, scene.d, 0, cottageRoofH)} fill="#a89484" />
+        <polygon data-common-shell-wall="right" points={wallRect("right", 0, scene.w, 0, cottageRoofH)} fill="#8f817c" />
         {/* Panelling and a continuous rail make the walls feel furnished even
             where a shelf cannot fit, echoing the reference's blue wainscot. */}
         <polygon points={wallRect("left", 0, 9, 0, 43)} fill="#746e69" opacity=".55" />

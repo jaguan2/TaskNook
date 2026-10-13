@@ -54,7 +54,6 @@ export default function CommonGardenScene({ scene, uid, clip, glow, layers, ligh
   const pondReeds = [[6.85, 1.55], [7.05, 1.2], [10.45, 2.45], [10.15, 3.15]];
 
   return <g data-garden-architecture="willow-pond">
-    <ellipse cx="18" cy="214" rx="232" ry="38" fill="#263027" opacity=".18" />
     <GardenSurface surface={scene.surfaces.ground} clipId={lawnClip} />
     {/* A loose stepping-stone path avoids turning the garden into a second
         rectangular room. Its curve points from the open foreground toward

@@ -1,7 +1,11 @@
+// @vitest-environment jsdom
+import React from "react";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { cleanup, render } from "@testing-library/react";
 import { DAY_LIFT, SUNSET_BAND } from "./SkyOverlay";
+import SkyOverlay from "./SkyOverlay";
 
 // The to-do list is drawn STRAIGHT onto the backdrop with no card behind it,
 // in cream. Every point of daylight lift is a point of contrast spent, so the
@@ -58,5 +62,15 @@ describe("daylight never costs the to-do list its legibility", () => {
     // is the bug this replaced. Guard the floor as well as the ceiling.
     expect(DAY_LIFT).toBeGreaterThan(0.25);
     expect(SUNSET_BAND).toBeGreaterThan(0.25);
+  });
+});
+
+describe("celestial orb visibility", () => {
+  it("can hide an indoor common place's sun without removing its daylight wash", () => {
+    const { container } = render(React.createElement(SkyOverlay,
+      { weatherMode: "off", timeOfDay: "day", showOrb: false }));
+    expect(container.querySelector("[data-sky-orb]")).toBeNull();
+    expect(container.firstElementChild.children.length).toBeGreaterThan(0);
+    cleanup();
   });
 });

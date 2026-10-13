@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CommonRoom from "./CommonRoom";
 import { COMMON_PLACES, createCommonSession, resolveCommonProps, settleCommonGuest } from "../lib/commonRooms";
-import { floorPatch, project } from "../lib/iso";
+import { floorPatch, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf } from "../lib/isoRoom";
 import { DEFAULT_CHARACTER } from "../lib/profile";
 
@@ -94,6 +94,15 @@ describe("common-room seats", () => {
     expect(container.querySelectorAll("[data-common-light]").length).toBeGreaterThanOrEqual(8);
     expect(container.querySelectorAll('[data-partition-bulb="true"]')).toHaveLength(8);
     expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);
+  });
+  it("keeps the cottage shell at one continuous roof elevation", () => {
+    const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
+      character={DEFAULT_CHARACTER} />);
+    const roofH = WALL_H + COMMON_PLACES["common-cottage"].surfaces.nook.z;
+    expect(container.querySelector('[data-common-shell-wall="left"]').getAttribute("points"))
+      .toBe(wallRect("left", 0, COMMON_PLACES["common-cottage"].d, 0, roofH));
+    expect(container.querySelector('[data-common-shell-wall="right"]').getAttribute("points"))
+      .toBe(wallRect("right", 0, COMMON_PLACES["common-cottage"].w, 0, roofH));
   });
   it("updates the user's floor and outfit without moving the neighbours", () => {
     const session = createCommonSession("common-cottage");
