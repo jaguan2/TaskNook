@@ -1,12 +1,13 @@
 import { memo, useEffect, useId, useRef, useState } from "react";
 import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
-import { floorPatch, isoBox, project, wallRect } from "../lib/iso";
+import { floorPatch, isoBox, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
 import { npcActivity } from "../lib/visiting";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
 import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
+import CommonLibraryScene from "./CommonLibraryScene";
 
 function Surface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color } = surface;
@@ -108,6 +109,10 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     })}
   </g>;
   const P = (gx, gy, z = 0) => { const p = project(gx, gy); return `${p.x},${p.y - z}`; };
+  // The raised nook used to lift only the rear portion of the shell, leaving
+  // a tower-like step in the cottage silhouette. Keep its existing ceiling
+  // clearance, but carry that roof elevation continuously across both walls.
+  const cottageRoofH = WALL_H + (scene.surfaces.nook?.z || 0);
   const partitionStart = project(6.5, 0);
   const partitionEnd = project(6.5, 4);
   const partitionBulbs = Array.from({ length: 8 }, (_, i) => {
@@ -118,7 +123,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg viewBox="-260 -190 580 470" className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
+    <svg viewBox={scene.viewBox || "-260 -190 580 470"} className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
       <defs>
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
@@ -134,14 +139,16 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <radialGradient id={`${uid}-lamp-pool`}><stop stopColor="#ffe6a7" stopOpacity=".85" /><stop offset="1" stopColor="#ffe6a7" stopOpacity="0" /></radialGradient>
       </defs>
       <g pointerEvents="none">
-        {scene.kind === "garden" ? (
+        {scene.kind === "library" ? (
+          <CommonLibraryScene scene={scene} uid={uid} clip={clip} glow={glow} lampGlow={lampGlow}
+            timeOfDay={timeOfDay} layers={layers} lightPools={lightPools} />
+        ) : scene.kind === "garden" ? (
           <CommonGardenScene scene={scene} uid={uid} clip={clip} glow={glow}
             layers={layers} lightPools={lightPools} />
         ) : <>
-        <ellipse cx="20" cy="208" rx="215" ry="33" fill="#241d2b" opacity=".17" />
         {/* Rear walls and windows are deliberately behind every floor level. */}
-        <polygon points={`${P(0, 0)} ${P(0, 9)} ${P(0, 9, 118)} ${P(0, 3.1, 118)} ${P(0, 3.1, 154)} ${P(0, 0, 154)}`} fill="#a89484" />
-        <polygon points={`${P(0, 0)} ${P(11, 0)} ${P(11, 0, 118)} ${P(4.4, 0, 118)} ${P(4.4, 0, 154)} ${P(0, 0, 154)}`} fill="#8f817c" />
+        <polygon data-common-shell-wall="left" points={wallRect("left", 0, scene.d, 0, cottageRoofH)} fill="#a89484" />
+        <polygon data-common-shell-wall="right" points={wallRect("right", 0, scene.w, 0, cottageRoofH)} fill="#8f817c" />
         {/* Panelling and a continuous rail make the walls feel furnished even
             where a shelf cannot fit, echoing the reference's blue wainscot. */}
         <polygon points={wallRect("left", 0, 9, 0, 43)} fill="#746e69" opacity=".55" />
@@ -207,12 +214,12 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         </g>;
       })}
     </svg>
-    <div className="absolute bottom-20 left-6 z-20 max-w-[min(28rem,calc(100%-3rem))]">
+    <div className="absolute bottom-20 left-24 z-20 max-w-[min(28rem,calc(100%-7.5rem))]">
       <button ref={chooserRef} type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
         className="pill glass px-3 py-2 text-xs font-semibold text-cream hover:bg-white/10">
         {choosing ? "Done choosing" : `Change seat · ${guestSeat.label}`}
       </button>
-      {choosing && <div className="glass mt-2 flex flex-wrap gap-1.5 rounded-2xl p-2" role="group" aria-label="Common room seats">
+      {choosing && <div className="glass mt-2 flex max-h-[min(20rem,50vh)] flex-wrap gap-1.5 overflow-y-auto rounded-2xl p-2" role="group" aria-label="Common room seats">
         {scene.seats.map((seat) => { const person = people.get(seat.id); return <button key={seat.id} type="button"
           disabled={!!person} aria-pressed={seat.id === session.guestSeatId} onClick={() => choose(seat)}
           className={`pill px-3 py-2 text-xs disabled:opacity-50 ${seat.id === session.guestSeatId ? "bg-glow/20 text-glow" : "text-cream hover:bg-white/10"}`}>

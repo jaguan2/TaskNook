@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart } from "lucide-react";
 import { useStore } from "../store";
-import { api } from "../lib/api";
 import { useArmed } from "../lib/useArmed";
 import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
@@ -35,7 +34,8 @@ export default function FriendsPanel() {
   const {
     user,
     friends,
-    refreshAll,
+    addFriend,
+    removeFriend,
     visitFriend,
     knockFriend,
     knockingId,
@@ -46,7 +46,6 @@ export default function FriendsPanel() {
     openChatWith,
     openGroupChat,
     friendship,
-    showToast,
     hudVisibility,
     enterCommonRoom,
     commonRoom,
@@ -130,12 +129,10 @@ export default function FriendsPanel() {
     setBusy(true);
     setError("");
     try {
-      await api.addFriend(username.trim().toLowerCase());
+      await addFriend(username.trim().toLowerCase());
       setUsername("");
-      await refreshAll();
     } catch (err) {
       setError(err.message);
-      showToast("Couldn't add that friend — " + err.message);
     } finally {
       setBusy(false);
     }
@@ -143,14 +140,12 @@ export default function FriendsPanel() {
 
   const remove = async (id) => {
     try {
-      await api.removeFriend(id);
-      await refreshAll();
+      await removeFriend(id);
     } catch (err) {
       // The error line renders above the roster, which can be entirely
       // off-screen from the row you tapped — toast too, per the app rule
       // that a failed write is never silent where you're looking.
       setError(err.message);
-      showToast("Couldn't remove that friend — " + err.message);
     }
   };
 

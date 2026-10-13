@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "repo": "backnotprop/pstack",
+      "revision": "3a604672c46cd8187d2b19980eae0a34f9f91138",
+      "files": [
+        {
+          "upstream": "skills/correct/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/correct/SKILL.md",
+          "sha256": "bf482bacc972b3f124a4af8bf9364b4b3e280cb5845e44c326ea4f4565e5c904"
+        },
+        {
+          "upstream": "skills/how/references/explainer-prompt.md",
+          "local": "docs/agent-skills/upstream/pstack/how/references/explainer-prompt.md",
+          "sha256": "ddb89cebefc24e2b54517a331aedfe045b6971e101f45c71b8cef4cccff45bff"
+        },
+        {
+          "upstream": "skills/how/references/explorer-prompt.md",
+          "local": "docs/agent-skills/upstream/pstack/how/references/explorer-prompt.md",
+          "sha256": "a3b44a6e5bb16a6d4d1cac19db8ed5322ffd5f5f5d45baca4e73990ca096f8be"
+        },
+        {
+          "upstream": "skills/how/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/how/SKILL.md",
+          "sha256": "6039d88a0147776eb058b0a13af495f787a6a40294bfe8868b005c179ed295aa"
+        },
+        {
+          "upstream": "LICENSE",
+          "local": "docs/agent-skills/upstream/pstack/LICENSE",
+          "sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e"
+        },
+        {
+          "upstream": "skills/principle-fix-root-causes/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-fix-root-causes/SKILL.md",
+          "sha256": "ba4cd38da1dcc8fe5432feb64457cba95594736a9b21b2ebf8f8c52aee068707"
+        },
+        {
+          "upstream": "skills/principle-guard-the-context-window/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-guard-the-context-window/SKILL.md",
+          "sha256": "d2cef147862576e3d709b7afc149d85196245e8338b9c7eef337c95fba412b3e"
+        },
+        {
+          "upstream": "skills/principle-prove-it-works/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-prove-it-works/SKILL.md",
+          "sha256": "ec79a15025bac8d33d62011c54f3b612733fd2a024e623b531b3637aa75070e2"
+        },
+        {
+          "upstream": "skills/principle-sequence-verifiable-units/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-sequence-verifiable-units/SKILL.md",
+          "sha256": "2ccbbacc56ace5afdfb8670cef19d7bd009fb2a0033b9a741cbdf2b6baf72187"
+        },
+        {
+          "upstream": "skills/principle-subtract-before-you-add/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-subtract-before-you-add/SKILL.md",
+          "sha256": "a983a50e732c1ed315eba7aaf47a61329e31c4794eb1ab9d25d9945265b31e03"
+        },
+        {
+          "upstream": "skills/principle-test-behavior-not-implementation/SKILL.md",
+          "local": "docs/agent-skills/upstream/pstack/principle-test-behavior-not-implementation/SKILL.md",
+          "sha256": "87e40efe4e486f7ea639d2ed1fc0abe6c93b8fd0e89a81218086909d2470a52e"
+        }
+      ]
+    },
+    {
+      "repo": "cursor/plugins",
+      "revision": "ccb5507cec1546dc88135c1139c811e6c59115ba",
+      "files": [
+        {
+          "upstream": "thermos/LICENSE",
+          "local": "docs/agent-skills/upstream/thermos/LICENSE",
+          "sha256": "702f5f331b56aff0e33d8c7826df5202559f894145eb70355c6477b55b5bb8a0"
+        },
+        {
+          "upstream": "thermos/skills/thermo-nuclear-code-quality-review/SKILL.md",
+          "local": "docs/agent-skills/upstream/thermos/thermo-nuclear-code-quality-review/SKILL.md",
+          "sha256": "7faca08b51b643b2ddd0836f92af15574444024685dcc1e677dbbb39ae8c9e8f"
+        }
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ const timer = vi.hoisted(() => ({
   skipBreak: vi.fn(), nudgeTimer: vi.fn(),
 }));
 vi.mock("../timer", () => ({ useTimer: () => timer }));
-vi.mock("../store", () => ({ useStore: () => ({ activeTask: { name: "A thoughtful task with a very long title" }, sessionDays: {}, dailyGoal: 60, unlockBalance: 0 }) }));
+vi.mock("../store", () => ({ useStore: () => ({ activeTask: { name: "A thoughtful task with a very long title" }, sessionDays: {}, dailyGoal: 60 }) }));
 afterEach(() => { cleanup(); delete window.pywebview; vi.clearAllMocks(); Object.assign(timer, { remaining: 1500, running: false, phase: "focus", timerMode: "timer", elapsed: 0 }); });
 
 it("uses the existing timer actions and provides its own way back to the room", () => {

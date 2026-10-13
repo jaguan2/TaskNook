@@ -37,3 +37,5 @@ frontend/dist/
 .DS_Store
 .vscode/
 frontend/art-sheet/
+/e2e/test-results/
+/e2e/playwright-report/

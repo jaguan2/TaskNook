@@ -28,9 +28,6 @@ const store = vi.hoisted(() => ({
   setIsoWallColor: vi.fn(),
   setIsoLighting: vi.fn(),
   applyIsoPreset: vi.fn(),
-  unlocked: [],
-  unlockItem: vi.fn(),
-  unlockBalance: 0,
 }));
 
 vi.mock("../store", () => ({ useStore: () => store }));
@@ -52,7 +49,7 @@ describe("RoomPanel progressive rendering", () => {
   it("previews cottage layouts with independent paint definitions and applies a preset", () => {
     store.isoPreview = false;
     const { container } = render(<RoomPanel />);
-    expect(container.querySelectorAll(".cottage-preview")).toHaveLength(6);
+    expect(container.querySelectorAll(".cottage-preview")).toHaveLength(7);
     const ids = [...container.querySelectorAll("[id]")].map((node) => node.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const node of container.querySelectorAll("[fill], [clip-path]")) {

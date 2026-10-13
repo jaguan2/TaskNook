@@ -1,7 +1,7 @@
 // The isometric room's decoration model: a resizable W×D tile floor and
 // items placed ON the grid as { id, item, gx, gy, tint? } (tile coordinates,
 // half-tile snapping). Pure data + functions; projection math lives in
-// lib/iso.js and the artwork in components/IsoItems.jsx.
+// lib/iso.js and the artwork in the components/Iso*Items modules.
 
 import { createIsoPresets } from "./isoPresets";
 
@@ -131,11 +131,11 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 // rot picks the wall (0 = right wall along +gx, 1 = left wall along +gy) and
 // clamping glues them to it.
 export const ISO_ITEMS = {
-  rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10 },
-  squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10 },
+  rug: { label: "Round rug", icon: "🟣", foot: [3.5, 2.5], layer: -1, hitH: 10, softSeat: true },
+  squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10, softSeat: true },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44, surface: 30, backView: true },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
-  // Every item here is hand-drawn SVG (see the note atop IsoItems.jsx). The
+  // Every item here is hand-drawn SVG (see the notes atop the Iso*Items modules). The
   // Kenney PNG era left two flags behind that no catalog entry needs any
   // more: `noMirror` (raster needed a second render per orientation; vector
   // just mirrors) and `variants` (raster needed pre-shaded colourway files;
@@ -264,8 +264,8 @@ export const ISO_ITEMS = {
   // The cat treats every layer:-1 item as a soft spot, so it will eventually
   // curl up in this one — which is the entire point of a pet bed.
   petbed: { label: "Pet bed", icon: "🐾", foot: [1.1, 0.9], layer: -1, hitH: 12 },
-  runner: { label: "Runner rug", icon: "🟫", foot: [3, 1], layer: -1, hitH: 10 },
-  ovalrug: { label: "Oval rug", icon: "⭕", foot: [2.2, 1.7], layer: -1, hitH: 10 },
+  runner: { label: "Runner rug", icon: "🟫", foot: [3, 1], layer: -1, hitH: 10, softSeat: true },
+  ovalrug: { label: "Oval rug", icon: "⭕", foot: [2.2, 1.7], layer: -1, hitH: 10, softSeat: true },
   matrug: { label: "Door mat", icon: "▫️", foot: [1.4, 0.9], layer: -1, hitH: 10 },
   // ---- more of what the room already had ----
   computer: { label: "Computer", icon: "🖳", foot: [1.4, 0.9], hitH: 42, stacks: true, glow: [22, 0.3] },
@@ -327,7 +327,7 @@ export const ISO_ITEMS = {
   flowers: { label: "Wildflowers", icon: "🌸", foot: [0.7, 0.6], hitH: 24 },
   bush: { label: "Bush", icon: "🌲", foot: [1, 1], hitH: 40 },
   pond: { label: "Pond", icon: "🪷", foot: [3.5, 2.5], layer: -1, hitH: 12, tintable: false },
-  picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10 },
+  picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10, softSeat: true },
   bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16, backView: true },
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
   // Residents stay where placed: seated on furniture/soft ground or standing
@@ -349,9 +349,9 @@ export const ISO_ITEMS = {
   dog: { label: "Dog", icon: "🐕", foot: [1.1, 0.7], hitH: 32, roamer: true },
   bunny: { label: "Rabbit", icon: "🐇", foot: [0.7, 0.6], hitH: 26, roamer: true },
   // ---- more rugs ----
-  persianrug: { label: "Patterned rug", icon: "🔶", foot: [3, 2.2], layer: -1, hitH: 10 },
-  stripedrug: { label: "Striped rug", icon: "🟦", foot: [2.6, 1.8], layer: -1, hitH: 10 },
-  sheepskin: { label: "Sheepskin", icon: "☁️", foot: [1.8, 1.5], layer: -1, hitH: 10 },
+  persianrug: { label: "Patterned rug", icon: "🔶", foot: [3, 2.2], layer: -1, hitH: 10, softSeat: true },
+  stripedrug: { label: "Striped rug", icon: "🟦", foot: [2.6, 1.8], layer: -1, hitH: 10, softSeat: true },
+  sheepskin: { label: "Sheepskin", icon: "☁️", foot: [1.8, 1.5], layer: -1, hitH: 10, softSeat: true },
   // ---- more decoration ----
   piano: { label: "Upright piano", icon: "🎹", foot: [2, 0.8], hitH: 66, surface: 62 },
   easel: { label: "Easel", icon: "🎨", foot: [0.9, 0.8], hitH: 62 },
@@ -489,13 +489,17 @@ export function seatFor(placement, placements) {
   // how a sparse room still offers somewhere to be, and it's peak cozy.
   // `soft: true` tells the occupancy rule a rug seats MANY (it isn't a
   // chair); real seats win the loop above, so a stool ON a rug still reads
-  // as the stool. The pond is water, not upholstery.
+  // as the stool. Explicit catalog metadata keeps other flat layers (pools,
+  // ponds, snow angels, pet beds and door mats) from becoming human seats.
   for (const other of placements) {
     if (other.id === placement.id) continue;
     const it = ISO_ITEMS[other.item];
-    if (!it || it.layer !== -1 || other.item === "pond") continue;
+    if (!it?.softSeat) continue;
     if (centreOver(placement, other)) {
-      return { placement: other, height: 1.5, lie: false, soft: true };
+      // `height` is the resident's HIP lift, not the textile's thickness.
+      // Folded legs need their hips about 14px above the floor for the shoes
+      // to meet the rug; the old 1.5px value sank the whole pose through it.
+      return { placement: other, height: 14, lie: false, soft: true };
     }
   }
   return null;
@@ -620,8 +624,8 @@ export const cleanPetName = (raw) =>
 
 /**
  * PET LOOKS — coat patterns for cats, breeds for dogs. Purely visual: the
- * sprite reads the key and draws that fur (IsoItems.jsx owns the artwork,
- * exactly as it owns which items have four rotations); the wander engine
+ * sprite reads the key and draws that fur (IsoPetItems.jsx owns the artwork;
+ * this room model owns only the allowed look keys); the wander engine
  * never looks at it. Per-species lists because a calico dog isn't a thing.
  * The FIRST entry of each list is the classic drawing and is stored
  * implicitly — same contract as temper's "mellow" — so every pet that
@@ -686,6 +690,9 @@ export function seatedPlacement(persona, seat) {
     gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
     _seat: seat.height,
     _lie: seat.lie,
+    // Soft-ground seating is the floor-sit promised by seatFor: the rug owns
+    // this one override, while chairs leave personality to the character.
+    ...(seat.soft && { _seatPose: "crossed" }),
     // The sitter faces AWAY from the backrest. Rot 0/1 put the backrest on
     // the far edge, so the resident faces us; rot 2/3 put it on the near edge,
     // so the resident faces into the room. Keeping this coupled to the real

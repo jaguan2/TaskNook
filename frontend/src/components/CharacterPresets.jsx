@@ -24,21 +24,22 @@ export default function CharacterPresets({ character, onPick }) {
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="Character looks">
       {CHARACTER_PRESETS.map((preset) => {
         const active = characterPresetMatches(character, preset);
-        const shown = characterFromPreset(preset, character.skin);
+        const shown = characterFromPreset(preset, character);
         return (
           <button
             key={preset.key}
             type="button"
             onClick={() => onPick(shown)}
             aria-pressed={active}
-            className={`group flex min-h-28 items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 py-1 text-left transition ${
+            className={`group flex min-h-28 scroll-mt-64 items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 py-1 text-left transition ${
               active
                 ? "border-glow/70 bg-glow/15 ring-1 ring-glow/40"
                 : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
             }`}
           >
             <svg viewBox={view === "seated" ? "-22 -40 44 80" : "-19 -66 38 80"} className="h-24 w-[4.5rem] shrink-0" aria-hidden="true">
-              <ellipse cx="0" cy={view === "seated" ? 32 : 11} rx="13" ry="2.2" fill="#000" opacity="0.16" />
+              <ellipse cx="0" cy={view === "seated" && shown.seatPose === "crossed" ? 25 : view === "seated" ? 32 : 11}
+                rx="13" ry="2.2" fill="#000" opacity="0.16" />
               <Resident character={shown} facing={view === "back" ? "back" : "front"}
                 seated={view === "seated"} seatH={22} />
             </svg>

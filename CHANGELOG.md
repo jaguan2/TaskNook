@@ -16,8 +16,6 @@ project already uses.
 
 ## 2026-08-19 (night)
 
-Built with Claude Code.
-
 **ADJUSTED**
 - **README de-emojified.** Dropped the decorative emoji throughout —
   section headers, the Features table's leading icon column, the ordering-
@@ -28,8 +26,6 @@ Built with Claude Code.
   to match the de-emojified headings.
 
 ## 2026-08-19 (evening)
-
-Built with Claude Code.
 
 **NEW**
 - **Random weather.** A third way to drive the scene's weather, alongside a
@@ -47,8 +43,6 @@ Built with Claude Code.
   immediately instead of waiting out a stale timer.
 
 ## 2026-08-19 (afternoon)
-
-Built with Claude Code, continuing the day's character-modeling work below.
 
 **NEW**
 - **Widget Mode.** A new icon beside the clock (bottom-right) collapses the
@@ -291,8 +285,8 @@ escape hatch" if the numbers ever get worse, but nothing about them
 currently demands it).
 
 **Decision (process):** this is also the day a full rewrite of `main`'s git
-history happened, after two earlier commits had picked up an accidental
-`Co-Authored-By: Claude` trailer — GitHub turns that into a repo contributor
+history happened, after two earlier commits had picked up accidental AI
+co-author trailers — GitHub turns those into a repo contributor
 credit, and getting it back out meant every commit SHA changed, breaking
 `git pull` on every existing clone until each one reset onto the new
 history. That's why this repo's commit convention now explicitly forbids AI

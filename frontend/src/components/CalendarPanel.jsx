@@ -88,7 +88,7 @@ export default function CalendarPanel() {
 
   const countByDate = {};
   tasks.forEach((t) => {
-    if (t.scheduledDate)
+    if (!t.archived && t.scheduledDate)
       countByDate[t.scheduledDate] = (countByDate[t.scheduledDate] || 0) + 1;
   });
   events.forEach((event) => {
@@ -126,9 +126,9 @@ export default function CalendarPanel() {
   // a session logs; reading the live timer would redraw this panel every second.
   const summary = focusSummary(sessionDays, localTodayISO());
 
-  const scheduled = tasks.filter((t) => t.scheduledDate === selected);
+  const scheduled = tasks.filter((t) => !t.archived && t.scheduledDate === selected);
   const dayEvents = events.filter((event) => event.date === selected);
-  const unscheduled = tasks.filter((t) => !t.scheduledDate && !t.completed);
+  const unscheduled = tasks.filter((t) => !t.archived && !t.scheduledDate && !t.completed);
   // Journal: what got checked off that day. Derived client-side from the
   // already-loaded task list (completedAt is a UTC timestamp, routed through
   // the same local-day toISO() the calendar's own tinting uses) — unlike the

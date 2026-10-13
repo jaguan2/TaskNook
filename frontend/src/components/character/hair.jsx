@@ -270,29 +270,49 @@ const sideBrow = (headY) => (
 );
 
 // The default wig — a soft short cut. Also what unknown styles fall back to.
-const SHORT_CFG = { sideX: 8.1, apex: 9.3, baseY: 0.2 };
+const SHORT_CFG = { sideX: 8.1, apex: 9.8, baseY: 0.5 };
 const SHORT_CLUMPS = [
-  [2.6, 1.9],
-  [3.7, 1.1],
-  [4.6, 1.7],
-  [3.1, 0.9],
-  [2.2, 1.8],
+  [2.2, 0.7],
+  [3, 2.5],
+  [4.1, -0.9],
+  [4.4, 1.7],
+  [2.5, 0.4],
 ];
+
+const shortBrow = (headY) => (
+  <g fill="#000" opacity="0.1">
+    <path d={`M${-R + 0.9} ${headY - 0.6} q2.2 1.5 4.5 0.4 q-2 1.5 -4.5 0.2 z`} />
+    <path d={`M1.4 ${headY - 0.8} q3.3 2.1 5.8 0.5 q-2.4 1.6 -5.8 0.1 z`} />
+  </g>
+);
 
 export const HAIR_REGISTRY = {
   short: {
     side: ({ headY, color }) => (
       <>
-        <path d={sideWigPath(headY)} fill={color} />
-        {sideShine(headY, 9.7)}
-        {sideBrow(headY)}
+        <path d={sideWigPath(headY, {
+          fringeX: -5.5,
+          fringeY: -2.8,
+          apex: 10.1,
+          backX: 7.8,
+          napeY: 2.8,
+          earX: 1.5,
+          earY: 1.5,
+        })} fill={color} />
+        <path d={`M-4.4 ${headY - 8.1} q1.7 -3 4.2 -2.3 q-1.7 1.1 -2.1 3.2 z`} fill={color} />
+        {sideShine(headY, 10.1)}
+        <path d={`M-5.8 ${headY - 1.8} q2.2 1.5 4.1 0.3 q-1.8 1.4 -4.1 0.2 z`}
+          fill="#000" opacity="0.1" />
       </>
     ),
     front: ({ headY, color }) => (
       <>
         {wig(headY, color, SHORT_CFG, SHORT_CLUMPS)}
+        <path d={`M-4.2 ${headY - 8.2} q1.7 -3 4.2 -2.3 q-1.5 1.1 -2 3.2 z`} fill={color} />
+        <path d={`M-1.3 ${headY - 8.6} Q-2.5 ${headY - 5.4} -2.8 ${headY - 2.2}`}
+          fill="none" stroke="#000" strokeWidth="0.65" strokeLinecap="round" opacity="0.12" />
         {shine(headY, SHORT_CFG.apex)}
-        {brow(headY)}
+        {shortBrow(headY)}
       </>
     ),
   },

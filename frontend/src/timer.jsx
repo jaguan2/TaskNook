@@ -320,7 +320,8 @@ export function TimerProvider({ children }) {
       });
       recordChallengeEvent("focus-session-completed");
       recordChallengeEvent("focus-minutes", minutes);
-      await refreshFocus();
+      try { await refreshFocus(); }
+      catch (err) { console.error("Couldn't refresh after saving session:", err); showToast("Session saved, but couldn't refresh your stats 🌧️"); }
     } catch (err) {
       // Not ignorable: a silently-unlogged block reads as a frozen streak.
       console.error("Failed to log the focus session:", err);
@@ -466,12 +467,13 @@ export function TimerProvider({ children }) {
       });
       recordChallengeEvent("focus-session-completed");
       recordChallengeEvent("focus-minutes", minutes);
-      await refreshFocus();
+      notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
+      try { await refreshFocus(); }
+      catch (err) { console.error("Couldn't refresh after saving session:", err); showToast("Session saved, but couldn't refresh your stats 🌧️"); }
     } catch (err) {
       console.error("Failed to log the stopwatch session:", err);
       showToast("Couldn't log that session — it may be missing from today 🌧️");
     }
-    notify("⏱️ Time tracked", `${minutes} cozy ${minutes === 1 ? "minute" : "minutes"} logged.`);
   };
 
   // "Focus today" including the CURRENT running block — the DB only knows

@@ -305,10 +305,9 @@ export function createIsoPresets(defaultIsoSize) {
       lighting: "natural",
     },
     items: [
-      // Storefront and identity: a side entrance keeps the back wall free for
-      // two tall windows and the displays that need their light.
-      { item: "doorway", gx: 0, gy: 0.5, rot: 1, tint: "#6e8b72" },
-      { item: "bigwindow", gx: 1, gy: 0 },
+      // The room shell already supplies the left-wall window. A doorway in
+      // this corner projected through that glass, so the open cutaway is the
+      // shop entrance and this wall stays dedicated to daylight and stock.
       { item: "bigwindow", gx: 4.5, gy: 0 },
       { item: "menuboard", gx: 7, gy: 0, tint: "#466b54" },
       { item: "hangplant", gx: 9.5, gy: 0, tint: "#5f8b63" },

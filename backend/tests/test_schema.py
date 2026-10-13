@@ -67,7 +67,6 @@ def make_pre_migrations(db_path):
     sql(db_path, "DROP TABLE conversation")
     sql(db_path, "DROP TABLE calendar_event")
     sql(db_path, "ALTER TABLE user DROP COLUMN room_config")
-    sql(db_path, "ALTER TABLE user DROP COLUMN unlocked")
     sql(db_path, "ALTER TABLE user DROP COLUMN profile")
     sql(db_path, "ALTER TABLE user DROP COLUMN character")
     sql(db_path, "ALTER TABLE user DROP COLUMN visit_access")

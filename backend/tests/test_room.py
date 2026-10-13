@@ -165,7 +165,6 @@ def test_iso_layout_roundtrip(client, auth):
         "iso": ISO,
     }
 
-
 def test_flat_only_save_keeps_iso_none(client, auth):
     client.put("/api/room", json={"placements": LAYOUT}, headers=auth)
     assert client.get("/api/room", headers=auth).get_json()["iso"] is None
@@ -592,60 +591,4 @@ def test_legacy_list_config_still_readable(app, client, auth):
     }
 
 
-# --------------------------------------------------------------------------- #
-# unlocked furniture
-# --------------------------------------------------------------------------- #
-def test_unlocks_start_empty(client, auth):
-    res = client.get("/api/unlocks", headers=auth)
-    assert res.status_code == 200
-    assert res.get_json() == {"unlocked": []}
-
-
-def test_unlocks_roundtrip_and_replace(client, auth):
-    assert (
-        client.put("/api/unlocks", json={"unlocked": ["piano", "tree"]}, headers=auth).status_code
-        == 200
-    )
-    assert client.get("/api/unlocks", headers=auth).get_json() == {"unlocked": ["piano", "tree"]}
-
-    # PUT replaces rather than appends, and duplicates collapse.
-    client.put("/api/unlocks", json={"unlocked": ["dog", "dog"]}, headers=auth)
-    assert client.get("/api/unlocks", headers=auth).get_json() == {"unlocked": ["dog"]}
-
-
-def test_unlocks_require_auth(client):
-    assert client.get("/api/unlocks").status_code == 401
-    assert client.put("/api/unlocks", json={"unlocked": []}).status_code == 401
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {},
-        {"unlocked": "piano"},
-        {"unlocked": [123]},
-        {"unlocked": [""]},
-        {"unlocked": ["x" * 40]},
-        {"unlocked": ["piano"] * 301},
-    ],
-)
-def test_unlocks_reject_malformed(client, auth, payload):
-    client.put("/api/unlocks", json={"unlocked": ["piano"]}, headers=auth)
-    assert client.put("/api/unlocks", json=payload, headers=auth).status_code == 400
-    # the rejected write left the good list alone
-    assert client.get("/api/unlocks", headers=auth).get_json() == {"unlocked": ["piano"]}
-
-
-def test_unlocks_survive_a_corrupt_column(app, client, auth):
-    """Whatever ends up in the column, the endpoint answers with a usable list
-    rather than 500ing and taking the Room panel down with it."""
-    from models import User, db
-
-    for junk in ('{"not": "a list"}', "not json at all", '["ok", 5, null]'):
-        with app.app_context():
-            u = User.query.filter_by(username="decorator").first()
-            u.unlocked = junk
-            db.session.commit()
-        res = client.get("/api/unlocks", headers=auth)
-        assert res.status_code == 200
-        assert isinstance(res.get_json()["unlocked"], list)
+# The retired unlock ledger is exercised by the migration lifecycle tests.

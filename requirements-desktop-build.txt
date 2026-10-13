@@ -1,0 +1,3 @@
+# Reproducible tooling for building and inspecting the committed Windows app.
+-r requirements-desktop.txt
+pyinstaller==6.21.0

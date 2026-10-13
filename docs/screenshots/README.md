@@ -1,9 +1,10 @@
 # TaskNook — screenshots
 
-Captured by driving the real app in a headless browser, not mocked up: every
-shot is the built SPA talking to the Flask API, with tasks and focus sessions
-created through the actual REST endpoints, and rooms applied by clicking the
-same preset buttons you would. Room/UI captures are 1600×1000 WebP.
+Captured by driving the real app in a browser, not mocked up: room/UI shots
+show the built SPA talking to the Flask API. Feature examples use tasks and
+focus sessions created through the actual REST endpoints; rooms are entered
+through the same controls you would use. Room/UI captures are WebP, usually 1600×1000;
+the Grand Library captures use the review browser's 1280×720 viewport.
 Character examples extract the real editor SVG and render it as a sharp model
 closeup: individual portraits are 600×800, and eight-look sheets are 1600×1000.
 They contain model artwork and preset labels, without application chrome.
@@ -32,12 +33,17 @@ and [seated contact views](../model-review/seating-contact-front.webp) isolate t
 The October pass includes shaped chair frames, padded upholstery, layered bed linen,
 recessed bookshelves, split-leaf plants and the refined character jaw, neck and bun.
 See [the reference review](../ART_REVIEW.md) for the design findings and remaining gaps.
+The Common Cottage views also carry the later curtain pass: visible rails and
+rings, gathered tiebacks and softer lower drape silhouettes in both light and
+dark fabric tints.
 
 The character sheets were refreshed again after the compact-model pass: open
-eyes are quiet dark ovals, eyewear has no bridge or temple strokes, sleeves use
-the selected model's real arm width, and the resting arms and shoulders sit
-closer to the torso. The standing and seated preset sheets share fixed grid
-bounds so every label remains visible under wider seated poses.
+eyes are quiet dark ovals, eyewear uses a short centred bridge without temple
+strokes, sleeves use the selected model's real arm width, and the resting arms
+and shoulders sit closer to the torso. The standing and seated preset sheets
+share fixed grid bounds so every label remains visible. Seated looks now carry
+Relaxed, Ankles crossed or Cross-legged lower-body silhouettes instead of one
+identical pose across the cast.
 
 ## Rooms
 
@@ -73,20 +79,21 @@ both the weather and the hour.
 ### Character examples
 
 These closeups show the actual model artwork at a useful scale. The preset
-sheets include all eight looks, in standing and restored seated poses.
+sheets include all ten looks, with their standing and personality-specific
+seated poses.
 
 | | |
 |---|---|
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — a buzz cut, olive overalls, denim shorts and work boots. |
-| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all eight presets, including fall, school, office, lofi and gamer styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all eight presets on the restored seated rig, with no app UI obscuring the models. |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all ten presets, including fall, school, office, lofi, gamer, winter and garden styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all ten presets using relaxed, ankle-crossed and cross-legged silhouettes, with no app UI obscuring the models. |
 | ![Sleeveless maker outfit](42-character-customization.webp) **Expanded customization** — a compact body template with a true sleeveless tank, pocketed cargo pants and skin-aware sandals. | |
 
 ### Personalization tools
 
 | | |
 |---|---|
-| ![Your character](22-character.webp) **Your character** — four neutral body templates plus independent width, shoulder, leg and torso controls; skin and every style choice stay yours. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
+| ![Your character](22-character.webp) **Your character** — expression, readable eye colors, and symmetric spacing/height controls keep the miniature face personal without allowing crossed eyes. | ![Room presets](23-room-panel.webp) **Rooms** — start from a preset, then resize the floor, pick its material and choose whether it has walls at all. |
 | ![Furniture](24-furniture.webp) **Furniture** — themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
 | ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 
@@ -101,13 +108,23 @@ sheets include all eight looks, in standing and restored seated poses.
 Fixed furnished spaces have their own architecture and seat selection. The
 Common Cottage includes a raised reading nook, lounge, shared study and three
 local simulated neighbours. Willow Pond adds an outdoor stone study terrace,
-pond bench and picnic lawn. Enter through Friends; the home remains editable.
+pond bench and picnic lawn. Grand Library adds tall carved bookcases, arched
+windows, candlelight and a raised reading gallery. Enter through Friends;
+the home remains editable.
 
 | | |
 |---|---|
 | ![Common Cottage](39-common-cottage.webp) **Arriving** — an open study seat with neighbours already settled. | ![Raised reading nook](40-common-cottage-reading.webp) **Reading nook** — choose the raised armchair without moving the furniture. |
 | ![Choosing a seat](41-common-cottage-seats.webp) **Seat selection** — open seats highlighted in the scene and listed as accessible buttons; occupied seats name their neighbour. | |
 | ![Willow Pond at sunset](43-willow-pond.webp) **Willow Pond** — a raised stone study terrace, pergola lights, pond bench and picnic lawn with one neighbour in each zone. | ![Willow Pond seat selection](44-willow-pond-seats.webp) **Garden seats** — the three occupied and three open places remain selectable at night. |
+| ![Grand Library](48-grand-library.webp) **Grand Library** — a 30×20 castle-style book hall with staggered shared tables, study pairs, round reading tables, sofa corners and four shelf ladders. Six arched windows, three chandeliers and the raised gallery keep its castle-library style. | ![Grand Library seat selection](49-grand-library-seats.webp) **Library seats** — thirty-six places across table pairs, sofas and armchairs; twelve neighbours leave twenty-four guest choices in the scrollable seat list. |
+
+## 2D room and saved outfits
+
+| | |
+|---|---|
+| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a separate sofa bay, a broad coffee table within reach, a larger study chair facing the laptop, and accessible desk storage. The expanded floor keeps the central path open. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal across the expanded room. |
+| ![Saved outfits](52-saved-outfits.webp) **My outfits** — save a named look, wear it again and keep the preview visible while navigating the controls. | |
 
 ## Features
 

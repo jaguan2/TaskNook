@@ -1,0 +1,2 @@
+# Preserve exact upstream bytes and hashes on every checkout.
+* -text

@@ -6,7 +6,7 @@
  * same preset buttons a person would. Nothing here is mocked, which is the
  * whole point: a screenshot that can drift from the app is worse than none.
  * Character examples isolate the editor's actual SVG models: 600x800 single
- * portraits and 1600x1000 standing/seated sheets of all eight preset looks.
+ * portraits and 1600x1000 standing/seated sheets of every authored preset look.
  *
  * This script is COMMITTED on purpose. It had been rebuilt from scratch in a
  * throwaway scratchpad at least twice, and each rebuild re-learned the same
@@ -63,7 +63,7 @@ const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
 // Complete snapshots: switching looks must not inherit the last one's coat
 // or accessories. These are saved through the same profile API as the editor.
 const LOOKS = {
-  study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", width: 7.8, height: 28 },
+  study: { model: "fem", skin: "#a66f4a", hair: "locs", hairColor: "#302329", garment: "sweater", outfit: "#dfa85d", pants: "maxi", trouser: "#677e81", shoes: "maryjanes", eyeColor: "#405877", eyeX: 3.5, eyeY: 1.85, width: 7.8, height: 28 },
   casual: { model: "masc", skin: "#edc39e", hair: "curly", hairColor: "#824c32", garment: "tee", outfit: "#e7dcc7", coat: "cardigan", coatColor: "#608478", pants: "jeans", trouser: "#526884", glasses: "round", width: 8.2, height: 29 },
   winter: { model: "fem", skin: "#e8ad84", hair: "braids", hairColor: "#4d332c", garment: "turtleneck", outfit: "#ede0c9", coat: "puffer", coatColor: "#8e526c", pants: "trousers", trouser: "#5b526d", hat: "trapper", scarf: "wrapped", scarfColor: "#c9a24b", shoes: "boots", width: 7.4, height: 29 },
   garden: { model: "masc", skin: "#774c37", hair: "buzz", hairColor: "#302329", garment: "overalls", outfit: "#7e9369", inner: "#e4b16b", pants: "jorts", trouser: "#677b8e", shoes: "boots", width: 7, height: 29 },
@@ -338,7 +338,7 @@ async function modelShot(cdp, page, file, presets) {
     const sources = ${presets} ? buttons.map(button => ({
       svg: button.querySelector('svg'), label: button.querySelector('span > span')?.textContent.trim()
     })) : [{ svg: document.querySelector('svg[aria-label^="Front view of your character"]'), label: '' }];
-    if (sources.length !== ${presets ? 8 : 1} || sources.some(source => !source.svg))
+    if (!sources.length || sources.some(source => !source.svg) || (!${presets} && sources.length !== 1))
       throw new Error('Character closeup sources missing');
     return sources.map(({svg, label}) => {
       const bounds = svg.getBBox();
@@ -352,6 +352,8 @@ async function modelShot(cdp, page, file, presets) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: presets ? 1600 : 600, height: presets ? 1000 : 800, deviceScaleFactor: 1, mobile: false,
   });
+  const columns = presets ? Math.min(5, Math.ceil(models.length / 2)) : 1;
+  const rows = Math.ceil(models.length / columns);
   await page.evaluate(`(() => {
     const models = ${JSON.stringify(models)};
     const left = Math.min(...models.map(model => model.bounds.x)) - 5;
@@ -362,7 +364,7 @@ async function modelShot(cdp, page, file, presets) {
     // Pin the review sheet to the viewport. Clicking a preview control inside
     // the right-hand drawer can leave the document horizontally scrolled;
     // a normal-flow stage inherited that offset and clipped the first caption.
-    stage.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${presets ? 4 : 1},minmax(0,1fr));grid-template-rows:repeat(${presets ? 2 : 1},minmax(0,1fr))';
+    stage.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;padding:36px;box-sizing:border-box;background:#eee7de;display:grid;gap:24px;grid-template-columns:repeat(${columns},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))';
     for (const model of models) {
       const figure = document.createElement('figure');
       figure.style.cssText = 'margin:0;min-width:0;min-height:0;overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px';
@@ -419,6 +421,7 @@ async function modelShot(cdp, page, file, presets) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: W, height: H, deviceScaleFactor: 1, mobile: false,
   });
+  return models.length;
 }
 
 async function main() {
@@ -502,7 +505,7 @@ async function main() {
       if (r !== "ok") { console.log(`  ${n} ${name}: ${r}`); continue; }
       await sleep(1800);
       if (n === "22") {
-        await page.clickText("Body", { exact: true });
+        await page.clickText("Face", { exact: true });
         await sleep(700);
       }
     }
@@ -583,8 +586,8 @@ async function main() {
     if (n === "37" || n === "38") await page.clickText("Lofi girl");
     if (n === "38") await page.clickText("Seated", { exact: true });
     await sleep(1600);
-    await modelShot(cdp, page, join(OUT_DIR, `${n}-${name}.webp`), !look);
-    console.log(`  ${n}-${name}.webp (${look || "eight preset models"}, closeup)`);
+    const modelCount = await modelShot(cdp, page, join(OUT_DIR, `${n}-${name}.webp`), !look);
+    console.log(`  ${n}-${name}.webp (${look || `${modelCount} preset models`}, closeup)`);
   }
 
   // Fixed common place: join through the real drawer, then try the raised seat.
@@ -627,6 +630,21 @@ async function main() {
       await page.shot(join(OUT_DIR, "44-willow-pond-seats.webp"));
     }
     console.log("  willow pond: garden arrival and open-seat view");
+  }
+
+  if (want("48") || want("49")) {
+    await setCharacter(page, "casual");
+    await page.setStorage(ambient({ weather: "off", time: "night" }));
+    await page.load();
+    await page.clickText("Friends", { exact: true });
+    if (await page.clickText("Grand Library") !== "ok") throw new Error("Grand Library entry failed");
+    await sleep(2500);
+    if (want("48")) await page.shot(join(OUT_DIR, "48-grand-library.webp"));
+    if (want("49")) {
+      await page.clickText("Change seat");
+      await page.shot(join(OUT_DIR, "49-grand-library-seats.webp"));
+    }
+    console.log("  grand library: candlelit book hall and gallery seat choices");
   }
 
   if (want("45") || want("46")) {

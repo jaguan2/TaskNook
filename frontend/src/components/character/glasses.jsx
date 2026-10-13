@@ -9,26 +9,40 @@
 // Drawn ON THE FACE: after the hairline (HairFront) and the hat, inside the
 // head's gesture group — they must turn with a glance and ride a yawn, and a
 // fringe must not bury them. Lenses are a faint white wash so they read as
-// glass rather than goggles. Keep ONLY the lens rims: bridge and temple
-// strokes turn into stray lines across a face at resident scale. The back
-// view draws nothing.
+// glass rather than goggles. Keep the lens rims and ONE short bridge centred
+// over the nose; temple strokes still turn into stray face lines at resident
+// scale. The back view draws nothing.
 
 const FRAME = "#51465b";
 const LENS = "#fff";
 const LENS_OP = 0.06;
 
+function Bridge({ headY, y, halfSpan, lift = 0.5 }) {
+  const baseline = headY + y;
+  return (
+    <path
+      data-glasses-bridge
+      d={`M ${-halfSpan} ${baseline} Q 0 ${baseline - lift} ${halfSpan} ${baseline}`}
+      fill="none"
+      stroke={FRAME}
+      strokeWidth="0.48"
+      strokeLinecap="round"
+    />
+  );
+}
+
 export const GLASSES_REGISTRY = {
   none: {},
   round: {
-    // Two clean rings over the front eyes. Their shared spacing is enough to
-    // read as a pair without drawing a dark bar over the nose and cheeks.
-    front: ({ headY }) => (
+    // Two clean rings over the front eyes joined only across the nose.
+    front: ({ headY, eyeX, eyeY }) => (
       <>
-        {[-2.45, 2.45].map((cx) => (
+        {[-eyeX, eyeX].map((cx) => (
           <circle
             key={cx}
+            data-glasses-lens
             cx={cx}
-            cy={headY + 2}
+            cy={headY + eyeY}
             r="1.75"
             fill={LENS}
             fillOpacity={LENS_OP}
@@ -36,12 +50,14 @@ export const GLASSES_REGISTRY = {
             strokeWidth="0.5"
           />
         ))}
+        <Bridge headY={headY} y={eyeY - 0.35} halfSpan={Math.max(0.7, eyeX - 1.75)} />
       </>
     ),
-    side: ({ headY }) => (
+    side: ({ headY, eyeY }) => (
       <circle
+        data-glasses-lens
         cx="-3.2"
-        cy={headY + 1.9}
+        cy={headY + eyeY}
         r="1.72"
         fill={LENS}
         fillOpacity={LENS_OP}
@@ -52,13 +68,14 @@ export const GLASSES_REGISTRY = {
   },
   square: {
     // Rounded rectangles alone remain visibly distinct from the round pair.
-    front: ({ headY }) => (
+    front: ({ headY, eyeX, eyeY }) => (
       <>
-        {[-4.65, 0.65].map((x) => (
+        {[-eyeX, eyeX].map((cx) => (
           <rect
-            key={x}
-            x={x}
-            y={headY + 0.35}
+            key={cx}
+            data-glasses-lens
+            x={cx - 2}
+            y={headY + eyeY - 1.65}
             width="4"
             height="3"
             rx="0.7"
@@ -68,12 +85,14 @@ export const GLASSES_REGISTRY = {
             strokeWidth="0.55"
           />
         ))}
+        <Bridge headY={headY} y={eyeY - 0.35} halfSpan={Math.max(0.7, eyeX - 2)} />
       </>
     ),
-    side: ({ headY }) => (
+    side: ({ headY, eyeY }) => (
       <rect
+        data-glasses-lens
         x="-5.25"
-        y={headY + 0.35}
+        y={headY + eyeY - 1.65}
         width="3.8"
         height="3"
         rx="0.6"
@@ -85,16 +104,17 @@ export const GLASSES_REGISTRY = {
     ),
   },
   halfmoon: {
-    // Small circular readers sit low on the nose. The old open arcs looked
-    // like a moustache once bridges and temple strokes were removed; closed
-    // rims keep the lightweight reading-glasses idea without face-lines.
-    front: ({ headY }) => (
+    // Small circular readers sit low on the nose. Closed rims and a shallow
+    // centre bridge keep the lightweight reading-glasses idea without the
+    // old open arcs resembling a moustache.
+    front: ({ headY, eyeX, eyeY }) => (
       <>
-        {[-2.9, 2.9].map((cx) => (
+        {[-eyeX, eyeX].map((cx) => (
           <circle
             key={cx}
+            data-glasses-lens
             cx={cx}
-            cy={headY + 2.75}
+            cy={headY + eyeY + 0.75}
             r="1.75"
             fill={LENS}
             fillOpacity={LENS_OP}
@@ -102,12 +122,14 @@ export const GLASSES_REGISTRY = {
             strokeWidth="0.5"
           />
         ))}
+        <Bridge headY={headY} y={eyeY + 0.35} halfSpan={Math.max(0.7, eyeX - 1.75)} lift={0.45} />
       </>
     ),
-    side: ({ headY }) => (
+    side: ({ headY, eyeY }) => (
       <circle
+        data-glasses-lens
         cx="-3.7"
-        cy={headY + 2.65}
+        cy={headY + eyeY + 0.65}
         r="1.7"
         fill={LENS}
         fillOpacity={LENS_OP}
@@ -119,9 +141,9 @@ export const GLASSES_REGISTRY = {
 };
 
 /** The glasses being worn — on the finished face, after fringe and hat. */
-export function Glasses({ kind, headY, view = "front" }) {
+export function Glasses({ kind, headY, view = "front", eyeX = 3.3, eyeY = 2 }) {
   const entry = GLASSES_REGISTRY[kind];
   if (!entry) return null;
   const fn = view === "side" ? entry.side : view === "front" ? entry.front : null;
-  return fn ? fn({ headY }) : null;
+  return fn ? fn({ headY, eyeX, eyeY }) : null;
 }

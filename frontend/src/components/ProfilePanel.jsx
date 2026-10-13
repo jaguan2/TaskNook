@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, PawPrint, Shirt, UserRound } from "lucide-react";
+import { ChevronDown, Shirt, UserRound } from "lucide-react";
 import { useStore } from "../store";
-import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
-import { ISO_SPRITES } from "./IsoItems";
+import { Resident } from "./character";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
 import { Glasses } from "./character/glasses";
+import { EyePair } from "./character/body";
 import {
   BIO_MAX,
   COATS,
   DEFAULT_CHARACTER,
   EXPRESSIONS,
+  EYE_COLORS,
+  EYE_X_RANGE,
+  EYE_Y_RANGE,
   GLASSES,
   HAIR_COLORS,
   HAIR_STYLES,
@@ -20,6 +23,7 @@ import {
   PATTERNS,
   SCARF_COLORS,
   SCARVES,
+  SEATED_POSES,
   SHOES,
   SHOE_COLORS,
   TROUSER_COLORS,
@@ -41,7 +45,10 @@ import {
 } from "../lib/body";
 import { VISIT_ACCESS } from "../lib/visiting";
 import CharacterPresets from "./CharacterPresets";
+import SavedCharacterLooks from "./SavedCharacterLooks";
 import LevelCard from "./LevelCard";
+import Choices from "./ProfileChoiceGroup";
+import ProfilePetsSection from "./ProfilePetsSection";
 
 /**
  * The character editor's layout follows the convention every good creator
@@ -64,13 +71,12 @@ const TABS = [
 ];
 
 /**
- * The dressing-room stage has the two useful views: front and back. The side
- * model did not meet the quality bar, so it is never offered or reached by an
- * automatic turntable. Drag pans and the wheel zooms; the frame stays fixed
+ * The dressing-room stage has front, seated and back views. The seated view is
+ * where sitting-style choices earn their slot; the side model still does not
+ * meet the quality bar. Drag pans and the wheel zooms; the frame stays fixed
  * per zoom level so a slider change never resets the camera.
  */
-function CharacterStage({ character, facing }) {
-  const Resident = ISO_SPRITES.resident;
+function CharacterStage({ character, view }) {
   const [zoom, setZoom] = useState(1.35);
   // The camera can MOVE now, not just zoom: dragging the stage pans the view
   // (the iso room's own grammar). Double-click brings the camera home.
@@ -106,7 +112,7 @@ function CharacterStage({ character, facing }) {
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label={`${facing === "back" ? "Back" : "Front"} view of your character — drag to move and scroll to zoom`}
+      aria-label={`${view === "back" ? "Back" : view === "seated" ? "Seated" : "Front"} view of your character — drag to move and scroll to zoom`}
       onPointerDown={(e) => {
         dragRef.current = {
           x: e.clientX,
@@ -142,9 +148,11 @@ function CharacterStage({ character, facing }) {
       {/* The figure draws 9.6px below the origin (project(0.4,0.4)), so the
           shadow belongs under the FEET at ~y12, not at the origin where it
           floated at shin height. */}
-      <ellipse cx="0" cy="12" rx="15" ry="2.5" fill="#000" opacity="0.18" />
-      <g>
-        <Resident character={character} facing={facing} />
+      <ellipse cx="0" cy={view === "seated" && character.seatPose === "crossed" ? 4 : 12}
+        rx="15" ry="2.5" fill="#000" opacity="0.18" />
+      <g transform={view === "seated" ? "translate(0,-22)" : undefined}>
+        <Resident character={character} facing={view === "back" ? "back" : "front"}
+          seated={view === "seated"} seatH={view === "seated" ? 22 : 0} />
       </g>
     </svg>
   );
@@ -155,21 +163,20 @@ function CharacterStage({ character, facing }) {
  * user's own hair colour and skin. The icon IS the artwork, so it can never
  * drift from what the room draws.
  */
-function HairIcon({ style, hairColor, skin }) {
+function HairIcon({ style, hairColor, skin, eyeX, eyeY, eyeColor }) {
   return (
     <svg viewBox="-15 -14 30 38" className="h-12 w-full" aria-hidden="true">
       <HairLength style={style} headY={0} color={hairColor} />
       <HairBehind style={style} headY={0} color={hairColor} />
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       <HairFront style={style} headY={0} color={hairColor} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
     </svg>
   );
 }
 
 /** A hat worn over the CURRENT hair — crown replaced, length surviving. */
-function HatIcon({ hat, hair, hairColor, skin }) {
+function HatIcon({ hat, hair, hairColor, skin, eyeX, eyeY, eyeColor }) {
   const worn = hat !== "none" && hatOf(hat).coversHair !== false;
   return (
     <svg viewBox="-15 -16 30 32" className="h-12 w-full" aria-hidden="true">
@@ -178,15 +185,13 @@ function HatIcon({ hat, hair, hairColor, skin }) {
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       {!worn && <HairFront style={hair} headY={0} color={hairColor} />}
       <Hat kind={hat} headY={0} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
     </svg>
   );
 }
 
 /** A top worn by YOUR body — the torso close-up, coatless so the top shows. */
 function GarmentIcon({ character, garment }) {
-  const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-18 -50 36 34" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, garment, coat: "none" }} />
@@ -196,7 +201,6 @@ function GarmentIcon({ character, garment }) {
 
 /** A coat over your CURRENT top — what layering actually looks like. */
 function CoatIcon({ character, coat }) {
-  const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-18 -50 36 34" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, coat }} />
@@ -206,7 +210,6 @@ function CoatIcon({ character, coat }) {
 
 /** A bottom on your own legs — the lower-half close-up. */
 function PantsIcon({ character, pants }) {
-  const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-16 -34 32 40" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, pants }} />
@@ -216,7 +219,6 @@ function PantsIcon({ character, pants }) {
 
 /** A scarf at your own neck — chin-to-chest close-up, in its colour. */
 function ScarfIcon({ character, scarf }) {
-  const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-16 -52 32 28" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, scarf }} />
@@ -225,23 +227,21 @@ function ScarfIcon({ character, scarf }) {
 }
 
 /** Glasses on your own face — the head close-up, frames over the real eyes. */
-function GlassesIcon({ glasses, hair, hairColor, skin }) {
+function GlassesIcon({ glasses, hair, hairColor, skin, eyeX, eyeY, eyeColor }) {
   return (
     <svg viewBox="-15 -14 30 30" className="h-12 w-full" aria-hidden="true">
       <HairLength style={hair} headY={0} color={hairColor} />
       <HairBehind style={hair} headY={0} color={hairColor} />
       <circle cx="0" cy="0" r="7.3" fill={skin} />
       <HairFront style={hair} headY={0} color={hairColor} />
-      <circle cx="-2.9" cy="2" r="0.95" fill="#3a3142" />
-      <circle cx="2.9" cy="2" r="0.95" fill="#3a3142" />
-      <Glasses kind={glasses} headY={0} />
+      <EyePair headY={0} eyeX={eyeX} eyeY={eyeY} eyeColor={eyeColor} />
+      <Glasses kind={glasses} headY={0} eyeX={eyeX} eyeY={eyeY} />
     </svg>
   );
 }
 
 /** A pair of shoes on your own feet — ankles down. */
 function ShoesIcon({ character, shoes }) {
-  const Resident = ISO_SPRITES.resident;
   return (
     <svg viewBox="-15 -1 30 15" className="h-12 w-full" aria-hidden="true">
       <Resident character={{ ...character, shoes }} />
@@ -394,215 +394,22 @@ function Swatches({ options, value, onPick, label }) {
   );
 }
 
-/**
- * Your PETS — who lives here beyond you (owner request, 2026-08-18): every
- * cat or dog placed in the room gets a NAME and a TEMPER. Identity lives on
- * the placement itself (a pet IS a placement), so two cats are two rows and
- * removing one takes its name with it. The temper reaches the wander engine
- * (lib/isoRoom.js `PET_TEMPERS`): a curious pet ranges the whole room and
- * won't settle on a rug; a sleepy one barely leaves its spot. The name shows
- * when you pick the pet up in the room.
- */
-function PetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
-  const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
-  // Rehoming confirms in a POPUP over the card (owner, 2026-08-19 — this
-  // one outranks the app's armed-button grammar): a pet has a name, and the
-  // dialog is where there's room to say plainly that it can't be undone.
-  const [confirmId, setConfirmId] = useState(null);
-  // ONE Adopt button beside the title (owner, 2026-08-19: three buttons was
-  // a row of shopping); the species pills appear only while adopting.
-  const [adopting, setAdopting] = useState(false);
-  return (
-    <section>
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-cream">
-        <PawPrint size={15} className="text-petal/70" /> Your pets
-        {/* Adopt from right here — the section is "who lives here", and going
-            via the Room panel's furniture shelf to get a PET read as shopping.
-            addIsoItem already owns the cap and no-floor refusal toasts. */}
-        <button
-          type="button"
-          onClick={() => setAdopting((a) => !a)}
-          aria-expanded={adopting}
-          className={`ml-auto rounded-full border px-3 py-1 text-xs transition ${
-            adopting
-              ? "border-glow/60 bg-glow/15 text-cream"
-              : "border-white/10 bg-white/5 text-petal hover:border-glow/50 hover:text-cream"
-          }`}
-        >
-          🐾 Adopt
-        </button>
-      </p>
-      {adopting && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {[
-            ["cat", "🐈 A cat"],
-            ["dog", "🐕 A dog"],
-            ["bunny", "🐇 A rabbit"],
-          ].map(([item, label]) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                addIsoItem(item);
-                setAdopting(false);
-              }}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-petal transition hover:border-glow/50 hover:text-cream"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      {pets.length === 0 ? (
-        <p className="text-xs text-petal/50">
-          No pets yet — adopt one above and it appears in your room, ready to
-          name.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {pets.map((p) => {
-            const Sprite = ISO_SPRITES[p.item];
-            return (
-              <div
-                key={p.id}
-                className="relative rounded-2xl border border-white/10 bg-white/5 p-2"
-              >
-                <div className="flex items-center gap-3">
-                <svg
-                  viewBox="-9 -26 32 40"
-                  className="h-14 w-12 shrink-0"
-                  aria-hidden="true"
-                  style={p.tint ? { "--tint": p.tint } : undefined}
-                >
-                  <Sprite awake facing="front" look={p.look} />
-                </svg>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  {/* The ✕ shares the name row so it's ALIGNED with
-                      something (owner: a corner-floated ✕ lined up with
-                      nothing). Save on BLUR, not per keystroke — every
-                      write saves the room. Keyed on the stored name so an
-                      outside change (validation trimming it) refreshes the
-                      field. */}
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      key={`${p.id}:${p.name || ""}`}
-                      type="text"
-                      defaultValue={p.name || ""}
-                      placeholder={`Name your ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`}
-                      maxLength={PET_NAME_MAX}
-                      aria-label="Pet name"
-                      onBlur={(e) => setPetIdentity(p.id, { name: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                      }}
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-cream placeholder:text-petal/40 focus:border-glow/60 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setConfirmId(p.id)}
-                      title="Find them a new home"
-                      aria-label="Find them a new home"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm text-petal/40 transition hover:bg-white/10 hover:text-danger"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <Choices
-                    label="Temper"
-                    options={PET_TEMPERS}
-                    value={p.temper || "mellow"}
-                    onPick={(temper) => setPetIdentity(p.id, { temper })}
-                  />
-                  {/* The look — coat pattern for cats, breed for dogs. The
-                      thumbnail above redraws live, so picking is trying on. */}
-                  {petLooksFor(p.item) && (
-                    <Choices
-                      label={p.item === "dog" ? "Breed" : "Coat"}
-                      options={petLooksFor(p.item)}
-                      value={p.look || petLooksFor(p.item)[0].key}
-                      onPick={(look) => setPetIdentity(p.id, { look })}
-                    />
-                  )}
-                </div>
-                </div>
-                {/* The confirm POPUP, covering just this pet's card — a
-                    euphemism plus silence reads as a trick, so the dialog
-                    names what happens and that it's permanent. */}
-                {confirmId === p.id && (
-                  <div
-                    role="alertdialog"
-                    aria-label="Find them a new home?"
-                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-night/95 p-3 text-center backdrop-blur-sm"
-                  >
-                    <p className="text-xs font-semibold text-cream">
-                      Find {p.name || `this ${(ISO_ITEMS[p.item].label || "pet").toLowerCase()}`} a
-                      new home?
-                    </p>
-                    <p className="text-[10px] leading-snug text-petal/60">
-                      They&apos;ll leave your room for good — this can&apos;t be
-                      undone.
-                    </p>
-                    <div className="mt-1 flex gap-2">
-                      <button
-                        type="button"
-                        autoFocus
-                        onClick={() => setConfirmId(null)}
-                        className="rounded-full bg-white/10 px-3 py-1 text-xs text-cream transition hover:bg-white/20"
-                      >
-                        Keep them
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          removeIsoItem(p.id);
-                          setConfirmId(null);
-                        }}
-                        className="rounded-full bg-danger/20 px-3 py-1 text-xs font-semibold text-danger transition hover:bg-danger/30"
-                      >
-                        New home
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          <p className="text-[11px] text-petal/50">
-            Temper changes how they wander — curious pets range the whole room,
-            sleepy ones barely leave their spot. Pick a pet up in the room to
-            carry it somewhere new.
-          </p>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function Choices({ options, value, onPick, label }) {
-  return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
-      {options.map((o) => (
-        <button
-          key={o.key}
-          type="button"
-          onClick={() => onPick(o.key)}
-          aria-pressed={value === o.key}
-          className={`pill px-3 py-1.5 text-xs font-semibold transition ${
-            value === o.key
-              ? "bg-glow text-plum"
-              : "bg-white/10 text-petal hover:bg-white/20"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function BodySlider({ label, range, step, value, onDraft, onCommit }) {
-  const midpoint = (range[0] + range[1]) / 2;
-  const size = value < midpoint - Number(step) / 2 ? "Smaller" : value > midpoint + Number(step) / 2 ? "Larger" : "Middle";
+function BodySlider({
+  label,
+  range,
+  step,
+  value,
+  onDraft,
+  onCommit,
+  ariaPrefix = "Body",
+  labels = ["Smaller", "Middle", "Larger"],
+  neutralValue = (range[0] + range[1]) / 2,
+}) {
+  const size = value < neutralValue - Number(step) / 2
+    ? labels[0]
+    : value > neutralValue + Number(step) / 2
+      ? labels[2]
+      : labels[1];
   return (
     <label className="grid grid-cols-[4.25rem_1fr_3rem] items-center gap-2 text-xs text-petal/70">
       <span className="shrink-0">{label}</span>
@@ -612,7 +419,7 @@ function BodySlider({ label, range, step, value, onDraft, onCommit }) {
         max={range[1]}
         step={step}
         value={value}
-        aria-label={`Body ${label.toLowerCase()}`}
+        aria-label={`${ariaPrefix} ${label.toLowerCase()}`}
         onChange={(e) => onDraft(Number(e.target.value))}
         onPointerUp={onCommit}
         onBlur={onCommit}
@@ -755,6 +562,9 @@ export default function ProfilePanel() {
     character,
     saveProfile,
     saveCharacter,
+    savedLooks,
+    saveCharacterLook,
+    removeCharacterLook,
     user,
     setVisitAccess,
     isoRoom,
@@ -764,7 +574,7 @@ export default function ProfilePanel() {
   } = useStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("looks");
-  const [characterFacing, setCharacterFacing] = useState("front");
+  const [characterView, setCharacterView] = useState("front");
   // Text inputs are local until blur: saveProfile round-trips to the server,
   // and re-rendering the field from server state on every keystroke is how you
   // get a cursor that jumps to the end of the line mid-word.
@@ -778,18 +588,18 @@ export default function ProfilePanel() {
     if ((profile[key] || "") !== value) saveProfile({ [key]: value });
   };
 
-  // The body sliders are local until release for the same reason: a drag
+  // Character sliders are local until release for the same reason: a drag
   // emits dozens of change events and saveCharacter round-trips. The draft
   // still feeds the preview, so the figure follows the thumb live.
-  const [bodyDraft, setBodyDraft] = useState(null);
-  const shown = bodyDraft ? { ...character, ...bodyDraft } : character;
-  const commitBody = () => {
-    if (bodyDraft) {
-      saveCharacter(bodyDraft);
-      setBodyDraft(null);
+  const [axisDraft, setAxisDraft] = useState(null);
+  const shown = axisDraft ? { ...character, ...axisDraft } : character;
+  const commitAxes = () => {
+    if (axisDraft) {
+      saveCharacter(axisDraft);
+      setAxisDraft(null);
     }
   };
-  const draftAxis = (key) => (v) => setBodyDraft({ ...(bodyDraft || {}), [key]: v });
+  const draftAxis = (key) => (v) => setAxisDraft({ ...(axisDraft || {}), [key]: v });
 
   return (
     <div className="space-y-4">
@@ -830,25 +640,25 @@ export default function ProfilePanel() {
             the one rule every character creator shares. */}
         <div className="sticky top-0 z-20 -mx-1 rounded-b-2xl bg-plum/95 px-1 pb-2 backdrop-blur-md">
           <div className="relative rounded-2xl border border-white/10 bg-white/5 py-1">
-            <CharacterStage character={shown} facing={characterFacing} />
+            <CharacterStage character={shown} view={characterView} />
             <div
               className="absolute right-2 top-2 flex rounded-full bg-plum/75 p-0.5 backdrop-blur-sm"
               role="group"
               aria-label="Character preview view"
             >
-              {["front", "back"].map((facing) => (
+              {["front", "seated", "back"].map((view) => (
                 <button
-                  key={facing}
+                  key={view}
                   type="button"
-                  onClick={() => setCharacterFacing(facing)}
-                  aria-pressed={characterFacing === facing}
+                  onClick={() => setCharacterView(view)}
+                  aria-pressed={characterView === view}
                   className={`rounded-full px-2 py-1 text-[10px] font-semibold capitalize transition ${
-                    characterFacing === facing
+                    characterView === view
                       ? "bg-glow text-plum"
                       : "text-petal/70 hover:bg-white/10 hover:text-cream"
                   }`}
                 >
-                  {facing}
+                  {view}
                 </button>
               ))}
             </div>
@@ -876,8 +686,10 @@ export default function ProfilePanel() {
           {tab === "looks" && (
             <>
               <p className="text-xs leading-relaxed text-petal/65">
-                Start with a complete look, then make it yours. Your skin tone stays the same.
+                Start with a complete outfit, then make it yours. Your skin and face stay the same.
               </p>
+              <SavedCharacterLooks character={character} looks={savedLooks} onPick={saveCharacter}
+                onSave={saveCharacterLook} onRemove={removeCharacterLook} />
               <CharacterPresets character={character} onPick={saveCharacter} />
             </>
           )}
@@ -926,7 +738,7 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.width}
                     onDraft={draftAxis("width")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   <BodySlider
                     label="Shoulders"
@@ -934,7 +746,7 @@ export default function ProfilePanel() {
                     step="0.2"
                     value={shown.shoulders}
                     onDraft={draftAxis("shoulders")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   {/* Legs and torso are separate axes — a long-legged figure
                       and a long-bodied one are different people. */}
@@ -944,7 +756,7 @@ export default function ProfilePanel() {
                     step="0.5"
                     value={shown.height}
                     onDraft={draftAxis("height")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                   <BodySlider
                     label="Torso"
@@ -952,22 +764,68 @@ export default function ProfilePanel() {
                     step="0.5"
                     value={shown.torso}
                     onDraft={draftAxis("torso")}
-                    onCommit={commitBody}
+                    onCommit={commitAxes}
                   />
                 </div>
+              </Field>
+              <Field label="Sitting style">
+                <Choices
+                  label="Sitting style"
+                  options={SEATED_POSES}
+                  value={character.seatPose}
+                  onPick={(seatPose) => {
+                    setCharacterView("seated");
+                    saveCharacter({ seatPose });
+                  }}
+                />
               </Field>
             </>
           )}
 
           {tab === "face" && (
-            <Field label="Expression">
-              <Choices
-                label="Expression"
-                options={EXPRESSIONS}
-                value={character.expression}
-                onPick={(expression) => saveCharacter({ expression })}
-              />
-            </Field>
+            <>
+              <Field label="Expression">
+                <Choices
+                  label="Expression"
+                  options={EXPRESSIONS}
+                  value={character.expression}
+                  onPick={(expression) => saveCharacter({ expression })}
+                />
+              </Field>
+              <Field label="Eye color">
+                <Swatches
+                  label="Eye color"
+                  options={EYE_COLORS}
+                  value={character.eyeColor}
+                  onPick={(eyeColor) => saveCharacter({ eyeColor })}
+                />
+              </Field>
+              <Field label="Eye placement">
+                <div className="space-y-2">
+                  <BodySlider
+                    label="Spacing"
+                    ariaPrefix="Eye"
+                    labels={["Closer", "Balanced", "Wider"]}
+                    neutralValue={DEFAULT_CHARACTER.eyeX}
+                    range={EYE_X_RANGE}
+                    step="0.1"
+                    value={shown.eyeX}
+                    onDraft={draftAxis("eyeX")}
+                    onCommit={commitAxes}
+                  />
+                  <BodySlider
+                    label="Height"
+                    ariaPrefix="Eye"
+                    labels={["Higher", "Middle", "Lower"]}
+                    range={EYE_Y_RANGE}
+                    step="0.05"
+                    value={shown.eyeY}
+                    onDraft={draftAxis("eyeY")}
+                    onCommit={commitAxes}
+                  />
+                </div>
+              </Field>
+            </>
           )}
 
           {tab === "hair" && (
@@ -991,6 +849,9 @@ export default function ProfilePanel() {
                         key === character.hair ? character.hairColor : DEFAULT_CHARACTER.hairColor
                       }
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                   swatchesFor={() => HAIR_COLORS}
@@ -1127,6 +988,9 @@ export default function ProfilePanel() {
                       hair={character.hair}
                       hairColor={character.hairColor}
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                 />
@@ -1166,6 +1030,9 @@ export default function ProfilePanel() {
                       hair={character.hair}
                       hairColor={character.hairColor}
                       skin={character.skin}
+                      eyeX={character.eyeX}
+                      eyeY={character.eyeY}
+                      eyeColor={character.eyeColor}
                     />
                   )}
                 />
@@ -1177,7 +1044,7 @@ export default function ProfilePanel() {
 
       <hr className="border-white/10" />
 
-      <PetsSection
+      <ProfilePetsSection
         isoRoom={isoRoom}
         setPetIdentity={setPetIdentity}
         addIsoItem={addIsoItem}

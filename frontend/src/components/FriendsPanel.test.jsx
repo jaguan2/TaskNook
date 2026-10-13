@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
-const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
+const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
   user: { id: 9 },
   friends: [
@@ -13,16 +13,36 @@ vi.mock("../store", () => ({ useStore: () => ({
   chats: [], friendship: {}, hudVisibility: { chat: "on" }, knockingId: null,
   ...mocks,
 }) }));
-beforeEach(() => { vi.clearAllMocks(); mocks.chatsError = false; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.chatsError = false;
+  mocks.addFriend.mockResolvedValue({ id: 3, username: "sora" });
+  mocks.removeFriend.mockResolvedValue(true);
+});
 afterEach(cleanup);
 
 describe("opening conversations", () => {
-  it("offers both authored common places with their real population counts", () => {
+  it("uses store-owned friend writes and clears a committed add", async () => {
+    render(<FriendsPanel />);
+    const input = screen.getByLabelText("Friend username");
+    fireEvent.change(input, { target: { value: "Sora" } });
+    fireEvent.click(screen.getByLabelText("Add friend"));
+    await waitFor(() => expect(input.value).toBe(""));
+    expect(mocks.addFriend).toHaveBeenCalledWith("sora");
+
+    fireEvent.click(screen.getAllByLabelText("Remove friend")[0]);
+    fireEvent.click(screen.getByText("sure?"));
+    expect(mocks.removeFriend).toHaveBeenCalledWith(1);
+  });
+
+  it("offers all authored common places with their real population counts", () => {
     render(<FriendsPanel />);
     expect(screen.getAllByText("3 simulated neighbours · 3 guest seats")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /Grand Library.*12 simulated neighbours · 24 guest seats/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Common Cottage/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Grand Library/ }));
     fireEvent.click(screen.getByRole("button", { name: /Willow Pond/ }));
-    expect(mocks.enterCommonRoom.mock.calls).toEqual([["common-cottage"], ["willow-pond"]]);
+    expect(mocks.enterCommonRoom.mock.calls).toEqual([["common-cottage"], ["grand-library"], ["willow-pond"]]);
   });
   it("offers a retry when the conversation list could not load", () => {
     mocks.chatsError = true;

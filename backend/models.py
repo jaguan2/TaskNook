@@ -59,11 +59,6 @@ class User(db.Model):
     # [{id, item, x, y}] placements. The frontend owns the catalog; the
     # backend just keeps the layout safe alongside the rest of the user's data.
     room_config = db.Column(db.Text, nullable=True)
-    # Furniture bought with focus minutes, as a JSON string of item keys.
-    # Like room_config, the frontend owns the catalog and the prices; this just
-    # keeps the list safe. Nullable rather than defaulted so an existing row
-    # doesn't need backfilling — an absent value means "only the free pieces".
-    unlocked = db.Column(db.Text, nullable=True)
     # Who you are (JSON string): mbti, birthDate, pronouns, bio… A blob rather
     # than a column per field on purpose — same bargain as room_config, and the
     # whole point of a profile is that fields get added later. A new question
@@ -235,7 +230,7 @@ class ConversationMember(db.Model):
     needs) because membership carries state: `last_read_at` is what an unread
     count is measured against. Storing a TIMESTAMP rather than a count means
     the number is derived from the messages themselves and can't drift out of
-    step with them — the same reasoning as the unlock balance.
+    step with them.
     """
 
     __table_args__ = (

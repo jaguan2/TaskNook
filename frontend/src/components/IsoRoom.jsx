@@ -335,6 +335,7 @@ const PlacedItem = memo(function PlacedItem({
               seated={!!p._seat && !p._lie}
               lying={!!p._lie}
               seatH={p._seat || 0}
+              seatPose={p._seatPose}
               activity={personaActivity}
               moving={glide.moving}
               facing={p._facing || "front"}

@@ -17,7 +17,7 @@ describe("CharacterPresets", () => {
     expect(onPick).toHaveBeenCalledWith(
       characterFromPreset(
         CHARACTER_PRESETS.find((preset) => preset.key === "school-boy"),
-        current.skin
+        current
       )
     );
     expect(onPick.mock.calls[0][0].skin).toBe(current.skin);
@@ -42,6 +42,9 @@ describe("CharacterPresets", () => {
     expect(screen.getByRole("button", { name: "Seated", exact: true }).getAttribute("aria-pressed")).toBe("true");
     const looks = screen.getByRole("group", { name: "Character looks" });
     expect(looks.querySelectorAll('[data-arm-pose="lap"]')).toHaveLength(CHARACTER_PRESETS.length * 2);
+    for (const pose of ["relaxed", "ankles", "crossed"]) {
+      expect(looks.querySelector(`[data-seat-pose="${pose}"]`), pose).not.toBeNull();
+    }
     fireEvent.click(screen.getByRole("button", { name: "Back", exact: true }));
     expect(looks.querySelector('[data-character-head="front"]')).toBeNull();
     expect(onPick).not.toHaveBeenCalled();

@@ -14,7 +14,6 @@ import { localTodayISO } from "./lib/stats";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
-import { validateCharacter, validateProfile } from "./lib/profile";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
 import { createCommonSession, settleCommonGuest } from "./lib/commonRooms";
 import {
@@ -30,6 +29,9 @@ import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import { createChatSignals } from "./lib/chatSignals";
 import { useChallenges } from "./lib/useChallenges";
 import { useProgression } from "./lib/useProgression";
+import { totalStudyMinutes } from "./lib/progression";
+import { useSavedLooks } from "./lib/useSavedLooks";
+import { useProfileCharacter } from "./lib/useProfileCharacter";
 import {
   MESSAGE_MAX,
   botReply,
@@ -45,7 +47,6 @@ const CHECKIN_KEY = "tasknook.chat.checkin";
 // Marks a local room mirror that has not yet been acknowledged by SQLite.
 // It is intentionally separate from the room JSON: an empty room is valid.
 const ROOM_DIRTY_KEY = "tasknook.room.dirty";
-import { balance as unlockBalance, canAfford, costOf, owns, totalEarned, validateUnlocked } from "./lib/unlocks";
 import { MOTION_MODES, applyMotionMode } from "./lib/motion";
 import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
 import {
@@ -78,6 +79,7 @@ import {
   PRESETS as COTTAGE_PRESETS,
   MAX_ITEMS,
   newPlacement,
+  duplicatePlacement,
   presetPlacements,
   validatePlacements,
 } from "./lib/room";
@@ -111,6 +113,16 @@ const HUD_VIS_MODES = ["on", "faded", "hidden"];
 const DEFAULT_HUD_VISIBILITY = { timer: "on", tasks: "on", music: "on", clock: "on", chat: "on" };
 
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
+
+const sortEvents = (rows) => [...rows].sort((a, b) =>
+  (a.date || "").localeCompare(b.date || "") ||
+  (a.startTime || "").localeCompare(b.startTime || "") ||
+  (a.id || 0) - (b.id || 0)
+);
+
+const sortFriends = (rows) => [...rows].sort((a, b) =>
+  (b.focusMinutesToday || 0) - (a.focusMinutesToday || 0)
+);
 
 // A few cozy lofi streams to start with; users can add their own via YouTube or Spotify link.
 // Stored as video ids, not playlist ids. Links like ...&list=RD<id> are
@@ -175,6 +187,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   const { progression, syncStudy, recordNeighbour, recordChallenges } = useProgression(!!user && !booting, showToast);
+  const { savedLooks, saveCharacterLook, removeCharacterLook } = useSavedLooks(showToast);
   const { challenges, recordChallengeEvent, replaceChallenge,
     addChallenge, advanceChallenge, resetChallenge, removeChallenge } = useChallenges(showToast, recordChallenges);
   const addCustomChallenge = useCallback((draft) => {
@@ -195,20 +208,9 @@ export function StoreProvider({ children }) {
     focusMinutesToday: 0,
   });
   const [sessionDays, setSessionDays] = useState({});
-  const sessionDaysRef = useRef(sessionDays);
-  sessionDaysRef.current = sessionDays;
-  useEffect(() => { syncStudy(totalEarned(sessionDays)); }, [sessionDays, syncStudy]);
+  useEffect(() => { syncStudy(totalStudyMinutes(sessionDays)); }, [sessionDays, syncStudy]);
   // Prune claims for removed goals, without retroactively rewarding old completions.
   useEffect(() => { recordChallenges(challenges, challenges); }, [challenges, recordChallenges]);
-  // Furniture bought with focus minutes. Mirrored to localStorage for an
-  // instant paint, same as the room layout; the server copy wins on boot.
-  const [unlocked, setUnlocked] = useState(() => {
-    try {
-      return validateUnlocked(readJSON("tasknook.unlocked", []));
-    } catch {
-      return [];
-    }
-  });
   const [algorithm, setAlgorithm] = useState(() => {
     // Whitelist: TaskPanel indexes ALGORITHMS[algorithm] directly, so an
     // unknown stored key would crash the panel.
@@ -515,17 +517,8 @@ export function StoreProvider({ children }) {
   const resolvedStationKey = stationKey(activeStation);
 
   // ---------- Profile & character ----------
-  // The profile is DB-only (it's typed once and it's small). The character has
-  // a mirror because the iso room draws it on the very first frame, and a
-  // resident that appears with default hair and then changes reads as a glitch.
-  const [profile, setProfile] = useState({});
-  const [character, setCharacter] = useState(() => {
-    try {
-      return validateCharacter(readJSON("tasknook.character", null));
-    } catch {
-      return validateCharacter(null); // corrupted mirror — the classic resident
-    }
-  });
+  const { profile, character, saveProfile, saveCharacter, getResidentIdentity } =
+    useProfileCharacter({ user, showToast });
 
   // ---------- Room (freeform decoration) ----------
   // The layout lives in the DB (rides the migration/backup system) with a
@@ -596,31 +589,6 @@ export function StoreProvider({ children }) {
   // The id of the most recently added iso item — the scene auto-selects it
   // so the user can see what just appeared.
   const [lastIsoAddedId, setLastIsoAddedId] = useState(null);
-  // Buying a piece. The balance is derived (focus minutes earned minus the
-  // cost of what's owned) rather than stored, so it can never drift out of
-  // step with the sessions it came from.
-  const unlockedRef = useRef(unlocked);
-  unlockedRef.current = unlocked;
-  const unlockItem = useCallback(
-    (key) => {
-      const have = unlockedRef.current;
-      if (owns(have, key)) return;
-      if (!canAfford(sessionDaysRef.current, have, key)) {
-        showToast(`${costOf(key)} focused minutes unlocks that one ✨`);
-        return;
-      }
-      const next = [...have, key];
-      unlockedRef.current = next;
-      setUnlocked(next);
-      writeStored("tasknook.unlocked", JSON.stringify(next));
-      api.saveUnlocks(next).catch((err) => {
-        console.error("Failed to save unlocks:", err);
-        showToast("Couldn't save that unlock — it's still yours on this device 🌧️");
-      });
-    },
-    [showToast]
-  );
-
   const addIsoItem = useCallback(
     (key) => {
       const prev = isoRef.current;
@@ -628,12 +596,6 @@ export function StoreProvider({ children }) {
       // that failed without saying anything, so the button just looked dead.
       if (prev.placements.length >= ISO_MAX_ITEMS) {
         showToast(`That's all ${ISO_MAX_ITEMS} pieces — put something away first 🪴`);
-        return;
-      }
-      // Inert while the store is empty (owns() is true for every free piece);
-      // it's the guard that stops a premium item being placed without buying.
-      if (!owns(unlockedRef.current, key)) {
-        showToast(`${costOf(key)} focused minutes unlocks that one ✨`);
         return;
       }
       // `unique` pieces are singletons — there is only one of you. Without
@@ -937,20 +899,7 @@ export function StoreProvider({ children }) {
     [withSelf, showToast]
   );
   const roomRef = useRef(roomPlacements);
-  // Read inside the save actions so a rapid second edit merges onto the latest
-  // value rather than the one captured when the callback was created. The save
-  // actions also advance these synchronously; this effect is the backstop that
-  // catches the OTHER writer — the server-load effect, which calls the setters
-  // directly.
-  const profileRef = useRef(profile);
-  const characterRef = useRef(character);
-  // These endpoints receive full snapshots. Keep writes ordered so a slow
-  // older request cannot arrive last and replace a newer choice in SQLite.
-  const profileWriteRef = useRef(null);
-  const characterWriteRef = useRef(null);
   const roomWriteRef = useRef(null);
-  if (!profileWriteRef.current) profileWriteRef.current = createWriteQueue(api.saveProfile);
-  if (!characterWriteRef.current) characterWriteRef.current = createWriteQueue(api.saveProfile);
   if (!roomWriteRef.current) {
     roomWriteRef.current = createWriteQueue(({ placements, iso }) =>
       api.saveRoom(placements, iso)
@@ -965,11 +914,9 @@ export function StoreProvider({ children }) {
   // interval was created.
   const friendsRef = useRef(friends);
   useEffect(() => {
-    profileRef.current = profile;
-    characterRef.current = character;
     userRef.current = user;
     friendsRef.current = friends;
-  }, [profile, character, user, friends]);
+  }, [user, friends]);
   const roomSaveTimer = useRef(null);
   const roomSaveVersion = useRef(0);
   // Applying server state on boot must not immediately echo back as a "save".
@@ -1103,7 +1050,16 @@ export function StoreProvider({ children }) {
   const pendingTaskToggles = useRef(new Map());
   const taskCompletionVersion = useRef(0);
   const taskReadVersion = useRef(0);
+  const statsReadVersion = useRef(0);
+  const sessionDaysReadVersion = useRef(0);
+  const eventReadVersion = useRef(0);
+  const friendReadVersion = useRef(0);
+  const reorderIntent = useRef(0);
+  const committedTaskPositions = useRef(new Map());
+  const reorderWriteRef = useRef(null);
+  if (!reorderWriteRef.current) reorderWriteRef.current = createWriteQueue(api.reorderTasks);
   const applyTaskSnapshot = useCallback((rows) => {
+    committedTaskPositions.current = new Map(rows.map((row) => [row.id, row.position]));
     setTasks(rows.map((row) => {
       const pending = pendingTaskToggles.current.get(row.id);
       return pending ? { ...row, ...pending } : row;
@@ -1121,19 +1077,26 @@ export function StoreProvider({ children }) {
     // that had already reset. It self-corrected on the next refresh, which is
     // exactly what makes it easy to miss.
     const t = await api.listTasks();
+    const statsRequest = ++statsReadVersion.current;
+    const sessionDaysRequest = ++sessionDaysReadVersion.current;
+    const friendRequest = ++friendReadVersion.current;
+    const eventRequest = ++eventReadVersion.current;
     const [s, f, d, e] = await Promise.all([
       api.stats(),
       api.listFriends(),
       api.sessionDays(),
       api.listEvents(),
     ]);
-    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+    const taskFresh = request === taskReadVersion.current && completionVersion === taskCompletionVersion.current;
+    if (taskFresh) {
       applyTaskSnapshot(t);
+    }
+    if (taskFresh && statsRequest === statsReadVersion.current) {
       setStats(s);
     }
-    setFriends(f);
-    setSessionDays(d);
-    setEvents(e);
+    if (friendRequest === friendReadVersion.current) setFriends(f);
+    if (sessionDaysRequest === sessionDaysReadVersion.current) setSessionDays(d);
+    if (eventRequest === eventReadVersion.current) setEvents(e);
   }, [applyTaskSnapshot]);
 
   /**
@@ -1154,22 +1117,35 @@ export function StoreProvider({ children }) {
     const request = ++taskReadVersion.current;
     const completionVersion = taskCompletionVersion.current;
     const t = await api.listTasks();
+    const statsRequest = ++statsReadVersion.current;
     const s = await api.stats();
     // A read begun before another checkbox changed cannot undo that newer
     // choice. A concurrent task's optimistic fields survive until its save
     // settles, even if this snapshot came from another task's refresh.
-    if (request === taskReadVersion.current && completionVersion === taskCompletionVersion.current) {
+    const taskFresh = request === taskReadVersion.current && completionVersion === taskCompletionVersion.current;
+    if (taskFresh) {
       applyTaskSnapshot(t);
+    }
+    if (taskFresh && statsRequest === statsReadVersion.current) {
       setStats(s);
     }
   }, [applyTaskSnapshot]);
 
-  /** A logged focus block also moves the per-day map the streak and heatmap read. */
+  /** A logged focus block also moves the per-day map the streak and heatmap read.
+   * listTasks still goes first: it is the lazy daily-routine reset, so reading
+   * stats before it can briefly restore yesterday's completion after midnight. */
   const refreshFocus = useCallback(async () => {
+    const taskRequest = ++taskReadVersion.current;
+    const completionVersion = taskCompletionVersion.current;
+    const t = await api.listTasks();
+    const statsRequest = ++statsReadVersion.current;
+    const sessionDaysRequest = ++sessionDaysReadVersion.current;
     const [s, d] = await Promise.all([api.stats(), api.sessionDays()]);
-    setStats(s);
-    setSessionDays(d);
-  }, []);
+    const taskFresh = taskRequest === taskReadVersion.current && completionVersion === taskCompletionVersion.current;
+    if (taskFresh) applyTaskSnapshot(t);
+    if (taskFresh && statsRequest === statsReadVersion.current) setStats(s);
+    if (sessionDaysRequest === sessionDaysReadVersion.current) setSessionDays(d);
+  }, [applyTaskSnapshot]);
 
   useEffect(() => {
     if (user)
@@ -1231,97 +1207,26 @@ export function StoreProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Unlocked furniture: the server copy wins on boot, and a first-run account
-  // with none gets whatever the local mirror had (same rule as the room).
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const { unlocked: server } = await api.getUnlocks();
-        const clean = validateUnlocked(server);
-        if (clean.length) {
-          unlockedRef.current = clean;
-          setUnlocked(clean);
-          writeStored("tasknook.unlocked", JSON.stringify(clean));
-        } else if (unlockedRef.current.length) {
-          await api.saveUnlocks(unlockedRef.current);
-        }
-      } catch (err) {
-        // Read-only failure: the mirror still has them, so don't shout.
-        console.error("Failed to load unlocks:", err);
-      }
-    })();
-  }, [user]);
-
-  // Profile & character: unlike the room there's no local-first mirror to
-  // reconcile — a profile is typed once and lives in the DB. The mirror exists
-  // only so the resident draws with YOUR face on the very first paint instead
-  // of flashing the default and swapping a moment later.
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const data = await api.getProfile();
-        setProfile(validateProfile({ ...data?.profile, displayName: data?.displayName }));
-        const chr = validateCharacter(data?.character);
-        setCharacter(chr);
-        writeStored("tasknook.character", JSON.stringify(chr));
-      } catch (err) {
-        // Read-only failure: the mirror already painted a resident, so this is
-        // not worth a toast.
-        console.error("Failed to load profile:", err);
-      }
-    })();
-  }, [user]);
-
-  /** Save part of the profile. Sections save independently — see test_profile.py. */
-  const saveProfile = useCallback(
-    async (patch) => {
-      const next = validateProfile({ ...profileRef.current, ...patch });
-      // Advance the ref SYNCHRONOUSLY, not just via the effect below. The
-      // effect runs after render, so a burst of edits in one tick would every
-      // one of them read the same pre-burst value and overwrite each other —
-      // six picks in a row kept only the last.
-      profileRef.current = next;
-      setProfile(next); // optimistic: the form must not lag a keystroke behind
-      try {
-        const { displayName, ...rest } = next;
-        await profileWriteRef.current({
-          ...(displayName ? { displayName } : {}),
-          profile: rest,
-        });
-      } catch (err) {
-        console.error("Failed to save profile:", err);
-        showToast("Couldn't save your profile 🌧️");
-      }
-    },
-    [showToast]
-  );
-
-  const saveCharacter = useCallback(
-    async (patch) => {
-      const next = validateCharacter({ ...characterRef.current, ...patch });
-      characterRef.current = next; // synchronous — see saveProfile
-      setCharacter(next);
-      // Mirror first: the room redraws from this immediately, and a failed
-      // request shouldn't undo a choice the user can see on screen.
-      writeStored("tasknook.character", JSON.stringify(next));
-      try {
-        await characterWriteRef.current({ character: next });
-      } catch (err) {
-        console.error("Failed to save character:", err);
-        showToast("Couldn't save your character — it's still saved on this device 🌧️");
-      }
-    },
-    [showToast]
-  );
-
   // ---------- Task actions ----------
   const addTask = async (payload) => {
-    await api.createTask(payload);
+    const saved = await api.createTask(payload);
+    // Invalidate reads that began before this creation. The POST's row is
+    // already durable even if the later list refresh is unavailable.
+    taskReadVersion.current += 1;
+    committedTaskPositions.current = new Map([
+      ...committedTaskPositions.current,
+      [saved.id, saved.position],
+    ]);
+    setTasks((prev) => [...prev.filter((row) => row.id !== saved.id), saved]);
     recordChallengeEvent("task-updated");
     recordChallengeEvent("task-created");
-    await refreshTasks();
+    try {
+      await refreshTasks();
+    } catch (err) {
+      console.error("Couldn't refresh after creating task:", err);
+      showToast("Task saved, but couldn't refresh the list 🌧️");
+    }
+    return saved;
   };
   // Fire-and-forget UI actions: swallow + log so a failed request can't surface
   // as an unhandled promise rejection from an onClick handler.
@@ -1368,9 +1273,13 @@ export function StoreProvider({ children }) {
   };
   const editTask = async (id, payload) => {
     try {
-      await api.updateTask(id, payload);
+      const saved = await api.updateTask(id, payload);
+      taskReadVersion.current += 1;
+      setTasks((prev) => prev.map((row) => row.id === id
+        ? { ...row, ...saved, ...pendingTaskToggles.current.get(id) } : row));
       recordChallengeEvent("task-updated");
-      await refreshTasks();
+      try { await refreshTasks(); }
+      catch (err) { console.error("Couldn't refresh after editing task:", err); showToast("Task saved, but couldn't refresh the list 🌧️"); }
     } catch (err) {
       console.error("Failed to update task:", err);
       showToast("Couldn't save that change 🌧️");
@@ -1379,11 +1288,17 @@ export function StoreProvider({ children }) {
   const removeTask = async (id) => {
     try {
       await api.deleteTask(id);
+      taskReadVersion.current += 1;
+      const committed = new Map(committedTaskPositions.current);
+      committed.delete(id);
+      committedTaskPositions.current = committed;
+      setTasks((prev) => prev.filter((row) => row.id !== id));
       // Do not detach a running timer from its task until deletion is durable.
       // A failed request used to leave the task visible but silently clear the
       // active-task label from the eventual session log.
       if (activeTaskId === id) setActiveTaskId(null);
-      await refreshTasks();
+      try { await refreshTasks(); }
+      catch (err) { console.error("Couldn't refresh after removing task:", err); showToast("Task removed, but couldn't refresh the list 🌧️"); }
     } catch (err) {
       console.error("Failed to delete task:", err);
       showToast("Couldn't delete the task 🌧️");
@@ -1391,26 +1306,40 @@ export function StoreProvider({ children }) {
   };
   const reorderTasks = async (orderedActive) => {
     // Persist new manual positions and switch to custom ordering.
-    setTasks((prev) => {
-      const map = new Map(prev.map((t) => [t.id, t]));
-      const reordered = orderedActive.map((t) => map.get(t.id) || t);
-      const rest = prev.filter((t) => !orderedActive.find((o) => o.id === t.id));
-      return [...reordered, ...rest];
-    });
+    const intent = ++reorderIntent.current;
+    const orderedIds = orderedActive.map((task) => task.id);
+    const applyOrder = (rows) => {
+      const map = new Map(rows.map((task) => [task.id, task]));
+      const requested = orderedIds.map((id) => map.get(id)).filter(Boolean);
+      const requestedIds = new Set(orderedIds);
+      const rest = rows.filter((task) => !requestedIds.has(task.id));
+      return [...requested, ...rest].map((task, position) => ({ ...task, position }));
+    };
+    const intendedPositions = new Map(applyOrder(tasks).map((task) => [task.id, task.position]));
+    taskReadVersion.current += 1;
+    setTasks(applyOrder);
     setAlgorithm("custom");
     writeStored("tasknook.algo", "custom");
     try {
-      await api.reorderTasks(orderedActive.map((t) => t.id));
-      await refreshTasks();
+      await reorderWriteRef.current(orderedIds);
+      committedTaskPositions.current = new Map([
+        ...committedTaskPositions.current,
+        ...intendedPositions,
+      ]);
+      if (intent !== reorderIntent.current) return;
+      // A task refresh may have landed old server positions while this PUT was
+      // waiting. Reassert the committed intent and invalidate that older read.
+      taskReadVersion.current += 1;
+      setTasks(applyOrder);
     } catch (err) {
+      if (intent !== reorderIntent.current) return;
       console.error("Failed to save the task order:", err);
-      // The reorder was optimistic. Restore the durable order so the list
-      // does not advertise an arrangement that will disappear on reload.
-      try {
-        await refreshTasks();
-      } catch {
-        /* the original toast already explains the connectivity failure */
-      }
+      // Restore only the positions this write changed. A GET rollback could
+      // overwrite an unrelated edit or checkbox save that landed meanwhile.
+      taskReadVersion.current += 1;
+      setTasks((prev) => prev.map((task) => committedTaskPositions.current.has(task.id)
+        ? { ...task, position: committedTaskPositions.current.get(task.id) }
+        : task));
       showToast("Couldn't save the new order 🌧️");
     }
   };
@@ -1430,9 +1359,6 @@ export function StoreProvider({ children }) {
     setEmptyGroups(next);
     writeStored("tasknook.taskGroups", JSON.stringify(next));
   };
-  // Walks every recorded day, on a map that grows for as long as the app is
-  // used — and it was recomputed on every provider render.
-  const balance = useMemo(() => unlockBalance(sessionDays, unlocked), [sessionDays, unlocked]);
   const taskGroups = useMemo(
     () => [...new Set([...tasks.map((t) => t.group).filter(Boolean), ...emptyGroups])],
     [tasks, emptyGroups]
@@ -1461,13 +1387,22 @@ export function StoreProvider({ children }) {
       // One atomic UPDATE. Per-task PUTs could fail halfway and split what the
       // user experienced as one removal into grouped and ungrouped rows.
       await api.renameTaskGroup(name, null);
-      persistEmptyGroups(emptyGroups.filter((g) => g !== name));
-      // A group change is a task write like any other — it can't move the
-      // friends list or the per-day session map, so it pays the narrow price.
-      await refreshTasks();
     } catch (err) {
       console.error("Failed to ungroup tasks:", err);
       showToast("Couldn't ungroup those tasks 🌧️");
+      return;
+    }
+    taskReadVersion.current += 1;
+    setTasks((prev) => prev.map((task) => task.group === name
+      ? { ...task, group: null } : task));
+    persistEmptyGroups(emptyGroups.filter((g) => g !== name));
+    // A group change is a task write like any other — it can't move the
+    // friends list or the per-day session map, so it pays the narrow price.
+    try {
+      await refreshTasks();
+    } catch (err) {
+      console.error("Couldn't refresh after ungrouping tasks:", err);
+      showToast("Tasks ungrouped, but couldn't refresh the list 🌧️");
     }
   };
   const renameTaskGroup = async (name, nextName) => {
@@ -1478,18 +1413,30 @@ export function StoreProvider({ children }) {
       return false;
     }
     const affected = tasks.filter((task) => task.group === name);
-    try {
-      if (affected.length) await api.renameTaskGroup(name, clean);
-      persistEmptyGroups(
-        [...new Set(emptyGroups.map((group) => (group === name ? clean : group)).concat(clean))]
-      );
-      if (affected.length) await refreshTasks();
-      return true;
-    } catch (err) {
-      console.error("Failed to rename the task group:", err);
-      showToast("Couldn't rename that task group 🌧️");
-      return false;
+    if (affected.length) {
+      try {
+        await api.renameTaskGroup(name, clean);
+      } catch (err) {
+        console.error("Failed to rename the task group:", err);
+        showToast("Couldn't rename that task group 🌧️");
+        return false;
+      }
+      taskReadVersion.current += 1;
+      setTasks((prev) => prev.map((task) => task.group === name
+        ? { ...task, group: clean } : task));
     }
+    persistEmptyGroups(
+      [...new Set(emptyGroups.map((group) => (group === name ? clean : group)).concat(clean))]
+    );
+    if (affected.length) {
+      try {
+        await refreshTasks();
+      } catch (err) {
+        console.error("Couldn't refresh after renaming the task group:", err);
+        showToast("Task group renamed, but couldn't refresh the list 🌧️");
+      }
+    }
+    return true;
   };
   const toggleRoutine = (task) => editTask(task.id, { routine: !task.routine });
 
@@ -1631,11 +1578,17 @@ export function StoreProvider({ children }) {
     setHomeVisitors(next);
   }, []);
 
-  const refreshEvents = useCallback(async () => setEvents(await api.listEvents()), []);
+  const refreshEvents = useCallback(async () => {
+    const request = ++eventReadVersion.current;
+    const rows = await api.listEvents();
+    if (request === eventReadVersion.current) setEvents(rows);
+  }, []);
   const addEvent = async (payload) => {
     try {
-      await api.createEvent(payload);
-      await refreshEvents();
+      const saved = await api.createEvent(payload);
+      eventReadVersion.current += 1;
+      setEvents((prev) => sortEvents([...prev.filter((event) => event.id !== saved.id), saved]));
+      return saved;
     } catch (err) {
       console.error("Failed to add event:", err);
       showToast("Couldn't add that appointment 🌧️");
@@ -1643,22 +1596,63 @@ export function StoreProvider({ children }) {
     }
   };
   const archiveTask = async (id) => {
+    let saved;
     try {
-      await api.archiveTask(id);
-      await refreshTasks();
-      showToast("Task added to your journal ✨");
+      saved = await api.archiveTask(id);
     } catch (err) {
       console.error("Failed to archive task:", err);
       showToast("Couldn't archive the task 🌧️");
+      return false;
     }
+    taskReadVersion.current += 1;
+    setTasks((prev) => prev.map((task) => task.id === id ? { ...task, ...saved } : task));
+    try {
+      // Archiving changes server-computed completion stats, unlike the other
+      // deterministic writes in this block, so this one still needs a read.
+      await refreshTasks();
+      showToast("Task added to your journal ✨");
+    } catch (err) {
+      console.error("Couldn't refresh after archiving task:", err);
+      showToast("Task archived, but couldn't refresh the list 🌧️");
+    }
+    return true;
   };
   const removeEvent = async (id) => {
     try {
       await api.deleteEvent(id);
-      await refreshEvents();
+      eventReadVersion.current += 1;
+      setEvents((prev) => prev.filter((event) => event.id !== id));
     } catch (err) {
       console.error("Failed to remove event:", err);
       showToast("Couldn't delete that appointment 🌧️");
+      return false;
+    }
+    return true;
+  };
+
+  const addFriend = async (username) => {
+    try {
+      const saved = await api.addFriend(username);
+      friendReadVersion.current += 1;
+      setFriends((prev) => sortFriends([...prev.filter((friend) => friend.id !== saved.id), saved]));
+      return saved;
+    } catch (err) {
+      console.error("Failed to add friend:", err);
+      showToast("Couldn't add that friend — " + err.message);
+      throw err;
+    }
+  };
+
+  const removeFriend = async (id) => {
+    try {
+      await api.removeFriend(id);
+      friendReadVersion.current += 1;
+      setFriends((prev) => prev.filter((friend) => friend.id !== id));
+      return true;
+    } catch (err) {
+      console.error("Failed to remove friend:", err);
+      showToast("Couldn't remove that friend — " + err.message);
+      throw err;
     }
   };
 
@@ -1746,12 +1740,10 @@ export function StoreProvider({ children }) {
       // A long-ago-added item must not arrive pre-selected (tint picker and
       // all) when the home scene remounts after the visit.
       setLastIsoAddedId(null);
+      const resident = getResidentIdentity(user?.displayName || "you");
       setVisiting({
         friend: data,
-        ...resolveVisitRoom(data, {
-          character: characterRef.current,
-          name: profileRef.current.displayName || user?.displayName || "you",
-        }),
+        ...resolveVisitRoom(data, resident),
       });
       hintWalk();
       // Showing up is how friendship starts; staying accrues by the minute
@@ -2628,8 +2620,7 @@ export function StoreProvider({ children }) {
 
   // ---------- Room actions ----------
   // useCallback throughout: these are handed to <Cottage/>, which is memo'd so
-  // it can skip the per-second focus-timer re-render. New function identities
-  // every tick would defeat that entirely.
+  // it can skip unrelated store updates. The timer ticks in its own provider.
   const moveRoomItem = useCallback((id, x, y) => {
     // Same bail-out as moveIsoItem: the flat scene snaps to GRID, so most
     // pointermoves during a drag ask for the position the item is already at.
@@ -2639,6 +2630,15 @@ export function StoreProvider({ children }) {
       return prev.map((p) => (p.id === id ? { ...p, x, y } : p));
     });
   }, []);
+  const duplicateRoomItem = useCallback((id) => {
+    const prev = roomRef.current;
+    if (prev.length >= MAX_ITEMS) { showToast(`That's all ${MAX_ITEMS} pieces — put something away first 🪴`); return; }
+    const placement = duplicatePlacement(prev, id);
+    if (!placement) return;
+    const next = [...prev, placement];
+    roomRef.current = next;
+    setRoomPlacements(next);
+  }, [showToast]);
   const addRoomItem = useCallback(
     (key) => {
       // Logic outside the updater: updaters must stay pure (StrictMode
@@ -2652,7 +2652,9 @@ export function StoreProvider({ children }) {
       // the panel already shows as a disabled "up ✓" button — no toast needed.
       const placement = newPlacement(key, prev);
       if (!placement) return;
-      setRoomPlacements([...prev, placement]);
+      const next = [...prev, placement];
+      roomRef.current = next;
+      setRoomPlacements(next);
       setRoomEditMode(true); // they'll want to drag the new arrival into place
     },
     [showToast]
@@ -2720,8 +2722,13 @@ export function StoreProvider({ children }) {
     character,
     saveProfile,
     saveCharacter,
+    savedLooks,
+    saveCharacterLook,
+    removeCharacterLook,
 
     friends,
+    addFriend,
+    removeFriend,
     stats,
     sessionDays,
     refreshAll,
@@ -2755,6 +2762,7 @@ export function StoreProvider({ children }) {
     setRoomEditMode,
     moveRoomItem,
     addRoomItem,
+    duplicateRoomItem,
     removeRoomItem,
     applyRoomPreset,
     clearRoom,
@@ -2767,9 +2775,6 @@ export function StoreProvider({ children }) {
     addIsoItem,
     removeIsoItem,
     rotateIsoItem,
-    unlocked,
-    unlockItem,
-    unlockBalance: balance,
     setIsoItemTint,
     toggleIsoItem,
     setIsoSize,

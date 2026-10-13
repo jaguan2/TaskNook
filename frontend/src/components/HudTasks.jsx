@@ -339,7 +339,8 @@ export default function HudTasks({ onOpenTasks }) {
   // orderedTasks already sinks completed tasks to the bottom. Grouping only
   // partitions the active rows — done rows collapse into one flat pile.
   const today = toISO(new Date());
-  const todayTasks = orderedTasks.filter((t) => !t.scheduledDate || t.scheduledDate <= today);
+  const currentTasks = orderedTasks.filter((t) => !t.archived);
+  const todayTasks = currentTasks.filter((t) => !t.scheduledDate || t.scheduledDate <= today);
   const active = todayTasks.filter((t) => !t.completed);
   const done = todayTasks.filter((t) => t.completed);
   const sections = [
@@ -424,7 +425,7 @@ export default function HudTasks({ onOpenTasks }) {
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
           To-Do List{" "}
           <span className="font-cozy text-sm font-semibold text-petal/60">
-            ({done.length}/{orderedTasks.length})
+            ({done.length}/{currentTasks.length})
           </span>
         </p>
         <div className="flex items-center gap-1">
@@ -461,7 +462,7 @@ export default function HudTasks({ onOpenTasks }) {
       </header>
 
       <div className="cozy-scroll cozy-scroll--bare min-h-0 flex-1 overflow-y-auto">
-        {orderedTasks.length === 0 && taskGroups.length === 0 && (
+        {currentTasks.length === 0 && taskGroups.length === 0 && (
           <p className="px-2 py-3 text-xs text-petal/50">All clear 🌿</p>
         )}
         {sections.map((section) =>

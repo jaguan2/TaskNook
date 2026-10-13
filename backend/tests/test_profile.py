@@ -55,6 +55,34 @@ def test_profile_round_trips(client, auth):
     assert body["character"] == {"hair": "bob", "hairColor": "#3b2a24"}
 
 
+def test_expanded_character_round_trips_without_weakening_the_profile_cap(client, auth):
+    """Character customization has more axes than the about-you profile.
+
+    A shared 24-key cap silently started rejecting the complete character as
+    soon as sitting style became its 25th field. Keep the two bounded maps
+    independently sized so adding a real appearance axis does not break every
+    character save.
+    """
+    character = {f"axis{i}": i for i in range(28)}
+    accepted = client.put(
+        "/api/profile", headers=auth, json={"character": character}
+    )
+    assert accepted.status_code == 200
+    assert accepted.get_json()["character"] == character
+
+    too_many_character_fields = {f"axis{i}": i for i in range(41)}
+    assert client.put(
+        "/api/profile",
+        headers=auth,
+        json={"character": too_many_character_fields},
+    ).status_code == 400
+
+    too_many_profile_fields = {f"fact{i}": i for i in range(25)}
+    assert client.put(
+        "/api/profile", headers=auth, json={"profile": too_many_profile_fields}
+    ).status_code == 400
+
+
 def test_sections_save_independently(client, auth):
     """The panel saves the section you edited. Sending only `character` must
     not wipe the profile you filled in earlier — that would silently delete

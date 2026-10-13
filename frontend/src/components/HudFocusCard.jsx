@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
-import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Sparkles, Target, Timer } from "lucide-react";
+import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Target, Timer } from "lucide-react";
 import { useStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
-import { storeIsOpen } from "../lib/unlocks";
 import { useArmed } from "../lib/useArmed";
 import { shouldDismissAtEdge } from "../lib/widgetDrag";
 import FocusWidget from "./FocusWidget";
@@ -48,7 +47,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
-  const { activeTask, sessionDays, dailyGoal, unlockBalance } = useStore();
+  const { activeTask, sessionDays, dailyGoal } = useStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
   const cardRef = useRef(null);
@@ -410,18 +409,6 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             <span className="ml-1 flex items-center gap-0.5">
               <Flame size={11} className="shrink-0 text-amber" />
               {streak}d
-            </span>
-          )}
-          {/* Unspent focus minutes, right where they're earned. It belongs on
-              this card rather than in the Room panel: the point is to notice
-              the reward accruing while you work, not to discover it later. */}
-          {storeIsOpen() && unlockBalance > 0 && (
-            <span
-              className="ml-1 flex items-center gap-0.5 text-glow"
-              title={`${unlockBalance} focused minutes to spend on furniture (Room panel)`}
-            >
-              <Sparkles size={11} className="shrink-0" />
-              {unlockBalance}
             </span>
           )}
         </p>

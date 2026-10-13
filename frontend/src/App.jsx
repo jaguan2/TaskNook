@@ -96,6 +96,7 @@ export default function App() {
     roomEditMode,
     setRoomEditMode,
     moveRoomItem,
+    duplicateRoomItem,
     removeRoomItem,
     setRoomItemTint,
     isoPreview,
@@ -317,7 +318,8 @@ export default function App() {
       <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
-      <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay} />
+      <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay}
+        showOrb={!commonSceneId || COMMON_PLACES[commonSceneId]?.kind === "garden"} />
       <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
 
       {/* Centerpiece cottage. A short, direct zoom establishes the room
@@ -416,6 +418,7 @@ export default function App() {
               room={roomPlacements}
               editMode={roomEditMode}
               onMoveItem={moveRoomItem}
+              onDuplicateItem={duplicateRoomItem}
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
               reduceMotion={reduceMotion}

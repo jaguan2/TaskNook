@@ -4,6 +4,11 @@ Use these guides for the current codebase. [AGENTS.md](../AGENTS.md) is the
 canonical contributor and assistant guide; [the project README](../README.md)
 covers setup, desktop builds and user-facing features.
 
+## Engineering workflow
+
+- [Agent skills](AGENT_SKILLS.md): installed pstack/Thermos workflows,
+  structural self-review, verification and pinned GitHub source updates.
+
 ## Design and artwork
 
 - [Design rules](DESIGN.md): composition, controls, motion and widget behavior.
@@ -31,5 +36,8 @@ snapshots; verify a finding against current code before starting work.
 - [September functionality review](archive/REVIEW-2026-09-20.md).
 - [October character and common-room handoff](archive/HANDOFF-2026-10-06.md).
 - [October stability review](archive/STABILITY-REVIEW-2026-10-06.md).
+- [October code-quality review](archive/QUALITY-REVIEW-2026-10-09.md).
+- [October codebase improvements](CODEBASE-REVIEW-2026-10-09.md): 2D furniture,
+  decoration controls, saved outfits and durable-write feedback.
 - [August renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md).
 - [Changelog](../CHANGELOG.md): dated project history.

@@ -94,6 +94,13 @@ describe("task groups", () => {
 });
 
 describe("scene to-do list", () => {
+  it("keeps archived tasks out of the scene list and its count", () => {
+    mockStore.orderedTasks = [{ ...task, name: "Filed away", completed: true, archived: true, scheduledDate: null }];
+    render(<HudTasks onOpenTasks={() => {}} />);
+    expect(screen.queryByText("Filed away")).toBeNull();
+    expect(screen.getByText("(0/0)")).toBeTruthy();
+  });
+
   it("does not show tasks planned for a future day", () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);

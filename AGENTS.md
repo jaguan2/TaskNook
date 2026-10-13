@@ -58,10 +58,14 @@ TaskNook/
 
 `component → useStore() action → lib/api.js → Flask /api → SQLAlchemy → SQLite`
 
-Most write actions call an API method then `refreshAll()` (re-fetches tasks +
-stats + friends). State lives in `store.jsx`; components are mostly presentational.
+Write actions apply their committed API payload locally, then refresh only the
+resources that operation can have changed. A failed follow-up read must not
+turn a successful write into a failure or invite a duplicate retry. State lives
+in `store.jsx`; components are mostly presentational. `refreshAll()` remains the
+bootstrap/reconciliation read for tasks, stats, friends, session days and events;
+task writes use the narrower `refreshTasks()` path.
 
-`refreshAll()` awaits `listTasks()` **before** the other three, deliberately:
+`refreshAll()` awaits `listTasks()` **before** the other four, deliberately:
 GET `/api/tasks` is what lazily resets daily routines, so a `stats` call racing
 alongside it could be answered from pre-reset rows — one wrong completion
 number on the first refresh of each new day. Don't fold it back into the
@@ -86,19 +90,22 @@ Single-port / production-style: `cd frontend && npm run build` (emits
 **Desktop app**: `desktop.py` (repo root) boots the same Flask app on a local
 port via `waitress` and opens it in a native window with `pywebview` (WebView2
 on Windows). Requires `frontend/dist` to exist + `pip install -r
-requirements-desktop.txt`. On Windows the shipping artefact is
+requirements-desktop.txt`. Pinned packaging tools live in
+`requirements-desktop-build.txt`. On Windows the shipping artefact is
 **`TaskNook.exe` at the repo root** — a one-file, no-console PyInstaller
 bundle that IS committed on purpose (so GitHub visitors can just download and
 run it); rebuild it with `build-exe.bat`, which builds the frontend, installs
-`requirements-desktop.txt` + `pyinstaller`, then packages `desktop.py` with
+`requirements-desktop-build.txt`, then uses the CI-shared
+`scripts/desktop_package.py` definition to package `desktop.py` with
 `--onefile --windowed --distpath . --workpath build` (hence `build/` and
 `*.spec` are gitignored but the `.exe` is not). **Deliberate choice**: TaskNook
 is a personal project, so it keeps updating that one committed build rather
 than publishing GitHub Releases — the download link never moves.
 **Rebuild the exe on EVERY change that reaches it** (owner's decision,
 2026-08-01), so the committed binary is never behind the source. Anything
-that touches `frontend/`, `backend/`, `desktop.py` or `build-exe.bat`
-reaches it; a docs- or test-only commit does not. The cost of this is far
+that touches frontend/backend runtime code, `desktop.py`, `desktop_updates.py`,
+desktop requirements, or the packaging scripts reaches it; a docs- or
+test-only commit does not. The cost of this is far
 lower than it looks, and the earlier note here (~42 MB per rebuild
 permanently, "470 MB across 24 builds") was measuring LOOSE objects, not what
 the repo actually costs. Measured 2026-08-13 with 33 exe builds in history:
@@ -116,7 +123,7 @@ macOS/Linux one-click launcher (build + install + launch from source).
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
 loose `--add-data` (not analyzed as source), so **nothing the backend imports
 is discoverable by PyInstaller's analyzer** — every one of its third-party
-imports needs an explicit flag in `build-exe.bat`, and forgetting one only
+imports needs an explicit flag in `scripts/desktop_package.py`, and forgetting one only
 fails at runtime *in the exe* (silently, since `--windowed` has no console).
 Currently required, each learned from an actual frozen-build failure:
 `--hidden-import flask_sqlalchemy`,
@@ -124,7 +131,7 @@ Currently required, each learned from an actual frozen-build failure:
 `env.py` and the `versions/*.py` migrations *dynamically*, so the analyzer
 can't see them), and `--hidden-import logging.config` (a stdlib submodule
 `migrations/env.py` imports and PyInstaller otherwise omits). If you add a
-backend dependency, add its flag **and** re-run the frozen self-test:
+backend dependency, add its flag there **and** re-run the frozen self-test:
 `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0.
 The backend is bundled **file-by-file, never as a whole folder** — an
 `--add-data "backend;backend"` would publish your local `tasknook.db` and its
@@ -180,17 +187,52 @@ account is auto-friended with them on creation, same as the old sign-up flow.
 - `TASKNOOK_DB=/path/to.db` — override the SQLite file location (used by the
   packaged desktop app to keep data in a user-writable dir)
 
+## Classic cottage and saved outfits
+
+The 2D catalog lives in `lib/room.js` and `components/RoomItems.jsx`. It has
+36 decorations and seven presets, including Cozy lounge. The fixed study desk
+uses an open laptop. `COTTAGE_FRAME` owns the wider room's render/clip bounds
+and reachable placement area; fit the frame so both furniture zones stay
+visible. `COTTAGE_DESK` supplies drawing geometry and preset clearance checks.
+Cozy lounge places the larger sofa in its own bay beside the study, with the
+coffee table centered in front. The larger rear-view study chair faces the
+desk; Classic study also includes that chair. Authored presets must keep
+drawer faces/opening space clear and leave room to use and reach furniture.
+`room.test.js` guards drawer access, study-chair clearance/size and the lounge
+table's alignment/reach; visual checks must also judge proportions and paths.
+`Cottage.jsx` keeps
+selection and dragging local; `CottageItemControls.jsx` provides grid nudges,
+copy and two-tap removal. Arrow keys move the selection; Shift moves five grid
+steps. Text inputs use the shared typing-target guard. Copy preserves tint,
+uses a fresh ID, stays in bounds and refuses fixed singletons or the item cap.
+All writes use existing store room actions and persistence.
+
+Profile Looks combines ten authored starts with up to twelve device outfits.
+`lib/savedLooks.js` validates complete named snapshots; `useSavedLooks` lives
+inside the store and writes `tasknook.characterLooks` through the storage
+gateway, outside React updaters. Storage failures keep the draft and report a
+toast. Saving an existing name updates its snapshot; applying preserves the
+current skin tone. `SavedCharacterLooks.jsx` owns only its draft and two-tap
+delete state. Focused controls stay below the sticky character preview.
+
+Task creates, edits and deletions retain their committed API result when the
+following list refresh fails. Timer logging distinguishes a saved session
+from a failed stats refresh too. Preserve that feedback boundary: a read
+failure must never tell the user to repeat an already successful write.
+
 ## Fixed common places
 
-`lib/commonRooms.js` defines authored common places with fixed props and six
+`lib/commonRooms.js` defines authored common places with fixed props and
 explicit seat slots. Common Cottage uses two floor heights; Willow Pond uses
 a lawn plus raised stone terrace, pond bench and picnic cluster.
+Grand Library adds a 30×20 book hall, arched windows, three candle chandeliers and a
+40-pixel reading gallery. `CommonLibraryScene.jsx` owns that architecture.
 `CommonRoom.jsx` owns shared props, people, lights and seat interaction;
 `CommonGardenScene.jsx` owns Willow Pond's outdoor surface/path/pergola while
-the cottage architecture remains isolated from it. Both reuse catalog and
+the cottage architecture remains isolated from it. All three reuse catalog and
 character sprites separately from the editable home.
 Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
-three simulated neighbours and the user's selected seat. `activePlace` is
+the place's simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
 The cozy second art pass deliberately concentrates curtains, wall decor,
 plants, desk clutter and catalog-driven light pools around edges and the open
@@ -199,8 +241,12 @@ Common entry cancels pending knocks and invalidates earlier friend-room
 requests. It disables home visitor arrivals and RoomPanel editing. Seat
 selection changes only the guest's seat ID, never the home API, furniture,
 NPC occupancy, timer or saved camera. Keep these state boundaries and the
-store/common-room regression tests when adding places. Each shipped place
-keeps three deterministic neighbours and three open seats. The scene is bounded
+store/common-room regression tests when adding places. Common Cottage and
+Willow Pond each have six seats, three deterministic neighbours and three guest
+choices; Grand Library has thirty-six seats, twelve neighbours and twenty-four guest choices.
+Library seating plans drive both catalog seating and its anchors; shared tables
+seat people on both sides, with study pairs, round tables and sofa corners.
+Four shelf ladders share their bookcases' positions and floor heights. The scene is bounded
 to its viewport; a percentage-height SVG inside the scene grid once expanded
 the page and made seat selection scroll the entire app. Details and remaining
 art work are in `docs/COMMON_ROOMS.md`.
@@ -258,6 +304,11 @@ together.** The default channel is `main`; `TASKNOOK_UPDATE_CHANNEL=dev` makes
 an explicitly development-channel build. Never infer the channel from the
 current checkout branch. Bundled build identities must match the manifest,
 and missing/malformed/offline feeds must never interrupt normal app use.
+CI verifies the committed executable before overwriting it: manifest hash and
+size, embedded build identity, bundled backend/frontend bytes, the release-pair
+diff rule, and a frozen self-test all have to pass. Release frontend builds use
+Node 20 (`frontend/.nvmrc` and `package.json`); a different toolchain may produce
+different Vite chunks and should be rebuilt with the supported version.
 
 ## Committing
 
@@ -326,7 +377,7 @@ running `git commit` yourself.
   local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, `Conversation`,
   `ConversationMember`, `Message`, `CalendarEvent`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
-  columns per field — same bargain as `room_config`/`unlocked`, and the whole
+  columns per field — same bargain as `room_config`, and the whole
   point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
   put the task on the calendar, and nothing sorts or warns on it. Both go
@@ -385,7 +436,7 @@ running `git commit` yourself.
   free seat + soft ground BREATHES AMBER (the seat glow — choosing a spot
   is reading the room); release calls `onWalkTo` → the store's
   `moveVisitGuest`. The rule is `personaCanSit` in lib/isoRoom.js — a FREE
-  seat or SOFT GROUND (layer −1 minus the pond; `seatFor` resolves a
+  seat or SOFT GROUND (explicit catalog `softSeat: true`; `seatFor` resolves a
   floor-sit with `soft: true`, shared by many, so a rug is never "taken");
   BARE floor anywhere clear of furniture just STANDS them there (owner:
   drop anywhere is fine — standing is a chosen spot, not a walk).
@@ -622,10 +673,10 @@ running `git commit` yourself.
 - **Profile & character** (`lib/profile.js`, `ProfilePanel.jsx`, GET/PUT
   `/api/profile`): who you are (name, pronouns, MBTI, birth date → zodiac
   derived by a pure function, bio) and how your resident is DRAWN (model, skin,
-  hair + colour, **a wardrobe**, expression, and body width/shoulder/leg/torso sliders — `build`
+  hair + colour, **a wardrobe**, expression, saved sitting style, and body width/shoulder/leg/torso sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
-  room and the unlock list — the backend guarantees only a bounded flat map of
+  room configuration — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
@@ -655,8 +706,9 @@ running `git commit` yourself.
   slot, and the accent-colour one) and GLASSES (`GLASSES` in profile.js,
   `character/glasses.jsx`: round/square/halfmoon — the third accessory
   slot, deliberately colour-less: frames are a fixed ink like shoe soles
-  are fixed rubber. Each style draws only its LENS RIMS; bridges and temple
-  arms become stray face lines at this scale; the legacy `halfmoon` key now
+  are fixed rubber. Each style draws its LENS RIMS plus one short bridge
+  centred over the nose; temple arms become stray face lines at this scale
+  and stay omitted. The legacy `halfmoon` key now
   draws smaller low-set circular readers because open arcs resembled a
   moustache. Drawn inside the head's gesture
   group AFTER hair and hat so a fringe can't bury the rims; nothing from
@@ -665,8 +717,10 @@ running `git commit` yourself.
   guy, school girl/boy, office female/male, lofi girl and cozy gamer. Each is
   a COMPLETE validated character snapshot (every `DEFAULT_CHARACTER` key),
   not a mode — applying one clears incompatible styling leftovers but always
-  restores the user's CURRENT `skin` through `characterFromPreset`; skin is
-  identity, never part of an outfit. The normal tabs then edit ordinary
+  restores the user's CURRENT `skin`, `eyeColor`, `eyeX` and `eyeY` through
+  `characterFromPreset`; those are identity, never part of an outfit. `eyeX`
+  is mirrored half-spacing, so independent offsets can never make crossed
+  eyes. The normal tabs then edit ordinary
   character data. Names describe starting silhouettes,
   never wardrobe restrictions. `characterPresets.test.js` pins completeness;
   the art sheet renders every preset front/seated/back, and Profile's Looks
@@ -1127,24 +1181,9 @@ running `git commit` yourself.
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees
   text stays legible for any colour.
-- **The furniture store** (`lib/unlocks.js`): **nothing costs anything today,
-  and that's deliberate.** The first cut priced most of the catalog and gated
-  it behind focus minutes; the call was that you don't take away decorations
-  people already have. So the rule inverted — everything is free unless listed
-  in `PREMIUM`, and `PREMIUM` is empty. With it empty the feature is INERT:
-  `owns()` is true for everything, the picker shows no locks, and the balance
-  chip doesn't render (`storeIsOpen()` gates it — a balance you can't spend is
-  a confusing number). What survives is the machinery, because it's the fiddly
-  part and it's already migrated into the DB: ownership, persistence,
-  validation, and a balance that is **derived, never stored** — focus minutes
-  earned minus the cost of what's owned, so it can't drift out of step with
-  the sessions it came from, clamped at zero so a re-price can't put an owner
-  in debt. Adding a premium piece later is one line in `PREMIUM`. The tests
-  price something temporarily to exercise the arithmetic, or it would sit
-  untested until the day it first matters. Backend (`user.unlocked`) stores the
-  key list and nothing else — pricing there would duplicate catalog knowledge
-  across two languages, exactly how `ISO_ENVS` drifted. **If a store never
-  happens, this file and the column are what to delete.**
+- **Furniture is free**: every catalog item can be placed immediately. The dormant
+  focus-minute unlock store was retired rather than pricing decorations people
+  already had; migration d4e5f6a7b8c9 removes the unused server ledger.
 - **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
   layout of `{id, item, x, y, tint?}` placements the user arranges by dragging
   in edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the
@@ -1263,8 +1302,11 @@ running `git commit` yourself.
   height (stool/sofa/bench/cushion/bed) and `seatFor` seats them there at
   render time (snapped to the seat's centre, +0.15 gy so they draw in front
   of the backrest, lifted by the seat height, sitting pose); over SOFT
-  GROUND (layer −1 minus the pond) `seatFor` resolves a floor-sit with
-  `soft: true` — shared, so one rug seats many. **Humans never wander**
+  GROUND (explicit catalog `softSeat: true`, currently rugs and blankets)
+  `seatFor` resolves a floor-sit with
+  `soft: true` — shared, so one rug seats many — and forces the Cross-legged
+  pose. Chairs keep the character's saved Relaxed / Ankles crossed /
+  Cross-legged style. **Humans never wander**
   (the seated life, 2026-08-19): the wander interval is the PETS' engine
   now, and a persona stays exactly where you settled them. Personas still
   use a CSS transform + transition (the glide) instead of the attribute
@@ -1319,7 +1361,7 @@ running `git commit` yourself.
   The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
   calico/siamese/tortoiseshell; `DOG_BREEDS`: golden/shiba/corgi/dalmatian/
   husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoRoom.js
-  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoItems.jsx
+  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoPetItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
   `PET_LOOKS` whitelist in app.py (bounded-not-knowing, same stance as rot;
@@ -1701,9 +1743,9 @@ running `git commit` yourself.
   document-wide and only one scene is ever mounted. Built-in wall decor (the
   window, string lights) only renders when the wall is long enough.
 - **The cottage scene** in `Cottage.jsx` is hand-authored flat 2D SVG (no image
-  assets, no isometric projection) — a desk by a window. It takes `focused`
-  (glows the monitor screen + flickers the lamp), `weather` (`off`/`rain`/`snow`/`storm`,
-  matches `WeatherOverlay`), and `timeOfDay` (`night`/`sunset`/`day`, swaps the sky
+  assets, no isometric projection) — a desk by a window plus a separate seating
+  area. It takes `setting`, `weather` (matches `WeatherOverlay`) and
+  `timeOfDay` (`night`/`sunset`/`day`, swaps the sky
   gradient/building colors/sun-or-moon position/lamp prominence via `TIME_PRESETS`).
   Remember SVG quirks: `skewY()` takes only an angle; use `rotate(angle cx cy)`
   for centered rotation.
@@ -1837,3 +1879,19 @@ running `git commit` yourself.
   every push (`.github/workflows/ci.yml`).
 - Component tests cover interaction and rendering contracts. Verify visual
   changes in the running app as well; tests cannot approve artwork or layout.
+
+
+## Agent engineering workflow
+
+For substantive feature, bug-fix or refactor work, read
+[the engineering skill](.agents/skills/tasknook-engineering/SKILL.md).
+Trace/reproduce the behavior, implement, apply
+[structural self-review](.agents/skills/tasknook-thermonuclear-review/SKILL.md)
+to the actual diff, fix supported issues within the requested scope, then
+[verify](.agents/skills/tasknook-verify/SKILL.md). Review design changes again;
+failed checks return to investigation. Reuse valid evidence for unchanged code
+and skip this loop for documentation-only or trivial cosmetic changes.
+Standalone review requests remain report-only. These skills load pinned,
+complete upstream instructions; source pins and update commands are documented
+in [the skill guide](docs/AGENT_SKILLS.md). Repository/user rules take precedence
+over upstream model-provider, delegation, rebasing and commit examples.

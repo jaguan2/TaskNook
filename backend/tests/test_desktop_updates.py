@@ -92,6 +92,8 @@ def test_publish_identifies_the_exact_bundled_build_and_artifact(tmp_path):
     published = publisher.publish(tmp_path)
     assert updates.valid_build(published)
     assert published["build_id"] == local["build_id"]
+    assert published["source_sha256"] == local["source_sha256"]
+    assert len(published["source_sha256"]) == 64
     assert published["size"] == 13
     assert len(published["sha256"]) == 64
     assert json.loads((tmp_path / "desktop-update.json").read_text()) == published
