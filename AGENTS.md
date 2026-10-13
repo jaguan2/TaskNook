@@ -58,10 +58,14 @@ TaskNook/
 
 `component → useStore() action → lib/api.js → Flask /api → SQLAlchemy → SQLite`
 
-Most write actions call an API method then `refreshAll()` (re-fetches tasks +
-stats + friends). State lives in `store.jsx`; components are mostly presentational.
+Write actions apply their committed API payload locally, then refresh only the
+resources that operation can have changed. A failed follow-up read must not
+turn a successful write into a failure or invite a duplicate retry. State lives
+in `store.jsx`; components are mostly presentational. `refreshAll()` remains the
+bootstrap/reconciliation read for tasks, stats, friends, session days and events;
+task writes use the narrower `refreshTasks()` path.
 
-`refreshAll()` awaits `listTasks()` **before** the other three, deliberately:
+`refreshAll()` awaits `listTasks()` **before** the other four, deliberately:
 GET `/api/tasks` is what lazily resets daily routines, so a `stats` call racing
 alongside it could be answered from pre-reset rows — one wrong completion
 number on the first refresh of each new day. Don't fold it back into the
@@ -86,19 +90,22 @@ Single-port / production-style: `cd frontend && npm run build` (emits
 **Desktop app**: `desktop.py` (repo root) boots the same Flask app on a local
 port via `waitress` and opens it in a native window with `pywebview` (WebView2
 on Windows). Requires `frontend/dist` to exist + `pip install -r
-requirements-desktop.txt`. On Windows the shipping artefact is
+requirements-desktop.txt`. Pinned packaging tools live in
+`requirements-desktop-build.txt`. On Windows the shipping artefact is
 **`TaskNook.exe` at the repo root** — a one-file, no-console PyInstaller
 bundle that IS committed on purpose (so GitHub visitors can just download and
 run it); rebuild it with `build-exe.bat`, which builds the frontend, installs
-`requirements-desktop.txt` + `pyinstaller`, then packages `desktop.py` with
+`requirements-desktop-build.txt`, then uses the CI-shared
+`scripts/desktop_package.py` definition to package `desktop.py` with
 `--onefile --windowed --distpath . --workpath build` (hence `build/` and
 `*.spec` are gitignored but the `.exe` is not). **Deliberate choice**: TaskNook
 is a personal project, so it keeps updating that one committed build rather
 than publishing GitHub Releases — the download link never moves.
 **Rebuild the exe on EVERY change that reaches it** (owner's decision,
 2026-08-01), so the committed binary is never behind the source. Anything
-that touches `frontend/`, `backend/`, `desktop.py` or `build-exe.bat`
-reaches it; a docs- or test-only commit does not. The cost of this is far
+that touches frontend/backend runtime code, `desktop.py`, `desktop_updates.py`,
+desktop requirements, or the packaging scripts reaches it; a docs- or
+test-only commit does not. The cost of this is far
 lower than it looks, and the earlier note here (~42 MB per rebuild
 permanently, "470 MB across 24 builds") was measuring LOOSE objects, not what
 the repo actually costs. Measured 2026-08-13 with 33 exe builds in history:
@@ -116,7 +123,7 @@ macOS/Linux one-click launcher (build + install + launch from source).
 `%LOCALAPPDATA%\TaskNook\`). `backend/` and `frontend/dist` are bundled as
 loose `--add-data` (not analyzed as source), so **nothing the backend imports
 is discoverable by PyInstaller's analyzer** — every one of its third-party
-imports needs an explicit flag in `build-exe.bat`, and forgetting one only
+imports needs an explicit flag in `scripts/desktop_package.py`, and forgetting one only
 fails at runtime *in the exe* (silently, since `--windowed` has no console).
 Currently required, each learned from an actual frozen-build failure:
 `--hidden-import flask_sqlalchemy`,
@@ -124,7 +131,7 @@ Currently required, each learned from an actual frozen-build failure:
 `env.py` and the `versions/*.py` migrations *dynamically*, so the analyzer
 can't see them), and `--hidden-import logging.config` (a stdlib submodule
 `migrations/env.py` imports and PyInstaller otherwise omits). If you add a
-backend dependency, add its flag **and** re-run the frozen self-test:
+backend dependency, add its flag there **and** re-run the frozen self-test:
 `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0.
 The backend is bundled **file-by-file, never as a whole folder** — an
 `--add-data "backend;backend"` would publish your local `tasknook.db` and its
@@ -297,6 +304,11 @@ together.** The default channel is `main`; `TASKNOOK_UPDATE_CHANNEL=dev` makes
 an explicitly development-channel build. Never infer the channel from the
 current checkout branch. Bundled build identities must match the manifest,
 and missing/malformed/offline feeds must never interrupt normal app use.
+CI verifies the committed executable before overwriting it: manifest hash and
+size, embedded build identity, bundled backend/frontend bytes, the release-pair
+diff rule, and a frozen self-test all have to pass. Release frontend builds use
+Node 20 (`frontend/.nvmrc` and `package.json`); a different toolchain may produce
+different Vite chunks and should be rebuilt with the supported version.
 
 ## Committing
 
@@ -365,7 +377,7 @@ running `git commit` yourself.
   local-account credentials. Don't add flask-cors back.
 - **Models**: `User`, `Task`, `FocusSession`, `Token`, `Conversation`,
   `ConversationMember`, `Message`, `CalendarEvent`, plus a `friendships` association table. `User.profile` and `User.character` are JSON blobs, not
-  columns per field — same bargain as `room_config`/`unlocked`, and the whole
+  columns per field — same bargain as `room_config`, and the whole
   point of a profile is that questions get added later. `Task.notes` is free text and `Task.due_date` is a
   DEADLINE — which `scheduled_date` deliberately isn't: that one is where you
   put the task on the calendar, and nothing sorts or warns on it. Both go
@@ -664,7 +676,7 @@ running `git commit` yourself.
   hair + colour, **a wardrobe**, expression, saved sitting style, and body width/shoulder/leg/torso sliders — `build`
   survives in storage as the width's legacy default; the body's geometry and
   slider ranges live in `lib/body.js`). Same division of labour as the
-  room and the unlock list — the backend guarantees only a bounded flat map of
+  room configuration — the backend guarantees only a bounded flat map of
   scalars, this file owns the vocabulary, so a new question or hairstyle is a
   frontend change with no migration.
   **The wardrobe is THREE SLOTS** (owner call, 2026-08-17): a TOP
@@ -1169,24 +1181,9 @@ running `git commit` yourself.
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees
   text stays legible for any colour.
-- **The furniture store** (`lib/unlocks.js`): **nothing costs anything today,
-  and that's deliberate.** The first cut priced most of the catalog and gated
-  it behind focus minutes; the call was that you don't take away decorations
-  people already have. So the rule inverted — everything is free unless listed
-  in `PREMIUM`, and `PREMIUM` is empty. With it empty the feature is INERT:
-  `owns()` is true for everything, the picker shows no locks, and the balance
-  chip doesn't render (`storeIsOpen()` gates it — a balance you can't spend is
-  a confusing number). What survives is the machinery, because it's the fiddly
-  part and it's already migrated into the DB: ownership, persistence,
-  validation, and a balance that is **derived, never stored** — focus minutes
-  earned minus the cost of what's owned, so it can't drift out of step with
-  the sessions it came from, clamped at zero so a re-price can't put an owner
-  in debt. Adding a premium piece later is one line in `PREMIUM`. The tests
-  price something temporarily to exercise the arithmetic, or it would sit
-  untested until the day it first matters. Backend (`user.unlocked`) stores the
-  key list and nothing else — pricing there would duplicate catalog knowledge
-  across two languages, exactly how `ISO_ENVS` drifted. **If a store never
-  happens, this file and the column are what to delete.**
+- **Furniture is free**: every catalog item can be placed immediately. The dormant
+  focus-minute unlock store was retired rather than pricing decorations people
+  already had; migration d4e5f6a7b8c9 removes the unused server ledger.
 - **Room decoration (freeform)**: the scene's decor is not hardcoded — it's a
   layout of `{id, item, x, y, tint?}` placements the user arranges by dragging
   in edit mode (Room panel → Decorate). `lib/room.js` is the pure model: the
@@ -1364,7 +1361,7 @@ running `git commit` yourself.
   The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
   calico/siamese/tortoiseshell; `DOG_BREEDS`: golden/shiba/corgi/dalmatian/
   husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoRoom.js
-  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoItems.jsx
+  owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoPetItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
   `PET_LOOKS` whitelist in app.py (bounded-not-knowing, same stance as rot;

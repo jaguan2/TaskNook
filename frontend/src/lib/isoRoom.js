@@ -1,7 +1,7 @@
 // The isometric room's decoration model: a resizable W×D tile floor and
 // items placed ON the grid as { id, item, gx, gy, tint? } (tile coordinates,
 // half-tile snapping). Pure data + functions; projection math lives in
-// lib/iso.js and the artwork in components/IsoItems.jsx.
+// lib/iso.js and the artwork in the components/Iso*Items modules.
 
 import { createIsoPresets } from "./isoPresets";
 
@@ -135,7 +135,7 @@ export const ISO_ITEMS = {
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10, softSeat: true },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44, surface: 30, backView: true },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
-  // Every item here is hand-drawn SVG (see the note atop IsoItems.jsx). The
+  // Every item here is hand-drawn SVG (see the notes atop the Iso*Items modules). The
   // Kenney PNG era left two flags behind that no catalog entry needs any
   // more: `noMirror` (raster needed a second render per orientation; vector
   // just mirrors) and `variants` (raster needed pre-shaded colourway files;
@@ -624,8 +624,8 @@ export const cleanPetName = (raw) =>
 
 /**
  * PET LOOKS — coat patterns for cats, breeds for dogs. Purely visual: the
- * sprite reads the key and draws that fur (IsoItems.jsx owns the artwork,
- * exactly as it owns which items have four rotations); the wander engine
+ * sprite reads the key and draws that fur (IsoPetItems.jsx owns the artwork;
+ * this room model owns only the allowed look keys); the wander engine
  * never looks at it. Per-species lists because a calico dog isn't a thing.
  * The FIRST entry of each list is the classic drawing and is stored
  * implicitly — same contract as temper's "mellow" — so every pet that

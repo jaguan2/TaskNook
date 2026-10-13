@@ -67,6 +67,16 @@ describe("calendar focus journal", () => {
 });
 
 describe("calendar planning", () => {
+  it("hides archived planning rows but keeps completed history", () => {
+    mockStore.tasks = [
+      { id: 2, name: "Archived plan", archived: true, completed: false, scheduledDate: "2026-08-25" },
+      { id: 3, name: "Finished history", archived: true, completed: true, completedAt: "2026-08-25T16:00:00Z" },
+    ];
+    render(<CalendarPanel />);
+    expect(screen.queryByText("Archived plan")).toBeNull();
+    expect(screen.getByText("Finished history")).toBeTruthy();
+  });
+
   it("creates a scheduled task for the selected day", () => {
     render(<CalendarPanel />);
     fireEvent.change(screen.getByPlaceholderText("e.g. Physics 2 exam"), { target: { value: "Physics 2 exam" } });

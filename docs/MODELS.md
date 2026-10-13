@@ -2,8 +2,9 @@
 
 How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
-is the authority on the *models* — the furniture sprites in
-`frontend/src/components/IsoItems.jsx` and the character package in
+is the authority on the *models* — the `ISO_SPRITES` registry in
+`frontend/src/components/IsoItems.jsx`, its focused `Iso*Items` family modules,
+and the character package in
 `frontend/src/components/character/` (body rig, hair and garment REGISTRIES,
 pose assembly — split out because the character is the fastest-growing
 artwork, and a style there is one self-contained registry entry rather than
@@ -462,8 +463,9 @@ thing is recognisable.
       `stacks` / `surface` / `seat` / `wall` / `glow` / `tintable: false`
 - [ ] Listed in exactly ONE `ISO_ITEM_GROUPS` section (a test enforces this —
       a key missing from the sections can never be placed)
-- [ ] Sprite in `IsoItems.jsx`, drawn for a footprint at (0,0)
-- [ ] Registered in `ISO_SPRITES`
+- [ ] Sprite in `IsoItems.jsx` or one focused `Iso*Items` family module,
+      drawn for a footprint at (0,0)
+- [ ] Registered exactly once in `ISO_SPRITES`
 - [ ] Passes the five silhouette rules at 30px
 - [ ] Reviewed on a contact sheet, then in a room
 - [ ] **Not** added to a preset room by default — see `docs/DESIGN.md`; presets

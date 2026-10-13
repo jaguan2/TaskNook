@@ -85,6 +85,17 @@ describe("the isometric catalog and its artwork agree", () => {
     }
   });
 
+  it("builds curtains from a suspended rail, rings and tied drapes", () => {
+    const Curtain = ISO_SPRITES.curtain;
+    const { container } = draw(<Curtain />);
+
+    expect(container.querySelector('[data-curtain-part="rail"]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-curtain-part="ring"]')).toHaveLength(8);
+    expect(container.querySelectorAll('[data-curtain-part="drape"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-curtain-part="tieback"]')).toHaveLength(2);
+    expect(container.innerHTML).toContain("--tint");
+  });
+
   it("personas render seated, standing and walking", () => {
     const people = ISO_ITEM_KEYS.filter((k) => ISO_ITEMS[k].persona);
     expect(people.length).toBeGreaterThan(0);
@@ -673,27 +684,4 @@ describe("the profile view and the wardrobe slots", () => {
     }
   });
 
-  it("the cat and the dog have real front and back views", () => {
-    for (const pet of ["cat", "dog"]) {
-      const Sprite = ISO_SPRITES[pet];
-      allDistinct(
-        pet,
-        ["side", "front", "back"].map((facing) => [
-          facing,
-          <Sprite key={facing} awake facing={facing} />,
-        ])
-      );
-    }
-  });
-
-  it("the cat and the dog have a real held pose (pets are carryable)", () => {
-    for (const pet of ["cat", "dog"]) {
-      const Sprite = ISO_SPRITES[pet];
-      const held = draw(<Sprite held />).container.innerHTML;
-      const front = draw(<Sprite awake facing="front" />).container.innerHTML;
-      // Its own drawing, not the front pose with a class on it.
-      expect(held).not.toBe(front);
-      expect(held).toContain("held-dangle");
-    }
-  });
 });

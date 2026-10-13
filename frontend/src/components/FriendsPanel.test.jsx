@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
-const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), showToast: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
+const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
   user: { id: 9 },
   friends: [
@@ -13,10 +13,28 @@ vi.mock("../store", () => ({ useStore: () => ({
   chats: [], friendship: {}, hudVisibility: { chat: "on" }, knockingId: null,
   ...mocks,
 }) }));
-beforeEach(() => { vi.clearAllMocks(); mocks.chatsError = false; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.chatsError = false;
+  mocks.addFriend.mockResolvedValue({ id: 3, username: "sora" });
+  mocks.removeFriend.mockResolvedValue(true);
+});
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("uses store-owned friend writes and clears a committed add", async () => {
+    render(<FriendsPanel />);
+    const input = screen.getByLabelText("Friend username");
+    fireEvent.change(input, { target: { value: "Sora" } });
+    fireEvent.click(screen.getByLabelText("Add friend"));
+    await waitFor(() => expect(input.value).toBe(""));
+    expect(mocks.addFriend).toHaveBeenCalledWith("sora");
+
+    fireEvent.click(screen.getAllByLabelText("Remove friend")[0]);
+    fireEvent.click(screen.getByText("sure?"));
+    expect(mocks.removeFriend).toHaveBeenCalledWith(1);
+  });
+
   it("offers all authored common places with their real population counts", () => {
     render(<FriendsPanel />);
     expect(screen.getAllByText("3 simulated neighbours · 3 guest seats")).toHaveLength(2);

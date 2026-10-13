@@ -33,6 +33,9 @@ and [seated contact views](../model-review/seating-contact-front.webp) isolate t
 The October pass includes shaped chair frames, padded upholstery, layered bed linen,
 recessed bookshelves, split-leaf plants and the refined character jaw, neck and bun.
 See [the reference review](../ART_REVIEW.md) for the design findings and remaining gaps.
+The Common Cottage views also carry the later curtain pass: visible rails and
+rings, gathered tiebacks and softer lower drape silhouettes in both light and
+dark fabric tints.
 
 The character sheets were refreshed again after the compact-model pass: open
 eyes are quiet dark ovals, eyewear uses a short centred bridge without temple

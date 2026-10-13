@@ -10,12 +10,27 @@ const uniqueStrings = (value, limit, maxLength = 100) => Array.isArray(value)
   ? [...new Set(value.filter((item) => typeof item === "string" && item.length > 0 && item.length <= maxLength))].slice(0, limit)
   : [];
 
+export function totalStudyMinutes(sessionDays) {
+  if (!sessionDays || typeof sessionDays !== "object") return 0;
+  return Object.values(sessionDays).reduce(
+    (sum, minutes) => sum + (Number.isFinite(minutes) && minutes > 0 ? minutes : 0),
+    0,
+  );
+}
+
 function dayNumber(iso) {
   if (typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
   const [year, month, day] = iso.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   if (toISO(date) !== iso) return null;
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+function localDateForDay(iso) {
+  const [year, month, day] = iso.split("-").map(Number);
+  // Midday local time avoids both UTC parsing of a bare ISO date (which can
+  // become the prior local day) and the least stable edge of DST transitions.
+  return new Date(year, month - 1, day, 12);
 }
 
 /** Level 1 needs 100 XP, level 2 needs 150, then 200, 250, ... */
@@ -81,8 +96,13 @@ export function recordNeighbourXP(saved, username, now = new Date()) {
  * can be discarded: the editor never reuses a removed personal goal's ID. */
 export function rewardChallengeProgress(saved, before, after, now = new Date()) {
   const state = normalizeProgression(saved, now);
-  const previous = normalizeChallenges(before, now);
-  const next = normalizeChallenges(after, now);
+  // normalizeProgression deliberately pins a future ledger day when the system
+  // clock moves backwards. Challenge claims must use that same day; rebuilding
+  // yesterday's authored prompts here would prune tomorrow's valid claims and
+  // let their XP be earned again when the clock catches up.
+  const ledgerNow = localDateForDay(state.day);
+  const previous = normalizeChallenges(before, ledgerNow);
+  const next = normalizeChallenges(after, ledgerNow);
   const daily = next.daily.map((entry) => ({ ...entry, target: challengeFor(entry.id).target }));
   const dailyGoals = [...daily, ...next.custom.filter((goal) => goal.cadence === "daily")];
   const ongoingGoals = next.custom.filter((goal) => goal.cadence === "ongoing");

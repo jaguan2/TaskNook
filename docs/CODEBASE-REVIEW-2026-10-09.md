@@ -5,6 +5,36 @@ customization, task and timer write/refresh boundaries, and CI triggers. The
 existing uncommitted library, documentation and skill work was preserved.
 This is not an exhaustive security, performance or artwork audit.
 
+## October 12 checklist continuation
+
+The follow-up pass completed the first three findings below and expanded the
+audit into adjacent reliability, maintainability and visual work:
+
+- [x] Give tasks, stats, study history, events and friends independent request
+  generations so an older refresh cannot overwrite a newer result.
+- [x] Preserve committed task/event/friend writes when their follow-up read
+  fails; serialize task ordering and roll only positions back after rejection.
+- [x] Keep rapid profile and resident saves merged and ordered, recover an
+  unsynced resident from its device mirror, and suppress obsolete save errors.
+- [x] Keep profile XP claims stable through clock rollback/forward changes.
+- [x] Extract profile/resident persistence from the store and pet artwork from
+  the furniture registry, then split the pet editor and shared choice control
+  out of the oversized Profile panel.
+- [x] Remove the unused furniture-unlock ledger from the API, model, frontend
+  and database schema instead of carrying a second, inert economy.
+- [x] Add a reproducible desktop packager, pinned build dependencies and Node
+  version, plus strict manifest/artifact verification before and after rebuild.
+- [x] Add a real production-browser smoke test using an isolated SQLite file,
+  including task creation, completion and reload persistence.
+- [x] Give the cottage curtain a fuller rail, rings, gathered panels, folds,
+  tiebacks and a softer uneven hem, then refresh its affected screenshots.
+- [x] Add regression coverage for every changed boundary and independently
+  review the implementation before the final artifact build.
+
+The broader art backlog remains intentionally open: alternate 2D room shells,
+a coherent resident in the flat cottage, placeable library architecture and
+additional garment silhouettes still need their own designed passes.
+
 ## Implemented
 
 - **2D furniture:** Cozy sofa, Coffee table, Floor cushion and Glass terrarium,
@@ -29,32 +59,18 @@ This is not an exhaustive security, performance or artwork audit.
 - **CI:** pushes to both `main` and `dev` now trigger checks. No push or remote
   workflow run was performed here.
 
-## Findings still worth pursuing
+## Remaining broader work
 
-1. **Refresh freshness:** `store.jsx`'s `refreshFocus` still commits stats and
-   session-day results without coordinating request generations with other
-   refresh writers. `refreshAll` also commits several resources outside its
-   guarded task block. Give each shared resource one freshness owner while
-   retaining deliberate tasks-before-stats sequencing. The earlier review's
-   overlap reproductions remain relevant; this pass addressed write outcomes.
-2. **Committed executable gate:** CI currently overwrites the committed EXE
-   before its smoke test. Add verification of the downloadable EXE/manifest
-   identity and embedded assets before packaging a replacement. Local artifact
-   checks protect this handoff but do not replace that future CI gate.
-3. **Clock corrections and XP:** daily challenge claims are still pruned against
-   the current challenge selection in `progression.js`. The earlier review
-   demonstrated a backward/forward clock case that could reopen credit. Keep
-   claims tied to their credited local day and add that regression coverage.
-4. **2D room structure:** the wall/window/desk/monitor remain a fixed shell, and
+1. **2D room structure:** the wall/window/desk/monitor remain a fixed shell, and
    the character is integrated into the isometric scene rather than the flat
    cottage. Alternate shells and a coherent 2D resident would make this mode
    substantially more flexible; they need an art and interaction pass.
-5. **Catalog and wardrobe expansion:** the library's tall bookcases and ladders
+2. **Catalog and wardrobe expansion:** the library's tall bookcases and ladders
    belong to its fixed architecture, so they cannot yet be placed in an editable
    home. New catalog versions and more garment silhouettes are useful next art
    batches. This pass added four 2D pieces and two complete outfit combinations.
 
-## Verification and review
+## October 9 verification (historical)
 
 The task-creation test reproduced the rejection before the fix and passed
 afterward. Regression coverage checks durable creates/edits/deletions, timer
@@ -84,3 +100,14 @@ frontend assets and 15 bundled backend Python sources match the current files.
 The archive contains no database or backup files. The executable and manifest
 are ready to commit together. Native widget interactions, security and
 networked multiplayer were outside this pass's verification scope.
+
+## October 12 verification
+
+The completed continuation passed **1,306 frontend tests** with one intentional
+art-fixture skip, **288 backend tests**, lint, the production build, and the
+Playwright production-browser persistence journey. The final Windows artifact
+passed exact bundled-file and source-fingerprint verification plus an isolated
+frozen startup/migration self-test (exit code 0). Build
+`00ae097fd0654e1e8fbdaf448ac2d884` and its `main` manifest are the matching
+release pair. Independent review found no remaining source blocker; the curtain
+pass was also approved at room scale in screenshots 39–41.

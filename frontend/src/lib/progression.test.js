@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   currentLoginStreak, levelForXP, loginXP, normalizeProgression, recordLogin,
-  recordNeighbourXP, rewardChallengeProgress, syncStudyXP, xpBeforeLevel, xpForNextLevel,
+  recordNeighbourXP, rewardChallengeProgress, syncStudyXP, totalStudyMinutes,
+  xpBeforeLevel, xpForNextLevel,
 } from "./progression";
-import { addCustomChallenge, changeCustomProgress, normalizeChallenges, recordChallenge, removeCustomChallenge, resetCustomChallenge } from "./challenges";
+import { addCustomChallenge, challengeFor, changeCustomProgress, normalizeChallenges, recordChallenge, removeCustomChallenge, resetCustomChallenge } from "./challenges";
 
 const today = new Date(2026, 9, 7, 23, 59);
 const tomorrow = new Date(2026, 9, 8, 0, 1);
@@ -12,6 +13,12 @@ const goals = () => normalizeChallenges({ version: 1, day: "2026-10-07", complet
 const addGoal = (state, cadence) => addCustomChallenge(state, { title: "Read", target: 1, tracking: "manual", cadence }, "custom-read", today);
 
 describe("level curve and study credit", () => {
+  it("totals only finite positive saved study minutes", () => {
+    expect(totalStudyMinutes({ a: 50, b: 70 })).toBe(120);
+    expect(totalStudyMinutes({ a: -5, b: NaN, c: 10 })).toBe(10);
+    expect(totalStudyMinutes(null)).toBe(0);
+    expect(totalStudyMinutes("nope")).toBe(0);
+  });
   it.each([[0, 1, 0, 100], [99, 1, 99, 100], [100, 2, 0, 150], [249, 2, 149, 150], [250, 3, 0, 200], [450, 4, 0, 250]])(
     "%i XP gives level %i with %i of %i progress", (xp, level, earned, required) => {
       expect(levelForXP(xp)).toEqual({ totalXP: xp, level, earned, required, remaining: required - earned });
@@ -107,5 +114,31 @@ describe("challenge XP eligibility", () => {
     const next = rewardChallengeProgress(reward, done, removed, today);
     expect(next.bonusXP).toBe(10);
     expect(next.ongoingClaims).toEqual([]);
+  });
+
+  it("keeps future daily claims through a clock rollback without freezing ongoing rewards", () => {
+    const futureBefore = normalizeChallenges(null, tomorrow);
+    const futureGoal = challengeFor(futureBefore.daily[0].id);
+    const futureAfter = recordChallenge(futureBefore, futureGoal.event, futureGoal.target, tomorrow);
+    const earned = rewardChallengeProgress(empty(), futureBefore, futureAfter, tomorrow);
+    expect(earned.dailyClaims).toContain(futureGoal.id);
+    expect(earned.bonusXP).toBe(10);
+
+    const rollbackBefore = normalizeChallenges(null, today);
+    const rollbackGoal = challengeFor(rollbackBefore.daily[0].id);
+    const rollbackAfter = recordChallenge(rollbackBefore, rollbackGoal.event, rollbackGoal.target, today);
+    const rolledBack = rewardChallengeProgress(earned, rollbackBefore, rollbackAfter, today);
+    expect(rolledBack.dailyClaims).toContain(futureGoal.id);
+    expect(rolledBack.bonusXP).toBe(10);
+
+    const caughtUp = rewardChallengeProgress(rolledBack, futureBefore, futureAfter, tomorrow);
+    expect(caughtUp.dailyClaims).toContain(futureGoal.id);
+    expect(caughtUp.bonusXP).toBe(10);
+
+    const ongoingBefore = addGoal(rollbackBefore, "ongoing");
+    const ongoingAfter = changeCustomProgress(ongoingBefore, "custom-read", 1, today);
+    const withOngoing = rewardChallengeProgress(caughtUp, ongoingBefore, ongoingAfter, today);
+    expect(withOngoing.ongoingClaims).toContain("custom-read");
+    expect(withOngoing.bonusXP).toBe(20);
   });
 });

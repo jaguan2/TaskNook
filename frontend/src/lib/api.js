@@ -141,8 +141,6 @@ export const api = {
   // room decoration (flat layout + isometric layout travel together)
   getRoom: () => request("GET", "/room"),
   saveRoom: (placements, iso) => request("PUT", "/room", { placements, iso }),
-  getUnlocks: () => request("GET", "/unlocks"),
-  saveUnlocks: (unlocked) => request("PUT", "/unlocks", { unlocked }),
   // What you focused ON during one day. Fetched per selected day rather than
   // wholesale like sessionDays — names are wanted one day at a time.
   sessionDay: (day) => request("GET", `/sessions/day?day=${encodeURIComponent(day)}`),

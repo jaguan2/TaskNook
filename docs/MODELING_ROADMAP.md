@@ -330,7 +330,7 @@ because it renders or has a tint picker.
 | Wall clock (`wallclock`) | Pending | Housing thickness, glass face and separate hand pivots. |
 | Poster (`poster`) | Pending | Paper corners, attachment points and restrained curl. |
 | Menu board (`menuboard`) | Pending | Recessed chalk surface and shaped timber frame. |
-| Curtains (`curtain`) | Pending | Grouped draping folds, tied-back volume and visible curtain rail. |
+| Curtains (`curtain`) | Refined this pass | Projecting rail, brackets and rings; gathered upper folds, tied-back waists and softly fanned uneven hems. |
 | Hanging plant (`hangplant`) | Pending | Arcing trailing vines, distinct small leaves and visible pot rim. |
 | Neon sign (`neon`) | Pending | Tubing mounted on standoffs with a separate cable. |
 | Fairy lights (`fairylights`) | Pending | Sagging cable, distinct bulbs and clear attachment points. |

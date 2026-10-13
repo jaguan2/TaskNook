@@ -28,9 +28,6 @@ const store = vi.hoisted(() => ({
   setIsoWallColor: vi.fn(),
   setIsoLighting: vi.fn(),
   applyIsoPreset: vi.fn(),
-  unlocked: [],
-  unlockItem: vi.fn(),
-  unlockBalance: 0,
 }));
 
 vi.mock("../store", () => ({ useStore: () => store }));

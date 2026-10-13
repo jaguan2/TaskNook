@@ -16,14 +16,15 @@ import {
 
 /**
  * Every sprite source that draws a room's inhabitants, concatenated. The
- * character moved out of IsoItems.jsx into its own package (the registry
- * refactor), but for these SOURCE scans the two are one body of artwork —
+ * characters and pets moved out of IsoItems.jsx into focused modules, but for
+ * these SOURCE scans they remain one body of artwork —
  * the pins don't care which file a gesture gate lives in, only that it
  * exists somewhere in the sprites.
  */
 const spriteSources = () =>
   [
     "src/components/IsoItems.jsx",
+    "src/components/IsoPetItems.jsx",
     "src/components/character/index.jsx",
     "src/components/character/body.jsx",
     "src/components/character/hair.jsx",

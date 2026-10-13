@@ -1065,8 +1065,8 @@ def register_routes(app):
         return jsonify({"ok": True})
 
     # ----- Profile & character --------------------------------------------- #
-    # Third instance of the same division of labour as the room layout and the
-    # unlock list: the frontend owns the vocabulary (which MBTI types exist,
+    # The same division of labour as the room layout: the frontend owns the
+    # vocabulary (which MBTI types exist,
     # which hairstyles are drawable), this only keeps a bounded blob safe. A new
     # profile question or a new hairstyle is then a frontend change with no
     # migration — which is the whole reason these are JSON and not columns.
@@ -1175,44 +1175,6 @@ def register_routes(app):
         return jsonify(
             _profile_payload(user)
         )
-
-    # ----- Unlocked furniture ---------------------------------------------- #
-    # Same division of labour as the room layout: the frontend owns the catalog
-    # AND the prices, so this only keeps the list of keys safe. Pricing here too
-    # would duplicate catalog knowledge across two languages, which is exactly
-    # how the environment list drifted and 400'd three presets. There's nothing
-    # to cheat anyway — TaskNook is a single-user app on your own machine.
-    @app.get("/api/unlocks")
-    @require_auth
-    def get_unlocks(user):
-        if not user.unlocked:
-            return jsonify({"unlocked": []})
-        try:
-            saved = json.loads(user.unlocked)
-        except ValueError:
-            return jsonify({"unlocked": []})
-        if not isinstance(saved, list):
-            return jsonify({"unlocked": []})
-        return jsonify({"unlocked": [k for k in saved if isinstance(k, str)]})
-
-    @app.put("/api/unlocks")
-    @require_auth
-    def save_unlocks(user):
-        data = json_body()
-        keys = data.get("unlocked")
-        if not isinstance(keys, list) or len(keys) > 300:
-            return jsonify({"error": "Invalid unlock list"}), 400
-        clean = []
-        seen = set()
-        for key in keys:
-            if not (isinstance(key, str) and 0 < len(key) <= 32):
-                return jsonify({"error": "Invalid unlock list"}), 400
-            if key not in seen:
-                seen.add(key)
-                clean.append(key)
-        user.unlocked = json.dumps(clean)
-        db.session.commit()
-        return jsonify({"ok": True})
 
     # ----- Friends -------------------------------------------------------- #
     @app.get("/api/friends")
