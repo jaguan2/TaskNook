@@ -3,11 +3,13 @@ import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
 import { floorPatch, isoBox, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
 import { npcActivity } from "../lib/visiting";
+import { levelFor } from "../lib/friendship";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
 import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
 import CommonLibraryScene from "./CommonLibraryScene";
+import PersonaNameTag from "./PersonaNameTag";
 
 function Surface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color } = surface;
@@ -36,13 +38,23 @@ function Prop({ p, scene }) {
   </g>;
 }
 
-function SeatedPerson({ seat, scene, person, character, activity, now, guest }) {
+function SeatedPerson({ seat, scene, person, character, activity, now, guest, onGrab, onChoose }) {
   const Resident = ISO_SPRITES.resident;
   const at = project(seat.gx, seat.gy);
   const z = scene.surfaces[seat.level].z;
   return <g data-common-person={guest ? "you" : person.username} data-seat={seat.id}
     transform={`translate(${at.x},${at.y - z})`}
-    style={ambienceVars(seat.gx, seat.gy)}>
+    role={guest ? "button" : undefined} tabIndex={guest ? 0 : undefined}
+    aria-label={guest ? "Move your character. Drag to an open seat or press Enter to choose." : undefined}
+    pointerEvents={guest ? "all" : undefined}
+    onPointerDown={guest ? onGrab : undefined}
+    onKeyDown={guest ? (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      onChoose();
+    } : undefined}
+    className={guest ? "cursor-grab active:cursor-grabbing" : undefined}
+    style={{ ...ambienceVars(seat.gx, seat.gy), ...(guest && { touchAction: "none" }) }}>
     <ellipse cx="0" cy="10" rx="9" ry="2.5" fill="#302433" opacity=".18" />
     <g transform={`translate(0,${-seat.height})`}>
       <Resident seated seatH={seat.height} character={guest ? character : person.character}
@@ -51,20 +63,43 @@ function SeatedPerson({ seat, scene, person, character, activity, now, guest }) 
   </g>;
 }
 
+function SeatedName({ seat, scene, person, guest, friendship }) {
+  const at = project(seat.gx, seat.gy);
+  const z = scene.surfaces[seat.level].z;
+  const bond = guest ? null : levelFor(friendship?.[person.username] || 0);
+  return <PersonaNameTag data-common-name={guest ? "you" : person.username}
+    x={at.x} y={at.y - z - seat.height - 27}
+    heartProgress={bond?.frac} heartId={guest ? null : person.username}
+    heartLabel={bond ? `${person.label}: ${bond.label}` : undefined}>
+    {guest ? "You" : person.label}
+  </PersonaNameTag>;
+}
+
 /** An authored split-level scene. Only seat selection is interactive; neither
  * its architecture nor the user's home layout enters the decoration pipeline. */
-export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, onChooseSeat }) {
+export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, friendship, onChooseSeat }) {
   const scene = COMMON_PLACES[session.sceneId];
   const uid = useId();
+  const svgRef = useRef(null);
   const chooserRef = useRef(null);
+  const heldRef = useRef(null);
+  const dragRef = useRef(null);
   const [choosing, setChoosing] = useState(false);
+  const [hintVisible, setHintVisible] = useState(true);
+  const [dragging, setDragging] = useState(false);
+  const [dragTargetId, setDragTargetId] = useState(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setHintVisible(false), 5_000);
+    return () => clearTimeout(timer);
+  }, []);
   const people = new Map(session.occupants.map((person) => [person.seatId, person]));
   const guestSeat = scene.seats.find((seat) => seat.id === session.guestSeatId);
+  const openSeats = scene.seats.filter((seat) => !people.has(seat.id));
   const choose = (seat) => {
     onChooseSeat(seat.id);
     setChoosing(false);
@@ -72,25 +107,98 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     // persistent chooser rather than dropping focus onto the document body.
     chooserRef.current?.focus({ preventScroll: true });
   };
+  const pointerInScene = (e) => {
+    const ctm = svgRef.current?.getScreenCTM();
+    if (!ctm) return null;
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  };
+  const seatTargetPoint = (seat) => {
+    const at = project(seat.gx, seat.gy);
+    return { x: at.x, y: at.y - scene.surfaces[seat.level].z - seat.height + 9 };
+  };
+  const closestOpenSeat = (x, y) => {
+    let closest = null;
+    let distance = 44;
+    for (const seat of openSeats) {
+      const at = seatTargetPoint(seat);
+      const next = Math.hypot(x - at.x, y - at.y);
+      if (next <= distance) {
+        closest = seat;
+        distance = next;
+      }
+    }
+    return closest;
+  };
+  const applyHeldPosition = () => {
+    const drag = dragRef.current;
+    if (!drag || !heldRef.current) return;
+    heldRef.current.setAttribute("transform", `translate(${drag.x},${drag.y - 19})`);
+  };
+  const startGuestDrag = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    const point = pointerInScene(e);
+    if (!point) return;
+    e.stopPropagation();
+    const at = project(guestSeat.gx, guestSeat.gy);
+    const floor = { x: at.x, y: at.y - scene.surfaces[guestSeat.level].z };
+    dragRef.current = {
+      pointerId: e.pointerId,
+      holdX: point.x - floor.x,
+      holdY: point.y - floor.y,
+      x: floor.x,
+      y: floor.y,
+      target: guestSeat,
+    };
+    setChoosing(false);
+    setDragTargetId(guestSeat.id);
+    setDragging(true);
+    svgRef.current?.setPointerCapture?.(e.pointerId);
+  };
+  const moveGuestDrag = (e) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const point = pointerInScene(e);
+    if (!point) return;
+    drag.x = point.x - drag.holdX;
+    drag.y = point.y - drag.holdY;
+    applyHeldPosition();
+    const target = closestOpenSeat(point.x, point.y);
+    if (target?.id === drag.target?.id) return;
+    drag.target = target;
+    setDragTargetId(target?.id || null);
+  };
+  const endGuestDrag = (e) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+    setDragTargetId(null);
+    if (svgRef.current?.hasPointerCapture?.(e.pointerId)) svgRef.current.releasePointerCapture(e.pointerId);
+    if (e.type === "pointerup" && drag.target && drag.target.id !== session.guestSeatId) {
+      onChooseSeat(drag.target.id);
+    }
+  };
   const clip = (level) => `${uid}-${level}`;
   const glow = timeOfDay === "night" ? 0.62 : timeOfDay === "sunset" ? 0.52 : 0.2;
   const lampGlow = timeOfDay === "night" ? 1 : timeOfDay === "sunset" ? 0.82 : 0.34;
   const windowFill = timeOfDay === "night" ? "#4d4a67" : timeOfDay === "sunset" ? "#d79a68" : "#b7cbcb";
   const props = resolveCommonProps(scene);
-  const layers = (level) => {
+  const layers = (level, part = "all") => {
     const entries = props.filter((p) => (p.level || "ground") === level)
+      .filter((p) => part === "all" || (part === "wall") === !!ISO_ITEMS[p.item].wall)
       .map((p) => ({ id: p.id, depth: p._depth ?? isoDepth(p),
         layer: ISO_ITEMS[p.item].layer || 0, p }));
-    for (const seat of scene.seats.filter((seat) => seat.level === level)) {
+    for (const seat of part === "wall" ? [] : scene.seats.filter((seat) => seat.level === level)) {
       const person = people.get(seat.id);
       const guest = seat.id === session.guestSeatId;
-      if (!person && !guest) continue;
+      if ((!person && !guest) || (guest && dragging)) continue;
       const furniture = scene.props.find((p) => p.id === seat.furniture);
       entries.push({ id: `person-${seat.id}`, layer: 0, depth: isoDepth(furniture) + (seat.facing === "back" ? -0.01 : 0.01), seat, person, guest });
     }
     return entries.sort((a, b) => a.layer - b.layer || a.depth - b.depth)
       .map((entry) => entry.p ? <Prop key={entry.id} p={entry.p} scene={scene} /> :
-        <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now} />);
+        <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now}
+          onGrab={startGuestDrag} onChoose={() => setChoosing(true)} />);
   };
   // Floor lift and clip share one coordinate space. Lifting only each pool
   // left the raised nook's wall-sconce glow outside an unlifted floor clip.
@@ -123,7 +231,10 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg viewBox={scene.viewBox || "-260 -190 580 470"} className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}>
+    <svg ref={svgRef} viewBox={scene.viewBox || "-260 -190 580 470"}
+      className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}
+      onPointerMove={moveGuestDrag} onPointerUp={endGuestDrag} onPointerCancel={endGuestDrag}
+      onLostPointerCapture={endGuestDrag}>
       <defs>
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
@@ -179,8 +290,12 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         </g>
         {lightPools("nook")}
         {layers("nook")}
+        {/* Rear-wall details belong behind the freestanding timber. Leaving
+            them in the furniture stack let the corkboard paint over a beam. */}
+        {layers("ground", "wall")}
         {/* A dressed open partition gives the two lower zones a threshold
             without covering either study seat: timber, vine and dim bulbs. */}
+        <g data-common-partition="true">
         <path d={`M${P(6.5, 0, 111)} L${P(6.5, 4, 111)} L${P(6.5, 4)}`}
           fill="none" stroke="#8f694f" strokeWidth="11" strokeLinejoin="round" />
         <path d={`M${P(6.5, 0, 106)} L${P(6.5, 4, 106)}`}
@@ -193,39 +308,64 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
           {i % 2 === 0 && <ellipse cx={bulb.x - 3} cy={bulb.y - 4} rx="4.2" ry="1.8"
             fill="#4f7f60" transform={`rotate(${-24 + i * 7} ${bulb.x - 3} ${bulb.y - 4})`} />}
         </g>)}
+        </g>
         <g clipPath={`url(#${clip("ground")})`}><ellipse cx="-7" cy="161" rx="90" ry="45" fill={`url(#${uid}-light)`} opacity={glow} /></g>
         {lightPools("ground")}
-        {layers("ground")}
+        {layers("ground", "floor")}
         </>}
       </g>
       {/* Seat targets are the only interactive scene elements. A separate HTML
           list offers larger touch targets and the same choices by keyboard. */}
-      {choosing && scene.seats.map((seat) => {
-        const at = project(seat.gx, seat.gy);
+      {(choosing || dragging) && scene.seats.map((seat) => {
+        const at = seatTargetPoint(seat);
         const occupied = people.get(seat.id);
-        return <g key={seat.id} transform={`translate(${at.x},${at.y - scene.surfaces[seat.level].z - seat.height})`}
-          role="button" tabIndex={occupied ? -1 : 0} aria-label={occupied ? `${seat.label}: ${occupied.label}` : `Sit at ${seat.label}`}
-          aria-disabled={!!occupied} className={occupied ? "" : "cursor-pointer"}
-          onClick={() => !occupied && choose(seat)}
-          onKeyDown={(e) => { if (!occupied && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); choose(seat); } }}>
+        if (dragging && occupied) return null;
+        const targeted = seat.id === dragTargetId;
+        return <g key={seat.id} transform={`translate(${at.x},${at.y})`}
+          data-drop-seat={seat.id}
+          role={choosing ? "button" : undefined} tabIndex={choosing && !occupied ? 0 : -1}
+          aria-label={choosing ? (occupied ? `${seat.label}: ${occupied.label}` : `Sit at ${seat.label}`) : undefined}
+          aria-disabled={choosing ? !!occupied : undefined} className={choosing && !occupied ? "cursor-pointer" : undefined}
+          pointerEvents={choosing ? "all" : "none"}
+          onClick={() => choosing && !occupied && choose(seat)}
+          onKeyDown={(e) => { if (choosing && !occupied && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); choose(seat); } }}>
           <title>{occupied ? `${occupied.label} is sitting here` : seat.label}</title>
-          <ellipse cy="9" rx="17" ry="10" fill={occupied ? "#847b79" : "#f5cf83"} fillOpacity=".45"
-            stroke={occupied ? "#b8a99a" : "#ffdf9f"} strokeWidth="1.5" />
+          <ellipse className={!reduceMotion && !occupied ? "pool-breathe" : undefined}
+            rx={targeted ? 20 : 17} ry={targeted ? 12 : 10}
+            fill={occupied ? "#847b79" : targeted ? "#ffe2a0" : "#f5cf83"} fillOpacity={targeted ? ".7" : ".45"}
+            stroke={occupied ? "#b8a99a" : "#ffdf9f"} strokeWidth={targeted ? 2.4 : 1.5} />
         </g>;
       })}
+      {/* Identity belongs to the people, not the furniture depth stack. Paint
+          it last enough that a nearer prop can never bury who is sitting where. */}
+      {scene.seats.map((seat) => {
+        const person = people.get(seat.id);
+        const guest = seat.id === session.guestSeatId;
+        if ((!person && !guest) || (guest && dragging)) return null;
+        return <SeatedName key={`name-${seat.id}`} seat={seat} scene={scene}
+          person={person} guest={guest} friendship={friendship} />;
+      })}
+      {dragging && <g data-common-held="true" pointerEvents="none" ref={(node) => {
+        heldRef.current = node;
+        if (node) applyHeldPosition();
+      }}>
+        <ISO_SPRITES.resident held character={character} />
+        <PersonaNameTag data-common-name="you" y="-52">You</PersonaNameTag>
+      </g>}
     </svg>
-    <div className="absolute bottom-20 left-24 z-20 max-w-[min(28rem,calc(100%-7.5rem))]">
+    {(hintVisible || choosing) && <div className="absolute top-6 left-1/2 z-20 w-max max-w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 text-center">
       <button ref={chooserRef} type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
-        className="pill glass px-3 py-2 text-xs font-semibold text-cream hover:bg-white/10">
-        {choosing ? "Done choosing" : `Change seat · ${guestSeat.label}`}
+        aria-label={`Drag and drop to change seats. Current seat: ${guestSeat.label}. Click to choose from a list.`}
+        className="pill glass px-4 py-2 text-xs font-semibold text-cream shadow-soft hover:bg-white/10">
+        {choosing ? "Done choosing" : "Drag and drop to change seats"}
       </button>
-      {choosing && <div className="glass mt-2 flex max-h-[min(20rem,50vh)] flex-wrap gap-1.5 overflow-y-auto rounded-2xl p-2" role="group" aria-label="Common room seats">
+      {choosing && <div className="glass mt-2 flex max-h-[min(20rem,50vh)] max-w-[30rem] flex-wrap justify-center gap-1.5 overflow-y-auto rounded-2xl p-2 text-left" role="group" aria-label="Common room seats">
         {scene.seats.map((seat) => { const person = people.get(seat.id); return <button key={seat.id} type="button"
           disabled={!!person} aria-pressed={seat.id === session.guestSeatId} onClick={() => choose(seat)}
           className={`pill px-3 py-2 text-xs disabled:opacity-50 ${seat.id === session.guestSeatId ? "bg-glow/20 text-glow" : "text-cream hover:bg-white/10"}`}>
           {seat.label}{person ? ` · ${person.label}` : ""}
         </button>; })}
       </div>}
-    </div>
+    </div>}
   </div>;
 });

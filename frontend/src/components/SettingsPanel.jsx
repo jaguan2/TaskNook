@@ -17,7 +17,7 @@ const HUD_ELEMENTS = [
   { key: "tasks", label: "To-do list" },
   { key: "music", label: "Music bar" },
   { key: "clock", label: "Clock" },
-  { key: "chat", label: "Chat unread badges" },
+  { key: "chat", label: "Room chat & unread badges" },
 ];
 const VIS_OPTIONS = [
   { key: "on", label: "Show" },

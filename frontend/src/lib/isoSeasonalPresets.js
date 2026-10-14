@@ -40,7 +40,7 @@ export function createIsoSeasonalPresets() {
     items: [
       { item: "snowpine", gx: 0.5, gy: 0 },
       { item: "christmastree", gx: 2.5, gy: 0 },
-      { item: "chimney", gx: 5, gy: 0, tint: "#8b5546" },
+      // A chimney needs a building; freestanding here it read as a brick tower.
       { item: "snowpine", gx: 7.5, gy: 0.5, tint: "#46644f" },
       { item: "snowdrift", gx: 0.5, gy: 3 },
       { item: "snowman", gx: 2.5, gy: 3 },
@@ -65,8 +65,8 @@ export function createIsoSeasonalPresets() {
       { item: "coconutpalm", gx: 0, gy: 0, tint: "#986a42" },
       { item: "coconutpalm", gx: 12, gy: 0, tint: "#a27448" },
       { item: "coconutpalm", gx: 12, gy: 8.5, tint: "#986a42" },
-      { item: "pool", gx: 4.5, gy: 2.5 },
-      { item: "pool", gx: 8, gy: 2.5 },
+      // One long pool avoids two rims and ladders meeting in the water.
+      { item: "longpool", gx: 4.5, gy: 2.5 },
       { item: "poolumbrella", gx: 0.5, gy: 3, tint: "#df765f" },
       { item: "poolumbrella", gx: 11, gy: 5.5, tint: "#67a9bf" },
       { item: "sunlounger", gx: 0.5, gy: 6, tint: "#67a9bf" },

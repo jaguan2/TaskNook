@@ -101,13 +101,14 @@ export const COMMON_PLACES = {
       prop("nook-table", "sidetable", 1.9, 1.6, { level: "nook", tint: "#987351" }),
       prop("nook-lamp", "tablelamp", 1.9, 1.6, { level: "nook", on: "nook-table", tint: "#d9b77e" }),
       prop("nook-books", "bookstack", 2.25, 1.65, { level: "nook", on: "nook-table" }),
-      prop("nook-curtain", "curtain", 0, 0.45, { level: "nook", rot: 1, tint: "#a86155" }),
+      // Centre the 1.6-tile curtain on the authored 2.3-tile window. These
+      // coordinates may be finer than the editable room's half-tile grid.
+      prop("nook-curtain", "curtain", 0, 0.75, { level: "nook", rot: 1, tint: "#a86155" }),
       prop("nook-hanging-plant", "hangplant", 0, 2.45, { level: "nook", rot: 1, tint: "#8d6d4f" }),
       prop("nook-sconce", "sconce", 4.05, 0, { level: "nook", tint: "#d9b77e" }),
       prop("nook-fern", "fern", 0.15, 0.3, { level: "nook" }),
       prop("study-shelf", "bookshelf", 9.1, 0, { tint: "#95704f" }),
-      prop("study-corkboard", "corkboard", 4.65, 0, { tint: "#a96e62" }),
-      prop("study-curtain", "curtain", 6.1, 0, { tint: "#8a5b62" }),
+      prop("study-curtain", "curtain", 6.45, 0, { tint: "#8a5b62" }),
       prop("study-fairy-lights", "fairylights", 8.6, 0),
       prop("study-desk-left", "desk", 6, 1.3, { tint: "#b99775" }),
       prop("study-desk-right", "desk", 8.2, 1.3, { tint: "#b99775" }),
@@ -119,6 +120,9 @@ export const COMMON_PLACES = {
       prop("study-mushroom-lamp", "mushroomlamp", 9.15, 1.45, { on: "study-desk-right", tint: "#cf836f" }),
       prop("study-orchid", "orchid", 9.5, 1.5, { on: "study-desk-right" }),
       prop("tea-counter", "counter", 0, 5, { rot: 1, tint: "#93a08b" }),
+      // The open strip above the tea counter keeps this clear of the timber
+      // partition, framed art and wall shelf.
+      prop("tea-corkboard", "corkboard", 0, 5, { rot: 1, tint: "#a96e62" }),
       prop("tea-kettle", "kettle", 0.2, 5.2, { on: "tea-counter", tint: "#d7b079" }),
       prop("tea-mug", "mug", 0.3, 6, { on: "tea-counter", tint: "#eed8b8" }),
       prop("tea-plant", "snakeplant", 0.2, 7.2),

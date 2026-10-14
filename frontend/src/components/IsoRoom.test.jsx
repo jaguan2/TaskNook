@@ -50,12 +50,16 @@ describe("IsoRoom while visiting", () => {
         placements={layout.placements}
         editMode={false}
         personas={personas}
+        friendship={{ luna: 80 }}
         saveView={false}
       />
     );
     const texts = [...container.querySelectorAll("text")].map((t) => t.textContent);
     expect(texts).toContain("Luna");
     expect(texts).toContain("You");
+    expect(container.querySelector('[data-friendship-heart="luna"]')?.getAttribute("data-heart-fill"))
+      .toBe("0.25");
+    expect(container.querySelector('[data-friendship-heart="you"]')).toBeNull();
   });
 
   it("renders the home shape without tags when personas is null", () => {
@@ -273,6 +277,15 @@ describe("IsoRoom interior architecture", () => {
 
     expect(container.querySelector('[data-window-glow="true"]')).toBeNull();
     expect(container.querySelector('[data-window-floor-light="true"]')).toBeNull();
+  });
+
+  it("anchors terrace string lights to two physical supports", () => {
+    const { container, rerender } = render(
+      <IsoRoom size={{ w: 9, d: 7, env: "terrace" }} placements={[]} saveView={false} />
+    );
+    expect(container.querySelectorAll('[data-string-light-support="true"]')).toHaveLength(2);
+    rerender(<IsoRoom size={{ w: 9, d: 7, env: "room" }} placements={[]} saveView={false} />);
+    expect(container.querySelector('[data-string-light-support="true"]')).toBeNull();
   });
 
   it("makes window light stronger by day than at night", () => {

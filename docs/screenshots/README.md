@@ -118,6 +118,7 @@ the home remains editable.
 | ![Choosing a seat](41-common-cottage-seats.webp) **Seat selection** — open seats highlighted in the scene and listed as accessible buttons; occupied seats name their neighbour. | |
 | ![Willow Pond at sunset](43-willow-pond.webp) **Willow Pond** — a raised stone study terrace, pergola lights, pond bench and picnic lawn with one neighbour in each zone. | ![Willow Pond seat selection](44-willow-pond-seats.webp) **Garden seats** — the three occupied and three open places remain selectable at night. |
 | ![Grand Library](48-grand-library.webp) **Grand Library** — a 30×20 castle-style book hall with staggered shared tables, study pairs, round reading tables, sofa corners and four shelf ladders. Six arched windows, three chandeliers and the raised gallery keep its castle-library style. | ![Grand Library seat selection](49-grand-library-seats.webp) **Library seats** — thirty-six places across table pairs, sofas and armchairs; twelve neighbours leave twenty-four guest choices in the scrollable seat list. |
+| ![Common-room chat](53-common-room-chat.webp) **Room chat** — press Enter or `/` for a compact composer, then receive a delayed in-character answer from someone who is still in the room. | ![Common-room participants](54-common-room-participants.webp) **People here** — Tab from the composer opens local mute, deafen and per-neighbour controls without taking Tab away from the rest of the app. |
 
 ## 2D room and saved outfits
 

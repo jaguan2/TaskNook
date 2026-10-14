@@ -32,6 +32,8 @@ import { ISO_SPRITES } from "./IsoItems";
 import ExteriorWall from "./ExteriorWall";
 import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
 import PartitionWall from "./PartitionWall";
+import PersonaNameTag from "./PersonaNameTag";
+import { levelFor } from "../lib/friendship";
 import RoomTintPicker from "./RoomTintPicker";
 import IsoAtmosphere from "./IsoAtmosphere";
 
@@ -389,7 +391,7 @@ const PlacedItem = memo(function PlacedItem({
  * in your hand would change clothes on the way across the room. `label` rides
  * above the body — a visited guest's name, or the pet's, if they have one.
  */
-function HeldFigure({ walk, character, personaInfo, label }) {
+function HeldFigure({ walk, character, personaInfo, label, friendship }) {
   if (!walk) return null;
   const item = ISO_ITEMS[walk.item];
   const Sprite = ISO_SPRITES[walk.item];
@@ -397,6 +399,9 @@ function HeldFigure({ walk, character, personaInfo, label }) {
   const sprite = (
     <Sprite held character={item.self ? character : personaInfo?.character} look={walk.look} />
   );
+  const bond = personaInfo?.npcUsername
+    ? levelFor(friendship?.[personaInfo.npcUsername] || 0)
+    : null;
   return (
     <g style={walk.tint ? { "--tint": walk.tint } : undefined}>
       {/* The rot mirror only — a carried figure has no direction of travel to
@@ -404,19 +409,12 @@ function HeldFigure({ walk, character, personaInfo, label }) {
           twitch, not a turn. */}
       {(walk.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
       {label && (
-        <text
-          textAnchor="middle"
-          y={item.roamer ? -30 : -64}
-          fontSize="11"
-          fontWeight="600"
-          fill="#f2e9dd"
-          stroke="#1d0f1f"
-          strokeWidth="2.6"
-          paintOrder="stroke"
-          opacity="0.92"
-        >
+        <PersonaNameTag y={item.roamer ? -30 : -52}
+          heartProgress={bond?.frac}
+          heartId={personaInfo?.npcUsername}
+          heartLabel={bond ? `${label}: ${bond.label}` : undefined}>
           {label}
-        </text>
+        </PersonaNameTag>
       )}
     </g>
   );
@@ -426,38 +424,34 @@ function HeldFigure({ walk, character, personaInfo, label }) {
 // with the sprite it labels: the label must ride the SAME per-glide clock
 // (duration ∝ distance now, not a shared constant) or it teleports ahead and
 // hovers over empty floor until its person catches up.
-function PersonaTag({ p, label, glides }) {
+function PersonaTag({ p, label, glides, npcUsername, friendship }) {
   const at = project(p.gx, p.gy);
   const glide = useGlide(at.x, at.y, glides);
   // Tuned by screenshot, not by the catalog: `hitH` is the grab REGION's
   // height (generous over any body), and using it hung every tag a full head
   // above its person. These sit the tag just over the hair for the default
   // body in both poses.
-  const lift = p._seat ? p._seat + 47 : 44;
-  const common = {
-    textAnchor: "middle",
-    fontSize: "11",
-    fontWeight: "600",
-    fill: "#f2e9dd",
-    stroke: "#1d0f1f",
-    strokeWidth: "2.6",
-    paintOrder: "stroke",
-    opacity: "0.92",
+  const lift = p._seat ? p._seat + 27 : 51;
+  const bond = npcUsername ? levelFor(friendship?.[npcUsername] || 0) : null;
+  const relationship = {
+    heartProgress: bond?.frac,
+    heartId: npcUsername,
+    heartLabel: bond ? `${label}: ${bond.label}` : undefined,
   };
   return glides ? (
-    <text
-      {...common}
+    <PersonaNameTag
       style={{
         transform: `translate(${at.x}px, ${at.y - lift}px)`,
         transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
       }}
+      {...relationship}
     >
       {label}
-    </text>
+    </PersonaNameTag>
   ) : (
-    <text {...common} x={at.x} y={at.y - lift}>
+    <PersonaNameTag x={at.x} y={at.y - lift} {...relationship}>
       {label}
-    </text>
+    </PersonaNameTag>
   );
 }
 
@@ -487,9 +481,11 @@ function IsoSceneInner({
   onRemoveItem,
   onToggleItem,
   onClearSelect,
-  // Visiting: {placementId: {character, label}} — per-placement looks and
-  // the name tags drawn over them. Null at home.
+  // Social personas: {placementId: {character, label, npcUsername?}} —
+  // per-placement looks, name tags and optional NPC identity. Null when the
+  // home has no temporary visitors.
   personas = null,
+  friendship = null,
   // Who takes walk orders: one placement (your guest, while visiting) or every
   // persona (at home). See `walkableBy`.
   walkId = null,
@@ -841,6 +837,12 @@ function IsoSceneInner({
                 const bulbs = Math.max(3, Math.floor(len - 1));
                 return (
                   <>
+                    {walls === "low" && [from, to].map((gx) => {
+                      const base = project(gx, 0);
+                      return <line key={`support-${gx}`} data-string-light-support="true"
+                        x1={base.x} y1={base.y - 101} x2={base.x} y2={base.y - LOW_WALL_H}
+                        stroke="#4b3e42" strokeWidth="3.5" strokeLinecap="round" />;
+                    })}
                     <path
                       d={`M ${project(from, 0).x} ${project(from, 0).y - 100} Q ${project(from + len / 2, 0).x} ${project(from + len / 2, 0).y - 68} ${project(to, 0).x} ${project(to, 0).y - 100}`}
                       stroke="#2b2350"
@@ -1100,6 +1102,8 @@ function IsoSceneInner({
                   key={`tag-${p.id}`}
                   p={p}
                   label={info.label}
+                  npcUsername={info.npcUsername}
+                  friendship={friendship}
                   glides={
                     (item?.persona || item?.roamer) && !editMode && !reduceMotion
                   }
@@ -1218,6 +1222,7 @@ function IsoRoom({
   mood = null,
   reduceMotion = false,
   personas = null,
+  friendship = null,
   // False while VISITING: a pan around a friend's room must not overwrite
   // the saved HOME camera, and a visit opens framed on the room rather than
   // wherever home was last zoomed. (App remounts the scene per room via
@@ -1654,6 +1659,7 @@ function IsoRoom({
           onToggleItem={onToggleItem}
           onClearSelect={onClearSelect}
           personas={personas}
+          friendship={friendship}
           walkId={walkId}
           walkPersonas={walkPersonas}
           carriedId={walkTarget?.id ?? null}
@@ -1724,6 +1730,7 @@ function IsoRoom({
                 walk={walkRef.current}
                 character={character}
                 personaInfo={personas ? personas[walkTarget.id] : null}
+                friendship={friendship}
                 label={
                   personas?.[walkTarget.id]?.label ??
                   placements.find((p) => p.id === walkTarget.id)?.name

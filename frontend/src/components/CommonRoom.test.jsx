@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CommonRoom from "./CommonRoom";
 import { COMMON_PLACES, createCommonSession, resolveCommonProps, settleCommonGuest } from "../lib/commonRooms";
 import { floorPatch, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf } from "../lib/isoRoom";
 import { DEFAULT_CHARACTER } from "../lib/profile";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 // jsdom does not paint SVG, but its transform/clip coordinate spaces are still
 // inspectable. Resolve translations through the actual rendered ancestors,
@@ -29,6 +33,20 @@ const resolvedClip = (container, group) => {
 };
 
 describe("common-room seats", () => {
+  it("shows the seat hint at the top for five seconds, then clears it away", () => {
+    vi.useFakeTimers();
+    render(<CommonRoom session={createCommonSession("common-cottage")} character={DEFAULT_CHARACTER} />);
+    const hint = screen.getByRole("button", { name: /Drag and drop to change seats/ });
+    expect(hint.parentElement.classList.contains("top-6")).toBe(true);
+    expect(hint.parentElement.classList.contains("bottom-20")).toBe(false);
+    act(() => vi.advanceTimersByTime(4_999));
+    expect(screen.getByRole("button", { name: /Drag and drop to change seats/ })).toBeTruthy();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByRole("button", { name: /Drag and drop to change seats/ })).toBeNull();
+    fireEvent.keyDown(document.querySelector('[data-common-person="you"]'), { key: "Enter" });
+    expect(screen.getByRole("group", { name: "Common room seats" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Drag and drop to change seats/ }).textContent).toBe("Done choosing");
+  });
   it("clips the translated stone material to the actual Willow terrace", () => {
     const { container } = render(<CommonRoom session={createCommonSession("willow-pond")} character={DEFAULT_CHARACTER} />);
     const definition = [...container.querySelectorAll("clipPath")].find((clip) => clip.id.endsWith("-patio"));
@@ -56,11 +74,11 @@ describe("common-room seats", () => {
   );
   it("returns keyboard focus to the seat chooser after settling", () => {
     render(<CommonRoom session={createCommonSession("common-cottage")} character={DEFAULT_CHARACTER} onChooseSeat={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
     const seat = screen.getByRole("button", { name: "Reading armchair" });
     seat.focus();
     fireEvent.click(seat);
-    expect(document.activeElement === screen.getByRole("button", { name: /Change seat/ })).toBe(true);
+    expect(document.activeElement === screen.getByRole("button", { name: /Drag and drop to change seats/ })).toBe(true);
   });
   it("defines every SVG paint and clip used by all authored scenes", () => {
     for (const sceneId of Object.keys(COMMON_PLACES)) {
@@ -81,19 +99,73 @@ describe("common-room seats", () => {
     render(<CommonRoom session={createCommonSession("common-cottage")} character={DEFAULT_CHARACTER} onChooseSeat={onChooseSeat} />);
     expect(document.querySelectorAll("[data-common-person]")).toHaveLength(4);
     expect(screen.queryByRole("group", { name: "Common room seats" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
     expect(screen.getByRole("button", { name: "Window armchair · Kai" }).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Reading armchair" }));
     expect(onChooseSeat).toHaveBeenCalledWith("window-right");
     expect(onChooseSeat).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("group", { name: "Common room seats" })).toBeNull();
   });
+  it("labels every seated character with the user they represent", () => {
+    const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
+      character={DEFAULT_CHARACTER} friendship={{ kai: 160, luna: 320 }} onChooseSeat={vi.fn()} />);
+    const labels = Object.fromEntries([...container.querySelectorAll("[data-common-name]")]
+      .map((node) => [node.getAttribute("data-common-name"), node.textContent]));
+    expect(labels).toEqual({ kai: "Kai", luna: "Luna", sora: "Sora", you: "You" });
+    const guestSeat = COMMON_PLACES["common-cottage"].seats.find((seat) => seat.id === "study-right");
+    const at = project(guestSeat.gx, guestSeat.gy);
+    const guestLabel = container.querySelector('[data-common-name="you"]');
+    expect(Number(guestLabel.getAttribute("y"))).toBe(at.y - guestSeat.height - 27);
+    expect(container.querySelector('[data-friendship-heart="you"]')).toBeNull();
+    expect(container.querySelector('[data-friendship-heart="kai"]')?.getAttribute("data-heart-fill"))
+      .toBe("0.5");
+    expect(container.querySelector('[data-friendship-heart="luna"]')?.getAttribute("data-heart-fill"))
+      .toBe("1");
+    expect(container.querySelector('[data-friendship-heart="sora"]')?.getAttribute("data-heart-fill"))
+      .toBe("0");
+  });
+  it("carries the guest onto a glowing open seat", () => {
+    const scene = COMMON_PLACES["common-cottage"];
+    const session = createCommonSession("common-cottage");
+    const onChooseSeat = vi.fn();
+    const { container } = render(<CommonRoom session={session} character={DEFAULT_CHARACTER}
+      onChooseSeat={onChooseSeat} />);
+    const svg = container.querySelector("svg");
+    svg.getScreenCTM = () => ({ inverse: () => ({}) });
+    svg.setPointerCapture = vi.fn();
+    svg.hasPointerCapture = () => true;
+    svg.releasePointerCapture = vi.fn();
+    vi.stubGlobal("DOMPoint", class {
+      constructor(x, y) { this.x = x; this.y = y; }
+      matrixTransform() { return this; }
+    });
+    const pointFor = (seat) => {
+      const at = project(seat.gx, seat.gy);
+      return { x: at.x, y: at.y - scene.surfaces[seat.level].z };
+    };
+    const from = pointFor(scene.seats.find((seat) => seat.id === session.guestSeatId));
+    const target = scene.seats.find((seat) => seat.id === "window-right");
+    const to = pointFor(target);
+
+    fireEvent.pointerDown(container.querySelector('[data-common-person="you"]'),
+      { pointerId: 7, button: 0, clientX: from.x, clientY: from.y });
+    expect(container.querySelector('[data-common-held="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-common-held="true"]').textContent).toContain("You");
+    expect(container.querySelectorAll("[data-drop-seat]")).toHaveLength(3);
+    fireEvent.pointerMove(svg, { pointerId: 7, clientX: to.x, clientY: to.y });
+    expect(container.querySelector('[data-drop-seat="window-right"] ellipse').getAttribute("rx")).toBe("20");
+    fireEvent.pointerUp(svg, { pointerId: 7, clientX: to.x, clientY: to.y });
+
+    expect(onChooseSeat).toHaveBeenCalledWith("window-right");
+    expect(container.querySelector('[data-common-held="true"]')).toBeNull();
+  });
   it("casts catalog light and dresses the open partition without adding interactions", () => {
     const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
       character={DEFAULT_CHARACTER} timeOfDay="sunset" />);
     expect(container.querySelectorAll("[data-common-light]").length).toBeGreaterThanOrEqual(8);
     expect(container.querySelectorAll('[data-partition-bulb="true"]')).toHaveLength(8);
-    expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-common-prop][role="button"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-partition-bulb="true"][role="button"]')).toHaveLength(0);
   });
   it("keeps the cottage shell at one continuous roof elevation", () => {
     const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
@@ -103,6 +175,29 @@ describe("common-room seats", () => {
       .toBe(wallRect("left", 0, COMMON_PLACES["common-cottage"].d, 0, roofH));
     expect(container.querySelector('[data-common-shell-wall="right"]').getAttribute("points"))
       .toBe(wallRect("right", 0, COMMON_PLACES["common-cottage"].w, 0, roofH));
+  });
+  it("centres both cottage curtains on their windows and paints wall decor behind the partition", () => {
+    const scene = COMMON_PLACES["common-cottage"];
+    const left = scene.props.find((p) => p.id === "nook-curtain");
+    const right = scene.props.find((p) => p.id === "study-curtain");
+    const board = scene.props.find((p) => p.id === "tea-corkboard");
+    const frame = scene.props.find((p) => p.id === "lounge-wall-frame");
+    const shelf = scene.props.find((p) => p.id === "lounge-wall-shelf");
+    const [, leftLength] = footOf(left.item, left.rot);
+    const [rightLength] = footOf(right.item, right.rot);
+    const [, boardLength] = footOf(board.item, board.rot);
+    const [, frameLength] = footOf(frame.item, frame.rot);
+    expect(left.gy + leftLength / 2).toBeCloseTo(0.4 + 2.3 / 2);
+    expect(right.gx + rightLength / 2).toBeCloseTo(6.1 + 2.3 / 2);
+    expect(board).toMatchObject({ gx: 0, rot: 1 });
+    expect(board.gy).toBeGreaterThanOrEqual(frame.gy + frameLength);
+    expect(board.gy + boardLength).toBeLessThanOrEqual(shelf.gy);
+
+    const { container } = render(<CommonRoom session={createCommonSession("common-cottage")}
+      character={DEFAULT_CHARACTER} />);
+    const painted = [...container.querySelectorAll("[data-common-prop], [data-common-partition]")];
+    expect(painted.indexOf(container.querySelector('[data-common-prop="tea-corkboard"]')))
+      .toBeLessThan(painted.indexOf(container.querySelector("[data-common-partition]")));
   });
   it("updates the user's floor and outfit without moving the neighbours", () => {
     const session = createCommonSession("common-cottage");
@@ -126,7 +221,7 @@ describe("common-room seats", () => {
     expect(container.querySelectorAll('[data-common-light]')).toHaveLength(5);
     expect(container.querySelector('[data-common-prop="pond"]')).toBeTruthy();
     expect(container.querySelectorAll('[data-partition-bulb="true"]')).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
     fireEvent.click(screen.getByRole("button", { name: "Willow bench right" }));
     expect(onChooseSeat).toHaveBeenCalledWith("pond-bench-right");
   });
@@ -141,7 +236,7 @@ describe("common-room seats", () => {
     const neighbours = [...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
       .map((p) => p.getAttribute("transform"));
     expect(neighbours).toHaveLength(12);
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
     const choices = screen.getByRole("group", { name: "Common room seats" });
     expect(choices.querySelectorAll("button")).toHaveLength(36);
     expect(choices.querySelectorAll("button:not(:disabled)")).toHaveLength(24);
@@ -156,16 +251,34 @@ describe("common-room seats", () => {
     expect(guest.getAttribute("transform")).toBe(`translate(${at.x},${at.y - 40})`);
     expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
       .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
     fireEvent.keyDown(screen.getByRole("button", { name: "Sit at Quiet window armchair" }), { key: "Enter" });
     rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
     expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("quiet-end");
     expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
       .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
-    fireEvent.click(screen.getByRole("button", { name: /Change seat/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Quiet sofa left" }));
+    const svg = container.querySelector("svg");
+    svg.getScreenCTM = () => ({ inverse: () => ({}) });
+    svg.setPointerCapture = vi.fn();
+    svg.hasPointerCapture = () => true;
+    svg.releasePointerCapture = vi.fn();
+    vi.stubGlobal("DOMPoint", class {
+      constructor(x, y) { this.x = x; this.y = y; }
+      matrixTransform() { return this; }
+    });
+    const sofa = COMMON_PLACES["grand-library"].seats.find((s) => s.id === "entry-inner-right");
+    const sofaAt = project(sofa.gx, sofa.gy);
+    fireEvent.pointerDown(container.querySelector('[data-common-person="you"]'),
+      { pointerId: 8, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(svg, {
+      pointerId: 8,
+      clientX: sofaAt.x,
+      clientY: sofaAt.y - sofa.height + 9,
+    });
+    fireEvent.pointerUp(svg, { pointerId: 8 });
     rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
-    expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("entry-inner-left");
+    expect(onChooseSeat).toHaveBeenLastCalledWith("entry-inner-right");
+    expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("entry-inner-right");
     expect([...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
       .map((p) => p.getAttribute("transform"))).toEqual(neighbours);
     expect(container.querySelectorAll(".room-item")).toHaveLength(0);

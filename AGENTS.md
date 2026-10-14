@@ -234,16 +234,38 @@ character sprites separately from the editable home.
 Enter from Friends; `store.jsx` owns a render-only `commonRoom` session with
 the place's simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
+Friends shows each present neighbour by name before entry, and the scene paints
+the same labels plus `You` in a final overlay above furniture. `lib/commonPresence.js`
+owns the pure turnover policy and `lib/useCommonPresence.js` owns one in-memory
+population per place, scheduling a single arrival or departure every 30 minutes
+to 4 hours; the Friends cards and the joined session
+must both use that store-owned population so the roster and visible occupants
+cannot drift. Turnover reserves the user's current chair and applies at most one
+change after a sleeping app resumes rather than replaying a backlog.
 The cozy second art pass deliberately concentrates curtains, wall decor,
 plants, desk clutter and catalog-driven light pools around edges and the open
 vine-and-bulb partition; preserve that density without covering seat anchors.
 Common entry cancels pending knocks and invalidates earlier friend-room
-requests. It disables home visitor arrivals and RoomPanel editing. Seat
-selection changes only the guest's seat ID, never the home API, furniture,
-NPC occupancy, timer or saved camera. Keep these state boundaries and the
-store/common-room regression tests when adding places. Common Cottage and
-Willow Pond each have six seats, three deterministic neighbours and three guest
-choices; Grand Library has thirty-six seats, twelve neighbours and twenty-four guest choices.
+requests. It disables home visitor arrivals and RoomPanel editing. The temporary
+top-centre seat hint clears after five seconds, lets you carry your character
+onto a glowing open seat, and opens the keyboard/touch list when clicked. Opening
+that list keeps the control visible until it closes. Seat selection changes only
+the guest's seat ID, never the home API, furniture, NPC occupancy, timer or saved camera.
+Keep these state boundaries and the store/common-room regression tests when
+adding places. Common Cottage and Willow Pond each have six seats and normally
+fluctuate around three neighbours; Grand Library has thirty-six seats and
+fluctuates between eleven and twelve neighbours. Every population always leaves
+a guest choice available.
+Joined common places also mount a bottom-left, visit-local chat. `Enter` or `/`
+opens the composer only when another form/control is not active; `Tab` toggles
+the participant list only from that composer, preserving ordinary focus
+navigation elsewhere. `lib/commonChat.js` owns bounded history and present-NPC
+responder choice; `CommonRoomChat.jsx` owns the transient transcript, delayed
+reply timers and session-local mute/deafen controls. Replies reuse `botReply`
+and `replyDelayMs`, but this surface never creates a backend conversation,
+awards social credit or writes storage. Exiting the place unmounts it and must
+clear pending reply timers. The Chat HUD visibility setting now controls both
+this room surface and Friends unread badges.
 Library seating plans drive both catalog seating and its anchors; shared tables
 seat people on both sides, with study pairs, round tables and sofa corners.
 Four shelf ladders share their bookcases' positions and floor heights. The scene is bounded
@@ -516,7 +538,10 @@ running `git commit` yourself.
   disagree. **Friendship** (`lib/friendship.js` + `tasknook.friendship`):
   a per-device bond tally per bot — points per message sent, per visit,
   per minute spent in their room (a store interval while `visiting`) — read
-  as five levels shown as a rose bar on the friend row. Mostly cosmetic BY
+  as five levels shown as a rose bar on the friend row. The same lifetime
+  fraction fills the small outlined heart beside an NPC's in-room name tag;
+  `npcUsername` is the identity seam, so `You` and named pets never receive a
+  relationship heart. Mostly cosmetic BY
   DESIGN (a reason to interact, not a grind; tangible rewards remain
   deliberately unbuilt), except that level 4+ additively widens
   the chat reply pools (`CLOSE_LINES` in lib/chat.js — bond is passed at

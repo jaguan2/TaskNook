@@ -200,6 +200,7 @@ export const ISO_ITEMS = {
   bunting: { label: "Bunting", icon: "🎉", foot: [1.4, 0.3], wall: true, hitH: 100 },
   // ---- summer ----------------------------------------------------------
   pool: { label: "Swimming pool", icon: "🏊", foot: [3.5, 2.5], layer: -1, hitH: 14, tintable: false },
+  longpool: { label: "Long swimming pool", icon: "🏊", foot: [7, 2.5], layer: -1, hitH: 14, tintable: false },
   coconutpalm: { label: "Coconut palm", icon: "🌴", foot: [1.5, 1.5], hitH: 122 },
   poolumbrella: { label: "Pool umbrella", icon: "⛱️", foot: [1.5, 1.5], hitH: 86 },
   beachball: { label: "Beach ball", icon: "🏖️", foot: [0.6, 0.6], hitH: 22, tintable: false },
@@ -448,7 +449,7 @@ export const ISO_ITEM_GROUPS = [
   },
   {
     label: "Summer",
-    keys: ["pool", "coconutpalm", "poolumbrella", "beachball", "sunlounger"],
+    keys: ["pool", "longpool", "coconutpalm", "poolumbrella", "beachball", "sunlounger"],
   },
   {
     label: "Outdoors",
