@@ -1,11 +1,24 @@
-import { Flame, Sparkles } from "lucide-react";
-import { currentLoginStreak, levelForXP, XP_RULES } from "../lib/progression";
+import { Clock3, Flame, Sparkles } from "lucide-react";
+import {
+  currentLoginStreak,
+  levelForXP,
+  totalStudyMinutes,
+  XP_RULES,
+} from "../lib/progression";
 
-export default function LevelCard({ progression }) {
+function studyTimeLabel(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest}m`;
+  return rest ? `${hours.toLocaleString()}h ${rest}m` : `${hours.toLocaleString()}h`;
+}
+
+export default function LevelCard({ progression, sessionDays }) {
   const level = levelForXP(progression.studyXP + progression.bonusXP);
   const streak = currentLoginStreak(progression);
+  const studyMinutes = totalStudyMinutes(sessionDays);
   return (
-    <section aria-label="Your level" className="space-y-3 rounded-2xl border border-glow/20 bg-glow/5 p-4">
+    <section aria-label="Your progress" className="space-y-3 rounded-2xl border border-glow/20 bg-glow/5 p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-display text-xl font-bold text-cream">
           <Sparkles size={19} className="text-glow" aria-hidden="true" />Level {level.level}
@@ -24,6 +37,19 @@ export default function LevelCard({ progression }) {
           <div className="h-full rounded-full bg-glow" style={{ width: `${level.earned / level.required * 100}%` }} />
         </div>
       </div>
+      <p className="flex items-center gap-1.5 text-xs text-petal/70">
+        <Clock3 size={13} className="text-sage" aria-hidden="true" />
+        {studyMinutes > 0 ? (
+          <>
+            <span className="font-semibold tabular-nums text-cream">
+              {studyTimeLabel(studyMinutes)}
+            </span>
+            <span>studied in total</span>
+          </>
+        ) : (
+          <span>No study time saved yet</span>
+        )}
+      </p>
       <p className="flex items-center gap-1.5 text-xs text-petal/70">
         <Flame size={13} className="text-amber" aria-hidden="true" />
         {streak} {streak === 1 ? "day" : "days"} login streak

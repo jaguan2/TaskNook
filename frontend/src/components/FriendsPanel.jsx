@@ -7,6 +7,7 @@ import { levelFor } from "../lib/friendship";
 import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 import { COMMON_PLACES } from "../lib/commonRooms";
+import FriendsLeaderboard from "./FriendsLeaderboard";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
 
@@ -34,6 +35,7 @@ export default function FriendsPanel() {
   const {
     user,
     friends,
+    sessionDays,
     addFriend,
     removeFriend,
     visitFriend,
@@ -265,6 +267,12 @@ export default function FriendsPanel() {
           <span className="text-xs text-glow">{joined ? "Here" : "Join"}</span>
         </button>})}
       </section>
+      <FriendsLeaderboard
+        user={user}
+        friends={friends}
+        sessionDays={sessionDays}
+        now={now}
+      />
       {chatsError && (
         <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
           <p>Couldn't refresh conversations. Your saved chats are still there.</p>

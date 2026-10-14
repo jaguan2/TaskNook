@@ -5,7 +5,8 @@ import FriendsPanel from "./FriendsPanel";
 
 const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
-  user: { id: 9 },
+  user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
+  sessionDays: { "2026-10-11": 45 },
   friends: [
     { id: 1, username: "luna", displayName: "Luna", visitAccess: "open" },
     { id: 2, username: "kai", displayName: "Kai", visitAccess: "friends" },
@@ -24,6 +25,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("includes the week-to-date study leaderboard", () => {
+    render(<FriendsPanel />);
+    expect(screen.getByRole("heading", { name: "Weekly study" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Weekly study" })).toBeTruthy();
+  });
+
   it("uses store-owned friend writes and clears a committed add", async () => {
     render(<FriendsPanel />);
     const input = screen.getByLabelText("Friend username");

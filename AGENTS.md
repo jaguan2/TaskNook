@@ -300,6 +300,8 @@ is no missed-goal backlog. See `docs/CHALLENGES.md`.
 etc.) and reward eligibility. `lib/useProgression.js` persists the device marker
 in `tasknook.progression`, outside React updaters. Saved study minutes from the
 existing all-history `sessionDays` map give 1 XP/minute, including old sessions;
+`LevelCard` also totals that same map into the Profile's exact lifetime study
+time (hours plus remaining minutes; a running block appears after it is saved).
 the stored high-water mark prevents duplicate refresh credit or stale-read
 regressions. Challenge completions give 10 XP: once per daily goal per LOCAL day
 or once per ongoing goal. `useChallenges` reports before/after snapshots;
@@ -535,7 +537,13 @@ running `git commit` yourself.
   always 100% — that would read as bots), and ticks focus minutes up
   through waking hours; the done-count is DERIVED from the minutes (each
   finished task costs 20–40 of them), so the two readouts can never
-  disagree. **Friendship** (`lib/friendship.js` + `tasknook.friendship`):
+  disagree. The Friends panel's **Weekly study** board is owned by
+  `lib/leaderboard.js`: its LOCAL week begins Sunday, the user's total comes
+  from persisted `sessionDays`, and simulated neighbours replay that same
+  `npcDailyStats` model for completed days plus the current partial day. Keep
+  it week-to-date and do not subscribe the Friends panel to the timer's 1 Hz
+  context; a running block joins the ranking after its session is saved.
+  **Friendship** (`lib/friendship.js` + `tasknook.friendship`):
   a per-device bond tally per bot — points per message sent, per visit,
   per minute spent in their room (a store interval while `visiting`) — read
   as five levels shown as a rose bar on the friend row. The same lifetime
