@@ -15,7 +15,7 @@ import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
 import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
-import { createCommonSession, settleCommonGuest } from "./lib/commonRooms";
+import { useCommonPresence } from "./lib/useCommonPresence";
 import {
   HOME_VISITOR_KICK_COOLDOWN_MS,
   HOME_VISITOR_TICK_MS,
@@ -1563,8 +1563,13 @@ export function StoreProvider({ children }) {
   // lib/visiting derive the rest (their home, their look, you as the guest),
   // and hand IsoRoom a read-only layout + personas. Never persisted.
   const [visiting, setVisiting] = useState(null);
-  const [commonRoom, setCommonRoom] = useState(null);
-  const commonRoomRef = useRef(null);
+  const {
+    commonPresence,
+    commonRoom,
+    enterCommonPresence,
+    chooseCommonPresenceSeat,
+    leaveCommonPresence,
+  } = useCommonPresence(showToast);
   // A stale friend-room response must not replace a newer destination.
   const placeRequest = useRef(0);
   // Friends dropping into YOUR open room. Also render-only: these placements
@@ -1685,7 +1690,7 @@ export function StoreProvider({ children }) {
   // the first friend's room after clicking the second.
   const visitBusyRef = useRef(false);
   const enterCommonRoom = useCallback((sceneId) => {
-    const session = createCommonSession(sceneId);
+    const session = enterCommonPresence(sceneId);
     if (!session) { showToast("That common place isn't available"); return false; }
     placeRequest.current += 1;
     clearTimeout(knockTimer.current);
@@ -1693,23 +1698,17 @@ export function StoreProvider({ children }) {
     setVisiting(null);
     setRoomEditMode(false);
     setLastIsoAddedId(null);
-    commonRoomRef.current = session;
-    setCommonRoom(session);
     recordChallengeEvent("common-visited");
     return true;
-  }, [showToast, recordChallengeEvent]);
+  }, [showToast, recordChallengeEvent, enterCommonPresence]);
   const chooseCommonSeat = useCallback((seatId) => {
-    const previous = commonRoomRef.current;
-    if (!previous) return false;
-    const next = settleCommonGuest(previous, seatId);
-    if (next === previous && previous.guestSeatId !== seatId) {
+    const result = chooseCommonPresenceSeat(seatId);
+    if (result === false) {
       showToast("That seat is already taken — choose an open one");
       return false;
     }
-    commonRoomRef.current = next;
-    setCommonRoom(next);
-    return true;
-  }, [showToast]);
+    return Boolean(result);
+  }, [chooseCommonPresenceSeat, showToast]);
   // Walk orders are invisible until you know your character is grabbable, so
   // teach it ONCE PER DEVICE. This was a ref, which meant every launch, and a
   // tip you've already read is nagging. Shared by both rooms — whichever you
@@ -1735,8 +1734,7 @@ export function StoreProvider({ children }) {
     try {
       const data = await api.friendRoom(friend.id);
       if (request !== placeRequest.current) return false;
-      commonRoomRef.current = null;
-      setCommonRoom(null);
+      leaveCommonPresence();
       // A long-ago-added item must not arrive pre-selected (tint picker and
       // all) when the home scene remounts after the visit.
       setLastIsoAddedId(null);
@@ -1957,9 +1955,8 @@ export function StoreProvider({ children }) {
     clearTimeout(knockTimer.current);
     setKnockingId(null);
     setVisiting(null);
-    commonRoomRef.current = null;
-    setCommonRoom(null);
-  }, []);
+    leaveCommonPresence();
+  }, [leaveCommonPresence]);
 
   // Time TOGETHER is the slow, honest way the bond grows: one point per
   // minute spent in a friend's room, however you spend it — studying
@@ -2789,6 +2786,7 @@ export function StoreProvider({ children }) {
     setIsoLighting,
     visiting,
     commonRoom,
+    commonPresence,
     activePlace: commonRoom ? { kind: "common", id: commonRoom.sceneId } : visiting ? { kind: "friend", id: visiting.friend.id } : { kind: "home" },
     enterCommonRoom,
     chooseCommonSeat,

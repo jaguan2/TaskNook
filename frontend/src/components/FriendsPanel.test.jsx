@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
 const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => ({ useStore: () => ({
-  user: { id: 9 },
+  user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
+  sessionDays: { "2026-10-11": 45 },
   friends: [
     { id: 1, username: "luna", displayName: "Luna", visitAccess: "open" },
     { id: 2, username: "kai", displayName: "Kai", visitAccess: "friends" },
@@ -16,12 +17,20 @@ vi.mock("../store", () => ({ useStore: () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.chatsError = false;
+  mocks.commonRoom = null;
+  mocks.commonPresence = undefined;
   mocks.addFriend.mockResolvedValue({ id: 3, username: "sora" });
   mocks.removeFriend.mockResolvedValue(true);
 });
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("includes the week-to-date study leaderboard", () => {
+    render(<FriendsPanel />);
+    expect(screen.getByRole("heading", { name: "Weekly study" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Weekly study" })).toBeTruthy();
+  });
+
   it("uses store-owned friend writes and clears a committed add", async () => {
     render(<FriendsPanel />);
     const input = screen.getByLabelText("Friend username");
@@ -35,14 +44,48 @@ describe("opening conversations", () => {
     expect(mocks.removeFriend).toHaveBeenCalledWith(1);
   });
 
-  it("offers all authored common places with their real population counts", () => {
+  it("names everyone in each common place before joining", () => {
     render(<FriendsPanel />);
-    expect(screen.getAllByText("3 simulated neighbours · 3 guest seats")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: /Grand Library.*12 simulated neighbours · 24 guest seats/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Common Cottage/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Grand Library/ }));
+    const cottage = screen.getByRole("button", { name: /Common Cottage/ });
+    expect(cottage.textContent).toContain("Here now");
+    expect(cottage.textContent).toContain("Kai");
+    expect(cottage.textContent).toContain("Luna");
+    expect(cottage.textContent).toContain("Sora");
+    expect(cottage.textContent).toContain("3 open seats");
+    const library = screen.getByRole("button", { name: /Grand Library/ });
+    expect(within(library).getAllByTitle(/^@/).map((person) => person.textContent)).toEqual([
+      "Kai", "Luna", "Sora", "Mochi", "Ivy", "Theo", "Fern", "Robin", "Nico", "Aria", "Jun", "Hazel",
+    ]);
+    expect(library.textContent).toContain("24 open seats");
+    fireEvent.click(cottage);
+    fireEvent.click(library);
     fireEvent.click(screen.getByRole("button", { name: /Willow Pond/ }));
     expect(mocks.enterCommonRoom.mock.calls).toEqual([["common-cottage"], ["grand-library"], ["willow-pond"]]);
+  });
+  it("includes you in the attendee list after joining", () => {
+    mocks.commonRoom = { sceneId: "common-cottage" };
+    render(<FriendsPanel />);
+    const cottage = screen.getByRole("button", { name: /Common Cottage/ });
+    expect(cottage.textContent).toContain("You");
+    expect(cottage.textContent).toContain("2 open seats");
+    expect(cottage.textContent).toContain("Here");
+    expect(cottage.disabled).toBe(true);
+  });
+  it("shows the store-owned live population before joining", () => {
+    mocks.commonPresence = {
+      "common-cottage": {
+        occupants: [
+          { username: "ivy", label: "Ivy" },
+          { username: "theo", label: "Theo" },
+        ],
+      },
+    };
+    render(<FriendsPanel />);
+    const cottage = screen.getByRole("button", { name: /Common Cottage/ });
+    expect(cottage.textContent).toContain("Ivy");
+    expect(cottage.textContent).toContain("Theo");
+    expect(cottage.textContent).not.toContain("Kai");
+    expect(cottage.textContent).toContain("4 open seats");
   });
   it("offers a retry when the conversation list could not load", () => {
     mocks.chatsError = true;

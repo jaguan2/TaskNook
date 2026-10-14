@@ -250,6 +250,38 @@ function makePage(cdp) {
   const closePanels = () =>
     evaluate(`document.querySelectorAll('button[aria-label^="Close"]').forEach(b => b.click()); 'ok'`);
 
+  /** Carry the common-room guest with the same pointer gesture used in-app. */
+  const dragCommonGuest = async (seatId) => {
+    const centerOf = (selector) => evaluate(`(() => {
+      const node = document.querySelector(${JSON.stringify(selector)});
+      if (!node) throw new Error('MISSING:${selector}');
+      const box = node.getBoundingClientRect();
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    })()`);
+    const originOf = (selector) => evaluate(`(() => {
+      const node = document.querySelector(${JSON.stringify(selector)});
+      if (!node) throw new Error('MISSING:${selector}');
+      const point = node.ownerSVGElement.createSVGPoint();
+      const transformed = point.matrixTransform(node.getScreenCTM());
+      return { x: transformed.x, y: transformed.y };
+    })()`);
+    const from = await centerOf('[data-common-person="you"]');
+    await send("Input.dispatchMouseEvent", {
+      type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
+    });
+    await sleep(150);
+    const to = await originOf(`[data-drop-seat="${seatId}"]`);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
+    });
+    await sleep(200);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseReleased", x: to.x, y: to.y, button: "left", buttons: 0, clickCount: 1,
+    });
+    await sleep(500);
+    return evaluate(`document.querySelector('[data-common-person="you"]')?.getAttribute('data-seat')`);
+  };
+
   const shot = async (file, format = "webp", capture = {}) => {
     const r = await send("Page.captureScreenshot", {
       ...(format === "webp" ? { format: "webp", quality: 92 } : { format: "png" }),
@@ -260,7 +292,7 @@ function makePage(cdp) {
     return r.data.length;
   };
 
-  return { evaluate, load, setStorage, clickText, closePanels, shot };
+  return { evaluate, load, setStorage, clickText, closePanels, dragCommonGuest, shot };
 }
 
 /**
@@ -322,6 +354,11 @@ async function seed(page) {
 
     localStorage.setItem('tasknook.taskGroups', JSON.stringify(['Today', 'Routines', 'Someday']));
     localStorage.setItem('tasknook.dailyGoal', '120');
+    // Relationship hearts need visibly different fill states in social-room
+    // captures, or the screenshots only exercise the empty-heart baseline.
+    localStorage.setItem('tasknook.friendship', JSON.stringify({
+      luna: 320, kai: 160, sora: 80, mochi: 25
+    }));
     return 'seeded';
   })()`);
   return out;
@@ -591,7 +628,7 @@ async function main() {
   }
 
   // Fixed common place: join through the real drawer, then try the raised seat.
-  if (["39", "40", "41"].some(want)) {
+  if (["39", "40", "41", "53", "54"].some(want)) {
     await setCharacter(page, "casual");
     await page.setStorage(ambient({ weather: "off", time: "sunset" }));
     await page.load();
@@ -600,11 +637,31 @@ async function main() {
     if (joined !== "ok") throw new Error("Common Cottage entry: " + joined);
     await sleep(2500);
     if (want("39")) await page.shot(join(OUT_DIR, "39-common-cottage.webp"));
-    await page.clickText("Change seat");
+    await page.clickText("Drag and drop to change seats");
     if (want("41")) await page.shot(join(OUT_DIR, "41-common-cottage-seats.webp"));
-    await page.clickText("Reading armchair", { exact: true });
-    await sleep(500);
+    await page.clickText("Done choosing", { exact: true });
+    const moved = await page.dragCommonGuest("window-right");
+    if (moved !== "window-right") throw new Error(`Common Cottage drag settled at ${moved || "no seat"}`);
     if (want("40")) await page.shot(join(OUT_DIR, "40-common-cottage-reading.webp"));
+    if (want("53") || want("54")) {
+      await page.evaluate(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true })); 'ok'`);
+      await page.evaluate(`(() => {
+        const input = document.querySelector('input[aria-label="Message the room"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'hello everyone');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.closest('form').requestSubmit();
+        return 'ok';
+      })()`);
+      for (let attempt = 0; attempt < 26; attempt += 1) {
+        if (await page.evaluate(`!!document.querySelector('[data-message-kind="npc"]')`)) break;
+        await sleep(500);
+      }
+      if (want("53")) await page.shot(join(OUT_DIR, "53-common-room-chat.webp"));
+      if (want("54")) {
+        await page.evaluate(`document.querySelector('button[aria-controls="common-room-participants"]').click(); 'ok'`);
+        await page.shot(join(OUT_DIR, "54-common-room-participants.webp"));
+      }
+    }
     console.log("  common cottage: entry, open seats and raised reading nook");
   }
 
@@ -626,7 +683,7 @@ async function main() {
       await page.clickText("Friends", { exact: true });
       if (await page.clickText("Willow Pond") !== "ok") throw new Error("Willow Pond night entry failed");
       await sleep(2500);
-      await page.clickText("Change seat");
+      await page.clickText("Drag and drop to change seats");
       await page.shot(join(OUT_DIR, "44-willow-pond-seats.webp"));
     }
     console.log("  willow pond: garden arrival and open-seat view");
@@ -641,7 +698,7 @@ async function main() {
     await sleep(2500);
     if (want("48")) await page.shot(join(OUT_DIR, "48-grand-library.webp"));
     if (want("49")) {
-      await page.clickText("Change seat");
+      await page.clickText("Drag and drop to change seats");
       await page.shot(join(OUT_DIR, "49-grand-library-seats.webp"));
     }
     console.log("  grand library: candlelit book hall and gallery seat choices");

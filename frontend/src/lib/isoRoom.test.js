@@ -902,6 +902,42 @@ describe("presets", () => {
       }
       expect(collisions).toEqual([]);
     });
+
+    it("keeps wall fixtures clear of openings and tall furniture", () => {
+      const collisions = new Set();
+      for (const key of ISO_PRESET_KEYS) {
+        const items = ISO_PRESETS[key].items;
+        for (let i = 0; i < items.length; i++) {
+          const wall = ISO_ITEMS[items[i].item];
+          if (!wall.wall) continue;
+          const leftWall = (items[i].rot || 0) % 2 === 1;
+          const [wallW, wallD] = footOf(items[i].item, items[i].rot || 0);
+          const wallFrom = leftWall ? items[i].gy : items[i].gx;
+          const wallTo = wallFrom + (leftWall ? wallD : wallW);
+          for (let j = 0; j < items.length; j++) {
+            if (i === j) continue;
+            const other = ISO_ITEMS[items[j].item];
+            const otherLeftWall = other.wall && (items[j].rot || 0) % 2 === 1;
+            const blocksWall = other.wall
+              ? otherLeftWall === leftWall
+              : other.hitH >= 80 && (leftWall ? items[j].gx === 0 : items[j].gy === 0);
+            if (!blocksWall) continue;
+            const [otherW, otherD] = footOf(items[j].item, items[j].rot || 0);
+            const otherFrom = leftWall ? items[j].gy : items[j].gx;
+            const otherTo = otherFrom + (leftWall ? otherD : otherW);
+            if (Math.min(wallTo, otherTo) - Math.max(wallFrom, otherFrom) > 0.15)
+              collisions.add(`${key}: ${items[i].item} × ${items[j].item}`);
+          }
+        }
+      }
+      expect([...collisions]).toEqual([]);
+    });
+  });
+
+  it("uses coherent architecture for the seasonal showcase rooms", () => {
+    expect(ISO_PRESETS.winter.items.some((p) => p.item === "chimney")).toBe(false);
+    expect(ISO_PRESETS.summer.items.filter((p) => p.item === "longpool")).toHaveLength(1);
+    expect(ISO_PRESETS.summer.items.some((p) => p.item === "pool")).toBe(false);
   });
 
   it("EVERY preset survives validation with all its furniture", () => {

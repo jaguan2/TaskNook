@@ -36,6 +36,7 @@ export {
 export {
   BeachBall,
   CoconutPalm,
+  LongSwimmingPool,
   PoolUmbrella,
   SunLounger,
   SwimmingPool,

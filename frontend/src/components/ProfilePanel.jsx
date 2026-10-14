@@ -556,6 +556,7 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
 export default function ProfilePanel() {
   const {
     progression,
+    sessionDays,
     selfInRoom,
     setSelfInRoom,
     profile,
@@ -603,7 +604,7 @@ export default function ProfilePanel() {
 
   return (
     <div className="space-y-4">
-      <LevelCard progression={progression} />
+      <LevelCard progression={progression} sessionDays={sessionDays} />
       <AboutPanel
         profile={profile}
         summary={summary}

@@ -7,6 +7,7 @@ import { levelFor } from "../lib/friendship";
 import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 import { COMMON_PLACES } from "../lib/commonRooms";
+import FriendsLeaderboard from "./FriendsLeaderboard";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
 
@@ -34,6 +35,7 @@ export default function FriendsPanel() {
   const {
     user,
     friends,
+    sessionDays,
     addFriend,
     removeFriend,
     visitFriend,
@@ -49,6 +51,7 @@ export default function FriendsPanel() {
     hudVisibility,
     enterCommonRoom,
     commonRoom,
+    commonPresence,
   } = useStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -236,20 +239,40 @@ export default function FriendsPanel() {
     <div className="space-y-4">
       <section className="space-y-2" aria-label="Common places">
         <p className="text-xs font-semibold text-petal/65">Places to settle together</p>
-        {Object.values(COMMON_PLACES).map((place) => <button key={place.id} type="button"
-          onClick={() => enterCommonRoom(place.id)}
-          disabled={commonRoom?.sceneId === place.id}
+        {Object.values(COMMON_PLACES).map((place) => {
+          const joined = commonRoom?.sceneId === place.id;
+          const occupants = joined
+            ? commonRoom.occupants || place.neighbours
+            : commonPresence?.[place.id]?.occupants || place.neighbours;
+          const attendees = joined
+            ? [...occupants, { username: "you", label: "You" }]
+            : occupants;
+          return <button key={place.id} type="button"
+          onClick={() => enterCommonRoom(place.id)} disabled={joined}
           className="flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-3 text-left transition hover:bg-white/10">
           <span className="text-2xl" aria-hidden="true">{place.icon}</span>
           <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-cream">{place.label}</span>
             <span className="mt-1 block text-[11px] text-petal/60">{place.description}</span>
-            <span className="mt-1 block text-[10px] text-petal/45">
-              {place.neighbours.length} simulated neighbours · {place.seats.length - place.neighbours.length} guest seats
+            <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wide text-petal/55">Here now</span>
+            <span className="mt-1 flex flex-wrap gap-1">
+              {attendees.map((person) => <span key={person.username} title={`@${person.username}`}
+                className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-cream/85">
+                {person.label}
+              </span>)}
+            </span>
+            <span className="mt-1.5 block text-[10px] text-petal/45">
+              {place.seats.length - attendees.length} open seats
             </span>
           </span>
-          <span className="text-xs text-glow">{commonRoom?.sceneId === place.id ? "Here" : "Join"}</span>
-        </button>)}
+          <span className="text-xs text-glow">{joined ? "Here" : "Join"}</span>
+        </button>})}
       </section>
+      <FriendsLeaderboard
+        user={user}
+        friends={friends}
+        sessionDays={sessionDays}
+        now={now}
+      />
       {chatsError && (
         <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
           <p>Couldn't refresh conversations. Your saved chats are still there.</p>

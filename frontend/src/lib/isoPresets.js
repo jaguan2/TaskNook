@@ -47,9 +47,9 @@ export function createIsoPresets(defaultIsoSize) {
       // Tall storage hugs the left wall so the desk island stays visible.
       { item: "bookshelf", gx: 0, gy: 5.5, rot: 1, tint: "#bb9674" },
       { item: "cat", gx: 6, gy: 7.5 },
-      // Common window, individual wall decorations and greenery.
+      // Common window, one clear wall accent and greenery. The corkboard used
+      // to share the wardrobe's exact wall run, leaving only its top visible.
       { item: "bigwindow", gx: 3.5, gy: 0 },
-      { item: "corkboard", gx: 0, gy: 4, rot: 1 },
       { item: "hangplant", gx: 6.5, gy: 0 },
       { item: "pennant", gx: 0, gy: 0, tint: "#78998d" },
       { item: "snakeplant", gx: 7.5, gy: 4.5 },
@@ -133,9 +133,7 @@ export function createIsoPresets(defaultIsoSize) {
       // A fuller back wall makes the room feel built-in and collected.
       { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
       { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },
-      { item: "wallclock", gx: 4, gy: 0 },
       { item: "bigwindow", gx: 5, gy: 0 },
-      { item: "corkboard", gx: 7, gy: 0 },
       // The pendant fills the room's upper third and warms the plant corner.
       { item: "pendant", gx: 0, gy: 5, rot: 1 },
       // The middle is a proper reading nook: layered textile, two seats and
@@ -478,7 +476,6 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "runner", gx: 6.5, gy: 10.5, tint: "#8f4a3c" },
       { item: "cat", gx: 3.5, gy: 11 },
       { item: "frame", gx: 0.5, gy: 0, tint: "#9a6a45" },
-      { item: "wallclock", gx: 13.5, gy: 0 },
       { item: "hangplant", gx: 0, gy: 6.5, rot: 1 },
       { item: "poster", gx: 0, gy: 10, rot: 1 },
       // ---- a lounge corner at the front, so the room isn't four identical

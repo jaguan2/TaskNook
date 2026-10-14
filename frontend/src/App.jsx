@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sofa, X } from "lucide-react";
+import { ArrowLeft, Sofa, X } from "lucide-react";
 import { useStore } from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
@@ -12,6 +12,7 @@ import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import IsoRoom from "./components/IsoRoom";
 import CommonRoom from "./components/CommonRoom";
+import CommonRoomChat from "./components/CommonRoomChat";
 import { COMMON_PLACES } from "./lib/commonRooms";
 import TopBar from "./components/TopBar";
 import Dock from "./components/Dock";
@@ -116,6 +117,7 @@ export default function App() {
     homeScene,
     moveHomePersona,
     kickHomeVisitor,
+    friendship,
     user,
   } = useStore();
   // The NARROW timer context: running/phase only. Reading the full one here
@@ -361,7 +363,8 @@ export default function App() {
           {commonRoom ? (
             <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
               activity={running ? phase : null} timeOfDay={timeOfDay}
-              reduceMotion={sceneReduceMotion} onChooseSeat={chooseCommonSeat} />
+              reduceMotion={sceneReduceMotion} friendship={friendship}
+              onChooseSeat={chooseCommonSeat} />
           ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
@@ -381,6 +384,7 @@ export default function App() {
               character={character}
               reduceMotion={sceneReduceMotion}
               personas={visiting.personas}
+              friendship={friendship}
               saveView={false}
               walkId={visiting.guestId ?? null}
               onWalkTo={moveVisitGuest}
@@ -404,6 +408,7 @@ export default function App() {
               onTintItem={setIsoItemTint}
               onToggleItem={toggleIsoItem}
               personas={homeScene.personas}
+              friendship={friendship}
               /* Walking at home: every persona is grabbable outside Decorate,
                  same rule and same target marker as a visit. Unlike a visit it
                  persists — see `walkIsoPersona`. */
@@ -436,13 +441,36 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={leaveVisit}
+            aria-label={commonRoom
+              ? `Return home from ${COMMON_PLACES[commonRoom.sceneId].label}`
+              : `Return home from ${visiting.friend.displayName}'s room`}
+            title="Return home"
             className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
-            {commonRoom ? `${COMMON_PLACES[commonRoom.sceneId].icon} ${COMMON_PLACES[commonRoom.sceneId].label}` : `${visiting.friend.avatar} In ${visiting.friend.displayName}'s room`}
-            <span className="ml-1 text-petal/60">· home</span>
+            <ArrowLeft aria-hidden size={16} strokeWidth={2.2} />
+            {commonRoom ? <>
+              <span>{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
+              <span className="ml-1 text-petal/60">· Common room</span>
+            </> : <span>{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Common-room conversation is deliberately session-local: it follows
+          the simulated people currently in this visit without creating a
+          durable private/group thread in the Friends API. */}
+      {commonRoom && (
+        <div className={hudWrapClass(false, hudVisibility.chat)}>
+          <CommonRoomChat
+            key={`chat-${commonRoom.sceneId}`}
+            session={commonRoom}
+            roomName={COMMON_PLACES[commonRoom.sceneId].label}
+            user={user}
+            friendship={friendship}
+            disabled={hudVisibility.chat === "hidden"}
+          />
+        </div>
+      )}
 
       {/* Open-room visitors borrow the signature's bottom-left lane. Each
           guest is its own kick control: visible, keyboard reachable, and

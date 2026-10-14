@@ -1,9 +1,27 @@
 # Common rooms: fixed places to settle together
 
 Status: Common Cottage, Willow Pond and Grand Library implemented. Enter through Friends,
-choose a seat through the scene's Change seat control, and use
-Home or Escape to leave. The personal home remains independently editable.
+drag your character onto a glowing open seat (or click the temporary top-centre
+hint for accessible buttons), and use the bottom-left back arrow or Escape to leave.
+The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
+
+Each place card names everyone currently in its live simulated gathering before
+you join. Inside, close-set labels identify every seated neighbour and mark your
+own character as `You`; each neighbour's outlined heart fills with the existing
+friendship tally, while the user's label stays unadorned. The labels paint above the room rather than entering
+its furniture depth order.
+
+Every joined place also has a compact bottom-left room chat. `Enter` or `/`
+opens and focuses it when no other control is active; `Tab` opens the people
+list only while the composer has focus, so normal keyboard navigation remains
+available everywhere else. The first line welcomes the local user by name and
+later presence changes add one joined/left line. A sent line receives one
+delayed response from a neighbour who is still present, using the same authored
+voice and focus/break-aware timing as Friends chat. The people list can mute the
+local composer, pause incoming room chat, or locally mute an individual NPC.
+These controls and the bounded transcript last only for the current visit: room
+chat is simulated presence, not a backend conversation or multiplayer claim.
 
 The first pass includes a raised reading floor with solid steps, a shared
 study and lounge, six explicit seats and three simulated neighbours. Its
@@ -13,13 +31,22 @@ partition, clustered plants, layered rugs, active desktops and catalog-driven
 lamp pools. Detail stays around edges and thresholds so all six seats remain
 readable. Fixed props reuse the refined seating, storage, lamps and species-specific plants.
 The renderer is `components/CommonRoom.jsx`; the scene manifest and seat
-rules are `lib/commonRooms.js`. Occupancy lives only in the store's common-room
-session. Entry cancels pending knocks and supersedes stale friend-room
+rules are `lib/commonRooms.js`. `lib/commonPresence.js` owns the familiar cast
+and turnover rules; `lib/useCommonPresence.js` owns the slow scheduler and
+session lifecycle. Occupancy lives only in the store's
+in-memory presence map and current common-room session. Entry cancels pending knocks and supersedes stale friend-room
 requests. Choosing a seat does not write to the home API or its saved camera.
 
-Current captures: [arrival](screenshots/39-common-cottage.webp),
+Current captures: [pre-join attendee roster](screenshots/26-friends.webp),
+[arrival](screenshots/39-common-cottage.webp),
 [raised reading seat](screenshots/40-common-cottage-reading.webp), and
-[seat selection](screenshots/41-common-cottage-seats.webp). Willow Pond is
+[seat selection](screenshots/41-common-cottage-seats.webp). The
+[open room chat](screenshots/53-common-room-chat.webp) and
+[participant controls](screenshots/54-common-room-participants.webp) show the
+social overlay without replacing the room. A temporary
+top-centre hint invites the guest to drag their character onto any glowing open
+seat, then clears after five seconds; clicking it exposes the same choices as
+accessible buttons and keeps the chooser visible while it is in use. Willow Pond is
 shown at [sunset](screenshots/43-willow-pond.webp) and with its
 [seat choices open](screenshots/44-willow-pond-seats.webp).
 
@@ -64,7 +91,7 @@ staggered shared tables, two study pairs and two round reading tables, plus
 six fireside/quiet-corner armchairs and four places on two sofas. Shared tables
 have seats on both sides, while staggered armchairs and sofa corners keep the
 hall from becoming repeated rows of desks.
-Twelve deterministic neighbours leave twenty-four choices available; the user
+The authored twelve-person starting group leaves twenty-four choices available; the user
 arrives at the right reading desk. The gallery has its own 40-pixel floor height, solid steps and an
 open balustrade. Its seat anchors, props and light clips share that elevation.
 Tall shelving stays against the rear walls to preserve foreground views.
@@ -99,8 +126,8 @@ The user flow is short:
 
 1. Choose a common place from the Friends drawer. The first card gives its
    name, description and population; a scene thumbnail is future polish.
-2. Arrive directly in a free seat wearing the user's current character. Three
-   neighbours are already seated, with their own looks and focus/break states.
+2. Arrive directly in a free seat wearing the user's current character. A small
+   group is already seated, with their own looks and focus/break states.
 3. Select another open seat in the scene to settle there. Occupied seats show
    who is sitting there. Provide the same choices as keyboard/touch-reachable
    seat buttons; tiny chair artwork cannot be the only target.
@@ -149,14 +176,19 @@ about another app's implementation or multiplayer behaviour.
 ## Fixed design, living occupants
 
 Author the floor plan and furniture. Generate only the occupants from a small,
-deterministic roster when entering. Do not randomly arrange catalog items:
+familiar roster. Do not randomly arrange catalog items:
 it would surrender the composition that fixed places are meant to improve.
 
-Neighbour identity, outfit and seat stay stable throughout a visit. Their
-focus/break activity can continue using `npcActivity`, so each person has
-their own routine rather than copying the user's timer. A task refresh or
-opening a drawer must not reshuffle who is there. Slow arrivals/departures can
-be a later feature after the static scene and seat selection work well.
+Neighbour outfit and seat stay stable while that neighbour is present. Their
+focus/break activity continues using `npcActivity`, so each person has their
+own routine rather than copying the user's timer. One resident joins or leaves
+at a time, with the next turnover scheduled between thirty minutes and four
+hours. The same store-owned population drives the Friends card and the open
+room, so the pre-join roster cannot disagree with the visible seats. Arrivals
+never claim the user's current chair; every population leaves at least one seat
+available. A task refresh or opening a drawer does not reshuffle the room, and
+an app returning after a long sleep applies only one change rather than replaying
+a noisy backlog.
 
 The original seated rig remains the baseline following the rejected pose
 prototype. Fixed seat anchors make it possible to review a future authored
@@ -174,7 +206,11 @@ occlusion, theme colours and live lighting harder to maintain.
 | Module | Responsibility | Boundary |
 |---|---|---|
 | `lib/commonRooms.js` | Place manifests, floor heights, fixed props and explicit seats | Stable place/seat IDs; occupancy is separate from authored furniture |
+| `lib/commonPresence.js` | Pure common-place roster and 30-minute-to-4-hour turnover policy | One arrival/departure per deadline; user's occupied seat stays reserved |
+| `lib/useCommonPresence.js` | In-memory populations, deadline timer and joined session | Friends roster and visible room share one population source |
+| `lib/commonChat.js` | Welcome/presence text, bounded history and responder selection | Reuses NPC voices but does not create API conversations or persistence |
 | `CommonRoom.jsx` | Shared props, characters, lighting and seat interaction | Supports each place's floor heights without editable-home validation |
+| `CommonRoomChat.jsx` | Visit-local transcript, shortcuts, reply timers and moderation state | Enter and `/` never steal keys from an active form/control; timers clear on exit |
 | `CommonGardenScene.jsx` | Willow Pond's lawn, terrace, paths and pergola | Outdoor geometry stays separate from cottage architecture |
 | `lib/isoRoom.js` / `IsoRoom.jsx` | Catalog sprites, placement helpers and editable-home rendering | The home format remains a single editable floor; its stair sprite does not add an upper storey |
 | `App.jsx` | Chooses home, friend visit or common place; keeps HUD/audio mounted | A common place does not require `visiting.friend` |
