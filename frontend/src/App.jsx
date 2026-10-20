@@ -317,12 +317,12 @@ export default function App() {
           mounted throughout: unmounting it would replay its .intro-chrome
           boot entrance on every single toggle, which is
           exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
-      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
+      <div className={widgetMode ? "scene-paused pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay}
         showOrb={!commonSceneId || COMMON_PLACES[commonSceneId]?.kind === "garden"} />
-      <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
+      <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} paused={widgetMode} />
 
       {/* Centerpiece cottage. A short, direct zoom establishes the room
           without the old picture-frame/window sequence or its long hold.
@@ -364,6 +364,7 @@ export default function App() {
             <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
               activity={running ? phase : null} timeOfDay={timeOfDay}
               reduceMotion={sceneReduceMotion} friendship={friendship}
+              paused={widgetMode}
               onChooseSeat={chooseCommonSeat} />
           ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
@@ -383,6 +384,7 @@ export default function App() {
               activity={running ? phase : null}
               character={character}
               reduceMotion={sceneReduceMotion}
+              paused={widgetMode}
               personas={visiting.personas}
               friendship={friendship}
               saveView={false}
@@ -402,6 +404,7 @@ export default function App() {
               character={character}
               mood={mood}
               reduceMotion={sceneReduceMotion}
+              paused={widgetMode}
               onMoveItem={moveIsoItem}
               onRemoveItem={removeIsoItem}
               onRotateItem={rotateIsoItem}
@@ -427,6 +430,7 @@ export default function App() {
               onRemoveItem={removeRoomItem}
               onTintItem={setRoomItemTint}
               reduceMotion={reduceMotion}
+              paused={widgetMode}
             />
           )}
         </ErrorBoundary>
@@ -445,13 +449,13 @@ export default function App() {
               ? `Return home from ${COMMON_PLACES[commonRoom.sceneId].label}`
               : `Return home from ${visiting.friend.displayName}'s room`}
             title="Return home"
-            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 w-11 items-center justify-center gap-1.5 px-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10 xl:w-auto xl:max-w-[calc(100vw-24rem)] xl:justify-start xl:px-4"
           >
-            <ArrowLeft aria-hidden size={16} strokeWidth={2.2} />
+            <ArrowLeft aria-hidden className="shrink-0" size={16} strokeWidth={2.2} />
             {commonRoom ? <>
-              <span>{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
-              <span className="ml-1 text-petal/60">· Common room</span>
-            </> : <span>{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
+              <span className="hidden min-w-0 truncate xl:inline">{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
+              <span className="ml-1 hidden shrink-0 text-petal/60 xl:inline">· Common room</span>
+            </> : <span className="hidden min-w-0 truncate xl:inline">{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
           </motion.button>
         )}
       </AnimatePresence>
@@ -573,7 +577,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
+      <div className={widgetMode ? "scene-paused pointer-events-none invisible opacity-0" : undefined}>
       <AnimatePresence>
         {openPanels.map(({ key, pinned }, i) => {
           const Def = PANELS[key];

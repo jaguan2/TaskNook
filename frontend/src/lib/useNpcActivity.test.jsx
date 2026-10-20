@@ -34,4 +34,24 @@ describe("independent NPC activity", () => {
     rerender({ activity: "break" });
     expect(result.current).toBe("break");
   });
+
+  it("stops its visual clock while hidden and catches up immediately on return", () => {
+    vi.useFakeTimers();
+    let now = new Date(2026, 8, 10, 12).getTime();
+    while (npcActivity("luna", now).state !== "break") now += 60_000;
+    vi.setSystemTime(now);
+    const { result, rerender } = renderHook(({ paused }) => useNpcActivity("luna", null, paused), {
+      initialProps: { paused: false },
+    });
+    expect(result.current).toBe("break");
+    rerender({ paused: true });
+    expect(vi.getTimerCount()).toBe(0);
+    do { now += 60_000; } while (npcActivity("luna", now).state === "break");
+    vi.setSystemTime(now);
+    expect(result.current).toBe("break");
+    rerender({ paused: false });
+    const expected = npcActivity("luna", now).state;
+    expect(result.current).toBe(expected === "idle" ? null : expected);
+    expect(vi.getTimerCount()).toBe(1);
+  });
 });

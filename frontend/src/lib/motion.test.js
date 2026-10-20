@@ -233,8 +233,8 @@ describe("transitions are gated in JS, because CSS can't reach them", () => {
     expect(isoRoom).toMatch(/glides\s*&&\s*!editMode\s*&&\s*!reduceMotion/);
   });
 
-  it("the wander timer doesn't run at all under reduced motion", () => {
-    expect(isoRoom).toMatch(/if \(editMode \|\| reduceMotion\)/);
+  it("the wander timer doesn't run under reduced motion or while the scene is paused", () => {
+    expect(isoRoom).toMatch(/if \(editMode \|\| reduceMotion \|\| paused\)/);
   });
 
   it("the lightning flash is still gated too", () => {

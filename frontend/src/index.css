@@ -1600,6 +1600,20 @@ body {
 /* Decoration thumbnails stay still while the full cottage remains alive. */
 .cottage-preview * { animation: none !important; }
 
+/* Keep the scene and its animation phases mounted while the timer is a widget. */
+.scene-paused *, .scene-paused *::before, .scene-paused *::after {
+  animation-play-state: paused !important;
+}
+
+/* A fixed hall keeps six candle flames, motes and the guest's activity alive.
+   Background catalog loops and NPC gestures do not all need to run at once. */
+.common-library-calm [data-common-prop] *,
+.common-library-calm [data-common-light] *,
+.common-library-calm [data-common-person]:not([data-common-person="you"]) * {
+  animation: none !important;
+}
+.common-seat-picker { background: rgb(var(--color-plum) / 0.97); }
+
 /* Widget mode is one composed surface, independent of the floating room HUD. */
 .focus-widget {
   position: absolute;

@@ -61,7 +61,7 @@ function IsoItemPreviewInner({ itemKey }) {
     <svg
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
-      className="h-9 w-9 shrink-0"
+      className="cottage-preview h-9 w-9 shrink-0"
       aria-hidden="true"
     >
       <g ref={gRef}>
@@ -154,7 +154,7 @@ function IsoPresetPreviewInner({ preset }) {
   return (
     <svg
       viewBox={`${L.x - 6} -118 ${R.x - L.x + 12} ${F.y + 132}`}
-      className="h-24 w-full"
+      className="cottage-preview h-24 w-full"
       aria-hidden="true"
     >
       {shellRuns.map((run, index) => (

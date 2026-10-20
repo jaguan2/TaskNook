@@ -55,12 +55,13 @@ export default function Dock({ active, onSelect, onWarm }) {
     // Vertically centred when there's room, but never allowed to climb into
     // the top-left corner — that's the focus card's spot, and on short
     // windows the item list scrolls, so adding a tab cannot strand Settings
-    // below the viewport. Tooltips sit outside the scrolling glass surface.
+    // below the viewport. Reserve the bottom rail for Return Home/signature
+    // and transport controls. Tooltips sit outside the scrolling glass surface.
     <div
       className="intro-chrome absolute left-6 z-20"
       style={{
         top: "max(172px, calc(50vh - 228px))",
-        maxHeight: "calc(100vh - max(172px, calc(50vh - 228px)) - 24px)",
+        maxHeight: "calc(100vh - max(172px, calc(50vh - 228px)) - 80px)",
       }}
     >
       <div className="glass flex flex-col gap-1.5 rounded-3xl p-1.5 shadow-soft" style={{ maxHeight: "inherit" }}>

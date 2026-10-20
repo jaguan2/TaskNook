@@ -60,7 +60,7 @@ function ItemPreview({ itemKey }) {
   return (
     <svg
       viewBox={`${x - 4} ${y - 4} ${w + 8} ${h + 8}`}
-      className="h-9 w-9 shrink-0"
+      className="cottage-preview h-9 w-9 shrink-0"
       aria-hidden="true"
     >
       <defs>

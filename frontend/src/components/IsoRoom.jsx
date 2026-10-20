@@ -36,6 +36,7 @@ import PersonaNameTag from "./PersonaNameTag";
 import { levelFor } from "../lib/friendship";
 import RoomTintPicker from "./RoomTintPicker";
 import IsoAtmosphere from "./IsoAtmosphere";
+import IsoContactShadow from "./IsoContactShadow";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -209,6 +210,7 @@ const PlacedItem = memo(function PlacedItem({
   character,
   mood,
   reduceMotion,
+  paused,
   onStartDrag,
   // A visited room's people: {character, label} for THIS placement. Lets a
   // generic `resident` wear someone else's look without `self` semantics.
@@ -227,7 +229,7 @@ const PlacedItem = memo(function PlacedItem({
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
   const glide = useGlide(at.x, at.y, glides && !editMode && !reduceMotion);
-  const personaActivity = useNpcActivity(personaInfo?.npcUsername, activity);
+  const personaActivity = useNpcActivity(personaInfo?.npcUsername, activity, paused);
   if (!item || !Sprite) return null;
   const foot = footOf(p.item, p.rot);
   // Wanderers use a CSS transform (transition = the glide);
@@ -301,25 +303,8 @@ const PlacedItem = memo(function PlacedItem({
           under every grounded item. This is most of what makes the
           sprites read as sitting IN the room instead of pasted on
           (flat rugs/ponds and wall decor obviously except). */}
-      {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest && (() => {
-        // A shadow centred under the object is a shadow from a lamp
-        // directly overhead — it reads as a symmetric smudge and
-        // gives nothing away about the light. The scene's light
-        // comes from the upper RIGHT (string lights, the orb at the
-        // third intersection), so the shadow leans down-left, away
-        // from it, and stretches with the object's height.
-        const mid = project(foot[0] / 2, foot[1] / 2);
-        const lean = Math.min(9, 2 + (item.hitH || 20) * 0.06);
-        return (
-          <ellipse
-            cx={mid.x - lean}
-            cy={mid.y + lean * 0.5}
-            rx={((foot[0] + foot[1]) * TILE_W) / 4 + 3 + lean * 0.4}
-            ry={((foot[0] + foot[1]) * TILE_H) / 4 + 1.5}
-            fill="url(#isoShadow)"
-          />
-        );
-      })()}
+      {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest &&
+        <IsoContactShadow foot={foot} height={item.hitH} />}
       {/* Mirroring about the origin is a grid TRANSPOSE — the item
           faces the other wall and its footprint swaps to match.
           noMirror items (rendered PNGs) ship a real second render
@@ -492,6 +477,7 @@ function IsoSceneInner({
   walkPersonas = false,
   // The one being carried right now, drawn by the overlay instead of here.
   carriedId = null,
+  paused = false,
 }) {
   const hour = ISO_TIME[timeOfDay] || ISO_TIME.night;
   const tod = { ...hour, windowLight: hour.windowLight * (weather === "off" ? 1 : weather === "cloudy" ? 0.55 : 0.3) };
@@ -546,8 +532,8 @@ function IsoSceneInner({
     // Reduced motion stops pet roaming, rather than replacing glides with
     // jumps. This retires the interval and its renders; ambient CSS animation
     // is controlled separately by the reduced-motion styles.
-    if (editMode || reduceMotion) {
-      roamRef.current = {};
+    if (editMode || reduceMotion || paused) {
+      if (!paused) roamRef.current = {};
       return undefined;
     }
     const id = setInterval(() => {
@@ -629,7 +615,7 @@ function IsoSceneInner({
       setRoamTick((t) => t + 1);
     }, 3500);
     return () => clearInterval(id);
-  }, [editMode, reduceMotion, placements, size]);
+  }, [editMode, reduceMotion, paused, placements, size]);
 
   // Same home-check the roam tick applies: a record whose home moved is dead.
   const roamOffset = (p) => {
@@ -1077,6 +1063,7 @@ function IsoSceneInner({
                 character={character}
                 mood={mood}
                 reduceMotion={reduceMotion}
+                paused={paused}
                 onStartDrag={onStartDrag}
                 personaInfo={personas ? personas[p.id] : null}
                 walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
@@ -1221,6 +1208,7 @@ function IsoRoom({
   character,
   mood = null,
   reduceMotion = false,
+  paused = false,
   personas = null,
   friendship = null,
   // False while VISITING: a pan around a friend's room must not overwrite
@@ -1651,6 +1639,7 @@ function IsoRoom({
           character={character}
           mood={mood}
           reduceMotion={reduceMotion}
+          paused={paused}
           cx={cx}
           cy={cy}
           onStartDrag={onStartDrag}

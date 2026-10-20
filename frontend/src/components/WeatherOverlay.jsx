@@ -15,11 +15,12 @@ const LEAF_COLOURS = ["#c9622f", "#d98a3c", "#a8452c", "#b8863a"];
 // photosensitivity concern, not just a motion one, and being a CSS
 // *transition* it escapes the animation-silencing rules entirely, so it has
 // to be gated in JS.
-function WeatherOverlay({ mode, reduceMotion = false }) {
+function WeatherOverlay({ mode, reduceMotion = false, paused = false }) {
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    if (mode !== "storm" || reduceMotion) return undefined;
+    setFlash(false);
+    if (mode !== "storm" || reduceMotion || paused) return undefined;
     let timer;
     let flashTimer;
     const scheduleFlash = () => {
@@ -34,7 +35,7 @@ function WeatherOverlay({ mode, reduceMotion = false }) {
       clearTimeout(timer);
       clearTimeout(flashTimer);
     };
-  }, [mode, reduceMotion]);
+  }, [mode, reduceMotion, paused]);
 
   if (!mode || mode === "off") return null;
 
@@ -125,7 +126,7 @@ function WeatherOverlay({ mode, reduceMotion = false }) {
           );
         })}
 
-      {mode === "storm" && !reduceMotion && (
+      {mode === "storm" && !reduceMotion && !paused && (
         <div className={`lightning-flash ${flash ? "lightning-flash-active" : ""}`} />
       )}
     </div>
