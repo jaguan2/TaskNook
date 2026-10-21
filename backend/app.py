@@ -11,6 +11,7 @@ from functools import wraps
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_migrate import Migrate
+from sqlalchemy import tuple_
 from sqlalchemy.exc import IntegrityError, OperationalError
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -1281,6 +1282,17 @@ def register_routes(app):
             conversation_id=chat_id, user_id=user.id
         ).first()
 
+    def _unread_messages(viewer_id):
+        return Message.query.join(ConversationMember, db.and_(
+            ConversationMember.conversation_id == Message.conversation_id,
+            ConversationMember.user_id == viewer_id,
+        )).filter(
+            Message.sender_id != viewer_id,
+            db.or_(ConversationMember.last_read_at.is_(None),
+                   tuple_(Message.created_at, Message.id) > tuple_(
+                       ConversationMember.last_read_at, ConversationMember.last_read_message_id)),
+        )
+
     def _chat_payload(chat, viewer_id, members_by_chat, last_by_chat, unread_by_chat):
         return {
             "id": chat.id,
@@ -1325,35 +1337,28 @@ def register_routes(app):
         last_by_chat = {}
         unread_by_chat = {}
         if ids:
-            ranked = (
-                db.session.query(
-                    Message.id.label("message_id"),
-                    db.func.row_number().over(
-                        partition_by=Message.conversation_id,
-                        order_by=(Message.created_at.desc(), Message.id.desc()),
-                    ).label("rank"),
-                )
-                .filter(Message.conversation_id.in_(ids))
-                .subquery()
+            # One indexed seek per conversation inside ONE SQL query. Ranking
+            # every message first made even a tiny thread list scan all history.
+            latest_id = (
+                db.session.query(Message.id)
+                .filter(Message.conversation_id == Conversation.id)
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .limit(1)
+                .correlate(Conversation)
+                .scalar_subquery()
             )
             for msg in (
-                Message.query.join(ranked, Message.id == ranked.c.message_id)
-                .filter(ranked.c.rank == 1)
+                db.session.query(Message)
+                .select_from(Conversation)
+                .join(Message, Message.id == latest_id)
+                .filter(Conversation.id.in_(ids))
                 .all()
             ):
                 last_by_chat[msg.conversation_id] = msg
             unread_by_chat = dict(
-                db.session.query(Message.conversation_id, db.func.count(Message.id))
-                .join(ConversationMember, db.and_(
-                    ConversationMember.conversation_id == Message.conversation_id,
-                    ConversationMember.user_id == user.id,
-                ))
-                .filter(
-                    Message.conversation_id.in_(ids),
-                    Message.sender_id != user.id,
-                    db.or_(ConversationMember.last_read_at.is_(None),
-                           Message.created_at > ConversationMember.last_read_at),
-                )
+                _unread_messages(user.id)
+                .with_entities(Message.conversation_id, db.func.count(Message.id))
+                .filter(Message.conversation_id.in_(ids))
                 .group_by(Message.conversation_id)
                 .all()
             )
@@ -1434,10 +1439,7 @@ def register_routes(app):
         # Clear the relationship's default ascending order before asking for
         # the newest line; Query.order_by otherwise APPENDS its arguments.
         last = chat.messages.order_by(None).order_by(Message.created_at.desc(), Message.id.desc()).first()
-        membership = _membership(viewer, chat.id)
-        unread = chat.messages.filter(Message.sender_id != viewer.id)
-        if membership.last_read_at is not None:
-            unread = unread.filter(Message.created_at > membership.last_read_at)
+        unread = _unread_messages(viewer.id).filter(Message.conversation_id == chat.id)
         return {
             "id": chat.id,
             "title": chat.title,
@@ -1469,10 +1471,7 @@ def register_routes(app):
                 return jsonify({"error": "Not found"}), 404
             # IDs break timestamp ties. The cursor belongs to THIS thread;
             # neither another thread's timestamps nor offset shifts leak in.
-            query = query.filter(db.or_(
-                Message.created_at < cursor.created_at,
-                db.and_(Message.created_at == cursor.created_at, Message.id < cursor.id),
-            ))
+            query = query.filter(tuple_(Message.created_at, Message.id) < (cursor.created_at, cursor.id))
         rows = (
             query
             .order_by(Message.created_at.desc(), Message.id.desc())
@@ -1516,8 +1515,10 @@ def register_routes(app):
         # Sending is reading: your own line must not come back as unread, and
         # you were plainly looking at the thread when you wrote it.
         if sender_id == user.id:
+            db.session.flush()
             member = _membership(user, chat_id)
-            member.last_read_at = utcnow().replace(tzinfo=None)
+            member.last_read_at = msg.created_at
+            member.last_read_message_id = msg.id
         db.session.commit()
         return jsonify(msg.to_dict()), 201
 
@@ -1536,6 +1537,7 @@ def register_routes(app):
         if not member:
             return jsonify({"error": "Not found"}), 404
         member.last_read_at = utcnow().replace(tzinfo=None)
+        member.last_read_message_id = db.session.query(db.func.max(Message.id)).filter_by(conversation_id=chat_id).scalar() or 0
         db.session.commit()
         return jsonify({"ok": True})
 
@@ -1557,28 +1559,23 @@ def register_routes(app):
 
 
 def build_stats_for(user_ids):
-    """`build_stats` for MANY users, in a fixed number of queries.
+    """One productivity policy for both the local account and friends.
 
-    The friends panel asked for four aggregates per friend plus one for the
-    viewer — seventeen round trips for the four seeded demo friends, growing
-    linearly. Two GROUPED queries answer all of it regardless of how many friends
-    there are, and the result is less code than the loop it replaces, not more.
-
-    Conditional aggregates rather than four separate scans: `sum(case(...))` lets
-    one pass over a user's tasks produce the total, the completed count and the
-    completed-today count at once. The two time windows stay exactly as
-    `build_stats` documents them — the list-wide counts and the local-day ones are
-    computed side by side here, not merged.
+    List totals/completion describe the current, unarchived list. Daily credit
+    includes archived completions: moving finished work to the journal must not
+    erase it from today's achievements. Focus minutes use the same local day.
+    Two grouped queries answer all requested users without loading task history.
     """
     ids = list(user_ids)
     if not ids:
         return {}
     day_start = local_day_start_utc()
+    active = Task.archived_at.is_(None)
     task_rows = (
         db.session.query(
             Task.user_id,
-            db.func.count(Task.id),
-            db.func.coalesce(db.func.sum(db.case((Task.completed.is_(True), 1), else_=0)), 0),
+            db.func.coalesce(db.func.sum(db.case((active, 1), else_=0)), 0),
+            db.func.coalesce(db.func.sum(db.case((db.and_(active, Task.completed.is_(True)), 1), else_=0)), 0),
             db.func.coalesce(
                 db.func.sum(
                     db.case(
@@ -1596,7 +1593,7 @@ def build_stats_for(user_ids):
                 0,
             ),
         )
-        .filter(Task.user_id.in_(ids), Task.archived_at.is_(None))
+        .filter(Task.user_id.in_(ids))
         .group_by(Task.user_id)
         .all()
     )
@@ -1625,52 +1622,8 @@ def build_stats_for(user_ids):
 
 
 def build_stats(user):
-    """Aggregate a user's productivity.
-
-    Two DIFFERENT time windows live here, and mixing them up is exactly the bug
-    this shape exists to prevent: `tasksTotal`/`tasksDone`/`completion` describe
-    the CURRENT LIST (which is ongoing — a standing to-do list isn't created
-    fresh each morning), while `tasksDoneToday`/`focusMinutesToday` are bucketed
-    by the local day. Label them accordingly in the UI; "Today's completion" over
-    a lifetime count read as today's progress and never moved.
-
-    COUNT queries, not `.all()` — this runs once per friend per friends-panel
-    refresh, and hydrating every task row just to count them was the app's
-    one real N+1.
-    """
-    today = today_str()
-    total = db.session.query(db.func.count(Task.id)).filter(Task.user_id == user.id, Task.archived_at.is_(None)).scalar() or 0
-    done = (
-        db.session.query(db.func.count(Task.id))
-        .filter(Task.user_id == user.id, Task.completed.is_(True), Task.archived_at.is_(None))
-        .scalar()
-        or 0
-    )
-    done_today = (
-        db.session.query(db.func.count(Task.id))
-        .filter(
-            Task.user_id == user.id,
-            Task.completed.is_(True),
-            Task.completed_at.isnot(None),
-            Task.completed_at >= local_day_start_utc(),
-        )
-        .scalar()
-        or 0
-    )
-
-    focus_minutes = (
-        db.session.query(db.func.coalesce(db.func.sum(FocusSession.minutes), 0))
-        .filter_by(user_id=user.id, day=today)
-        .scalar()
-        or 0
-    )
-    return {
-        "tasksTotal": total,
-        "tasksDone": done,
-        "tasksDoneToday": int(done_today),
-        "completion": round(done / total * 100) if total else 0,
-        "focusMinutesToday": int(focus_minutes),
-    }
+    """Single-user view of the same list/day aggregation used for friends."""
+    return build_stats_for([user.id])[user.id]
 
 
 # --------------------------------------------------------------------------- #

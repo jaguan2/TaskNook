@@ -120,6 +120,94 @@ def test_history_cursor_is_validated_and_scoped_to_thread(client, auth):
     assert client.get(f"{path}?before={msg['id']}", headers=auth).status_code == 404
 
 
+@pytest.mark.parametrize("mark_read", [False, True])
+def test_later_messages_at_the_read_timestamp_still_count_as_unread(client, app, auth, mark_read):
+    luna = friend_id(client, auth)
+    chat = open_chat(client, auth, luna).get_json()
+    path = f"/api/chats/{chat['id']}"
+    client.post(f"{path}/messages", json={"body": "I was reading here"}, headers=auth)
+    if mark_read:
+        assert client.post(f"{path}/read", headers=auth).status_code == 200
+    for body in ["first reply", "second reply"]:
+        reply = client.post(f"{path}/messages", json={"body": body, "senderId": luna}, headers=auth).get_json()
+        with app.app_context():
+            # Model a clock whose precision gives consecutive requests the
+            # same timestamp, as can happen in the packaged Windows runtime.
+            marker = ConversationMember.query.filter_by(conversation_id=chat["id"]).filter(ConversationMember.user_id != luna).one()
+            db.session.get(Message, reply["id"]).created_at = marker.last_read_at
+            db.session.commit()
+    assert client.get("/api/chats", headers=auth).get_json()[0]["unread"] == 2
+    assert open_chat(client, auth, luna).get_json()["unread"] == 2
+    client.post(f"{path}/read", headers=auth)
+    assert client.get("/api/chats", headers=auth).get_json()[0]["unread"] == 0
+
+
+def test_history_pages_follow_timestamp_then_id_when_insert_order_differs(client, app, auth):
+    luna = friend_id(client, auth)
+    chat = open_chat(client, auth, luna).get_json()
+    with app.app_context():
+        for body, day in [("middle first", 2), ("oldest", 1), ("newest", 3), ("middle second", 2)]:
+            db.session.add(Message(conversation_id=chat["id"], sender_id=luna,
+                                   body=body, created_at=datetime(2026, 1, day)))
+        db.session.commit()
+    path = f"/api/chats/{chat['id']}/messages?limit=2"
+    latest = client.get(path, headers=auth).get_json()
+    assert [row["body"] for row in latest] == ["middle second", "newest"]
+    older = client.get(f"{path}&before={latest[0]['id']}", headers=auth).get_json()
+    assert [row["body"] for row in older] == ["oldest", "middle first"]
+
+
+def test_thread_previews_pick_the_latest_timestamp_and_id_independently(client, app, auth):
+    luna, kai, sora = [friend_id(client, auth, name) for name in ("luna", "kai", "sora")]
+    first = open_chat(client, auth, luna).get_json()["id"]
+    second = open_chat(client, auth, kai).get_json()["id"]
+    empty = open_chat(client, auth, sora).get_json()["id"]
+    with app.app_context():
+        for chat_id, sender, body, day in [
+            (first, luna, "earlier tie", 3), (second, kai, "Kai latest", 4),
+            (first, luna, "later tie", 3), (second, kai, "Kai older inserted last", 1),
+        ]:
+            db.session.add(Message(conversation_id=chat_id, sender_id=sender,
+                                   body=body, created_at=datetime(2026, 1, day)))
+        db.session.commit()
+    chats = {row["id"]: row for row in client.get("/api/chats", headers=auth).get_json()}
+    assert chats[first]["lastMessage"]["body"] == "later tie"
+    assert chats[second]["lastMessage"]["body"] == "Kai latest"
+    assert chats[empty]["lastMessage"] is None
+    assert chats[first]["unread"] == chats[second]["unread"] == 2
+
+
+def test_listing_more_threads_does_not_add_per_thread_queries(client, app, auth):
+    luna = friend_id(client, auth)
+
+    def add_thread(body):
+        chat = open_chat(client, auth, luna, title=body, is_group=True).get_json()
+        client.post(f"/api/chats/{chat['id']}/messages", json={"body": body}, headers=auth)
+
+    def read_with_query_count():
+        selects = []
+        def record(connection, cursor, statement, parameters, context, executemany):
+            if statement.lstrip().upper().startswith("SELECT"):
+                selects.append(statement)
+        with app.app_context():
+            engine = db.engine
+            event.listen(engine, "before_cursor_execute", record)
+            try:
+                payload = client.get("/api/chats", headers=auth).get_json()
+            finally:
+                event.remove(engine, "before_cursor_execute", record)
+        return payload, len(selects)
+
+    add_thread("first")
+    small, small_queries = read_with_query_count()
+    assert [row["lastMessage"]["body"] for row in small] == ["first"]
+    for name in ["second", "third", "fourth", "fifth", "sixth", "seventh"]:
+        add_thread(name)
+    large, large_queries = read_with_query_count()
+    assert {row["lastMessage"]["body"] for row in large} == {"first", "second", "third", "fourth", "fifth", "sixth", "seventh"}
+    assert large_queries == small_queries
+
+
 def test_a_group_can_repeat_the_same_people(client, auth):
     """Groups are NOT deduplicated: two groups with the same members is a
     thing people actually want (work vs. weekend)."""

@@ -569,9 +569,13 @@ running `git commit` yourself.
   three tables — `Conversation` (`is_group` STORED, not inferred from the
   member count, because a group left with two people is still a group),
   `ConversationMember` (a model rather than a plain association table like
-  `friendships`, because membership carries `last_read_at` — a TIMESTAMP, so
-  the unread count is derived from the messages and can't drift out of step
-  with them) and `Message`. Endpoints: GET/POST `/api/chats`, GET/POST
+  `friendships`, because membership carries a read boundary:
+  `last_read_at` plus `last_read_message_id`. Timestamp/ID comparison keeps
+  later arrivals unread even when the clock gives them the same timestamp;
+  counts are derived from messages, never maintained separately) and `Message`.
+  Its `(conversation_id, created_at, id)` index serves reverse history scans
+  and indexed latest-message seeks; cursor IDs remain scoped to their thread.
+  Endpoints: GET/POST `/api/chats`, GET/POST
   `/api/chats/<id>/messages`, POST `/api/chats/<id>/read`, DELETE
   `/api/chats/<id>`. A one-to-one is **idempotent** ("message Luna" is a
   place, not an event); a group is deliberately not (two groups with the

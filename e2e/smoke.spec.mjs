@@ -53,3 +53,22 @@ test("a task survives the production browser journey", async ({ page, baseURL })
   await page.waitForLoadState("networkidle");
   expect(failures, failures.join("\n")).toEqual([]);
 });
+
+test("hidden room chat cannot intercept widget shortcuts and retains its draft", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  await page.getByRole("textbox", { name: "Message the room" }).fill("Keep my room-chat draft");
+  await page.getByRole("button", { name: "Widget Mode", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Focus widget" })).toBeVisible();
+  await page.mouse.click(850, 650);
+  await page.keyboard.press("/");
+  await expect(page.locator("[data-common-room-chat]")).toHaveAttribute("data-common-chat-open", "false");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("region", { name: "Focus widget" })).toHaveCount(0);
+  await expect(page.locator('[data-common-room="common-cottage"]')).toBeVisible();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  await expect(page.getByRole("textbox", { name: "Message the room" })).toHaveValue("Keep my room-chat draft");
+});

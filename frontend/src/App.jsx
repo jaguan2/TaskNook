@@ -316,7 +316,7 @@ export default function App() {
           since HudFocusCard (kept OUTSIDE this wrapper, below) must stay
           mounted throughout: unmounting it would replay its .intro-chrome
           boot entrance on every single toggle, which is
-          exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
+          exactly the trap AGENTS.md's intro-chrome gotcha warns about. */}
       <div className={widgetMode ? "scene-paused pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
@@ -471,7 +471,7 @@ export default function App() {
             roomName={COMMON_PLACES[commonRoom.sceneId].label}
             user={user}
             friendship={friendship}
-            disabled={hudVisibility.chat === "hidden"}
+            disabled={widgetMode || hudVisibility.chat === "hidden"}
           />
         </div>
       )}

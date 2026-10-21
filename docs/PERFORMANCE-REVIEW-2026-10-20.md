@@ -4,6 +4,8 @@ The initial audit was revised after an independent second Codex review and
 comparison with all eight photos in `docs/inpso/`. The five accepted UI and
 art improvements are now implemented on `dev`; the findings further below
 retain the original measurements and the separately deferred opportunities.
+The [October 21 follow-up](REVIEW-2026-10-21.md) implements the chat-history,
+preview-query and statistics improvements, plus a widget keyboard correction.
 
 The checkout started at `f46971e` on `dev` and advanced to `e07b49e` during the
 review. The original audit's final browser checks and frontend tests cover `e07b49e`, including

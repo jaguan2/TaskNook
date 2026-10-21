@@ -6,8 +6,8 @@ import { memo, useMemo } from "react";
 // of day COMPOSE — cloudy nights, rainy sunsets — so every element takes a
 // time-aware tone: clouds are pale by day, ember-lit at sunset, dark
 // silhouettes at night, storm-heavy in rain/storm. All movement is CSS
-// keyframes (the app re-renders every second; CSS animations don't care),
-// and everything is pointer-transparent and behind the HUD corners.
+// keyframes, independent of the timer provider; widget/reduced-motion rules
+// pause or silence them. Everything is pointer-transparent behind the HUD.
 const STAR_COUNT = 44;
 
 /**
