@@ -727,6 +727,7 @@ describe("environments", () => {
 
   it("keeps a known env, defaults junk to room (implicit)", () => {
     expect(validateIsoLayout({ w: 9, d: 7, env: "garden", placements: [] }).env).toBe("garden");
+    expect(validateIsoLayout({ w: 9, d: 7, env: "snow", placements: [] }).env).toBe("snow");
     expect(validateIsoLayout({ w: 9, d: 7, env: "space", placements: [] }).env).toBeUndefined();
     expect(validateIsoLayout({ w: 9, d: 7, env: "room", placements: [] }).env).toBeUndefined();
   });
@@ -819,6 +820,26 @@ describe("presets", () => {
     expect(loft.find((p) => p.item === "desk")).toMatchObject({ gx: 0, gy: 1.5, rot: 1 });
     expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1.5, gy: 2.5, rot: 3 });
     expect(loft.some((p) => p.item === "mushroomlamp")).toBe(false);
+  });
+
+  it("builds Secret garden around one central pond with seating on every side", () => {
+    const garden = isoPresetLayout("garden");
+    expect({ w: garden.w, d: garden.d, env: garden.env }).toEqual({ w: 16, d: 14, env: "garden" });
+    expect(garden.placements.find((p) => p.item === "gardenpond")).toMatchObject({
+      item: "gardenpond", gx: 4, gy: 3.5,
+    });
+    expect(garden.placements.find((p) => p.item === "gardentrail")).toMatchObject({
+      item: "gardentrail", gx: 12, gy: 10, rot: 1,
+    });
+    const benches = garden.placements
+      .filter((p) => p.item === "bench")
+      .map(({ item, gx, gy, rot }) => ({ item, gx, gy, rot }));
+    expect(benches).toEqual([
+      { item: "bench", gx: 7, gy: 2.5, rot: 0 },
+      { item: "bench", gx: 12.5, gy: 5.5, rot: 3 },
+      { item: "bench", gx: 7, gy: 10.5, rot: 2 },
+      { item: "bench", gx: 3, gy: 5.5, rot: 1 },
+    ]);
   });
 
   it("pairs one sleeping corner with two opposing workstations", () => {
@@ -936,8 +957,15 @@ describe("presets", () => {
 
   it("uses coherent architecture for the seasonal showcase rooms", () => {
     expect(ISO_PRESETS.winter.items.some((p) => p.item === "chimney")).toBe(false);
+    expect(ISO_PRESETS.winter.size.env).toBe("snow");
     expect(ISO_PRESETS.summer.items.filter((p) => p.item === "longpool")).toHaveLength(1);
     expect(ISO_PRESETS.summer.items.some((p) => p.item === "pool")).toBe(false);
+    const loungers = ISO_PRESETS.summer.items.filter((p) => p.item === "sunlounger");
+    expect(new Set(loungers.map((p) => p.gy)).size).toBe(1);
+    const table = ISO_PRESETS.summer.items.find((p) => p.item === "sidetable");
+    expect(table.gx).toBeGreaterThan(loungers[0].gx);
+    expect(table.gx).toBeLessThan(loungers[1].gx);
+    expect(table.gy).toBeGreaterThan(loungers[0].gy);
   });
 
   it("EVERY preset survives validation with all its furniture", () => {
@@ -1408,5 +1436,7 @@ describe("personaCanSit — the seated-life landing rule", () => {
     expect(floorSeat?.height).toBe(14);
     // Nothing to sit on at all → null (the caller stands them up instead).
     expect(freeSeatSpot([{ id: "b1", item: "bookcase", gx: 1, gy: 1 }])).toBe(null);
+    expect(freeSeatSpot([{ id: "p1", item: "gardenpond", gx: 0, gy: 0 }])).toBe(null);
+    expect(freeSeatSpot([{ id: "t1", item: "gardentrail", gx: 0, gy: 0 }])).toBe(null);
   });
 });

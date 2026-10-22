@@ -83,6 +83,31 @@ function FloorSurfaceInner({ w, d, style }) {
     return <g>{out}</g>;
   }
 
+  if (style === "snow") {
+    // Broad wind-softened bands keep the surface snowy without drawing a
+    // tiled white grid. A few deterministic glints give the otherwise pale
+    // plane enough material variation to read at room scale.
+    const bands = [];
+    const glints = [];
+    for (let t = 0; t < d; t += 2) {
+      bands.push(
+        <polygon
+          key={`snow-band-${t}`}
+          points={floorPatch(0, t, w, Math.min(1.25, d - t))}
+          fill="#ffffff"
+          opacity="0.12"
+        />
+      );
+    }
+    for (let i = 0; i < Math.min(14, w + d); i++) {
+      const at = project(((i * 7 + 2) % (w * 2)) / 2, ((i * 11 + 1) % (d * 2)) / 2);
+      glints.push(
+        <circle key={`snow-glint-${i}`} cx={at.x} cy={at.y} r="1.1" fill="#ffffff" opacity="0.34" />
+      );
+    }
+    return <g data-floor-surface="snow">{bands}{glints}</g>;
+  }
+
   if (style === "stone") {
     // Flagstones: one inset slab per tile, its size nudged by the tile index
     // so the joints wander instead of forming a grid.

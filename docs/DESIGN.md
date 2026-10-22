@@ -54,6 +54,10 @@ The screen has an ownership map — respect it:
   Every environment names a `floorStyle`, and walls carry a skirting, a picture
   rail and one panel seam per tile. Keep it SUBTLE — wall decor hangs on that
   surface, so it wants texture, not pattern.
+- Seasonal ground has to change the material, not merely the props. Winter
+  Yard uses the wall-less Snow environment: a pale gradient, broad wind-softened
+  bands and sparse deterministic glints. Snow furniture on the Grass environment
+  still reads as a summer lawn with decorations dropped onto it.
 - **Derive texture from position, never randomness.** Unrelated scene updates
   must not redraw random texture. Flagstone jitter
   and plank stagger both come from the tile index.
@@ -82,6 +86,12 @@ The screen has an ownership map — respect it:
   left showing. The same applies to plank seams on a tabletop — a bare slab
   reads as flat-pack, and a rail between the legs is what makes four legs and
   a top into a piece of furniture.
+- **Water has an edge and a depth.** Architectural water uses a raised coping,
+  a darker recessed basin and a quieter inner surface; natural water uses an
+  irregular moss-and-stone bank. Both are projected from grid space and their
+  animated surface is clipped to the catalog footprint. A bright outline
+  around a flat cyan patch reads as a sticker, while a screen-space pond oval
+  can visibly leave the isometric platform despite passing room validation.
 - **Judge artwork on a contact sheet, not one room at a time.** Rendering
   every sprite into one labelled grid is how the untextured rugs were spotted
   sitting next to two properly woven ones. In a room you see what you went
@@ -398,6 +408,11 @@ The screen has an ownership map — respect it:
 - **The dark floor guarantees legibility**: surface stops (void→wine) keep
   fixed low lightness in every theme, preset or custom. Accents may roam;
   backgrounds may not.
+- The backdrop finish is independent of that palette. `Gradient` keeps the
+  time-of-day wash; `Solid` paints a flat `--color-night` base field
+  while retaining discrete stars, clouds, celestial orbs and weather. The
+  saved choice is stamped on `<html>` before React mounts so desktop startup
+  never flashes the other finish.
 - Custom themes map the picked color faithfully onto the ROSE accent (its
   hue, saturation, and lightness within 52–72%); everything grades off that.
 - Sprite tinting: paint the main material `var(--tint, <classic>)`; shading

@@ -480,6 +480,7 @@ async function main() {
     "tasknook.timeOfDay.auto": "0",
     "tasknook.weather.automatch": "0",
     "tasknook.weather.random": "0",
+    "tasknook.backdrop": "gradient",
     "tasknook.walkHinted": "1",
   });
 
@@ -520,6 +521,20 @@ async function main() {
   await page.clickText("Loft");
   await sleep(1800);
   await seatResident(page);
+
+  // ---- 55 solid backdrop: the same atmospheric scene without a sky wash ----
+  if (want("55")) {
+    await page.setStorage({
+      ...ambient({ weather: "off", time: "night" }),
+      "tasknook.backdrop": "solid",
+    });
+    await page.load();
+    await page.closePanels();
+    await sleep(2000);
+    const bytes = await page.shot(join(OUT_DIR, "55-solid-backdrop.webp"));
+    console.log(`  55-solid-backdrop.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
+  }
+
   // ---- weather, all on the default room ----
   for (const [n, name, amb] of WEATHER) {
     if (!want(n)) continue;
@@ -544,6 +559,15 @@ async function main() {
       if (n === "22") {
         await page.clickText("Face", { exact: true });
         await sleep(700);
+      }
+      if (n === "21") {
+        await page.evaluate(`(() => {
+          const label = [...document.querySelectorAll('p')].find(
+            e => e.textContent.trim() === 'Backdrop');
+          label?.closest('[role="group"]')?.scrollIntoView({ block: 'center' });
+          return 'ok';
+        })()`);
+        await sleep(500);
       }
     }
     const bytes = await page.shot(join(OUT_DIR, `${n}-${name}.webp`));

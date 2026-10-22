@@ -201,33 +201,32 @@ export function createIsoPresets(defaultIsoSize) {
   garden: {
     label: "Secret garden",
     icon: "🌿",
-    size: { w: 10, d: 8, env: "garden" },
+    size: { w: 16, d: 14, env: "garden" },
     items: [
-      // An OFFICE DESK and a laptop were sitting on the grass, with a stool
-      // and stacked crates beside them — the single most out-of-place thing
-      // in any preset. Gone, along with the scatter of pot plants.
-      //
-      // Three zones with open lawn between: the tree line, the pond you sit
-      // by, and the corner you lie down in.
+      // The pond is the room, not a floor prop tucked against one edge. A
+      // generous clearing and one seat on every side make this a place to
+      // gather, while the tree line and low planting frame rather than cover it.
+      { item: "gardenpond", gx: 4, gy: 3.5 },
+      { item: "bench", gx: 7, gy: 2.5, rot: 0 },
+      { item: "bench", gx: 12.5, gy: 5.5, rot: 3 },
+      { item: "bench", gx: 7, gy: 10.5, rot: 2 },
+      { item: "bench", gx: 3, gy: 5.5, rot: 1 },
+      // A small bend off the near bank gives the clearing an entrance rather
+      // than making every edge feel like an equally empty lawn boundary.
+      { item: "gardentrail", gx: 12, gy: 10, rot: 1 },
+
+      // Keep the tall canopy on the perimeter so every bank stays visible.
       { item: "tree", gx: 0.5, gy: 0 },
-      { item: "pine", gx: 2.5, gy: 0 },
-      { item: "birch", gx: 4, gy: 0.5 },
-      { item: "rock", gx: 2.5, gy: 2.5 },
-      // the pond, with somewhere to sit facing it
-      { item: "pond", gx: 6, gy: 0.5 },
-      { item: "bench", gx: 6, gy: 4, rot: 2 },
-      { item: "log", gx: 8, gy: 3.5 },
-      { item: "bush", gx: 8.5, gy: 5.5 },
-      // and the lying-down corner — the blanket well clear of the hammock,
-      // which previously overlapped it and left the cat apparently floating
-      { item: "hammock", gx: 1, gy: 4 },
-      { item: "lightjar", gx: 5.5, gy: 5 },
-      // a dog on the picnic blanket — a dog lying in a garden makes sense
-      // in a way a cat outdoors never quite did (owner call, 2026-08-10)
-      { item: "picnic", gx: 1, gy: 6 },
-      { item: "dog", gx: 1.5, gy: 6.5 },
-      { item: "flowerbed", gx: 3.5, gy: 6.5 },
-      { item: "bunny", gx: 5, gy: 7 },
+      { item: "blossomtree", gx: 3.5, gy: 0 },
+      { item: "birch", gx: 13.5, gy: 0.5 },
+      { item: "bush", gx: 0.5, gy: 7 },
+      { item: "bush", gx: 14.5, gy: 10.5 },
+      { item: "flowerbed", gx: 2, gy: 11.5 },
+      { item: "flowerbed", gx: 13.5, gy: 3 },
+      { item: "lightjar", gx: 6.5, gy: 2 },
+      { item: "lightjar", gx: 10, gy: 11 },
+      { item: "dog", gx: 6, gy: 12.5 },
+      { item: "bunny", gx: 2, gy: 9.5 },
     ],
   },
   // THE café — the two café presets merged (owner decision, 2026-08-10):
@@ -346,9 +345,9 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "snakeplant", gx: 8.5, gy: 2, tint: "#d09a64" },
       { item: "sidetable", gx: 9, gy: 4.5, tint: "#6c5d46" },
       { item: "terrarium", gx: 9, gy: 4.5 },
-      { item: "resident", gx: 9, gy: 6, tint: "#8a7396" },
-      { item: "fern", gx: 6, gy: 7.5, tint: "#b76b50" },
-      { item: "fern", gx: 8, gy: 7.5, tint: "#d09a64" },
+      { item: "resident", gx: 5, gy: 5.5, tint: "#8a7396" },
+      { item: "fern", gx: 8.5, gy: 7.5, tint: "#b76b50" },
+      { item: "fern", gx: 9.5, gy: 7.5, tint: "#d09a64" },
       { item: "monstera", gx: 10.5, gy: 7.5, tint: "#b76b50" },
     ],
   },

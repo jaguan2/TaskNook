@@ -68,7 +68,7 @@ function Cloud({ top, scale, duration, delay, opacity, dark, night, sunset }) {
   );
 }
 
-function SkyOverlay({ weatherMode, timeOfDay, showOrb = true }) {
+function SkyOverlay({ weatherMode, timeOfDay, showOrb = true, solidBackdrop = false }) {
   // Deterministic star field (no Math.random — positions must not reshuffle
   // on re-render), scattered across the upper half of the screen.
   const stars = useMemo(
@@ -105,9 +105,10 @@ function SkyOverlay({ weatherMode, timeOfDay, showOrb = true }) {
           gradient, so time is painted as light ON it — a cool morning haze
           from above by day, an ember band rising from the horizon at
           sunset, nothing at night (the stars carry it). */}
-      {!night && !sunset && (
+      {!solidBackdrop && !night && !sunset && (
         <>
           <div
+            data-sky-wash="day"
             className="absolute inset-0"
             style={{
               background:
@@ -128,9 +129,10 @@ function SkyOverlay({ weatherMode, timeOfDay, showOrb = true }) {
           />
         </>
       )}
-      {sunset && (
+      {!solidBackdrop && sunset && (
         <>
           <div
+            data-sky-wash="sunset"
             className="absolute inset-0"
             style={{
               background:

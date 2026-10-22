@@ -27,9 +27,10 @@ export const CUT_CORNERS = ["back", "right", "left", "front"];
 //
 //   walls   "full" cutaway interior · "low" waist-height balustrade · "none"
 //   floor   the gradient id IsoRoom fills the tile sheet with
-//   floorStyle  the MATERIAL drawn over it: boards / tiles / stone / grass.
+//   floorStyle  the MATERIAL drawn over it: boards / tiles / stone / grass / snow.
 //           A flat gradient reads as a coloured plane; grain is what makes
 //           the biggest surface in the scene look like a floor.
+//   preview a representative flat colour for the preset thumbnail
 //   lip     [gx-facing, gy-facing] colours for the floor's front rim
 //   window  the built-in window on the left wall
 //   lights  the built-in string lights along the right wall
@@ -50,6 +51,7 @@ export const ISO_ENVS = {
     walls: "full",
     floor: "isoFloor",
     floorStyle: "boards",
+    preview: "rgb(var(--color-wine))",
     lip: ["#1d0f1f", "#170c19"],
     window: true,
     lights: true,
@@ -60,6 +62,7 @@ export const ISO_ENVS = {
     walls: "full",
     floor: "isoWood",
     floorStyle: "boards",
+    preview: "#503522",
     lip: ["#2a1a12", "#221410"],
     window: true,
     // The only indoor env without them, which is why the Reading room and the
@@ -74,6 +77,7 @@ export const ISO_ENVS = {
     walls: "full",
     floor: "isoTile",
     floorStyle: "tiles",
+    preview: "#704834",
     lip: ["#2e211c", "#261b17"],
     window: true,
     lights: true,
@@ -84,6 +88,7 @@ export const ISO_ENVS = {
     walls: "low",
     floor: "isoStone",
     floorStyle: "stone",
+    preview: "#77736b",
     lip: ["#3a3630", "#2e2b26"],
     lights: true,
   },
@@ -93,7 +98,17 @@ export const ISO_ENVS = {
     walls: "none",
     floor: "isoGrass",
     floorStyle: "grass",
+    preview: "#3d6a50",
     lip: ["#2c2018", "#241a12"],
+  },
+  snow: {
+    label: "Snow",
+    icon: "❄️",
+    walls: "none",
+    floor: "isoSnow",
+    floorStyle: "snow",
+    preview: "#dce7ea",
+    lip: ["#778797", "#667787"],
   },
 };
 export const ISO_ENV_KEYS = Object.keys(ISO_ENVS);
@@ -328,6 +343,8 @@ export const ISO_ITEMS = {
   flowers: { label: "Wildflowers", icon: "🌸", foot: [0.7, 0.6], hitH: 24 },
   bush: { label: "Bush", icon: "🌲", foot: [1, 1], hitH: 40 },
   pond: { label: "Pond", icon: "🪷", foot: [3.5, 2.5], layer: -1, hitH: 12, tintable: false },
+  gardenpond: { label: "Garden pond", icon: "🪷", foot: [8, 6], layer: -1, hitH: 28, tintable: false },
+  gardentrail: { label: "Stepping-stone trail", icon: "🪨", foot: [3.5, 1.5], layer: -1, hitH: 6, tintable: false },
   picnic: { label: "Picnic blanket", icon: "🧺", foot: [2, 1.5], layer: -1, hitH: 10, softSeat: true },
   bench: { label: "Garden bench", icon: "🪑", foot: [1.6, 0.6], hitH: 34, seat: 16, backView: true },
   flowerbed: { label: "Flower patch", icon: "🌼", foot: [1, 0.6], hitH: 22 },
@@ -396,7 +413,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Rugs & floor",
     keys: ["rug", "squarerug", "ovalrug", "runner", "persianrug", "stripedrug",
-      "sheepskin", "matrug", "picnic", "petbed", "pond"],
+      "sheepskin", "matrug", "picnic", "petbed", "pond", "gardenpond", "gardentrail"],
   },
   {
     label: "Light & warmth",
@@ -537,7 +554,7 @@ export function freeSeatSpot(placements, item = "resident") {
   }
   for (const p of placements) {
     const it = ISO_ITEMS[p.item];
-    if (it && it.layer === -1 && p.item !== "pond" && !it.persona) return centreOn(p);
+    if (it?.softSeat && !it.persona) return centreOn(p);
   }
   return null;
 }

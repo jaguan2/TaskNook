@@ -428,6 +428,12 @@ export function StoreProvider({ children }) {
   const [customSurface, setCustomSurfaceState] = useState(() =>
     normalizeHex(readStored("tasknook.customSurface"))
   );
+  // The backdrop can keep the classic pool-of-light gradient or become one
+  // quiet theme colour. This is separate from the palette: changing the
+  // finish must not replace the user's colours.
+  const [backdropStyle, setBackdropStyleState] = useState(() =>
+    readStored("tasknook.backdrop") === "solid" ? "solid" : "gradient"
+  );
 
   // How much the room is allowed to move. "auto" follows the OS preference,
   // which is what everything did before there was a setting at all — the
@@ -2365,6 +2371,11 @@ export function StoreProvider({ children }) {
     else writeStored("tasknook.customSurface", clean);
     setColorScheme("custom");
   };
+  const setBackdropStyle = (style) => {
+    if (style !== "gradient" && style !== "solid") return;
+    setBackdropStyleState(style);
+    writeStored("tasknook.backdrop", style);
+  };
 
   // ---------- Real-world weather ----------
   useEffect(() => {
@@ -2866,6 +2877,8 @@ export function StoreProvider({ children }) {
     setCustomColor,
     customSurface,
     setCustomSurface,
+    backdropStyle,
+    setBackdropStyle,
     motionMode,
     setMotionMode,
     hudVisibility,

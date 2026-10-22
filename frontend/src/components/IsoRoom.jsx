@@ -705,6 +705,11 @@ function IsoSceneInner({
             <stop offset="0" stopColor="#8f8a80" />
             <stop offset="1" stopColor="#5c5850" />
           </linearGradient>
+          <linearGradient id="isoSnow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#edf2f3" />
+            <stop offset="0.58" stopColor="#d8e3e8" />
+            <stop offset="1" stopColor="#b9cad4" />
+          </linearGradient>
           <linearGradient id="isoSky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={tod.skyTop} />
             <stop offset="1" stopColor={tod.skyBot} />

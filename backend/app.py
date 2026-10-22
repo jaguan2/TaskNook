@@ -357,7 +357,7 @@ def _finite_number(v):
 # browser's localStorage mirror, toasting "couldn't save" each time. Adding an
 # environment means editing BOTH; test_room.py reads the JS and fails if they
 # disagree.
-ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
+ISO_ENVS = ("room", "cafe", "library", "terrace", "garden", "snow")
 
 # The user-picked walls override — mirrors WALL_MODES in isoRoom.js, same
 # both-languages contract as ISO_ENVS above. Absent means "the floor's

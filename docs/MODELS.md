@@ -55,6 +55,12 @@ check; only looking caught them.
 - Every sprite is drawn for **a footprint anchored at grid (0,0)**. The scene
   places it with `translate(project(gx, gy))`, which works because the
   projection is linear — never bake a position into a sprite.
+- Broad water follows that footprint too. Pools use projected basin, coping
+  and inset-water polygons; natural ponds build their irregular shoreline
+  from grid-space points. Do not substitute a screen-space ellipse: its wide
+  sides can cross the platform even when placement validation says the item
+  fits. The moving water surface is clipped to the declared footprint as a
+  final containment guard.
 - `project`/`unproject` are exact inverses. That is what makes grid-dragging
   work; don't add rounding to either.
 

@@ -36,7 +36,7 @@ export function createIsoSeasonalPresets() {
   winter: {
     label: "Winter yard",
     icon: "☃️",
-    size: { w: 10, d: 8, env: "garden", lighting: "moonlit" },
+    size: { w: 10, d: 8, env: "snow", lighting: "moonlit" },
     items: [
       { item: "snowpine", gx: 0.5, gy: 0 },
       { item: "christmastree", gx: 2.5, gy: 0 },
@@ -46,10 +46,12 @@ export function createIsoSeasonalPresets() {
       { item: "snowman", gx: 2.5, gy: 3 },
       { item: "snowballs", gx: 4, gy: 3.5 },
       { item: "snowangel", gx: 5, gy: 2.5 },
-      { item: "logstack", gx: 7.5, gy: 3 },
-      { item: "icelantern", gx: 8.5, gy: 4 },
+      // A sheltered bench-and-firewood edge rather than two lights and a log
+      // scattered across opposite halves of the lawn.
+      { item: "logstack", gx: 3, gy: 6.5 },
+      { item: "icelantern", gx: 4.5, gy: 6.5 },
       { item: "bench", gx: 1.5, gy: 6, tint: "#755743" },
-      { item: "lantern", gx: 3.5, gy: 6 },
+      { item: "lantern", gx: 0.5, gy: 5.5 },
       { item: "snowdrift", gx: 6.5, gy: 6 },
       { item: "bunny", gx: 8, gy: 6.5, tint: "#d8dde2" },
     ],
@@ -64,19 +66,22 @@ export function createIsoSeasonalPresets() {
     items: [
       { item: "coconutpalm", gx: 0, gy: 0, tint: "#986a42" },
       { item: "coconutpalm", gx: 12, gy: 0, tint: "#a27448" },
-      { item: "coconutpalm", gx: 12, gy: 8.5, tint: "#986a42" },
+      { item: "coconutpalm", gx: 12, gy: 9.5, tint: "#986a42" },
       // One long pool avoids two rims and ladders meeting in the water.
       { item: "longpool", gx: 4.5, gy: 2.5 },
       { item: "poolumbrella", gx: 0.5, gy: 3, tint: "#df765f" },
-      { item: "poolumbrella", gx: 11, gy: 5.5, tint: "#67a9bf" },
-      { item: "sunlounger", gx: 0.5, gy: 6, tint: "#67a9bf" },
-      { item: "sunlounger", gx: 2.5, gy: 7.5, tint: "#df765f" },
-      { item: "sunlounger", gx: 10.5, gy: 7.5, tint: "#df765f" },
+      { item: "poolumbrella", gx: 10.5, gy: 6.5, tint: "#67a9bf" },
+      // One served lounging group along the pool's open side. The former
+      // arrangement scattered three chairs across the deck and put a palm
+      // directly over the foreground seat.
+      { item: "sunlounger", gx: 3.5, gy: 6.5, tint: "#67a9bf" },
+      { item: "sunlounger", gx: 6, gy: 6.5, tint: "#df765f" },
+      { item: "sunlounger", gx: 8.5, gy: 6.5, tint: "#df765f" },
       { item: "beachball", gx: 11.5, gy: 3.5 },
-      { item: "sidetable", gx: 6.5, gy: 8, tint: "#b78d67" },
-      { item: "fruitbowl", gx: 6.5, gy: 8 },
-      { item: "mug", gx: 7, gy: 8 },
-      { item: "lantern", gx: 12, gy: 9.5, tint: "#b78d67" },
+      { item: "sidetable", gx: 5, gy: 7.5, tint: "#b78d67" },
+      { item: "fruitbowl", gx: 5, gy: 7.5 },
+      { item: "mug", gx: 5.5, gy: 7.5 },
+      { item: "lantern", gx: 10.5, gy: 9.5, tint: "#b78d67" },
       { item: "plant", gx: 1, gy: 9 },
     ],
   },

@@ -87,6 +87,7 @@ export default function App() {
     colorScheme,
     customColor,
     customSurface,
+    backdropStyle,
     motionMode,
     hudVisibility,
     setHudVisibility,
@@ -195,6 +196,7 @@ export default function App() {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", colorScheme);
+    root.setAttribute("data-backdrop", backdropStyle);
     if (colorScheme === "custom") {
       const vars = derivePalette(customColor, customSurface);
       Object.entries(vars).forEach(([name, value]) =>
@@ -203,7 +205,7 @@ export default function App() {
     } else {
       PALETTE_VARS.forEach((name) => root.style.removeProperty(name));
     }
-  }, [colorScheme, customColor, customSurface]);
+  }, [colorScheme, customColor, customSurface, backdropStyle]);
 
   const toggleDockPanel = (key) => {
     setOpenPanels((prev) => {
@@ -321,6 +323,7 @@ export default function App() {
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay}
+        solidBackdrop={backdropStyle === "solid"}
         showOrb={!commonSceneId || COMMON_PLACES[commonSceneId]?.kind === "garden"} />
       <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} paused={widgetMode} />
 

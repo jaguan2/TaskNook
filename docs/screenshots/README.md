@@ -58,10 +58,10 @@ their existing residents.
 | ![Shared home](28-shared-home.webp) **Shared home** — a shared room with one bed, opposing laptop desks, wall-side bookshelves and a lilac reading chair. | ![Loft](01-loft-night.webp) **Loft** — the default. A compact open attic with a left-window workstation and a quiet sleeping corner. |
 | ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. | ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. |
 | ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. | ![Corner café](05-corner-cafe.webp) **Corner café** — an open bar run under the menu board, with tables across the floor. |
-| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — open air: a bench facing the pond, a hammock, and a dog on a blanket. |
+| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — an expanded pond clearing with four inward-facing benches, a near-bank stepping-stone trail, flowering trees and low planting. |
 | ![Terrace](07-terrace.webp) **Terrace** — waist-high balustrade instead of walls, flagstones, string lights at sunset. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
-| ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — maples, a half-raked leaf pile, pumpkins, a scarecrow and a wandering turkey. | ![Winter yard](31-winter-yard.webp) **Winter yard** — snow play, a decorated tree and a smoking chimney under falling snow. |
-| ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and sun loungers. | |
+| ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — maples, a half-raked leaf pile, pumpkins, a scarecrow and a wandering turkey. | ![Winter yard](31-winter-yard.webp) **Winter yard** — a snow-covered play space with a decorated tree and a sheltered bench under falling snow. |
+| ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and a grouped row of sun loungers. | |
 
 ## Weather & time of day
 
@@ -73,6 +73,12 @@ both the weather and the hour.
 | ![Rain](10-rain-night.webp) **Rain at night** | ![Storm](11-storm.webp) **Storm** — heavy cloud, lightning |
 | ![Snow](12-snow-day.webp) **Snow by day** | ![Cloudy](13-cloudy-sunset.webp) **Cloudy at sunset** |
 | ![Clear](14-clear-night.webp) **Clear night** — stars, and the odd shooting one | |
+
+The backdrop can also be reduced to one theme-matched colour. This keeps the
+room, stars, clouds and weather readable while removing the full-screen time-of-day
+gradient.
+
+![Solid backdrop](55-solid-backdrop.webp) **Solid backdrop** — the Loft at night with the optional single-colour background.
 
 ## Making it yours
 
@@ -133,6 +139,6 @@ the home remains editable.
 |---|---|
 | ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, six ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
 | ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and a breakdown of what each one went on |
-| ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, brightness, motion |
+| ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, gradient or solid backdrop, brightness and motion |
 | ![Challenges](45-challenges.webp) **Daily challenges** — three varied prompts, automatic progress and individual replacements. | ![Personal challenges](46-personal-challenges.webp) **My challenges** — write daily or ongoing goals with manual or automatic progress. |
 | ![Profile levels](47-profile-levels.webp) **Levels** — increasing XP requirements, saved study credit, challenge/NPC bonuses and daily login streaks. | |

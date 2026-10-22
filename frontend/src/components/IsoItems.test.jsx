@@ -38,6 +38,23 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(container.querySelector(".room-breathe")).toBeNull();
   });
 
+  it.each([
+    ["pond", "3.5x2.5", "0,0 84,42 24,72 -60,30"],
+    ["gardenpond", "8x6", "0,0 192,96 48,168 -144,72"],
+    ["pool", "3.5x2.5", "0,0 84,42 24,72 -60,30"],
+    ["longpool", "7x2.5", "0,0 168,84 108,114 -60,30"],
+  ])("clips %s water to its catalog footprint", (key, footprint, expectedClip) => {
+    const Water = ISO_SPRITES[key];
+    const { container } = draw(<Water />);
+    const body = container.querySelector(`[data-water-body][data-footprint="${footprint}"]`);
+
+    expect(body).toBeTruthy();
+    expect(body.querySelector('[data-water-clip="true"]')?.getAttribute("clip-path")).toMatch(
+      /^url\(#(?:pond|pool)-footprint-[^)]+\)$/
+    );
+    expect(body.querySelector("clipPath polygon")?.getAttribute("points")).toBe(expectedClip);
+  });
+
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is

@@ -118,6 +118,13 @@ body {
   overflow: hidden;
 }
 
+/* Some rooms read more clearly against one flat base field. Keep the
+   colour inside the active theme's contrast-safe dark ramp; only the finish
+   changes, never the palette or foreground chrome. */
+:root[data-backdrop="solid"] body {
+  background: rgb(var(--color-night));
+}
+
 /* App chrome follows the room's short opening zoom, once per page load. */
 .intro-chrome {
   animation: chrome-in 0.55s ease 0.25s backwards;

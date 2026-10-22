@@ -3,6 +3,7 @@ import { floorPatch, floorPoints, project } from "../lib/iso";
 import {
   ISO_ITEMS,
   cutsToMask,
+  envOf,
   partitionPieces,
   seatFor,
   seatedPlacement,
@@ -94,7 +95,7 @@ function IsoPresetPreviewInner({ preset }) {
     ...(preset.size.arches && { arches: preset.size.arches }),
   };
   const shapedFloor = mask?.some((row) => row.includes("0"));
-  const grass = preset.size.env === "garden";
+  const floorFill = envOf(preset.size.env).preview;
   // Seat personas before sorting, exactly as the scene does — otherwise the
   // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
   // the depth sort orders them from the wrong spot.
@@ -173,7 +174,7 @@ function IsoPresetPreviewInner({ preset }) {
               <polygon
                 key={`${tx}-${ty}`}
                 points={floorPatch(tx, ty, 1, 1)}
-                fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+                fill={floorFill}
                 opacity="0.8"
               />
             ) : null
@@ -182,7 +183,7 @@ function IsoPresetPreviewInner({ preset }) {
       ) : (
         <polygon
           points={floorPoints(w, d)}
-          fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+          fill={floorFill}
           opacity="0.8"
         />
       )}

@@ -1,33 +1,10 @@
-import { floorPatch, project } from "../lib/iso";
+import { project } from "../lib/iso";
 import { tinted } from "../lib/tint";
+
+export { LongSwimmingPool, SwimmingPool } from "./IsoWaterItems";
 
 // Summer is a whole activity zone rather than a colour swap: water to gather
 // around, shade to sit under, and loose play pieces that make it inhabited.
-
-function PoolBody({ length }) {
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, length, 2.5)} fill="#e8dfcf" opacity="0.96" />
-      <polygon points={floorPatch(0.18, 0.18, length - 0.36, 2.14)} fill="#55b8cf" opacity="0.92" />
-      <polygon points={floorPatch(0.34, 0.34, length - 0.68, 1.82)} fill="#80d4df" opacity="0.62" />
-      {[0.65, 1.35].map((gy) => (
-        <path key={gy} className="pond-ripple" d={`M${project(0.65, gy).x} ${project(0.65, gy).y} Q${project(length / 2, gy - 0.18).x} ${project(length / 2, gy - 0.18).y} ${project(length - 0.7, gy).x} ${project(length - 0.7, gy).y}`} fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.46" />
-      ))}
-      <g fill="none" stroke="#d7dce0" strokeWidth="2.2" strokeLinecap="round">
-        <path d={`M${project(0.35, 0.55).x} ${project(0.35, 0.55).y - 13} v13 M${project(0.55, 0.75).x} ${project(0.55, 0.75).y - 13} v13`} />
-        <path d={`M${project(0.35, 0.55).x} ${project(0.35, 0.55).y - 13} Q${project(0.45, 0.65).x} ${project(0.45, 0.65).y - 18} ${project(0.55, 0.75).x} ${project(0.55, 0.75).y - 13}`} />
-      </g>
-    </g>
-  );
-}
-
-export function SwimmingPool() {
-  return <PoolBody length={3.5} />;
-}
-
-export function LongSwimmingPool() {
-  return <PoolBody length={7} />;
-}
 
 export function CoconutPalm() {
   const c = project(0.75, 0.75);

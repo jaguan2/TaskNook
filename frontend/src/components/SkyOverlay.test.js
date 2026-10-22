@@ -73,4 +73,17 @@ describe("celestial orb visibility", () => {
     expect(container.firstElementChild.children.length).toBeGreaterThan(0);
     cleanup();
   });
+
+  it("keeps discrete sky details but removes full-screen colour washes on a solid backdrop", () => {
+    const { container, rerender } = render(React.createElement(SkyOverlay,
+      { weatherMode: "off", timeOfDay: "day", solidBackdrop: true }));
+    expect(container.querySelector("[data-sky-wash]")).toBeNull();
+    expect(container.querySelector('[data-sky-orb="sun"]')).not.toBeNull();
+
+    rerender(React.createElement(SkyOverlay,
+      { weatherMode: "off", timeOfDay: "sunset", solidBackdrop: true }));
+    expect(container.querySelector("[data-sky-wash]")).toBeNull();
+    expect(container.querySelector('[data-sky-orb="sun"]')).not.toBeNull();
+    cleanup();
+  });
 });

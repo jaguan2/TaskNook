@@ -8,6 +8,8 @@ import { LeafCluster, PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitive
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
+import { GardenPond, Pond } from "./IsoWaterItems";
+import { GardenTrail } from "./IsoGardenItems";
 import {
   BeachBall,
   BirdBath,
@@ -2134,42 +2136,6 @@ function Bush() {
   );
 }
 
-function Pond() {
-  const c = project(1.75, 1.25);
-  return (
-    <g>
-      <ellipse cx={c.x} cy={c.y} rx="76" ry="38" fill="#2c4a52" />
-      <ellipse cx={c.x} cy={c.y - 1.5} rx="70" ry="34" fill="#4a90ac" opacity="0.9" />
-      <ellipse cx={c.x - 8} cy={c.y - 4} rx="46" ry="21" fill="#6fb8cf" opacity="0.45" />
-      <path
-        d={`M${c.x - 30} ${c.y + 6} q14 4 30 1`}
-        stroke="#cbe8ef"
-        strokeWidth="1.6"
-        fill="none"
-        opacity="0.5"
-      />
-      {/* a ripple ring slowly spreading */}
-      <ellipse
-        className="pond-ripple"
-        cx={c.x - 12}
-        cy={c.y + 2}
-        rx="16"
-        ry="7"
-        fill="none"
-        stroke="#cbe8ef"
-        strokeWidth="1.4"
-      />
-      {/* lilypads */}
-      <g className="room-sway" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
-        <ellipse cx={c.x + 26} cy={c.y - 8} rx="9" ry="5" fill="#56a07c" />
-        <ellipse cx={c.x + 34} cy={c.y + 4} rx="6" ry="3.5" fill="#3f7f63" />
-        <ellipse cx={c.x - 34} cy={c.y + 8} rx="7" ry="4" fill="#56a07c" />
-        <circle cx={c.x + 24} cy={c.y - 10} r="2" fill="#e8a3a8" />
-      </g>
-    </g>
-  );
-}
-
 function Picnic() {
   return (
     <g>
@@ -3979,6 +3945,8 @@ export const ISO_SPRITES = {
   tree: Tree,
   bush: Bush,
   pond: Pond,
+  gardenpond: GardenPond,
+  gardentrail: GardenTrail,
   picnic: Picnic,
   bench: Bench,
   flowerbed: Flowerbed,

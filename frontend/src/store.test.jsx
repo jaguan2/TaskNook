@@ -35,6 +35,7 @@ beforeEach(() => {
   removeStored("tasknook.character.dirty");
   removeStored("tasknook.progression");
   removeStored("tasknook.taskGroups");
+  removeStored("tasknook.backdrop");
   writeJSON("tasknook.challenges", { version: 1, day: localTodayISO(), completed: [] });
   api.me.mockResolvedValue({ user: { id: 1, username: "you" } });
   api.listTasks.mockResolvedValue([original]);
@@ -50,6 +51,21 @@ async function boot(expectedTasks = [original]) {
   render(<StoreProvider><Reader /></StoreProvider>);
   await waitFor(() => expect(store.tasks).toEqual(expectedTasks));
 }
+
+describe("backdrop preference", () => {
+  it("loads, validates and persists the solid-colour choice", async () => {
+    writeStored("tasknook.backdrop", "solid");
+    await boot();
+    expect(store.backdropStyle).toBe("solid");
+
+    act(() => store.setBackdropStyle("gradient"));
+    expect(store.backdropStyle).toBe("gradient");
+    expect(readStored("tasknook.backdrop")).toBe("gradient");
+
+    act(() => store.setBackdropStyle("striped"));
+    expect(store.backdropStyle).toBe("gradient");
+  });
+});
 
 describe("profile XP", () => {
   it("backs study XP with saved history and does not repeat credit on refresh", async () => {

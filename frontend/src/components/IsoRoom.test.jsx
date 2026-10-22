@@ -172,6 +172,15 @@ describe("powered room decorations", () => {
   });
 });
 
+describe("seasonal floor materials", () => {
+  it("renders the winter environment as snow rather than grass", () => {
+    const { container } = render(
+      <IsoRoom size={{ w: 6, d: 5, env: "snow" }} placements={[]} saveView={false} />
+    );
+    expect(container.querySelector('[data-floor-surface="snow"]')).not.toBeNull();
+  });
+});
+
 describe("room atmosphere follows the scene", () => {
   const indoor = { size: { w: 9, d: 7, env: "room" }, placements: [], saveView: false };
   it("puts sunlight motes only at a real window on a clear day", () => {

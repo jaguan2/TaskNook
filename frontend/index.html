@@ -29,6 +29,17 @@
             window.matchMedia("(prefers-reduced-motion: reduce)").matches);
         if (reduce) document.documentElement.setAttribute("data-motion", "reduced");
       })();
+      // Match the saved backdrop before React mounts so a solid backdrop does
+      // not flash the default gradient during desktop startup.
+      (function () {
+        var style = "gradient";
+        try {
+          style = localStorage.getItem("tasknook.backdrop") === "solid" ? "solid" : "gradient";
+        } catch (e) {
+          /* storage unavailable — keep the default gradient */
+        }
+        document.documentElement.setAttribute("data-backdrop", style);
+      })();
     </script>
   </head>
   <body>

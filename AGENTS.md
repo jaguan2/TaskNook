@@ -1214,6 +1214,11 @@ running `git commit` yourself.
   gives the DARK stops their own hue — teal accent on warm brown surfaces —
   while their lightness stays the fixed ramp, so no backdrop pick can break
   the legibility guarantee (pinned in palette.test.js).
+  Backdrop finish is a separate persisted preference (`tasknook.backdrop`):
+  `gradient` keeps the time-of-day sky washes and `solid` uses a flat,
+  theme-derived `--color-night` base while retaining discrete sky/weather
+  details. `index.html` pre-stamps `data-backdrop` alongside the motion boot
+  attribute to avoid a wrong-finish flash before React mounts.
   The pick maps faithfully onto the ROSE accent (hue, saturation, and its
   lightness within 52–72%); blush/petal grade off it and the dark surfaces
   keep fixed low-lightness stops — that fixed dark floor is what guarantees

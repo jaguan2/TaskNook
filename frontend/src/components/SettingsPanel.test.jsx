@@ -12,6 +12,8 @@ const mockStore = vi.hoisted(() => ({
   setCustomColor: vi.fn(),
   customSurface: null,
   setCustomSurface: vi.fn(),
+  backdropStyle: "gradient",
+  setBackdropStyle: vi.fn(),
   motionMode: "auto",
   setMotionMode: vi.fn(),
   hudVisibility: {
@@ -46,5 +48,17 @@ describe("HUD visibility controls", () => {
     expect(mockStore.setHudVisibility).toHaveBeenCalledWith("tasks", "faded");
 
     expect(screen.getByText(/Open Settings from the left dock/)).toBeTruthy();
+  });
+});
+
+describe("backdrop style", () => {
+  it("offers a solid-colour alternative to the gradient", () => {
+    render(<SettingsPanel />);
+
+    const controls = screen.getByRole("group", { name: "Backdrop style" });
+    expect(within(controls).getByRole("button", { name: "Gradient" }).getAttribute("aria-pressed"))
+      .toBe("true");
+    fireEvent.click(within(controls).getByRole("button", { name: "Solid" }));
+    expect(mockStore.setBackdropStyle).toHaveBeenCalledWith("solid");
   });
 });
