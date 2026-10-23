@@ -263,6 +263,8 @@ export const ISO_ITEMS = {
   guitar: { label: "Guitar", icon: "🎸", foot: [0.5, 0.4], hitH: 62 },
   // multi-coloured by nature: one flat tint would turn it into a brick
   bookstack: { label: "Stack of books", icon: "📗", foot: [0.5, 0.4], hitH: 16, tintable: false, stacks: true },
+  openjournal: { label: "Open journal", icon: "📖", foot: [0.9, 0.65], hitH: 8, stacks: true },
+  booktrolley: { label: "Book trolley", icon: "📚", foot: [1.3, 0.7], hitH: 46, surface: 32 },
   vinylcrate: { label: "Record crate", icon: "💿", foot: [0.7, 0.5], hitH: 24 },
   basket: { label: "Laundry basket", icon: "🧺", foot: [0.6, 0.6], hitH: 24 },
   coatrack: { label: "Coat rack", icon: "🧥", foot: [0.5, 0.5], hitH: 76 },
@@ -408,7 +410,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Storage",
     keys: ["bookshelf", "bookcase", "shelf", "wardrobe", "dresser", "tvunit",
-      "pastrycase", "crates", "basket", "vinylcrate", "ladder", "coatrack"],
+      "pastrycase", "crates", "basket", "vinylcrate", "ladder", "coatrack", "booktrolley"],
   },
   {
     label: "Rugs & floor",
@@ -428,7 +430,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Decoration",
     keys: ["piano", "easel", "screen", "birdcage", "standmirror", "aquarium",
-      "globe", "chess", "guitar", "bookstack", "till"],
+      "globe", "chess", "guitar", "bookstack", "openjournal", "till"],
   },
   {
     label: "Tech & music",

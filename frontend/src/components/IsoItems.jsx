@@ -10,6 +10,8 @@ import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
 import { GardenPond, Pond } from "./IsoWaterItems";
 import { GardenTrail } from "./IsoGardenItems";
+import { BookTrolley, OpenJournal } from "./IsoStudyItems";
+import { Basket, Crates, LadderShelf } from "./IsoStorageItems";
 import {
   BeachBall,
   BirdBath,
@@ -2524,27 +2526,6 @@ function VinylCrate() {
   );
 }
 
-function Basket() {
-  const c = project(0.3, 0.3);
-  const H = 17;
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" style={tinted("#c98a4b")} />
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" fill="#000" opacity="0.32" />
-      <rect x="-11" y={-H} width="22" height={H - 2} style={tinted("#c98a4b")} />
-      <rect x="-11" y={-H} width="22" height={H - 2} fill="#000" opacity="0.18" />
-      {[-5, -9, -13].map((y) => (
-        <line key={y} x1="-11" y1={y} x2="11" y2={y} stroke="#000" strokeWidth="0.8" opacity="0.13" />
-      ))}
-      <ellipse cx="0" cy={-H} rx="11" ry="5.5" style={tinted("#c98a4b")} />
-      <ellipse cx="0" cy={-H} rx="8.5" ry="4" fill="#000" opacity="0.32" />
-      {/* laundry spilling over the rim — the thing that makes it a basket */}
-      <ellipse cx="-2" cy={-H - 1} rx="7" ry="3.2" fill="#f7f2ea" opacity="0.85" />
-      <ellipse cx="3" cy={-H - 3} rx="4.5" ry="2.2" fill="#e8e2d8" opacity="0.8" />
-    </g>
-  );
-}
-
 function DeskLamp() {
   const c = project(0.2, 0.2);
   const H = 23;
@@ -2794,33 +2775,6 @@ function Runner() {
   );
 }
 
-function Crates() {
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={0.8} dy={0.7} h={16} fallback="#c98a4b" dark={0.34} mid={0.2} />
-      {/* plank seams + corner battens — one 15px line on a two-crate stack
-          left the upper crate reading as a plinth, not slatted wood */}
-      <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
-        <line x1="2" y1="-8" x2="17" y2="-8" stroke="#000" strokeWidth="1" opacity="0.2" />
-        <line x1="2" y1="-4" x2="17" y2="-4" stroke="#000" strokeWidth="1" opacity="0.14" />
-        <line x1="3.5" y1="-14" x2="3.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
-        <line x1="15.5" y1="-14" x2="15.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
-      </g>
-      <g transform="translate(0,-16)">
-        <TintedBox gx={0.08} gy={0.06} dx={0.62} dy={0.56} h={14} fallback="#c98a4b" dark={0.34} mid={0.2} />
-        <g transform={`translate(${project(0.08, 0.62).x}, ${project(0.08, 0.62).y}) skewY(${SKEW})`}>
-          <line x1="1.5" y1="-7" x2="13.5" y2="-7" stroke="#000" strokeWidth="1" opacity="0.2" />
-          <line x1="1.5" y1="-3.5" x2="13.5" y2="-3.5" stroke="#000" strokeWidth="1" opacity="0.14" />
-        </g>
-        {/* tape across the top, so it reads as packed rather than as a plinth */}
-        <g transform="translate(0,-14)">
-          <polygon points={floorPatch(0.3, 0.06, 0.08, 0.56)} fill="#e8d9b8" opacity="0.75" />
-        </g>
-      </g>
-    </g>
-  );
-}
-
 function Mug() {
   const c = project(0.15, 0.15);
   return (
@@ -2930,35 +2884,6 @@ function MoonLamp() {
       <ellipse cx="0.4" cy="-11.6" rx="0.7" ry="0.6" fill="#d8c9a8" />
       {/* lit limb on the light side, the same side every glint in the room uses */}
       <path d="M-6 -9 A 6 6 0 0 1 0 -15" fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.4" />
-    </g>
-  );
-}
-
-/** A leaning ladder shelf: the diagonal is the whole silhouette, and nothing
- *  else in the room has one. */
-function LadderShelf() {
-  const D = 0.5;
-  const H = 62;
-  return (
-    <g>
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {[0, 18].map((x) => (
-          <path key={x} d={`M${x + 2} 0 L${x + 5} ${-H} l2.4 0 L${x + 4.4} 0 z`} style={tinted("#a87f5f")} />
-        ))}
-        {[-14, -29, -44].map((y, i) => {
-          const inset = 2.6 + i * 0.7;
-          return (
-            <g key={y}>
-              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" style={tinted("#b58c6a")} />
-              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" fill="#000" opacity="0.12" />
-            </g>
-          );
-        })}
-        <rect x="6" y="-52" width="3.6" height="8" rx="0.6" fill="#7faf8f" />
-        <rect x="10" y="-51" width="3.6" height="7" rx="0.6" fill="#e8a3a8" />
-        <circle cx="12" cy="-33" r="3" fill="#e8b04b" />
-        <path d="M8 -14 q-3 -7 0 -9 q3 2 0 9 z" fill="#3f7f63" />
-      </g>
     </g>
   );
 }
@@ -3820,6 +3745,8 @@ function PastryCase() {
 }
 
 export const ISO_SPRITES = {
+  booktrolley: BookTrolley,
+  openjournal: OpenJournal,
   you: You,
   mapletree: MapleTree,
   leafpile: LeafPile,

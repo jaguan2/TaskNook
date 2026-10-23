@@ -22,6 +22,62 @@ Common Cottage is implemented with six seats and three simulated neighbours;
 see [the scene and remaining work](COMMON_ROOMS.md). It is a first art pass,
 not a claim that the catalog or character modeling is complete.
 
+## Study and storage follow-up — October 23, 2026
+
+Compared the timber loft and common study/café references against the current
+catalog with a second reviewer. The useful gap was everyday construction and
+reachable storage, rather than more particles or another character rig.
+The design baseline is `dev` at `0c8b1bf`; the earlier checkout/CI patch remains
+included in the working tree.
+
+- **Ladder shelf:** three projected boards with real depth, leaning side rails,
+  and books, a ceramic bowl and folded linen resting on the shelves.
+- **Stacked crates:** separated slats and corner battens replace solid boxes.
+  The lower crate has a boarded lid supporting an open upper crate.
+- **Laundry basket:** a tapered woven body, bound recessed rim, hand opening
+  and one draped cloth replace the straight cylinder and round laundry blobs.
+- **Book trolley:** a new low, two-tier cart with casters and a side handle.
+  Books occupy the lower shelf; its clear 32 px upper tray accepts ordinary
+  tabletop decorations through the existing stacking rules.
+- **Open journal:** a new stackable spread with separate page blocks, a binding,
+  ribbon and pencil. The cover accepts the user's tint; paper stays paper.
+
+The catalog now has **165 entries across 18 groups**. Find the trolley in
+Storage and the journal in Decoration. Existing furniture footprints, seat
+heights, saved layouts and character poses are unchanged. The models live in
+focused storage/study modules instead of enlarging the main sprite file.
+
+![Before/after storage and new study pieces](model-review/study-storage.webp)
+
+![The new pieces in a furnished study and reading nook](model-review/study-nook.webp)
+
+The room above is a review arrangement, not an additional shipped preset.
+It keeps the window workstation separate from the lounge, places the trolley
+within reach of the reading chair and leaves a clear route between both areas.
+The ladder shelf was moved away from the floor lamp after the first capture
+showed it being obscured. No existing preset was filled with extra props.
+
+Reviewed all five models in natural, light, dark and sage finishes, plus the
+built app at 1440×940 and 900×640. Browser checks cover searching for and adding
+both new items, saved tints and reload persistence. Placement regressions cover
+the journal on the trolley in both facings. The existing catalog checks render
+every sprite in every facing; artwork still needs visual judgment.
+
+Validation: 1,365 frontend tests passed with one existing opt-in fixture skip;
+the 519 catalog/placement checks were repeated after the final drawing change.
+All 117 backend room/packaging/checkout tests passed, along with lint, the Node
+20 production build and art generation. The matching main-channel EXE/manifest
+passed artifact verification and an isolated frozen self-test (exit 0).
+Both reviewers inspected the final models and room captures without blockers.
+Detailed test logs and the disposable browser scenario are under ignored
+`build/skill-verification/design-2026-10-23/`.
+
+The larger character-perspective and raised-platform-bed gaps remain open.
+This pass does not revive the rejected seated rig or claim catalog-wide parity
+with the references.
+
+## Earlier October findings
+
 The later compact resident, quieter face/glasses and fitted headgear work is
 recorded in [the October 6 handoff](archive/HANDOFF-2026-10-06.md). The subsequent
 [stability review](archive/STABILITY-REVIEW-2026-10-06.md) fixes transformed clipping,

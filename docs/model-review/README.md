@@ -4,6 +4,11 @@ Comparison sheets use the real SVG artwork with the scene's paint definitions
 and default theme colours. They are captured against a light neutral background
 so plant structure, glass, cabinet recesses and clothing overlaps are visible.
 
+- [Study and storage](study-storage.webp): October 23 before/after ladder
+  shelf, crates and basket, plus the new book trolley and open journal.
+- [Study nook](study-nook.webp): those five pieces in a real production-app
+  review arrangement, with separate window-study and reading areas. This is
+  a review layout rather than a shipped preset.
 - [Plants](plants.webp), [storage](storage.webp), [lighting](lighting.webp):
   complete entries in those catalog groups, including pieces not used in presets.
 - [Seated front](seated-front.webp) and [seated rear](seated-back.webp): all eight

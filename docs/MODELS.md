@@ -102,6 +102,16 @@ ceramics and baskets. Keep contents warm and muted so the selected furniture
 tint still dominates. Material review fixtures cover light, dark and sage
 paint, including front and rear chair/sofa views.
 
+The ladder shelf has projected boards with decreasing depth along leaning
+side rails; its contents rest at the boards' actual top heights. Stacked crates
+use separate slats and corner battens, with a boarded lower lid supporting
+the open upper crate. The laundry basket uses tapered wicker, an inset bound
+rim and a single draped cloth. These preserve their original placement bounds.
+`IsoStorageItems.jsx` owns those three models. `IsoStudyItems.jsx` owns the
+book trolley and open journal: the trolley's books are fixed lower-shelf art,
+while its clear upper tray is a normal catalog surface at 32 px. The journal
+uses ordinary tabletop stacking; neither piece needs special scene behavior.
+
 ### Persona proportions
 
 The front face keeps the existing crown size for hair and hats, but its
@@ -382,8 +392,8 @@ hundred flat boxes looks *worse* than uniform.
 - **Wall items**: draw inside `<g transform={skewY(SKEW)}>`, y=0 at the floor
   line, negative y upward.
 - **Flat things**: `floorPatch(gx, gy, dx, dy)` — a diamond in the floor plane.
-- **Derive texture from POSITION, never `Math.random`.** The scene re-renders
-  on the timer tick; a randomised floor would crawl.
+- **Derive texture from POSITION, never `Math.random`.** A scene render must
+  not generate a different floor pattern.
 
 ---
 
@@ -434,9 +444,11 @@ keeps its shallow rectangular tray — that IS what a bonsai grows in.
 
 ## 6. Motion
 
-- CSS keyframe classes only: `room-sway`, `steam-puff`, `animate-flicker`,
-  `room-flicker`, `resident-type`. The scene re-renders every second, and CSS
-  animations live on the element, so they survive it for free.
+- Decorative motion uses the existing CSS keyframe classes: `room-sway`,
+  `steam-puff`, `animate-flicker`, `room-flicker`, `resident-type`. Miniatures
+  stay still, widget mode pauses the hidden scene, and live scenes respect
+  reduced motion. CSS animation still costs rendering work even without a
+  React render; new details do not automatically need animation.
 - **A CSS animation's `transform` overrides an SVG `transform` attribute
   entirely.** Put the attribute transform on a wrapper `<g>` and animate a
   child. (Hit twice; the desk plant's foliage once dropped 16px into its pot.)

@@ -333,6 +333,11 @@ size, embedded build identity, bundled backend/frontend bytes, the release-pair
 diff rule, and a frozen self-test all have to pass. Release frontend builds use
 Node 20 (`frontend/.nvmrc` and `package.json`); a different toolchain may produce
 different Vite chunks and should be rebuilt with the supported version.
+`.gitattributes` also pins text working copies to LF, except the Windows
+launchers. Preserve that rule: CRLF inside multiline JSX attributes can become
+literal carriage returns in the emitted JavaScript and change chunk hashes.
+The checkout regression covers Windows `core.autocrlf` settings and the binary
+and launcher exceptions; keep artifact verification strict.
 
 ## Committing
 

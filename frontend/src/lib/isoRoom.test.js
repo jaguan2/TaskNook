@@ -1060,6 +1060,20 @@ describe("surfaceFor — small things rest on tables", () => {
   const desk = { id: "d", item: "desk", gx: 2, gy: 1 }; // 2..4.2 x 1..2.2
   const rug = { id: "r", item: "squarerug", gx: 0, gy: 0 };
 
+  it.each([0, 1])("retains a tinted journal on the trolley tray after a saved layout reload, facing %s", (rot) => {
+    const placements = [
+      { id: "cart", item: "booktrolley", gx: 2, gy: 2, ...(rot && { rot }), tint: "#789388" },
+      { id: "journal", item: "openjournal", gx: 2, gy: 2, ...(rot && { rot }), tint: "#a87565" },
+    ];
+    const reloaded = validateIsoLayout(JSON.parse(JSON.stringify({ w: 8, d: 7, placements })));
+    expect(reloaded.placements).toEqual(placements);
+    const [cart, journal] = reloaded.placements;
+    const on = surfaceFor(journal, reloaded.placements);
+    expect(on).toEqual({ placement: cart, height: 32 });
+    expect(stackedPlacement(journal, on)._rest).toBe(32);
+    expect(seatFor({ id: "reader", item: "resident", gx: 2, gy: 2 }, [cart])).toBeNull();
+  });
+
   it("lifts an item whose centre is over a surface", () => {
     const mug = { id: "m", item: "mug", gx: 3, gy: 1.5 };
     const on = surfaceFor(mug, [desk, mug]);

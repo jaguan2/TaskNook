@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "build_id": "cd4536ce10864f87b95089e0aec21292",
-  "built_at": "2026-10-22T21:12:23.517070+00:00",
+  "build_id": "deb83e9ef5e2456f81e509a486f02e76",
+  "built_at": "2026-10-23T15:49:47.644167+00:00",
   "channel": "main",
-  "source_sha256": "a28460ecbbe44cd6ac937c9f6420bc836ccc6c1e9ab3257f3722bbc6324e3166",
-  "sha256": "81428ce647c22495ffe404136d0067ebdc7428e657e7db47545cde601e65f22a",
-  "size": 44513688
+  "source_sha256": "81a5ba676f4f814a950c8c29ce1900ac7265d3cdd361e19dac1af53000a8a777",
+  "sha256": "a40e99e3d10aa6614c9ff1266d7230f8c81bfbec4deaa866cbf741430964ff21",
+  "size": 44354972
 }

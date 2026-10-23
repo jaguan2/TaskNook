@@ -157,10 +157,11 @@ because it renders or has a tint picker.
 | Wardrobe (`wardrobe`) | Refined this pass | A restrained timber grain pass and distinct rear construction. |
 | Dresser (`dresser`) | Refined this pass | Drawer side depth and a slightly rounded projecting top. |
 | Record crate (`vinylcrate`) | Refined this pass | Open slatted construction and varied sleeve silhouettes. |
-| Laundry basket (`basket`) | Pending | Woven wall construction and irregular folded laundry. |
+| Laundry basket (`basket`) | Refined 2026-10-23 | Tapered wicker, a bound recessed rim and draped cloth implemented; further fold variation remains. |
 | Coat rack (`coatrack`) | Pending | Sculpted hooks, hanging cloth silhouettes and thicker timber joints. |
-| Ladder shelf (`ladder`) | Pending | Actual shelf boards with depth, angled side rails and books resting on them. |
-| Stacked crates (`crates`) | Pending | Open slats, hand cutouts and visible contents instead of closed boxes. |
+| Ladder shelf (`ladder`) | Refined 2026-10-23 | Projected shelf boards, leaning rails and supported contents implemented; assess rail joinery at room scale. |
+| Stacked crates (`crates`) | Refined 2026-10-23 | Open slats, corner battens and a supporting lower lid implemented; carrying cutouts and varied contents remain. |
+| Book trolley (`booktrolley`) | Added 2026-10-23 | Open two-tier frame, casters, side handle and clear usable upper tray; consider a distinct rear view if four-way facing becomes useful. |
 | Bookshelf (`bookshelf`) | Refined previous pass | More depth in leaning books and a less repetitive shelf arrangement. |
 
 ### Plants & greenery
@@ -274,6 +275,7 @@ because it renders or has a tint picker.
 | Standing mirror (`standmirror`) | Pending | Frame thickness, rear easel support and a grounded stand. |
 | Guitar (`guitar`) | Pending | Body bevel, recessed sound hole, bridge and tuning peg detail. |
 | Stack of books (`bookstack`) | Pending | Unequal covers, visible page blocks and less perfect alignment. |
+| Open journal (`openjournal`) | Added 2026-10-23 | Bound page spread, ribbon and pencil; retain readable page planes and cover tint when adding future variants. |
 | Aquarium (`aquarium`) | Pending | Glass frame thickness, gravel bank and identifiable underwater plants. |
 | Upright piano (`piano`) | Pending | Separate keybed, unequal black/white keys, lid and leg construction. |
 | Easel (`easel`) | Pending | Actual crossed support joints, tray lip and canvas frame depth. |

@@ -97,6 +97,14 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         views: views.length, foot: item.foot, height: item.hitH });
     }
     writeFileSync(`${DIR}/../catalog.json`, JSON.stringify(inventory, null, 2));
+    // Painted frames, timber and wicker must remain readable in quiet tints.
+    for (const key of ["ladder", "crates", "basket", "booktrolley", "openjournal"]) {
+      const Sprite = ISO_SPRITES[key];
+      for (const tint of ["#d7c6a8", "#4b414d", "#789388"]) {
+        save(`study-${key}-${tint.slice(1)}`,
+          <g style={{ "--tint": tint }}><Sprite /></g>, "-30 -78 82 110");
+      }
+    }
     // Face and lap pose review: skin contrast, accessories and body extremes
     // belong in the same sheet as the authored outfits.
     for (const [name, extra] of Object.entries({
