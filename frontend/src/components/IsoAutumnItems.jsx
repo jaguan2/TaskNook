@@ -1,6 +1,7 @@
 import { SKEW, TILE_W, floorPatch, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
 import { TintedBox } from "./IsoItemPrimitives";
+import { BroadleafTree } from "./IsoTreePrimitives";
 
 // A seasonal set. The rules these follow are the ones cozy isometric games
 // (Animal Crossing, Stardew, Unpacking, Cozy Grove) all converge on, and they
@@ -18,23 +19,21 @@ import { TintedBox } from "./IsoItemPrimitives";
 //      spout, a mug's handle) rather than staying to scale.
 
 export function MapleTree() {
-  // Same construction as Tree, dressed for the season: the canopy runs amber
-  // through to deep red, warmest at the crown where the light is.
   const c = project(0.75, 0.75);
+  const crown = [
+    { dx: -28, dy: -71, width: 51, height: 36, color: "#a8442f", dark: true, tilt: -8, variant: 1 },
+    { dx: 9, dy: -71, width: 57, height: 39, color: "#b94d32", tilt: 4, variant: 2 },
+    { dx: 36, dy: -84, width: 43, height: 34, color: "#b94d32", dark: true, tilt: 12, variant: 0 },
+    { dx: -16, dy: -101, width: 55, height: 39, color: "#c0563f", tilt: 8, variant: 2 },
+    { dx: 18, dy: -106, width: 54, height: 38, color: "#d47c35", tilt: -6, variant: 1 },
+  ];
   return (
-    <g>
-      <path
-        d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 44} L${c.x + 3} ${c.y - 44} L${c.x + 5} ${c.y} Z`}
-        fill="#6b4a39"
-      />
-      <g className="room-sway">
-        <ellipse cx={c.x} cy={c.y - 56} rx="33" ry="21" style={tinted("#a8442f")} />
-        <ellipse cx={c.x} cy={c.y - 56} rx="33" ry="21" fill="#000" opacity="0.14" />
-        <ellipse cx={c.x - 7} cy={c.y - 73} rx="26" ry="17" style={tinted("#c0563f")} />
-        <ellipse cx={c.x + 8} cy={c.y - 86} rx="17" ry="12" style={tinted("#d98b3a")} />
-        <ellipse cx={c.x + 10} cy={c.y - 88} rx="9" ry="6" fill="#fff" opacity="0.14" />
-      </g>
-    </g>
+    <BroadleafTree center={c} kind="maple" trunkColor="#6b4a39"
+      rearColor="#963c2d" clusters={crown} shadowOpacity={0.22}
+      canopyDetails={<>
+        <path d={`M${c.x - 38} ${c.y - 79} q8 -5 14 0 q-8 7 -14 0 z`} fill="#d98b3a" opacity="0.8" />
+        <path d={`M${c.x + 34} ${c.y - 86} q7 -4 12 1 q-7 5 -12 -1 z`} fill="#a8442f" opacity="0.75" />
+      </>} />
   );
 }
 
@@ -45,27 +44,31 @@ export function LeafPile() {
   // ragged, not that it's tall.
   const c = project(0.5, 0.4);
   const leaf = (x, y, r, s, fill) => (
-    <path
-      key={`${x}-${y}-${fill}`}
-      d="M0 0 q5 -1.6 9 0 q-4 1.6 -9 0 z"
-      fill={fill}
-      transform={`translate(${x},${y}) rotate(${r}) scale(${s})`}
-    />
+    <g key={`${x}-${y}-${fill}`} transform={`translate(${x},${y}) rotate(${r}) scale(${s})`}>
+      <path d="M0 0 Q4.5 -3 9 0 Q5.4 3 0 0 Z" fill={fill} />
+      <path d="M1.5 0 L7.2 0" stroke="#6f3828" strokeWidth="0.65" opacity="0.45" />
+    </g>
   );
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-1" rx="21" ry="8.5" fill="#000" opacity="0.14" />
-      {/* the mass: a shallow drift, barely taller than the leaves on it */}
-      <path d="M-21 -1 q4 -7 12 -8 q9 -3 18 1 q7 2 12 7 z" style={tinted("#8f3d2c")} />
-      <path d="M4 -8 q7 2 13 7 l-9 0 q-2 -5 -8 -7 z" fill="#000" opacity="0.16" />
-      {/* leaves lying across it, angles kept shallow so nothing stands up */}
-      {leaf(-16, -3, -12, 1, "#c0563f")}
-      {leaf(-9, -6.5, 8, 1.1, "#d98b3a")}
-      {leaf(-2, -9, -6, 1, "#e0a34a")}
-      {leaf(5, -7, 14, 1.05, "#c0563f")}
-      {leaf(11, -4, -10, 0.95, "#d98b3a")}
-      {leaf(-13, -1.5, 20, 0.9, "#a8442f")}
-      {leaf(3, -2, -18, 0.9, "#e0a34a")}
+      <path d="M-24 0 Q-15 5 -5 1 Q7 5 23 0 L19 4 Q2 8 -20 4 Z" fill="#4b2f28" opacity="0.22" />
+      {/* Several low, overlapping drifts make a loose pile rather than one
+          smooth red surfboard. The edge stays ragged and close to the floor. */}
+      <path d="M-22 0 Q-20 -6 -12 -7 Q-7 -11 1 -7 Q8 -9 13 -4 Q19 -4 22 0 Q13 3 4 1 Q-4 4 -12 1 Q-17 3 -22 0 Z"
+        style={tinted("#a8442f")} />
+      <path d="M-17 -2 Q-13 -9 -5 -8 Q1 -13 8 -8 Q15 -8 18 -3 Q9 -1 3 -3 Q-6 1 -17 -2 Z"
+        fill="#c85b32" />
+      <path d="M-9 -5 Q-5 -12 2 -11 Q8 -14 13 -8 Q8 -5 2 -6 Q-3 -3 -9 -5 Z"
+        fill="#d98b3a" />
+      <path d="M6 -8 Q13 -7 18 -3 L10 -2 Q8 -6 6 -8 Z" fill="#000" opacity="0.14" />
+      {/* Leaves lie across the mound; none stands upright like a flame. */}
+      {leaf(-17, -2.5, -12, 0.9, "#c0563f")}
+      {leaf(-11, -6.5, 9, 1, "#e0a34a")}
+      {leaf(-3, -9.5, -7, 0.92, "#d98b3a")}
+      {leaf(5, -8, 15, 0.98, "#a8442f")}
+      {leaf(11, -4.5, -10, 0.88, "#e0a34a")}
+      {leaf(-8, -1.5, 20, 0.82, "#a8442f")}
+      {leaf(3, -2, -18, 0.84, "#c0563f")}
       {/* two strays on the floor beside it */}
       {leaf(-24, 0.5, -26, 0.8, "#c0563f")}
       {leaf(17, 0, 16, 0.8, "#d98b3a")}
@@ -104,19 +107,34 @@ function PumpkinBody({ carved }) {
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       <ellipse cx="0" cy="-1" rx="11" ry="5" fill="#000" opacity="0.18" />
-      <ellipse cx="0" cy="-8" rx="11" ry="8.5" style={tinted("#d9782f")} />
-      {/* ribs: three arcs, the outer two darker so the body turns away */}
-      <path d="M-6 -15.5 q-3.5 7.5 0 15" fill="none" stroke="#000" strokeWidth="1.1" opacity="0.16" />
-      <path d="M6 -15.5 q3.5 7.5 0 15" fill="none" stroke="#000" strokeWidth="1.1" opacity="0.16" />
-      <path d="M0 -16.5 q-2 8 0 16" fill="none" stroke="#000" strokeWidth="0.9" opacity="0.1" />
-      <ellipse cx="-4.5" cy="-11" rx="3.5" ry="2.6" fill="#fff" opacity="0.13" />
-      <path d="M-1.6 -16 q0 -4 -2.5 -6 q4 0.5 5.5 5.5 z" fill="#4f6b3a" />
-      <rect x="-1.4" y="-19" width="2.8" height="4" rx="1.2" fill="#6b7f4a" />
+      {/* The stalk disappears behind the crown, so it grows from the body
+          instead of looking pasted to its front. */}
+      <path d="M-1.8 -14.5 Q-3.2 -19 -0.2 -22.5 Q2.4 -20.5 2 -14.5 Z" fill="#53663a" />
+      <path d="M-11 -7 Q-11.5 -14.5 -6.5 -16 Q-3.5 -18.8 0 -16.5 Q3.8 -19 6.8 -15.8
+        Q11.8 -14.2 11 -6.5 Q8 -0.5 0 -0.2 Q-8 -0.5 -11 -7 Z" style={tinted("#d9782f")} />
+      {/* Filled lobes carry the volume at room scale; hairline rib strokes did not. */}
+      <path d="M-10.5 -7 Q-10.5 -14 -6.2 -15.5 Q-3.2 -10 -5.2 -1.2 Q-9 -2.4 -10.5 -7 Z"
+        fill="#000" opacity="0.16" />
+      <path d="M-5.8 -15.5 Q-1.8 -18 0 -16.5 Q-3.2 -9 -1.8 -0.4 Q-5 -1 -6 -7 Q-7 -12 -5.8 -15.5 Z"
+        fill="#000" opacity="0.08" />
+      <path d="M6.3 -15.3 Q10.8 -14 11 -6.5 Q9.4 -2 5 -1 Q7.1 -9.5 6.3 -15.3 Z"
+        fill="#000" opacity="0.22" />
+      <path d="M-5 -14 Q-3 -17 0 -16 Q-1 -12 -4.7 -9.6 Z" fill="#fff" opacity="0.15" />
+      <ellipse cx="0" cy="-15.5" rx="4.8" ry="1.5" fill="#6f3f29" opacity="0.28" />
       {carved && (
-        <g fill="#ffe9b0">
-          <path d="M-6 -11 l4 0 l-2 3.2 z" />
-          <path d="M2 -11 l4 0 l-2 3.2 z" />
-          <path d="M-5.5 -6 l11 0 l-1.6 2.6 l-2 -1.4 l-2 1.4 l-2 -1.4 l-2 1.4 z" />
+        <g>
+          <g fill="#4b241f">
+            <path d="M-6.4 -11.8 L-1.6 -11.2 L-4.2 -7.5 Z" />
+            <path d="M1.6 -11.1 L6.1 -10.3 L3.8 -7 Z" />
+            <path d="M-6 -6.1 Q0 -3.2 6 -5 L4.3 -1.9 L1.8 -3.2 L0 -1.7 L-2 -3.3 L-4.5 -2 Z" />
+          </g>
+          {/* Smaller warm facets sit behind the dark cut edge, giving the
+              openings wall thickness instead of flat yellow stickers. */}
+          <g fill="#ffe09a">
+            <path d="M-5.2 -10.8 L-2.5 -10.4 L-4.1 -8.5 Z" />
+            <path d="M2.4 -10.1 L5.1 -9.7 L3.8 -7.9 Z" />
+            <path d="M-4.5 -5 Q0 -3.4 4.6 -4.3 L3.6 -2.8 L1.7 -3.8 L0 -2.7 L-1.9 -4 L-3.6 -2.9 Z" />
+          </g>
         </g>
       )}
     </g>

@@ -252,6 +252,7 @@ export const ISO_ITEMS = {
   // seat = the duvet's top edge, hitH = clear of the headboard.
   bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 40, seat: 18, lie: true },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
+  flowercushion: { label: "Flower cushion", icon: "🌼", foot: [1, 1], hitH: 18, seat: 13 },
   // ---- storage & seating ----
   wardrobe: { label: "Wardrobe", icon: "🚪", foot: [1.4, 0.7], hitH: 92 },
   dresser: { label: "Dresser", icon: "🧦", foot: [1.6, 0.6], hitH: 42, surface: 34 },
@@ -264,6 +265,7 @@ export const ISO_ITEMS = {
   // multi-coloured by nature: one flat tint would turn it into a brick
   bookstack: { label: "Stack of books", icon: "📗", foot: [0.5, 0.4], hitH: 16, tintable: false, stacks: true },
   openjournal: { label: "Open journal", icon: "📖", foot: [0.9, 0.65], hitH: 8, stacks: true },
+  foldedblanket: { label: "Folded blanket", icon: "🧶", foot: [0.9, 0.65], hitH: 12, stacks: true },
   booktrolley: { label: "Book trolley", icon: "📚", foot: [1.3, 0.7], hitH: 46, surface: 32 },
   vinylcrate: { label: "Record crate", icon: "💿", foot: [0.7, 0.5], hitH: 24 },
   basket: { label: "Laundry basket", icon: "🧺", foot: [0.6, 0.6], hitH: 24 },
@@ -400,7 +402,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Seating & beds",
     keys: ["sofa", "armchair", "chair", "deskchair", "stool", "woodstool", "beanbag",
-      "cushion", "bed", "bench", "log", "hammock"],
+      "cushion", "flowercushion", "bed", "bench", "log", "hammock"],
   },
   {
     label: "Tables & desks",
@@ -430,7 +432,7 @@ export const ISO_ITEM_GROUPS = [
   {
     label: "Decoration",
     keys: ["piano", "easel", "screen", "birdcage", "standmirror", "aquarium",
-      "globe", "chess", "guitar", "bookstack", "openjournal", "till"],
+      "globe", "chess", "guitar", "bookstack", "openjournal", "foldedblanket", "till"],
   },
   {
     label: "Tech & music",

@@ -842,6 +842,26 @@ describe("presets", () => {
     ]);
   });
 
+  it("divides the Terrace into dining and reading zones", () => {
+    const items = ISO_PRESETS.terrace.items;
+    const table = items.find((p) => p.item === "diningtable");
+    const diningSeats = items.filter((p) => p.item === "woodstool");
+    const readingSeat = items.find((p) => p.item === "armchair");
+    const softSeat = items.find((p) => p.item === "cushion");
+
+    expect(table.gx).toBeLessThan(4);
+    expect(diningSeats).toHaveLength(3);
+    expect(diningSeats.every((p) => p.gx < 4)).toBe(true);
+    expect(readingSeat.gx).toBeGreaterThanOrEqual(5);
+    expect(softSeat.gx).toBeGreaterThan(readingSeat.gx);
+    expect(items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ item: "ovalrug" }),
+      expect.objectContaining({ item: "candelabra" }),
+    ]));
+    expect(items.some((p) => p.item === "flowercushion" || p.item === "foldedblanket")).toBe(false);
+    expect(items).toHaveLength(16);
+  });
+
   it("pairs one sleeping corner with two opposing workstations", () => {
     const items = ISO_PRESETS.home.items;
     const beds = items.filter((p) => p.item === "bed");
@@ -1072,6 +1092,22 @@ describe("surfaceFor — small things rest on tables", () => {
     expect(on).toEqual({ placement: cart, height: 32 });
     expect(stackedPlacement(journal, on)._rest).toBe(32);
     expect(seatFor({ id: "reader", item: "resident", gx: 2, gy: 2 }, [cart])).toBeNull();
+  });
+
+  it("seats a resident on the flower cushion and lifts a folded throw onto a table", () => {
+    const cushion = { id: "c", item: "flowercushion", gx: 1, gy: 1 };
+    const resident = { id: "p", item: "resident", gx: 1.1, gy: 1.1 };
+    expect(seatFor(resident, [cushion, resident])).toMatchObject({
+      placement: cushion,
+      height: 13,
+      lie: false,
+    });
+
+    const table = { id: "t", item: "diningtable", gx: 2, gy: 2 };
+    const blanket = { id: "b", item: "foldedblanket", gx: 2.5, gy: 2.25 };
+    const on = surfaceFor(blanket, [table, blanket]);
+    expect(on).toEqual({ placement: table, height: 26.5 });
+    expect(stackedPlacement(blanket, on)).toMatchObject({ _rest: 26.5 });
   });
 
   it("lifts an item whose centre is over a surface", () => {

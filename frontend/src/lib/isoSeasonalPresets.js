@@ -12,7 +12,7 @@ export function createIsoSeasonalPresets() {
       // A copse at the back-left and one tree opposite, rather than three
       // spaced evenly across the skyline.
       { item: "mapletree", gx: 0.5, gy: 0 },
-      { item: "mapletree", gx: 2.5, gy: 0.5, tint: "#c9762f" },
+      { item: "mapletree", gx: 3.5, gy: 0.5, tint: "#c9762f" },
       { item: "birch", gx: 7.5, gy: 0, tint: "#c9a24b" },
       { item: "bush", gx: 0.5, gy: 3, tint: "#a8863a" },
       { item: "rock", gx: 9, gy: 2.5 },
@@ -39,7 +39,7 @@ export function createIsoSeasonalPresets() {
     size: { w: 10, d: 8, env: "snow", lighting: "moonlit" },
     items: [
       { item: "snowpine", gx: 0.5, gy: 0 },
-      { item: "christmastree", gx: 2.5, gy: 0 },
+      { item: "christmastree", gx: 3.5, gy: 0 },
       // A chimney needs a building; freestanding here it read as a brick tower.
       { item: "snowpine", gx: 7.5, gy: 0.5, tint: "#46644f" },
       { item: "snowdrift", gx: 0.5, gy: 3 },
@@ -66,11 +66,11 @@ export function createIsoSeasonalPresets() {
     items: [
       { item: "coconutpalm", gx: 0, gy: 0, tint: "#986a42" },
       { item: "coconutpalm", gx: 12, gy: 0, tint: "#a27448" },
-      { item: "coconutpalm", gx: 12, gy: 9.5, tint: "#986a42" },
+      { item: "coconutpalm", gx: 12.5, gy: 9, tint: "#986a42" },
       // One long pool avoids two rims and ladders meeting in the water.
       { item: "longpool", gx: 4.5, gy: 2.5 },
       { item: "poolumbrella", gx: 0.5, gy: 3, tint: "#df765f" },
-      { item: "poolumbrella", gx: 10.5, gy: 6.5, tint: "#67a9bf" },
+      { item: "poolumbrella", gx: 8, gy: 8.5, tint: "#67a9bf" },
       // One served lounging group along the pool's open side. The former
       // arrangement scattered three chairs across the deck and put a palm
       // directly over the foreground seat.

@@ -4,14 +4,16 @@ import { tinted } from "../lib/tint";
 // The little people live in their own package now — hair and garment
 // REGISTRIES, the body rig, the poses. This file is the furniture.
 import { Resident, You } from "./character";
-import { LeafCluster, PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
+import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
 import { GardenPond, Pond } from "./IsoWaterItems";
 import { GardenTrail } from "./IsoGardenItems";
+import { Birch, Bush, Flowerbed, Hedge, Pine, Rock, Tree } from "./IsoOutdoorItems";
 import { BookTrolley, OpenJournal } from "./IsoStudyItems";
 import { Basket, Crates, LadderShelf } from "./IsoStorageItems";
+import { FlowerCushion, FoldedBlanket } from "./IsoTextileItems";
 import {
   BeachBall,
   BirdBath,
@@ -2106,38 +2108,6 @@ function BigWindow() {
   );
 }
 
-// ---- outdoor set ------------------------------------------------------- //
-
-function Tree() {
-  const c = project(0.75, 0.75);
-  return (
-    <g>
-      <path
-        d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 46} L${c.x + 3} ${c.y - 46} L${c.x + 5} ${c.y} Z`}
-        fill="#6b4a39"
-      />
-      <path d={`M${c.x} ${c.y - 32} l-14 -23 M${c.x} ${c.y - 38} l16 -25`} fill="none" stroke="#6b4a39" strokeWidth="3" />
-      <g className="room-sway">
-        <LeafCluster x={c.x - 13} y={c.y - 56} width={44} height={30} dark />
-        <LeafCluster x={c.x + 15} y={c.y - 64} width={40} height={32} />
-        <LeafCluster x={c.x - 8} y={c.y - 77} width={42} height={30} />
-        <LeafCluster x={c.x + 8} y={c.y - 88} width={31} height={26} />
-      </g>
-    </g>
-  );
-}
-
-function Bush() {
-  const c = project(0.5, 0.5);
-  return (
-    <g>
-      <LeafCluster x={c.x - 8} y={c.y - 10} width={27} height={18} />
-      <LeafCluster x={c.x + 8} y={c.y - 9} width={26} height={18} dark />
-      <LeafCluster x={c.x} y={c.y - 18} width={25} height={19} />
-    </g>
-  );
-}
-
 function Picnic() {
   return (
     <g>
@@ -2190,27 +2160,6 @@ function Bench({ back = false }) {
     </g>
     {back && rest}
   </g>;
-}
-
-function Flowerbed() {
-  const c = project(0.5, 0.3);
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 1, 0.6)} fill="#2e5540" opacity="0.8" />
-      {[
-        [-12, -6],
-        [-2, -12],
-        [8, -5],
-        [0, -2],
-        [14, -10],
-      ].map(([dx, dy], i) => (
-        <g key={i}>
-          <circle cx={c.x + dx} cy={c.y + dy} r="3" style={tinted("#e8b04b")} />
-          <circle cx={c.x + dx} cy={c.y + dy} r="1.2" fill="#fff" opacity="0.8" />
-        </g>
-      ))}
-    </g>
-  );
 }
 
 // ---- newer decorations -------------------------------------------------- //
@@ -3023,77 +2972,6 @@ function Computer() {
   );
 }
 
-// ---- outdoors ----------------------------------------------------------- //
-// The garden had exactly one tree. Silhouette does the work at this size, so
-// each of these is a different OUTLINE rather than a different green.
-
-function Pine() {
-  const c = project(0.6, 0.6);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-3" y="-16" width="6" height="16" fill="#6b4a39" />
-      <rect x="0" y="-16" width="3" height="16" fill="#000" opacity="0.2" />
-      <g className="room-sway">
-        {[
-          [-14, 34, 24],
-          [-32, 27, 20],
-          [-48, 19, 16],
-          [-62, 12, 12],
-        ].map(([y, w, h]) => (
-          <g key={y}>
-            <path d={`M${-w / 2} ${y} L0 ${y - h} L${w / 2} ${y} Z`} style={tinted("#2f6b4f")} />
-            <path d={`M0 ${y} L0 ${y - h} L${w / 2} ${y} Z`} fill="#000" opacity="0.16" />
-          </g>
-        ))}
-      </g>
-    </g>
-  );
-}
-
-function Birch() {
-  const c = project(0.6, 0.6);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-3.5" y="-52" width="7" height="52" fill="#ddd6cc" />
-      <rect x="1" y="-52" width="2.5" height="52" fill="#000" opacity="0.14" />
-      {[-8, -19, -30, -41].map((y, i) => (
-        <rect key={y} x={i % 2 ? -3.5 : -1} y={y} width="4" height="2.2" rx="0.6" fill="#3a3142" opacity="0.55" />
-      ))}
-      <g className="room-sway">
-        <LeafCluster x={-4} y={-60} width={34} height={26} fallback="#7fb08a" />
-        <LeafCluster x={9} y={-53} width={24} height={20} fallback="#7fb08a" dark />
-      </g>
-    </g>
-  );
-}
-
-function Hedge() {
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={1.6} dy={0.6} h={22} fallback="#3f7f63" dark={0.3} mid={0.16} />
-      {/* clipped-top texture: a row of soft lobes along the crown */}
-      <g transform="translate(0,-22)">
-        {[0.2, 0.6, 1.0, 1.4].map((gx) => {
-          const p = project(gx, 0.3);
-          return <ellipse key={gx} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#4f8f6a")} />;
-        })}
-      </g>
-    </g>
-  );
-}
-
-function Rock() {
-  const c = project(0.45, 0.4);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <path d="M-16 0 q-4 -11 4 -16 q10 -7 18 0 q8 6 3 16 z" style={tinted("#8d8178")} />
-      <path d="M2 -20 q8 5 3 20 l-5 0 q4 -12 2 -20 z" fill="#000" opacity="0.22" />
-      <path d="M-12 -6 q4 -9 10 -11" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.14" strokeLinecap="round" />
-      <ellipse cx="-4" cy="-1" rx="15" ry="3" fill="#000" opacity="0.16" />
-    </g>
-  );
-}
-
 function Log() {
   const c = project(0.7, 0.35);
   return (
@@ -3745,6 +3623,8 @@ function PastryCase() {
 }
 
 export const ISO_SPRITES = {
+  flowercushion: FlowerCushion,
+  foldedblanket: FoldedBlanket,
   booktrolley: BookTrolley,
   openjournal: OpenJournal,
   you: You,

@@ -217,7 +217,7 @@ export function createIsoPresets(defaultIsoSize) {
 
       // Keep the tall canopy on the perimeter so every bank stays visible.
       { item: "tree", gx: 0.5, gy: 0 },
-      { item: "blossomtree", gx: 3.5, gy: 0 },
+      { item: "blossomtree", gx: 4.5, gy: 0 },
       { item: "birch", gx: 13.5, gy: 0.5 },
       { item: "bush", gx: 0.5, gy: 7 },
       { item: "bush", gx: 14.5, gy: 10.5 },
@@ -502,28 +502,34 @@ export function createIsoPresets(defaultIsoSize) {
     icon: "🪴",
     size: { w: 9, d: 7, env: "terrace" },
     items: [
+      // The planting makes a sheltered back edge instead of scattering one
+      // object into each corner. The open centre remains the route between
+      // the dining and reading zones.
       { item: "hedge", gx: 0, gy: 0 },
       { item: "hedge", gx: 2, gy: 0 },
       { item: "pine", gx: 7, gy: 0 },
-      { item: "diningtable", gx: 2.5, gy: 2.5 },
-      { item: "candle", gx: 2.5, gy: 2.5 },
-      { item: "woodstool", gx: 2.5, gy: 4 },
-      { item: "woodstool", gx: 4, gy: 4 },
-      { item: "woodstool", gx: 3.5, gy: 1.5 },
-      { item: "matrug", gx: 6.5, gy: 4.5, tint: "#8a5346" },
-      { item: "armchair", gx: 6.5, gy: 4.5, tint: "#7faf8f" },
-      { item: "sidetable", gx: 5, gy: 5 },
-      { item: "mug", gx: 5, gy: 5 },
-      { item: "flowers", gx: 0.5, gy: 5.5 },
-      { item: "flowers", gx: 8, gy: 2 },
-      { item: "monstera", gx: 0.5, gy: 3 },
-      { item: "cactus", gx: 8, gy: 6 },
-      { item: "cat", gx: 5.5, gy: 6 },
-      // was ALSO on the side table at 5,5 — two `stacks` items at one spot
-      // both centre on the same surface and the second is invisible
-      { item: "lightjar", gx: 7.5, gy: 6 },
-      // A lantern for when the string lights are not enough.
-      { item: "lantern", gx: 5, gy: 2 },
+      { item: "flowers", gx: 0.5, gy: 6 },
+
+      // Candlelit dining hugs the sheltered side and keeps all three stools
+      // in a readable conversation group.
+      { item: "diningtable", gx: 1.5, gy: 2, tint: "#9b7659" },
+      { item: "candelabra", gx: 2, gy: 2.5, tint: "#b88a58" },
+      { item: "woodstool", gx: 1.5, gy: 3.5, rot: 0 },
+      { item: "woodstool", gx: 3, gy: 3.5, rot: 0 },
+      { item: "woodstool", gx: 2, gy: 1, rot: 2 },
+
+      // An existing rug and two unlike seats form a deliberate reading corner.
+      // Presets stay composed rather than doubling as a shop window for every
+      // new catalog item.
+      { item: "ovalrug", gx: 5.5, gy: 4, tint: "#9a665d" },
+      { item: "armchair", gx: 6, gy: 4, tint: "#728b79" },
+      { item: "cushion", gx: 7.5, gy: 5, tint: "#c98578" },
+      { item: "sidetable", gx: 5, gy: 5, tint: "#9b7659" },
+      { item: "mug", gx: 5.5, gy: 5, tint: "#d9c5ac" },
+      { item: "cat", gx: 4.5, gy: 6 },
+
+      // One low light marks the far end without blocking the central diagonal.
+      { item: "lantern", gx: 5.5, gy: 1 },
     ],
   },
   ...createIsoSeasonalPresets(),

@@ -236,7 +236,10 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // IsoRoom includes its positioning div; the exported asset is SVG only.
     writeFileSync(`${DIR}/scene-visit.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
       .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
-    for (const key of ["loft", "home"]) {
+    // Keep the principal room plus the seasonal/tree-heavy presets in the
+    // visual sheet. A catalog cutout cannot catch scale, overlap or a weak
+    // room composition around a large silhouette.
+    for (const key of ["loft", "home", "terrace", "garden", "fall", "winter", "summer"]) {
       const room = isoPresetLayout(key);
       const presetScene = renderToStaticMarkup(
         <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />

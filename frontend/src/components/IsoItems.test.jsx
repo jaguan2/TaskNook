@@ -93,12 +93,26 @@ describe("the isometric catalog and its artwork agree", () => {
     // The point of coming back to SVG for upholstery: a picked colour has to
     // reach the fabric. A sprite that paints only literal fills would pass
     // every other test here and silently ignore the picker.
-    for (const key of ["bed", "sofa", "armchair", "cushion"]) {
+    for (const key of ["bed", "sofa", "armchair", "cushion", "flowercushion", "foldedblanket"]) {
       expect(ISO_ITEMS[key].tintable, `${key} is marked untintable`).not.toBe(false);
       const Sprite = ISO_SPRITES[key];
       const { container } = draw(<Sprite />);
       expect(container.innerHTML, `${key} never references var(--tint)`).toContain("--tint");
       cleanup();
+    }
+  });
+
+  it("recolours both flower-patch species", () => {
+    expect(ISO_ITEMS.flowerbed.tintable).not.toBe(false);
+    const Flowerbed = ISO_SPRITES.flowerbed;
+    const { container } = draw(<Flowerbed />);
+
+    for (const kind of ["daisy", "bell"]) {
+      const flowers = container.querySelectorAll(`[data-flower-kind="${kind}"]`);
+      expect(flowers.length, `${kind} flowers are missing`).toBeGreaterThan(0);
+      for (const flower of flowers) {
+        expect(flower.innerHTML, `${kind} ignores the selected tint`).toContain("--tint");
+      }
     }
   });
 
