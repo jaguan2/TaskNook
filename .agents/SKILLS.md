@@ -7,16 +7,18 @@ not the entire pstack orchestration plugin. No model weights are trained.
 
 | Skill | Role |
 | --- | --- |
-| [tasknook-engineering](../.agents/skills/tasknook-engineering/SKILL.md) | Trace the affected behavior, implement, structurally review, refine and verify |
-| [tasknook-thermonuclear-review](../.agents/skills/tasknook-thermonuclear-review/SKILL.md) | Read and apply the full upstream rubric to the current diff; standalone reviews report findings |
-| [tasknook-verify](../.agents/skills/tasknook-verify/SKILL.md) | Prove the relevant behavior with this repository's checks and real artifacts |
+| [tasknook-engineering](skills/tasknook-engineering/SKILL.md) | Trace the affected behavior, implement, structurally review, refine and verify |
+| [tasknook-thermonuclear-review](skills/tasknook-thermonuclear-review/SKILL.md) | Read and apply the full upstream rubric to the current diff; standalone reviews report findings |
+| [tasknook-verify](skills/tasknook-verify/SKILL.md) | Prove the relevant behavior with this repository's checks and real artifacts |
 
 All three permit implicit invocation. The engineering workflow is also linked
-from AGENTS.md so an agent reading that file can load the instructions directly.
+from `.agents/README.md`; the root `AGENTS.md` discovery file directs agents
+there before work begins.
 Explicit examples remain available: `Use $tasknook-engineering for this fix`
 and `Use $tasknook-thermonuclear-review on my uncommitted changes`.
 New skills should be available on the next turn; restart Codex if discovery does
-not update. Other agents must support this skill format or follow AGENTS.md;
+not update. Other agents must support this skill format or follow the root
+`AGENTS.md` pointer and `.agents/README.md` guidance;
 these files cannot force every possible AI tool to load them.
 See [official discovery and invocation guidance](https://learn.chatgpt.com/docs/build-skills).
 
@@ -29,11 +31,11 @@ See [official discovery and invocation guidance](https://learn.chatgpt.com/docs/
   `thermo-nuclear-code-quality-review` skill. This is the verified source used
   here; a different similarly named repository is not silently substituted.
 
-[upstream.lock.json](agent-skills/upstream.lock.json) records repositories,
+[upstream.lock.json](../docs/agent-skills/upstream.lock.json) records repositories,
 full commit SHAs, source/local paths and SHA-256 hashes. Complete selected
 directories are retained under `docs/agent-skills/upstream/`, with their
-[pstack license](agent-skills/upstream/pstack/LICENSE) and
-[Thermos license](agent-skills/upstream/thermos/LICENSE). No downloaded scripts
+[pstack license](../docs/agent-skills/upstream/pstack/LICENSE) and
+[Thermos license](../docs/agent-skills/upstream/thermos/LICENSE). No downloaded scripts
 or instructions are executed during synchronization. Upstream `SKILL.md` files
 stay outside `.agents/skills/` to avoid registering duplicate skills.
 

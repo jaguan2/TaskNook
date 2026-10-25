@@ -132,7 +132,7 @@ export function Resident({
   // clothes and proportions without maintaining another anatomy system.
   if (lying) {
     return (
-      <g transform={`translate(${c.x}, ${c.y})`}>
+      <g data-resident-pose="lying" transform={`translate(${c.x}, ${c.y})`}>
         {/* The bed's long grid axis projects down-left at SKEW degrees. A
             standing figure grows upward from its feet, so rotating it by
             90-SKEW points its head toward the pillows. The small down-left

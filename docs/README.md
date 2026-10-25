@@ -1,12 +1,13 @@
 # Documentation
 
-Use these guides for the current codebase. [AGENTS.md](../AGENTS.md) is the
-canonical contributor and assistant guide; [the project README](../README.md)
+Use these guides for the current codebase. [Repository guidance](../.agents/README.md)
+is the canonical contributor and assistant guide; the root `AGENTS.md` and
+`CLAUDE.md` files are tool-discovery entry points. [The project README](../README.md)
 covers setup, desktop builds and user-facing features.
 
 ## Engineering workflow
 
-- [Agent skills](AGENT_SKILLS.md): installed pstack/Thermos workflows,
+- [Agent skills](../.agents/SKILLS.md): installed pstack/Thermos workflows,
   structural self-review, verification and pinned GitHub source updates.
 
 ## Design and artwork
@@ -40,4 +41,4 @@ snapshots; verify a finding against current code before starting work.
 - [October codebase improvements](CODEBASE-REVIEW-2026-10-09.md): 2D furniture,
   decoration controls, saved outfits and durable-write feedback.
 - [August renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md).
-- [Changelog](../CHANGELOG.md): dated project history.
+- [Changelog](CHANGELOG.md): dated project history.

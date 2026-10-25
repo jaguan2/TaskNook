@@ -29,6 +29,7 @@ import { useIsoCamera } from "../lib/useIsoCamera";
 import { overSoftSpot, usePetRoaming } from "../lib/usePetRoaming";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
+import IsoBedTuck from "./IsoBedTuck";
 import ExteriorWall from "./ExteriorWall";
 import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
 import PartitionWall from "./PartitionWall";
@@ -232,6 +233,7 @@ const PlacedItem = memo(function PlacedItem({
     <g
       {...placeProps}
       data-placement-id={p.id}
+      data-item={p.item}
       className={editMode ? "room-item" : undefined}
       onPointerDown={(e) => onStartDrag?.(p, e)}
     >
@@ -269,6 +271,9 @@ const PlacedItem = memo(function PlacedItem({
         // going — before this, a figure slid backward while looking at you).
         // XOR, because two mirrors cancel.
         const flip = ((p.rot || 0) % 2 === 1) !== (glide.facing > 0);
+        const spriteFlip = persona && p._lieOn
+          ? (p._lieOn.rot || 0) % 2 === 1
+          : flip;
         const sprite = persona ? (
           <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
             <Sprite
@@ -289,7 +294,7 @@ const PlacedItem = memo(function PlacedItem({
               // The mirror wraps this whole sprite in scale(-1,1), which
               // would draw the thought bubble's book and mug back-to-front.
               // Tell it, so it can undo the flip for that one artwork.
-              mirrored={flip}
+              mirrored={spriteFlip}
             />
           </g>
         ) : item.roamer ? (
@@ -314,7 +319,12 @@ const PlacedItem = memo(function PlacedItem({
         );
         // Facing default is -1 (drawn direction) and furniture never glides,
         // so for everything but a walker this is exactly the old rot mirror.
-        return flip ? <g transform="scale(-1,1)">{sprite}</g> : sprite;
+        return (
+          <>
+            {spriteFlip ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+            {persona && <IsoBedTuck lieOn={p._lieOn} personaAt={at} />}
+          </>
+        );
       })()}
     </g>
   );
@@ -1159,11 +1169,11 @@ function IsoRoom({
         e.stopPropagation();
         pointerOnItemRef.current = true;
         const foot = footOf(placement.item, placement.rot || 0);
-        // Where on the body you took hold. KEPT for the whole drag, unlike the
-        // marker this replaced (which centred the footprint under the pointer,
-        // correct for "stand there" and wrong for "I am carrying you"): without
-        // it, grabbing someone by the ankles snaps them 50px up your cursor the
-        // instant you move.
+        // Where on the body you took hold. KEPT for the dangling figure only:
+        // without it, grabbing someone by the ankles snaps them 50px up the
+        // cursor the instant you move. The landing marker deliberately uses
+        // the cursor itself in moveDrag, so the hand—not the trailing feet—
+        // chooses the set-down tile.
         // The CTM math inline rather than via `toScene`, exactly as the edit
         // branch below does it: `toScene` is rebuilt every render, so depending
         // on it here would change this callback's identity every render and
@@ -1237,13 +1247,14 @@ function IsoRoom({
     if (walk) {
       const pt = toScene(e);
       if (!pt) return;
-      // The body hangs where you're holding it — pointer minus the grab
-      // offset — and the landing diamond goes under its FEET, so what you see
-      // dangling is what will stand there.
+      // The body still hangs from the exact point you grabbed, but the CURSOR
+      // chooses the landing tile. Using the dangling figure's feet here made
+      // the drop trail below the pointer by almost a full character height —
+      // the shadow looked like the control instead of the user's hand.
       walk.sx = pt.x - walk.hold.dx;
       walk.sy = pt.y - walk.hold.dy;
       applyHeld();
-      const g = unproject(walk.sx, walk.sy);
+      const g = unproject(pt.x, pt.y);
       const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
       // A pet's landing rule has no seat exception (there's no seated-cat
       // drawing); a persona lands on a seat or soft ground — the seated

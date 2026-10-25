@@ -22,5 +22,16 @@ export default defineConfig({
     // As real files they cache individually and load in parallel — and this
     // app is local-first, so there's no request-count penalty to fear.
     assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        // TaskNook's room art changes far more often than React, motion and the
+        // icon library. Keep third-party code in one cache-stable file instead
+        // of re-downloading it with every scene/catalog revision.
+        manualChunks(id) {
+          if (id.includes("node_modules")) return "vendor";
+          return undefined;
+        },
+      },
+    },
   },
 });

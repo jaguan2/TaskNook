@@ -5,7 +5,7 @@ description: Verify TaskNook changes with relevant behavior tests, lint/build, r
 
 # Verify TaskNook
 
-Read [AGENTS.md](../../../AGENTS.md#validating-changes). Use `npm.cmd` in
+Read [the repository guidance](../../README.md#validating-changes). Use `npm.cmd` in
 PowerShell. Select checks by the affected behavior and finish the required gates:
 
 - Frontend logic/UI: relevant Vitest tests, `npm.cmd run lint` and

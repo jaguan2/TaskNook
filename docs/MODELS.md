@@ -175,6 +175,13 @@ and an elastic cuff for joggers. Bare shins draw behind the shorts' thighs
 so the shin's round cap cannot erase the cloth hem. Review every bottom
 seated as well as standing; the distinct-artwork test covers both poses.
 
+Beds keep the same complete customized resident for the lying pose, then
+repaint the bed's own duvet above the sleeper. That foreground layer is what
+makes the character look tucked in without introducing a second generic body
+or blanket model; hair, skin, body sliders and clothing remain the real saved
+look. The sleeper and cover both follow the bed's grid orientation. Other
+lie-on furniture keeps the flat pose without borrowing the bed duvet.
+
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
 torso curve (the sprite, the panel previews and the node-env geometry tests

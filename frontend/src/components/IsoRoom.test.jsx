@@ -6,11 +6,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
-import { WALL_H } from "../lib/iso";
+import { WALL_H, project } from "../lib/iso";
 import { npcActivity, resolveVisitRoom } from "../lib/visiting";
 import { validateCharacter } from "../lib/profile";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 // The grab cursor IS the walk-order affordance, and it's the only part of a
 // walk order a render test can see (jsdom has no getScreenCTM, so the drag
@@ -391,5 +394,103 @@ describe("IsoRoom at home — walking your own island", () => {
       <IsoRoom size={HOME} placements={PLACEMENTS} editMode={false} saveView={false} />
     );
     expect(grabCursors(container).length).toBe(0);
+  });
+
+  it("uses the cursor tile for a carry landing instead of the figure's feet", () => {
+    vi.stubGlobal("DOMPoint", class {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+      }
+      matrixTransform() {
+        return this;
+      }
+    });
+    const onWalkTo = vi.fn();
+    const placements = [{ id: "me", item: "resident", gx: 2, gy: 2 }];
+    const { container } = render(
+      <IsoRoom size={HOME} placements={placements} saveView={false}
+        walkPersonas onWalkTo={onWalkTo} />
+    );
+    const svg = container.querySelector("svg");
+    svg.getScreenCTM = () => ({ inverse: () => ({}) });
+    svg.setPointerCapture = vi.fn();
+
+    const farL = project(0, HOME.d);
+    const farR = project(HOME.w, 0);
+    const front = project(HOME.w, HOME.d);
+    const cx = 320 - (farL.x + farR.x) / 2;
+    const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
+    const home = project(2, 2);
+    const cursorTarget = project(4, 4);
+
+    // Grab near the head so the held figure's feet sit well below the cursor.
+    // The old rule landed at those feet; the new rule lands at (4,4), where
+    // the pointer itself is released.
+    fireEvent.pointerDown(container.querySelector('[data-placement-id="me"]'), {
+      pointerId: 9,
+      clientX: home.x + cx,
+      clientY: home.y + cy - 40,
+    });
+    fireEvent.pointerMove(svg, {
+      pointerId: 9,
+      clientX: cursorTarget.x + cx,
+      clientY: cursorTarget.y + cy,
+    });
+    fireEvent.pointerUp(svg, {
+      pointerId: 9,
+      clientX: cursorTarget.x + cx,
+      clientY: cursorTarget.y + cy,
+    });
+
+    expect(onWalkTo).toHaveBeenCalledWith("me", 4, 4);
+  });
+
+  it("repaints the bed's duvet above a lying resident", () => {
+    const placements = [
+      { id: "bed", item: "bed", gx: 2, gy: 2, tint: "#8f78b8" },
+      { id: "me", item: "resident", gx: 2.6, gy: 3 },
+    ];
+    const { container } = render(
+      <IsoRoom size={HOME} placements={placements} saveView={false} />
+    );
+    const resident = container.querySelector('[data-placement-id="me"]');
+    const pose = resident.querySelector('[data-resident-pose="lying"]');
+    const cover = resident.querySelector('[data-bed-tuck-cover="true"]');
+
+    expect(resident.querySelectorAll('[data-resident-pose="lying"]')).toHaveLength(1);
+    expect(resident.querySelectorAll('[data-bed-tuck-cover="true"]')).toHaveLength(1);
+    expect(pose.compareDocumentPosition(cover)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(cover.closest('[style*="--tint"]')?.style.getPropertyValue("--tint")).toBe("#8f78b8");
+  });
+
+  it("turns the sleeper and tuck cover with a rotated bed", () => {
+    const placements = [
+      { id: "bed", item: "bed", gx: 2, gy: 2, rot: 1 },
+      { id: "me", item: "resident", gx: 3, gy: 2.6 },
+    ];
+    const { container } = render(
+      <IsoRoom size={HOME} placements={placements} saveView={false} />
+    );
+    const resident = container.querySelector('[data-placement-id="me"]');
+    const pose = resident.querySelector('[data-resident-pose="lying"]');
+    const cover = resident.querySelector('[data-bed-tuck-cover="true"]');
+
+    expect(pose.closest('g[transform="scale(-1,1)"]')).not.toBeNull();
+    expect(cover.closest('g[transform="scale(-1,1)"]')).not.toBeNull();
+  });
+
+  it("keeps other lie-on furniture uncovered", () => {
+    const placements = [
+      { id: "lounger", item: "sunlounger", gx: 2, gy: 2 },
+      { id: "me", item: "resident", gx: 2.4, gy: 2.1 },
+    ];
+    const { container } = render(
+      <IsoRoom size={HOME} placements={placements} saveView={false} />
+    );
+    const resident = container.querySelector('[data-placement-id="me"]');
+
+    expect(resident.querySelector('[data-resident-pose="lying"]')).not.toBeNull();
+    expect(resident.querySelector('[data-bed-tuck-cover="true"]')).toBeNull();
   });
 });

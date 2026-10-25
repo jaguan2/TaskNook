@@ -1,8 +1,8 @@
-# Repository guidance
+# TaskNook Claude entry point
 
-Read and follow [AGENTS.md](AGENTS.md) before working in this repository.
-It is the canonical guide for architecture, design, persistence, packaging,
-testing and commit conventions; keep shared instructions there.
+Before working in this repository, read and follow
+[the complete repository guidance](.agents/README.md) in full.
 
-The owner creates commits. Never add AI co-author trailers.
-See [the documentation index](docs/README.md) for feature and artwork guides.
+This small root file exists for Claude-compatible instruction discovery. Keep
+shared guidance in `.agents/README.md`; feature and artwork guides are indexed
+in [the documentation folder](docs/README.md).

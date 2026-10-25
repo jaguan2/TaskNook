@@ -278,6 +278,7 @@ function Cottage({
     >
       <svg
         aria-hidden={preview || undefined}
+        aria-label={preview ? undefined : "Classic cottage scene"}
         ref={svgRef}
         viewBox={VIEW_BOX}
         preserveAspectRatio={preview ? "xMidYMid meet" : "xMidYMax meet"}

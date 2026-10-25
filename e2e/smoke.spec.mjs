@@ -72,3 +72,14 @@ test("hidden room chat cannot intercept widget shortcuts and retains its draft",
   await page.getByRole("button", { name: /Room chat/ }).click();
   await expect(page.getByRole("textbox", { name: "Message the room" })).toHaveValue("Keep my room-chat draft");
 });
+
+test("a saved classic-cottage preference loads its scene chunk", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("tasknook.isoPreview", "0");
+    localStorage.setItem("tasknook.reduceMotion", "1");
+  });
+
+  await page.goto("/");
+  await expect(page.getByLabel("Classic cottage scene")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Room" })).toBeVisible();
+});

@@ -630,6 +630,7 @@ describe("a sitter is placed by which way the seat faces", () => {
     );
     expect(out._seat).toBe(18);
     expect(out._lie).toBe(true);
+    expect(out._lieOn).toBe(bed);
   });
 
   it("does not invent a facing direction from a rug's rotation", () => {

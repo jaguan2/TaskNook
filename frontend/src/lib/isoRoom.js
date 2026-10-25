@@ -250,7 +250,7 @@ export const ISO_ITEMS = {
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 24, surface: 19 },
   // The tint paints the DUVET (mattress and pillows stay linen-white).
   // seat = the duvet's top edge, hitH = clear of the headboard.
-  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 40, seat: 18, lie: true },
+  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 40, seat: 18, lie: true, tuck: true },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
   flowercushion: { label: "Flower cushion", icon: "🌼", foot: [1, 1], hitH: 18, seat: 13 },
   // ---- storage & seating ----
@@ -712,6 +712,10 @@ export function seatedPlacement(persona, seat) {
     gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
     _seat: seat.height,
     _lie: seat.lie,
+    // The renderer needs the actual lie-on furniture for its foreground
+    // bedding layer. This reference exists only on the resolved render copy;
+    // stored placements remain the same small JSON objects as before.
+    ...(seat.lie && { _lieOn: seat.placement }),
     // Soft-ground seating is the floor-sit promised by seatFor: the rug owns
     // this one override, while chairs leave personality to the character.
     ...(seat.soft && { _seatPose: "crossed" }),

@@ -804,49 +804,69 @@ function Pillar() {
 // wider than the mattress so it drapes over the edge, cushions inset from the
 // arms, and legs leaving a shadow gap under the frame.
 
+const BED_W = 2;
+const BED_D = 2.8;
+// Deliberately shallow. A bed is ~115px across on screen, so a 27px-thick
+// stack of frame + mattress + duvet read as a crate; at 19 it reads as a
+// bed seen from above. Height is for the HEADBOARD to spend, not the base.
+const BED_FRAME = 7;
+const BED_MATTRESS = 8;
+
+function BedDuvet() {
+  return (
+    <>
+      {/* Duvet: drawn from the FRAME top (not the mattress top) and wider
+          than the mattress, so its sides fall past the mattress edge —
+          that's the drape. Stops short of the pillows. */}
+      <SoftBox gx={0.05} gy={1.15} dx={BED_W - 0.1} dy={BED_D - 1.3}
+        h={BED_MATTRESS + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
+      {/* A padded turn-back and broad gathers make this read as cloth. */}
+      <g transform={`translate(0,${-(BED_MATTRESS + 4)})`}>
+        <SoftBox gx={0.07} gy={1.15} dx={BED_W - 0.14} dy={0.25} h={2.2}
+          fallback="#f2e9dd" dark={0.2} mid={0.1} radius={0.09} />
+        {/* Three broad gathered folds replace the rigid square quilt grid. */}
+        {[0.28, 0.96, 1.68].map((gx, i) => {
+          const a = project(gx, 1.44);
+          const b = project(gx + 0.12, 1.8 + i * 0.13);
+          const c = project(gx + 0.03, 2.35);
+          return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
+            fill="none" stroke="#000" strokeWidth="1.2" opacity="0.1" />;
+        })}
+        {/* Cream throw at the foot, with a short hem falling over the duvet. */}
+        <SoftBox gx={0.09} gy={2.18} dx={BED_W - 0.18} dy={0.44} h={1.8}
+          fallback="#e8d5b5" tint={false} dark={0.2} mid={0.12} radius={0.1} />
+      </g>
+    </>
+  );
+}
+
+/** Repaint the bed's real duvet above a sleeper, hiding their lower body
+ * beneath the same cloth rather than inventing a second body-shaped blanket. */
+export function BedTuckCover() {
+  return (
+    <g data-bed-tuck-cover="true" transform={`translate(0,${-BED_FRAME})`}>
+      <BedDuvet />
+    </g>
+  );
+}
+
 function Bed() {
-  const W = 2;
-  const D = 2.8;
-  // Deliberately shallow. A bed is ~115px across on screen, so a 27px-thick
-  // stack of frame + mattress + duvet read as a crate; at 19 it reads as a
-  // bed seen from above. Height is for the HEADBOARD to spend, not the base.
-  const FRAME = 7;
-  const MAT = 8;
   return (
     <g>
       {/* Woodwork is tint={false}: the picked colour belongs to the duvet, so
           a purple bed must not arrive with a purple headboard. */}
-      <TintedBox gx={0} gy={0} dx={W} dy={0.22} h={32} fallback="#8f5d49" tint={false} dark={0.38} mid={0.22} />
-      <TintedBox gx={0} gy={0.22} dx={W} dy={D - 0.22} h={FRAME} fallback="#a87f5f" tint={false} dark={0.34} mid={0.2} />
-      <g transform={`translate(0,${-FRAME})`}>
+      <TintedBox gx={0} gy={0} dx={BED_W} dy={0.22} h={32} fallback="#8f5d49" tint={false} dark={0.38} mid={0.22} />
+      <TintedBox gx={0} gy={0.22} dx={BED_W} dy={BED_D - 0.22} h={BED_FRAME} fallback="#a87f5f" tint={false} dark={0.34} mid={0.2} />
+      <g transform={`translate(0,${-BED_FRAME})`}>
         {/* mattress, inset all round so the frame reads as a lip beneath it */}
-        <SoftBox gx={0.13} gy={0.35} dx={W - 0.26} dy={D - 0.5} h={MAT} fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} />
-        <g transform={`translate(0,${-MAT})`}>
+        <SoftBox gx={0.13} gy={0.35} dx={BED_W - 0.26} dy={BED_D - 0.5} h={BED_MATTRESS} fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} />
+        <g transform={`translate(0,${-BED_MATTRESS})`}>
           {/* pillows: small and flat. Chunky ones stopped reading as bedding
               and started reading as boxes stacked on the bed. */}
           <SoftBox gx={0.24} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
           <SoftBox gx={1.16} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
         </g>
-        {/* Duvet: drawn from the FRAME top (not the mattress top) and wider
-            than the mattress, so its sides fall past the mattress edge —
-            that's the drape. Stops short of the pillows. */}
-        <SoftBox gx={0.05} gy={1.15} dx={W - 0.1} dy={D - 1.3} h={MAT + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
-        {/* A padded turn-back and broad gathers make this read as cloth. */}
-        <g transform={`translate(0,${-(MAT + 4)})`}>
-          <SoftBox gx={0.07} gy={1.15} dx={W - 0.14} dy={0.25} h={2.2}
-            fallback="#f2e9dd" dark={0.2} mid={0.1} radius={0.09} />
-          {/* Three broad gathered folds replace the rigid square quilt grid. */}
-          {[0.28, 0.96, 1.68].map((gx, i) => {
-            const a = project(gx, 1.44);
-            const b = project(gx + 0.12, 1.8 + i * 0.13);
-            const c = project(gx + 0.03, 2.35);
-            return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
-              fill="none" stroke="#000" strokeWidth="1.2" opacity="0.1" />;
-          })}
-          {/* Cream throw at the foot, with a short hem falling over the duvet. */}
-          <SoftBox gx={0.09} gy={2.18} dx={W - 0.18} dy={0.44} h={1.8}
-            fallback="#e8d5b5" tint={false} dark={0.2} mid={0.12} radius={0.1} />
-        </g>
+        <BedDuvet />
       </g>
     </g>
   );

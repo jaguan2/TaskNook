@@ -93,7 +93,7 @@ seated poses.
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — a buzz cut, olive overalls, denim shorts and work boots. |
 | ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all ten presets, including fall, school, office, lofi, gamer, winter and garden styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all ten presets using relaxed, ankle-crossed and cross-legged silhouettes, with no app UI obscuring the models. |
-| ![Sleeveless maker outfit](42-character-customization.webp) **Expanded customization** — a compact body template with a true sleeveless tank, pocketed cargo pants and skin-aware sandals. | |
+| ![Sleeveless maker outfit](42-character-customization.webp) **Expanded customization** — a compact body template with a true sleeveless tank, pocketed cargo pants and skin-aware sandals. | ![Character tucked into the Loft bed](56-tucked-in-bed.webp) **Tucked in** — the actual customized resident lies beneath the selected bed's duvet instead of floating above it or changing into a generic sleeping model. |
 
 ### Personalization tools
 

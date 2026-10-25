@@ -15,10 +15,7 @@ import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
-import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
-import IsoRoom from "./components/IsoRoom";
-import CommonRoom from "./components/CommonRoom";
 import CommonRoomChat from "./components/CommonRoomChat";
 import { COMMON_PLACES } from "./lib/commonRooms";
 import TopBar from "./components/TopBar";
@@ -29,11 +26,18 @@ import HudTasks from "./components/HudTasks";
 import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
 import SkyOverlay from "./components/SkyOverlay";
+// Scene engines are mutually exclusive. Loading only the active one keeps the
+// large isometric sprite registry out of startup for classic-cottage users and
+// keeps common-place architecture out of every home visit.
+const Cottage = lazy(() => import("./components/Cottage"));
+const IsoRoom = lazy(() => import("./components/IsoRoom"));
+const CommonRoom = lazy(() => import("./components/CommonRoom"));
+
 // Panels are lazy: all of them shipped in the first chunk even though most
 // sessions open one or two, and several are heavy (the calendar, the room
 // browser). They live behind a dock click, so a chunk fetch is invisible.
-// The room panel's sprites are NOT duplicated into its chunk — IsoItems is
-// already in the main bundle via the always-mounted scene.
+// Rollup shares the room panel's sprite registry with the isometric scene, so
+// whichever surface opens first fetches it once and the other reuses it.
 const PANEL_LOADERS = {
   tasks: () => import("./components/TaskPanel"),
   calendar: () => import("./components/CalendarPanel"),
@@ -378,13 +382,14 @@ export default function App() {
             </div>
           )}
         >
-          {commonRoom ? (
-            <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
-              activity={running ? phase : null} timeOfDay={timeOfDay}
-              reduceMotion={sceneReduceMotion} friendship={friendship}
-              paused={widgetMode}
-              onChooseSeat={chooseCommonSeat} />
-          ) : visiting ? (
+          <Suspense fallback={null}>
+            {commonRoom ? (
+              <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
+                activity={running ? phase : null} timeOfDay={timeOfDay}
+                reduceMotion={sceneReduceMotion} friendship={friendship}
+                paused={widgetMode}
+                onChooseSeat={chooseCommonSeat} />
+            ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
                `activity` still flows to your guest; each NPC follows their
@@ -409,48 +414,49 @@ export default function App() {
               walkId={visiting.guestId ?? null}
               onWalkTo={moveVisitGuest}
             />
-          ) : isoPreview ? (
-            <IsoRoom
-              key="home"
-              size={homeScene.layout}
-              placements={homeScene.layout.placements}
-              editMode={roomEditMode}
-              timeOfDay={timeOfDay}
-              weather={weatherMode}
-              highlightId={lastIsoAddedId}
-              activity={running ? phase : null}
-              character={character}
-              mood={mood}
-              reduceMotion={sceneReduceMotion}
-              paused={widgetMode}
-              onMoveItem={moveIsoItem}
-              onRemoveItem={removeIsoItem}
-              onRotateItem={rotateIsoItem}
-              onTintItem={setIsoItemTint}
-              onToggleItem={toggleIsoItem}
-              personas={homeScene.personas}
-              friendship={friendship}
-              /* Walking at home: every persona is grabbable outside Decorate,
-                 same rule and same target marker as a visit. Unlike a visit it
-                 persists — see `walkIsoPersona`. */
-              walkPersonas
-              onWalkTo={moveHomePersona}
-            />
-          ) : (
-            <Cottage
-              weather={weatherMode}
-              timeOfDay={timeOfDay}
-              setting={cottageView}
-              room={roomPlacements}
-              editMode={roomEditMode}
-              onMoveItem={moveRoomItem}
-              onDuplicateItem={duplicateRoomItem}
-              onRemoveItem={removeRoomItem}
-              onTintItem={setRoomItemTint}
-              reduceMotion={reduceMotion}
-              paused={widgetMode}
-            />
-          )}
+            ) : isoPreview ? (
+              <IsoRoom
+                key="home"
+                size={homeScene.layout}
+                placements={homeScene.layout.placements}
+                editMode={roomEditMode}
+                timeOfDay={timeOfDay}
+                weather={weatherMode}
+                highlightId={lastIsoAddedId}
+                activity={running ? phase : null}
+                character={character}
+                mood={mood}
+                reduceMotion={sceneReduceMotion}
+                paused={widgetMode}
+                onMoveItem={moveIsoItem}
+                onRemoveItem={removeIsoItem}
+                onRotateItem={rotateIsoItem}
+                onTintItem={setIsoItemTint}
+                onToggleItem={toggleIsoItem}
+                personas={homeScene.personas}
+                friendship={friendship}
+                /* Walking at home: every persona is grabbable outside Decorate,
+                   same rule and same target marker as a visit. Unlike a visit it
+                   persists — see `walkIsoPersona`. */
+                walkPersonas
+                onWalkTo={moveHomePersona}
+              />
+            ) : (
+              <Cottage
+                weather={weatherMode}
+                timeOfDay={timeOfDay}
+                setting={cottageView}
+                room={roomPlacements}
+                editMode={roomEditMode}
+                onMoveItem={moveRoomItem}
+                onDuplicateItem={duplicateRoomItem}
+                onRemoveItem={removeRoomItem}
+                onTintItem={setRoomItemTint}
+                reduceMotion={reduceMotion}
+                paused={widgetMode}
+              />
+            )}
+          </Suspense>
         </ErrorBoundary>
       </motion.div>
 

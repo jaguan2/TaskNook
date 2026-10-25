@@ -5,7 +5,7 @@ description: Investigate and implement TaskNook features, fixes and refactors wi
 
 # TaskNook engineering
 
-Read [AGENTS.md](../../../AGENTS.md) and inspect the working tree. Locate the
+Read [the repository guidance](../../README.md) and inspect the working tree. Locate the
 affected state owner and trace the user action through its callers. Preserve
 the separate timer provider, storage gateway, task-first refresh ordering,
 challenge/XP idempotence, home/visit boundaries and private desktop bridge.

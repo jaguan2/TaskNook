@@ -250,27 +250,38 @@ function makePage(cdp) {
   const closePanels = () =>
     evaluate(`document.querySelectorAll('button[aria-label^="Close"]').forEach(b => b.click()); 'ok'`);
 
+  const screenPoint = (selector, mode = "center") => evaluate(`(() => {
+    const selector = ${JSON.stringify(selector)};
+    const node = document.querySelector(selector);
+    if (!node) throw new Error('MISSING:' + selector);
+    if (${JSON.stringify(mode)} === 'origin') {
+      const point = node.ownerSVGElement.createSVGPoint();
+      const screen = point.matrixTransform(node.getScreenCTM());
+      return { x: screen.x, y: screen.y };
+    }
+    const box = node.getBoundingClientRect();
+    if (${JSON.stringify(mode)} === 'visible') {
+      // A seated body overlaps its chair, so the group's geometric centre can
+      // belong to the furniture painted in front. Find a pixel that really
+      // hit-tests to this placement.
+      for (let y = box.top + 2; y < box.bottom; y += 3) {
+        for (let x = box.left + 2; x < box.right; x += 3) {
+          if (document.elementFromPoint(x, y)?.closest(selector) === node) return { x, y };
+        }
+      }
+      throw new Error('NO VISIBLE HIT:' + selector);
+    }
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  })()`);
+
   /** Carry the common-room guest with the same pointer gesture used in-app. */
   const dragCommonGuest = async (seatId) => {
-    const centerOf = (selector) => evaluate(`(() => {
-      const node = document.querySelector(${JSON.stringify(selector)});
-      if (!node) throw new Error('MISSING:${selector}');
-      const box = node.getBoundingClientRect();
-      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-    })()`);
-    const originOf = (selector) => evaluate(`(() => {
-      const node = document.querySelector(${JSON.stringify(selector)});
-      if (!node) throw new Error('MISSING:${selector}');
-      const point = node.ownerSVGElement.createSVGPoint();
-      const transformed = point.matrixTransform(node.getScreenCTM());
-      return { x: transformed.x, y: transformed.y };
-    })()`);
-    const from = await centerOf('[data-common-person="you"]');
+    const from = await screenPoint('[data-common-person="you"]');
     await send("Input.dispatchMouseEvent", {
       type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
     });
     await sleep(150);
-    const to = await originOf(`[data-drop-seat="${seatId}"]`);
+    const to = await screenPoint(`[data-drop-seat="${seatId}"]`, "origin");
     await send("Input.dispatchMouseEvent", {
       type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
     });
@@ -280,6 +291,37 @@ function makePage(cdp) {
     });
     await sleep(500);
     return evaluate(`document.querySelector('[data-common-person="you"]')?.getAttribute('data-seat')`);
+  };
+
+  /** Carry the home profile character to a catalog item using the real pointer
+   * path. The item's placement origin is a valid point inside a bed and makes
+   * this exercise the same cursor-anchored landing rule as a hand drag. */
+  const dragSelfToItem = async (item) => {
+    const from = await screenPoint('[data-item="you"]', "visible");
+    const to = await screenPoint(`[data-item="${item}"]`, "origin");
+    const before = await evaluate(`({
+      cursor: document.querySelector('[data-item="you"]')?.style.cursor || null,
+      from: ${JSON.stringify(from)},
+      to: ${JSON.stringify(to)}
+    })`);
+    await send("Input.dispatchMouseEvent", {
+      type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
+    });
+    await sleep(150);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
+    });
+    await sleep(200);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseReleased", x: to.x, y: to.y, button: "left", buttons: 0, clickCount: 1,
+    });
+    await sleep(700);
+    return evaluate(`({
+      lying: !!document.querySelector('[data-item="you"] [data-resident-pose="lying"]'),
+      tucked: !!document.querySelector('[data-item="you"] [data-bed-tuck-cover="true"]'),
+      itemCount: document.querySelectorAll('[data-item="you"]').length,
+      before: ${JSON.stringify(before)}
+    })`);
   };
 
   const shot = async (file, format = "webp", capture = {}) => {
@@ -292,7 +334,7 @@ function makePage(cdp) {
     return r.data.length;
   };
 
-  return { evaluate, load, setStorage, clickText, closePanels, dragCommonGuest, shot };
+  return { evaluate, load, setStorage, clickText, closePanels, dragCommonGuest, dragSelfToItem, shot };
 }
 
 /**
@@ -820,6 +862,29 @@ async function main() {
     await sleep(1000);
     await page.shot(join(OUT_DIR, "47-profile-levels.webp"));
     console.log("  profile: level, XP and check-in streak");
+  }
+
+  // ---- 56 sleeping: carry the real profile character into the Loft bed ----
+  if (want("56")) {
+    await setCharacter(page, "winter");
+    await page.setStorage({
+      ...ambient({ weather: "off", time: "night" }),
+      "tasknook.isoView": "",
+      "tasknook.isoPreview": "1",
+    });
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await page.clickText("Loft");
+    await sleep(1800);
+    await seatResident(page);
+    await page.load();
+    await page.closePanels();
+    const result = await page.dragSelfToItem("bed");
+    if (!result.lying || !result.tucked)
+      throw new Error(`Bed carry did not resolve to the tucked pose: ${JSON.stringify(result)}`);
+    await sleep(1600);
+    const bytes = await page.shot(join(OUT_DIR, "56-tucked-in-bed.webp"));
+    console.log(`  56-tucked-in-bed.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

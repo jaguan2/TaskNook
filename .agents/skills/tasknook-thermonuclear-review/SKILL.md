@@ -5,7 +5,7 @@ description: Apply the full upstream Thermos maintainability rubric to a TaskNoo
 
 # TaskNook structural review
 
-Read [AGENTS.md](../../../AGENTS.md) and the complete
+Read [the repository guidance](../../README.md) and the complete
 [upstream Thermos rubric](../../../docs/agent-skills/upstream/thermos/thermo-nuclear-code-quality-review/SKILL.md).
 Apply its core prompt, all numbered standards, review questions, remedies and
 approval bar. The source is pinned and retained intact, rather than paraphrased.

@@ -217,10 +217,15 @@ TaskNook/
 ├── desktop.py                # Native-window launcher (pywebview + waitress)
 ├── requirements-desktop.txt  # Desktop-app Python deps (pulls in backend deps too)
 ├── README.md
-├── AGENTS.md                 # Canonical contributor and assistant guidance
-├── CLAUDE.md                 # Entry point to the same guidance for Claude tools
+├── AGENTS.md                 # Agent-tool discovery pointer
+├── CLAUDE.md                 # Claude-tool discovery pointer
+├── .agents/
+│   ├── README.md             # Canonical contributor and assistant guidance
+│   ├── SKILLS.md             # Installed workflow sources and maintenance guide
+│   └── skills/               # TaskNook engineering and review workflows
 ├── docs/
 │   ├── README.md             # Current guides and historical review index
+│   ├── CHANGELOG.md          # Dated project history
 │   ├── screenshots/          # App screenshots and model closeups
 │   └── preview.png           # The screenshot at the top of this README
 │
