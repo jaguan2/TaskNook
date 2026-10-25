@@ -37,6 +37,14 @@ from models import (
     utcnow,
 )
 from schema import init_schema, SchemaError
+from room_profile_routes import (
+    ISO_ENVS,
+    ISO_WALLS,
+    PET_LOOKS,
+    PET_TEMPERS,
+    create_room_profile_blueprint,
+    read_json_map,
+)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # If the frontend has been built (frontend/dist), Flask will also serve it.
@@ -76,6 +84,7 @@ def create_app():
             print("[!] Schema behind models (pending migration?) — skipped seeding.")
 
     register_routes(app)
+    app.register_blueprint(create_room_profile_blueprint(require_auth))
     register_frontend(app)
     register_error_handlers(app)
     return app
@@ -290,8 +299,8 @@ def clean_int(value, lo, hi, default=None):
       every `except (TypeError, ValueError)` in the file and broke the app's own
       tested "junk never 500s" contract — whose cases all use wrong TYPES or small
       values, so magnitude slipped straight through. `log_session` already clamped
-      its minutes for this reason and `_finite_number` documents the identical
-      trap for room coordinates; it was simply never applied to the four integer
+      its minutes for this reason; room-coordinate validation has the same
+      bounded-number rule. It was simply never applied to the four integer
       paths (duration on create and update, position, and the reorder list).
     * `isinstance(True, int)` is True in Python, so a naive numeric check lets a
       bool through as 0/1 while the rest of this file carefully excludes them.
@@ -337,62 +346,9 @@ def clean_str(v, limit):
     return ("" if v is None else str(v)).strip()[:limit]
 
 
-def _finite_number(v):
-    """A real, storable coordinate.
-
-    Three traps this closes: `isinstance(True, int)` is True in Python, so a
-    bare bool would sail through a naive numeric check; NaN/Infinity are
-    floats that `json.dumps` writes as bare `NaN`/`Infinity` — invalid JSON
-    that a browser's JSON.parse rejects, which would corrupt the saved room
-    for good; and `math.isfinite` raises OverflowError on a huge int, so a
-    bounded comparison (exact for big ints) stands in for it.
-    """
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and -1e7 < v < 1e7
-
-
-# Room environments, mirroring ISO_ENVS in frontend/src/lib/isoRoom.js. This
-# list is duplicated across two languages and drifted once already: `cafe`,
-# `library` and `terrace` were added to the frontend and not here, so the three
-# presets that use them 400'd on every save — the room survived only in the
-# browser's localStorage mirror, toasting "couldn't save" each time. Adding an
-# environment means editing BOTH; test_room.py reads the JS and fails if they
-# disagree.
-ISO_ENVS = ("room", "cafe", "library", "terrace", "garden", "snow")
-
-# The user-picked walls override — mirrors WALL_MODES in isoRoom.js, same
-# both-languages contract as ISO_ENVS above. Absent means "the floor's
-# default"; the frontend stores it only when it actually overrides.
-ISO_WALLS = ("full", "low", "none")
-
-# Pet looks — coat patterns (cats) and breeds (dogs); mirrors CAT_COATS +
-# DOG_BREEDS in lib/isoRoom.js, one flat whitelist because which species a
-# look belongs to is catalog (frontend) knowledge — this only bounds values,
-# same stance as rot. Defaults ("ink", "golden") never reach the wire, but
-# they're accepted anyway so an older client's write can't 400.
-PET_LOOKS = (
-    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese", "tortie",
-    "golden", "shiba", "corgi", "dalmatian", "husky",
-    "cloud", "snow", "cocoa",
-)
-
-# Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same
-# both-languages contract). "mellow" is the default and stored implicitly,
-# but a client sending it explicitly is legal.
-PET_TEMPERS = ("mellow", "curious", "sleepy")
-
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
 VISIT_ACCESS_LEVELS = ("open", "friends", "invite", "private")
-
-
-def _hex_color(v):
-    """A strict #rrggbb item tint."""
-    return (
-        isinstance(v, str)
-        and len(v) == 7
-        and v[0] == "#"
-        and all(c in "0123456789abcdefABCDEF" for c in v[1:])
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -826,357 +782,6 @@ def register_routes(app):
             }
         )
 
-    # ----- Room decoration ------------------------------------------------- #
-    # The frontend owns the item catalog and zone rules; the backend only
-    # enforces shape and size so a bug can't balloon the stored blob.
-    @app.get("/api/room")
-    @require_auth
-    def get_room(user):
-        empty = {"placements": None, "iso": None}
-        if not user.room_config:
-            return jsonify(empty)
-        try:
-            saved = json.loads(user.room_config)
-        except ValueError:
-            return jsonify(empty)
-        # Legacy shape: a bare list of flat placements (saves from before the
-        # isometric room existed).
-        if isinstance(saved, list):
-            return jsonify({"placements": saved, "iso": None})
-        if isinstance(saved, dict):
-            return jsonify({
-                "placements": saved.get("placements"),
-                "iso": saved.get("iso"),
-            })
-        return jsonify(empty)
-
-    def _clean_layout(placements, xkey, ykey):
-        """Validate one placement list. Returns (cleaned, ok) — shared by the
-        flat layout (x/y) and the isometric layout (gx/gy)."""
-        # Headroom above the frontend's ISO_MAX_ITEMS (150), same as it
-        # has always sat above it — this only stops a bug ballooning the blob.
-        if not isinstance(placements, list) or len(placements) > 200:
-            return None, False
-        clean = []
-        for p in placements:
-            if not isinstance(p, dict):
-                return None, False
-            pid, item = p.get("id"), p.get("item")
-            x, y = p.get(xkey), p.get(ykey)
-            if not (isinstance(pid, str) and 0 < len(pid) <= 32):
-                return None, False
-            if not (isinstance(item, str) and 0 < len(item) <= 32):
-                return None, False
-            if not _finite_number(x) or not _finite_number(y):
-                return None, False
-            entry = {"id": pid, "item": item, xkey: x, ykey: y}
-            tint = p.get("tint")
-            if tint is not None:
-                if not _hex_color(tint):
-                    return None, False
-                entry["tint"] = tint
-            # Quarter turns, 0-3. It used to accept only 0/1, because only two
-            # facings could be DRAWN (a screen mirror is a grid transpose; a
-            # half turn is the sprite upside down). Seating that ships real
-            # back-view artwork now has all four, and the frontend's
-            # normalizeRot folds an unsupported turn back to a drawable one —
-            # so this only has to bound the range, not know which items have it.
-            rot = p.get("rot")
-            if rot is not None:
-                if not (isinstance(rot, int) and not isinstance(rot, bool) and 0 <= rot <= 3):
-                    return None, False
-                if rot:
-                    entry["rot"] = rot
-            # Pet identity: a NAME and a TEMPER ride the placement (pets ARE
-            # placements). Same bounded-not-knowing stance as rot: which items
-            # are pets is catalog (frontend) knowledge, so this only bounds the
-            # values — the client's validateIsoLayout strips them from
-            # non-pets on read. PET_TEMPERS mirrors lib/isoRoom.js (the
-            # both-languages contract, like ISO_ENVS).
-            name = p.get("name")
-            if name is not None:
-                if not (isinstance(name, str) and 0 < len(name.strip()) <= 16):
-                    return None, False
-                entry["name"] = name.strip()
-            temper = p.get("temper")
-            if temper is not None:
-                if temper not in PET_TEMPERS:
-                    return None, False
-                entry["temper"] = temper
-            look = p.get("look")
-            if look is not None:
-                if look not in PET_LOOKS:
-                    return None, False
-                entry["look"] = look
-            # Optional powered-state marker. The frontend only retains it for
-            # toggleable catalog pieces; the backend stays catalog-agnostic and
-            # merely guarantees that the stored shape is a real boolean.
-            off = p.get("off")
-            if off is not None:
-                if not isinstance(off, bool):
-                    return None, False
-                if off:
-                    entry["off"] = True
-            clean.append(entry)
-        return clean, True
-
-    @app.put("/api/room")
-    @require_auth
-    def save_room(user):
-        data = json_body()
-        clean, ok = _clean_layout(data.get("placements"), "x", "y")
-        if not ok:
-            return jsonify({"error": "Invalid room layout"}), 400
-
-        stored = {"placements": clean, "iso": None}
-        iso = data.get("iso")
-        if iso is not None:
-            if not isinstance(iso, dict):
-                return jsonify({"error": "Invalid room layout"}), 400
-            w, depth = iso.get("w"), iso.get("d")
-            if not (isinstance(w, int) and not isinstance(w, bool) and 3 <= w <= 64):
-                return jsonify({"error": "Invalid room layout"}), 400
-            if not (isinstance(depth, int) and not isinstance(depth, bool) and 3 <= depth <= 64):
-                return jsonify({"error": "Invalid room layout"}), 400
-            iso_clean, iso_ok = _clean_layout(iso.get("placements"), "gx", "gy")
-            if not iso_ok:
-                return jsonify({"error": "Invalid room layout"}), 400
-            stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
-            # Frontend layout migrations use this small JSON version to make
-            # one-time geometry repairs without continually overriding later
-            # user choices. It is metadata, not a database-schema version.
-            version = iso.get("version")
-            if version is not None:
-                if not (
-                    isinstance(version, int)
-                    and not isinstance(version, bool)
-                    and 1 <= version <= 64
-                ):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["version"] = version
-            env = iso.get("env")
-            if env is not None:
-                if env not in ISO_ENVS:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["env"] = env
-            walls = iso.get("walls")
-            if walls is not None:
-                if walls not in ISO_WALLS:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["walls"] = walls
-            wall_colors = iso.get("wallColors")
-            if wall_colors is not None:
-                if not isinstance(wall_colors, dict) or set(wall_colors) - {"left", "right"}:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_wall_colors = {}
-                for side, color in wall_colors.items():
-                    if not _hex_color(color):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    clean_wall_colors[side] = color
-                if clean_wall_colors:
-                    stored["iso"]["wallColors"] = clean_wall_colors
-            lighting = iso.get("lighting")
-            if lighting is not None:
-                if lighting not in ("natural", "golden", "candle", "moonlit"):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["lighting"] = lighting
-            # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
-            # at least one floor tile.
-            mask = iso.get("mask")
-            if mask is not None:
-                if (
-                    not isinstance(mask, list)
-                    or len(mask) != depth
-                    or not all(
-                        isinstance(r, str) and len(r) == w and set(r) <= {"0", "1"}
-                        for r in mask
-                    )
-                    or not any("1" in r for r in mask)
-                ):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["mask"] = mask
-            # User-drawn interior wall units and passable arch spans share the
-            # same compact edge grammar. The frontend additionally drops edges
-            # that no longer have floor on both sides after a reshape; the API
-            # pins their representation and room bounds. An arch wins if a
-            # hand-edited client names the same edge in both collections.
-            for field in ("partitions", "arches"):
-                edges = iso.get(field)
-                if edges is None:
-                    continue
-                if not isinstance(edges, list) or len(edges) > 2 * w * depth:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_edges = []
-                seen_edges = set()
-                for key in edges:
-                    if not isinstance(key, str):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    parts = key.split(":")
-                    if len(parts) != 3 or parts[0] not in ("gx", "gy"):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    try:
-                        at, start = int(parts[1]), int(parts[2])
-                    except ValueError:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    canonical = f"{parts[0]}:{at}:{start}"
-                    if canonical != key:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    valid = (
-                        0 < at < (depth if parts[0] == "gy" else w)
-                        and 0 <= start < (w if parts[0] == "gy" else depth)
-                    )
-                    if not valid:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    if canonical not in seen_edges:
-                        seen_edges.add(canonical)
-                        clean_edges.append(canonical)
-                if clean_edges:
-                    stored["iso"][field] = sorted(clean_edges)
-            if "arches" in stored["iso"] and "partitions" in stored["iso"]:
-                arch_edges = set(stored["iso"]["arches"])
-                solid_edges = [
-                    key for key in stored["iso"]["partitions"] if key not in arch_edges
-                ]
-                if solid_edges:
-                    stored["iso"]["partitions"] = solid_edges
-                else:
-                    stored["iso"].pop("partitions")
-            # Optional corner cuts (irregular floors). The frontend owns the
-            # geometry rules; here we only pin the shape and sizes.
-            cuts = iso.get("cuts")
-            if cuts is not None:
-                if not isinstance(cuts, list) or len(cuts) > 4:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_cuts = []
-                for c in cuts:
-                    if not isinstance(c, dict):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    corner = c.get("corner")
-                    cw, cd = c.get("cw"), c.get("cd")
-                    if corner not in ("back", "right", "left", "front"):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    for v in (cw, cd):
-                        if not (isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 16):
-                            return jsonify({"error": "Invalid room layout"}), 400
-                    clean_cuts.append({"corner": corner, "cw": cw, "cd": cd})
-                stored["iso"]["cuts"] = clean_cuts
-
-        user.room_config = json.dumps(stored)
-        db.session.commit()
-        return jsonify({"ok": True})
-
-    # ----- Profile & character --------------------------------------------- #
-    # The same division of labour as the room layout: the frontend owns the
-    # vocabulary (which MBTI types exist,
-    # which hairstyles are drawable), this only keeps a bounded blob safe. A new
-    # profile question or a new hairstyle is then a frontend change with no
-    # migration — which is the whole reason these are JSON and not columns.
-    PROFILE_MAX_KEYS = 24
-    # Character customization has many independent scalar axes (wardrobe,
-    # body, face, accessories). It already outgrew the smaller about-you map;
-    # keep a separate bounded budget so adding a legitimate appearance field
-    # cannot make every complete character save fail with a 400.
-    CHARACTER_MAX_KEYS = 40
-    PROFILE_MAX_VALUE = 280  # a bio, not an essay
-
-    def _clean_json_map(value, max_keys, max_len):
-        """A bounded {str: str|number|bool} map, or None if it isn't one.
-
-        Deliberately flat: nesting is what turns a settings blob into somewhere
-        arbitrary payloads can hide, and nothing here needs it.
-        """
-        if not isinstance(value, dict) or len(value) > max_keys:
-            return None
-        clean = {}
-        for key, val in value.items():
-            if not (isinstance(key, str) and 0 < len(key) <= 32):
-                return None
-            if val is None or val == "":
-                continue  # clearing a field just drops it
-            if isinstance(val, bool):
-                clean[key] = val
-            elif isinstance(val, (int, float)):
-                # Reuse the room's guard: NaN/Infinity are floats that
-                # json.dumps writes as bare NaN/Infinity — invalid JSON that
-                # the browser then refuses to parse, corrupting the profile.
-                if not _finite_number(val):
-                    return None
-                clean[key] = val
-            elif isinstance(val, str):
-                if len(val) > max_len:
-                    return None
-                clean[key] = val.strip()
-            else:
-                return None
-        return clean
-
-    def _read_json_map(raw):
-        if not raw:
-            return {}
-        try:
-            saved = json.loads(raw)
-        except ValueError:
-            return {}
-        return saved if isinstance(saved, dict) else {}
-
-    def _profile_payload(user):
-        """The profile response. Built in one place because GET and PUT both
-        return it, and two verbatim copies is one edit away from a PUT whose
-        response omits a field the GET has."""
-        return {
-            "username": user.username,
-            "displayName": user.display_name,
-            "avatar": user.avatar,
-            "profile": _read_json_map(user.profile),
-            "character": _read_json_map(user.character),
-        }
-
-    @app.get("/api/profile")
-    @require_auth
-    def get_profile(user):
-        return jsonify(
-            _profile_payload(user)
-        )
-
-    @app.put("/api/profile")
-    @require_auth
-    def save_profile(user):
-        data = json_body()
-
-        # Each field is optional — the panel saves the section you edited, so a
-        # partial body must leave the rest of the profile alone.
-        if "displayName" in data:
-            name = clean_str(data.get("displayName"), DISPLAY_NAME_MAX)
-            if not name:
-                return jsonify({"error": "A name can't be empty"}), 400
-            user.display_name = name
-
-        if "avatar" in data:
-            # The column is String(8): one emoji can be several code points
-            # (skin-tone and ZWJ sequences), so this is a byte-ish budget, not
-            # "8 characters" as a person would count them.
-            user.avatar = clean_str(data.get("avatar"), AVATAR_MAX)
-
-        if "profile" in data:
-            cleaned = _clean_json_map(
-                data.get("profile"), PROFILE_MAX_KEYS, PROFILE_MAX_VALUE
-            )
-            if cleaned is None:
-                return jsonify({"error": "Invalid profile"}), 400
-            user.profile = json.dumps(cleaned)
-
-        if "character" in data:
-            # Appearance values are keys and hex colours, never prose.
-            cleaned = _clean_json_map(data.get("character"), CHARACTER_MAX_KEYS, 32)
-            if cleaned is None:
-                return jsonify({"error": "Invalid character"}), 400
-            user.character = json.dumps(cleaned)
-
-        db.session.commit()
-        return jsonify(
-            _profile_payload(user)
-        )
-
     # ----- Friends -------------------------------------------------------- #
     @app.get("/api/friends")
     @require_auth
@@ -1234,7 +839,7 @@ def register_routes(app):
                     room = saved["iso"]
             except ValueError:
                 room = None
-        character = _read_json_map(friend.character)
+        character = read_json_map(friend.character)
         return jsonify(
             {
                 **friend.public_dict(),

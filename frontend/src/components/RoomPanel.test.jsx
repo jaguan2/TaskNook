@@ -30,7 +30,10 @@ const store = vi.hoisted(() => ({
   applyIsoPreset: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => store }));
+vi.mock("../store", () => ({
+  useRoomStore: () => store,
+  useSocialStore: () => store,
+}));
 
 import RoomPanel from "./RoomPanel";
 import { ISO_PRESET_KEYS } from "../lib/isoRoom";

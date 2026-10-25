@@ -29,7 +29,10 @@ const mockStore = vi.hoisted(() => ({
   setAutoResumeMusic: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../store", () => ({
+  useSettingsStore: () => mockStore,
+  useAudioStore: () => mockStore,
+}));
 
 afterEach(() => {
   cleanup();

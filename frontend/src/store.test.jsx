@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
-import { StoreProvider, useStore } from "./store";
+import { StoreProvider, useStore, useSystemStore, useTaskStore } from "./store";
 import { api } from "./lib/api";
 import { readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
 import { localTodayISO } from "./lib/stats";
@@ -15,8 +15,19 @@ vi.mock("./lib/api", () => ({
 }));
 
 let store;
+let systemStore;
+let taskRenderCount;
 function Reader() {
   store = useStore();
+  return null;
+}
+function SystemReader() {
+  systemStore = useSystemStore();
+  return null;
+}
+function TaskRenderProbe() {
+  useTaskStore();
+  taskRenderCount += 1;
   return null;
 }
 const original = { id: 1, name: "Write notes", completed: false, completedAt: null };
@@ -51,6 +62,25 @@ async function boot(expectedTasks = [original]) {
   render(<StoreProvider><Reader /></StoreProvider>);
   await waitFor(() => expect(store.tasks).toEqual(expectedTasks));
 }
+
+describe("domain subscriptions", () => {
+  it("does not rerender a task consumer for a system-only toast", async () => {
+    taskRenderCount = 0;
+    render(
+      <StoreProvider>
+        <Reader />
+        <SystemReader />
+        <TaskRenderProbe />
+      </StoreProvider>
+    );
+    await waitFor(() => expect(store.tasks).toEqual([original]));
+    const afterBoot = taskRenderCount;
+
+    act(() => systemStore.showToast("A system-only message"));
+
+    expect(taskRenderCount).toBe(afterBoot);
+  });
+});
 
 describe("backdrop preference", () => {
   it("loads, validates and persists the solid-colour choice", async () => {

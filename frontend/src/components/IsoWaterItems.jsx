@@ -102,14 +102,19 @@ function PondBody({ width, depth, kind }) {
   const padC = at(0.86, 1.55);
 
   return (
-    <g data-water-body={kind} data-footprint={`${width}x${depth}`}>
+    <g data-water-body={kind} data-water-material="natural-bank" data-footprint={`${width}x${depth}`}>
       <defs>
         <WaterSurfaceClip id={id} width={width} depth={depth} />
       </defs>
       <g clipPath={`url(#${id})`} data-water-clip="true">
-        <path d={smoothGridPath(scalePoints(POND_BANK))} fill="#50664f" />
-        <path d={smoothGridPath(scalePoints(POND_BANK))} fill="none" stroke="#71806a" strokeWidth="3.5" opacity="0.78" />
-        <path d={waterPath} fill="none" stroke="#858b73" strokeWidth="6" opacity="0.9" />
+        <path data-water-part="bank" d={smoothGridPath(scalePoints(POND_BANK))} fill="#59634d" />
+        <path d={smoothGridPath(scalePoints(POND_BANK))} fill="none" stroke="#7d8067"
+          strokeWidth="4.5" opacity="0.72" />
+        {/* A broad earthen shelf and a narrower green-blue shelf make the
+            water recede into the ground rather than meet a painted outline. */}
+        <path data-water-part="shallows" d={waterPath} fill="none" stroke="#8c8b70"
+          strokeWidth="9" opacity="0.88" />
+        <path d={waterPath} fill="none" stroke="#5d8375" strokeWidth="5.5" opacity="0.9" />
         <path d={waterPath} fill="#285c67" />
         <path d={waterPath} fill="none" stroke="#376d71" strokeWidth="2" opacity="0.92" />
         <path d={highlightPath} fill="#5595a0" opacity="0.56" />
@@ -168,15 +173,21 @@ function PoolBody({ length }) {
   const ladderFar = project(0.64, 0.84);
   const longEdgeJoints = Array.from({ length: Math.floor(length) }, (_, index) => index + 1);
 
+  const entrySteps = [
+    [length - 0.98, 0.38, 0.58, 0.32, 0.34],
+    [length - 0.86, 0.65, 0.46, 0.28, 0.46],
+    [length - 0.74, 0.88, 0.34, 0.24, 0.6],
+  ];
+
   return (
-    <g data-water-body="pool" data-footprint={`${length}x${POOL_WIDTH}`}>
+    <g data-water-body="pool" data-water-material="built-coping" data-footprint={`${length}x${POOL_WIDTH}`}>
       <defs>
         <WaterSurfaceClip id={id} width={length} depth={POOL_WIDTH} />
       </defs>
 
       <polygon points={shell.left} fill="#b8aa94" />
       <polygon points={shell.right} fill="#cbbca5" />
-      <polygon points={shell.top} fill="#eee4d3" />
+      <polygon data-water-part="coping" points={shell.top} fill="#eee4d3" />
 
       <g clipPath={`url(#${id})`} data-water-clip="true">
         <polygon
@@ -193,6 +204,15 @@ function PoolBody({ length }) {
           fill="#71beca"
           opacity="0.52"
         />
+
+        {/* Three submerged ledges establish a walk-in end independently of
+            the metal ladder. Their increasing blue veil communicates depth. */}
+        {entrySteps.map(([gx, gy, dx, dy, veil], index) => (
+          <g key={gx} data-water-part="entry-step">
+            <polygon points={floorPatch(gx, gy, dx, dy)} fill="#d9ddd3" opacity={0.82 - index * 0.1} />
+            <polygon points={floorPatch(gx, gy, dx, dy)} fill="#4ea3b6" opacity={veil} />
+          </g>
+        ))}
 
         {[0.77, 1.44].map((gy, index) => {
           const start = project(0.8, gy);

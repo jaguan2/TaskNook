@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
-import { useStore } from "../store";
+import { useRoomStore, useSocialStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { COTTAGE_SETTINGS, ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
 import {
@@ -82,9 +82,6 @@ export default function RoomPanel() {
     addRoomItem,
     applyRoomPreset,
     clearRoom,
-    visiting,
-    commonRoom,
-    leaveVisit,
     isoPreview,
     setIsoPreview,
     isoRoom,
@@ -98,7 +95,8 @@ export default function RoomPanel() {
     setIsoEnv,
     setIsoLighting,
     applyIsoPreset,
-  } = useStore();
+  } = useRoomStore();
+  const { visiting, commonRoom, leaveVisit } = useSocialStore();
   const isoEnv = isoRoom.env || "room";
   // Floor-plan painting: pointerdown picks add/remove from the first tile,
   // dragging applies it to every tile crossed (the Sims floor-tool feel).

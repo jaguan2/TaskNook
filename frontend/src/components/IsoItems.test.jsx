@@ -55,6 +55,82 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(body.querySelector("clipPath polygon")?.getAttribute("points")).toBe(expectedClip);
   });
 
+  it("distinguishes natural pond banks from built pool coping", () => {
+    const PondSprite = ISO_SPRITES.pond;
+    const PoolSprite = ISO_SPRITES.pool;
+    const pond = draw(<PondSprite />).container;
+
+    expect(pond.querySelector('[data-water-material="natural-bank"]')).toBeTruthy();
+    expect(pond.querySelector('[data-water-part="bank"]')).toBeTruthy();
+    expect(pond.querySelector('[data-water-part="shallows"]')).toBeTruthy();
+    cleanup();
+
+    const pool = draw(<PoolSprite />).container;
+    expect(pool.querySelector('[data-water-material="built-coping"]')).toBeTruthy();
+    expect(pool.querySelector('[data-water-part="coping"]')).toBeTruthy();
+    expect(pool.querySelectorAll('[data-water-part="entry-step"]')).toHaveLength(3);
+  });
+
+  it("builds outdoor resting pieces from visible supports and material layers", () => {
+    const expectations = [
+      ["bench", "joinery", 1],
+      ["log", "end-grain", 1],
+      ["hammock", "post", 2],
+      ["hammock", "rope", 1],
+      ["hammock", "sling", 1],
+    ];
+    for (const [key, part, count] of expectations) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelectorAll(`[data-outdoor-part="${part}"]`), `${key} ${part}`).toHaveLength(count);
+      cleanup();
+    }
+  });
+
+  it("gives outdoor ground pieces irregular edges, binding and contact", () => {
+    const Trail = ISO_SPRITES.gardentrail;
+    const PicnicBlanket = ISO_SPRITES.picnic;
+    const { container: trail } = draw(<Trail />);
+    expect(trail.querySelectorAll('[data-ground-part="chipped-stone"]')).toHaveLength(5);
+    cleanup();
+
+    const { container: picnic } = draw(<PicnicBlanket />);
+    expect(picnic.querySelector('[data-ground-material="picnic-cloth"]')).toBeTruthy();
+    expect(picnic.querySelector('[data-ground-part="binding"]')).toBeTruthy();
+    expect(picnic.querySelector('[data-ground-part="gathered-corner"]')).toBeTruthy();
+    const checks = picnic.querySelector('[data-ground-part="checks"]');
+    expect(checks?.getAttribute("clip-path")).toMatch(/^url\(#.+\)$/);
+    expect(picnic.querySelector("clipPath polygon")?.getAttribute("points")).toBeTruthy();
+    cleanup();
+
+    for (const key of ["ovalrug", "matrug", "persianrug", "stripedrug"]) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelector("[data-ground-material]"), `${key} lacks material construction`).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("builds the seasonal anchors from broad material parts", () => {
+    const expectations = [
+      ["haybale", "wrap-band", 4],
+      ["scarecrow", "cloth-sleeves", 1],
+      ["scarecrow", "hat-brim", 1],
+      ["snowman", "snow-mass", 3],
+      ["logstack", "split-log", 4],
+    ];
+    for (const [key, part, count] of expectations) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelectorAll(`[data-seasonal-part="${part}"]`), `${key} ${part}`).toHaveLength(count);
+      cleanup();
+    }
+
+    const Firewood = ISO_SPRITES.logstack;
+    const { container } = draw(<Firewood />);
+    expect(container.querySelector('[data-seasonal-part="bark"]')?.getAttribute("style")).toContain("--tint");
+  });
+
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is
@@ -93,7 +169,10 @@ describe("the isometric catalog and its artwork agree", () => {
     // The point of coming back to SVG for upholstery: a picked colour has to
     // reach the fabric. A sprite that paints only literal fills would pass
     // every other test here and silently ignore the picker.
-    for (const key of ["bed", "sofa", "armchair", "cushion", "flowercushion", "foldedblanket"]) {
+    for (const key of [
+      "bed", "sofa", "armchair", "cushion", "flowercushion", "foldedblanket",
+      "picnic", "bench", "log", "hammock", "haybale", "scarecrow", "logstack",
+    ]) {
       expect(ISO_ITEMS[key].tintable, `${key} is marked untintable`).not.toBe(false);
       const Sprite = ISO_SPRITES[key];
       const { container } = draw(<Sprite />);

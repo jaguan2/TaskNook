@@ -11,6 +11,55 @@ object: physical construction, distinct silhouettes, layered materials and
 characters convincingly settled into furniture. Better colours and more
 particles help the atmosphere but cannot replace that work.
 
+## Outdoor ground and resting places — October 25, 2026
+
+This iteration followed the outdoor-support pass down to the ground plane and
+the structures people rest on. It improves existing catalog entries without
+changing saved keys, placement footprints or seating metadata:
+
+- **Water:** pond/garden pond now use an irregular natural bank, broad earthen
+  shelf and green-blue shallows. Pool/long pool use thick built coping, inset
+  water and three submerged entry ledges. Their existing water clips remain the
+  final boundary, so neither family paints beyond its footprint.
+- **Outdoor resting pieces:** the garden bench exposes braces and fastening
+  pegs; the fallen log has irregular bark, a branch stub, knot and projecting
+  end grain; the hammock separates planted posts, tied ropes and a sagging cloth
+  sling. Existing sit and lie anchors are unchanged.
+- **Ground pieces:** garden-trail stones have unequal chipped outlines and
+  contact shadows. The picnic blanket has an irregular perimeter, binding,
+  gathered corner and restrained fringe. Oval, coir, patterned and striped rugs
+  now establish material identity and contact with the floor.
+- **Seasonal anchors:** Autumn yard's hay bale is a bound, slightly bulging
+  straw volume and its scarecrow has loose sleeves and a constructed brim.
+  Winter yard's snowman uses three irregular masses, while its firewood exposes
+  separate bark bodies and unequal split ends.
+- **Ownership:** picnic, bench, log, hammock and garden lantern moved together
+  into `IsoOutdoorStructures.jsx`; planted scenery stays in
+  `IsoOutdoorItems.jsx`. The main sprite registry became smaller without adding
+  a wrapper, mode or dispatch layer.
+
+Secret Garden, Terrace, Autumn yard, Winter yard and Poolside were reviewed as
+isolated SVG scenes and then recaptured from the built app against a disposable
+database. The layouts remain intentionally open: no route was narrowed merely
+to display another revised prop. The five refreshed screenshots are
+[Secret Garden](screenshots/06-secret-garden.webp),
+[Terrace](screenshots/07-terrace.webp),
+[Autumn yard](screenshots/09-autumn-yard.webp),
+[Winter yard](screenshots/31-winter-yard.webp) and
+[Poolside](screenshots/32-poolside.webp).
+
+The structural review found no new branching or state surface. Focused rendering
+checks cover the two water materials, outdoor supports, ground bindings,
+seasonal broad parts and tint participation. The next pass is intentionally
+separate: kitchen/appliance construction and tabletop food materials are drafted
+in the roadmap rather than being mixed into this outdoor batch.
+
+Validation: all 1,376 frontend tests passed with one intentional art-fixture
+skip, all 299 backend tests passed, lint is clean, and the production build and
+778-piece art sheet completed. The main-channel executable/manifest pair
+verifies as build `9af7df1f48454eeeac60802f49744bf2`; its frozen self-test
+exited 0 against isolated database and app-data paths.
+
 ## Seasonal silhouettes and Terrace follow-up — October 23, 2026
 
 An independent visual review ranked the oversized seasonal trees above small

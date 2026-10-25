@@ -9,7 +9,7 @@ import {
   SkipForward,
   Volume2,
 } from "lucide-react";
-import { useStore } from "../store";
+import { useAudioStore } from "../store";
 import { readJSON, readStored, writeJSON, writeStored } from "../lib/storage";
 import { formatClock } from "../lib/time";
 import { stationKey, stationUrl } from "../lib/musicLink";
@@ -132,7 +132,7 @@ let bootResumeConsumed = false;
 const EMPTY_TRACK = { title: "", t: 0, d: 0, live: false, videoId: "" };
 
 export default function MusicDock() {
-  const { musicOn, musicStations, activeStationKey, selectStation } = useStore();
+  const { musicOn, musicStations, activeStationKey, selectStation } = useAudioStore();
   // The store already resolves `activeStationKey` to a station that exists;
   // the fallback is belt-and-braces, because the cost of getting it wrong here
   // is a bar that renders nothing at all — no transport, no way back.

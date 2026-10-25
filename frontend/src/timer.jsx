@@ -23,7 +23,7 @@ import {
   isPresent,
   tickPresence,
 } from "./lib/breaks";
-import { useStore } from "./store";
+import { useChallengeStore, useSocialStore, useSystemStore, useTaskStore } from "./store";
 
 // The focus timer lives in its OWN provider, nested inside StoreProvider.
 //
@@ -65,7 +65,10 @@ export const useTimer = () => useContext(TimerContext);
 export const useTimerStatus = () => useContext(TimerStatusContext);
 
 export function TimerProvider({ children }) {
-  const { activeTask, stats, refreshFocus, showToast, nudgeFromFriend, recordChallengeEvent } = useStore();
+  const { activeTask, stats, refreshFocus } = useTaskStore();
+  const { showToast } = useSystemStore();
+  const { nudgeFromFriend } = useSocialStore();
+  const { recordChallengeEvent } = useChallengeStore();
 
   const [focusMinutes, setFocusMinutes] = useState(() =>
     normalizeFocusMinutes(readStored("tasknook.focusMinutes"), 30)

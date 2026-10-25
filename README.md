@@ -225,7 +225,8 @@ TaskNook/
 │   └── preview.png           # The screenshot at the top of this README
 │
 ├── backend/                  # Flask REST API (SQLite, fully local)
-│   ├── app.py                # Routes, token auth, demo seeding, static serving
+│   ├── app.py                # App factory, core routes, auth, seeding, static serving
+│   ├── room_profile_routes.py # Room/profile blueprint + payload validation
 │   ├── models.py             # Users, tasks, focus sessions, tokens, chats, calendar events
 │   ├── schema.py             # Startup migration + pre-upgrade backup lifecycle
 │   ├── migrations/           # Alembic history — the source of truth for the schema

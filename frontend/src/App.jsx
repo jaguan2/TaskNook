@@ -1,7 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Sofa, X } from "lucide-react";
-import { useStore } from "./store";
+import {
+  useProfileStore,
+  useRoomStore,
+  useSettingsStore,
+  useSocialStore,
+  useSystemStore,
+  useWeatherStore,
+} from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
@@ -81,8 +88,13 @@ export default function App() {
     toast,
     dismissToast,
     showToast,
+    user,
+  } = useSystemStore();
+  const {
     weatherMode,
     timeOfDay,
+  } = useWeatherStore();
+  const {
     brightness,
     colorScheme,
     customColor,
@@ -93,6 +105,8 @@ export default function App() {
     setHudVisibility,
     widgetMode,
     setWidgetMode,
+  } = useSettingsStore();
+  const {
     cottageView,
     roomPlacements,
     roomEditMode,
@@ -108,7 +122,9 @@ export default function App() {
     rotateIsoItem,
     setIsoItemTint,
     toggleIsoItem,
-    character,
+  } = useRoomStore();
+  const { character } = useProfileStore();
+  const {
     visiting,
     commonRoom,
     chooseCommonSeat,
@@ -119,8 +135,7 @@ export default function App() {
     moveHomePersona,
     kickHomeVisitor,
     friendship,
-    user,
-  } = useStore();
+  } = useSocialStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
   // once a second, which is exactly what splitting the timer out avoided.

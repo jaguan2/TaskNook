@@ -15,7 +15,12 @@ const mockStore = vi.hoisted(() => ({
 }));
 const mockPlayChime = vi.hoisted(() => vi.fn());
 
-vi.mock("./store", () => ({ useStore: () => mockStore }));
+vi.mock("./store", () => ({
+  useTaskStore: () => mockStore,
+  useSystemStore: () => mockStore,
+  useSocialStore: () => mockStore,
+  useChallengeStore: () => mockStore,
+}));
 vi.mock("./lib/api", () => ({
   api: { logSession: vi.fn(async () => ({})) },
 }));

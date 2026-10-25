@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useStore } from "../store";
+import { useSystemStore, useTaskStore } from "../store";
 import { api } from "../lib/api";
 import { toISO } from "../lib/dates";
 import { focusSummary, intensityOf, intensityScale, localTodayISO } from "../lib/stats";
@@ -20,7 +20,8 @@ function monthMatrix(year, month) {
 const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function CalendarPanel() {
-  const { tasks, events, addTask, editTask, addEvent, removeEvent, sessionDays, showToast } = useStore();
+  const { tasks, events, addTask, editTask, addEvent, removeEvent, sessionDays } = useTaskStore();
+  const { showToast } = useSystemStore();
   // "Today" is state on a slow tick, not a render-time `new Date()`: TaskNook
   // sits open all day, and a panel mounted before midnight kept ringing
   // yesterday's cell until something unrelated re-rendered it.

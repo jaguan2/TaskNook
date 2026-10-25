@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { EyeOff, MonitorCog, Music2, Palette, SunMedium, Waves, Wind } from "lucide-react";
-import { useStore } from "../store";
+import { useAudioStore, useSettingsStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 
 const MOTION_OPTIONS = [
@@ -93,9 +93,8 @@ export default function SettingsPanel() {
     hudVisibility,
     setHudVisibility,
     setAllHudVisibility,
-    autoResumeMusic,
-    setAutoResumeMusic,
-  } = useStore();
+  } = useSettingsStore();
+  const { autoResumeMusic, setAutoResumeMusic } = useAudioStore();
 
   const customSwatch = paletteSwatch(customColor);
   const { h, s } = hexToHsl(customColor);

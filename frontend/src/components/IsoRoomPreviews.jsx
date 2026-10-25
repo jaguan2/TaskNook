@@ -29,10 +29,9 @@ const PREVIEW_FULL_WALL_H = 100;
 /**
  * One catalog sprite in the picker.
  *
- * memo'd because RoomPanel calls useStore(), so every store change re-rendered
- * all ~132 of these — and the panel is on screen whenever you're decorating,
- * since "Decorate" is toggled from inside it. Its props are a single string, so
- * the comparison is free and always correct.
+ * Memoized because the catalog can mount more than a hundred of these at once;
+ * unrelated panel state should not rebuild every SVG thumbnail. Its prop is a
+ * single string, so the comparison is free and always correct.
  */
 function IsoItemPreviewInner({ itemKey }) {
   const item = ISO_ITEMS[itemKey];

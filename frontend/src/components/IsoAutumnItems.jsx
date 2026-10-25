@@ -1,6 +1,5 @@
 import { SKEW, TILE_W, floorPatch, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
-import { TintedBox } from "./IsoItemPrimitives";
 import { BroadleafTree } from "./IsoTreePrimitives";
 
 // A seasonal set. The rules these follow are the ones cozy isometric games
@@ -9,8 +8,8 @@ import { BroadleafTree } from "./IsoTreePrimitives";
 //
 //   1. SILHOUETTE FIRST — the outline alone has to name the object at 30px.
 //      A pumpkin is ribs-and-a-stem; a rake is a pole and a fan.
-//   2. TWO OR THREE TONES per material, never a gradient ramp. TintedBox
-//      already enforces this for boxes; the round items do it by hand.
+//   2. TWO OR THREE TONES per material, never a gradient ramp. Shared solid
+//      primitives enforce this for boxes; the round items do it by hand.
 //   3. ONE HERO COLOUR per object, everything else neutral, so a shelf of
 //      them doesn't turn into confetti.
 //   4. DETAIL AS FEW LARGE SHAPES — a toaster is a box, a slot and a lever.
@@ -77,24 +76,60 @@ export function LeafPile() {
 }
 
 export function HayBale() {
-  // A rectangular bale: straw texture as a few long strokes, two twine bands,
-  // and cut ends that are lighter than the sides.
+  // A tied rectangular bale, but not a wooden crate: each face swells a little
+  // between the cords and the corners fray into loose straw.
   const W = 0.9;
   const D = 0.7;
   const H = 26;
+  const A = project(0, 0);
+  const B = project(W, 0);
+  const C = project(W, D);
+  const D0 = project(0, D);
   return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#c9a24b" dark={0.3} mid={0.16} />
+    <g data-seasonal-structure="hay-bale">
+      <path d={`M${D0.x} ${D0.y} Q${(D0.x + C.x) / 2} ${D0.y + 2} ${C.x} ${C.y}
+        L${C.x + 0.8} ${C.y - H + 4} Q${(D0.x + C.x) / 2} ${D0.y - H - 2} ${D0.x - 0.8} ${D0.y - H + 2} Z`}
+        style={tinted("#c9a24b")} />
+      <path d={`M${D0.x} ${D0.y} Q${(D0.x + C.x) / 2} ${D0.y + 2} ${C.x} ${C.y}
+        L${C.x + 0.8} ${C.y - H + 4} Q${(D0.x + C.x) / 2} ${D0.y - H - 2} ${D0.x - 0.8} ${D0.y - H + 2} Z`}
+        fill="#000" opacity="0.16" />
+      <path d={`M${B.x} ${B.y} Q${(B.x + C.x) / 2 + 1.5} ${(B.y + C.y) / 2} ${C.x} ${C.y}
+        L${C.x + 0.8} ${C.y - H + 4} Q${(B.x + C.x) / 2 + 1.5} ${(B.y + C.y) / 2 - H - 1} ${B.x - 0.5} ${B.y - H + 2} Z`}
+        style={tinted("#c9a24b")} />
+      <path d={`M${B.x} ${B.y} Q${(B.x + C.x) / 2 + 1.5} ${(B.y + C.y) / 2} ${C.x} ${C.y}
+        L${C.x + 0.8} ${C.y - H + 4} Q${(B.x + C.x) / 2 + 1.5} ${(B.y + C.y) / 2 - H - 1} ${B.x - 0.5} ${B.y - H + 2} Z`}
+        fill="#000" opacity="0.3" />
+      <path d={`M${A.x + 1} ${A.y - H + 1} Q${(A.x + B.x) / 2} ${A.y - H - 2} ${B.x - 0.5} ${B.y - H + 2}
+        Q${(B.x + C.x) / 2 + 1.5} ${(B.y + C.y) / 2 - H - 1} ${C.x + 0.8} ${C.y - H + 4}
+        Q${(D0.x + C.x) / 2} ${D0.y - H - 2} ${D0.x - 0.8} ${D0.y - H + 2}
+        Q${(A.x + D0.x) / 2 - 1.5} ${(A.y + D0.y) / 2 - H} ${A.x + 1} ${A.y - H + 1} Z`}
+        style={tinted("#c9a24b")} />
+      <path d={`M${A.x + 2} ${A.y - H + 0.5} Q${(A.x + B.x) / 2} ${A.y - H - 1} ${B.x - 1.5} ${B.y - H + 2}`}
+        fill="none" stroke="#fff3e0" strokeWidth="1.2" opacity="0.22" />
+      {/* Loose straw softens the bundled silhouette without turning into
+          high-frequency texture that disappears at room scale. */}
+      <g fill="none" stroke="#e0bd62" strokeWidth="1.5" strokeLinecap="round" opacity="0.82">
+        <path d={`M${project(0.05, 0.67).x} ${project(0.05, 0.67).y - H + 2} l-4 -3`} />
+        <path d={`M${project(0.84, 0.65).x} ${project(0.84, 0.65).y - H + 1} l5 -2`} />
+        <path d={`M${project(0.12, 0.08).x} ${project(0.12, 0.08).y - H} l-2 -4`} />
+        <path d={`M${D0.x + 2} ${D0.y - 7} l-4 1`} />
+        <path d={`M${C.x - 1} ${C.y - 12} l4 -1`} />
+      </g>
       <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
         {[-21, -16, -11, -6].map((y) => (
           <rect key={y} x="2" y={y} width={W * (TILE_W / 2) - 4} height="1" fill="#000" opacity="0.13" />
         ))}
         {[5, W * (TILE_W / 2) - 9].map((x) => (
-          <rect key={x} x={x} y={-H + 2} width="2.4" height={H - 2} fill="#8a6a2f" opacity="0.7" />
+          <rect data-seasonal-part="wrap-band" key={x} x={x} y={-H + 2}
+            width="2.4" height={H - 2} fill="#7a5a2b" opacity="0.78" />
         ))}
       </g>
       <g transform={`translate(0,${-H})`}>
         <polygon points={floorPatch(0.06, 0.06, W - 0.12, D - 0.12)} fill="#fff" opacity="0.09" />
+        {[0.21, 0.68].map((gx) => (
+          <polygon data-seasonal-part="wrap-band" key={gx}
+            points={floorPatch(gx, 0.02, 0.08, D - 0.04)} fill="#7a5a2b" opacity="0.62" />
+        ))}
       </g>
     </g>
   );
@@ -178,19 +213,32 @@ export function Rake() {
 export function Scarecrow() {
   const c = project(0.55, 0.45);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-seasonal-structure="scarecrow">
       <ellipse cx="0" cy="-1" rx="13" ry="5" fill="#000" opacity="0.15" />
       <path d="M0 -2 L0 -58" stroke="#765039" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M-20 -42 L20 -42" stroke="#765039" strokeWidth="3" strokeLinecap="round" />
-      <path d="M-18 -42 l-5 -4 M-18 -42 l-6 1 M18 -42 l5 -4 M18 -42 l6 1" stroke="#d2ad62" strokeWidth="1.5" />
+      <g data-seasonal-part="straw-cuffs" stroke="#d2ad62" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M-19 -42 l-6 -5 M-19 -42 l-7 0 M-19 -42 l-5 4" />
+        <path d="M19 -42 l6 -5 M19 -42 l7 0 M19 -42 l5 4" />
+      </g>
+      {/* Sleeves hang below the crossbar instead of borrowing its straight
+          stick silhouette. Unequal hems make the stuffed shirt feel loose. */}
+      <g data-seasonal-part="cloth-sleeves" style={tinted("#a85a43")}>
+        <path d="M-3 -46 Q-10 -49 -19 -45 L-18 -36 Q-11 -38 -5 -34 Z" />
+        <path d="M3 -46 Q11 -48 20 -44 L18 -35 Q11 -39 5 -33 Z" />
+      </g>
       <path d="M-13 -44 Q0 -49 13 -44 L10 -24 Q0 -20 -10 -24 Z" style={tinted("#a85a43")} />
+      <path d="M-10 -24 Q0 -20 10 -24" fill="none" stroke="#e0b95f"
+        strokeWidth="1.2" strokeDasharray="2 2" opacity="0.72" />
       <path d="M0 -24 L0 -42" stroke="#000" strokeWidth="1.2" opacity="0.16" />
       <circle cx="0" cy="-56" r="9" fill="#d8b96f" />
       <circle cx="-3" cy="-57" r="1" fill="#4b3b39" />
       <circle cx="3" cy="-57" r="1" fill="#4b3b39" />
       <path d="M-3 -52 q3 2 6 0" fill="none" stroke="#7b5038" strokeWidth="1" />
-      <path d="M-12 -65 q12 -7 24 0 l-3 4 h-18 z" fill="#8a5b39" />
-      <path d="M-16 -62 q16 -3 32 0" fill="none" stroke="#6b442f" strokeWidth="3" strokeLinecap="round" />
+      <path data-seasonal-part="hat-crown" d="M-11 -66 Q0 -73 11 -66 L8 -60 H-8 Z" fill="#8a5b39" />
+      <path d="M-11 -66 Q0 -70 11 -66" fill="none" stroke="#d2ad62" strokeWidth="1" opacity="0.45" />
+      <path data-seasonal-part="hat-brim" d="M-17 -63 Q0 -67 17 -62 Q2 -58 -16 -61 Z" fill="#6b442f" />
+      <path d="M-16 -61 Q2 -58 17 -62" fill="none" stroke="#000" strokeWidth="1.2" opacity="0.22" />
     </g>
   );
 }

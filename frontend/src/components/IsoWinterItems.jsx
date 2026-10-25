@@ -70,18 +70,25 @@ export function Snowman() {
   // Three balls, decreasing — the silhouette alone names it, which is rule 1.
   // Everything else (nose, coal, scarf) is one large shape each, per rule 4.
   const c = project(0.4, 0.4);
+  const masses = [
+    { cy: -11, rx: 14, ry: 10, lean: -0.5 },
+    { cy: -27, rx: 10.5, ry: 8, lean: 0.7 },
+    { cy: -41, rx: 8.2, ry: 6.4, lean: -0.4 },
+  ];
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-seasonal-structure="snowman">
       <ellipse cx="0" cy="-1" rx="15" ry="6" fill="#000" opacity="0.16" />
-      {[
-        [-11, 14, 10],
-        [-27, 11, 8],
-        [-41, 8.4, 6.4],
-      ].map(([cy, rx, ry]) => (
-        <g key={cy}>
-          <ellipse cx="0" cy={cy} rx={rx} ry={ry} fill={SNOW} />
+      {masses.map(({ cy, rx, ry, lean }) => (
+        <g key={cy} data-seasonal-part="snow-mass">
+          <path d={`M${-rx} ${cy} Q${-rx * 0.86} ${cy - ry * 0.72} ${lean} ${cy - ry}
+            Q${rx * 0.86} ${cy - ry * 0.72} ${rx} ${cy + ry * 0.08}
+            Q${rx * 0.72} ${cy + ry * 0.92} ${-rx * 0.22} ${cy + ry}
+            Q${-rx * 0.9} ${cy + ry * 0.72} ${-rx} ${cy} Z`} fill={SNOW} />
           {/* cool tone on the away side, light catch on the near top */}
-          <path d={`M0 ${cy - ry} a${rx} ${ry} 0 0 1 0 ${ry * 2} z`} fill={SNOW_SHADE} opacity="0.45" />
+          <path d={`M${rx * 0.4} ${cy - ry * 0.78} Q${rx} ${cy - ry * 0.24} ${rx} ${cy + ry * 0.08}
+            Q${rx * 0.7} ${cy + ry * 0.9} ${rx * 0.02} ${cy + ry * 0.92}
+            Q${rx * 0.46} ${cy + ry * 0.18} ${rx * 0.4} ${cy - ry * 0.78} Z`}
+            fill={SNOW_SHADE} opacity="0.45" />
           <ellipse cx={-rx * 0.3} cy={cy - ry * 0.45} rx={rx * 0.45} ry={ry * 0.3} fill="#fff" opacity="0.7" />
         </g>
       ))}
@@ -244,25 +251,37 @@ export function LogStack() {
   // Cut ends toward the camera: the rings are the whole read and they only work
   // if the round faces point at you. Doubles as a seat, like the hay bale.
   const c = project(0.45, 0.3);
-  const ring = (x, y, r) => (
-    <g key={`${x}-${y}`}>
-      <ellipse cx={x} cy={y} rx={r} ry={r * 0.86} style={tinted("#a8794f")} />
-      <ellipse cx={x} cy={y} rx={r * 0.72} ry={r * 0.6} fill="#e0c39a" />
-      <ellipse cx={x} cy={y} rx={r * 0.36} ry={r * 0.3} fill="#c39a6b" />
+  const ring = (x, y, r, tilt) => (
+    <g key={`${x}-${y}`} transform={`rotate(${tilt} ${x} ${y})`} data-seasonal-part="split-log">
+      <path d={`M${x - r} ${y} Q${x - r * 0.72} ${y - r * 0.92} ${x + r * 0.1} ${y - r * 0.78}
+        Q${x + r} ${y - r * 0.62} ${x + r * 0.9} ${y + r * 0.16}
+        Q${x + r * 0.5} ${y + r * 0.76} ${x - r * 0.28} ${y + r * 0.72}
+        Q${x - r} ${y + r * 0.54} ${x - r} ${y} Z`} style={tinted("#a8794f")} />
+      <path d={`M${x - r * 0.68} ${y - r * 0.02} Q${x - r * 0.42} ${y - r * 0.58} ${x + r * 0.14} ${y - r * 0.5}
+        Q${x + r * 0.67} ${y - r * 0.35} ${x + r * 0.58} ${y + r * 0.13}
+        Q${x + r * 0.24} ${y + r * 0.48} ${x - r * 0.25} ${y + r * 0.43}
+        Q${x - r * 0.72} ${y + r * 0.34} ${x - r * 0.68} ${y - r * 0.02} Z`} fill="#e0c39a" />
+      <path d={`M${x - r * 0.3} ${y - 0.2} Q${x} ${y - r * 0.32} ${x + r * 0.28} ${y}
+        Q${x} ${y + r * 0.26} ${x - r * 0.3} ${y - 0.2} Z`} fill="none"
+        stroke="#b88657" strokeWidth="0.8" />
     </g>
   );
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-seasonal-structure="firewood">
       <ellipse cx="0" cy="-1" rx="17" ry="7" fill="#000" opacity="0.18" />
-      {/* the bark side of the stack, behind the cut faces */}
-      <path d="M-14 -6 l0 -12 q14 -5 28 0 l0 12 q-14 5 -28 0 z" style={tinted("#7d5636")} />
-      <path d="M-14 -6 l0 -12 q14 -5 28 0 l0 12 q-14 5 -28 0 z" fill="#000" opacity="0.22" />
+      {/* Unequal bark bodies project behind the cut ends rather than merging
+          into one smooth bundle. */}
+      <g data-seasonal-part="bark" style={tinted("#6f4931")}>
+        <path d="M-13 -5 L-12 -13 Q-2 -17 6 -12 L5 -5 Z" />
+        <path d="M-2 -5 L0 -13 Q10 -16 16 -11 L15 -4 Z" opacity="0.86" />
+        <path d="M-7 -15 L-5 -22 Q3 -25 9 -20 L8 -14 Z" opacity="0.92" />
+      </g>
       {[
-        [-7, -9, 5.2],
-        [4, -8, 5.6],
-        [-1, -19, 5.4],
-        [10, -17, 4.6],
-      ].map(([x, y, r]) => ring(x, y, r))}
+        [-8, -8, 5.4, -8],
+        [4, -7, 5.8, 5],
+        [-2, -18, 5.5, -4],
+        [10, -16, 4.7, 9],
+      ].map(([x, y, r, tilt]) => ring(x, y, r, tilt))}
     </g>
   );
 }

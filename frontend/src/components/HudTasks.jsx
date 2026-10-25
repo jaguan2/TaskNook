@@ -8,7 +8,7 @@ import {
   SlidersHorizontal,
   StickyNote,
 } from "lucide-react";
-import { useStore } from "../store";
+import { useSystemStore, useTaskStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { toISO } from "../lib/dates";
 import ConfirmDialog from "./ConfirmDialog";
@@ -315,8 +315,8 @@ export default function HudTasks({ onOpenTasks }) {
     renameTaskGroup,
     toggleRoutine,
     editTask,
-    showToast,
-  } = useStore();
+  } = useTaskStore();
+  const { showToast } = useSystemStore();
   const [draft, setDraft] = useState("");
   const [draftGroup, setDraftGroup] = useState("");
   const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing

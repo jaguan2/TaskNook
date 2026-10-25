@@ -220,6 +220,7 @@ describe("the pre-paint script agrees with the app", () => {
 // pinned in the reduced-motion describe above).
 describe("transitions are gated in JS, because CSS can't reach them", () => {
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
+  const petRoaming = readFileSync(resolve(process.cwd(), "src/lib/usePetRoaming.js"), "utf8");
   const overlay = readFileSync(resolve(process.cwd(), "src/components/WeatherOverlay.jsx"), "utf8");
 
   it("the wander glide only gets its transition when motion is allowed", () => {
@@ -234,7 +235,7 @@ describe("transitions are gated in JS, because CSS can't reach them", () => {
   });
 
   it("the wander timer doesn't run under reduced motion or while the scene is paused", () => {
-    expect(isoRoom).toMatch(/if \(editMode \|\| reduceMotion \|\| paused\)/);
+    expect(petRoaming).toMatch(/if \(editMode \|\| reduceMotion \|\| paused\)/);
   });
 
   it("the lightning flash is still gated too", () => {

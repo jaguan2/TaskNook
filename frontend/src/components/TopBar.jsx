@@ -10,7 +10,7 @@ import {
   Pin,
   PictureInPicture2,
 } from "lucide-react";
-import { useStore } from "../store";
+import { useSettingsStore, useSystemStore, useWeatherStore } from "../store";
 import { readStored, writeStored } from "../lib/storage";
 import {
   hasDesktopApi,
@@ -50,7 +50,9 @@ function fmtClock(d) {
 }
 
 export default function TopBar({ clockVisibility = "on" }) {
-  const { weatherMode, setWeather, widgetMode, setWidgetMode, showToast } = useStore();
+  const { weatherMode, setWeather } = useWeatherStore();
+  const { widgetMode, setWidgetMode } = useSettingsStore();
+  const { showToast } = useSystemStore();
   const now = useClock();
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
 

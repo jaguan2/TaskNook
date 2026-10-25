@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Target, Timer } from "lucide-react";
-import { useStore } from "../store";
+import { useTaskStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { useArmed } from "../lib/useArmed";
@@ -47,7 +47,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
-  const { activeTask, sessionDays, dailyGoal } = useStore();
+  const { activeTask, sessionDays, dailyGoal } = useTaskStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
   const cardRef = useRef(null);

@@ -13,7 +13,8 @@ locally — **the database is SQLite (a local file), with no cloud/AWS dependenc
 ```
 TaskNook/
 ├── backend/              # Flask REST API (Python)
-│   ├── app.py            # App factory, all routes, auth, seeding, static serving
+│   ├── app.py            # App factory, core routes, auth, seeding, static serving
+│   ├── room_profile_routes.py # Room/profile blueprint + JSON validation
 │   ├── models.py         # SQLAlchemy models + db instance
 │   ├── schema.py         # Startup migration/backup lifecycle (init_schema)
 │   ├── migrations/       # Alembic history — SOURCE OF TRUTH for the schema
@@ -23,8 +24,9 @@ TaskNook/
 │   └── src/
 │       ├── main.jsx      # Entry; <ErrorBoundary><StoreProvider><TimerProvider><App/>
 │       ├── App.jsx       # Shell: cottage scene, dock, drawers, HUD cards
-│       ├── store.jsx     # SINGLE source of truth (React Context): local account,
-│       │                 #   tasks, friends, stats, room, ambient audio
+│       ├── store.jsx     # Single state owner: account, tasks, friends, stats,
+│       │                 #   room and ambient audio
+│       ├── storeContexts.jsx # Stable domain contexts + narrow consumer hooks
 │       ├── timer.jsx     # The focus timer, in its OWN provider (see below) —
 │       │                 #   its 1Hz tick must not re-render the whole app
 │       ├── lib/
@@ -56,12 +58,15 @@ TaskNook/
 
 ### Data flow
 
-`component → useStore() action → lib/api.js → Flask /api → SQLAlchemy → SQLite`
+`component → domain store hook/action → lib/api.js → Flask /api → SQLAlchemy → SQLite`
 
 Write actions apply their committed API payload locally, then refresh only the
 resources that operation can have changed. A failed follow-up read must not
 turn a successful write into a failure or invite a duplicate retry. State lives
-in `store.jsx`; components are mostly presentational. `refreshAll()` remains the
+in `store.jsx`, while consumers subscribe through narrow hooks from
+`storeContexts.jsx`; components are mostly presentational. Compatibility
+`useStore()` exists for tests and gradual migrations, not new production
+consumers. `refreshAll()` remains the
 bootstrap/reconciliation read for tasks, stats, friends, session days and events;
 task writes use the narrower `refreshTasks()` path.
 
@@ -1314,7 +1319,7 @@ running `git commit` yourself.
   (window, string lights, lip colours) and sets a walls DEFAULT, which the
   panel's separate WALLS row overrides — `walls` on the layout, one of
   full/low/none, stored only when it differs from the floor's default and
-  mirrored in app.py's `ISO_WALLS` (same both-languages drift contract as
+  mirrored in room_profile_routes.py's `ISO_WALLS` (same both-languages drift contract as
   env). Open air hides the window and string lights, and turning walls off
   drops wall decor via the same announced reshape as everything else.
   Layouts also carry `mask` —
@@ -1411,7 +1416,7 @@ running `git commit` yourself.
   owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoPetItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
-  `PET_LOOKS` whitelist in app.py (bounded-not-knowing, same stance as rot;
+  `PET_LOOKS` whitelist in room_profile_routes.py (bounded-not-knowing, same stance as rot;
   drift-guarded in test_room.py). The classic drawings stay tintable; named
   looks paint FIXED palettes — a teal calico isn't a calico. Breeds change
   SILHOUETTE, not just palette (corgi: 60% legs with the body dropped to
@@ -1425,7 +1430,7 @@ running `git commit` yourself.
   stickiness, drift range — so a curious pet ranges the room and won't
   settle while a sleepy one barely leaves its spot; "mellow" is stored
   implicitly (the env/walls contract) and the key list is mirrored in
-  app.py's `PET_TEMPERS` (both-languages drift guard in test_room.py,
+  room_profile_routes.py's `PET_TEMPERS` (both-languages drift guard in test_room.py,
   which also pins the name/temper round-trip — the backend bounds the
   values without knowing which items are pets, same stance as `rot`).
   The **Pets section lives in the Profile panel** ("who you are, and who
@@ -1672,7 +1677,7 @@ running `git commit` yourself.
   is furniture that exists and can never be placed. A section whose every item
   is wall decor renders nothing outdoors rather than leaving a bare heading.
   **`env` is duplicated across two languages** — `ISO_ENVS` here and
-  `ISO_ENVS` in `backend/app.py` — and has drifted once already: `cafe`,
+  `ISO_ENVS` in `backend/room_profile_routes.py` — and has drifted once already: `cafe`,
   `library` and `terrace` were added to the frontend only, so PUT `/api/room`
   400'd for the three presets that use them and those rooms lived solely in
   the localStorage mirror, toasting "couldn't save" on every change. Adding an
@@ -1799,8 +1804,9 @@ running `git commit` yourself.
 
 ## Adding things
 
-- **New API endpoint**: add the route in `register_routes()` in `app.py`
-  (use `@require_auth` for authed routes), then a method in `lib/api.js`, then
+- **New API endpoint**: add the route to the relevant blueprint/module (room and
+  profile live in `room_profile_routes.py`; remaining families are registered
+  in `app.py`) and use `@require_auth` for authed routes. Then add a method in `lib/api.js`, then
   consume it via an action in `store.jsx`.
 - **New model field**: edit `models.py`, update the relevant `to_dict()`, then
   **generate a migration** — do not just delete the DB:

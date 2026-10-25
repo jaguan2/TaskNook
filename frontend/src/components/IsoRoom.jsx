@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TILE_H, TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
+import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
   ISO_ITEMS,
   ISO_LIGHTING,
@@ -11,7 +11,6 @@ import {
   personaCanSit,
   partitionPieces,
   petCanStand,
-  petTemper,
   seatFor,
   seatedPlacement,
   snapHalf,
@@ -25,8 +24,9 @@ import {
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
 import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
-import { readStored, writeStored } from "../lib/storage";
 import { useNpcActivity } from "../lib/useNpcActivity";
+import { useIsoCamera } from "../lib/useIsoCamera";
+import { overSoftSpot, usePetRoaming } from "../lib/usePetRoaming";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import ExteriorWall from "./ExteriorWall";
@@ -37,6 +37,7 @@ import { levelFor } from "../lib/friendship";
 import RoomTintPicker from "./RoomTintPicker";
 import IsoAtmosphere from "./IsoAtmosphere";
 import IsoContactShadow from "./IsoContactShadow";
+import IsoCarryOverlay from "./IsoCarryOverlay";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -58,54 +59,6 @@ const WINDOW_FRAME_FROM = 1.1;
 const WINDOW_FRAME_LENGTH = 2.4;
 const WINDOW_GLOW_FROM = 0.35;
 const WINDOW_GLOW_LENGTH = 3.5;
-
-/**
- * Is a footprint sitting on anything flat — a rug, a blanket, a pet bed?
- *
- * Both the wander interval ("has the cat found somewhere to nap?") and the
- * render pass ("draw it asleep, then") need this, and it was written out twice,
- * byte for byte. Two copies of one rule is one edit away from a cat that stops
- * moving but never curls up.
- */
-function overSoftSpot(placements, gx, gy, f) {
-  return placements.some((o) => {
-    if (ISO_ITEMS[o.item]?.layer !== -1) return false;
-    const of = footOf(o.item, o.rot);
-    return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
-  });
-}
-
-const DEFAULT_VIEW = { x: 0, y: 0, w: 640, h: 480 };
-const VIEW_MIN_W = 220;
-const VIEW_MAX_W = 1600;
-
-function loadView() {
-  try {
-    const v = JSON.parse(readStored("tasknook.isoView") || "null");
-    if (
-      v &&
-      [v.x, v.y, v.w, v.h].every(Number.isFinite) &&
-      v.w >= VIEW_MIN_W &&
-      v.w <= VIEW_MAX_W
-    ) {
-      return v;
-    }
-  } catch {
-    /* corrupted — fall back */
-  }
-  return DEFAULT_VIEW;
-}
-
-// Keep the room's centre (world 320,240) from ever leaving the view — you
-// can't scroll the whole room off-screen and "lose" it.
-function clampView(v) {
-  const margin = 60;
-  return {
-    ...v,
-    x: Math.min(320 - margin, Math.max(320 + margin - v.w, v.x)),
-    y: Math.min(240 - margin, Math.max(240 + margin - v.h, v.y)),
-  };
-}
 
 // What the window (and the frame's little painting, which shares the
 // gradient) sees at each time of day, plus how bright the string lights read.
@@ -367,44 +320,6 @@ const PlacedItem = memo(function PlacedItem({
   );
 });
 
-/**
- * The figure in your hand — a persona, or one of your PETS (both walkable at
- * home now). Deliberately NOT PlacedItem: no glide (you're carrying them, not
- * sending them), no contact shadow (there's no ground under their feet), no
- * grab target, and no wander offset. What it does keep is the placement's own
- * tint and the per-placement character a visited room supplies, or the person
- * in your hand would change clothes on the way across the room. `label` rides
- * above the body — a visited guest's name, or the pet's, if they have one.
- */
-function HeldFigure({ walk, character, personaInfo, label, friendship }) {
-  if (!walk) return null;
-  const item = ISO_ITEMS[walk.item];
-  const Sprite = ISO_SPRITES[walk.item];
-  if (!item || !Sprite) return null;
-  const sprite = (
-    <Sprite held character={item.self ? character : personaInfo?.character} look={walk.look} />
-  );
-  const bond = personaInfo?.npcUsername
-    ? levelFor(friendship?.[personaInfo.npcUsername] || 0)
-    : null;
-  return (
-    <g style={walk.tint ? { "--tint": walk.tint } : undefined}>
-      {/* The rot mirror only — a carried figure has no direction of travel to
-          face, and flipping them because your pointer drifted left would be a
-          twitch, not a turn. */}
-      {(walk.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
-      {label && (
-        <PersonaNameTag y={item.roamer ? -30 : -52}
-          heartProgress={bond?.frac}
-          heartId={personaInfo?.npcUsername}
-          heartLabel={bond ? `${label}: ${bond.label}` : undefined}>
-          {label}
-        </PersonaNameTag>
-      )}
-    </g>
-  );
-}
-
 // A visited room's name tag. Its own component because it shares `useGlide`
 // with the sprite it labels: the label must ride the SAME per-glide clock
 // (duration ∝ distance now, not a shared constant) or it teleports ahead and
@@ -526,102 +441,7 @@ function IsoSceneInner({
   // People stay at their saved spots and resolve onto seats when applicable.
   // Pets roam through visual-only offsets, checked against floor and furniture;
   // their stored home positions do not change while roaming.
-  const roamRef = useRef({});
-  const [, setRoamTick] = useState(0);
-  useEffect(() => {
-    // Reduced motion stops pet roaming, rather than replacing glides with
-    // jumps. This retires the interval and its renders; ambient CSS animation
-    // is controlled separately by the reduced-motion styles.
-    if (editMode || reduceMotion || paused) {
-      if (!paused) roamRef.current = {};
-      return undefined;
-    }
-    const id = setInterval(() => {
-      const wanderers = placements.filter((p) => {
-        const it = ISO_ITEMS[p.item];
-        // SEATED LIFE (owner decision, 2026-08-19, from the VC2 reference:
-        // "it seems like they mostly just sit down"): humans never wander.
-        // People are SETTLED — on a chair, on a rug, or standing where you
-        // set them — and only a carry moves them. The pets are the room's
-        // motion now, which reads cozier, not deader: stillness with one
-        // moving cat is a study; six pacing humans was a train platform.
-        if (it?.persona) return false;
-        return !!it?.roamer;
-      });
-      if (!wanderers.length) return;
-      const p = wanderers[Math.floor(Math.random() * wanderers.length)];
-      const rec = roamRef.current[p.id];
-      // An offset is only valid for the HOME it was measured from — a walk
-      // order (or an edit-mode drag) moves the home out from under it, and a
-      // stale offset re-applied to the new home can put a body inside
-      // furniture no tick ever approved.
-      const cur = rec && rec.hx === p.gx && rec.hy === p.gy ? rec : { dx: 0, dy: 0 };
-      const f = footOf(p.item, p.rot);
-      const isPet = !!ISO_ITEMS[p.item].roamer;
-      // A pet's TEMPER tunes the engine, never replaces it: how often a tick
-      // actually moves them, how sticky a soft spot is once they've curled
-      // up, and how far from home they drift. Personas keep the classic
-      // numbers (petTemper() of undefined is mellow = the classic numbers).
-      const temper = petTemper(p.temper);
-      if (isPet && Math.random() > temper.chance) return;
-      // Cat rule: once curled up on a rug, mostly stay there — how mostly is
-      // the personality (a sleepy cat barely leaves; a curious one won't
-      // settle).
-      if (
-        isPet &&
-        overSoftSpot(placements, p.gx + cur.dx, p.gy + cur.dy, f) &&
-        Math.random() < temper.stay
-      ) {
-        return;
-      }
-      const range = isPet ? temper.range : 1.5;
-      const next = {
-        dx: Math.max(-range, Math.min(range, cur.dx + (Math.random() * 2 - 1))),
-        dy: Math.max(-range, Math.min(range, cur.dy + (Math.random() * 2 - 1))),
-      };
-      const gx = p.gx + next.dx;
-      const gy = p.gy + next.dy;
-      if (!footprintFree(gx, gy, f, size)) return; // off the floor — stay put
-      const blocked = placements.some((o) => {
-        if (o.id === p.id) return false;
-        const it = ISO_ITEMS[o.item];
-        if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
-        const of = footOf(o.item, o.rot);
-        return gx < o.gx + of[0] && o.gx < gx + f[0] && gy < o.gy + of[1] && o.gy < gy + f[1];
-      });
-      if (blocked) return; // bumped into furniture — stay put
-      // Which way is this glide going on SCREEN? Up-screen means walking away
-      // (the back view); down-screen toward the camera (the front); and a
-      // HORIZONTAL-dominant move shows the PROFILE — which in a 2:1 dimetric
-      // room is every single-axis grid walk, so profiles carry most of the
-      // wandering. A tiny shuffle keeps the previous facing, so nobody spins
-      // on a 1px step.
-      const ddx = next.dx - cur.dx;
-      const ddy = next.dy - cur.dy;
-      const sdx = (ddx - ddy) * (TILE_W / 2);
-      const sdy = (ddx + ddy) * (TILE_H / 2);
-      const facing =
-        Math.hypot(sdx, sdy) < 2.5
-          ? cur.facing || "front"
-          : Math.abs(sdy) > Math.abs(sdx) * 0.6
-          ? sdy < 0
-            ? "back"
-            : "front"
-          : "side";
-      roamRef.current = {
-        ...roamRef.current,
-        [p.id]: { ...next, facing, hx: p.gx, hy: p.gy },
-      };
-      setRoamTick((t) => t + 1);
-    }, 3500);
-    return () => clearInterval(id);
-  }, [editMode, reduceMotion, paused, placements, size]);
-
-  // Same home-check the roam tick applies: a record whose home moved is dead.
-  const roamOffset = (p) => {
-    const rec = !editMode && roamRef.current[p.id];
-    return rec && rec.hx === p.gx && rec.hy === p.gy ? rec : null;
-  };
+  const roamOffset = usePetRoaming({ placements, size, editMode, reduceMotion, paused });
   // Someone in your hand isn't in the room. Filtered rather than hidden, and
   // that's load-bearing twice over: their name tag (drawn from this same list)
   // goes with them instead of hovering over empty floor, and UNMOUNTING is what
@@ -1236,7 +1056,6 @@ function IsoRoom({
   onToggleItem,
 }) {
   const [selectedId, setSelectedId] = useState(null);
-  const svgRef = useRef(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
   // A powered decoration toggles only when the pointer is released without
@@ -1244,55 +1063,21 @@ function IsoRoom({
   // camera drag on whatever furniture happens to be under their finger.
   const toggleRef = useRef(null);
   const heldRef = useRef(null);
-  const panLayerRef = useRef(null);
   // The marker alone — kept out of IsoScene so pointer-rate target updates
   // never re-render the scene subtree.
   const [walkTarget, setWalkTarget] = useState(null);
-  const panRef = useRef(null); // the world point the pointer grabbed
   const pointerOnItemRef = useRef(false); // last pointerdown hit furniture
-  const [view, setView] = useState(() => (saveView ? loadView() : { ...DEFAULT_VIEW }));
-  const viewRef = useRef(view);
-  viewRef.current = view;
-  // Read through a ref so applyView stays non-reactive to the lint rule —
-  // the prop can't actually change within a mount (App keys the scene per
-  // room), but referencing it directly re-classifies every effect that
-  // calls applyView.
-  const saveViewRef = useRef(saveView);
-  saveViewRef.current = saveView;
-  const sizeRef = useRef(size);
-  sizeRef.current = size;
-
-  const persistViewTimer = useRef(null);
-  // What the debounce is holding, so unmount can FLUSH it rather than drop it.
-  const pendingViewRef = useRef(null);
-  const flushView = () => {
-    clearTimeout(persistViewTimer.current);
-    if (pendingViewRef.current) {
-      writeStored("tasknook.isoView", JSON.stringify(pendingViewRef.current));
-      pendingViewRef.current = null;
-    }
-  };
-  // Cleanup used to only CLEAR the timer, so a pan or zoom followed within 300ms
-  // by toggling to the flat scene (or closing the app) silently lost the camera
-  // position — the one thing you'd notice next launch.
-  useEffect(() => flushView, []);
-  const applyView = (next) => {
-    const clamped = clampView(next);
-    viewRef.current = clamped;
-    setView(clamped);
-    // A visited room's camera is throwaway — never let it near the stored
-    // home view (pendingViewRef stays null, so the unmount flush is a no-op).
-    if (!saveViewRef.current) return;
-    // Persisting on every pointermove meant a synchronous JSON+disk write at
-    // pan/zoom rate (60Hz+) — debounce it; only the state update needs to be
-    // immediate.
-    pendingViewRef.current = clamped;
-    clearTimeout(persistViewTimer.current);
-    persistViewTimer.current = setTimeout(() => {
-      writeStored("tasknook.isoView", JSON.stringify(clamped));
-      pendingViewRef.current = null;
-    }, 300);
-  };
+  const {
+    svgRef,
+    panLayerRef,
+    view,
+    toWorld,
+    beginPan,
+    movePan,
+    cancelPan,
+    commitPan,
+    resetView,
+  } = useIsoCamera({ size, saveView });
 
   useEffect(() => {
     if (!editMode) setSelectedId(null);
@@ -1337,32 +1122,6 @@ function IsoRoom({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [editMode, selectedId]);
 
-  // Wheel zoom must preventDefault (page scroll), so it can't be a React
-  // onWheel prop — React registers those passively.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return undefined;
-    const onWheel = (e) => {
-      e.preventDefault();
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return;
-      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-      const v = viewRef.current;
-      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
-      // Big floors need a farther zoom-out: the limit grows with the room so
-      // a 48-wide lot still fits on screen.
-      const roomSpan = ((sizeRef.current.w + sizeRef.current.d) * TILE_W) / 2;
-      const maxW = Math.max(VIEW_MAX_W, roomSpan * 1.25);
-      const w = Math.min(maxW, Math.max(VIEW_MIN_W, v.w * factor));
-      const s = w / v.w;
-      if (s === 1) return;
-      // Anchor the zoom at the cursor: that world point stays put on screen.
-      applyView({ x: p.x - (p.x - v.x) * s, y: p.y - (p.y - v.y) * s, w, h: v.h * s });
-    };
-    svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
-  }, []);
-
   // Centre the room around world (320,240), whatever its dimensions (the
   // bounding rect, ignoring cuts — a stable centre while cuts toggle).
   // IsoScene derives the same centre; the wrapper needs it for hit-testing.
@@ -1372,12 +1131,6 @@ function IsoRoom({
   const cx = 320 - (farL.x + farR.x) / 2;
   const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
 
-  const toWorld = (e) => {
-    const svg = svgRef.current;
-    const ctm = svg?.getScreenCTM();
-    if (!ctm) return null;
-    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-  };
   const toScene = (e) => {
     const p = toWorld(e);
     return p ? { x: p.x - cx, y: p.y - cy } : null;
@@ -1459,7 +1212,7 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, svgRef]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1537,18 +1290,7 @@ function IsoRoom({
       onMoveItem?.(drag.id, gx, gy);
       return;
     }
-    // Camera pan: keep the grabbed world point glued under the pointer.
-    const pan = panRef.current;
-    if (pan) {
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect?.width || !rect.height) return;
-      pan.dx = ((e.clientX - pan.clientX) * pan.view.w) / rect.width;
-      pan.dy = ((e.clientY - pan.clientY) * pan.view.h) / rect.height;
-      // Imperative on purpose: changing viewBox here invalidates and
-      // re-rasterizes every SVG node. Moving one wrapper lets the browser
-      // composite the already-painted room until release.
-      panLayerRef.current?.setAttribute("transform", `translate(${pan.dx} ${pan.dy})`);
-    }
+    movePan(e);
   };
 
   const endDrag = (e) => {
@@ -1561,7 +1303,6 @@ function IsoRoom({
       if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.id, walk.gx, walk.gy);
     }
     dragRef.current = null;
-    const pan = panRef.current;
     const toggle = toggleRef.current;
     toggleRef.current = null;
     const toggleClick =
@@ -1571,39 +1312,16 @@ function IsoRoom({
     if (toggleClick) {
       onToggleItem?.(toggle.id);
       // A tiny hand wobble within the click threshold is not a camera move.
-      panLayerRef.current?.removeAttribute("transform");
-      panRef.current = null;
+      cancelPan();
       return;
     }
-    if (pan) {
-      const next = clampView({
-        ...pan.view,
-        x: pan.view.x - (pan.dx || 0),
-        y: pan.view.y - (pan.dy || 0),
-      });
-      // Set the attribute before removing the temporary translation so the
-      // release frame cannot flash back to the old camera while React queues.
-      svgRef.current?.setAttribute(
-        "viewBox",
-        `${next.x} ${next.y} ${next.w} ${next.h}`
-      );
-      applyView(next);
-      panLayerRef.current?.removeAttribute("transform");
-    }
-    panRef.current = null;
+    commitPan();
   };
 
   const startPan = (e) => {
     if (!toggleRef.current) pointerOnItemRef.current = false;
     if (editMode) setSelectedId(null);
-    panRef.current = {
-      clientX: e.clientX,
-      clientY: e.clientY,
-      view: { ...viewRef.current },
-      dx: 0,
-      dy: 0,
-    };
-    svgRef.current?.setPointerCapture?.(e.pointerId);
+    beginPan(e);
   };
 
   // The RAW placement, not the render-resolved one: the picker lives outside
@@ -1615,6 +1333,8 @@ function IsoRoom({
     <div className="pointer-events-auto absolute inset-0 select-none">
       <svg
         ref={svgRef}
+        aria-label="Isometric room scene"
+        data-iso-room-scene
         viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
         /* A closed hand for as long as you're carrying someone — the cursor is
            the only "hand" in the picture, so it has to be the one that grips. */
@@ -1629,10 +1349,10 @@ function IsoRoom({
           // Recenter only from empty space — double-clicking furniture (two
           // quick drag-grabs) shouldn't fling the camera.
           if (pointerOnItemRef.current) return;
-          applyView(DEFAULT_VIEW);
+          resetView();
         }}
       >
-        <g ref={panLayerRef} data-pan-layer="true">
+        <g ref={panLayerRef} data-pan-layer="true" data-iso-room-art>
           <IsoScene
           size={size}
           placements={placements}
@@ -1658,81 +1378,18 @@ function IsoRoom({
           walkPersonas={walkPersonas}
           carriedId={walkTarget?.id ?? null}
           />
-        {/* Picking someone up: the landing diamond (where they'll stand if you
-            let go) and the figure itself, dangling from your cursor. Outside
-            IsoScene — pointer-rate updates must not re-render the room — and
-            after it, so no furniture buries either: the selection-chrome rule. */}
-          {walkTarget && (
-          <g transform={`translate(${cx}, ${cy})`} pointerEvents="none">
-            {/* THE SEAT GLOW (seated life): while a PERSON is in your hand,
-                every place they could settle — free seats, soft ground —
-                breathes amber, so choosing a spot is reading the room, not
-                hunting for legal tiles. Pets don't get it (they land on any
-                open floor, so lighting the whole room would say nothing). */}
-            {!ISO_ITEMS[placements.find((p) => p.id === walkTarget.id)?.item]?.roamer &&
-              placements
-                .filter((p) => {
-                  const it = ISO_ITEMS[p.item];
-                  if (!it || p.id === walkTarget.id) return false;
-                  if (it.layer === -1 && p.item !== "pond" && !it.persona) return true;
-                  if (!it.seat) return false;
-                  const others = placements.filter((o) => o.id !== walkTarget.id);
-                  return !others.some((o) => {
-                    if (!ISO_ITEMS[o.item]?.persona) return false;
-                    const s = seatFor(o, others.filter((x) => x.id !== o.id));
-                    return s && !s.soft && s.placement.id === p.id;
-                  });
-                })
-                .map((p) => (
-                  <polygon
-                    key={`glow-${p.id}`}
-                    className="room-breathe"
-                    points={floorPatch(p.gx, p.gy, ...footOf(p.item, p.rot))}
-                    fill="#ffe9b0"
-                    fillOpacity="0.14"
-                    stroke="#ffe9b0"
-                    strokeWidth="1"
-                    opacity="0.75"
-                  />
-                ))}
-            <polygon
-              points={floorPatch(
-                walkTarget.gx,
-                walkTarget.gy,
-                walkTarget.foot[0],
-                walkTarget.foot[1]
-              )}
-              fill={walkTarget.ok ? "#ffe9b0" : "#d96a6a"}
-              fillOpacity="0.12"
-              stroke={walkTarget.ok ? "#ffe9b0" : "#d96a6a"}
-              strokeWidth="1.5"
-              strokeDasharray="6 4"
-              opacity="0.9"
-            />
-            {/* An inline ref callback on purpose: it re-runs on every render,
-                which is what re-applies the imperative transform after the
-                diamond's state changes — and it lands the figure at the right
-                place on the very first frame, instead of flashing at the room's
-                origin for one. */}
-            <g
-              ref={(el) => {
-                heldRef.current = el;
-                if (el) applyHeld();
-              }}
-            >
-              <HeldFigure
-                walk={walkRef.current}
-                character={character}
-                personaInfo={personas ? personas[walkTarget.id] : null}
-                friendship={friendship}
-                label={
-                  personas?.[walkTarget.id]?.label ??
-                  placements.find((p) => p.id === walkTarget.id)?.name
-                }
-              />
-            </g>
-          </g>
-          )}
+          <IsoCarryOverlay
+            placements={placements}
+            target={walkTarget}
+            cx={cx}
+            cy={cy}
+            walk={walkRef.current}
+            heldRef={heldRef}
+            applyHeld={applyHeld}
+            character={character}
+            personas={personas}
+            friendship={friendship}
+          />
         </g>
       </svg>
 

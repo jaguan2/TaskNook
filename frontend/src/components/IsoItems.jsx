@@ -8,9 +8,24 @@ import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
+import {
+  Bread,
+  Cake,
+  FruitBowl,
+  Kettle,
+  Microwave,
+  Oven,
+  Pie,
+  Pot,
+  Ramen,
+  Sink,
+  Teapot,
+  Toaster,
+} from "./IsoKitchenItems";
 import { GardenPond, Pond } from "./IsoWaterItems";
 import { GardenTrail } from "./IsoGardenItems";
 import { Birch, Bush, Flowerbed, Hedge, Pine, Rock, Tree } from "./IsoOutdoorItems";
+import { Bench, GardenLantern, Hammock, Log, Picnic } from "./IsoOutdoorStructures";
 import { BookTrolley, OpenJournal } from "./IsoStudyItems";
 import { Basket, Crates, LadderShelf } from "./IsoStorageItems";
 import { FlowerCushion, FoldedBlanket } from "./IsoTextileItems";
@@ -769,319 +784,6 @@ function Pillar() {
 }
 
 
-// ---- kitchen ------------------------------------------------------------ //
-// Same rules as the autumn set: silhouette first, few large shapes, one hero
-// colour. Appliances are the easiest things in a catalog to turn into grey
-// bricks, so each one gets exactly one feature that names it — a hob, a
-// basin, a window, a slot, a spout.
-
-/** A cylindrical vessel: bottom ellipse, straight side, top ellipse. The
- *  house idiom for anything round (see Stool, CafeTable) — worth sharing
- *  once four kitchen items wanted it. */
-function Vessel({ r, h, fill, lid, ry = 0.45 }) {
-  const e = r * ry;
-  return (
-    <g>
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill={fill} />
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill="#000" opacity="0.3" />
-      <rect x={-r} y={-h} width={r * 2} height={h} fill={fill} />
-      <rect x={-r} y={-h} width={r * 0.55} height={h} fill="#fff" opacity="0.13" />
-      <rect x={r * 0.45} y={-h} width={r * 0.55} height={h} fill="#000" opacity="0.14" />
-      <ellipse cx="0" cy={-h} rx={r} ry={e} fill={lid || fill} />
-      {lid && <ellipse cx="0" cy={-h} rx={r * 0.6} ry={e * 0.6} fill="#000" opacity="0.12" />}
-    </g>
-  );
-}
-
-function Oven() {
-  const W = 0.9;
-  const D = 0.7;
-  const H = 38;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#cbc6c0" dark={0.3} mid={0.15} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {/* control strip with knobs, then the door and its window */}
-        <rect x="2" y={-H + 2} width={face - 4} height="6" rx="1" fill="#000" opacity="0.14" />
-        {[0.22, 0.38, 0.62, 0.78].map((t) => (
-          <circle key={t} cx={face * t} cy={-H + 5} r="1.3" fill="#f7e9e2" opacity="0.7" />
-        ))}
-        <rect x="3" y={-H + 11} width={face - 6} height={H - 14} rx="1.5" fill="#000" opacity="0.2" />
-        <rect x="6" y={-H + 16} width={face - 12} height={H - 24} rx="1" fill="#241d33" opacity="0.75" />
-        <rect x="7.5" y={-H + 17.5} width={face - 15} height={H - 27} rx="0.8" fill="#e8b04b" opacity="0.16" />
-        <rect x="5" y={-H + 12} width={face - 10} height="2.4" rx="1.2" fill="#f7e9e2" opacity="0.55" />
-      </g>
-      {/* four hob rings on the top — the one detail that says "cooker" */}
-      <g transform={`translate(0,${-H})`}>
-        {[
-          [0.26, 0.22],
-          [0.64, 0.22],
-          [0.26, 0.5],
-          [0.64, 0.5],
-        ].map(([gx, gy]) => {
-          const p = project(gx, gy);
-          return (
-            <g key={`${gx}-${gy}`}>
-              <ellipse cx={p.x} cy={p.y} rx="6" ry="3" fill="#000" opacity="0.22" />
-              <ellipse cx={p.x} cy={p.y - 0.6} rx="4.4" ry="2.2" fill="#000" opacity="0.3" />
-            </g>
-          );
-        })}
-      </g>
-    </g>
-  );
-}
-
-function Sink() {
-  const W = 0.9;
-  const D = 0.65;
-  const H = 32;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#b8ad9e" dark={0.32} mid={0.17} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {[4, face / 2 + 1].map((x) => (
-          <rect key={x} x={x} y={-H + 5} width={face / 2 - 5} height={H - 10} rx="1.2" fill="#000" opacity="0.13" />
-        ))}
-        <circle cx={face / 2 - 3} cy={-H / 2} r="1.1" fill="#f7e9e2" opacity="0.6" />
-        <circle cx={face / 2 + 3} cy={-H / 2} r="1.1" fill="#f7e9e2" opacity="0.6" />
-      </g>
-      <g transform={`translate(0,${-H})`}>
-        {/* the basin: a recess, not a painted rectangle — the rim is what
-            makes it read as sunk into the top */}
-        <polygon points={floorPatch(0.1, 0.1, W - 0.2, D - 0.2)} fill="#000" opacity="0.3" />
-        <polygon points={floorPatch(0.16, 0.15, W - 0.32, D - 0.3)} fill="#9aa3a8" />
-        <polygon points={floorPatch(0.16, 0.15, W - 0.32, D - 0.3)} fill="#000" opacity="0.18" />
-        <ellipse
-          cx={project(W / 2, D / 2).x}
-          cy={project(W / 2, D / 2).y}
-          rx="2.4"
-          ry="1.2"
-          fill="#000"
-          opacity="0.3"
-        />
-        {/* tap: a gooseneck rising from the back edge */}
-        <g transform={`translate(${project(W / 2, 0.12).x}, ${project(W / 2, 0.12).y})`}>
-          <path d="M0 0 L0 -11 q0 -4 5 -4 q4 0 4 3.5 L9 -6" fill="none" stroke="#cfd6da" strokeWidth="2.2" strokeLinecap="round" />
-          <ellipse cx="0" cy="0" rx="3" ry="1.5" fill="#cfd6da" />
-        </g>
-      </g>
-    </g>
-  );
-}
-
-function Microwave() {
-  const W = 0.65;
-  const D = 0.45;
-  const H = 16;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#4a4152" tint={false} dark={0.3} mid={0.16} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        <rect x="2" y={-H + 2} width={face * 0.62} height={H - 4} rx="1" fill="#241d33" />
-        <rect x="3" y={-H + 3} width={face * 0.62 - 2} height={H - 6} rx="0.8" fill="#5b6b9b" opacity="0.4" />
-        <rect x={face * 0.7} y={-H + 3} width={face * 0.24} height="4" rx="0.8" fill="#9db4e8" opacity="0.55" />
-        {[0, 1, 2].map((i) => (
-          <circle key={i} cx={face * 0.74 + i * 3} cy={-H + 10} r="0.9" fill="#f7e9e2" opacity="0.5" />
-        ))}
-        <rect x={face * 0.64} y={-H + 2} width="1.4" height={H - 4} rx="0.7" fill="#f7e9e2" opacity="0.4" />
-      </g>
-    </g>
-  );
-}
-
-function Toaster() {
-  // Two slices poking out of the slots. Without them it is a white box with a
-  // dot on it and reads as a bread bin — the toast IS the silhouette.
-  const W = 0.4;
-  const D = 0.35;
-  const H = 13;
-  const face = W * (TILE_W / 2);
-  const slice = (gx) => {
-    const p = project(gx, 0.175);
-    return (
-      <g key={gx} transform={`translate(${p.x}, ${p.y})`}>
-        <path d="M-3.4 0 q0 -4.6 3.4 -4.6 q3.4 0 3.4 4.6 z" fill="#c98a4b" />
-        <path d="M-3.4 0 q0 -4.6 3.4 -4.6 l0 4.6 z" fill="#fff" opacity="0.16" />
-      </g>
-    );
-  };
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#cfd6da" tint={false} dark={0.28} mid={0.14} />
-      <g transform={`translate(0,${-H})`}>
-        <polygon points={floorPatch(0.07, 0.09, W - 0.14, 0.055)} fill="#000" opacity="0.45" />
-        <polygon points={floorPatch(0.07, 0.2, W - 0.14, 0.055)} fill="#000" opacity="0.45" />
-        {slice(0.14)}
-        {slice(0.26)}
-      </g>
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        <rect x={face - 3.2} y={-H + 2.5} width="2.2" height="6" rx="1.1" fill="#5b5166" />
-        <circle cx="4" cy="-4" r="1.5" fill="#c0563f" opacity="0.85" />
-      </g>
-    </g>
-  );
-}
-
-function Kettle() {
-  // Spout on ONE side as a tapered cone, handle as a bail arcing over the
-  // lid. Drawn as two thin strokes leaving the shoulders they read as horns.
-  const c = project(0.175, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7" ry="3" fill="#000" opacity="0.18" />
-      {/* spout first, so the body overlaps its root */}
-      <path d="M4 -11 L13 -13.5 L12.5 -10.5 L4 -6.5 Z" fill="#7d8c99" />
-      <path d="M4 -11 L13 -13.5 L12.8 -12 L4 -9 Z" fill="#fff" opacity="0.14" />
-      <g transform="translate(0,-1)">
-        <Vessel r={6} h={9} fill="#8d99a6" lid="#a8b3bd" />
-      </g>
-      {/* bail handle, over the top */}
-      <path d="M-5.5 -11.5 q5.5 -8 11 0" fill="none" stroke="#5b5166" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="0" cy="-11.4" r="1.5" fill="#5b5166" />
-    </g>
-  );
-}
-
-function Pot() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      <g transform="translate(0,-1)">
-        <Vessel r={7} h={8} fill="#5b6b6b" lid="#7d8c8c" />
-      </g>
-      {/* two ear handles */}
-      <rect x="-10.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <rect x="7.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <circle cx="0" cy="-10.5" r="1.5" fill="#3f4a4a" />
-    </g>
-  );
-}
-
-// ---- food & drink ------------------------------------------------------- //
-// These are the smallest things in the catalog — 10 to 14px tall — so they get
-// ONE idea each and nothing more. At this size a second idea is just noise:
-// the cake is a cylinder with a cherry, the ramen is a bowl with a swirl.
-// All of them `stacks`, because food belongs on a table.
-
-function Teapot() {
-  const c = project(0.2, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7.5" ry="3.2" fill="#000" opacity="0.18" />
-      {/* rounder than the kettle — that roundness IS the difference */}
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" style={tinted("#c98a9b")} />
-      <ellipse cx="-2.2" cy="-7.5" rx="3" ry="2.2" fill="#fff" opacity="0.18" />
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" fill="#000" opacity="0.06" />
-      <path d="M6 -7 q5 0 5.5 -4" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M-6.5 -8 q-4.5 -2 -1 -5.5" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2" strokeLinecap="round" />
-      <ellipse cx="0" cy="-11" rx="3.6" ry="1.6" style={tinted("#d9a0ad")} />
-      <circle cx="0" cy="-12.6" r="1.3" fill="#8a5a66" />
-      <SteamWisps x={9} y={-13} scale={0.65} />
-    </g>
-  );
-}
-
-function FruitBowl() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* fruit first, then the bowl in front — they sit INSIDE it */}
-      <circle cx="-3" cy="-7" r="3.2" fill="#c0563f" />
-      <circle cx="2.5" cy="-7.5" r="3" fill="#d98b3a" />
-      <circle cx="0" cy="-9" r="2.6" fill="#7faf8f" />
-      <circle cx="-3.6" cy="-8" r="1" fill="#fff" opacity="0.3" />
-      <path d="M-8.5 -5 q8.5 6 17 0 q-2 -3.5 -8.5 -3.5 q-6.5 0 -8.5 3.5 z" style={tinted("#e2d6c4")} />
-      <path d="M0 -1.6 q6 -0.6 8.5 -3.4 q-2 3.6 -8.5 3.8 z" fill="#000" opacity="0.16" />
-    </g>
-  );
-}
-
-function Bread() {
-  const c = project(0.2, 0.15);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3" fill="#000" opacity="0.16" />
-      {/* board */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#a87f5f" />
-      <ellipse cx="0" cy="-2.4" rx="8" ry="3.4" fill="#b58c6a" />
-      {/* loaf: a dome with three slashes, which is the whole silhouette */}
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q6.5 0 6.5 6 z" fill="#c98a4b" />
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q0 6 0 6 z" fill="#fff" opacity="0.14" />
-      {[-3.4, 0, 3.4].map((x) => (
-        <path key={x} d={`M${x - 1.4} -5.6 l2.4 -1.8`} stroke="#8a5a2f" strokeWidth="1.2" strokeLinecap="round" />
-      ))}
-    </g>
-  );
-}
-
-function Cake() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* stand */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#cbd5e8" />
-      <rect x="-1.2" y="-4" width="2.4" height="3" fill="#cbd5e8" />
-      <ellipse cx="0" cy="-4" rx="7" ry="3" fill="#dfe6f2" />
-      {/* two tiers of sponge with a cream band between */}
-      <g transform="translate(0,-4)">
-        <Vessel r={6.5} h={7} fill="#c98a4b" lid="#f2e2cf" />
-        <rect x="-6.5" y="-4.4" width="13" height="2" fill="#f7e9e2" opacity="0.85" />
-      </g>
-      <circle cx="0" cy="-12" r="1.6" fill="#c0563f" />
-      <circle cx="-0.5" cy="-12.5" r="0.5" fill="#fff" opacity="0.5" />
-    </g>
-  );
-}
-
-function Pie() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* dish */}
-      <ellipse cx="0" cy="-1" rx="8" ry="3.4" style={tinted("#b8ad9e")} />
-      <ellipse cx="0" cy="-1" rx="8" ry="3.4" fill="#000" opacity="0.24" />
-      <ellipse cx="0" cy="-4" rx="8" ry="3.4" style={tinted("#cbc6c0")} />
-      {/* crust + a lattice, drawn as three crossing bands */}
-      <ellipse cx="0" cy="-5.5" rx="6.6" ry="2.8" fill="#c98a4b" />
-      <ellipse cx="0" cy="-6.2" rx="6.6" ry="2.8" fill="#d99f5f" />
-      {[-3, 0, 3].map((x) => (
-        <path key={x} d={`M${x - 3} -7.4 l6 2.4`} stroke="#a86a2f" strokeWidth="1.1" opacity="0.65" />
-      ))}
-      {[-3, 0, 3].map((x) => (
-        <path key={`b${x}`} d={`M${x - 3} -5 l6 -2.4`} stroke="#a86a2f" strokeWidth="1.1" opacity="0.5" />
-      ))}
-    </g>
-  );
-}
-
-function Ramen() {
-  const c = project(0.175, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7.5" ry="3.2" fill="#000" opacity="0.18" />
-      {/* bowl */}
-      <path d="M-7.5 -4 q7.5 6.5 15 0 q-1.5 -4 -7.5 -4 q-6 0 -7.5 4 z" style={tinted("#8f4a3c")} />
-      <path d="M0 0.4 q5.5 -0.6 7.5 -4.4 q-1.5 4.2 -7.5 4.4 z" fill="#000" opacity="0.18" />
-      <ellipse cx="0" cy="-8" rx="7.2" ry="3" style={tinted("#a85a4c")} />
-      {/* broth, a noodle swirl, an egg half and two chopsticks */}
-      <ellipse cx="0" cy="-8.2" rx="6" ry="2.4" fill="#c9a24b" />
-      <path d="M-3.5 -8.4 q3.5 -1.6 7 0" fill="none" stroke="#f2e2cf" strokeWidth="1.1" opacity="0.85" />
-      <path d="M-3 -7.2 q3 -1.4 6 0" fill="none" stroke="#f2e2cf" strokeWidth="1" opacity="0.6" />
-      <ellipse cx="3" cy="-9" rx="2.2" ry="1.3" fill="#f7f2ea" />
-      <ellipse cx="3" cy="-9.1" rx="1.1" ry="0.7" fill="#e8b04b" />
-      <path d="M-6 -11 l7 -4 M-4.6 -10.2 l7 -4" stroke="#b58c6a" strokeWidth="0.9" strokeLinecap="round" />
-      <SteamWisps y={-10} scale={0.8} />
-    </g>
-  );
-}
 
 // ---- upholstery (hand-drawn again, on purpose) -------------------------- //
 // These three came back from the Kenney kit to SVG. The kit's renders are
@@ -2108,60 +1810,6 @@ function BigWindow() {
   );
 }
 
-function Picnic() {
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 2, 1.5)} style={tinted("#d98a93")} opacity="0.85" />
-      {[0, 1, 2, 3].map((i) =>
-        [0, 1, 2].map((j) =>
-          (i + j) % 2 === 0 ? (
-            <polygon
-              key={`${i}-${j}`}
-              points={floorPatch(i * 0.5, j * 0.5, 0.5, 0.5)}
-              fill="#fff"
-              opacity="0.22"
-            />
-          ) : null
-        )
-      )}
-      <polygon
-        points={floorPatch(0.06, 0.06, 1.88, 1.38)}
-        fill="none"
-        stroke="#fff"
-        strokeWidth="1.2"
-        opacity="0.3"
-      />
-    </g>
-  );
-}
-
-function Bench({ back = false }) {
-  const restGy = back ? 0.49 : 0.02;
-  const rest = <g>
-    {[0.1, 1.4].map((gx) => <TintedBox key={gx} gx={gx} gy={restGy}
-      dx={0.1} dy={0.09} h={31} fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />)}
-    {[20, 25, 30].map((h) => <g key={h} transform={`translate(0,${-h})`}>
-      <TintedBox gx={0.04} gy={restGy} dx={1.52} dy={0.09} h={3.2}
-        fallback="#8f5d49" dark={0.34} mid={0.18} />
-    </g>)}
-  </g>;
-  return <g>
-    {!back && rest}
-    {[[0.12, 0.08], [1.38, 0.08], [0.12, 0.43], [1.38, 0.43]].map(([gx, gy]) =>
-      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.1} dy={0.1} h={14}
-        fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />)}
-    <g transform="translate(0,-10)">
-      <TintedBox gx={0.1} gy={0.43} dx={1.4} dy={0.09} h={3}
-        fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />
-    </g>
-    <g transform="translate(0,-14)">
-      {[0.04, 0.22, 0.4].map((gy) => <TintedBox key={gy} gx={0} gy={gy} dx={1.6} dy={0.15} h={2}
-        fallback="#a87f5f" dark={0.3} mid={0.16} />)}
-    </g>
-    {back && rest}
-  </g>;
-}
-
 // ---- newer decorations -------------------------------------------------- //
 
 function Fireplace() {
@@ -2972,22 +2620,6 @@ function Computer() {
   );
 }
 
-function Log() {
-  const c = project(0.7, 0.35);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-20" y="-13" width="40" height="13" rx="6.5" style={tinted("#8f5d49")} />
-      <rect x="-20" y="-7" width="40" height="7" rx="3.5" fill="#000" opacity="0.2" />
-      <ellipse cx="-20" cy="-6.5" rx="4" ry="6.5" fill="#c9a06f" />
-      <ellipse cx="-20" cy="-6.5" rx="2.4" ry="4" fill="none" stroke="#8f5d49" strokeWidth="0.9" />
-      <ellipse cx="-20" cy="-6.5" rx="1" ry="1.7" fill="#8f5d49" />
-      {[-8, 4, 14].map((x) => (
-        <path key={x} d={`M${x} -12 q1.5 6 0 11`} stroke="#000" strokeWidth="0.8" fill="none" opacity="0.16" />
-      ))}
-    </g>
-  );
-}
-
 function Flowers() {
   const c = project(0.35, 0.3);
   return (
@@ -3095,7 +2727,8 @@ function WoodStool() {
 function OvalRug() {
   const c = project(1.1, 0.85);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-ground-material="braided-rug">
+      <ellipse cx="2" cy="2" rx="47" ry="23" fill="#000" opacity="0.13" />
       <ellipse cx="0" cy="0" rx="47" ry="23" style={tinted("rgb(var(--color-rose))")} opacity="0.46" />
       {/* A braided oval is rings of alternating tone, not hairlines on a
           solid disc — filled bands are what make the braid visible. */}
@@ -3122,7 +2755,8 @@ function OvalRug() {
 
 function MatRug() {
   return (
-    <g>
+    <g data-ground-material="coir-mat">
+      <polygon points={floorPatch(0.03, 0.05, 1.4, 0.9)} fill="#000" opacity="0.12" />
       <RugGround w={1.4} d={0.9} m={0.12} fallback="rgb(var(--color-blush))" ground={0.52} field={0.08} />
       {/* Coir bristle: short strokes across the weave, dense enough to read as
           texture rather than as three painted stripes. */}
@@ -3152,8 +2786,11 @@ function PersianRug() {
   const c = project(1.5, 1.1);
   const ink = { stroke: "rgb(var(--color-petal))", fill: "none" };
   return (
-    <g>
+    <g data-ground-material="woven-rug">
+      <polygon points={floorPatch(0.04, 0.06, 3, 2.2)} fill="#000" opacity="0.14" />
       <polygon points={floorPatch(0, 0, 3, 2.2)} style={tinted("#8f4a3c")} opacity="0.5" />
+      <polygon data-ground-part="binding" points={floorPatch(0, 0, 3, 2.2)} fill="none"
+        stroke="#4d302b" strokeWidth="1.4" opacity="0.5" strokeLinejoin="round" />
       <polygon points={floorPatch(0.16, 0.12, 2.68, 1.96)} {...ink} strokeWidth="2.4" opacity="0.32" />
       <polygon points={floorPatch(0.34, 0.26, 2.32, 1.68)} {...ink} strokeWidth="1.2" opacity="0.22" />
       <g transform={`translate(${c.x}, ${c.y})`}>
@@ -3185,8 +2822,11 @@ function PersianRug() {
 function StripedRug() {
   const bands = [0, 0.28, 0.52, 0.84, 1.12, 1.44];
   return (
-    <g>
+    <g data-ground-material="woven-rug">
+      <polygon points={floorPatch(0.04, 0.06, 2.6, 1.8)} fill="#000" opacity="0.14" />
       <polygon points={floorPatch(0, 0, 2.6, 1.8)} style={tinted("#5b6b9b")} opacity="0.45" />
+      <polygon data-ground-part="binding" points={floorPatch(0, 0, 2.6, 1.8)} fill="none"
+        stroke="#34314a" strokeWidth="1.3" opacity="0.5" strokeLinejoin="round" />
       {bands.map((t, i) => (
         <polygon
           key={t}
@@ -3460,63 +3100,6 @@ function ChessSet() {
           </g>
         );
       })}
-    </g>
-  );
-}
-
-/** Garden hammock slung between two posts. `lie` seating, so a resident
- *  dropped on it stretches out instead of perching. */
-function Hammock() {
-  const H = 40;
-  const left = project(0.18, 0.45);
-  const right = project(2.02, 0.45);
-  return (
-    <g>
-      {[left, right].map((p, i) => (
-        <g key={i}>
-          <ellipse cx={p.x} cy={p.y} rx="6" ry="3" fill="#000" opacity="0.18" />
-          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#8f5d49" />
-          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#000" opacity={i ? 0.28 : 0.1} />
-        </g>
-      ))}
-      {/* the sling: one filled curve, with a slat pattern following the sag */}
-      <path
-        d={`M${left.x} ${left.y - H + 4} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 30} ${right.x} ${right.y - H + 4}
-            L${right.x} ${right.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${left.x} ${left.y - H + 12} z`}
-        style={tinted("#c98a4b")}
-      />
-      <path
-        d={`M${left.x} ${left.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${right.x} ${right.y - H + 12}`}
-        fill="none"
-        stroke="#000"
-        opacity="0.22"
-        strokeWidth="2.5"
-      />
-      {[0.25, 0.4, 0.55, 0.7].map((t) => {
-        const x = left.x + (right.x - left.x) * t;
-        const sag = 26 * Math.sin(Math.PI * t);
-        const y = left.y + (right.y - left.y) * t - H + 4 + sag * 0.62;
-        return <line key={t} x1={x} y1={y} x2={x} y2={y + 7} stroke="#f7e9e2" strokeWidth="1.1" opacity="0.3" />;
-      })}
-    </g>
-  );
-}
-
-/** Garden lantern: post, glazed head, warm pool on the ground beneath it. */
-function GardenLantern() {
-  const c = project(0.25, 0.25);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-1" rx="6.5" ry="3.2" fill="#2f2540" />
-      <rect x="-1.8" y="-34" width="3.6" height="33" style={tinted("#2f2540")} />
-      <rect x="-1.8" y="-34" width="3.6" height="33" fill="#000" opacity="0.2" />
-      {/* head: a tapered glass box under a little pitched cap */}
-      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="#ffe9b0" opacity="0.85" className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
-      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="none" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.6" />
-      <line x1="0" y1="-34" x2="0" y2="-48" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.1" opacity="0.8" />
-      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" style={tinted("#2f2540")} />
-      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" fill="#000" opacity="0.15" />
-      <circle cx="0" cy="-56" r="1.6" style={tinted("#2f2540")} />
     </g>
   );
 }

@@ -133,8 +133,6 @@ function WeatherOverlay({ mode, reduceMotion = false, paused = false }) {
   );
 }
 
-// memo'd because App consumes useStore(), so it re-renders on every store
-// change — and this rebuilds 60-80 particle nodes' vDOM each time, for props
-// (weather mode, reduced-motion flag) that change only when the user picks a
-// different sky.
+// Keep the particle field stable when an unrelated App input changes. Rebuilding
+// 60-80 nodes is unnecessary unless the weather or motion props actually move.
 export default memo(WeatherOverlay);

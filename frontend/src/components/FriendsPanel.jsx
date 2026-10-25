@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart } from "lucide-react";
-import { useStore } from "../store";
+import { useSettingsStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
 import { useArmed } from "../lib/useArmed";
 import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
@@ -32,10 +32,11 @@ export default function FriendsPanel() {
   // all sorts of reasons mid-wait, and a knock that died with it broke
   // "the bots always answer". Scheduled chat replies live there for exactly
   // the same reason.
+  const { user } = useSystemStore();
+  const { sessionDays } = useTaskStore();
+  const { hudVisibility } = useSettingsStore();
   const {
-    user,
     friends,
-    sessionDays,
     addFriend,
     removeFriend,
     visitFriend,
@@ -48,11 +49,10 @@ export default function FriendsPanel() {
     openChatWith,
     openGroupChat,
     friendship,
-    hudVisibility,
     enterCommonRoom,
     commonRoom,
     commonPresence,
-  } = useStore();
+  } = useSocialStore();
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
