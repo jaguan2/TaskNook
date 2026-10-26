@@ -460,7 +460,7 @@ export default function MusicDock() {
 
   return (
     // bottom-6 + a 44px-tall bar = the shared bottom rail (see App.jsx)
-    <div className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2">
+    <div className="music-dock absolute z-30">
       {/* The YouTube player lives off-screen (audio only, effectively) —
           OUTSIDE the collapsed/expanded branch below, because it must stay
           mounted for the music to survive hiding the bar. */}
@@ -478,7 +478,7 @@ export default function MusicDock() {
           tab order, and `absolute` takes it out of flow so the pill below can
           hold the rail spot and stay centred. */}
       <div className={collapsed ? "pointer-events-none invisible absolute bottom-0" : undefined}>
-        <div className="glass flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 shadow-soft">
+        <div className="music-dock-surface glass flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 shadow-soft">
           <button
             onClick={stepBack}
             title={isPlaylist ? "Previous track" : "Previous station"}
@@ -515,7 +515,7 @@ export default function MusicDock() {
               width="280"
               height="80"
               allow="autoplay; clipboard-write; encrypted-media"
-              className="rounded-xl border-0"
+              className="music-dock-spotify rounded-xl border-0"
             />
           ) : (
             /* Title over ONE controls line. Volume used to sit outside this
@@ -527,7 +527,7 @@ export default function MusicDock() {
                the bar 44px whatever state it's in, matching the pills opposite:
                a transport bar that changes height as a track loads is its own
                kind of misalignment. */
-            <div className="flex w-64 flex-col justify-center gap-0.5 px-1">
+            <div className="music-dock-info flex w-64 flex-col justify-center gap-0.5 px-1">
               {/* The title is a real <a target="_blank">, not a click handler:
                   that's what gives middle-click, ctrl/⌘-click and
                   right-click → copy link address for free. It matters in the

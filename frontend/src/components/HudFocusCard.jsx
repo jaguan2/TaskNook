@@ -121,7 +121,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     // reach the dock's territory — it should overlay it like a dropdown, not
     // slide underneath.
     <div
-      className={`${skipIntro.current ? "" : "intro-chrome "}pointer-events-none absolute left-6 top-6 z-30`}
+      className={`${skipIntro.current ? "" : "intro-chrome "}focus-hud pointer-events-none absolute z-30`}
     >
       <motion.div
         ref={cardRef}

@@ -102,6 +102,7 @@ html,
 body,
 #root {
   height: 100%;
+  height: 100dvh;
   margin: 0;
 }
 
@@ -116,6 +117,7 @@ body {
   color: #f7e9e2;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Some rooms read more clearly against one flat base field. Keep the

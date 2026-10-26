@@ -9,7 +9,7 @@ export default function CottageItemControls({ placement, onMove, onDuplicate, on
     const next = clampToRoom(placement.item, placement.x + dx * GRID, placement.y + dy * GRID);
     onMove(placement.id, next.x, next.y);
   };
-  return <div className="glass absolute right-6 top-6 z-20 w-52 space-y-2 rounded-2xl p-3 shadow-soft" role="group" aria-label="Selected decoration controls">
+  return <div className="cottage-item-controls glass absolute z-20 w-52 space-y-2 rounded-2xl p-3 shadow-soft" role="group" aria-label="Selected decoration controls">
     <div className="flex items-center justify-between gap-2">
       <p className="text-xs font-semibold text-cream">{item.label}</p>
       <button type="button" aria-label="Deselect decoration" onClick={onClose} className="text-petal/60 hover:text-cream"><X size={14} /></button>

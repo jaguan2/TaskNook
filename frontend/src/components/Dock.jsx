@@ -39,7 +39,12 @@ export default function Dock({ active, onSelect, onWarm }) {
   const [tooltip, setTooltip] = useState(null);
   const showLabel = (event, item) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    setTooltip({ label: item.label, left: rect.right + 8, top: rect.top + rect.height / 2 });
+    const narrow = window.innerWidth < 600;
+    setTooltip({
+      label: item.label,
+      left: narrow ? rect.left + rect.width / 2 : rect.right + 8,
+      top: narrow ? rect.top - 8 : rect.top + rect.height / 2,
+    });
     onWarm?.(item.key);
   };
   const toggle = () => {
@@ -57,20 +62,17 @@ export default function Dock({ active, onSelect, onWarm }) {
     // windows the item list scrolls, so adding a tab cannot strand Settings
     // below the viewport. Reserve the bottom rail for Return Home/signature
     // and transport controls. Tooltips sit outside the scrolling glass surface.
-    <div
-      className="intro-chrome absolute left-6 z-20"
-      style={{
-        top: "max(172px, calc(50vh - 228px))",
-        maxHeight: "calc(100vh - max(172px, calc(50vh - 228px)) - 80px)",
-      }}
-    >
-      <div className="glass flex flex-col gap-1.5 rounded-3xl p-1.5 shadow-soft" style={{ maxHeight: "inherit" }}>
+    <div className="dock-shell intro-chrome absolute z-20">
+      <div
+        className="dock-surface glass flex flex-col gap-1.5 rounded-3xl p-1.5 shadow-soft"
+        data-collapsed={collapsed ? "true" : "false"}
+      >
         {collapsed ? (
           <button
             title="Open menu"
             aria-label="Open menu"
             onClick={toggle}
-            className="pill grid h-10 w-10 place-items-center text-cream transition hover:bg-white/10"
+            className="dock-open pill grid h-10 w-10 place-items-center text-cream transition hover:bg-white/10"
           >
             <Menu size={18} />
           </button>
@@ -80,11 +82,11 @@ export default function Dock({ active, onSelect, onWarm }) {
               title="Collapse menu"
               aria-label="Collapse menu"
               onClick={toggle}
-              className="pill grid h-5 w-10 shrink-0 place-items-center text-petal/50 transition hover:bg-white/10 hover:text-cream"
+              className="dock-collapse pill grid h-5 w-10 shrink-0 place-items-center text-petal/50 transition hover:bg-white/10 hover:text-cream"
             >
-              <ChevronLeft size={13} />
+              <ChevronLeft className="dock-collapse-icon" size={13} />
             </button>
-            <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            <div className="dock-items flex min-h-0 flex-col gap-1.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onScroll={() => setTooltip(null)}>
             {ITEMS.map((item) => (
               <button
@@ -94,7 +96,7 @@ export default function Dock({ active, onSelect, onWarm }) {
                 onPointerLeave={() => setTooltip(null)}
                 onFocus={(event) => showLabel(event, item)}
                 onBlur={() => setTooltip(null)}
-                className={`pill relative grid h-10 w-10 shrink-0 place-items-center transition ${
+                className={`dock-item pill relative grid h-10 w-10 shrink-0 place-items-center transition ${
                   active.includes(item.key)
                     ? "bg-glow text-plum"
                     : "text-cream hover:bg-white/10"
@@ -109,7 +111,7 @@ export default function Dock({ active, onSelect, onWarm }) {
         )}
       </div>
       {tooltip && createPortal(
-        <span aria-hidden="true" className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream"
+        <span aria-hidden="true" className="dock-tooltip pointer-events-none fixed z-50 whitespace-nowrap rounded-lg bg-night/90 px-2 py-1 text-xs text-cream"
           style={{ left: tooltip.left, top: tooltip.top }}>{tooltip.label}</span>, document.body
       )}
     </div>

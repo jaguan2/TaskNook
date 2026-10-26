@@ -1935,7 +1935,7 @@ running `git commit` yourself.
   missing `--hidden-import` only fails at runtime, silently (`--windowed` has
   no console). The only real check is running the artifact:
   `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code 0. CI does this on
-  every push (`.github/workflows/ci.yml`).
+  pull requests and main-branch pushes (`.github/workflows/ci.yml`).
 - Component tests cover interaction and rendering contracts. Verify visual
   changes in the running app as well; tests cannot approve artwork or layout.
 

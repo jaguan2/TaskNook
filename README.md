@@ -143,7 +143,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 >
 > After changing anything there, prove the artifact still works:
 > `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code must be `0`. CI runs
-> this on every push for exactly this reason.
+> this for pull requests and main-branch pushes for exactly this reason.
 
 </details>
 

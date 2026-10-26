@@ -178,7 +178,7 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
       data-common-room-chat
       data-common-chat-open={open ? "true" : "false"}
       aria-label="Common room chat"
-      className="absolute bottom-20 left-24 z-30 w-[min(22rem,calc(100vw-7.5rem))]"
+      className="common-room-chat absolute z-30 w-[min(22rem,calc(100vw-7.5rem))]"
     >
       <div className="glass overflow-hidden rounded-2xl border border-white/10 shadow-soft backdrop-blur-xl">
         <button

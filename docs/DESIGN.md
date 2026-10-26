@@ -115,16 +115,17 @@ The screen has an ownership map — respect it:
   first — the same discipline the arch-behind-a-bookshelf bug bought.
 - **Negative space is content.** The de-carded scenes exist so the backdrop
   breathes; don't fill it.
-- **600px wide is the supported floor, and the top corners are why.** The
-  zone map assumes both top corners are usable at once, but the timer card
-  (216px) and the to-do list (288px) plus their insets need ~588px before
-  they collide — so below 600px the to-do list steps aside (`invisible`, not
-  `hidden`: it carries `.intro-chrome`) and the Tasks panel covers for it.
-  HEIGHT is not a constraint: measured clean down to 420px tall, because the
-  dock's top is clamped (`max(172px, 50% - 220px)`) so a centred column can
-  never climb into the timer's corner. Any new top-corner chrome has to fit
-  the same budget or step aside the same way; a full narrow-screen layout is
-  a separate feature, not something to half-build here.
+- **600px is the HUD composition switch, not the supported floor.** At and
+  above it, the timer and task list own opposite top corners and the dock is a
+  vertical left rail. Below it, the task HUD steps aside (`invisible`, not
+  `hidden`: it carries `.intro-chrome`), the dock becomes a safe-area-aware
+  horizontal rail, drawers use the full inset viewport, and contextual/chat/
+  music controls stack above navigation. This is the first-class 540×720
+  Surface Duo single-pane composition; the 390px fallback makes the dock
+  scroll and drops the redundant in-app clock. Wide and dual-screen postures
+  retain the desktop layout. HEIGHT remains clean down to 420px on the desktop
+  composition because the vertical dock's top is clamped. Any new fixed HUD
+  element must be assigned a place in both compositions.
 
 ## Motion
 

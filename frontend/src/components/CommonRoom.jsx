@@ -381,7 +381,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     {(hintVisible || choosing) && <div
       className={choosing
         ? "common-seat-picker absolute right-6 top-6 z-40 w-[min(24rem,calc(100%-6rem))] rounded-2xl p-2 shadow-soft"
-        : "absolute top-6 left-1/2 z-20 w-max max-w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 text-center"}
+        : "common-seat-hint absolute top-6 left-1/2 z-20 w-max max-w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 text-center"}
       onKeyDown={(event) => {
         if (choosing && event.key === "Escape") {
           event.preventDefault();

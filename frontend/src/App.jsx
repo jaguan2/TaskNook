@@ -327,7 +327,8 @@ export default function App() {
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden"
+      className="tasknook-shell relative h-full w-full overflow-hidden"
+      data-room-editing={roomEditMode ? "true" : "false"}
       // No identity filter: any non-none filter on the root forces the whole
       // app into one composited layer that re-rasterizes every paint.
       style={brightness === 1 ? undefined : { filter: `brightness(${brightness})` }}
@@ -473,7 +474,7 @@ export default function App() {
               ? `Return home from ${COMMON_PLACES[commonRoom.sceneId].label}`
               : `Return home from ${visiting.friend.displayName}'s room`}
             title="Return home"
-            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 w-11 items-center justify-center gap-1.5 px-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10 xl:w-auto xl:max-w-[calc(100vw-24rem)] xl:justify-start xl:px-4"
+            className="room-action-chip pill glass absolute z-30 flex h-11 w-11 items-center justify-center gap-1.5 px-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10 xl:w-auto xl:max-w-[calc(100vw-24rem)] xl:justify-start xl:px-4"
           >
             <ArrowLeft aria-hidden className="shrink-0" size={16} strokeWidth={2.2} />
             {commonRoom ? <>
@@ -509,7 +510,7 @@ export default function App() {
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
-            className="glass absolute bottom-6 left-6 z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
+            className="room-visitors-chip glass absolute z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
             aria-label="Room visitors"
           >
             <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
@@ -542,7 +543,7 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={() => setRoomEditMode(false)}
-            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="room-action-chip pill glass absolute z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
             {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
                 ⌫ only works in the iso scene (the flat one has per-item ✕). */}
@@ -581,7 +582,7 @@ export default function App() {
         // this strip spans the window and would otherwise eat clicks on the
         // scene behind it.
         aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 top-5 z-50 flex justify-center"
+        className="toast-rail pointer-events-none absolute inset-x-0 z-50 flex justify-center"
       >
         <AnimatePresence>
           {toast && (
@@ -678,7 +679,7 @@ export default function App() {
           the fade/hide settings — it's not a HUD element the patch notes
           were asking to quiet down. */}
       <div
-        className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
+        className={`profile-chip transition-opacity duration-300 intro-chrome absolute z-10 flex h-11 select-none items-center ${
           roomEditMode || widgetMode || homeVisitors.length > 0
             ? "invisible opacity-0"
             : "opacity-100"

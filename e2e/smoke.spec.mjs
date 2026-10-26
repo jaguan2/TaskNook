@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+function expectInsideViewport(box, { width, height }) {
+  expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(width);
+  expect(box.y + box.height).toBeLessThanOrEqual(height);
+}
+
 test("a task survives the production browser journey", async ({ page, baseURL }) => {
   const failures = [];
   const origin = new URL(baseURL).origin;
@@ -82,4 +90,62 @@ test("a saved classic-cottage preference loads its scene chunk", async ({ page }
   await page.goto("/");
   await expect(page.getByLabel("Classic cottage scene")).toBeVisible();
   await expect(page.getByRole("button", { name: "Room" })).toBeVisible();
+});
+
+test("the Surface Duo single-pane layout keeps every primary control usable", async ({ page }) => {
+  const viewport = { width: 540, height: 720 };
+  await page.setViewportSize(viewport);
+  await page.addInitScript(() => {
+    localStorage.setItem("tasknook.reduceMotion", "1");
+    localStorage.setItem("tasknook.music.on", "1");
+    localStorage.setItem("tasknook.autoResumeMusic", "1");
+  });
+
+  await page.goto("/");
+  const dock = page.locator(".dock-shell");
+  const music = page.locator(".music-dock");
+  await expect(dock).toBeVisible();
+  await expect(music).toBeVisible();
+
+  const dockBox = await dock.boundingBox();
+  const musicBox = await music.boundingBox();
+  expectInsideViewport(dockBox, viewport);
+  expectInsideViewport(musicBox, viewport);
+  expect(musicBox.y + musicBox.height).toBeLessThanOrEqual(dockBox.y);
+
+  await page.getByRole("button", { name: "Collapse menu" }).click();
+  const openMenu = page.getByRole("button", { name: "Open menu" });
+  await expect(openMenu).toBeVisible();
+  expect((await dock.locator(".dock-surface").boundingBox()).width).toBeLessThan(80);
+  await openMenu.click();
+
+  const tasksButton = page.getByRole("button", { name: "Tasks", exact: true });
+  const settingsButton = page.getByRole("button", { name: "Settings", exact: true });
+  const tasksBox = await tasksButton.boundingBox();
+  const settingsBox = await settingsButton.boundingBox();
+  expectInsideViewport(tasksBox, viewport);
+  expectInsideViewport(settingsBox, viewport);
+  expect(Math.abs(tasksBox.y - settingsBox.y)).toBeLessThan(2);
+
+  await tasksButton.click();
+  const drawer = page.locator("aside").filter({
+    has: page.getByRole("heading", { name: "Tasks" }),
+  });
+  await expect(drawer.getByPlaceholder("What needs doing?")).toBeVisible();
+  await expect.poll(async () => {
+    const box = await drawer.boundingBox();
+    return box ? box.x + box.width : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(viewport.width);
+  expectInsideViewport(await drawer.boundingBox(), viewport);
+  await drawer.getByRole("button", { name: "Close (Esc)" }).click();
+
+  await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  const roomChat = page.locator("[data-common-room-chat]");
+  await expect(page.getByRole("textbox", { name: "Message the room" })).toBeVisible();
+  const roomChatBox = await roomChat.boundingBox();
+  const commonMusicBox = await music.boundingBox();
+  expectInsideViewport(roomChatBox, viewport);
+  expect(roomChatBox.y + roomChatBox.height).toBeLessThanOrEqual(commonMusicBox.y);
 });

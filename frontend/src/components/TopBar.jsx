@@ -117,7 +117,7 @@ export default function TopBar({ clockVisibility = "on" }) {
   }, [weatherMenuOpen]);
 
   return (
-    <div className="intro-chrome absolute bottom-6 right-6 z-20 flex items-center gap-2">
+    <div className="topbar-shell intro-chrome absolute z-20 flex items-center gap-2">
       <div className="relative">
         <button
           title="Weather ambience"
@@ -138,7 +138,7 @@ export default function TopBar({ clockVisibility = "on" }) {
               onClick={() => setWeatherMenuOpen(false)}
             />
             {/* opens UPWARD now that the cluster lives at the bottom */}
-            <div className="glass absolute bottom-full right-0 z-40 mb-2 flex flex-col gap-1 rounded-2xl p-2 shadow-soft">
+            <div className="topbar-weather-menu glass absolute bottom-full right-0 z-40 mb-2 flex flex-col gap-1 rounded-2xl p-2 shadow-soft">
               {WEATHER_OPTIONS.map((w) => (
                 <button
                   key={w.key}
@@ -191,7 +191,7 @@ export default function TopBar({ clockVisibility = "on" }) {
           wants to see. */}
       {clockVisibility !== "hidden" && (
         <div
-          className={`glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft transition-opacity duration-300 ${
+          className={`topbar-clock glass pill flex h-11 items-center gap-2 px-4 text-cream shadow-soft transition-opacity duration-300 ${
             clockVisibility === "faded" ? "opacity-30" : "opacity-100"
           }`}
         >
