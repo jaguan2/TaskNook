@@ -578,6 +578,33 @@ describe("the isometric catalog and its artwork agree", () => {
       }
     });
 
+    it.each(["bob", "long"])("keeps the rear %s haircut below a hat, with instance-local clipping", (hair) => {
+      const character = { ...DEFAULT_CHARACTER, hair, hairColor: "#123456", hat: "beanie" };
+      const { container } = draw(<>
+        <Resident character={character} facing="back" />
+        <Resident character={character} facing="back" seated seatH={19} />
+      </>);
+      const rearHair = [...container.querySelectorAll(`[data-hair-back="${hair}"]`)];
+      expect(rearHair).toHaveLength(2);
+      const clips = rearHair.map((layer) => layer.parentElement.getAttribute("clip-path"));
+      expect(new Set(clips).size).toBe(2);
+      for (const [index, layer] of rearHair.entries()) {
+        expect(layer.querySelector('[fill="#123456"]')).toBeTruthy();
+        const id = clips[index].slice(5, -1);
+        const clip = [...container.querySelectorAll("clipPath")].find((node) => node.id === id);
+        expect(clip?.querySelector("rect")).toBeTruthy();
+      }
+    });
+
+    it.each(["beanie", "beret"])("retains the profile bob beneath a %s", (hat) => {
+      const { container } = draw(<Resident facing="side" character={{
+        ...DEFAULT_CHARACTER, hair: "bob", hairColor: "#123456", hat,
+      }} />);
+      const haircut = container.querySelector('[clip-path$="-hat-hair)"]');
+      expect(haircut?.querySelector('[fill="#123456"]')).toBeTruthy();
+      expect(haircut?.querySelector("clipPath circle")).toBeTruthy();
+    });
+
     it("the two models cut different silhouettes", () => {
       const htmlFor = (model) => {
         const { container } = draw(

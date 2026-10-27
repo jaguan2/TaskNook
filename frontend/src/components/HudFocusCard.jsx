@@ -274,7 +274,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
 
           {/* options, tucked away by default */}
           {expanded && (
-            <div className="glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
+            <div className="focus-options glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
               <div className="flex justify-center gap-1">
                 {[
                   { key: "timer", label: "Timer", Icon: Hourglass },

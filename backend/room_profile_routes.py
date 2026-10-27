@@ -234,7 +234,7 @@ def clean_room_payload(data):
         cleaned_iso["mask"] = mask
 
     for field in ("partitions", "arches"):
-        if field not in iso:
+        if iso.get(field) is None:
             continue
         edges = _clean_edges(iso[field], width, depth)
         if edges is None:

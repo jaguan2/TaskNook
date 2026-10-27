@@ -402,6 +402,17 @@ def test_iso_roundtrips_drawn_interior_walls(client, auth):
     assert client.get("/api/room", headers=auth).get_json()["iso"] == iso
 
 
+@pytest.mark.parametrize("field", ["partitions", "arches"])
+def test_iso_treats_null_optional_edges_as_absent_and_preserves_other_edges(client, auth, field):
+    other = "arches" if field == "partitions" else "partitions"
+    iso = {"w": 9, "d": 7, "placements": [], field: None, other: ["gx:4:1"]}
+    response = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+    assert response.status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"] == {
+        "w": 9, "d": 7, "placements": [], other: ["gx:4:1"],
+    }
+
+
 def test_iso_roundtrips_passable_arches_and_resolves_duplicate_edges(client, auth):
     iso = {
         "w": 9,

@@ -11,6 +11,44 @@ object: physical construction, distinct silhouettes, layered materials and
 characters convincingly settled into furniture. Better colours and more
 particles help the atmosphere but cannot replace that work.
 
+## Character silhouettes and headwear — October 26, 2026
+
+Comparison with `docs/inpso/b603fdd9497a472249116e7dc02960438ef96cee.jpg`
+and the standing/seated preset sheets pointed to hair as a useful bounded
+improvement: the long cut made a straight cape, the bob bulged symmetrically
+at the sides, and the short fringe repeated a scalloped cap.
+
+- **Short:** a dominant swept fringe, smaller supporting tips, shaped nape
+  and tapered highlights replace the cap silhouette in all three views.
+- **Bob:** unequal curl-under ends sit closer to the jaw, with coherent
+  front, profile and rear outlines.
+- **Long:** unequal weighted falls and inward-turning ends replace the flat
+  sheet. The profile and rear follow the same flow; length remains behind
+  the body. Broad front-facing coats can naturally hide much of that fall.
+- **Hats:** profile/rear hair now remains beneath the hat. A shared,
+  instance-local skull-and-fall clip prevents oversized crowns while keeping
+  the nape and rear length. This fixes the bald rear patch and disappearing
+  profile bob, including high-brim berets. Complete rear falls no longer draw
+  a duplicate front length beneath them.
+
+An independent instance reviewed before/after, full seated looks, body/color
+extremes, headphones and 36 front/profile/rear hat combinations. The final
+art sheet has 841 pieces, including 63 reusable fit fixtures. The built SPA
+was also checked by applying each revised look through Profile, switching
+preview views, placing the character in Cozy study and checking day/night.
+The refreshed [standing](screenshots/37-character-presets.webp) and
+[seated](screenshots/38-character-presets-seated.webp) sheets remain model-only
+closeups extracted from the real editor. The independent review accepted this
+as a silhouette improvement, without claiming reference-level anatomy.
+
+Face geometry, body controls, saved identity and the established seated rig
+remain unchanged. Regression checks cover rear hair on two simultaneous
+residents and profile bobs beneath low/high hat bands. All 1,391 frontend
+tests pass with one opt-in art-fixture skip; lint, build and all 12 production
+browser checks pass. Packaging verification is recorded with the final build
+in `docs/REVIEW-2026-10-26.md`. Ignored before/after images, room captures and
+logs are under `build/skill-verification/character-2026-10-26/`.
+
 ## Outdoor ground and resting places — October 25, 2026
 
 This iteration followed the outdoor-support pass down to the ground plane and

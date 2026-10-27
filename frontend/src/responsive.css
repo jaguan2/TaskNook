@@ -56,6 +56,14 @@
     left: max(0.75rem, env(safe-area-inset-left));
     top: max(0.75rem, env(safe-area-inset-top));
   }
+  .focus-options {
+    left: 0;
+    top: calc(100% + 1.75rem);
+    /* Leave room for the task title, timer, round pips and goal line. */
+    max-height: calc(100dvh - 13rem - max(0.75rem, env(safe-area-inset-top)) - max(0.75rem, env(safe-area-inset-bottom)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .topbar-shell {
     right: max(0.75rem, env(safe-area-inset-right));
     top: max(0.75rem, env(safe-area-inset-top));

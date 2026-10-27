@@ -317,6 +317,14 @@ under-shadow at the hem (`OUTER_BULK`), a `collar` slot renders after the
 body's own neck, and a `back` slot serves the turned-away view (the hoodie's
 hood hangs down it). Registry keys are pinned against the catalog both ways.
 
+The October 26 silhouette pass gives **short, bob and long** authored curves
+instead of the repeated dome/tooth outline: a dominant fringe sweep, unequal
+curl-under ends and tapered highlights. Keep their front, profile and rear
+outlines coherent. The closed-mass and restrained tonal rules still apply;
+the kit is a starting tool rather than a required silhouette for every cut.
+Long falls remain behind the torso; a broad coat can naturally occlude most
+of them from the front. Do not widen all hair into a cape to avoid that.
+
 **Learned from:** every style once put its length in `HairFront`, which paints
 after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —
 past the chin — so all six hairstyles closed around the face and read as a hood
@@ -340,6 +348,13 @@ silhouette instead of adding another full sphere around it. Hats may replace
 the crown layer while preserving the hairstyle's length behind the body;
 headphones set `coversHair: false`, hug the crown, and stop their cups above the
 jaw so the selected hair still reads.
+
+Covered profile/rear hair uses a shared skull-and-fall clip in `HairUnderHat`:
+the crown fits inside `HEAD_R`, while the nape and length remain free below
+the band. Rendering no hair at all left a bald patch under rear hats and
+removed the bob in profile. The skull-shaped upper mask also supports high
+beret rims without a bare horizontal strip. Complete rear falls suppress
+their separate behind-body length whether or not a hat is worn.
 
 Direction belongs in the registry entry when the object materially changes:
 `Hat` accepts the resident view and selects a `side` renderer when present. The

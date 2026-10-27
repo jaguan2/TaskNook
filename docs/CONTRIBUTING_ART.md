@@ -114,6 +114,10 @@ Read `docs/MODELS.md` §9–10 for the full versions. The short list:
    flow lines + the notched crown band — you tune `lean`/`lines`, never
    redraw the marks. Coily styles use C-arc curl marks; gathered ones stay
    matte with tension lines.
+   Short, bob and long instead use authored closed curves with unequal ends
+   and tapered highlights. Follow their front/profile/rear shapes together;
+   the same silhouette and tonal budgets apply. `hair-fit-*` fixtures check
+   these cuts at both body extremes and beneath several hat shapes.
 3. **At most ~3 interior marks** per piece. More reads as noise at room scale.
 4. **Two materials beat two tones**: the shoe soles are fixed light rubber
    under a coloured upper — that split is what reads as "modelled". `STITCH`

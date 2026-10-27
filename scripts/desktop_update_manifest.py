@@ -18,6 +18,7 @@ SOURCE_PATHS = (
     "frontend/.nvmrc",
     "frontend/package.json",
     "frontend/package-lock.json",
+    "frontend/vite.config.js",
     "scripts/desktop_package.py",
     "scripts/desktop_update_manifest.py",
 )

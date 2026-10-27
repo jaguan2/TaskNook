@@ -14,7 +14,8 @@ export default function IsoBedTuck({ lieOn, personaAt }) {
   return (
     <g
       transform={`translate(${bedAt.x - personaAt.x},${bedAt.y - personaAt.y})`}
-      style={lieOn.tint ? { "--tint": lieOn.tint } : undefined}
+      // An unpainted bed uses the duvet's own fallback, never its sleeper's tint.
+      style={{ "--tint": lieOn.tint || "initial" }}
     >
       {(lieOn.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{cover}</g> : cover}
     </g>

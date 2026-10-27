@@ -284,6 +284,24 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       save(`hair-side-${key}`, <Resident character={dressed({ hair: key })} facing="side" />);
       save(`hair-back-${key}`, <Resident character={dressed({ hair: key })} facing="back" />);
     }
+    // Silhouette review at both body extremes: headwear keeps its authored
+    // fit, and long hair must still clear the shoulders when worn loose.
+    for (const hair of ["short", "bob", "long"]) {
+      for (const [name, extra] of Object.entries({
+        light: { model: "fem", skin: "#f2d3bb", hairColor: "#e7dcc7", width: 6.2, shoulders: -1.6, height: 26, torso: 14 },
+        dark: { model: "masc", skin: "#774c37", hairColor: "#302329", width: 8.4, shoulders: 1, height: 32, torso: 20 },
+        headphones: { hairColor: "#9a6b46", hat: "headphones", glasses: "round" },
+        beanie: { hairColor: "#9a6b46", hat: "beanie", coat: "puffer" },
+        cap: { hairColor: "#9a6b46", hat: "cap" },
+        beret: { hairColor: "#9a6b46", hat: "beret" },
+        straw: { hairColor: "#9a6b46", hat: "straw" },
+      })) {
+        for (const facing of ["front", "side", "back"]) {
+          save(`hair-fit-${hair}-${name}-${facing}`,
+            <Resident character={dressed({ hair, ...extra })} facing={facing} />);
+        }
+      }
+    }
     // Tops and coats render in THREE colourways — the marks live on these
     // two slots, and a mark tuned on the default mid green can vanish on a
     // near-black or a cream pick. Single-colourway review is exactly how the

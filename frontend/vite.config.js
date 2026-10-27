@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const normalizeLineEndings = (source) => source.replace(/\r\n?/g, "\n");
+
 // During development the API runs on Flask (port 5000); proxy /api to it so
 // the frontend can use same-origin relative URLs. The preview server gets
 // the same proxy — it exists to smoke-test the production build, which is
@@ -13,7 +15,21 @@ const proxy = {
 };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    {
+      // Git attributes govern checkout, not an editor's next save. Normalize
+      // before JSX parsing and HTML emission so both builds ship the same bytes.
+      name: "tasknook-canonical-text",
+      enforce: "pre",
+      transform(source, id) {
+        if (id.includes("node_modules")) return null;
+        const code = normalizeLineEndings(source);
+        return code === source ? null : { code, map: null };
+      },
+      transformIndexHtml: { order: "pre", handler: normalizeLineEndings },
+    },
+    react(),
+  ],
   server: { port: 5173, proxy },
   preview: { proxy },
   build: {

@@ -342,7 +342,11 @@ different Vite chunks and should be rebuilt with the supported version.
 launchers. Preserve that rule: CRLF inside multiline JSX attributes can become
 literal carriage returns in the emitted JavaScript and change chunk hashes.
 The checkout regression covers Windows `core.autocrlf` settings and the binary
-and launcher exceptions; keep artifact verification strict.
+and launcher exceptions. Vite also normalizes authored module text before JSX
+parsing and HTML before emission: an editor can save CRLF even when Git checkout
+is LF. The production-build regression compares all emitted files from LF/CRLF
+inputs without rewriting sources. The desktop fingerprint includes this Vite
+configuration; keep artifact verification strict.
 
 ## Committing
 

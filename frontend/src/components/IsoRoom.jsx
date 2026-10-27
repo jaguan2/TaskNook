@@ -1255,7 +1255,10 @@ function IsoRoom({
       walk.sy = pt.y - walk.hold.dy;
       applyHeld();
       const g = unproject(pt.x, pt.y);
-      const at = clampIsoPlacement(walk.item, snapHalf(g.gx), snapHalf(g.gy), size, walk.rot);
+      // Placements store a footprint origin; the cursor chooses its centre.
+      // Without this offset, dropping at a small chair's centre misses its seat.
+      const at = clampIsoPlacement(walk.item,
+        snapHalf(g.gx - walk.foot[0] / 2), snapHalf(g.gy - walk.foot[1] / 2), size, walk.rot);
       // A pet's landing rule has no seat exception (there's no seated-cat
       // drawing); a persona lands on a seat or soft ground — the seated
       // life's carry rule.

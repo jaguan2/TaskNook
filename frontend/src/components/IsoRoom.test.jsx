@@ -396,7 +396,14 @@ describe("IsoRoom at home — walking your own island", () => {
     expect(grabCursors(container).length).toBe(0);
   });
 
-  it("uses the cursor tile for a carry landing instead of the figure's feet", () => {
+  it.each([
+    ["empty floor", null, 0, [4, 4], [3.5, 3.5]],
+    ["wooden chair", "chair", 0, [4.35, 3.35], [4, 3]],
+    ["desk chair", "deskchair", 0, [4.4, 3.4], [4, 3]],
+    ["sofa", "sofa", 0, [5, 3.425], [4.5, 3]],
+    ["rotated sofa", "sofa", 1, [4.425, 4], [4, 3.5]],
+    ["pet on clear floor", null, 0, [4, 4], [3.5, 3.5], "cat"],
+  ])("centres a carried figure on the cursor over %s", (_label, target, rot, cursor, expected, item = "resident") => {
     vi.stubGlobal("DOMPoint", class {
       constructor(x, y) {
         this.x = x;
@@ -407,7 +414,8 @@ describe("IsoRoom at home — walking your own island", () => {
       }
     });
     const onWalkTo = vi.fn();
-    const placements = [{ id: "me", item: "resident", gx: 2, gy: 2 }];
+    const placements = [{ id: "me", item, gx: 2, gy: 2 }];
+    if (target) placements.push({ id: "seat", item: target, gx: 4, gy: 3, rot });
     const { container } = render(
       <IsoRoom size={HOME} placements={placements} saveView={false}
         walkPersonas onWalkTo={onWalkTo} />
@@ -422,11 +430,11 @@ describe("IsoRoom at home — walking your own island", () => {
     const cx = 320 - (farL.x + farR.x) / 2;
     const cy = 240 - (-WALL_H - 8 + front.y + 14) / 2;
     const home = project(2, 2);
-    const cursorTarget = project(4, 4);
+    const cursorTarget = project(...cursor);
 
     // Grab near the head so the held figure's feet sit well below the cursor.
-    // The old rule landed at those feet; the new rule lands at (4,4), where
-    // the pointer itself is released.
+    // The landing footprint is centred on the cursor, independently of that
+    // grab offset. Small seats expose an origin/centre mix-up immediately.
     fireEvent.pointerDown(container.querySelector('[data-placement-id="me"]'), {
       pointerId: 9,
       clientX: home.x + cx,
@@ -443,7 +451,7 @@ describe("IsoRoom at home — walking your own island", () => {
       clientY: cursorTarget.y + cy,
     });
 
-    expect(onWalkTo).toHaveBeenCalledWith("me", 4, 4);
+    expect(onWalkTo).toHaveBeenCalledWith("me", ...expected);
   });
 
   it("repaints the bed's duvet above a lying resident", () => {

@@ -88,9 +88,13 @@ def test_verify_rejects_a_stale_bundled_file(tmp_path):
         desktop_package.verify(tmp_path, reader_cls=reader)
 
 
-def test_verify_rejects_stale_analyzed_desktop_source(tmp_path):
+@pytest.mark.parametrize("source, changed", [
+    ("desktop.py", "print('changed after packaging')\n"),
+    ("frontend/vite.config.js", "export default {};\n"),
+])
+def test_verify_rejects_stale_desktop_or_build_source(tmp_path, source, changed):
     _manifest, _files, reader = artifact_fixture(tmp_path)
-    (tmp_path / "desktop.py").write_text("print('changed after packaging')\n", encoding="utf-8")
+    (tmp_path / source).write_text(changed, encoding="utf-8")
 
     with pytest.raises(desktop_package.ArtifactError, match="different desktop runtime sources"):
         desktop_package.verify(tmp_path, reader_cls=reader)
