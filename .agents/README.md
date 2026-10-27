@@ -1954,7 +1954,7 @@ to the actual diff, fix supported issues within the requested scope, then
 [verify](skills/tasknook-verify/SKILL.md). Review design changes again;
 failed checks return to investigation. Reuse valid evidence for unchanged code
 and skip this loop for documentation-only or trivial cosmetic changes.
-Standalone review requests remain report-only. These skills load pinned,
-complete upstream instructions; source pins and update commands are documented
+Standalone review requests remain report-only. These project adapters use the separately installed shared toolkit;
+the tested toolkit revision and setup commands are documented
 in [the skill guide](SKILLS.md). Repository/user rules take precedence
 over upstream model-provider, delegation, rebasing and commit examples.
