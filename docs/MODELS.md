@@ -405,6 +405,10 @@ of the catalog:
 | `ScreenFace` | screens | glass inset in its bezel + a hint of picture |
 | `isoBox` | raw geometry | when a helper genuinely can't say it |
 
+`IsoRugItems.jsx` owns every rug sprite plus the private `RugGround` and
+`Fringe` construction helpers. Add new rug silhouettes there and keep only
+their stable `ISO_SPRITES` registrations in the root furniture module.
+
 **Detail belongs in the helper before the individual sprite.** One edit to
 `TintedBox` raises the whole catalog; an over-detailed bookshelf beside a
 hundred flat boxes looks *worse* than uniform.
@@ -459,7 +463,9 @@ things make it a pot, and all three are silhouette rather than surface:
 2. **A lip** standing slightly proud of the body at the top.
 3. **Soil sunk below the rim**, so you are looking INTO something.
 
-`PlantPot` does all three; `PlantBase` wraps it for the leafy ones. A bonsai
+`IsoPlantItems.jsx` owns the shared potted-plant family. Its exported `PlantPot`
+does all three and remains available to the cactus still living in the root
+furniture module; its private `PlantBase` wraps the shared pot. A bonsai
 keeps its shallow rectangular tray — that IS what a bonsai grows in.
 
 ---

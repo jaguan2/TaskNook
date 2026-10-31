@@ -14,7 +14,10 @@ locally — **the database is SQLite (a local file), with no cloud/AWS dependenc
 TaskNook/
 ├── backend/              # Flask REST API (Python)
 │   ├── app.py            # App factory, core routes, auth, seeding, static serving
-│   ├── room_profile_routes.py # Room/profile blueprint + JSON validation
+│   ├── request_validation.py # Shared JSON/scalar request validators
+│   ├── routes/           # Blueprint package
+│   │   ├── chat.py       # Threads, messages and unread state
+│   │   └── room_profile.py # Room/profile routes + JSON validation
 │   ├── models.py         # SQLAlchemy models + db instance
 │   ├── schema.py         # Startup migration/backup lifecycle (init_schema)
 │   ├── migrations/       # Alembic history — SOURCE OF TRUTH for the schema
@@ -1325,7 +1328,7 @@ running `git commit` yourself.
   (window, string lights, lip colours) and sets a walls DEFAULT, which the
   panel's separate WALLS row overrides — `walls` on the layout, one of
   full/low/none, stored only when it differs from the floor's default and
-  mirrored in room_profile_routes.py's `ISO_WALLS` (same both-languages drift contract as
+  mirrored in `routes/room_profile.py`'s `ISO_WALLS` (same both-languages drift contract as
   env). Open air hides the window and string lights, and turning walls off
   drops wall decor via the same announced reshape as everything else.
   Layouts also carry `mask` —
@@ -1426,7 +1429,7 @@ running `git commit` yourself.
   owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoPetItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
-  `PET_LOOKS` whitelist in room_profile_routes.py (bounded-not-knowing, same stance as rot;
+  `PET_LOOKS` whitelist in `routes/room_profile.py` (bounded-not-knowing, same stance as rot;
   drift-guarded in test_room.py). The classic drawings stay tintable; named
   looks paint FIXED palettes — a teal calico isn't a calico. Breeds change
   SILHOUETTE, not just palette (corgi: 60% legs with the body dropped to
@@ -1440,7 +1443,7 @@ running `git commit` yourself.
   stickiness, drift range — so a curious pet ranges the room and won't
   settle while a sleepy one barely leaves its spot; "mellow" is stored
   implicitly (the env/walls contract) and the key list is mirrored in
-  room_profile_routes.py's `PET_TEMPERS` (both-languages drift guard in test_room.py,
+  `routes/room_profile.py`'s `PET_TEMPERS` (both-languages drift guard in test_room.py,
   which also pins the name/temper round-trip — the backend bounds the
   values without knowing which items are pets, same stance as `rot`).
   The **Pets section lives in the Profile panel** ("who you are, and who
@@ -1687,7 +1690,7 @@ running `git commit` yourself.
   is furniture that exists and can never be placed. A section whose every item
   is wall decor renders nothing outdoors rather than leaving a bare heading.
   **`env` is duplicated across two languages** — `ISO_ENVS` here and
-  `ISO_ENVS` in `backend/room_profile_routes.py` — and has drifted once already: `cafe`,
+  `ISO_ENVS` in `backend/routes/room_profile.py` — and has drifted once already: `cafe`,
   `library` and `terrace` were added to the frontend only, so PUT `/api/room`
   400'd for the three presets that use them and those rooms lived solely in
   the localStorage mirror, toasting "couldn't save" on every change. Adding an
@@ -1814,9 +1817,10 @@ running `git commit` yourself.
 
 ## Adding things
 
-- **New API endpoint**: add the route to the relevant blueprint/module (room and
-  profile live in `room_profile_routes.py`; remaining families are registered
-  in `app.py`) and use `@require_auth` for authed routes. Then add a method in `lib/api.js`, then
+- **New API endpoint**: add the route to the relevant blueprint/module (chat
+  lives in `routes/chat.py`; room and profile live in
+  `routes/room_profile.py`; remaining families are registered in `app.py`) and
+  use `@require_auth` for authed routes. Then add a method in `lib/api.js`, then
   consume it via an action in `store.jsx`.
 - **New model field**: edit `models.py`, update the relevant `to_dict()`, then
   **generate a migration** — do not just delete the DB:

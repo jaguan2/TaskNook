@@ -120,12 +120,14 @@ The screen has an ownership map — respect it:
   vertical left rail. Below it, the task HUD steps aside (`invisible`, not
   `hidden`: it carries `.intro-chrome`), the dock becomes a safe-area-aware
   horizontal rail, drawers use the full inset viewport, and contextual/chat/
-  music controls stack above navigation. This is the first-class 540×720
-  Surface Duo single-pane composition; the 390px fallback makes the dock
-  scroll and drops the redundant in-app clock. Wide and dual-screen postures
-  retain the desktop layout. HEIGHT remains clean down to 420px on the desktop
-  composition because the vertical dock's top is clamped. Any new fixed HUD
-  element must be assigned a place in both compositions.
+  music controls stack above navigation. This is the first-class iPhone Duo
+  closed-display composition (466×678 CSS pixels); the 390px fallback also
+  covers its more constrained browser area by making the dock scroll and
+  dropping the redundant in-app clock. The unfolded 890×626 posture retains
+  the desktop composition and must remain usable despite its short height.
+  HEIGHT remains clean down to 420px on the desktop composition because the
+  vertical dock's top is clamped. Any new fixed HUD element must be assigned a
+  place in both compositions.
 
 ## Motion
 

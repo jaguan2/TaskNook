@@ -7,9 +7,11 @@ store, plus the two small route families that read and write them.
 
 import json
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from models import AVATAR_MAX, DISPLAY_NAME_MAX, db
+from request_validation import clean_str as _clean_str
+from request_validation import json_body as _json_body
 
 
 # Cross-language contracts mirrored in frontend/src/lib/isoRoom.js. The room
@@ -28,11 +30,6 @@ CHARACTER_MAX_KEYS = 40
 PROFILE_MAX_VALUE = 280
 
 
-def _json_body():
-    data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else {}
-
-
 def _finite_number(value):
     """A real coordinate/setting that JSON and SQLite can safely retain."""
     return (
@@ -49,10 +46,6 @@ def _hex_color(value):
         and value[0] == "#"
         and all(char in "0123456789abcdefABCDEF" for char in value[1:])
     )
-
-
-def _clean_str(value, limit):
-    return ("" if value is None else str(value)).strip()[:limit]
 
 
 def clean_layout(placements, xkey, ykey):

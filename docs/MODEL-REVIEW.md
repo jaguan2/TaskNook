@@ -45,9 +45,10 @@ Face geometry, body controls, saved identity and the established seated rig
 remain unchanged. Regression checks cover rear hair on two simultaneous
 residents and profile bobs beneath low/high hat bands. All 1,391 frontend
 tests pass with one opt-in art-fixture skip; lint, build and all 12 production
-browser checks pass. Packaging verification is recorded with the final build
-in `docs/REVIEW-2026-10-26.md`. Ignored before/after images, room captures and
-logs are under `build/skill-verification/character-2026-10-26/`.
+browser checks pass. The matching executable and update manifest passed strict
+artifact verification and the frozen self-test. Ignored before/after images,
+room captures and logs are under
+`build/skill-verification/character-2026-10-26/`.
 
 ## Outdoor ground and resting places — October 25, 2026
 

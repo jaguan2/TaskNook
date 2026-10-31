@@ -19,9 +19,9 @@
 .cottage-item-controls { right: 1.5rem; top: 1.5rem; }
 .toast-rail { top: 1.25rem; }
 
-/* Surface Duo's single pane is 540x720. Safe-area insets also make this
-   composition usable on rounded/notched phone screens; wide and dual-pane
-   Duo postures retain the desktop composition above. */
+/* iPhone Duo's closed display is 466x678 CSS pixels. Safe-area insets also
+   cover its constrained browser area and other rounded/notched phones; the
+   unfolded 890x626 posture retains the desktop composition above. */
 @media (max-width: 599px) {
   .dock-shell {
     left: max(0.75rem, env(safe-area-inset-left));
@@ -44,6 +44,8 @@
   .dock-surface[data-collapsed="true"] { width: auto; }
   .dock-collapse-icon { transform: rotate(-90deg); }
   .dock-items {
+    min-width: 0;
+    flex: 1;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
@@ -144,8 +146,9 @@
   }
 }
 
-/* A 390px phone is narrower than a Duo pane. The clock duplicates the OS
-   status bar there, so remove it and stack the contextual chip above music. */
+/* A constrained Duo browser area and smaller phones can fall below 460px.
+   The clock duplicates the OS status bar there, so remove it and stack the
+   contextual chip above music. */
 @media (max-width: 459px) {
   .topbar-clock { display: none; }
   .music-dock { left: max(0.75rem, env(safe-area-inset-left)); }

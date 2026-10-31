@@ -24,6 +24,7 @@ SOURCE_PATHS = (
 )
 SOURCE_GLOBS = (
     "backend/*.py",
+    "backend/routes/*.py",
     "backend/migrations/*.py",
     "backend/migrations/*.ini",
     "backend/migrations/*.mako",

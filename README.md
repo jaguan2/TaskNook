@@ -231,7 +231,10 @@ TaskNook/
 │
 ├── backend/                  # Flask REST API (SQLite, fully local)
 │   ├── app.py                # App factory, core routes, auth, seeding, static serving
-│   ├── room_profile_routes.py # Room/profile blueprint + payload validation
+│   ├── routes/               # API blueprints
+│   │   ├── chat.py           # Chat threads, messages and unread state
+│   │   └── room_profile.py   # Room/profile routes + payload validation
+│   ├── request_validation.py # Shared request-value validation
 │   ├── models.py             # Users, tasks, focus sessions, tokens, chats, calendar events
 │   ├── schema.py             # Startup migration + pre-upgrade backup lifecycle
 │   ├── migrations/           # Alembic history — the source of truth for the schema

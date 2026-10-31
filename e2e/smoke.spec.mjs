@@ -92,11 +92,11 @@ test("a saved classic-cottage preference loads its scene chunk", async ({ page }
   await expect(page.getByRole("button", { name: "Room" })).toBeVisible();
 });
 
-test("the Surface Duo single-pane layout keeps every primary control usable", async ({ page }) => {
-  const viewport = { width: 540, height: 720 };
-  await page.setViewportSize(viewport);
+test("the iPhone Duo keeps primary controls usable when closed and unfolded", async ({ page }) => {
+  const closedViewport = { width: 466, height: 678 };
+  await page.setViewportSize(closedViewport);
   await page.addInitScript(() => {
-    localStorage.setItem("tasknook.reduceMotion", "1");
+    localStorage.setItem("tasknook.motion", "reduced");
     localStorage.setItem("tasknook.music.on", "1");
     localStorage.setItem("tasknook.autoResumeMusic", "1");
   });
@@ -109,8 +109,8 @@ test("the Surface Duo single-pane layout keeps every primary control usable", as
 
   const dockBox = await dock.boundingBox();
   const musicBox = await music.boundingBox();
-  expectInsideViewport(dockBox, viewport);
-  expectInsideViewport(musicBox, viewport);
+  expectInsideViewport(dockBox, closedViewport);
+  expectInsideViewport(musicBox, closedViewport);
   expect(musicBox.y + musicBox.height).toBeLessThanOrEqual(dockBox.y);
 
   await page.getByRole("button", { name: "Collapse menu" }).click();
@@ -122,10 +122,12 @@ test("the Surface Duo single-pane layout keeps every primary control usable", as
   const tasksButton = page.getByRole("button", { name: "Tasks", exact: true });
   const settingsButton = page.getByRole("button", { name: "Settings", exact: true });
   const tasksBox = await tasksButton.boundingBox();
-  const settingsBox = await settingsButton.boundingBox();
-  expectInsideViewport(tasksBox, viewport);
-  expectInsideViewport(settingsBox, viewport);
-  expect(Math.abs(tasksBox.y - settingsBox.y)).toBeLessThan(2);
+  const initialSettingsBox = await settingsButton.boundingBox();
+  expectInsideViewport(tasksBox, closedViewport);
+  expect(Math.abs(tasksBox.y - initialSettingsBox.y)).toBeLessThan(2);
+  await settingsButton.scrollIntoViewIfNeeded();
+  expectInsideViewport(await settingsButton.boundingBox(), closedViewport);
+  await tasksButton.scrollIntoViewIfNeeded();
 
   await tasksButton.click();
   const drawer = page.locator("aside").filter({
@@ -135,8 +137,8 @@ test("the Surface Duo single-pane layout keeps every primary control usable", as
   await expect.poll(async () => {
     const box = await drawer.boundingBox();
     return box ? box.x + box.width : Number.POSITIVE_INFINITY;
-  }).toBeLessThanOrEqual(viewport.width);
-  expectInsideViewport(await drawer.boundingBox(), viewport);
+  }).toBeLessThanOrEqual(closedViewport.width);
+  expectInsideViewport(await drawer.boundingBox(), closedViewport);
   await drawer.getByRole("button", { name: "Close (Esc)" }).click();
 
   await page.getByRole("button", { name: "Friends", exact: true }).click();
@@ -146,6 +148,21 @@ test("the Surface Duo single-pane layout keeps every primary control usable", as
   await expect(page.getByRole("textbox", { name: "Message the room" })).toBeVisible();
   const roomChatBox = await roomChat.boundingBox();
   const commonMusicBox = await music.boundingBox();
-  expectInsideViewport(roomChatBox, viewport);
+  expectInsideViewport(roomChatBox, closedViewport);
   expect(roomChatBox.y + roomChatBox.height).toBeLessThanOrEqual(commonMusicBox.y);
+
+  const unfoldedViewport = { width: 890, height: 626 };
+  await page.setViewportSize(unfoldedViewport);
+  const unfoldedDockBox = await dock.boundingBox();
+  const unfoldedMusicBox = await music.boundingBox();
+  const unfoldedChatBox = await roomChat.boundingBox();
+  expectInsideViewport(unfoldedDockBox, unfoldedViewport);
+  expectInsideViewport(unfoldedMusicBox, unfoldedViewport);
+  expectInsideViewport(unfoldedChatBox, unfoldedViewport);
+  expect(unfoldedChatBox.y + unfoldedChatBox.height).toBeLessThanOrEqual(unfoldedMusicBox.y);
+
+  const unfoldedTasksBox = await tasksButton.boundingBox();
+  const unfoldedSettingsBox = await settingsButton.boundingBox();
+  expect(Math.abs(unfoldedTasksBox.x - unfoldedSettingsBox.x)).toBeLessThan(2);
+  expect(unfoldedTasksBox.y).toBeLessThan(unfoldedSettingsBox.y);
 });

@@ -68,8 +68,8 @@ for (const rot of [0, 1]) {
 for (const viewport of [
   { width: 320, height: 360 },
   { width: 390, height: 720 },
-  { width: 540, height: 720 },
-  { width: 900, height: 640 },
+  { width: 466, height: 678 },
+  { width: 890, height: 626 },
 ]) {
   test(`timer options remain usable at ${viewport.width}x${viewport.height}`, async ({ page, request }, testInfo) => {
     const token = await createLayoutUser(page, request);

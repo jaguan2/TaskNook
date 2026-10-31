@@ -74,6 +74,12 @@ def test_package_args_are_the_single_packaging_definition():
     assert args[-1] == "desktop.py"
 
 
+def test_route_package_is_bundled_and_part_of_the_release_fingerprint():
+    """Moving a blueprint below backend/ must not omit it from the frozen app."""
+    assert ("backend/routes/*.py", "backend/routes") in desktop_package.DATA_SPECS
+    assert "backend/routes/*.py" in manifest_module.SOURCE_GLOBS
+
+
 def test_verify_matches_manifest_identity_and_all_loose_runtime_files(tmp_path):
     manifest, _files, reader = artifact_fixture(tmp_path)
 

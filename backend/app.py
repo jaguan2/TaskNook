@@ -11,37 +11,32 @@ from functools import wraps
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_migrate import Migrate
-from sqlalchemy import tuple_
 from sqlalchemy.exc import IntegrityError, OperationalError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (
     AVATAR_MAX,
-    CHAT_TITLE_MAX,
     CalendarEvent,
-    Conversation,
-    ConversationMember,
     DISPLAY_NAME_MAX,
     FocusSession,
     GROUP_NAME_MAX,
-    MESSAGE_MAX,
-    Message,
     TASK_NAME_MAX,
     TASK_NOTES_MAX,
     Task,
     Token,
     USERNAME_MAX,
     User,
-    _utc_iso,
     db,
     utcnow,
 )
 from schema import init_schema, SchemaError
-from room_profile_routes import (
+from request_validation import clean_id, clean_int, clean_str, json_body
+from routes import (
     ISO_ENVS,
     ISO_WALLS,
     PET_LOOKS,
     PET_TEMPERS,
+    create_chat_blueprint,
     create_room_profile_blueprint,
     read_json_map,
 )
@@ -84,6 +79,7 @@ def create_app():
             print("[!] Schema behind models (pending migration?) — skipped seeding.")
 
     register_routes(app)
+    app.register_blueprint(create_chat_blueprint(require_auth))
     app.register_blueprint(create_room_profile_blueprint(require_auth))
     register_frontend(app)
     register_error_handlers(app)
@@ -242,16 +238,6 @@ def local_day_start_utc():
     )
 
 
-def json_body():
-    """The request's JSON body, guaranteed to be a dict.
-
-    `silent=True` alone only guards MALFORMED JSON — a well-formed non-object
-    body (`[1,2]`, `"hi"`, `5`) is truthy and would reach `.get(...)` and 500.
-    """
-    data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else {}
-
-
 def clean_date(value):
     """A YYYY-MM-DD string, or None.
 
@@ -287,63 +273,6 @@ def clean_day(value):
     if not isinstance(value, str) or len(value) != 10:
         return None
     return clean_date(value)
-
-
-def clean_int(value, lo, hi, default=None):
-    """A storable integer inside [lo, hi], or `default` for anything else.
-
-    Two traps, both of which reached a 500 before this existed:
-
-    * `int()` happily returns a Python int of any size, and SQLite raises
-      OverflowError at BIND time for anything outside signed 64-bit. That escaped
-      every `except (TypeError, ValueError)` in the file and broke the app's own
-      tested "junk never 500s" contract — whose cases all use wrong TYPES or small
-      values, so magnitude slipped straight through. `log_session` already clamped
-      its minutes for this reason; room-coordinate validation has the same
-      bounded-number rule. It was simply never applied to the four integer
-      paths (duration on create and update, position, and the reorder list).
-    * `isinstance(True, int)` is True in Python, so a naive numeric check lets a
-      bool through as 0/1 while the rest of this file carefully excludes them.
-
-    Bounds are compared rather than checked with `math.isfinite`, because isfinite
-    RAISES on a huge int. Integer comparison is exact at any size, so the order
-    here matters: reject the un-numeric first, then clamp.
-    """
-    if isinstance(value, bool) or value is None:
-        return default
-    if isinstance(value, float):
-        # NaN fails every comparison, and infinities aren't storable.
-        if value != value or value in (float("inf"), float("-inf")):
-            return default
-        value = int(value)
-    if not isinstance(value, int):
-        try:
-            value = int(str(value).strip())
-        except (TypeError, ValueError):
-            return default
-    return lo if value < lo else hi if value > hi else value
-
-
-def clean_id(value):
-    """A row id, or None for anything that isn't one.
-
-    Deliberately NOT `clean_int`, which CLAMPS into range: that is right for a
-    duration (a huge number carries a clear intent — "as long as you like") and
-    actively wrong for an identifier, where `0` would come back as `1` and
-    quietly address whoever user #1 happens to be. Found by the chat tests
-    doing exactly that: `memberIds: [0]` opened a thread with a real friend.
-
-    Strict about type, too — ids come from our own client as JSON numbers, so
-    there is no reason to accept "3" and every reason not to guess.
-    """
-    if isinstance(value, bool) or not isinstance(value, int):
-        return None
-    return value if 1 <= value <= 2**31 - 1 else None
-
-
-def clean_str(v, limit):
-    """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
-    return ("" if v is None else str(v)).strip()[:limit]
 
 
 # Who may visit a user's room. Short stored keys; the UI labels
@@ -872,296 +801,6 @@ def register_routes(app):
                 friend.friends.remove(user)
             db.session.commit()
         return jsonify({"ok": True})
-
-    # ---- chat ----------------------------------------------------------- #
-    #
-    # Threads with the seeded bots. The same simulated-social contract as
-    # visiting: the server STORES messages and enforces membership, while the
-    # replies themselves are written by the client (lib/chat.js owns the
-    # vocabulary, the way lib/visiting.js owns the bots' homes). See
-    # `post_message` for the seam and what a multi-user future must change.
-
-    def _membership(user, chat_id):
-        """The viewer's membership row, or None if it isn't their thread."""
-        return ConversationMember.query.filter_by(
-            conversation_id=chat_id, user_id=user.id
-        ).first()
-
-    def _unread_messages(viewer_id):
-        return Message.query.join(ConversationMember, db.and_(
-            ConversationMember.conversation_id == Message.conversation_id,
-            ConversationMember.user_id == viewer_id,
-        )).filter(
-            Message.sender_id != viewer_id,
-            db.or_(ConversationMember.last_read_at.is_(None),
-                   tuple_(Message.created_at, Message.id) > tuple_(
-                       ConversationMember.last_read_at, ConversationMember.last_read_message_id)),
-        )
-
-    def _chat_payload(chat, viewer_id, members_by_chat, last_by_chat, unread_by_chat):
-        return {
-            "id": chat.id,
-            "title": chat.title,
-            "isGroup": chat.is_group,
-            "members": [m.public_dict() for m in members_by_chat.get(chat.id, [])],
-            "lastMessage": (
-                last_by_chat[chat.id].to_dict() if chat.id in last_by_chat else None
-            ),
-            "unread": unread_by_chat.get(chat.id, 0),
-            "createdAt": _utc_iso(chat.created_at),
-        }
-
-    @app.get("/api/chats")
-    @require_auth
-    def list_chats(user):
-        """Every thread the viewer is in, newest activity first.
-
-        A fixed number of grouped queries rather than per-thread lookups.
-        Only the latest message per thread is materialized; unread counts
-        belong in SQL, not a Python loop over the entire chat history.
-        """
-        rows = (
-            db.session.query(Conversation, ConversationMember.last_read_at)
-            .join(ConversationMember, ConversationMember.conversation_id == Conversation.id)
-            .filter(ConversationMember.user_id == user.id)
-            .all()
-        )
-        chats = [row[0] for row in rows]
-        ids = [c.id for c in chats]
-
-        members_by_chat = {}
-        if ids:
-            for chat_id, member in (
-                db.session.query(ConversationMember.conversation_id, User)
-                .join(User, User.id == ConversationMember.user_id)
-                .filter(ConversationMember.conversation_id.in_(ids))
-                .all()
-            ):
-                members_by_chat.setdefault(chat_id, []).append(member)
-
-        last_by_chat = {}
-        unread_by_chat = {}
-        if ids:
-            # One indexed seek per conversation inside ONE SQL query. Ranking
-            # every message first made even a tiny thread list scan all history.
-            latest_id = (
-                db.session.query(Message.id)
-                .filter(Message.conversation_id == Conversation.id)
-                .order_by(Message.created_at.desc(), Message.id.desc())
-                .limit(1)
-                .correlate(Conversation)
-                .scalar_subquery()
-            )
-            for msg in (
-                db.session.query(Message)
-                .select_from(Conversation)
-                .join(Message, Message.id == latest_id)
-                .filter(Conversation.id.in_(ids))
-                .all()
-            ):
-                last_by_chat[msg.conversation_id] = msg
-            unread_by_chat = dict(
-                _unread_messages(user.id)
-                .with_entities(Message.conversation_id, db.func.count(Message.id))
-                .filter(Message.conversation_id.in_(ids))
-                .group_by(Message.conversation_id)
-                .all()
-            )
-
-        payload = [
-            _chat_payload(c, user.id, members_by_chat, last_by_chat, unread_by_chat)
-            for c in chats
-        ]
-        payload.sort(
-            key=lambda c: (c["lastMessage"] or {}).get("createdAt") or c["createdAt"] or "",
-            reverse=True,
-        )
-        return jsonify(payload)
-
-    @app.post("/api/chats")
-    @require_auth
-    def create_chat(user):
-        """Open a thread with friends.
-
-        A one-to-one is IDEMPOTENT — asking twice returns the thread you
-        already have rather than a second empty copy of it, because "message
-        Luna" is a place, not an event. Groups are not: two groups with the
-        same people are a thing people genuinely want.
-        """
-        data = json_body()
-        raw_ids = data.get("memberIds")
-        if not isinstance(raw_ids, list):
-            return jsonify({"error": "memberIds must be a list"}), 400
-        # Only friends, only once each, never yourself twice.
-        friend_ids = {f.id for f in user.friends}
-        wanted = []
-        for value in raw_ids[:50]:
-            member_id = clean_id(value)
-            if member_id is None or member_id == user.id or member_id in wanted:
-                continue
-            if member_id not in friend_ids:
-                return jsonify({"error": "You can only chat with friends"}), 400
-            wanted.append(member_id)
-        if not wanted:
-            return jsonify({"error": "Pick someone to talk to"}), 400
-
-        is_group = len(wanted) > 1 or bool(data.get("isGroup"))
-        title = clean_str(data.get("title"), CHAT_TITLE_MAX) or None
-
-        if not is_group:
-            # Find an existing one-to-one with exactly these two people.
-            other = wanted[0]
-            mine = db.session.query(ConversationMember.conversation_id).filter_by(
-                user_id=user.id
-            )
-            theirs = db.session.query(ConversationMember.conversation_id).filter_by(
-                user_id=other
-            )
-            existing = (
-                Conversation.query.filter(
-                    Conversation.is_group.is_(False),
-                    Conversation.id.in_(mine),
-                    Conversation.id.in_(theirs),
-                )
-                .order_by(Conversation.id)
-                .first()
-            )
-            if existing:
-                return jsonify(_one_chat(existing, user)), 200
-
-        chat = Conversation(title=title if is_group else None, is_group=is_group)
-        db.session.add(chat)
-        db.session.flush()
-        for member_id in [user.id, *wanted]:
-            db.session.add(
-                ConversationMember(conversation_id=chat.id, user_id=member_id)
-            )
-        db.session.commit()
-        return jsonify(_one_chat(chat, user)), 201
-
-    def _one_chat(chat, viewer):
-        members = [m.user for m in chat.members]
-        # Clear the relationship's default ascending order before asking for
-        # the newest line; Query.order_by otherwise APPENDS its arguments.
-        last = chat.messages.order_by(None).order_by(Message.created_at.desc(), Message.id.desc()).first()
-        unread = _unread_messages(viewer.id).filter(Message.conversation_id == chat.id)
-        return {
-            "id": chat.id,
-            "title": chat.title,
-            "isGroup": chat.is_group,
-            "members": [m.public_dict() for m in members],
-            "lastMessage": last.to_dict() if last else None,
-            "unread": unread.count(),
-            "createdAt": _utc_iso(chat.created_at),
-        }
-
-    @app.get("/api/chats/<int:chat_id>/messages")
-    @require_auth
-    def list_messages(user, chat_id):
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        limit = clean_int(request.args.get("limit"), 1, 500, 200)
-        query = Message.query.filter_by(conversation_id=chat_id)
-        if "before" in request.args:
-            raw_before = request.args["before"]
-            # Query parameters are strings, unlike the JSON ids clean_id
-            # deliberately accepts. Validate before converting; never clamp.
-            before_id = clean_id(int(raw_before)) if (
-                raw_before.isascii() and raw_before.isdecimal() and len(raw_before) <= 10
-            ) else None
-            if before_id is None:
-                return jsonify({"error": "before must be a message id"}), 400
-            cursor = query.filter_by(id=before_id).first()
-            if cursor is None:
-                return jsonify({"error": "Not found"}), 404
-            # IDs break timestamp ties. The cursor belongs to THIS thread;
-            # neither another thread's timestamps nor offset shifts leak in.
-            query = query.filter(tuple_(Message.created_at, Message.id) < (cursor.created_at, cursor.id))
-        rows = (
-            query
-            .order_by(Message.created_at.desc(), Message.id.desc())
-            .limit(limit)
-            .all()
-        )
-        return jsonify([m.to_dict() for m in reversed(rows)])
-
-    @app.post("/api/chats/<int:chat_id>/messages")
-    @require_auth
-    def post_message(user, chat_id):
-        """Add a line to a thread.
-
-        `senderId` may name ANY member, not just the viewer — that is how the
-        bots reply, since their words are the frontend's to choose (lib/chat.js,
-        the same division of labour as lib/visiting.js). It is safe here for
-        exactly the reason the visiting gate is: every member is a row in the
-        caller's own local database, and there is no second machine.
-
-        THE CONTRACT FOR A MULTI-USER FUTURE: this field must go before this
-        endpoint is served beyond localhost. A client that can pick its own
-        sender can forge messages from anyone it shares a thread with.
-        """
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        data = json_body()
-        body = clean_str(data.get("body"), MESSAGE_MAX)
-        if not body:
-            return jsonify({"error": "Message cannot be empty"}), 400
-
-        sender_id = user.id
-        raw_sender = data.get("senderId")
-        if raw_sender is not None:
-            candidate = clean_id(raw_sender)
-            if candidate is None or not _is_member(chat_id, candidate):
-                return jsonify({"error": "Sender is not in this chat"}), 400
-            sender_id = candidate
-
-        msg = Message(conversation_id=chat_id, sender_id=sender_id, body=body)
-        db.session.add(msg)
-        # Sending is reading: your own line must not come back as unread, and
-        # you were plainly looking at the thread when you wrote it.
-        if sender_id == user.id:
-            db.session.flush()
-            member = _membership(user, chat_id)
-            member.last_read_at = msg.created_at
-            member.last_read_message_id = msg.id
-        db.session.commit()
-        return jsonify(msg.to_dict()), 201
-
-    def _is_member(chat_id, user_id):
-        return (
-            ConversationMember.query.filter_by(
-                conversation_id=chat_id, user_id=user_id
-            ).first()
-            is not None
-        )
-
-    @app.post("/api/chats/<int:chat_id>/read")
-    @require_auth
-    def mark_chat_read(user, chat_id):
-        member = _membership(user, chat_id)
-        if not member:
-            return jsonify({"error": "Not found"}), 404
-        member.last_read_at = utcnow().replace(tzinfo=None)
-        member.last_read_message_id = db.session.query(db.func.max(Message.id)).filter_by(conversation_id=chat_id).scalar() or 0
-        db.session.commit()
-        return jsonify({"ok": True})
-
-    @app.delete("/api/chats/<int:chat_id>")
-    @require_auth
-    def delete_chat(user, chat_id):
-        """Leave and delete a thread.
-
-        Single-user app: the thread is only ever in your database, so leaving
-        it and deleting it are the same act. The cascade takes the messages
-        and the other memberships with it.
-        """
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        chat = db.session.get(Conversation, chat_id)
-        db.session.delete(chat)
-        db.session.commit()
-        return jsonify({"ok": True})
-
 
 def build_stats_for(user_ids):
     """One productivity policy for both the local account and friends.
