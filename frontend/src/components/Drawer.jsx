@@ -53,7 +53,7 @@ export default function Drawer({
          its header. Below the toast (z-50) and the clock cluster's popovers
          (z-40) on purpose: those are answers to something you just did, and
          must stay on top of the panel that prompted them. */
-      className="absolute z-30 flex w-[min(92vw,400px)] flex-col rounded-3xl glass shadow-soft"
+      className="app-drawer absolute z-30 flex w-[min(92vw,400px)] flex-col rounded-3xl glass shadow-soft"
     >
       <header
         onPointerDown={(e) => dragControls.start(e)}

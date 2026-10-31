@@ -54,6 +54,10 @@ The screen has an ownership map — respect it:
   Every environment names a `floorStyle`, and walls carry a skirting, a picture
   rail and one panel seam per tile. Keep it SUBTLE — wall decor hangs on that
   surface, so it wants texture, not pattern.
+- Seasonal ground has to change the material, not merely the props. Winter
+  Yard uses the wall-less Snow environment: a pale gradient, broad wind-softened
+  bands and sparse deterministic glints. Snow furniture on the Grass environment
+  still reads as a summer lawn with decorations dropped onto it.
 - **Derive texture from position, never randomness.** Unrelated scene updates
   must not redraw random texture. Flagstone jitter
   and plank stagger both come from the tile index.
@@ -82,6 +86,12 @@ The screen has an ownership map — respect it:
   left showing. The same applies to plank seams on a tabletop — a bare slab
   reads as flat-pack, and a rail between the legs is what makes four legs and
   a top into a piece of furniture.
+- **Water has an edge and a depth.** Architectural water uses a raised coping,
+  a darker recessed basin and a quieter inner surface; natural water uses an
+  irregular moss-and-stone bank. Both are projected from grid space and their
+  animated surface is clipped to the catalog footprint. A bright outline
+  around a flat cyan patch reads as a sticker, while a screen-space pond oval
+  can visibly leave the isometric platform despite passing room validation.
 - **Judge artwork on a contact sheet, not one room at a time.** Rendering
   every sprite into one labelled grid is how the untextured rugs were spotted
   sitting next to two properly woven ones. In a room you see what you went
@@ -105,16 +115,19 @@ The screen has an ownership map — respect it:
   first — the same discipline the arch-behind-a-bookshelf bug bought.
 - **Negative space is content.** The de-carded scenes exist so the backdrop
   breathes; don't fill it.
-- **600px wide is the supported floor, and the top corners are why.** The
-  zone map assumes both top corners are usable at once, but the timer card
-  (216px) and the to-do list (288px) plus their insets need ~588px before
-  they collide — so below 600px the to-do list steps aside (`invisible`, not
-  `hidden`: it carries `.intro-chrome`) and the Tasks panel covers for it.
-  HEIGHT is not a constraint: measured clean down to 420px tall, because the
-  dock's top is clamped (`max(172px, 50% - 220px)`) so a centred column can
-  never climb into the timer's corner. Any new top-corner chrome has to fit
-  the same budget or step aside the same way; a full narrow-screen layout is
-  a separate feature, not something to half-build here.
+- **600px is the HUD composition switch, not the supported floor.** At and
+  above it, the timer and task list own opposite top corners and the dock is a
+  vertical left rail. Below it, the task HUD steps aside (`invisible`, not
+  `hidden`: it carries `.intro-chrome`), the dock becomes a safe-area-aware
+  horizontal rail, drawers use the full inset viewport, and contextual/chat/
+  music controls stack above navigation. This is the first-class iPhone Duo
+  closed-display composition (466×678 CSS pixels); the 390px fallback also
+  covers its more constrained browser area by making the dock scroll and
+  dropping the redundant in-app clock. The unfolded 890×626 posture retains
+  the desktop composition and must remain usable despite its short height.
+  HEIGHT remains clean down to 420px on the desktop composition because the
+  vertical dock's top is clamped. Any new fixed HUD element must be assigned a
+  place in both compositions.
 
 ## Motion
 
@@ -398,6 +411,11 @@ The screen has an ownership map — respect it:
 - **The dark floor guarantees legibility**: surface stops (void→wine) keep
   fixed low lightness in every theme, preset or custom. Accents may roam;
   backgrounds may not.
+- The backdrop finish is independent of that palette. `Gradient` keeps the
+  time-of-day wash; `Solid` paints a flat `--color-night` base field
+  while retaining discrete stars, clouds, celestial orbs and weather. The
+  saved choice is stamped on `<html>` before React mounts so desktop startup
+  never flashes the other finish.
 - Custom themes map the picked color faithfully onto the ROSE accent (its
   hue, saturation, and lightness within 52–72%); everything grades off that.
 - Sprite tinting: paint the main material `var(--tint, <classic>)`; shading

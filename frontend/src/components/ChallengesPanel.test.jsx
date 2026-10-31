@@ -8,7 +8,7 @@ import { removeStored, writeJSON } from "../lib/storage";
 
 let store;
 const error = vi.fn();
-vi.mock("../store", () => ({ useStore: () => store }));
+vi.mock("../store", () => ({ useChallengeStore: () => store }));
 function Harness() {
   const state = useChallenges(error);
   store = { ...state, addCustomChallenge: (draft) => {

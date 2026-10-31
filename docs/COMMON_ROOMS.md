@@ -50,6 +50,15 @@ accessible buttons and keeps the chooser visible while it is in use. Willow Pond
 shown at [sunset](screenshots/43-willow-pond.webp) and with its
 [seat choices open](screenshots/44-willow-pond-seats.webp).
 
+Press Enter or Space on your resident to open the same seat choices after the
+hint disappears. The bounded chooser sits above other HUD cards; choosing a
+seat or pressing Escape returns focus to your resident. Escape while the
+chooser is open leaves you in the common place.
+
+Common Cottage also uses static floor contact shadows, shaded wall junctions
+and warm light clipped to the supporting desks and tables. These additions
+preserve the split-level layout and seats; they add no animated effects.
+
 ## Second place: Willow Pond
 
 Willow Pond is deliberately not another timber-and-books interior. It takes
@@ -103,8 +112,10 @@ expands the page or makes the last seats unreachable in smaller windows.
 
 `CommonLibraryScene.jsx` owns only the library architecture. The shared
 `CommonRoom.jsx` still owns prop stacking, people, lamp pools and seat selection.
-Windows respond to time of day; candle flicker and a few drifting dust motes
-reuse the existing motion rules and stop under reduced motion. The library
+Windows respond to time of day. Six chandelier flames and a few drifting dust
+motes retain ambient motion, alongside the guest's focus/break cues. Repetitive
+prop, floor-light and background-resident loops stay still in this large hall;
+reduced motion silences the remaining animation too. The library
 does not change decoration, saved-home state, timer or visit permissions.
 
 Current captures: [library arrival](screenshots/48-grand-library.webp) and

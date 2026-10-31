@@ -142,6 +142,54 @@ def test_relaunch_when_up_to_date_does_no_work(tmp_path, monkeypatch):
     assert revision(db) == head_of(app)
 
 
+def test_message_index_upgrade_and_downgrade_preserve_history(tmp_path, monkeypatch):
+    db_path = tmp_path / "message-index.db"
+    app = boot(db_path, monkeypatch)
+    with app.app_context():
+        downgrade(revision="d4e5f6a7b8c9")
+    sql(db_path, "INSERT INTO conversation (id, is_group) VALUES (91, 0)")
+    sql(db_path, "INSERT INTO message (id, conversation_id, sender_id, body, created_at) "
+                 "VALUES (101,91,(SELECT id FROM user WHERE username='luna'),?,?)",
+        "PRECIOUS MESSAGE", "2026-01-01 12:00:00.000000")
+
+    upgraded = boot(db_path, monkeypatch)
+    assert revision(db_path) == head_of(upgraded)
+    assert sql(db_path, "SELECT body FROM message WHERE conversation_id=91 ORDER BY created_at DESC, id DESC LIMIT 200") == [("PRECIOUS MESSAGE",)]
+    plan = sql(db_path, "EXPLAIN QUERY PLAN SELECT id FROM message WHERE conversation_id=91 ORDER BY created_at DESC, id DESC LIMIT 200")
+    assert any("ix_message_conversation_created_id" in row[3] for row in plan)
+    assert all("TEMP B-TREE" not in row[3] for row in plan)
+
+    with upgraded.app_context():
+        downgrade(revision="d4e5f6a7b8c9")
+    assert sql(db_path, "SELECT body FROM message WHERE id=101") == [("PRECIOUS MESSAGE",)]
+    assert ("ix_message_conversation_id",) in sql(db_path, "SELECT name FROM sqlite_master WHERE type='index'")
+    boot(db_path, monkeypatch)
+    assert sql(db_path, "SELECT body FROM message WHERE id=101") == [("PRECIOUS MESSAGE",)]
+
+
+def test_read_boundary_upgrade_preserves_unread_and_accepts_later_timestamp_ties(tmp_path, monkeypatch):
+    db_path = tmp_path / "read-boundary.db"
+    app = boot(db_path, monkeypatch)
+    with app.app_context():
+        downgrade(revision="7b91e4a2c680")
+    marker = "2026-01-01 12:00:00.000000"
+    sql(db_path, "INSERT INTO conversation (id, is_group) VALUES (92, 0)")
+    for name, read_at in [("luna", marker), ("kai", None)]:
+        sql(db_path, "INSERT INTO conversation_member (conversation_id,user_id,last_read_at) "
+                     "VALUES (92,(SELECT id FROM user WHERE username=?),?)", name, read_at)
+    for message_id, stamp in [(201, marker), (202, "2026-01-02 12:00:00.000000"), (203, marker)]:
+        sql(db_path, "INSERT INTO message (id,conversation_id,sender_id,body,created_at) "
+                     "VALUES (?,92,(SELECT id FROM user WHERE username='sora'),'saved line',?)", message_id, stamp)
+    boot(db_path, monkeypatch)
+    assert sql(db_path, "SELECT last_read_at,last_read_message_id FROM conversation_member "
+                        "WHERE conversation_id=92 ORDER BY user_id") == [(marker, 203), (None, 0)]
+    unread = "SELECT id FROM message WHERE conversation_id=92 AND (created_at,id) > (?,?) ORDER BY id"
+    assert sql(db_path, unread, marker, 203) == [(202,)]
+    sql(db_path, "INSERT INTO message (id,conversation_id,sender_id,body,created_at) "
+                 "VALUES (204,92,(SELECT id FROM user WHERE username='sora'),'later arrival',?)", marker)
+    assert sql(db_path, unread, marker, 203) == [(202,), (204,)]
+
+
 def test_public_visit_access_is_migrated_to_open(tmp_path, monkeypatch):
     """Existing installs keep the permissive simulated-social setting, but
     its stored meaning is renamed so it no longer promises public access."""

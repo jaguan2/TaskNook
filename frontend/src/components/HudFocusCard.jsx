@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Target, Timer } from "lucide-react";
-import { useStore } from "../store";
+import { useTaskStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
 import { useArmed } from "../lib/useArmed";
@@ -47,7 +47,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     nudgeTimer,
     focusMinutesLive,
   } = useTimer();
-  const { activeTask, sessionDays, dailyGoal } = useStore();
+  const { activeTask, sessionDays, dailyGoal } = useTaskStore();
   const [expanded, setExpanded] = useState(false);
   const dragControls = useDragControls();
   const cardRef = useRef(null);
@@ -121,7 +121,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
     // reach the dock's territory — it should overlay it like a dropdown, not
     // slide underneath.
     <div
-      className={`${skipIntro.current ? "" : "intro-chrome "}pointer-events-none absolute left-6 top-6 z-30`}
+      className={`${skipIntro.current ? "" : "intro-chrome "}focus-hud pointer-events-none absolute z-30`}
     >
       <motion.div
         ref={cardRef}
@@ -274,7 +274,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
 
           {/* options, tucked away by default */}
           {expanded && (
-            <div className="glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
+            <div className="focus-options glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
               <div className="flex justify-center gap-1">
                 {[
                   { key: "timer", label: "Timer", Icon: Hourglass },

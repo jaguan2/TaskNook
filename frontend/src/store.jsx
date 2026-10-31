@@ -1,12 +1,24 @@
 import {
-  createContext,
-  useContext,
   useState,
   useEffect,
   useRef,
   useCallback,
   useMemo,
 } from "react";
+import { StoreContextsProvider } from "./storeContexts";
+import { useEventCallback } from "./lib/useEventCallback";
+export {
+  useStore,
+  useSystemStore,
+  useChallengeStore,
+  useTaskStore,
+  useProfileStore,
+  useSocialStore,
+  useRoomStore,
+  useWeatherStore,
+  useAudioStore,
+  useSettingsStore,
+} from "./storeContexts";
 import { api, getToken, setReauthorizer, setToken } from "./lib/api";
 import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
 import { toISO } from "./lib/dates";
@@ -101,9 +113,6 @@ import {
   isStorableLook,
   validateIsoLayout,
 } from "./lib/isoRoom";
-
-const StoreContext = createContext(null);
-export const useStore = () => useContext(StoreContext);
 
 // Which persistent HUD surfaces a viewer can dial back — "on" (default),
 // "faded" (dimmed but still there/interactive), or "hidden" (visibility:
@@ -427,6 +436,12 @@ export function StoreProvider({ children }) {
   // separately so the two can differ (teal accent on warm brown surfaces).
   const [customSurface, setCustomSurfaceState] = useState(() =>
     normalizeHex(readStored("tasknook.customSurface"))
+  );
+  // The backdrop can keep the classic pool-of-light gradient or become one
+  // quiet theme colour. This is separate from the palette: changing the
+  // finish must not replace the user's colours.
+  const [backdropStyle, setBackdropStyleState] = useState(() =>
+    readStored("tasknook.backdrop") === "solid" ? "solid" : "gradient"
   );
 
   // How much the room is allowed to move. "auto" follows the OS preference,
@@ -2365,6 +2380,11 @@ export function StoreProvider({ children }) {
     else writeStored("tasknook.customSurface", clean);
     setColorScheme("custom");
   };
+  const setBackdropStyle = (style) => {
+    if (style !== "gradient" && style !== "solid") return;
+    setBackdropStyleState(style);
+    writeStored("tasknook.backdrop", style);
+  };
 
   // ---------- Real-world weather ----------
   useEffect(() => {
@@ -2679,199 +2699,219 @@ export function StoreProvider({ children }) {
     );
   }, []);
 
-  const value = {
-    user,
-    booting,
-    bootError,
-    toast,
-    showToast,
-    dismissToast,
+  // Several commands intentionally close over the latest optimistic state or
+  // request generation. Their implementations therefore change as that state
+  // changes, but callers only need a stable command surface. Keep those two
+  // concerns separate at the context boundary.
+  const stableSetDailyGoal = useEventCallback(setDailyGoal);
+  const stableAddTask = useEventCallback(addTask);
+  const stableToggleTask = useEventCallback(toggleTask);
+  const stableEditTask = useEventCallback(editTask);
+  const stableRemoveTask = useEventCallback(removeTask);
+  const stableReorderTasks = useEventCallback(reorderTasks);
+  const stableAddTaskGroup = useEventCallback(addTaskGroup);
+  const stableRemoveTaskGroup = useEventCallback(removeTaskGroup);
+  const stableRenameTaskGroup = useEventCallback(renameTaskGroup);
+  const stableToggleRoutine = useEventCallback(toggleRoutine);
+  const stableChooseAlgorithm = useEventCallback(chooseAlgorithm);
+  const stableAddEvent = useEventCallback(addEvent);
+  const stableArchiveTask = useEventCallback(archiveTask);
+  const stableRemoveEvent = useEventCallback(removeEvent);
+  const stableAddFriend = useEventCallback(addFriend);
+  const stableRemoveFriend = useEventCallback(removeFriend);
+  const stableVisitFriend = useEventCallback(visitFriend);
+  const stableKnockFriend = useEventCallback(knockFriend);
+  const stableOpenChatWith = useEventCallback(openChatWith);
+  const stableOpenGroupChat = useEventCallback(openGroupChat);
+  const stableSendChatMessage = useEventCallback(sendChatMessage);
+  const stableDeleteChat = useEventCallback(deleteChat);
+  const stableSetVisitAccess = useEventCallback(setVisitAccess);
+  const stableSetWeather = useEventCallback(setWeather);
+  const stableSetTimeOfDay = useEventCallback(setTimeOfDay);
+  const stableSetAutoTimeOfDay = useEventCallback(setAutoTimeOfDay);
+  const stableSaveWeatherPreset = useEventCallback(saveWeatherPreset);
+  const stableApplyWeatherPreset = useEventCallback(applyWeatherPreset);
+  const stableDeleteWeatherPreset = useEventCallback(deleteWeatherPreset);
+  const stableRenameSavedWeatherPreset = useEventCallback(renameSavedWeatherPreset);
+  const stableMoveSavedWeatherPreset = useEventCallback(moveSavedWeatherPreset);
+  const stableChooseWeatherPlace = useEventCallback(chooseWeatherPlace);
+  const stableSearchWeatherCity = useEventCallback(searchWeatherCity);
+  const stableToggleAutoMatchWeather = useEventCallback(toggleAutoMatchWeather);
+  const stableToggleRandomWeather = useEventCallback(toggleRandomWeather);
+  const stableToggleMusic = useEventCallback(toggleMusic);
+  const stableSelectStation = useEventCallback(selectStation);
+  const stableAddCustomStation = useEventCallback(addCustomStation);
+  const stableRemoveCustomStation = useEventCallback(removeCustomStation);
+  const stableRenameCustomStation = useEventCallback(renameCustomStation);
+  const stableMoveCustomStation = useEventCallback(moveCustomStation);
+  const stableSetBrightness = useEventCallback(setBrightness);
+  const stableSetColorScheme = useEventCallback(setColorScheme);
+  const stableSetCustomColor = useEventCallback(setCustomColor);
+  const stableSetCustomSurface = useEventCallback(setCustomSurface);
+  const stableSetBackdropStyle = useEventCallback(setBackdropStyle);
 
-    challenges,
-    progression,
-    recordChallengeEvent,
-    replaceChallenge,
-    addCustomChallenge,
-    advanceChallenge,
-    resetChallenge,
-    removeChallenge,
+  // Each domain value is stable until something in that domain changes. The
+  // former all-in-one context rebuilt a ~190-property object for every toast,
+  // task, weather update or room drag and invalidated every store consumer.
+  const systemStore = useMemo(() => ({
+    user, booting, bootError, toast, showToast, dismissToast,
+  }), [user, booting, bootError, toast, showToast, dismissToast]);
 
-    tasks,
-    events,
-    orderedTasks,
-    addTask,
-    toggleTask,
-    editTask,
-    removeTask,
-    archiveTask,
-    reorderTasks,
+  const challengeStore = useMemo(() => ({
+    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    advanceChallenge, resetChallenge, removeChallenge,
+  }), [
+    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    advanceChallenge, resetChallenge, removeChallenge,
+  ]);
 
-    taskGroups,
-    addTaskGroup,
-    removeTaskGroup,
-    renameTaskGroup,
-    toggleRoutine,
-
-    algorithm,
-    chooseAlgorithm,
-
-    profile,
-    character,
-    saveProfile,
-    saveCharacter,
-    savedLooks,
-    saveCharacterLook,
-    removeCharacterLook,
-
-    friends,
-    addFriend,
-    removeFriend,
-    stats,
-    sessionDays,
-    refreshAll,
-    refreshTasks,
-    refreshFocus,
-    refreshEvents,
-    addEvent,
-    removeEvent,
-    dailyGoal,
-    setDailyGoal,
-
-    // chat
-    chats,
-    chatsError,
-    chatsLoading,
-    refreshChats,
-    openChatWith,
-    nudgeFromFriend,
-    openGroupChat,
-    sendChatMessage,
-    subscribeChat,
-    markChatRead,
-    deleteChat,
-    friendship,
-
-    // room decoration
-    cottageView,
-    setCottageView,
-    roomPlacements,
-    roomEditMode,
-    setRoomEditMode,
-    moveRoomItem,
-    addRoomItem,
-    duplicateRoomItem,
-    removeRoomItem,
-    applyRoomPreset,
-    clearRoom,
-    setRoomItemTint,
-    isoPreview,
-    setIsoPreview,
-    isoRoom,
-    lastIsoAddedId,
-    moveIsoItem,
-    addIsoItem,
-    removeIsoItem,
-    rotateIsoItem,
-    setIsoItemTint,
-    toggleIsoItem,
-    setIsoSize,
-    setIsoTile,
-    setIsoPartition,
-    setIsoArch,
-    resetIsoPartitions,
-    resetIsoShape,
-    setIsoEnv,
-    setIsoWalls,
-    setIsoWallColor,
-    setIsoLighting,
-    visiting,
-    commonRoom,
-    commonPresence,
-    activePlace: commonRoom ? { kind: "common", id: commonRoom.sceneId } : visiting ? { kind: "friend", id: visiting.friend.id } : { kind: "home" },
-    enterCommonRoom,
-    chooseCommonSeat,
-    visitFriend,
-    knockFriend,
-    knockingId,
-    leaveVisit,
-    moveVisitGuest,
-    walkIsoPersona,
-    homeVisitors,
-    homeScene,
-    moveHomePersona,
-    kickHomeVisitor,
-    setPetIdentity,
-    setVisitAccess,
-    applyIsoPreset,
-    selfInRoom,
-    setSelfInRoom,
-
-    // the timer's target task (the timer itself is in timer.jsx)
-    activeTask,
-    activeTaskId,
+  const taskStore = useMemo(() => ({
+    tasks, events, orderedTasks, addTask: stableAddTask,
+    toggleTask: stableToggleTask, editTask: stableEditTask,
+    removeTask: stableRemoveTask, archiveTask: stableArchiveTask,
+    reorderTasks: stableReorderTasks, taskGroups,
+    addTaskGroup: stableAddTaskGroup, removeTaskGroup: stableRemoveTaskGroup,
+    renameTaskGroup: stableRenameTaskGroup, toggleRoutine: stableToggleRoutine,
+    algorithm, chooseAlgorithm: stableChooseAlgorithm, stats,
+    sessionDays, refreshAll, refreshTasks, refreshFocus, refreshEvents,
+    addEvent: stableAddEvent, removeEvent: stableRemoveEvent, dailyGoal,
+    setDailyGoal: stableSetDailyGoal, activeTask, activeTaskId,
     setActiveTaskId,
+  }), [
+    tasks, events, orderedTasks, stableAddTask, stableToggleTask,
+    stableEditTask, stableRemoveTask, stableArchiveTask, stableReorderTasks,
+    taskGroups, stableAddTaskGroup, stableRemoveTaskGroup,
+    stableRenameTaskGroup, stableToggleRoutine, algorithm,
+    stableChooseAlgorithm, stats,
+    sessionDays, refreshAll, refreshTasks, refreshFocus, refreshEvents,
+    stableAddEvent, stableRemoveEvent, dailyGoal, stableSetDailyGoal,
+    activeTask, activeTaskId,
+  ]);
 
-    // ambient
-    weatherMode,
-    setWeather,
-    soundMix,
-    setSoundLevel,
-    stopAllSounds,
-    timeOfDay,
-    setTimeOfDay,
-    musicOn,
-    toggleMusic,
-    autoResumeMusic,
-    setAutoResumeMusic,
-    widgetMode,
-    setWidgetMode,
-    musicStations,
-    activeStationKey: resolvedStationKey,
-    selectStation,
-    addCustomStation,
-    removeCustomStation,
-    renameCustomStation,
-    moveCustomStation,
+  const profileStore = useMemo(() => ({
+    progression, profile, character, saveProfile, saveCharacter, savedLooks,
+    saveCharacterLook, removeCharacterLook,
+  }), [
+    progression, profile, character, saveProfile, saveCharacter, savedLooks,
+    saveCharacterLook, removeCharacterLook,
+  ]);
 
-    // real-world weather
-    realWeather,
-    weatherStatus,
-    weatherError,
-    weatherLocationLabel,
-    weatherPlaces,
-    weatherUnit,
-    setWeatherUnit,
-    chooseWeatherPlace,
-    autoMatchWeather,
-    autoRandomWeather,
-    toggleRandomWeather,
-    autoTimeOfDay,
-    setAutoTimeOfDay,
-    toggleAutoMatchWeather,
-    refreshRealWeather,
-    searchWeatherCity,
-    weatherPresets,
-    saveWeatherPreset,
-    applyWeatherPreset,
-    deleteWeatherPreset,
-    renameSavedWeatherPreset,
-    moveSavedWeatherPreset,
+  const socialStore = useMemo(() => ({
+    friends, addFriend: stableAddFriend, removeFriend: stableRemoveFriend,
+    chats, chatsError, chatsLoading, refreshChats,
+    openChatWith: stableOpenChatWith, nudgeFromFriend,
+    openGroupChat: stableOpenGroupChat, sendChatMessage: stableSendChatMessage,
+    subscribeChat, markChatRead, deleteChat: stableDeleteChat, friendship,
+    visiting, commonRoom, commonPresence,
+    activePlace: commonRoom
+      ? { kind: "common", id: commonRoom.sceneId }
+      : visiting
+        ? { kind: "friend", id: visiting.friend.id }
+        : { kind: "home" },
+    enterCommonRoom, chooseCommonSeat, visitFriend: stableVisitFriend,
+    knockFriend: stableKnockFriend, knockingId,
+    leaveVisit, moveVisitGuest, homeVisitors, homeScene, moveHomePersona,
+    kickHomeVisitor, setVisitAccess: stableSetVisitAccess,
+  }), [
+    friends, stableAddFriend, stableRemoveFriend, chats, chatsError,
+    chatsLoading, refreshChats, stableOpenChatWith, nudgeFromFriend,
+    stableOpenGroupChat, stableSendChatMessage, subscribeChat, markChatRead,
+    stableDeleteChat, friendship,
+    visiting, commonRoom, commonPresence, enterCommonRoom, chooseCommonSeat,
+    stableVisitFriend, stableKnockFriend, knockingId, leaveVisit,
+    moveVisitGuest, homeVisitors, homeScene, moveHomePersona, kickHomeVisitor,
+    stableSetVisitAccess,
+  ]);
 
-    // settings
-    brightness,
-    setBrightness,
-    colorScheme,
-    setColorScheme,
-    customColor,
-    setCustomColor,
-    customSurface,
-    setCustomSurface,
-    motionMode,
-    setMotionMode,
-    hudVisibility,
-    setHudVisibility,
-    setAllHudVisibility,
-  };
+  const roomStore = useMemo(() => ({
+    cottageView, setCottageView, roomPlacements, roomEditMode, setRoomEditMode,
+    moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
+    applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
+    isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
+    setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
+    setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
+  }), [
+    cottageView, setCottageView, roomPlacements, roomEditMode, setRoomEditMode,
+    moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
+    applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
+    isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
+    setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
+    setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
+  ]);
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  const weatherStore = useMemo(() => ({
+    weatherMode, setWeather: stableSetWeather, timeOfDay,
+    setTimeOfDay: stableSetTimeOfDay, realWeather,
+    weatherStatus, weatherError, weatherLocationLabel, weatherPlaces,
+    weatherUnit, setWeatherUnit, chooseWeatherPlace: stableChooseWeatherPlace,
+    autoMatchWeather, autoRandomWeather,
+    toggleRandomWeather: stableToggleRandomWeather, autoTimeOfDay,
+    setAutoTimeOfDay: stableSetAutoTimeOfDay,
+    toggleAutoMatchWeather: stableToggleAutoMatchWeather, refreshRealWeather,
+    searchWeatherCity: stableSearchWeatherCity, weatherPresets,
+    saveWeatherPreset: stableSaveWeatherPreset,
+    applyWeatherPreset: stableApplyWeatherPreset,
+    deleteWeatherPreset: stableDeleteWeatherPreset,
+    renameSavedWeatherPreset: stableRenameSavedWeatherPreset,
+    moveSavedWeatherPreset: stableMoveSavedWeatherPreset,
+  }), [
+    weatherMode, stableSetWeather, timeOfDay, stableSetTimeOfDay, realWeather,
+    weatherStatus, weatherError, weatherLocationLabel, weatherPlaces,
+    weatherUnit, setWeatherUnit, stableChooseWeatherPlace, autoMatchWeather,
+    autoRandomWeather, stableToggleRandomWeather, autoTimeOfDay,
+    stableSetAutoTimeOfDay, stableToggleAutoMatchWeather, refreshRealWeather,
+    stableSearchWeatherCity, weatherPresets, stableSaveWeatherPreset,
+    stableApplyWeatherPreset, stableDeleteWeatherPreset,
+    stableRenameSavedWeatherPreset, stableMoveSavedWeatherPreset,
+  ]);
+
+  const audioStore = useMemo(() => ({
+    soundMix, setSoundLevel, stopAllSounds, musicOn,
+    toggleMusic: stableToggleMusic,
+    autoResumeMusic, setAutoResumeMusic, musicStations,
+    activeStationKey: resolvedStationKey, selectStation: stableSelectStation,
+    addCustomStation: stableAddCustomStation,
+    removeCustomStation: stableRemoveCustomStation,
+    renameCustomStation: stableRenameCustomStation,
+    moveCustomStation: stableMoveCustomStation,
+  }), [
+    soundMix, setSoundLevel, stopAllSounds, musicOn, stableToggleMusic,
+    autoResumeMusic, setAutoResumeMusic, musicStations, resolvedStationKey,
+    stableSelectStation, stableAddCustomStation, stableRemoveCustomStation,
+    stableRenameCustomStation, stableMoveCustomStation,
+  ]);
+
+  const settingsStore = useMemo(() => ({
+    widgetMode, setWidgetMode, brightness, setBrightness: stableSetBrightness,
+    colorScheme, setColorScheme: stableSetColorScheme, customColor,
+    setCustomColor: stableSetCustomColor, customSurface,
+    setCustomSurface: stableSetCustomSurface, backdropStyle,
+    setBackdropStyle: stableSetBackdropStyle, motionMode,
+    setMotionMode, hudVisibility, setHudVisibility, setAllHudVisibility,
+  }), [
+    widgetMode, setWidgetMode, brightness, stableSetBrightness, colorScheme,
+    stableSetColorScheme, customColor, stableSetCustomColor, customSurface,
+    stableSetCustomSurface, backdropStyle, stableSetBackdropStyle, motionMode,
+    setMotionMode, hudVisibility, setHudVisibility, setAllHudVisibility,
+  ]);
+
+  return (
+    <StoreContextsProvider
+      system={systemStore}
+      challenges={challengeStore}
+      tasks={taskStore}
+      profile={profileStore}
+      social={socialStore}
+      room={roomStore}
+      weather={weatherStore}
+      audio={audioStore}
+      settings={settingsStore}
+    >
+      {children}
+    </StoreContextsProvider>
+  );
 }

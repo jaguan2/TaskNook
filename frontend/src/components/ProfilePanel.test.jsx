@@ -22,7 +22,13 @@ const store = vi.hoisted(() => ({
   removeIsoItem: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => store }));
+vi.mock("../store", () => ({
+  useProfileStore: () => store,
+  useTaskStore: () => store,
+  useSystemStore: () => store,
+  useSocialStore: () => store,
+  useRoomStore: () => store,
+}));
 vi.mock("./IsoItems", () => ({ ISO_SPRITES: { resident: () => <g data-testid="resident" /> } }));
 vi.mock("./LevelCard", () => ({ default: () => <div data-testid="level-card" /> }));
 vi.mock("./SavedCharacterLooks", () => ({ default: () => <div data-testid="saved-looks" /> }));

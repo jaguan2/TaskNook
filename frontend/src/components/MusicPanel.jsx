@@ -15,7 +15,7 @@ import {
   ChevronRight,
   Pencil,
 } from "lucide-react";
-import { useStore } from "../store";
+import { useAudioStore } from "../store";
 import { stationKey } from "../lib/musicLink";
 import { SOUND_CHANNELS } from "../lib/audio";
 import { useArmed } from "../lib/useArmed";
@@ -46,7 +46,7 @@ export default function MusicPanel() {
     soundMix,
     setSoundLevel,
     stopAllSounds,
-  } = useStore();
+  } = useAudioStore();
 
   const [url, setUrl] = useState("");
   const [label, setLabel] = useState("");

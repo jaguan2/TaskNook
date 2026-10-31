@@ -4,10 +4,52 @@ import { tinted } from "../lib/tint";
 // The little people live in their own package now — hair and garment
 // REGISTRIES, the body rig, the poses. This file is the furniture.
 import { Resident, You } from "./character";
-import { LeafCluster, PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
+import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
+import {
+  Bread,
+  Cake,
+  FruitBowl,
+  Kettle,
+  Microwave,
+  Oven,
+  Pie,
+  Pot,
+  Ramen,
+  Sink,
+  Teapot,
+  Toaster,
+} from "./IsoKitchenItems";
+import { GardenPond, Pond } from "./IsoWaterItems";
+import { GardenTrail } from "./IsoGardenItems";
+import { Birch, Bush, Flowerbed, Hedge, Pine, Rock, Tree } from "./IsoOutdoorItems";
+import { Bench, GardenLantern, Hammock, Log, Picnic } from "./IsoOutdoorStructures";
+import { BookTrolley, OpenJournal } from "./IsoStudyItems";
+import { Basket, Crates, LadderShelf } from "./IsoStorageItems";
+import { FlowerCushion, FoldedBlanket } from "./IsoTextileItems";
+import {
+  Bonsai,
+  Fern,
+  Monstera,
+  Orchid,
+  Palm,
+  Plant,
+  PlantPot,
+  SnakePlant,
+  Succulent,
+} from "./IsoPlantItems";
+import {
+  MatRug,
+  OvalRug,
+  PersianRug,
+  Rug,
+  Runner,
+  Sheepskin,
+  SquareRug,
+  StripedRug,
+} from "./IsoRugItems";
 import {
   BeachBall,
   BirdBath,
@@ -51,80 +93,6 @@ import {
 // grid (0,0) — the scene places it with translate(project(gx,gy)), which
 // works because the projection is linear. Main materials use
 // `var(--tint, <classic colour>)` exactly like the flat room's sprites.
-
-
-/**
- * Fringe strands along one edge of a rug. `axis` is the grid axis the edge
- * runs along; `out` is how far the strands stick out on the OTHER axis, in
- * tiles — expressing it in grid space means the strands land at the correct
- * screen angle for free, instead of being hand-fudged per rug.
- */
-function Fringe({ gx, gy, len, axis, out, n = 7, opacity = 0.26 }) {
-  return Array.from({ length: n }, (_, i) => {
-    const t = ((i + 0.5) / n) * len;
-    const a = axis === "gy" ? project(gx, gy + t) : project(gx + t, gy);
-    const b = axis === "gy" ? project(gx + out, gy + t) : project(gx + t, gy + out);
-    return (
-      <line
-        key={i}
-        x1={a.x}
-        y1={a.y}
-        x2={b.x}
-        y2={b.y}
-        stroke="#f7e9e2"
-        strokeWidth="1.1"
-        opacity={opacity}
-      />
-    );
-  });
-}
-
-/**
- * The shared bones of a rectangular rug: a tinted ground, then a lighter
- * field inset from it so the BORDER is the rim left showing. Every base rug
- * used to be one flat polygon with a hairline stroke inside, which at room
- * scale read as a solid shape with no pattern at all — the border has to be
- * an area, not a line, to survive being seen from across the room.
- */
-function RugGround({ w, d, m, fallback, ground = 0.46, field = 0.1 }) {
-  return (
-    <>
-      <polygon points={floorPatch(0, 0, w, d)} style={tinted(fallback)} opacity={ground} />
-      <polygon points={floorPatch(m, m, w - 2 * m, d - 2 * m)} fill="#f7e9e2" opacity={field} />
-      <polygon
-        points={floorPatch(m, m, w - 2 * m, d - 2 * m)}
-        fill="none"
-        stroke="#000"
-        strokeWidth="1.2"
-        opacity="0.15"
-      />
-    </>
-  );
-}
-
-function Rug() {
-  const W = 3.5;
-  const D = 2.5;
-  return (
-    <g>
-      <RugGround w={W} d={D} m={0.3} fallback="rgb(var(--color-rose))" />
-      {/* Lattice of small diamonds, offset row to row. A diamond in plan is a
-          diamond on screen, so the motif needs no special projection. */}
-      {[0.62, 1.24, 1.86, 2.48].flatMap((gx, i) =>
-        [0.72, 1.32].map((gy) => (
-          <polygon
-            key={`${gx}-${gy}`}
-            points={floorPatch(gx - 0.15, gy - 0.15 + (i % 2 ? 0.22 : 0), 0.3, 0.3)}
-            fill="#f7e9e2"
-            opacity="0.15"
-          />
-        ))
-      )}
-      <Fringe gx={0} gy={0.3} len={D - 0.6} axis="gy" out={-0.14} />
-      <Fringe gx={W} gy={0.3} len={D - 0.6} axis="gy" out={0.14} />
-    </g>
-  );
-}
 
 
 function Stool() {
@@ -200,158 +168,6 @@ function Bookshelf() {
   );
 }
 
-/**
- * A plant pot: TAPERED, with a rim and visible soil.
- *
- * Every potted plant used to sit in a straight-sided cube, which reads as a
- * box with leaves in it. Three things make it a pot instead, and all three are
- * silhouette rather than surface:
- *   - the taper (the foot is ~70% of the rim, so the sides slope in),
- *   - a lip standing slightly proud of the body at the top,
- *   - soil sunk below the rim, so you're looking INTO something.
- *
- * `foot` is the rim's width in tiles; the drawn footprint is centred on it, so
- * callers keep passing the catalog footprint unchanged.
- */
-function PlantPot({ foot, h, fallback = "#c0563f", rim = 3 }) {
-  const body = h - rim;
-  const shrink = foot * 0.15; // how far each side draws in toward the foot
-  const P = (gx, gy, lift) => {
-    const p = project(gx, gy);
-    return `${p.x},${p.y - lift}`;
-  };
-  // rim corners (full width, at the top) and foot corners (drawn in, at 0)
-  const rA = [0, 0];
-  const rB = [foot, 0];
-  const rC = [foot, foot];
-  const rD = [0, foot];
-  const fB = [foot - shrink, shrink];
-  const fC = [foot - shrink, foot - shrink];
-  const fD = [shrink, foot - shrink];
-  const paint = { fill: `var(--tint, ${fallback})` };
-  return (
-    <g>
-      {/* the two visible sloping faces */}
-      <polygon
-        points={`${P(...rD, body)} ${P(...rC, body)} ${P(...fC, 0)} ${P(...fD, 0)}`}
-        style={paint}
-      />
-      <polygon
-        points={`${P(...rD, body)} ${P(...rC, body)} ${P(...fC, 0)} ${P(...fD, 0)}`}
-        fill="#000"
-        opacity="0.2"
-      />
-      <polygon
-        points={`${P(...rB, body)} ${P(...rC, body)} ${P(...fC, 0)} ${P(...fB, 0)}`}
-        style={paint}
-      />
-      <polygon
-        points={`${P(...rB, body)} ${P(...rC, body)} ${P(...fC, 0)} ${P(...fB, 0)}`}
-        fill="#000"
-        opacity="0.32"
-      />
-      {/* contact shading where it meets the floor, same idea as TintedBox */}
-      <polygon
-        points={`${P(...fD, 0)} ${P(...fC, 0)} ${P(...fC, 2.5)} ${P(...fD, 2.5)}`}
-        fill="#000"
-        opacity="0.16"
-      />
-      <polygon
-        points={`${P(...fB, 0)} ${P(...fC, 0)} ${P(...fC, 2.5)} ${P(...fB, 2.5)}`}
-        fill="#000"
-        opacity="0.16"
-      />
-      {/* the lip: a short straight band standing proud of the body */}
-      <polygon
-        points={`${P(...rD, h)} ${P(...rC, h)} ${P(...rC, body)} ${P(...rD, body)}`}
-        style={paint}
-      />
-      <polygon
-        points={`${P(...rD, h)} ${P(...rC, h)} ${P(...rC, body)} ${P(...rD, body)}`}
-        fill="#000"
-        opacity="0.13"
-      />
-      <polygon
-        points={`${P(...rB, h)} ${P(...rC, h)} ${P(...rC, body)} ${P(...rB, body)}`}
-        style={paint}
-      />
-      <polygon
-        points={`${P(...rB, h)} ${P(...rC, h)} ${P(...rC, body)} ${P(...rB, body)}`}
-        fill="#000"
-        opacity="0.26"
-      />
-      {/* rim top, then soil sunk below it */}
-      <polygon
-        points={`${P(...rA, h)} ${P(...rB, h)} ${P(...rC, h)} ${P(...rD, h)}`}
-        style={paint}
-      />
-      <polygon points={floorPatch(foot * 0.11, foot * 0.11, foot * 0.78, foot * 0.78)} fill="#000" opacity="0.3" transform={`translate(0,${-h + 1.6})`} />
-      <polygon points={floorPatch(foot * 0.11, foot * 0.11, foot * 0.78, foot * 0.78)} fill="#3a2a24" transform={`translate(0,${-h + 1.6})`} />
-      {/* a light catch along the near rim edges */}
-      <polyline
-        points={`${P(...rD, h)} ${P(...rC, h)} ${P(...rB, h)}`}
-        fill="none"
-        stroke="#fff"
-        opacity="0.14"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
-    </g>
-  );
-}
-
-function PlantBase({ foot, potH, leaves }) {
-  const c = project(foot / 2, foot / 2);
-  return (
-    <g>
-      <PlantPot foot={foot} h={potH} />
-      <g transform={`translate(${c.x}, ${c.y - potH})`}>
-        <g className="room-sway">{leaves}</g>
-      </g>
-    </g>
-  );
-}
-
-function Monstera() {
-  return (
-    <PlantBase
-      foot={0.8}
-      potH={16}
-      leaves={
-        <>
-          <path d="M-1 -1 Q-7 -16 -16 -27 M1 -1 Q7 -18 15 -32 M1 -1 Q0 -26 6 -44"
-            fill="none" stroke="#426f51" strokeWidth="1.5" strokeLinecap="round" />
-          {/* Split lobes, curved stems and a central vein say monstera even
-              at room scale; three unbroken ovals read as generic paddles. */}
-          <path d="M-6 -12 C-19 -9 -29 -22 -28 -39 Q-19 -43 -9 -32
-            L-15 -30 L-7 -27 L-14 -25 L-5 -23 Q0 -17 -6 -12 Z" fill="#3f7f63" />
-          <path d="M7 -13 C21 -15 28 -28 24 -45 Q15 -47 6 -36
-            L13 -34 L4 -31 L11 -28 L2 -25 Q1 -17 7 -13 Z" fill="#659971" />
-          <path d="M3 -18 C-5 -29 -4 -43 5 -54 Q16 -49 15 -34
-            L10 -37 L13 -28 L8 -30 Q8 -21 3 -18 Z" fill="#4c8b65" />
-          <path d="M-7 -15 Q-18 -24 -25 -37 M7 -16 Q17 -28 22 -42 M4 -21 Q5 -36 6 -51"
-            fill="none" stroke="#c3cc88" strokeWidth="0.8" opacity="0.32" strokeLinecap="round" />
-          <path d="M-6 -12 Q-10 -17 -11 -23 Q-19 -28 -28 -39 Q-26 -20 -6 -12"
-            fill="#1f4738" opacity="0.18" />
-        </>
-      }
-    />
-  );
-}
-
-function Plant() {
-  const leaves = [[-2, -44, -26, -40], [1, -33, 23, -30], [-1, -23, -22, -20], [2, -13, 19, -10]];
-  return <PlantBase foot={0.6} potH={12} leaves={<>
-    <path d="M0 0 Q-3 -24 -1 -46" stroke="#6b7850" strokeWidth="1.8" fill="none" />
-    {leaves.map(([x, y, tx, ty], i) => <g key={y}>
-      <path d={`M${x} ${y} Q${tx} ${ty - 13} ${tx} ${ty}
-        Q${tx} ${ty + 11} ${x} ${y} Z`} fill={i % 2 ? "#689b73" : "#3f7f63"} />
-      <path d={`M${x} ${y} Q${tx * 0.5} ${ty - 1} ${tx * 0.86} ${ty}`}
-        fill="none" stroke="#b3c28a" strokeWidth="0.65" opacity="0.4" />
-    </g>)}
-  </>} />;
-}
-
 // A lamp's shade is fabric, and its stem and fittings stay warm wood/metal.
 
 function FloorLamp() {
@@ -389,136 +205,10 @@ function FloorLamp() {
   );
 }
 
-function SquareRug() {
-  return (
-    <g>
-      <RugGround w={2.5} d={2} m={0.24} fallback="#8a7ac2" ground={0.42} />
-      {/* Concentric bands — the simplest weave that still reads as woven. */}
-      <polygon points={floorPatch(0.46, 0.4, 1.58, 1.2)} fill="#000" opacity="0.1" />
-      <polygon points={floorPatch(0.68, 0.58, 1.14, 0.84)} fill="#f7e9e2" opacity="0.13" />
-      <polygon points={floorPatch(0.95, 0.8, 0.6, 0.4)} fill="#f7e9e2" opacity="0.16" />
-      <Fringe gx={0} gy={0.24} len={1.52} axis="gy" out={-0.12} n={6} />
-      <Fringe gx={2.5} gy={0.24} len={1.52} axis="gy" out={0.12} n={6} />
-    </g>
-  );
-}
-
 // Shaded box helper: every face gets the tint, with translucent black
 // overlays for depth so ANY chosen colour reads correctly. A thin light
 // catch runs along the top-front edges — the cheap bevel that stops a
 // flat-shaded box reading as cardboard (user feedback: "too blocky").
-
-// ---- more greenery ------------------------------------------------------ //
-// All of these hang off PlantBase, so the pot shades correctly against any
-// tint and the foliage sways with everything else for free. What separates
-// them is silhouette: a fern arches out, a palm goes up on bare stems, a
-// snake plant is stiff verticals. Leaf shape alone reads at room scale where
-// leaf DETAIL doesn't.
-
-/** Feathered foliage: curved ribs carry tapered leaflets on both sides.
- * Geometry describes a plant, rather than adding texture to a paddle leaf. */
-function FeatherFrond({ x = 0, y = 0, angle, length, width, color, pairs = 5 }) {
-  return <g transform={`translate(${x},${y}) rotate(${angle})`}>
-    <path d={`M0 0 Q-3 ${-length * 0.5} 0 ${-length}`} stroke="#789963"
-      strokeWidth="1" fill="none" />
-    {Array.from({ length: pairs }, (_, i) => {
-      const t = (i + 1) / (pairs + 1);
-      const yy = -length * t;
-      const xx = -1.5 * Math.sin(Math.PI * t);
-      const span = width * Math.sin(Math.PI * t);
-      return [-1, 1].map((side) => <path key={`${i}-${side}`}
-        d={`M${xx} ${yy + 2} Q${xx + side * span * 0.65} ${yy - 5}
-          ${xx + side * span} ${yy - 2} Q${xx + side * span * 0.55} ${yy + 3} ${xx} ${yy + 2} Z`}
-        fill={color} />);
-    })}
-    <path d={`M0 ${-length + 8} Q-3 ${-length + 3} 0 ${-length} Q3 ${-length + 3} 0 ${-length + 8} Z`} fill={color} />
-  </g>;
-}
-
-function Fern() {
-  return <PlantBase foot={0.7} potH={13} leaves={<>
-    {[-66, -36, -8, 25, 58].map((angle, i) => <FeatherFrond key={angle}
-      angle={angle} length={i === 2 ? 36 : 30} width={5.8}
-      color={i % 2 ? "#659971" : "#3f7f63"} pairs={5} />)}
-  </>} />;
-}
-
-function Palm() {
-  return <PlantBase foot={0.9} potH={18} leaves={<>
-    <path d="M-3 0 Q-11 -29 -7 -47 M2 0 Q8 -38 4 -59 M0 0 Q-3 -36 -1 -66"
-      fill="none" stroke="#6e8052" strokeWidth="1.9" />
-    {[[-7, -47, -80, 29], [-7, -47, 60, 32], [4, -59, -48, 30],
-      [4, -59, 75, 31], [-1, -66, -70, 29], [-1, -66, 37, 30]].map(([x, y, angle, length], i) => (
-      <FeatherFrond key={i} x={x} y={y} angle={angle} length={length}
-        width={7} color={i % 2 ? "#659971" : "#3f7f63"} pairs={5} />
-    ))}
-  </>} />;
-}
-
-function SnakePlant() {
-  return <PlantBase foot={0.6} potH={14} leaves={<>
-    {[[-8, 42, -7], [-3, 54, -2], [1, 58, 3], [6, 44, 8]].map(([x, h, lean], i) => <g key={x}>
-      <path d={`M${x - 2} 0 Q${x + lean - 4} ${-h * 0.65} ${x + lean} ${-h}
-        Q${x + lean + 4} ${-h * 0.65} ${x + 3} 0 Z`} fill={i % 2 ? "#659971" : "#3f7f63"} />
-      <path d={`M${x} -3 Q${x + lean - 1} ${-h * 0.55} ${x + lean} ${-h + 5}`}
-        stroke="#c1bb70" strokeWidth="1" opacity="0.7" fill="none" />
-      {[0.25, 0.45, 0.65].map((t) => <path key={t}
-        d={`M${x + lean * t - 1} ${-h * t} l3 -1.3`}
-        stroke="#285b49" strokeWidth="1.2" opacity="0.35" />)}
-    </g>)}
-  </>} />;
-}
-
-function Bonsai() {
-  return <g>
-    <TintedBox gx={0.03} gy={0.03} dx={0.44} dy={0.39} h={6} fallback="#6b4436" dark={0.34} mid={0.2} />
-    <g transform={`translate(${project(0.25, 0.21).x}, ${project(0.25, 0.21).y - 6})`}>
-      <ellipse cy="-1" rx="8" ry="3" fill="#3a2a24" />
-      <g className="room-sway">
-        <path d="M-2 0 Q-6 -7 1 -11 Q8 -16 4 -23 L7 -23 Q12 -14 3 -10 Q0 -7 2 0 Z" fill="#88634a" />
-        <path d="M0 -9 Q-7 -9 -10 -15 M5 -17 Q10 -17 15 -19" fill="none" stroke="#88634a" strokeWidth="2.4" />
-        {[[-10, -16, 0.7], [13, -21, 0.75], [2, -28, 1]].map(([x, y, scale]) => <g key={y} transform={`translate(${x},${y}) scale(${scale})`}>
-          <path d="M-12 2 Q-14 -3 -8 -4 Q-7 -9 -1 -7 Q4 -11 8 -6 Q14 -6 13 0 Q7 5 -1 4 Q-8 6 -12 2 Z" fill="#3f7f63" />
-          <path d="M-10 -1 Q-10 -4 -5 -3 Q0 -8 5 -4 Q10 -5 11 -1 Q5 2 -1 0 Z" fill="#659971" />
-        </g>)}
-      </g>
-    </g>
-  </g>;
-}
-
-function Succulent() {
-  const c = project(0.175, 0.175);
-  return <g>
-    <PlantPot foot={0.35} h={7} fallback="#c98a6b" rim={2} />
-    <g transform={`translate(${c.x}, ${c.y - 7}) scale(1,0.68)`}>
-      {[0, 51, 103, 155, 207, 258, 309].map((angle, i) => <g key={angle} transform={`rotate(${angle})`}>
-        <path d="M0 1 Q-6 -3 -2 -12 Q4 -9 4 -4 Q3 0 0 1 Z" fill={i % 2 ? "#659971" : "#3f7f63"} />
-        <path d="M0 0 Q-2 -4 -1.4 -9" fill="none" stroke="#bad1a2" strokeWidth="0.8" opacity="0.5" />
-      </g>)}
-      <path d="M-3 -1 Q-6 -5 -1 -9 Q4 -6 4 -2 Q1 2 -3 -1 Z" fill="#84ad86" />
-      <path d="M0 -1 L0 -5" stroke="#3f7f63" strokeWidth="1" />
-    </g>
-  </g>;
-}
-
-function Orchid() {
-  const c = project(0.2, 0.2);
-  return <g>
-    <PlantPot foot={0.4} h={9} fallback="#cbd5e8" rim={2.5} />
-    <g transform={`translate(${c.x}, ${c.y - 9})`}>
-      <g className="room-sway">
-        <path d="M0 0 Q-4 -21 6 -27 Q10 -30 12 -26" fill="none" stroke="#6e8052" strokeWidth="1.3" />
-        <path d="M0 -2 Q-13 -13 -13 -5 Q-10 1 0 -2 M0 -2 Q10 -12 11 -4 Q7 1 0 -2" fill="#3f7f63" />
-        {[[7, -26, 1], [2, -20, 0.9], [-1, -13, 0.8]].map(([x, y, scale]) => <g key={y} transform={`translate(${x},${y}) scale(${scale})`}>
-          <path d="M0 0 Q-7 -6 -7 -1 Q-7 3 -1 2 Q-4 7 0 7 Q4 7 2 2 Q8 3 7 -1 Q7 -6 0 0 Z" fill="#d998b8" />
-          <path d="M0 0 Q-4 -7 0 -7 Q4 -7 0 0" fill="#efc1d4" />
-          <path d="M-1 1 Q0 -1 2 1 L1 3 L-1 3 Z" fill="#f5ddb3" />
-        </g>)}
-        <ellipse cx="12" cy="-26" rx="1.5" ry="2" fill="#b881a0" />
-      </g>
-    </g>
-  </g>;
-}
 
 // ---- more light --------------------------------------------------------- //
 // None of these draw their own pool on the floor. Light is cast by the SCENE
@@ -763,319 +453,6 @@ function Pillar() {
 }
 
 
-// ---- kitchen ------------------------------------------------------------ //
-// Same rules as the autumn set: silhouette first, few large shapes, one hero
-// colour. Appliances are the easiest things in a catalog to turn into grey
-// bricks, so each one gets exactly one feature that names it — a hob, a
-// basin, a window, a slot, a spout.
-
-/** A cylindrical vessel: bottom ellipse, straight side, top ellipse. The
- *  house idiom for anything round (see Stool, CafeTable) — worth sharing
- *  once four kitchen items wanted it. */
-function Vessel({ r, h, fill, lid, ry = 0.45 }) {
-  const e = r * ry;
-  return (
-    <g>
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill={fill} />
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill="#000" opacity="0.3" />
-      <rect x={-r} y={-h} width={r * 2} height={h} fill={fill} />
-      <rect x={-r} y={-h} width={r * 0.55} height={h} fill="#fff" opacity="0.13" />
-      <rect x={r * 0.45} y={-h} width={r * 0.55} height={h} fill="#000" opacity="0.14" />
-      <ellipse cx="0" cy={-h} rx={r} ry={e} fill={lid || fill} />
-      {lid && <ellipse cx="0" cy={-h} rx={r * 0.6} ry={e * 0.6} fill="#000" opacity="0.12" />}
-    </g>
-  );
-}
-
-function Oven() {
-  const W = 0.9;
-  const D = 0.7;
-  const H = 38;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#cbc6c0" dark={0.3} mid={0.15} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {/* control strip with knobs, then the door and its window */}
-        <rect x="2" y={-H + 2} width={face - 4} height="6" rx="1" fill="#000" opacity="0.14" />
-        {[0.22, 0.38, 0.62, 0.78].map((t) => (
-          <circle key={t} cx={face * t} cy={-H + 5} r="1.3" fill="#f7e9e2" opacity="0.7" />
-        ))}
-        <rect x="3" y={-H + 11} width={face - 6} height={H - 14} rx="1.5" fill="#000" opacity="0.2" />
-        <rect x="6" y={-H + 16} width={face - 12} height={H - 24} rx="1" fill="#241d33" opacity="0.75" />
-        <rect x="7.5" y={-H + 17.5} width={face - 15} height={H - 27} rx="0.8" fill="#e8b04b" opacity="0.16" />
-        <rect x="5" y={-H + 12} width={face - 10} height="2.4" rx="1.2" fill="#f7e9e2" opacity="0.55" />
-      </g>
-      {/* four hob rings on the top — the one detail that says "cooker" */}
-      <g transform={`translate(0,${-H})`}>
-        {[
-          [0.26, 0.22],
-          [0.64, 0.22],
-          [0.26, 0.5],
-          [0.64, 0.5],
-        ].map(([gx, gy]) => {
-          const p = project(gx, gy);
-          return (
-            <g key={`${gx}-${gy}`}>
-              <ellipse cx={p.x} cy={p.y} rx="6" ry="3" fill="#000" opacity="0.22" />
-              <ellipse cx={p.x} cy={p.y - 0.6} rx="4.4" ry="2.2" fill="#000" opacity="0.3" />
-            </g>
-          );
-        })}
-      </g>
-    </g>
-  );
-}
-
-function Sink() {
-  const W = 0.9;
-  const D = 0.65;
-  const H = 32;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#b8ad9e" dark={0.32} mid={0.17} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {[4, face / 2 + 1].map((x) => (
-          <rect key={x} x={x} y={-H + 5} width={face / 2 - 5} height={H - 10} rx="1.2" fill="#000" opacity="0.13" />
-        ))}
-        <circle cx={face / 2 - 3} cy={-H / 2} r="1.1" fill="#f7e9e2" opacity="0.6" />
-        <circle cx={face / 2 + 3} cy={-H / 2} r="1.1" fill="#f7e9e2" opacity="0.6" />
-      </g>
-      <g transform={`translate(0,${-H})`}>
-        {/* the basin: a recess, not a painted rectangle — the rim is what
-            makes it read as sunk into the top */}
-        <polygon points={floorPatch(0.1, 0.1, W - 0.2, D - 0.2)} fill="#000" opacity="0.3" />
-        <polygon points={floorPatch(0.16, 0.15, W - 0.32, D - 0.3)} fill="#9aa3a8" />
-        <polygon points={floorPatch(0.16, 0.15, W - 0.32, D - 0.3)} fill="#000" opacity="0.18" />
-        <ellipse
-          cx={project(W / 2, D / 2).x}
-          cy={project(W / 2, D / 2).y}
-          rx="2.4"
-          ry="1.2"
-          fill="#000"
-          opacity="0.3"
-        />
-        {/* tap: a gooseneck rising from the back edge */}
-        <g transform={`translate(${project(W / 2, 0.12).x}, ${project(W / 2, 0.12).y})`}>
-          <path d="M0 0 L0 -11 q0 -4 5 -4 q4 0 4 3.5 L9 -6" fill="none" stroke="#cfd6da" strokeWidth="2.2" strokeLinecap="round" />
-          <ellipse cx="0" cy="0" rx="3" ry="1.5" fill="#cfd6da" />
-        </g>
-      </g>
-    </g>
-  );
-}
-
-function Microwave() {
-  const W = 0.65;
-  const D = 0.45;
-  const H = 16;
-  const face = W * (TILE_W / 2);
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#4a4152" tint={false} dark={0.3} mid={0.16} />
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        <rect x="2" y={-H + 2} width={face * 0.62} height={H - 4} rx="1" fill="#241d33" />
-        <rect x="3" y={-H + 3} width={face * 0.62 - 2} height={H - 6} rx="0.8" fill="#5b6b9b" opacity="0.4" />
-        <rect x={face * 0.7} y={-H + 3} width={face * 0.24} height="4" rx="0.8" fill="#9db4e8" opacity="0.55" />
-        {[0, 1, 2].map((i) => (
-          <circle key={i} cx={face * 0.74 + i * 3} cy={-H + 10} r="0.9" fill="#f7e9e2" opacity="0.5" />
-        ))}
-        <rect x={face * 0.64} y={-H + 2} width="1.4" height={H - 4} rx="0.7" fill="#f7e9e2" opacity="0.4" />
-      </g>
-    </g>
-  );
-}
-
-function Toaster() {
-  // Two slices poking out of the slots. Without them it is a white box with a
-  // dot on it and reads as a bread bin — the toast IS the silhouette.
-  const W = 0.4;
-  const D = 0.35;
-  const H = 13;
-  const face = W * (TILE_W / 2);
-  const slice = (gx) => {
-    const p = project(gx, 0.175);
-    return (
-      <g key={gx} transform={`translate(${p.x}, ${p.y})`}>
-        <path d="M-3.4 0 q0 -4.6 3.4 -4.6 q3.4 0 3.4 4.6 z" fill="#c98a4b" />
-        <path d="M-3.4 0 q0 -4.6 3.4 -4.6 l0 4.6 z" fill="#fff" opacity="0.16" />
-      </g>
-    );
-  };
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#cfd6da" tint={false} dark={0.28} mid={0.14} />
-      <g transform={`translate(0,${-H})`}>
-        <polygon points={floorPatch(0.07, 0.09, W - 0.14, 0.055)} fill="#000" opacity="0.45" />
-        <polygon points={floorPatch(0.07, 0.2, W - 0.14, 0.055)} fill="#000" opacity="0.45" />
-        {slice(0.14)}
-        {slice(0.26)}
-      </g>
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        <rect x={face - 3.2} y={-H + 2.5} width="2.2" height="6" rx="1.1" fill="#5b5166" />
-        <circle cx="4" cy="-4" r="1.5" fill="#c0563f" opacity="0.85" />
-      </g>
-    </g>
-  );
-}
-
-function Kettle() {
-  // Spout on ONE side as a tapered cone, handle as a bail arcing over the
-  // lid. Drawn as two thin strokes leaving the shoulders they read as horns.
-  const c = project(0.175, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7" ry="3" fill="#000" opacity="0.18" />
-      {/* spout first, so the body overlaps its root */}
-      <path d="M4 -11 L13 -13.5 L12.5 -10.5 L4 -6.5 Z" fill="#7d8c99" />
-      <path d="M4 -11 L13 -13.5 L12.8 -12 L4 -9 Z" fill="#fff" opacity="0.14" />
-      <g transform="translate(0,-1)">
-        <Vessel r={6} h={9} fill="#8d99a6" lid="#a8b3bd" />
-      </g>
-      {/* bail handle, over the top */}
-      <path d="M-5.5 -11.5 q5.5 -8 11 0" fill="none" stroke="#5b5166" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="0" cy="-11.4" r="1.5" fill="#5b5166" />
-    </g>
-  );
-}
-
-function Pot() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      <g transform="translate(0,-1)">
-        <Vessel r={7} h={8} fill="#5b6b6b" lid="#7d8c8c" />
-      </g>
-      {/* two ear handles */}
-      <rect x="-10.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <rect x="7.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <circle cx="0" cy="-10.5" r="1.5" fill="#3f4a4a" />
-    </g>
-  );
-}
-
-// ---- food & drink ------------------------------------------------------- //
-// These are the smallest things in the catalog — 10 to 14px tall — so they get
-// ONE idea each and nothing more. At this size a second idea is just noise:
-// the cake is a cylinder with a cherry, the ramen is a bowl with a swirl.
-// All of them `stacks`, because food belongs on a table.
-
-function Teapot() {
-  const c = project(0.2, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7.5" ry="3.2" fill="#000" opacity="0.18" />
-      {/* rounder than the kettle — that roundness IS the difference */}
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" style={tinted("#c98a9b")} />
-      <ellipse cx="-2.2" cy="-7.5" rx="3" ry="2.2" fill="#fff" opacity="0.18" />
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" fill="#000" opacity="0.06" />
-      <path d="M6 -7 q5 0 5.5 -4" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M-6.5 -8 q-4.5 -2 -1 -5.5" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2" strokeLinecap="round" />
-      <ellipse cx="0" cy="-11" rx="3.6" ry="1.6" style={tinted("#d9a0ad")} />
-      <circle cx="0" cy="-12.6" r="1.3" fill="#8a5a66" />
-      <SteamWisps x={9} y={-13} scale={0.65} />
-    </g>
-  );
-}
-
-function FruitBowl() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* fruit first, then the bowl in front — they sit INSIDE it */}
-      <circle cx="-3" cy="-7" r="3.2" fill="#c0563f" />
-      <circle cx="2.5" cy="-7.5" r="3" fill="#d98b3a" />
-      <circle cx="0" cy="-9" r="2.6" fill="#7faf8f" />
-      <circle cx="-3.6" cy="-8" r="1" fill="#fff" opacity="0.3" />
-      <path d="M-8.5 -5 q8.5 6 17 0 q-2 -3.5 -8.5 -3.5 q-6.5 0 -8.5 3.5 z" style={tinted("#e2d6c4")} />
-      <path d="M0 -1.6 q6 -0.6 8.5 -3.4 q-2 3.6 -8.5 3.8 z" fill="#000" opacity="0.16" />
-    </g>
-  );
-}
-
-function Bread() {
-  const c = project(0.2, 0.15);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3" fill="#000" opacity="0.16" />
-      {/* board */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#a87f5f" />
-      <ellipse cx="0" cy="-2.4" rx="8" ry="3.4" fill="#b58c6a" />
-      {/* loaf: a dome with three slashes, which is the whole silhouette */}
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q6.5 0 6.5 6 z" fill="#c98a4b" />
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q0 6 0 6 z" fill="#fff" opacity="0.14" />
-      {[-3.4, 0, 3.4].map((x) => (
-        <path key={x} d={`M${x - 1.4} -5.6 l2.4 -1.8`} stroke="#8a5a2f" strokeWidth="1.2" strokeLinecap="round" />
-      ))}
-    </g>
-  );
-}
-
-function Cake() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* stand */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#cbd5e8" />
-      <rect x="-1.2" y="-4" width="2.4" height="3" fill="#cbd5e8" />
-      <ellipse cx="0" cy="-4" rx="7" ry="3" fill="#dfe6f2" />
-      {/* two tiers of sponge with a cream band between */}
-      <g transform="translate(0,-4)">
-        <Vessel r={6.5} h={7} fill="#c98a4b" lid="#f2e2cf" />
-        <rect x="-6.5" y="-4.4" width="13" height="2" fill="#f7e9e2" opacity="0.85" />
-      </g>
-      <circle cx="0" cy="-12" r="1.6" fill="#c0563f" />
-      <circle cx="-0.5" cy="-12.5" r="0.5" fill="#fff" opacity="0.5" />
-    </g>
-  );
-}
-
-function Pie() {
-  const c = project(0.2, 0.2);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* dish */}
-      <ellipse cx="0" cy="-1" rx="8" ry="3.4" style={tinted("#b8ad9e")} />
-      <ellipse cx="0" cy="-1" rx="8" ry="3.4" fill="#000" opacity="0.24" />
-      <ellipse cx="0" cy="-4" rx="8" ry="3.4" style={tinted("#cbc6c0")} />
-      {/* crust + a lattice, drawn as three crossing bands */}
-      <ellipse cx="0" cy="-5.5" rx="6.6" ry="2.8" fill="#c98a4b" />
-      <ellipse cx="0" cy="-6.2" rx="6.6" ry="2.8" fill="#d99f5f" />
-      {[-3, 0, 3].map((x) => (
-        <path key={x} d={`M${x - 3} -7.4 l6 2.4`} stroke="#a86a2f" strokeWidth="1.1" opacity="0.65" />
-      ))}
-      {[-3, 0, 3].map((x) => (
-        <path key={`b${x}`} d={`M${x - 3} -5 l6 -2.4`} stroke="#a86a2f" strokeWidth="1.1" opacity="0.5" />
-      ))}
-    </g>
-  );
-}
-
-function Ramen() {
-  const c = project(0.175, 0.175);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7.5" ry="3.2" fill="#000" opacity="0.18" />
-      {/* bowl */}
-      <path d="M-7.5 -4 q7.5 6.5 15 0 q-1.5 -4 -7.5 -4 q-6 0 -7.5 4 z" style={tinted("#8f4a3c")} />
-      <path d="M0 0.4 q5.5 -0.6 7.5 -4.4 q-1.5 4.2 -7.5 4.4 z" fill="#000" opacity="0.18" />
-      <ellipse cx="0" cy="-8" rx="7.2" ry="3" style={tinted("#a85a4c")} />
-      {/* broth, a noodle swirl, an egg half and two chopsticks */}
-      <ellipse cx="0" cy="-8.2" rx="6" ry="2.4" fill="#c9a24b" />
-      <path d="M-3.5 -8.4 q3.5 -1.6 7 0" fill="none" stroke="#f2e2cf" strokeWidth="1.1" opacity="0.85" />
-      <path d="M-3 -7.2 q3 -1.4 6 0" fill="none" stroke="#f2e2cf" strokeWidth="1" opacity="0.6" />
-      <ellipse cx="3" cy="-9" rx="2.2" ry="1.3" fill="#f7f2ea" />
-      <ellipse cx="3" cy="-9.1" rx="1.1" ry="0.7" fill="#e8b04b" />
-      <path d="M-6 -11 l7 -4 M-4.6 -10.2 l7 -4" stroke="#b58c6a" strokeWidth="0.9" strokeLinecap="round" />
-      <SteamWisps y={-10} scale={0.8} />
-    </g>
-  );
-}
 
 // ---- upholstery (hand-drawn again, on purpose) -------------------------- //
 // These three came back from the Kenney kit to SVG. The kit's renders are
@@ -1096,49 +473,69 @@ function Ramen() {
 // wider than the mattress so it drapes over the edge, cushions inset from the
 // arms, and legs leaving a shadow gap under the frame.
 
+const BED_W = 2;
+const BED_D = 2.8;
+// Deliberately shallow. A bed is ~115px across on screen, so a 27px-thick
+// stack of frame + mattress + duvet read as a crate; at 19 it reads as a
+// bed seen from above. Height is for the HEADBOARD to spend, not the base.
+const BED_FRAME = 7;
+const BED_MATTRESS = 8;
+
+function BedDuvet() {
+  return (
+    <>
+      {/* Duvet: drawn from the FRAME top (not the mattress top) and wider
+          than the mattress, so its sides fall past the mattress edge —
+          that's the drape. Stops short of the pillows. */}
+      <SoftBox gx={0.05} gy={1.15} dx={BED_W - 0.1} dy={BED_D - 1.3}
+        h={BED_MATTRESS + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
+      {/* A padded turn-back and broad gathers make this read as cloth. */}
+      <g transform={`translate(0,${-(BED_MATTRESS + 4)})`}>
+        <SoftBox gx={0.07} gy={1.15} dx={BED_W - 0.14} dy={0.25} h={2.2}
+          fallback="#f2e9dd" dark={0.2} mid={0.1} radius={0.09} />
+        {/* Three broad gathered folds replace the rigid square quilt grid. */}
+        {[0.28, 0.96, 1.68].map((gx, i) => {
+          const a = project(gx, 1.44);
+          const b = project(gx + 0.12, 1.8 + i * 0.13);
+          const c = project(gx + 0.03, 2.35);
+          return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
+            fill="none" stroke="#000" strokeWidth="1.2" opacity="0.1" />;
+        })}
+        {/* Cream throw at the foot, with a short hem falling over the duvet. */}
+        <SoftBox gx={0.09} gy={2.18} dx={BED_W - 0.18} dy={0.44} h={1.8}
+          fallback="#e8d5b5" tint={false} dark={0.2} mid={0.12} radius={0.1} />
+      </g>
+    </>
+  );
+}
+
+/** Repaint the bed's real duvet above a sleeper, hiding their lower body
+ * beneath the same cloth rather than inventing a second body-shaped blanket. */
+export function BedTuckCover() {
+  return (
+    <g data-bed-tuck-cover="true" transform={`translate(0,${-BED_FRAME})`}>
+      <BedDuvet />
+    </g>
+  );
+}
+
 function Bed() {
-  const W = 2;
-  const D = 2.8;
-  // Deliberately shallow. A bed is ~115px across on screen, so a 27px-thick
-  // stack of frame + mattress + duvet read as a crate; at 19 it reads as a
-  // bed seen from above. Height is for the HEADBOARD to spend, not the base.
-  const FRAME = 7;
-  const MAT = 8;
   return (
     <g>
       {/* Woodwork is tint={false}: the picked colour belongs to the duvet, so
           a purple bed must not arrive with a purple headboard. */}
-      <TintedBox gx={0} gy={0} dx={W} dy={0.22} h={32} fallback="#8f5d49" tint={false} dark={0.38} mid={0.22} />
-      <TintedBox gx={0} gy={0.22} dx={W} dy={D - 0.22} h={FRAME} fallback="#a87f5f" tint={false} dark={0.34} mid={0.2} />
-      <g transform={`translate(0,${-FRAME})`}>
+      <TintedBox gx={0} gy={0} dx={BED_W} dy={0.22} h={32} fallback="#8f5d49" tint={false} dark={0.38} mid={0.22} />
+      <TintedBox gx={0} gy={0.22} dx={BED_W} dy={BED_D - 0.22} h={BED_FRAME} fallback="#a87f5f" tint={false} dark={0.34} mid={0.2} />
+      <g transform={`translate(0,${-BED_FRAME})`}>
         {/* mattress, inset all round so the frame reads as a lip beneath it */}
-        <SoftBox gx={0.13} gy={0.35} dx={W - 0.26} dy={D - 0.5} h={MAT} fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} />
-        <g transform={`translate(0,${-MAT})`}>
+        <SoftBox gx={0.13} gy={0.35} dx={BED_W - 0.26} dy={BED_D - 0.5} h={BED_MATTRESS} fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} />
+        <g transform={`translate(0,${-BED_MATTRESS})`}>
           {/* pillows: small and flat. Chunky ones stopped reading as bedding
               and started reading as boxes stacked on the bed. */}
           <SoftBox gx={0.24} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
           <SoftBox gx={1.16} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
         </g>
-        {/* Duvet: drawn from the FRAME top (not the mattress top) and wider
-            than the mattress, so its sides fall past the mattress edge —
-            that's the drape. Stops short of the pillows. */}
-        <SoftBox gx={0.05} gy={1.15} dx={W - 0.1} dy={D - 1.3} h={MAT + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
-        {/* A padded turn-back and broad gathers make this read as cloth. */}
-        <g transform={`translate(0,${-(MAT + 4)})`}>
-          <SoftBox gx={0.07} gy={1.15} dx={W - 0.14} dy={0.25} h={2.2}
-            fallback="#f2e9dd" dark={0.2} mid={0.1} radius={0.09} />
-          {/* Three broad gathered folds replace the rigid square quilt grid. */}
-          {[0.28, 0.96, 1.68].map((gx, i) => {
-            const a = project(gx, 1.44);
-            const b = project(gx + 0.12, 1.8 + i * 0.13);
-            const c = project(gx + 0.03, 2.35);
-            return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
-              fill="none" stroke="#000" strokeWidth="1.2" opacity="0.1" />;
-          })}
-          {/* Cream throw at the foot, with a short hem falling over the duvet. */}
-          <SoftBox gx={0.09} gy={2.18} dx={W - 0.18} dy={0.44} h={1.8}
-            fallback="#e8d5b5" tint={false} dark={0.2} mid={0.12} radius={0.1} />
-        </g>
+        <BedDuvet />
       </g>
     </g>
   );
@@ -2102,149 +1499,6 @@ function BigWindow() {
   );
 }
 
-// ---- outdoor set ------------------------------------------------------- //
-
-function Tree() {
-  const c = project(0.75, 0.75);
-  return (
-    <g>
-      <path
-        d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 46} L${c.x + 3} ${c.y - 46} L${c.x + 5} ${c.y} Z`}
-        fill="#6b4a39"
-      />
-      <path d={`M${c.x} ${c.y - 32} l-14 -23 M${c.x} ${c.y - 38} l16 -25`} fill="none" stroke="#6b4a39" strokeWidth="3" />
-      <g className="room-sway">
-        <LeafCluster x={c.x - 13} y={c.y - 56} width={44} height={30} dark />
-        <LeafCluster x={c.x + 15} y={c.y - 64} width={40} height={32} />
-        <LeafCluster x={c.x - 8} y={c.y - 77} width={42} height={30} />
-        <LeafCluster x={c.x + 8} y={c.y - 88} width={31} height={26} />
-      </g>
-    </g>
-  );
-}
-
-function Bush() {
-  const c = project(0.5, 0.5);
-  return (
-    <g>
-      <LeafCluster x={c.x - 8} y={c.y - 10} width={27} height={18} />
-      <LeafCluster x={c.x + 8} y={c.y - 9} width={26} height={18} dark />
-      <LeafCluster x={c.x} y={c.y - 18} width={25} height={19} />
-    </g>
-  );
-}
-
-function Pond() {
-  const c = project(1.75, 1.25);
-  return (
-    <g>
-      <ellipse cx={c.x} cy={c.y} rx="76" ry="38" fill="#2c4a52" />
-      <ellipse cx={c.x} cy={c.y - 1.5} rx="70" ry="34" fill="#4a90ac" opacity="0.9" />
-      <ellipse cx={c.x - 8} cy={c.y - 4} rx="46" ry="21" fill="#6fb8cf" opacity="0.45" />
-      <path
-        d={`M${c.x - 30} ${c.y + 6} q14 4 30 1`}
-        stroke="#cbe8ef"
-        strokeWidth="1.6"
-        fill="none"
-        opacity="0.5"
-      />
-      {/* a ripple ring slowly spreading */}
-      <ellipse
-        className="pond-ripple"
-        cx={c.x - 12}
-        cy={c.y + 2}
-        rx="16"
-        ry="7"
-        fill="none"
-        stroke="#cbe8ef"
-        strokeWidth="1.4"
-      />
-      {/* lilypads */}
-      <g className="room-sway" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
-        <ellipse cx={c.x + 26} cy={c.y - 8} rx="9" ry="5" fill="#56a07c" />
-        <ellipse cx={c.x + 34} cy={c.y + 4} rx="6" ry="3.5" fill="#3f7f63" />
-        <ellipse cx={c.x - 34} cy={c.y + 8} rx="7" ry="4" fill="#56a07c" />
-        <circle cx={c.x + 24} cy={c.y - 10} r="2" fill="#e8a3a8" />
-      </g>
-    </g>
-  );
-}
-
-function Picnic() {
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 2, 1.5)} style={tinted("#d98a93")} opacity="0.85" />
-      {[0, 1, 2, 3].map((i) =>
-        [0, 1, 2].map((j) =>
-          (i + j) % 2 === 0 ? (
-            <polygon
-              key={`${i}-${j}`}
-              points={floorPatch(i * 0.5, j * 0.5, 0.5, 0.5)}
-              fill="#fff"
-              opacity="0.22"
-            />
-          ) : null
-        )
-      )}
-      <polygon
-        points={floorPatch(0.06, 0.06, 1.88, 1.38)}
-        fill="none"
-        stroke="#fff"
-        strokeWidth="1.2"
-        opacity="0.3"
-      />
-    </g>
-  );
-}
-
-function Bench({ back = false }) {
-  const restGy = back ? 0.49 : 0.02;
-  const rest = <g>
-    {[0.1, 1.4].map((gx) => <TintedBox key={gx} gx={gx} gy={restGy}
-      dx={0.1} dy={0.09} h={31} fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />)}
-    {[20, 25, 30].map((h) => <g key={h} transform={`translate(0,${-h})`}>
-      <TintedBox gx={0.04} gy={restGy} dx={1.52} dy={0.09} h={3.2}
-        fallback="#8f5d49" dark={0.34} mid={0.18} />
-    </g>)}
-  </g>;
-  return <g>
-    {!back && rest}
-    {[[0.12, 0.08], [1.38, 0.08], [0.12, 0.43], [1.38, 0.43]].map(([gx, gy]) =>
-      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.1} dy={0.1} h={14}
-        fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />)}
-    <g transform="translate(0,-10)">
-      <TintedBox gx={0.1} gy={0.43} dx={1.4} dy={0.09} h={3}
-        fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />
-    </g>
-    <g transform="translate(0,-14)">
-      {[0.04, 0.22, 0.4].map((gy) => <TintedBox key={gy} gx={0} gy={gy} dx={1.6} dy={0.15} h={2}
-        fallback="#a87f5f" dark={0.3} mid={0.16} />)}
-    </g>
-    {back && rest}
-  </g>;
-}
-
-function Flowerbed() {
-  const c = project(0.5, 0.3);
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 1, 0.6)} fill="#2e5540" opacity="0.8" />
-      {[
-        [-12, -6],
-        [-2, -12],
-        [8, -5],
-        [0, -2],
-        [14, -10],
-      ].map(([dx, dy], i) => (
-        <g key={i}>
-          <circle cx={c.x + dx} cy={c.y + dy} r="3" style={tinted("#e8b04b")} />
-          <circle cx={c.x + dx} cy={c.y + dy} r="1.2" fill="#fff" opacity="0.8" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
 // ---- newer decorations -------------------------------------------------- //
 
 function Fireplace() {
@@ -2558,27 +1812,6 @@ function VinylCrate() {
   );
 }
 
-function Basket() {
-  const c = project(0.3, 0.3);
-  const H = 17;
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" style={tinted("#c98a4b")} />
-      <ellipse cx="0" cy="-2" rx="11" ry="5.5" fill="#000" opacity="0.32" />
-      <rect x="-11" y={-H} width="22" height={H - 2} style={tinted("#c98a4b")} />
-      <rect x="-11" y={-H} width="22" height={H - 2} fill="#000" opacity="0.18" />
-      {[-5, -9, -13].map((y) => (
-        <line key={y} x1="-11" y1={y} x2="11" y2={y} stroke="#000" strokeWidth="0.8" opacity="0.13" />
-      ))}
-      <ellipse cx="0" cy={-H} rx="11" ry="5.5" style={tinted("#c98a4b")} />
-      <ellipse cx="0" cy={-H} rx="8.5" ry="4" fill="#000" opacity="0.32" />
-      {/* laundry spilling over the rim — the thing that makes it a basket */}
-      <ellipse cx="-2" cy={-H - 1} rx="7" ry="3.2" fill="#f7f2ea" opacity="0.85" />
-      <ellipse cx="3" cy={-H - 3} rx="4.5" ry="2.2" fill="#e8e2d8" opacity="0.8" />
-    </g>
-  );
-}
-
 function DeskLamp() {
   const c = project(0.2, 0.2);
   const H = 23;
@@ -2811,50 +2044,6 @@ function PetBed() {
   );
 }
 
-function Runner() {
-  return (
-    <g>
-      <RugGround w={3} d={1} m={0.16} fallback="rgb(var(--color-blush))" ground={0.48} />
-      {/* A hall runner's motif repeats along its length. */}
-      {[0.45, 1.05, 1.65, 2.25].map((gx) => (
-        <g key={gx}>
-          <polygon points={floorPatch(gx - 0.16, 0.34, 0.32, 0.32)} fill="#f7e9e2" opacity="0.16" />
-          <polygon points={floorPatch(gx - 0.07, 0.43, 0.14, 0.14)} fill="#000" opacity="0.12" />
-        </g>
-      ))}
-      <Fringe gx={0} gy={0.16} len={0.68} axis="gy" out={-0.12} n={4} />
-      <Fringe gx={3} gy={0.16} len={0.68} axis="gy" out={0.12} n={4} />
-    </g>
-  );
-}
-
-function Crates() {
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={0.8} dy={0.7} h={16} fallback="#c98a4b" dark={0.34} mid={0.2} />
-      {/* plank seams + corner battens — one 15px line on a two-crate stack
-          left the upper crate reading as a plinth, not slatted wood */}
-      <g transform={`translate(${project(0, 0.7).x}, ${project(0, 0.7).y}) skewY(${SKEW})`}>
-        <line x1="2" y1="-8" x2="17" y2="-8" stroke="#000" strokeWidth="1" opacity="0.2" />
-        <line x1="2" y1="-4" x2="17" y2="-4" stroke="#000" strokeWidth="1" opacity="0.14" />
-        <line x1="3.5" y1="-14" x2="3.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
-        <line x1="15.5" y1="-14" x2="15.5" y2="-1.5" stroke="#000" strokeWidth="1.2" opacity="0.14" />
-      </g>
-      <g transform="translate(0,-16)">
-        <TintedBox gx={0.08} gy={0.06} dx={0.62} dy={0.56} h={14} fallback="#c98a4b" dark={0.34} mid={0.2} />
-        <g transform={`translate(${project(0.08, 0.62).x}, ${project(0.08, 0.62).y}) skewY(${SKEW})`}>
-          <line x1="1.5" y1="-7" x2="13.5" y2="-7" stroke="#000" strokeWidth="1" opacity="0.2" />
-          <line x1="1.5" y1="-3.5" x2="13.5" y2="-3.5" stroke="#000" strokeWidth="1" opacity="0.14" />
-        </g>
-        {/* tape across the top, so it reads as packed rather than as a plinth */}
-        <g transform="translate(0,-14)">
-          <polygon points={floorPatch(0.3, 0.06, 0.08, 0.56)} fill="#e8d9b8" opacity="0.75" />
-        </g>
-      </g>
-    </g>
-  );
-}
-
 function Mug() {
   const c = project(0.15, 0.15);
   return (
@@ -2964,35 +2153,6 @@ function MoonLamp() {
       <ellipse cx="0.4" cy="-11.6" rx="0.7" ry="0.6" fill="#d8c9a8" />
       {/* lit limb on the light side, the same side every glint in the room uses */}
       <path d="M-6 -9 A 6 6 0 0 1 0 -15" fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.4" />
-    </g>
-  );
-}
-
-/** A leaning ladder shelf: the diagonal is the whole silhouette, and nothing
- *  else in the room has one. */
-function LadderShelf() {
-  const D = 0.5;
-  const H = 62;
-  return (
-    <g>
-      <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        {[0, 18].map((x) => (
-          <path key={x} d={`M${x + 2} 0 L${x + 5} ${-H} l2.4 0 L${x + 4.4} 0 z`} style={tinted("#a87f5f")} />
-        ))}
-        {[-14, -29, -44].map((y, i) => {
-          const inset = 2.6 + i * 0.7;
-          return (
-            <g key={y}>
-              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" style={tinted("#b58c6a")} />
-              <rect x={inset} y={y} width={22 - inset * 2 + 4} height="2.4" fill="#000" opacity="0.12" />
-            </g>
-          );
-        })}
-        <rect x="6" y="-52" width="3.6" height="8" rx="0.6" fill="#7faf8f" />
-        <rect x="10" y="-51" width="3.6" height="7" rx="0.6" fill="#e8a3a8" />
-        <circle cx="12" cy="-33" r="3" fill="#e8b04b" />
-        <path d="M8 -14 q-3 -7 0 -9 q3 2 0 9 z" fill="#3f7f63" />
-      </g>
     </g>
   );
 }
@@ -3132,93 +2292,6 @@ function Computer() {
   );
 }
 
-// ---- outdoors ----------------------------------------------------------- //
-// The garden had exactly one tree. Silhouette does the work at this size, so
-// each of these is a different OUTLINE rather than a different green.
-
-function Pine() {
-  const c = project(0.6, 0.6);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-3" y="-16" width="6" height="16" fill="#6b4a39" />
-      <rect x="0" y="-16" width="3" height="16" fill="#000" opacity="0.2" />
-      <g className="room-sway">
-        {[
-          [-14, 34, 24],
-          [-32, 27, 20],
-          [-48, 19, 16],
-          [-62, 12, 12],
-        ].map(([y, w, h]) => (
-          <g key={y}>
-            <path d={`M${-w / 2} ${y} L0 ${y - h} L${w / 2} ${y} Z`} style={tinted("#2f6b4f")} />
-            <path d={`M0 ${y} L0 ${y - h} L${w / 2} ${y} Z`} fill="#000" opacity="0.16" />
-          </g>
-        ))}
-      </g>
-    </g>
-  );
-}
-
-function Birch() {
-  const c = project(0.6, 0.6);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-3.5" y="-52" width="7" height="52" fill="#ddd6cc" />
-      <rect x="1" y="-52" width="2.5" height="52" fill="#000" opacity="0.14" />
-      {[-8, -19, -30, -41].map((y, i) => (
-        <rect key={y} x={i % 2 ? -3.5 : -1} y={y} width="4" height="2.2" rx="0.6" fill="#3a3142" opacity="0.55" />
-      ))}
-      <g className="room-sway">
-        <LeafCluster x={-4} y={-60} width={34} height={26} fallback="#7fb08a" />
-        <LeafCluster x={9} y={-53} width={24} height={20} fallback="#7fb08a" dark />
-      </g>
-    </g>
-  );
-}
-
-function Hedge() {
-  return (
-    <g>
-      <TintedBox gx={0} gy={0} dx={1.6} dy={0.6} h={22} fallback="#3f7f63" dark={0.3} mid={0.16} />
-      {/* clipped-top texture: a row of soft lobes along the crown */}
-      <g transform="translate(0,-22)">
-        {[0.2, 0.6, 1.0, 1.4].map((gx) => {
-          const p = project(gx, 0.3);
-          return <ellipse key={gx} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#4f8f6a")} />;
-        })}
-      </g>
-    </g>
-  );
-}
-
-function Rock() {
-  const c = project(0.45, 0.4);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <path d="M-16 0 q-4 -11 4 -16 q10 -7 18 0 q8 6 3 16 z" style={tinted("#8d8178")} />
-      <path d="M2 -20 q8 5 3 20 l-5 0 q4 -12 2 -20 z" fill="#000" opacity="0.22" />
-      <path d="M-12 -6 q4 -9 10 -11" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.14" strokeLinecap="round" />
-      <ellipse cx="-4" cy="-1" rx="15" ry="3" fill="#000" opacity="0.16" />
-    </g>
-  );
-}
-
-function Log() {
-  const c = project(0.7, 0.35);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <rect x="-20" y="-13" width="40" height="13" rx="6.5" style={tinted("#8f5d49")} />
-      <rect x="-20" y="-7" width="40" height="7" rx="3.5" fill="#000" opacity="0.2" />
-      <ellipse cx="-20" cy="-6.5" rx="4" ry="6.5" fill="#c9a06f" />
-      <ellipse cx="-20" cy="-6.5" rx="2.4" ry="4" fill="none" stroke="#8f5d49" strokeWidth="0.9" />
-      <ellipse cx="-20" cy="-6.5" rx="1" ry="1.7" fill="#8f5d49" />
-      {[-8, 4, 14].map((x) => (
-        <path key={x} d={`M${x} -12 q1.5 6 0 11`} stroke="#000" strokeWidth="0.8" fill="none" opacity="0.16" />
-      ))}
-    </g>
-  );
-}
-
 function Flowers() {
   const c = project(0.35, 0.3);
   return (
@@ -3319,144 +2392,6 @@ function WoodStool() {
         <ellipse cx="0" cy="0" rx="13" ry="6.5" style={tinted("#b58c6a")} />
         <ellipse cx="-3" cy="-1.5" rx="6" ry="2.6" fill="#fff" opacity="0.08" />
       </g>
-    </g>
-  );
-}
-
-function OvalRug() {
-  const c = project(1.1, 0.85);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="0" rx="47" ry="23" style={tinted("rgb(var(--color-rose))")} opacity="0.46" />
-      {/* A braided oval is rings of alternating tone, not hairlines on a
-          solid disc — filled bands are what make the braid visible. */}
-      <ellipse cx="0" cy="0" rx="40" ry="19.5" fill="#f7e9e2" opacity="0.11" />
-      <ellipse cx="0" cy="0" rx="33" ry="16" fill="#000" opacity="0.09" />
-      <ellipse cx="0" cy="0" rx="24" ry="11.5" fill="#f7e9e2" opacity="0.12" />
-      <ellipse cx="0" cy="0" rx="13" ry="6" fill="#000" opacity="0.08" />
-      {[47, 33, 13].map((rx) => (
-        <ellipse
-          key={rx}
-          cx="0"
-          cy="0"
-          rx={rx}
-          ry={rx * 0.49}
-          fill="none"
-          stroke="#000"
-          strokeWidth="0.9"
-          opacity="0.14"
-        />
-      ))}
-    </g>
-  );
-}
-
-function MatRug() {
-  return (
-    <g>
-      <RugGround w={1.4} d={0.9} m={0.12} fallback="rgb(var(--color-blush))" ground={0.52} field={0.08} />
-      {/* Coir bristle: short strokes across the weave, dense enough to read as
-          texture rather than as three painted stripes. */}
-      {[0.16, 0.3, 0.44, 0.58, 0.72].map((t) =>
-        [0.24, 0.52, 0.8, 1.08].map((gx) => (
-          <polygon
-            key={`${t}-${gx}`}
-            points={floorPatch(gx - 0.09, t, 0.18, 0.05)}
-            fill="#000"
-            opacity="0.11"
-          />
-        ))
-      )}
-    </g>
-  );
-}
-
-// ---- more rugs ---------------------------------------------------------- //
-// Rugs are the cheapest way to change a room's character, and every one of
-// these is a flat diamond (layer -1) with a pattern painted inside it — no
-// height, no depth rules, and the cat treats all of them as a place to sleep.
-
-/** Bordered medallion rug: field, inner border, centre medallion, corner
- *  lozenges. Reads "patterned" at postage-stamp size, which is the only size
- *  that matters in the picker. */
-function PersianRug() {
-  const c = project(1.5, 1.1);
-  const ink = { stroke: "rgb(var(--color-petal))", fill: "none" };
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 3, 2.2)} style={tinted("#8f4a3c")} opacity="0.5" />
-      <polygon points={floorPatch(0.16, 0.12, 2.68, 1.96)} {...ink} strokeWidth="2.4" opacity="0.32" />
-      <polygon points={floorPatch(0.34, 0.26, 2.32, 1.68)} {...ink} strokeWidth="1.2" opacity="0.22" />
-      <g transform={`translate(${c.x}, ${c.y})`}>
-        {/* medallion: a diamond in plan is an ellipse on screen */}
-        <ellipse cx="0" cy="0" rx="26" ry="13" style={tinted("#e8b04b")} opacity="0.4" />
-        <ellipse cx="0" cy="0" rx="17" ry="8.5" {...ink} strokeWidth="1.4" opacity="0.3" />
-        <ellipse cx="0" cy="0" rx="7" ry="3.5" style={tinted("#e8b04b")} opacity="0.45" />
-      </g>
-      {[
-        [0.5, 0.38],
-        [2.5, 0.38],
-        [0.5, 1.82],
-        [2.5, 1.82],
-      ].map(([gx, gy]) => {
-        const p = project(gx, gy);
-        return (
-          <ellipse key={`${gx}-${gy}`} cx={p.x} cy={p.y} rx="9" ry="4.5" style={tinted("#e8b04b")} opacity="0.3" />
-        );
-      })}
-      {/* fringe on the short ends — the one rug whose referent always has it */}
-      <Fringe gx={0} gy={0.26} len={1.68} axis="gy" out={-0.14} n={6} />
-      <Fringe gx={3} gy={0.26} len={1.68} axis="gy" out={0.14} n={6} />
-    </g>
-  );
-}
-
-/** Stripes run along +gx, so they read as bands across the floor rather than
- *  as a grid — the alternating widths are what stop it looking like a barcode. */
-function StripedRug() {
-  const bands = [0, 0.28, 0.52, 0.84, 1.12, 1.44];
-  return (
-    <g>
-      <polygon points={floorPatch(0, 0, 2.6, 1.8)} style={tinted("#5b6b9b")} opacity="0.45" />
-      {bands.map((t, i) => (
-        <polygon
-          key={t}
-          points={floorPatch(0.12, t + 0.1, 2.36, i % 2 ? 0.1 : 0.17)}
-          fill="#f7e9e2"
-          opacity={i % 2 ? 0.12 : 0.2}
-        />
-      ))}
-      {/* fringe at both short ends — through the shared helper, so the
-          strands land at the correct screen angle instead of hand-fudged
-          per-rug pixel offsets (the exact case Fringe's docstring names) */}
-      <Fringe gx={0} gy={0.15} len={1.5} axis="gy" out={-0.14} n={6} opacity={0.25} />
-      <Fringe gx={2.6} gy={0.15} len={1.5} axis="gy" out={0.14} n={6} opacity={0.25} />
-    </g>
-  );
-}
-
-/** Sheepskin: no straight edges anywhere. A ring of overlapping soft blobs,
- *  which is also what makes it read as pile rather than as a flat shape. */
-function Sheepskin() {
-  const c = project(0.9, 0.75);
-  const puffs = [
-    [-30, -2, 15, 9],
-    [-14, -9, 17, 10],
-    [6, -10, 16, 9.5],
-    [24, -3, 14, 8],
-    [16, 6, 15, 8.5],
-    [-4, 9, 17, 9],
-    [-24, 6, 14, 8],
-    [0, 0, 26, 13],
-  ];
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      {puffs.map(([x, y, rx, ry]) => (
-        <ellipse key={`${x}-${y}`} cx={x} cy={y} rx={rx} ry={ry} style={tinted("#f2e7dc")} opacity="0.62" />
-      ))}
-      {puffs.slice(0, 5).map(([x, y, rx, ry]) => (
-        <ellipse key={`s${x}-${y}`} cx={x - 1} cy={y - 2} rx={rx * 0.6} ry={ry * 0.5} fill="#fff" opacity="0.18" />
-      ))}
     </g>
   );
 }
@@ -3695,63 +2630,6 @@ function ChessSet() {
   );
 }
 
-/** Garden hammock slung between two posts. `lie` seating, so a resident
- *  dropped on it stretches out instead of perching. */
-function Hammock() {
-  const H = 40;
-  const left = project(0.18, 0.45);
-  const right = project(2.02, 0.45);
-  return (
-    <g>
-      {[left, right].map((p, i) => (
-        <g key={i}>
-          <ellipse cx={p.x} cy={p.y} rx="6" ry="3" fill="#000" opacity="0.18" />
-          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#8f5d49" />
-          <rect x={p.x - 2.2} y={p.y - H} width="4.4" height={H} rx="1.6" fill="#000" opacity={i ? 0.28 : 0.1} />
-        </g>
-      ))}
-      {/* the sling: one filled curve, with a slat pattern following the sag */}
-      <path
-        d={`M${left.x} ${left.y - H + 4} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 30} ${right.x} ${right.y - H + 4}
-            L${right.x} ${right.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${left.x} ${left.y - H + 12} z`}
-        style={tinted("#c98a4b")}
-      />
-      <path
-        d={`M${left.x} ${left.y - H + 12} Q${(left.x + right.x) / 2} ${(left.y + right.y) / 2 - H + 40} ${right.x} ${right.y - H + 12}`}
-        fill="none"
-        stroke="#000"
-        opacity="0.22"
-        strokeWidth="2.5"
-      />
-      {[0.25, 0.4, 0.55, 0.7].map((t) => {
-        const x = left.x + (right.x - left.x) * t;
-        const sag = 26 * Math.sin(Math.PI * t);
-        const y = left.y + (right.y - left.y) * t - H + 4 + sag * 0.62;
-        return <line key={t} x1={x} y1={y} x2={x} y2={y + 7} stroke="#f7e9e2" strokeWidth="1.1" opacity="0.3" />;
-      })}
-    </g>
-  );
-}
-
-/** Garden lantern: post, glazed head, warm pool on the ground beneath it. */
-function GardenLantern() {
-  const c = project(0.25, 0.25);
-  return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-1" rx="6.5" ry="3.2" fill="#2f2540" />
-      <rect x="-1.8" y="-34" width="3.6" height="33" style={tinted("#2f2540")} />
-      <rect x="-1.8" y="-34" width="3.6" height="33" fill="#000" opacity="0.2" />
-      {/* head: a tapered glass box under a little pitched cap */}
-      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="#ffe9b0" opacity="0.85" className="room-breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
-      <path d="M-7 -34 L7 -34 L5.5 -48 L-5.5 -48 z" fill="none" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.6" />
-      <line x1="0" y1="-34" x2="0" y2="-48" style={{ stroke: "var(--tint, #2f2540)" }} strokeWidth="1.1" opacity="0.8" />
-      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" style={tinted("#2f2540")} />
-      <path d="M-8.5 -48 L8.5 -48 L0 -55 z" fill="#000" opacity="0.15" />
-      <circle cx="0" cy="-56" r="1.6" style={tinted("#2f2540")} />
-    </g>
-  );
-}
-
 // ---- the café bar ------------------------------------------------------- //
 // A serving bar isn't a kitchen cabinet: it's taller, its top OVERHANGS on the
 // customer side, and its front is panelled rather than a cupboard door.
@@ -3854,6 +2732,10 @@ function PastryCase() {
 }
 
 export const ISO_SPRITES = {
+  flowercushion: FlowerCushion,
+  foldedblanket: FoldedBlanket,
+  booktrolley: BookTrolley,
+  openjournal: OpenJournal,
   you: You,
   mapletree: MapleTree,
   leafpile: LeafPile,
@@ -3979,6 +2861,8 @@ export const ISO_SPRITES = {
   tree: Tree,
   bush: Bush,
   pond: Pond,
+  gardenpond: GardenPond,
+  gardentrail: GardenTrail,
   picnic: Picnic,
   bench: Bench,
   flowerbed: Flowerbed,

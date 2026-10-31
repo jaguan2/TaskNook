@@ -1,17 +1,21 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Sofa, X } from "lucide-react";
-import { useStore } from "./store";
+import {
+  useProfileStore,
+  useRoomStore,
+  useSettingsStore,
+  useSocialStore,
+  useSystemStore,
+  useWeatherStore,
+} from "./store";
 import { useTimerStatus } from "./timer";
 import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
 import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
-import Cottage from "./components/Cottage";
 import ErrorBoundary from "./components/ErrorBoundary";
-import IsoRoom from "./components/IsoRoom";
-import CommonRoom from "./components/CommonRoom";
 import CommonRoomChat from "./components/CommonRoomChat";
 import { COMMON_PLACES } from "./lib/commonRooms";
 import TopBar from "./components/TopBar";
@@ -22,11 +26,18 @@ import HudTasks from "./components/HudTasks";
 import MusicDock from "./components/MusicDock";
 import WeatherOverlay from "./components/WeatherOverlay";
 import SkyOverlay from "./components/SkyOverlay";
+// Scene engines are mutually exclusive. Loading only the active one keeps the
+// large isometric sprite registry out of startup for classic-cottage users and
+// keeps common-place architecture out of every home visit.
+const Cottage = lazy(() => import("./components/Cottage"));
+const IsoRoom = lazy(() => import("./components/IsoRoom"));
+const CommonRoom = lazy(() => import("./components/CommonRoom"));
+
 // Panels are lazy: all of them shipped in the first chunk even though most
 // sessions open one or two, and several are heavy (the calendar, the room
 // browser). They live behind a dock click, so a chunk fetch is invisible.
-// The room panel's sprites are NOT duplicated into its chunk — IsoItems is
-// already in the main bundle via the always-mounted scene.
+// Rollup shares the room panel's sprite registry with the isometric scene, so
+// whichever surface opens first fetches it once and the other reuses it.
 const PANEL_LOADERS = {
   tasks: () => import("./components/TaskPanel"),
   calendar: () => import("./components/CalendarPanel"),
@@ -81,17 +92,25 @@ export default function App() {
     toast,
     dismissToast,
     showToast,
+    user,
+  } = useSystemStore();
+  const {
     weatherMode,
     timeOfDay,
+  } = useWeatherStore();
+  const {
     brightness,
     colorScheme,
     customColor,
     customSurface,
+    backdropStyle,
     motionMode,
     hudVisibility,
     setHudVisibility,
     widgetMode,
     setWidgetMode,
+  } = useSettingsStore();
+  const {
     cottageView,
     roomPlacements,
     roomEditMode,
@@ -107,7 +126,9 @@ export default function App() {
     rotateIsoItem,
     setIsoItemTint,
     toggleIsoItem,
-    character,
+  } = useRoomStore();
+  const { character } = useProfileStore();
+  const {
     visiting,
     commonRoom,
     chooseCommonSeat,
@@ -118,8 +139,7 @@ export default function App() {
     moveHomePersona,
     kickHomeVisitor,
     friendship,
-    user,
-  } = useStore();
+  } = useSocialStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
   // once a second, which is exactly what splitting the timer out avoided.
@@ -195,6 +215,7 @@ export default function App() {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", colorScheme);
+    root.setAttribute("data-backdrop", backdropStyle);
     if (colorScheme === "custom") {
       const vars = derivePalette(customColor, customSurface);
       Object.entries(vars).forEach(([name, value]) =>
@@ -203,7 +224,7 @@ export default function App() {
     } else {
       PALETTE_VARS.forEach((name) => root.style.removeProperty(name));
     }
-  }, [colorScheme, customColor, customSurface]);
+  }, [colorScheme, customColor, customSurface, backdropStyle]);
 
   const toggleDockPanel = (key) => {
     setOpenPanels((prev) => {
@@ -306,7 +327,8 @@ export default function App() {
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden"
+      className="tasknook-shell relative h-full w-full overflow-hidden"
+      data-room-editing={roomEditMode ? "true" : "false"}
       // No identity filter: any non-none filter on the root forces the whole
       // app into one composited layer that re-rasterizes every paint.
       style={brightness === 1 ? undefined : { filter: `brightness(${brightness})` }}
@@ -316,13 +338,14 @@ export default function App() {
           since HudFocusCard (kept OUTSIDE this wrapper, below) must stay
           mounted throughout: unmounting it would replay its .intro-chrome
           boot entrance on every single toggle, which is
-          exactly the trap CLAUDE.md's intro-chrome gotcha warns about. */}
-      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
+          exactly the trap AGENTS.md's intro-chrome gotcha warns about. */}
+      <div className={widgetMode ? "scene-paused pointer-events-none invisible opacity-0" : undefined}>
       {/* Sky first in the DOM = behind the scene: the room floats in front
           of the moon/stars/sun/clouds. */}
       <SkyOverlay weatherMode={weatherMode} timeOfDay={timeOfDay}
+        solidBackdrop={backdropStyle === "solid"}
         showOrb={!commonSceneId || COMMON_PLACES[commonSceneId]?.kind === "garden"} />
-      <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} />
+      <WeatherOverlay mode={weatherMode} reduceMotion={reduceMotion} paused={widgetMode} />
 
       {/* Centerpiece cottage. A short, direct zoom establishes the room
           without the old picture-frame/window sequence or its long hold.
@@ -360,12 +383,14 @@ export default function App() {
             </div>
           )}
         >
-          {commonRoom ? (
-            <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
-              activity={running ? phase : null} timeOfDay={timeOfDay}
-              reduceMotion={sceneReduceMotion} friendship={friendship}
-              onChooseSeat={chooseCommonSeat} />
-          ) : visiting ? (
+          <Suspense fallback={null}>
+            {commonRoom ? (
+              <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
+                activity={running ? phase : null} timeOfDay={timeOfDay}
+                reduceMotion={sceneReduceMotion} friendship={friendship}
+                paused={widgetMode}
+                onChooseSeat={chooseCommonSeat} />
+            ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.
                `activity` still flows to your guest; each NPC follows their
@@ -383,52 +408,56 @@ export default function App() {
               activity={running ? phase : null}
               character={character}
               reduceMotion={sceneReduceMotion}
+              paused={widgetMode}
               personas={visiting.personas}
               friendship={friendship}
               saveView={false}
               walkId={visiting.guestId ?? null}
               onWalkTo={moveVisitGuest}
             />
-          ) : isoPreview ? (
-            <IsoRoom
-              key="home"
-              size={homeScene.layout}
-              placements={homeScene.layout.placements}
-              editMode={roomEditMode}
-              timeOfDay={timeOfDay}
-              weather={weatherMode}
-              highlightId={lastIsoAddedId}
-              activity={running ? phase : null}
-              character={character}
-              mood={mood}
-              reduceMotion={sceneReduceMotion}
-              onMoveItem={moveIsoItem}
-              onRemoveItem={removeIsoItem}
-              onRotateItem={rotateIsoItem}
-              onTintItem={setIsoItemTint}
-              onToggleItem={toggleIsoItem}
-              personas={homeScene.personas}
-              friendship={friendship}
-              /* Walking at home: every persona is grabbable outside Decorate,
-                 same rule and same target marker as a visit. Unlike a visit it
-                 persists — see `walkIsoPersona`. */
-              walkPersonas
-              onWalkTo={moveHomePersona}
-            />
-          ) : (
-            <Cottage
-              weather={weatherMode}
-              timeOfDay={timeOfDay}
-              setting={cottageView}
-              room={roomPlacements}
-              editMode={roomEditMode}
-              onMoveItem={moveRoomItem}
-              onDuplicateItem={duplicateRoomItem}
-              onRemoveItem={removeRoomItem}
-              onTintItem={setRoomItemTint}
-              reduceMotion={reduceMotion}
-            />
-          )}
+            ) : isoPreview ? (
+              <IsoRoom
+                key="home"
+                size={homeScene.layout}
+                placements={homeScene.layout.placements}
+                editMode={roomEditMode}
+                timeOfDay={timeOfDay}
+                weather={weatherMode}
+                highlightId={lastIsoAddedId}
+                activity={running ? phase : null}
+                character={character}
+                mood={mood}
+                reduceMotion={sceneReduceMotion}
+                paused={widgetMode}
+                onMoveItem={moveIsoItem}
+                onRemoveItem={removeIsoItem}
+                onRotateItem={rotateIsoItem}
+                onTintItem={setIsoItemTint}
+                onToggleItem={toggleIsoItem}
+                personas={homeScene.personas}
+                friendship={friendship}
+                /* Walking at home: every persona is grabbable outside Decorate,
+                   same rule and same target marker as a visit. Unlike a visit it
+                   persists — see `walkIsoPersona`. */
+                walkPersonas
+                onWalkTo={moveHomePersona}
+              />
+            ) : (
+              <Cottage
+                weather={weatherMode}
+                timeOfDay={timeOfDay}
+                setting={cottageView}
+                room={roomPlacements}
+                editMode={roomEditMode}
+                onMoveItem={moveRoomItem}
+                onDuplicateItem={duplicateRoomItem}
+                onRemoveItem={removeRoomItem}
+                onTintItem={setRoomItemTint}
+                reduceMotion={reduceMotion}
+                paused={widgetMode}
+              />
+            )}
+          </Suspense>
         </ErrorBoundary>
       </motion.div>
 
@@ -445,13 +474,13 @@ export default function App() {
               ? `Return home from ${COMMON_PLACES[commonRoom.sceneId].label}`
               : `Return home from ${visiting.friend.displayName}'s room`}
             title="Return home"
-            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="room-action-chip pill glass absolute z-30 flex h-11 w-11 items-center justify-center gap-1.5 px-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10 xl:w-auto xl:max-w-[calc(100vw-24rem)] xl:justify-start xl:px-4"
           >
-            <ArrowLeft aria-hidden size={16} strokeWidth={2.2} />
+            <ArrowLeft aria-hidden className="shrink-0" size={16} strokeWidth={2.2} />
             {commonRoom ? <>
-              <span>{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
-              <span className="ml-1 text-petal/60">· Common room</span>
-            </> : <span>{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
+              <span className="hidden min-w-0 truncate xl:inline">{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
+              <span className="ml-1 hidden shrink-0 text-petal/60 xl:inline">· Common room</span>
+            </> : <span className="hidden min-w-0 truncate xl:inline">{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
           </motion.button>
         )}
       </AnimatePresence>
@@ -467,7 +496,7 @@ export default function App() {
             roomName={COMMON_PLACES[commonRoom.sceneId].label}
             user={user}
             friendship={friendship}
-            disabled={hudVisibility.chat === "hidden"}
+            disabled={widgetMode || hudVisibility.chat === "hidden"}
           />
         </div>
       )}
@@ -481,7 +510,7 @@ export default function App() {
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
-            className="glass absolute bottom-6 left-6 z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
+            className="room-visitors-chip glass absolute z-30 flex min-h-11 items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-soft"
             aria-label="Room visitors"
           >
             <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
@@ -514,7 +543,7 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={() => setRoomEditMode(false)}
-            className="pill glass absolute bottom-6 left-6 z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
+            className="room-action-chip pill glass absolute z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
           >
             {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
                 ⌫ only works in the iso scene (the flat one has per-item ✕). */}
@@ -553,7 +582,7 @@ export default function App() {
         // this strip spans the window and would otherwise eat clicks on the
         // scene behind it.
         aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 top-5 z-50 flex justify-center"
+        className="toast-rail pointer-events-none absolute inset-x-0 z-50 flex justify-center"
       >
         <AnimatePresence>
           {toast && (
@@ -573,7 +602,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <div className={widgetMode ? "pointer-events-none invisible opacity-0" : undefined}>
+      <div className={widgetMode ? "scene-paused pointer-events-none invisible opacity-0" : undefined}>
       <AnimatePresence>
         {openPanels.map(({ key, pinned }, i) => {
           const Def = PANELS[key];
@@ -650,7 +679,7 @@ export default function App() {
           the fade/hide settings — it's not a HUD element the patch notes
           were asking to quiet down. */}
       <div
-        className={`transition-opacity duration-300 intro-chrome absolute bottom-6 left-6 z-10 flex h-11 select-none items-center ${
+        className={`profile-chip transition-opacity duration-300 intro-chrome absolute z-10 flex h-11 select-none items-center ${
           roomEditMode || widgetMode || homeVisitors.length > 0
             ? "invisible opacity-0"
             : "opacity-100"

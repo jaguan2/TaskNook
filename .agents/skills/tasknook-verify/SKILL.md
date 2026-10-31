@@ -5,7 +5,7 @@ description: Verify TaskNook changes with relevant behavior tests, lint/build, r
 
 # Verify TaskNook
 
-Read [AGENTS.md](../../../AGENTS.md#validating-changes). Use `npm.cmd` in
+Read [the repository guidance](../../README.md#validating-changes). Use `npm.cmd` in
 PowerShell. Select checks by the affected behavior and finish the required gates:
 
 - Frontend logic/UI: relevant Vitest tests, `npm.cmd run lint` and
@@ -28,17 +28,8 @@ Do not launch with the user's real database to seed a verification scenario.
 For instruction/documentation-only changes, validate skills, links and source
 hashes; the already built app does not need another EXE rebuild.
 
-## Upstream verification and the feedback loop
+## Shared verification method
 
-Read [prove-it-works](../../../docs/agent-skills/upstream/pstack/principle-prove-it-works/SKILL.md).
-When selecting or changing tests, also read
-[test-behavior-not-implementation](../../../docs/agent-skills/upstream/pstack/principle-test-behavior-not-implementation/SKILL.md).
-Assert the user's observable result, not only mock calls, constants or a build's
-exit status. Preserve evidence for the artifact and checkout actually tested.
-
-If a check fails, investigate and repair within the coding task's scope, then
-rerun the affected check. If verification is requested without authorization to
-fix, report the failure and cause. Reuse valid evidence for unchanged code;
-later source changes require repeating the affected checks. Name what was
-tested and what remains unverified, and never describe format validation as a
-demonstrated improvement in agent judgment.
+Use `toolkit-verify`, resolved through [toolkit setup](../../SKILLS.md), for
+evidence standards and the failure/recheck loop. The commands and artifact
+requirements above remain this project's verification contract.

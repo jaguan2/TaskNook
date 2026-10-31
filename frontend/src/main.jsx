@@ -5,6 +5,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { StoreProvider } from "./store";
 import { TimerProvider } from "./timer";
 import "./index.css";
+import "./responsive.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

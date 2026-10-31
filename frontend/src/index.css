@@ -102,6 +102,7 @@ html,
 body,
 #root {
   height: 100%;
+  height: 100dvh;
   margin: 0;
 }
 
@@ -116,6 +117,14 @@ body {
   color: #f7e9e2;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Some rooms read more clearly against one flat base field. Keep the
+   colour inside the active theme's contrast-safe dark ramp; only the finish
+   changes, never the palette or foreground chrome. */
+:root[data-backdrop="solid"] body {
+  background: rgb(var(--color-night));
 }
 
 /* App chrome follows the room's short opening zoom, once per page load. */
@@ -1599,6 +1608,20 @@ body {
 
 /* Decoration thumbnails stay still while the full cottage remains alive. */
 .cottage-preview * { animation: none !important; }
+
+/* Keep the scene and its animation phases mounted while the timer is a widget. */
+.scene-paused *, .scene-paused *::before, .scene-paused *::after {
+  animation-play-state: paused !important;
+}
+
+/* A fixed hall keeps six candle flames, motes and the guest's activity alive.
+   Background catalog loops and NPC gestures do not all need to run at once. */
+.common-library-calm [data-common-prop] *,
+.common-library-calm [data-common-light] *,
+.common-library-calm [data-common-person]:not([data-common-person="you"]) * {
+  animation: none !important;
+}
+.common-seat-picker { background: rgb(var(--color-plum) / 0.97); }
 
 /* Widget mode is one composed surface, independent of the floating room HUD. */
 .focus-widget {

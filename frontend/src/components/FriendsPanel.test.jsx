@@ -4,16 +4,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
 const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
-vi.mock("../store", () => ({ useStore: () => ({
-  user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
-  sessionDays: { "2026-10-11": 45 },
-  friends: [
-    { id: 1, username: "luna", displayName: "Luna", visitAccess: "open" },
-    { id: 2, username: "kai", displayName: "Kai", visitAccess: "friends" },
-  ],
-  chats: [], friendship: {}, hudVisibility: { chat: "on" }, knockingId: null,
-  ...mocks,
-}) }));
+vi.mock("../store", () => {
+  const useMockStore = () => ({
+    user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
+    sessionDays: { "2026-10-11": 45 },
+    friends: [
+      { id: 1, username: "luna", displayName: "Luna", visitAccess: "open" },
+      { id: 2, username: "kai", displayName: "Kai", visitAccess: "friends" },
+    ],
+    chats: [], friendship: {}, hudVisibility: { chat: "on" }, knockingId: null,
+    ...mocks,
+  });
+  return {
+    useSystemStore: useMockStore,
+    useTaskStore: useMockStore,
+    useSettingsStore: useMockStore,
+    useSocialStore: useMockStore,
+  };
+});
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.chatsError = false;

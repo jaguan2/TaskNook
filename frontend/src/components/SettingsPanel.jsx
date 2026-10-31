@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { EyeOff, MonitorCog, Music2, Palette, SunMedium, Waves, Wind } from "lucide-react";
-import { useStore } from "../store";
+import { useAudioStore, useSettingsStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 
 const MOTION_OPTIONS = [
@@ -86,14 +86,15 @@ export default function SettingsPanel() {
     setCustomColor,
     customSurface,
     setCustomSurface,
+    backdropStyle,
+    setBackdropStyle,
     motionMode,
     setMotionMode,
     hudVisibility,
     setHudVisibility,
     setAllHudVisibility,
-    autoResumeMusic,
-    setAutoResumeMusic,
-  } = useStore();
+  } = useSettingsStore();
+  const { autoResumeMusic, setAutoResumeMusic } = useAudioStore();
 
   const customSwatch = paletteSwatch(customColor);
   const { h, s } = hexToHsl(customColor);
@@ -308,6 +309,36 @@ export default function SettingsPanel() {
             </span>
             Custom
           </button>
+        </div>
+
+        <div
+          role="group"
+          aria-label="Backdrop style"
+          className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2"
+        >
+          <div>
+            <p className="text-xs font-semibold text-cream">Backdrop</p>
+            <p className="text-[10px] text-petal/55">Soft glow or flat colour; sky details stay.</p>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            {[
+              ["gradient", "Gradient"],
+              ["solid", "Solid"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setBackdropStyle(key)}
+                aria-pressed={backdropStyle === key}
+                className={`pill px-2.5 py-1 text-[10px] font-semibold ${
+                  backdropStyle === key
+                    ? "bg-glow text-plum"
+                    : "bg-white/10 text-petal hover:bg-white/20"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {colorScheme === "custom" && (

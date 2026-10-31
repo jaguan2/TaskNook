@@ -30,7 +30,10 @@ const store = vi.hoisted(() => ({
   applyIsoPreset: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => store }));
+vi.mock("../store", () => ({
+  useRoomStore: () => store,
+  useSocialStore: () => store,
+}));
 
 import RoomPanel from "./RoomPanel";
 import { ISO_PRESET_KEYS } from "../lib/isoRoom";
@@ -49,7 +52,7 @@ describe("RoomPanel progressive rendering", () => {
   it("previews cottage layouts with independent paint definitions and applies a preset", () => {
     store.isoPreview = false;
     const { container } = render(<RoomPanel />);
-    expect(container.querySelectorAll(".cottage-preview")).toHaveLength(7);
+    expect(container.querySelectorAll("div.cottage-preview")).toHaveLength(7);
     const ids = [...container.querySelectorAll("[id]")].map((node) => node.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const node of container.querySelectorAll("[fill], [clip-path]")) {

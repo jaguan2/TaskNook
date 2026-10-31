@@ -55,14 +55,14 @@ const NPC_HOMES = {
 };
 
 // Where each owner belongs in their home — seats the NPC pass deliberately
-// left empty (luna's desk chair, kai's writing desk, sora's pond bench),
+// left empty (luna's desk chair, kai's writing desk, sora's north pond bench),
 // or open floor for the host (mochi in front of her counter). These are
 // checked by visiting.test.js against the real presets, and findFreeSpot
 // is the net if a preset ever shifts underneath one.
 const NPC_SPOTS = {
   luna: { gx: 1.5, gy: 2.5 },
   kai: { gx: 7.5, gy: 8 },
-  sora: { gx: 6.5, gy: 4 },
+  sora: { gx: 7.25, gy: 2.5 },
   mochi: { gx: 4, gy: 2 },
 };
 

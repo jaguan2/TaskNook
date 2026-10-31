@@ -16,26 +16,30 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (
     AVATAR_MAX,
-    CHAT_TITLE_MAX,
     CalendarEvent,
-    Conversation,
-    ConversationMember,
     DISPLAY_NAME_MAX,
     FocusSession,
     GROUP_NAME_MAX,
-    MESSAGE_MAX,
-    Message,
     TASK_NAME_MAX,
     TASK_NOTES_MAX,
     Task,
     Token,
     USERNAME_MAX,
     User,
-    _utc_iso,
     db,
     utcnow,
 )
 from schema import init_schema, SchemaError
+from request_validation import clean_id, clean_int, clean_str, json_body
+from routes import (
+    ISO_ENVS,
+    ISO_WALLS,
+    PET_LOOKS,
+    PET_TEMPERS,
+    create_chat_blueprint,
+    create_room_profile_blueprint,
+    read_json_map,
+)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # If the frontend has been built (frontend/dist), Flask will also serve it.
@@ -75,6 +79,8 @@ def create_app():
             print("[!] Schema behind models (pending migration?) — skipped seeding.")
 
     register_routes(app)
+    app.register_blueprint(create_chat_blueprint(require_auth))
+    app.register_blueprint(create_room_profile_blueprint(require_auth))
     register_frontend(app)
     register_error_handlers(app)
     return app
@@ -232,16 +238,6 @@ def local_day_start_utc():
     )
 
 
-def json_body():
-    """The request's JSON body, guaranteed to be a dict.
-
-    `silent=True` alone only guards MALFORMED JSON — a well-formed non-object
-    body (`[1,2]`, `"hi"`, `5`) is truthy and would reach `.get(...)` and 500.
-    """
-    data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else {}
-
-
 def clean_date(value):
     """A YYYY-MM-DD string, or None.
 
@@ -279,119 +275,9 @@ def clean_day(value):
     return clean_date(value)
 
 
-def clean_int(value, lo, hi, default=None):
-    """A storable integer inside [lo, hi], or `default` for anything else.
-
-    Two traps, both of which reached a 500 before this existed:
-
-    * `int()` happily returns a Python int of any size, and SQLite raises
-      OverflowError at BIND time for anything outside signed 64-bit. That escaped
-      every `except (TypeError, ValueError)` in the file and broke the app's own
-      tested "junk never 500s" contract — whose cases all use wrong TYPES or small
-      values, so magnitude slipped straight through. `log_session` already clamped
-      its minutes for this reason and `_finite_number` documents the identical
-      trap for room coordinates; it was simply never applied to the four integer
-      paths (duration on create and update, position, and the reorder list).
-    * `isinstance(True, int)` is True in Python, so a naive numeric check lets a
-      bool through as 0/1 while the rest of this file carefully excludes them.
-
-    Bounds are compared rather than checked with `math.isfinite`, because isfinite
-    RAISES on a huge int. Integer comparison is exact at any size, so the order
-    here matters: reject the un-numeric first, then clamp.
-    """
-    if isinstance(value, bool) or value is None:
-        return default
-    if isinstance(value, float):
-        # NaN fails every comparison, and infinities aren't storable.
-        if value != value or value in (float("inf"), float("-inf")):
-            return default
-        value = int(value)
-    if not isinstance(value, int):
-        try:
-            value = int(str(value).strip())
-        except (TypeError, ValueError):
-            return default
-    return lo if value < lo else hi if value > hi else value
-
-
-def clean_id(value):
-    """A row id, or None for anything that isn't one.
-
-    Deliberately NOT `clean_int`, which CLAMPS into range: that is right for a
-    duration (a huge number carries a clear intent — "as long as you like") and
-    actively wrong for an identifier, where `0` would come back as `1` and
-    quietly address whoever user #1 happens to be. Found by the chat tests
-    doing exactly that: `memberIds: [0]` opened a thread with a real friend.
-
-    Strict about type, too — ids come from our own client as JSON numbers, so
-    there is no reason to accept "3" and every reason not to guess.
-    """
-    if isinstance(value, bool) or not isinstance(value, int):
-        return None
-    return value if 1 <= value <= 2**31 - 1 else None
-
-
-def clean_str(v, limit):
-    """Coerce any JSON value to a trimmed, bounded string ('' for None)."""
-    return ("" if v is None else str(v)).strip()[:limit]
-
-
-def _finite_number(v):
-    """A real, storable coordinate.
-
-    Three traps this closes: `isinstance(True, int)` is True in Python, so a
-    bare bool would sail through a naive numeric check; NaN/Infinity are
-    floats that `json.dumps` writes as bare `NaN`/`Infinity` — invalid JSON
-    that a browser's JSON.parse rejects, which would corrupt the saved room
-    for good; and `math.isfinite` raises OverflowError on a huge int, so a
-    bounded comparison (exact for big ints) stands in for it.
-    """
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and -1e7 < v < 1e7
-
-
-# Room environments, mirroring ISO_ENVS in frontend/src/lib/isoRoom.js. This
-# list is duplicated across two languages and drifted once already: `cafe`,
-# `library` and `terrace` were added to the frontend and not here, so the three
-# presets that use them 400'd on every save — the room survived only in the
-# browser's localStorage mirror, toasting "couldn't save" each time. Adding an
-# environment means editing BOTH; test_room.py reads the JS and fails if they
-# disagree.
-ISO_ENVS = ("room", "cafe", "library", "terrace", "garden")
-
-# The user-picked walls override — mirrors WALL_MODES in isoRoom.js, same
-# both-languages contract as ISO_ENVS above. Absent means "the floor's
-# default"; the frontend stores it only when it actually overrides.
-ISO_WALLS = ("full", "low", "none")
-
-# Pet looks — coat patterns (cats) and breeds (dogs); mirrors CAT_COATS +
-# DOG_BREEDS in lib/isoRoom.js, one flat whitelist because which species a
-# look belongs to is catalog (frontend) knowledge — this only bounds values,
-# same stance as rot. Defaults ("ink", "golden") never reach the wire, but
-# they're accepted anyway so an older client's write can't 400.
-PET_LOOKS = (
-    "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese", "tortie",
-    "golden", "shiba", "corgi", "dalmatian", "husky",
-    "cloud", "snow", "cocoa",
-)
-
-# Pet personalities — mirrors PET_TEMPERS in lib/isoRoom.js (the same
-# both-languages contract). "mellow" is the default and stored implicitly,
-# but a client sending it explicitly is legal.
-PET_TEMPERS = ("mellow", "curious", "sleepy")
-
 # Who may visit a user's room. Short stored keys; the UI labels
 # ("friends-only", "invite-only") are frontend vocabulary.
 VISIT_ACCESS_LEVELS = ("open", "friends", "invite", "private")
-
-
-def _hex_color(v):
-    """A strict #rrggbb item tint."""
-    return (
-        isinstance(v, str)
-        and len(v) == 7
-        and v[0] == "#"
-        and all(c in "0123456789abcdefABCDEF" for c in v[1:])
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -825,357 +711,6 @@ def register_routes(app):
             }
         )
 
-    # ----- Room decoration ------------------------------------------------- #
-    # The frontend owns the item catalog and zone rules; the backend only
-    # enforces shape and size so a bug can't balloon the stored blob.
-    @app.get("/api/room")
-    @require_auth
-    def get_room(user):
-        empty = {"placements": None, "iso": None}
-        if not user.room_config:
-            return jsonify(empty)
-        try:
-            saved = json.loads(user.room_config)
-        except ValueError:
-            return jsonify(empty)
-        # Legacy shape: a bare list of flat placements (saves from before the
-        # isometric room existed).
-        if isinstance(saved, list):
-            return jsonify({"placements": saved, "iso": None})
-        if isinstance(saved, dict):
-            return jsonify({
-                "placements": saved.get("placements"),
-                "iso": saved.get("iso"),
-            })
-        return jsonify(empty)
-
-    def _clean_layout(placements, xkey, ykey):
-        """Validate one placement list. Returns (cleaned, ok) — shared by the
-        flat layout (x/y) and the isometric layout (gx/gy)."""
-        # Headroom above the frontend's ISO_MAX_ITEMS (150), same as it
-        # has always sat above it — this only stops a bug ballooning the blob.
-        if not isinstance(placements, list) or len(placements) > 200:
-            return None, False
-        clean = []
-        for p in placements:
-            if not isinstance(p, dict):
-                return None, False
-            pid, item = p.get("id"), p.get("item")
-            x, y = p.get(xkey), p.get(ykey)
-            if not (isinstance(pid, str) and 0 < len(pid) <= 32):
-                return None, False
-            if not (isinstance(item, str) and 0 < len(item) <= 32):
-                return None, False
-            if not _finite_number(x) or not _finite_number(y):
-                return None, False
-            entry = {"id": pid, "item": item, xkey: x, ykey: y}
-            tint = p.get("tint")
-            if tint is not None:
-                if not _hex_color(tint):
-                    return None, False
-                entry["tint"] = tint
-            # Quarter turns, 0-3. It used to accept only 0/1, because only two
-            # facings could be DRAWN (a screen mirror is a grid transpose; a
-            # half turn is the sprite upside down). Seating that ships real
-            # back-view artwork now has all four, and the frontend's
-            # normalizeRot folds an unsupported turn back to a drawable one —
-            # so this only has to bound the range, not know which items have it.
-            rot = p.get("rot")
-            if rot is not None:
-                if not (isinstance(rot, int) and not isinstance(rot, bool) and 0 <= rot <= 3):
-                    return None, False
-                if rot:
-                    entry["rot"] = rot
-            # Pet identity: a NAME and a TEMPER ride the placement (pets ARE
-            # placements). Same bounded-not-knowing stance as rot: which items
-            # are pets is catalog (frontend) knowledge, so this only bounds the
-            # values — the client's validateIsoLayout strips them from
-            # non-pets on read. PET_TEMPERS mirrors lib/isoRoom.js (the
-            # both-languages contract, like ISO_ENVS).
-            name = p.get("name")
-            if name is not None:
-                if not (isinstance(name, str) and 0 < len(name.strip()) <= 16):
-                    return None, False
-                entry["name"] = name.strip()
-            temper = p.get("temper")
-            if temper is not None:
-                if temper not in PET_TEMPERS:
-                    return None, False
-                entry["temper"] = temper
-            look = p.get("look")
-            if look is not None:
-                if look not in PET_LOOKS:
-                    return None, False
-                entry["look"] = look
-            # Optional powered-state marker. The frontend only retains it for
-            # toggleable catalog pieces; the backend stays catalog-agnostic and
-            # merely guarantees that the stored shape is a real boolean.
-            off = p.get("off")
-            if off is not None:
-                if not isinstance(off, bool):
-                    return None, False
-                if off:
-                    entry["off"] = True
-            clean.append(entry)
-        return clean, True
-
-    @app.put("/api/room")
-    @require_auth
-    def save_room(user):
-        data = json_body()
-        clean, ok = _clean_layout(data.get("placements"), "x", "y")
-        if not ok:
-            return jsonify({"error": "Invalid room layout"}), 400
-
-        stored = {"placements": clean, "iso": None}
-        iso = data.get("iso")
-        if iso is not None:
-            if not isinstance(iso, dict):
-                return jsonify({"error": "Invalid room layout"}), 400
-            w, depth = iso.get("w"), iso.get("d")
-            if not (isinstance(w, int) and not isinstance(w, bool) and 3 <= w <= 64):
-                return jsonify({"error": "Invalid room layout"}), 400
-            if not (isinstance(depth, int) and not isinstance(depth, bool) and 3 <= depth <= 64):
-                return jsonify({"error": "Invalid room layout"}), 400
-            iso_clean, iso_ok = _clean_layout(iso.get("placements"), "gx", "gy")
-            if not iso_ok:
-                return jsonify({"error": "Invalid room layout"}), 400
-            stored["iso"] = {"w": w, "d": depth, "placements": iso_clean}
-            # Frontend layout migrations use this small JSON version to make
-            # one-time geometry repairs without continually overriding later
-            # user choices. It is metadata, not a database-schema version.
-            version = iso.get("version")
-            if version is not None:
-                if not (
-                    isinstance(version, int)
-                    and not isinstance(version, bool)
-                    and 1 <= version <= 64
-                ):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["version"] = version
-            env = iso.get("env")
-            if env is not None:
-                if env not in ISO_ENVS:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["env"] = env
-            walls = iso.get("walls")
-            if walls is not None:
-                if walls not in ISO_WALLS:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["walls"] = walls
-            wall_colors = iso.get("wallColors")
-            if wall_colors is not None:
-                if not isinstance(wall_colors, dict) or set(wall_colors) - {"left", "right"}:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_wall_colors = {}
-                for side, color in wall_colors.items():
-                    if not _hex_color(color):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    clean_wall_colors[side] = color
-                if clean_wall_colors:
-                    stored["iso"]["wallColors"] = clean_wall_colors
-            lighting = iso.get("lighting")
-            if lighting is not None:
-                if lighting not in ("natural", "golden", "candle", "moonlit"):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["lighting"] = lighting
-            # Optional floor-plan mask: d row-strings of w "0"/"1" chars with
-            # at least one floor tile.
-            mask = iso.get("mask")
-            if mask is not None:
-                if (
-                    not isinstance(mask, list)
-                    or len(mask) != depth
-                    or not all(
-                        isinstance(r, str) and len(r) == w and set(r) <= {"0", "1"}
-                        for r in mask
-                    )
-                    or not any("1" in r for r in mask)
-                ):
-                    return jsonify({"error": "Invalid room layout"}), 400
-                stored["iso"]["mask"] = mask
-            # User-drawn interior wall units and passable arch spans share the
-            # same compact edge grammar. The frontend additionally drops edges
-            # that no longer have floor on both sides after a reshape; the API
-            # pins their representation and room bounds. An arch wins if a
-            # hand-edited client names the same edge in both collections.
-            for field in ("partitions", "arches"):
-                edges = iso.get(field)
-                if edges is None:
-                    continue
-                if not isinstance(edges, list) or len(edges) > 2 * w * depth:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_edges = []
-                seen_edges = set()
-                for key in edges:
-                    if not isinstance(key, str):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    parts = key.split(":")
-                    if len(parts) != 3 or parts[0] not in ("gx", "gy"):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    try:
-                        at, start = int(parts[1]), int(parts[2])
-                    except ValueError:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    canonical = f"{parts[0]}:{at}:{start}"
-                    if canonical != key:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    valid = (
-                        0 < at < (depth if parts[0] == "gy" else w)
-                        and 0 <= start < (w if parts[0] == "gy" else depth)
-                    )
-                    if not valid:
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    if canonical not in seen_edges:
-                        seen_edges.add(canonical)
-                        clean_edges.append(canonical)
-                if clean_edges:
-                    stored["iso"][field] = sorted(clean_edges)
-            if "arches" in stored["iso"] and "partitions" in stored["iso"]:
-                arch_edges = set(stored["iso"]["arches"])
-                solid_edges = [
-                    key for key in stored["iso"]["partitions"] if key not in arch_edges
-                ]
-                if solid_edges:
-                    stored["iso"]["partitions"] = solid_edges
-                else:
-                    stored["iso"].pop("partitions")
-            # Optional corner cuts (irregular floors). The frontend owns the
-            # geometry rules; here we only pin the shape and sizes.
-            cuts = iso.get("cuts")
-            if cuts is not None:
-                if not isinstance(cuts, list) or len(cuts) > 4:
-                    return jsonify({"error": "Invalid room layout"}), 400
-                clean_cuts = []
-                for c in cuts:
-                    if not isinstance(c, dict):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    corner = c.get("corner")
-                    cw, cd = c.get("cw"), c.get("cd")
-                    if corner not in ("back", "right", "left", "front"):
-                        return jsonify({"error": "Invalid room layout"}), 400
-                    for v in (cw, cd):
-                        if not (isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 16):
-                            return jsonify({"error": "Invalid room layout"}), 400
-                    clean_cuts.append({"corner": corner, "cw": cw, "cd": cd})
-                stored["iso"]["cuts"] = clean_cuts
-
-        user.room_config = json.dumps(stored)
-        db.session.commit()
-        return jsonify({"ok": True})
-
-    # ----- Profile & character --------------------------------------------- #
-    # The same division of labour as the room layout: the frontend owns the
-    # vocabulary (which MBTI types exist,
-    # which hairstyles are drawable), this only keeps a bounded blob safe. A new
-    # profile question or a new hairstyle is then a frontend change with no
-    # migration — which is the whole reason these are JSON and not columns.
-    PROFILE_MAX_KEYS = 24
-    # Character customization has many independent scalar axes (wardrobe,
-    # body, face, accessories). It already outgrew the smaller about-you map;
-    # keep a separate bounded budget so adding a legitimate appearance field
-    # cannot make every complete character save fail with a 400.
-    CHARACTER_MAX_KEYS = 40
-    PROFILE_MAX_VALUE = 280  # a bio, not an essay
-
-    def _clean_json_map(value, max_keys, max_len):
-        """A bounded {str: str|number|bool} map, or None if it isn't one.
-
-        Deliberately flat: nesting is what turns a settings blob into somewhere
-        arbitrary payloads can hide, and nothing here needs it.
-        """
-        if not isinstance(value, dict) or len(value) > max_keys:
-            return None
-        clean = {}
-        for key, val in value.items():
-            if not (isinstance(key, str) and 0 < len(key) <= 32):
-                return None
-            if val is None or val == "":
-                continue  # clearing a field just drops it
-            if isinstance(val, bool):
-                clean[key] = val
-            elif isinstance(val, (int, float)):
-                # Reuse the room's guard: NaN/Infinity are floats that
-                # json.dumps writes as bare NaN/Infinity — invalid JSON that
-                # the browser then refuses to parse, corrupting the profile.
-                if not _finite_number(val):
-                    return None
-                clean[key] = val
-            elif isinstance(val, str):
-                if len(val) > max_len:
-                    return None
-                clean[key] = val.strip()
-            else:
-                return None
-        return clean
-
-    def _read_json_map(raw):
-        if not raw:
-            return {}
-        try:
-            saved = json.loads(raw)
-        except ValueError:
-            return {}
-        return saved if isinstance(saved, dict) else {}
-
-    def _profile_payload(user):
-        """The profile response. Built in one place because GET and PUT both
-        return it, and two verbatim copies is one edit away from a PUT whose
-        response omits a field the GET has."""
-        return {
-            "username": user.username,
-            "displayName": user.display_name,
-            "avatar": user.avatar,
-            "profile": _read_json_map(user.profile),
-            "character": _read_json_map(user.character),
-        }
-
-    @app.get("/api/profile")
-    @require_auth
-    def get_profile(user):
-        return jsonify(
-            _profile_payload(user)
-        )
-
-    @app.put("/api/profile")
-    @require_auth
-    def save_profile(user):
-        data = json_body()
-
-        # Each field is optional — the panel saves the section you edited, so a
-        # partial body must leave the rest of the profile alone.
-        if "displayName" in data:
-            name = clean_str(data.get("displayName"), DISPLAY_NAME_MAX)
-            if not name:
-                return jsonify({"error": "A name can't be empty"}), 400
-            user.display_name = name
-
-        if "avatar" in data:
-            # The column is String(8): one emoji can be several code points
-            # (skin-tone and ZWJ sequences), so this is a byte-ish budget, not
-            # "8 characters" as a person would count them.
-            user.avatar = clean_str(data.get("avatar"), AVATAR_MAX)
-
-        if "profile" in data:
-            cleaned = _clean_json_map(
-                data.get("profile"), PROFILE_MAX_KEYS, PROFILE_MAX_VALUE
-            )
-            if cleaned is None:
-                return jsonify({"error": "Invalid profile"}), 400
-            user.profile = json.dumps(cleaned)
-
-        if "character" in data:
-            # Appearance values are keys and hex colours, never prose.
-            cleaned = _clean_json_map(data.get("character"), CHARACTER_MAX_KEYS, 32)
-            if cleaned is None:
-                return jsonify({"error": "Invalid character"}), 400
-            user.character = json.dumps(cleaned)
-
-        db.session.commit()
-        return jsonify(
-            _profile_payload(user)
-        )
-
     # ----- Friends -------------------------------------------------------- #
     @app.get("/api/friends")
     @require_auth
@@ -1233,7 +768,7 @@ def register_routes(app):
                     room = saved["iso"]
             except ValueError:
                 room = None
-        character = _read_json_map(friend.character)
+        character = read_json_map(friend.character)
         return jsonify(
             {
                 **friend.public_dict(),
@@ -1267,318 +802,24 @@ def register_routes(app):
             db.session.commit()
         return jsonify({"ok": True})
 
-    # ---- chat ----------------------------------------------------------- #
-    #
-    # Threads with the seeded bots. The same simulated-social contract as
-    # visiting: the server STORES messages and enforces membership, while the
-    # replies themselves are written by the client (lib/chat.js owns the
-    # vocabulary, the way lib/visiting.js owns the bots' homes). See
-    # `post_message` for the seam and what a multi-user future must change.
-
-    def _membership(user, chat_id):
-        """The viewer's membership row, or None if it isn't their thread."""
-        return ConversationMember.query.filter_by(
-            conversation_id=chat_id, user_id=user.id
-        ).first()
-
-    def _chat_payload(chat, viewer_id, members_by_chat, last_by_chat, unread_by_chat):
-        return {
-            "id": chat.id,
-            "title": chat.title,
-            "isGroup": chat.is_group,
-            "members": [m.public_dict() for m in members_by_chat.get(chat.id, [])],
-            "lastMessage": (
-                last_by_chat[chat.id].to_dict() if chat.id in last_by_chat else None
-            ),
-            "unread": unread_by_chat.get(chat.id, 0),
-            "createdAt": _utc_iso(chat.created_at),
-        }
-
-    @app.get("/api/chats")
-    @require_auth
-    def list_chats(user):
-        """Every thread the viewer is in, newest activity first.
-
-        A fixed number of grouped queries rather than per-thread lookups.
-        Only the latest message per thread is materialized; unread counts
-        belong in SQL, not a Python loop over the entire chat history.
-        """
-        rows = (
-            db.session.query(Conversation, ConversationMember.last_read_at)
-            .join(ConversationMember, ConversationMember.conversation_id == Conversation.id)
-            .filter(ConversationMember.user_id == user.id)
-            .all()
-        )
-        chats = [row[0] for row in rows]
-        ids = [c.id for c in chats]
-
-        members_by_chat = {}
-        if ids:
-            for chat_id, member in (
-                db.session.query(ConversationMember.conversation_id, User)
-                .join(User, User.id == ConversationMember.user_id)
-                .filter(ConversationMember.conversation_id.in_(ids))
-                .all()
-            ):
-                members_by_chat.setdefault(chat_id, []).append(member)
-
-        last_by_chat = {}
-        unread_by_chat = {}
-        if ids:
-            ranked = (
-                db.session.query(
-                    Message.id.label("message_id"),
-                    db.func.row_number().over(
-                        partition_by=Message.conversation_id,
-                        order_by=(Message.created_at.desc(), Message.id.desc()),
-                    ).label("rank"),
-                )
-                .filter(Message.conversation_id.in_(ids))
-                .subquery()
-            )
-            for msg in (
-                Message.query.join(ranked, Message.id == ranked.c.message_id)
-                .filter(ranked.c.rank == 1)
-                .all()
-            ):
-                last_by_chat[msg.conversation_id] = msg
-            unread_by_chat = dict(
-                db.session.query(Message.conversation_id, db.func.count(Message.id))
-                .join(ConversationMember, db.and_(
-                    ConversationMember.conversation_id == Message.conversation_id,
-                    ConversationMember.user_id == user.id,
-                ))
-                .filter(
-                    Message.conversation_id.in_(ids),
-                    Message.sender_id != user.id,
-                    db.or_(ConversationMember.last_read_at.is_(None),
-                           Message.created_at > ConversationMember.last_read_at),
-                )
-                .group_by(Message.conversation_id)
-                .all()
-            )
-
-        payload = [
-            _chat_payload(c, user.id, members_by_chat, last_by_chat, unread_by_chat)
-            for c in chats
-        ]
-        payload.sort(
-            key=lambda c: (c["lastMessage"] or {}).get("createdAt") or c["createdAt"] or "",
-            reverse=True,
-        )
-        return jsonify(payload)
-
-    @app.post("/api/chats")
-    @require_auth
-    def create_chat(user):
-        """Open a thread with friends.
-
-        A one-to-one is IDEMPOTENT — asking twice returns the thread you
-        already have rather than a second empty copy of it, because "message
-        Luna" is a place, not an event. Groups are not: two groups with the
-        same people are a thing people genuinely want.
-        """
-        data = json_body()
-        raw_ids = data.get("memberIds")
-        if not isinstance(raw_ids, list):
-            return jsonify({"error": "memberIds must be a list"}), 400
-        # Only friends, only once each, never yourself twice.
-        friend_ids = {f.id for f in user.friends}
-        wanted = []
-        for value in raw_ids[:50]:
-            member_id = clean_id(value)
-            if member_id is None or member_id == user.id or member_id in wanted:
-                continue
-            if member_id not in friend_ids:
-                return jsonify({"error": "You can only chat with friends"}), 400
-            wanted.append(member_id)
-        if not wanted:
-            return jsonify({"error": "Pick someone to talk to"}), 400
-
-        is_group = len(wanted) > 1 or bool(data.get("isGroup"))
-        title = clean_str(data.get("title"), CHAT_TITLE_MAX) or None
-
-        if not is_group:
-            # Find an existing one-to-one with exactly these two people.
-            other = wanted[0]
-            mine = db.session.query(ConversationMember.conversation_id).filter_by(
-                user_id=user.id
-            )
-            theirs = db.session.query(ConversationMember.conversation_id).filter_by(
-                user_id=other
-            )
-            existing = (
-                Conversation.query.filter(
-                    Conversation.is_group.is_(False),
-                    Conversation.id.in_(mine),
-                    Conversation.id.in_(theirs),
-                )
-                .order_by(Conversation.id)
-                .first()
-            )
-            if existing:
-                return jsonify(_one_chat(existing, user)), 200
-
-        chat = Conversation(title=title if is_group else None, is_group=is_group)
-        db.session.add(chat)
-        db.session.flush()
-        for member_id in [user.id, *wanted]:
-            db.session.add(
-                ConversationMember(conversation_id=chat.id, user_id=member_id)
-            )
-        db.session.commit()
-        return jsonify(_one_chat(chat, user)), 201
-
-    def _one_chat(chat, viewer):
-        members = [m.user for m in chat.members]
-        # Clear the relationship's default ascending order before asking for
-        # the newest line; Query.order_by otherwise APPENDS its arguments.
-        last = chat.messages.order_by(None).order_by(Message.created_at.desc(), Message.id.desc()).first()
-        membership = _membership(viewer, chat.id)
-        unread = chat.messages.filter(Message.sender_id != viewer.id)
-        if membership.last_read_at is not None:
-            unread = unread.filter(Message.created_at > membership.last_read_at)
-        return {
-            "id": chat.id,
-            "title": chat.title,
-            "isGroup": chat.is_group,
-            "members": [m.public_dict() for m in members],
-            "lastMessage": last.to_dict() if last else None,
-            "unread": unread.count(),
-            "createdAt": _utc_iso(chat.created_at),
-        }
-
-    @app.get("/api/chats/<int:chat_id>/messages")
-    @require_auth
-    def list_messages(user, chat_id):
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        limit = clean_int(request.args.get("limit"), 1, 500, 200)
-        query = Message.query.filter_by(conversation_id=chat_id)
-        if "before" in request.args:
-            raw_before = request.args["before"]
-            # Query parameters are strings, unlike the JSON ids clean_id
-            # deliberately accepts. Validate before converting; never clamp.
-            before_id = clean_id(int(raw_before)) if (
-                raw_before.isascii() and raw_before.isdecimal() and len(raw_before) <= 10
-            ) else None
-            if before_id is None:
-                return jsonify({"error": "before must be a message id"}), 400
-            cursor = query.filter_by(id=before_id).first()
-            if cursor is None:
-                return jsonify({"error": "Not found"}), 404
-            # IDs break timestamp ties. The cursor belongs to THIS thread;
-            # neither another thread's timestamps nor offset shifts leak in.
-            query = query.filter(db.or_(
-                Message.created_at < cursor.created_at,
-                db.and_(Message.created_at == cursor.created_at, Message.id < cursor.id),
-            ))
-        rows = (
-            query
-            .order_by(Message.created_at.desc(), Message.id.desc())
-            .limit(limit)
-            .all()
-        )
-        return jsonify([m.to_dict() for m in reversed(rows)])
-
-    @app.post("/api/chats/<int:chat_id>/messages")
-    @require_auth
-    def post_message(user, chat_id):
-        """Add a line to a thread.
-
-        `senderId` may name ANY member, not just the viewer — that is how the
-        bots reply, since their words are the frontend's to choose (lib/chat.js,
-        the same division of labour as lib/visiting.js). It is safe here for
-        exactly the reason the visiting gate is: every member is a row in the
-        caller's own local database, and there is no second machine.
-
-        THE CONTRACT FOR A MULTI-USER FUTURE: this field must go before this
-        endpoint is served beyond localhost. A client that can pick its own
-        sender can forge messages from anyone it shares a thread with.
-        """
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        data = json_body()
-        body = clean_str(data.get("body"), MESSAGE_MAX)
-        if not body:
-            return jsonify({"error": "Message cannot be empty"}), 400
-
-        sender_id = user.id
-        raw_sender = data.get("senderId")
-        if raw_sender is not None:
-            candidate = clean_id(raw_sender)
-            if candidate is None or not _is_member(chat_id, candidate):
-                return jsonify({"error": "Sender is not in this chat"}), 400
-            sender_id = candidate
-
-        msg = Message(conversation_id=chat_id, sender_id=sender_id, body=body)
-        db.session.add(msg)
-        # Sending is reading: your own line must not come back as unread, and
-        # you were plainly looking at the thread when you wrote it.
-        if sender_id == user.id:
-            member = _membership(user, chat_id)
-            member.last_read_at = utcnow().replace(tzinfo=None)
-        db.session.commit()
-        return jsonify(msg.to_dict()), 201
-
-    def _is_member(chat_id, user_id):
-        return (
-            ConversationMember.query.filter_by(
-                conversation_id=chat_id, user_id=user_id
-            ).first()
-            is not None
-        )
-
-    @app.post("/api/chats/<int:chat_id>/read")
-    @require_auth
-    def mark_chat_read(user, chat_id):
-        member = _membership(user, chat_id)
-        if not member:
-            return jsonify({"error": "Not found"}), 404
-        member.last_read_at = utcnow().replace(tzinfo=None)
-        db.session.commit()
-        return jsonify({"ok": True})
-
-    @app.delete("/api/chats/<int:chat_id>")
-    @require_auth
-    def delete_chat(user, chat_id):
-        """Leave and delete a thread.
-
-        Single-user app: the thread is only ever in your database, so leaving
-        it and deleting it are the same act. The cascade takes the messages
-        and the other memberships with it.
-        """
-        if not _membership(user, chat_id):
-            return jsonify({"error": "Not found"}), 404
-        chat = db.session.get(Conversation, chat_id)
-        db.session.delete(chat)
-        db.session.commit()
-        return jsonify({"ok": True})
-
-
 def build_stats_for(user_ids):
-    """`build_stats` for MANY users, in a fixed number of queries.
+    """One productivity policy for both the local account and friends.
 
-    The friends panel asked for four aggregates per friend plus one for the
-    viewer — seventeen round trips for the four seeded demo friends, growing
-    linearly. Two GROUPED queries answer all of it regardless of how many friends
-    there are, and the result is less code than the loop it replaces, not more.
-
-    Conditional aggregates rather than four separate scans: `sum(case(...))` lets
-    one pass over a user's tasks produce the total, the completed count and the
-    completed-today count at once. The two time windows stay exactly as
-    `build_stats` documents them — the list-wide counts and the local-day ones are
-    computed side by side here, not merged.
+    List totals/completion describe the current, unarchived list. Daily credit
+    includes archived completions: moving finished work to the journal must not
+    erase it from today's achievements. Focus minutes use the same local day.
+    Two grouped queries answer all requested users without loading task history.
     """
     ids = list(user_ids)
     if not ids:
         return {}
     day_start = local_day_start_utc()
+    active = Task.archived_at.is_(None)
     task_rows = (
         db.session.query(
             Task.user_id,
-            db.func.count(Task.id),
-            db.func.coalesce(db.func.sum(db.case((Task.completed.is_(True), 1), else_=0)), 0),
+            db.func.coalesce(db.func.sum(db.case((active, 1), else_=0)), 0),
+            db.func.coalesce(db.func.sum(db.case((db.and_(active, Task.completed.is_(True)), 1), else_=0)), 0),
             db.func.coalesce(
                 db.func.sum(
                     db.case(
@@ -1596,7 +837,7 @@ def build_stats_for(user_ids):
                 0,
             ),
         )
-        .filter(Task.user_id.in_(ids), Task.archived_at.is_(None))
+        .filter(Task.user_id.in_(ids))
         .group_by(Task.user_id)
         .all()
     )
@@ -1625,52 +866,8 @@ def build_stats_for(user_ids):
 
 
 def build_stats(user):
-    """Aggregate a user's productivity.
-
-    Two DIFFERENT time windows live here, and mixing them up is exactly the bug
-    this shape exists to prevent: `tasksTotal`/`tasksDone`/`completion` describe
-    the CURRENT LIST (which is ongoing — a standing to-do list isn't created
-    fresh each morning), while `tasksDoneToday`/`focusMinutesToday` are bucketed
-    by the local day. Label them accordingly in the UI; "Today's completion" over
-    a lifetime count read as today's progress and never moved.
-
-    COUNT queries, not `.all()` — this runs once per friend per friends-panel
-    refresh, and hydrating every task row just to count them was the app's
-    one real N+1.
-    """
-    today = today_str()
-    total = db.session.query(db.func.count(Task.id)).filter(Task.user_id == user.id, Task.archived_at.is_(None)).scalar() or 0
-    done = (
-        db.session.query(db.func.count(Task.id))
-        .filter(Task.user_id == user.id, Task.completed.is_(True), Task.archived_at.is_(None))
-        .scalar()
-        or 0
-    )
-    done_today = (
-        db.session.query(db.func.count(Task.id))
-        .filter(
-            Task.user_id == user.id,
-            Task.completed.is_(True),
-            Task.completed_at.isnot(None),
-            Task.completed_at >= local_day_start_utc(),
-        )
-        .scalar()
-        or 0
-    )
-
-    focus_minutes = (
-        db.session.query(db.func.coalesce(db.func.sum(FocusSession.minutes), 0))
-        .filter_by(user_id=user.id, day=today)
-        .scalar()
-        or 0
-    )
-    return {
-        "tasksTotal": total,
-        "tasksDone": done,
-        "tasksDoneToday": int(done_today),
-        "completion": round(done / total * 100) if total else 0,
-        "focusMinutesToday": int(focus_minutes),
-    }
+    """Single-user view of the same list/day aggregation used for friends."""
+    return build_stats_for([user.id])[user.id]
 
 
 # --------------------------------------------------------------------------- #

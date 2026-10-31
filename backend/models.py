@@ -228,9 +228,9 @@ class ConversationMember(db.Model):
 
     A model rather than a plain association table (which is all `friendships`
     needs) because membership carries state: `last_read_at` is what an unread
-    count is measured against. Storing a TIMESTAMP rather than a count means
-    the number is derived from the messages themselves and can't drift out of
-    step with them.
+    count is measured against. The timestamp/id boundary distinguishes later
+    arrivals within the clock's precision; unread counts are always derived
+    from messages rather than maintained as a separate counter.
     """
 
     __table_args__ = (
@@ -243,6 +243,7 @@ class ConversationMember(db.Model):
     )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     last_read_at = db.Column(db.DateTime, nullable=True)
+    last_read_message_id = db.Column(db.Integer, nullable=False, server_default="0")
     joined_at = db.Column(db.DateTime, default=utcnow)
 
     # The cascade is declared from the USER side (via backref) so deleting an
@@ -261,9 +262,13 @@ class Message(db.Model):
     user takes their messages with them, same as their tasks.
     """
 
+    __table_args__ = (
+        db.Index("ix_message_conversation_created_id", "conversation_id", "created_at", "id"),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(
-        db.Integer, db.ForeignKey("conversation.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("conversation.id"), nullable=False
     )
     sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     body = db.Column(db.String(MESSAGE_MAX), nullable=False)

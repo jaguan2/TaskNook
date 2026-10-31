@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Shirt, UserRound } from "lucide-react";
-import { useStore } from "../store";
+import { useProfileStore, useRoomStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
 import { Resident } from "./character";
 import { HairBehind, HairFront, HairLength } from "./character/hair";
 import { Hat } from "./character/hats";
@@ -554,25 +554,19 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
 }
 
 export default function ProfilePanel() {
+  const { progression, profile, character, saveProfile, saveCharacter,
+    savedLooks, saveCharacterLook, removeCharacterLook } = useProfileStore();
+  const { sessionDays } = useTaskStore();
+  const { user } = useSystemStore();
+  const { setVisitAccess } = useSocialStore();
   const {
-    progression,
-    sessionDays,
     selfInRoom,
     setSelfInRoom,
-    profile,
-    character,
-    saveProfile,
-    saveCharacter,
-    savedLooks,
-    saveCharacterLook,
-    removeCharacterLook,
-    user,
-    setVisitAccess,
     isoRoom,
     setPetIdentity,
     addIsoItem,
     removeIsoItem,
-  } = useStore();
+  } = useRoomStore();
   const summary = profileSummary(profile);
   const [tab, setTab] = useState("looks");
   const [characterView, setCharacterView] = useState("front");

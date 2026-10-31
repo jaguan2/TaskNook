@@ -143,7 +143,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 >
 > After changing anything there, prove the artifact still works:
 > `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code must be `0`. CI runs
-> this on every push for exactly this reason.
+> this for pull requests and main-branch pushes for exactly this reason.
 
 </details>
 
@@ -167,7 +167,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. The whole backdrop joins in: twinkling stars and a glowing moon at night, a warm sun by day, and drifting clouds on cloudy days (storm-dark when it pours). |
 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
 | **Classic cottage** | An alternative flat SVG desk scene with freeform decoration, recolourable furniture and city, woodland or seaside window views. Start from Cozy lounge, Classic study, Greenhouse, Library, Night owl, Woodland nook or Seaside studio. Select decorations to nudge with arrow keys, duplicate their colours or remove them with confirmation. Its layout is saved separately from the isometric home. |
-| **Isometric room** | The default scene uses hand-authored SVG models on a dimetric grid. Zoom, pan and recenter; paint a custom floor plan, resize it from 3×3 to 48×48, and arrange furniture with half-tile snapping and supported rotations. The catalog has 161 entries across 18 groups, with tabletop stacking, wall decorations, recolouring and seasonal pieces. Choose an indoor room, café, library, terrace or garden. Presets include Loft, Shared home, Cozy study, Cozy cabin, Reading room, Study hall, Corner café, Plant shop, Terrace, Secret garden, seasonal yards, Poolside and an empty room. |
+| **Isometric room** | The default scene uses hand-authored SVG models on a dimetric grid. Zoom, pan and recenter; paint a custom floor plan, resize it from 3×3 to 48×48, and arrange furniture with half-tile snapping and supported rotations. The catalog has 168 entries across 18 groups, with tabletop stacking, wall decorations, recolouring and seasonal pieces. Choose an indoor room, café, library, terrace or garden. Presets include Loft, Shared home, Cozy study, Cozy cabin, Reading room, Study hall, Corner café, Plant shop, Terrace, Secret garden, seasonal yards, Poolside and an empty room. |
 | **Character & residents** | Customize your character's body, face, hair, clothing and accessories, or start from one of ten complete looks, including Winter reader and Garden helper. Save up to twelve named outfits on your device and reapply them while preserving your skin tone. People stay where you settle them: carry them onto a chair, soft ground or a clear floor spot. Seated focus and break poses follow activity; pets provide the wandering motion. |
 | **Timer widget** | On Windows, Widget Mode becomes a borderless 340×300 timer. Drag its header to move it; expand or press Escape to return to your room with the timer intact. The desktop Always On Top toggle keeps it above other windows. Browser mode offers the compact timer inside the page. |
 | **Pets that live here** | A cat, a dog and a rabbit that wander the room on their own, pick their way around the furniture, and curl up asleep when they find a rug, a blanket or a pet bed. |
@@ -217,15 +217,24 @@ TaskNook/
 ├── desktop.py                # Native-window launcher (pywebview + waitress)
 ├── requirements-desktop.txt  # Desktop-app Python deps (pulls in backend deps too)
 ├── README.md
-├── AGENTS.md                 # Canonical contributor and assistant guidance
-├── CLAUDE.md                 # Entry point to the same guidance for Claude tools
+├── AGENTS.md                 # Agent-tool discovery pointer
+├── CLAUDE.md                 # Claude-tool discovery pointer
+├── .agents/
+│   ├── README.md             # Canonical contributor and assistant guidance
+│   ├── SKILLS.md             # Installed workflow sources and maintenance guide
+│   └── skills/               # TaskNook engineering and review workflows
 ├── docs/
 │   ├── README.md             # Current guides and historical review index
+│   ├── CHANGELOG.md          # Dated project history
 │   ├── screenshots/          # App screenshots and model closeups
 │   └── preview.png           # The screenshot at the top of this README
 │
 ├── backend/                  # Flask REST API (SQLite, fully local)
-│   ├── app.py                # Routes, token auth, demo seeding, static serving
+│   ├── app.py                # App factory, core routes, auth, seeding, static serving
+│   ├── routes/               # API blueprints
+│   │   ├── chat.py           # Chat threads, messages and unread state
+│   │   └── room_profile.py   # Room/profile routes + payload validation
+│   ├── request_validation.py # Shared request-value validation
 │   ├── models.py             # Users, tasks, focus sessions, tokens, chats, calendar events
 │   ├── schema.py             # Startup migration + pre-upgrade backup lifecycle
 │   ├── migrations/           # Alembic history — the source of truth for the schema

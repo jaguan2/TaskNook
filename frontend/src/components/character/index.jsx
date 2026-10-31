@@ -132,7 +132,7 @@ export function Resident({
   // clothes and proportions without maintaining another anatomy system.
   if (lying) {
     return (
-      <g transform={`translate(${c.x}, ${c.y})`}>
+      <g data-resident-pose="lying" transform={`translate(${c.x}, ${c.y})`}>
         {/* The bed's long grid axis projects down-left at SKEW degrees. A
             standing figure grows upward from its feet, so rotating it by
             90-SKEW points its head toward the pillows. The small down-left
@@ -479,7 +479,7 @@ export function Resident({
                       fill="none"
                       opacity="0.22"
                     />
-                    {!hatted && <HairSide style={ch.hair} headY={headY} color={hairColor} />}
+                    <HairSide style={ch.hair} headY={headY} color={hairColor} covered={hatted} />
                     <Hat kind={ch.hat} headY={headY} view="side" />
                     <SideFace expression={ch.expression} headY={headY}
                       eyeY={ch.eyeY} eyeColor={ch.eyeColor} />
@@ -555,7 +555,7 @@ export function Resident({
           stay welded to the dome they hang from — unscaled after the adult-
           proportion pivot they jutted ~25% wide of the head. */}
       <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
-        <HairLength style={ch.hair} headY={headY} color={hairColor} back={back && !hatted} />
+        <HairLength style={ch.hair} headY={headY} color={hairColor} back={back} />
       </g>
       {/* Seated cloth spans the lap instead of painting two trouser thighs. */}
       {skirted && seated && (
@@ -895,8 +895,8 @@ export function Resident({
                 <HairBehind style={ch.hair} headY={headY} color={hairColor} />
               )}
               <HeadSkin headY={headY} skin={skin} volume={sphereFill(clipId)} back={back} />
-              {back && !hatted && (
-                <HairBack style={ch.hair} headY={headY} color={hairColor} />
+              {back && (
+                <HairBack style={ch.hair} headY={headY} color={hairColor} covered={hatted} />
               )}
               {!hatted && !back && (
                 <HairFront style={ch.hair} headY={headY} color={hairColor} />

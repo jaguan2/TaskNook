@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+function expectInsideViewport(box, { width, height }) {
+  expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(width);
+  expect(box.y + box.height).toBeLessThanOrEqual(height);
+}
+
 test("a task survives the production browser journey", async ({ page, baseURL }) => {
   const failures = [];
   const origin = new URL(baseURL).origin;
@@ -52,4 +60,109 @@ test("a task survives the production browser journey", async ({ page, baseURL })
 
   await page.waitForLoadState("networkidle");
   expect(failures, failures.join("\n")).toEqual([]);
+});
+
+test("hidden room chat cannot intercept widget shortcuts and retains its draft", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  await page.getByRole("textbox", { name: "Message the room" }).fill("Keep my room-chat draft");
+  await page.getByRole("button", { name: "Widget Mode", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Focus widget" })).toBeVisible();
+  await page.mouse.click(850, 650);
+  await page.keyboard.press("/");
+  await expect(page.locator("[data-common-room-chat]")).toHaveAttribute("data-common-chat-open", "false");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("region", { name: "Focus widget" })).toHaveCount(0);
+  await expect(page.locator('[data-common-room="common-cottage"]')).toBeVisible();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  await expect(page.getByRole("textbox", { name: "Message the room" })).toHaveValue("Keep my room-chat draft");
+});
+
+test("a saved classic-cottage preference loads its scene chunk", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("tasknook.isoPreview", "0");
+    localStorage.setItem("tasknook.reduceMotion", "1");
+  });
+
+  await page.goto("/");
+  await expect(page.getByLabel("Classic cottage scene")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Room" })).toBeVisible();
+});
+
+test("the iPhone Duo keeps primary controls usable when closed and unfolded", async ({ page }) => {
+  const closedViewport = { width: 466, height: 678 };
+  await page.setViewportSize(closedViewport);
+  await page.addInitScript(() => {
+    localStorage.setItem("tasknook.motion", "reduced");
+    localStorage.setItem("tasknook.music.on", "1");
+    localStorage.setItem("tasknook.autoResumeMusic", "1");
+  });
+
+  await page.goto("/");
+  const dock = page.locator(".dock-shell");
+  const music = page.locator(".music-dock");
+  await expect(dock).toBeVisible();
+  await expect(music).toBeVisible();
+
+  const dockBox = await dock.boundingBox();
+  const musicBox = await music.boundingBox();
+  expectInsideViewport(dockBox, closedViewport);
+  expectInsideViewport(musicBox, closedViewport);
+  expect(musicBox.y + musicBox.height).toBeLessThanOrEqual(dockBox.y);
+
+  await page.getByRole("button", { name: "Collapse menu" }).click();
+  const openMenu = page.getByRole("button", { name: "Open menu" });
+  await expect(openMenu).toBeVisible();
+  expect((await dock.locator(".dock-surface").boundingBox()).width).toBeLessThan(80);
+  await openMenu.click();
+
+  const tasksButton = page.getByRole("button", { name: "Tasks", exact: true });
+  const settingsButton = page.getByRole("button", { name: "Settings", exact: true });
+  const tasksBox = await tasksButton.boundingBox();
+  const initialSettingsBox = await settingsButton.boundingBox();
+  expectInsideViewport(tasksBox, closedViewport);
+  expect(Math.abs(tasksBox.y - initialSettingsBox.y)).toBeLessThan(2);
+  await settingsButton.scrollIntoViewIfNeeded();
+  expectInsideViewport(await settingsButton.boundingBox(), closedViewport);
+  await tasksButton.scrollIntoViewIfNeeded();
+
+  await tasksButton.click();
+  const drawer = page.locator("aside").filter({
+    has: page.getByRole("heading", { name: "Tasks" }),
+  });
+  await expect(drawer.getByPlaceholder("What needs doing?")).toBeVisible();
+  await expect.poll(async () => {
+    const box = await drawer.boundingBox();
+    return box ? box.x + box.width : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(closedViewport.width);
+  expectInsideViewport(await drawer.boundingBox(), closedViewport);
+  await drawer.getByRole("button", { name: "Close (Esc)" }).click();
+
+  await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
+  await page.getByRole("button", { name: /Room chat/ }).click();
+  const roomChat = page.locator("[data-common-room-chat]");
+  await expect(page.getByRole("textbox", { name: "Message the room" })).toBeVisible();
+  const roomChatBox = await roomChat.boundingBox();
+  const commonMusicBox = await music.boundingBox();
+  expectInsideViewport(roomChatBox, closedViewport);
+  expect(roomChatBox.y + roomChatBox.height).toBeLessThanOrEqual(commonMusicBox.y);
+
+  const unfoldedViewport = { width: 890, height: 626 };
+  await page.setViewportSize(unfoldedViewport);
+  const unfoldedDockBox = await dock.boundingBox();
+  const unfoldedMusicBox = await music.boundingBox();
+  const unfoldedChatBox = await roomChat.boundingBox();
+  expectInsideViewport(unfoldedDockBox, unfoldedViewport);
+  expectInsideViewport(unfoldedMusicBox, unfoldedViewport);
+  expectInsideViewport(unfoldedChatBox, unfoldedViewport);
+  expect(unfoldedChatBox.y + unfoldedChatBox.height).toBeLessThanOrEqual(unfoldedMusicBox.y);
+
+  const unfoldedTasksBox = await tasksButton.boundingBox();
+  const unfoldedSettingsBox = await settingsButton.boundingBox();
+  expect(Math.abs(unfoldedTasksBox.x - unfoldedSettingsBox.x)).toBeLessThan(2);
+  expect(unfoldedTasksBox.y).toBeLessThan(unfoldedSettingsBox.y);
 });

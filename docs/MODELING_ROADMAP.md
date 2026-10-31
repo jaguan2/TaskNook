@@ -23,10 +23,107 @@ slats, rails and legs. Existing seating anchors and heights are unchanged.
 The art sheet now includes furniture contact at body extremes in both
 facings and idle/focus/break, alongside cream/dark/sage material views.
 
-All **161 catalog entries in 18 groups** have been reviewed in a labelled
+All **168 catalog entries in 18 groups** have been reviewed in a labelled
 contact sheet, including every advertised rear view. `npm run art` now writes
 `frontend/art-sheet/catalog.json` and the complete `catalog-*` SVG fixtures,
 as well as all wardrobe fixtures. An item absent from presets still gets reviewed.
+
+## Next iteration draft — kitchen materials and tabletop life
+
+The outdoor pass now gives five presets a stronger ground plane. The next
+cohesive pass should improve the everyday objects people actually work beside,
+without turning kitchens into dense prop displays:
+
+1. **Set the module boundary first.** Extract the remaining kitchen appliances,
+   cookware and food sprites from `IsoItems.jsx` into a small number of material-
+   based modules. Keep registry keys, stack heights and footprints unchanged.
+2. **Build the fixed kitchen run.** Give the oven recessed glass and controls,
+   the sink a thick inset basin and curved supported faucet, and the fridge
+   separate doors, gasket gap, handles, feet and toe-kick.
+3. **Refine the small appliances.** Rebuild the microwave, toaster and kettle
+   around wall thickness, openings, handles and feet rather than decorated boxes.
+4. **Make cookware hollow and supported.** Add rolled rims, visible interiors
+   and attached handles to the stockpot, teapot, mug and serving bowl while
+   preserving their tabletop placement contracts.
+5. **Give food a readable profile.** Prioritize bread, fruit bowl, cake, pie and
+   ramen. Use overlapping broad forms and cut surfaces that survive room zoom;
+   avoid garnish detail that collapses into noise.
+6. **Repeat the room-scale review loop.** Judge Corner café, Cozy cabin and the
+   kitchen-heavy home arrangements beside the isolated cutouts. Check counter
+   stacking, rear paint order, routes and tint behavior before refreshing only
+   the screenshots whose visible models changed.
+
+Acceptance for that batch: saved keys, footprints, support heights and stacking
+stay compatible; metal, ceramic, food and glass remain visually distinct; no
+new prop blocks an authored route; the full suites, production build, art sheet,
+artifact verification and isolated frozen self-test pass.
+
+## Implemented 2026-10-25 — outdoor ground and resting places
+
+The tree/support pass improved vertical silhouettes; this follow-up strengthens
+what people sit beside and what those pieces touch:
+
+1. **Outdoor ownership.** Picnic blanket, bench, fallen log, hammock and garden
+   lantern now live in `IsoOutdoorStructures.jsx`. Planted scenery remains in
+   `IsoOutdoorItems.jsx`, leaving a stable boundary between growth and built
+   outdoor pieces instead of accumulating more code in `IsoItems.jsx`.
+2. **Two water material systems.** Pond and garden pond share an irregular stone
+   bank, earthen shelf and shallows. Pool and long pool share thick built coping,
+   inset water and submerged entry ledges. All four footprints and clip polygons
+   remain unchanged.
+3. **Resting construction.** The bench exposes braces and pegs, the log has an
+   irregular bark body and projecting end grain, and the hammock separates
+   planted posts, tied ropes and a sagging cloth sling. Seat/lie anchors did not
+   move.
+4. **Ground contact.** Garden-trail stones now have unequal chipped outlines,
+   cracks and contact shadows. Picnic and the outdoor-suitable rug families gain
+   bound edges, cloth corners or offset ground contact at room-readable scale.
+5. **Seasonal anchors.** The hay bale is a tied, slightly bulging straw bundle;
+   the scarecrow has loose sleeves and a constructed brim; the snowman uses
+   irregular snow masses; and firewood exposes unequal split ends and bark bodies.
+6. **Room-scale review.** Secret Garden, Terrace, Autumn yard, Winter yard and
+   Poolside were reviewed beside the isolated catalog renders. Their layouts and
+   open routes remain intact, and the five built-app screenshots were refreshed.
+
+Catalog keys, footprints, seat/surface metadata and authored preset placement
+remain stable. Focused tests assert the water/material split, visible outdoor
+construction, ground bindings and seasonal broad parts rather than pixel-locking
+the artwork.
+
+## Implemented 2026-10-24 — outdoor support pass
+
+The seasonal trees made the simpler objects around them more obvious. This
+pass improved that supporting layer as six connected work units:
+
+1. **Generic outdoor silhouettes.** `tree`, `pine`, `birch`, `bush`, `hedge`,
+   `rock` and `flowerbed` now live in the focused `IsoOutdoorItems.jsx`, reducing
+   `IsoItems.jsx` to 3,794 lines. A shared `EvergreenCrown` supplies five curved,
+   asymmetric tiers to pine, Snowy pine and the Christmas tree while leaving
+   snow shelves, lights and ornaments species-specific.
+2. **Autumn ground props.** The leaf pile is a low irregular mound built from
+   overlapping veined leaves. Pumpkins use filled lobes and a rear-growing
+   stem; the jack-o'-lantern's face now cuts through a visibly thick shell.
+3. **Winter snow material.** The snow angel is a pressed field with broken rim
+   catches, drifts have an irregular cool underside, and the unequal snowballs
+   use hand-packed silhouettes, flattened contacts and short shadow facets.
+4. **Poolside furniture.** The umbrella now has curved scalloped panels,
+   underside ribs, a connected pole and weighted base. Loungers separate the
+   neutral frame, planted legs, hinge hardware and tensioned fabric sling.
+5. **Garden planting layer.** Flower patches mix daisies and bell flowers at
+   different heights. Tulips lean on unequal stems, and the bird bath has a
+   shaped pedestal, thick basin and recessed water below its rim.
+6. **Room-scale review loop.** Secret garden, Autumn yard, Winter yard and
+   Poolside were reviewed with the isolated cutouts. Their purposeful layouts
+   stayed open rather than gaining extra pieces merely to display new artwork.
+
+Acceptance for the batch: silhouettes remain legible at roughly 30 px; repeated
+organic detail is consolidated into compound paths instead of hundreds of SVG
+nodes; footprints, hit heights, seat/surface contracts and saved keys do not
+change; no CSS animation shares an element with an SVG transform; the art sheet,
+preset validation, full frontend suite, production build and packaged-app
+self-test all pass. The rejected seated-character perspective and raised-floor
+architecture remain separate projects—they each need their own coherent design
+iteration rather than being folded into this catalog pass.
 
 ## Order of work
 
@@ -36,7 +133,7 @@ as well as all wardrobe fixtures. An item absent from presets still gets reviewe
 | 1 | Main seating, bed and desk | Rounded upholstery, supported timber frames and layered bedding. Add the reference's raised platform bed as its own design, not a misleading repaint of the existing bed. |
 | 1 | Storage and plants | Recessed cabinets, individual contents and species-specific leaves. The first detailed plant/storage pass is implemented; pots and secondary pieces need further work. |
 | 2 | Kitchen and appliances | Distinct doors, handles, rims, supporting feet and material thickness. |
-| 2 | Seasonal trees and outdoor structures | Replace stacked oval canopies and solid stair blocks with branching foliage and joined construction. |
+| 2 | Seasonal trees and outdoor structures | Seasonal and generic trees now use branching, overlapping foliage; continue the joined-construction pass on stairs and other outdoor structures. |
 | 2 | Wall fixtures and lamps | Supported shades, framed glass, fabric drape and clear attachment points. |
 | 3 | Food, tabletop objects and pets | Individually authored profiles and contact/overlap detail that survive room scale. |
 | 3 | Rugs and small seasonal decorations | Physical cloth edges, irregular organic shapes and readable material differences. |
@@ -107,12 +204,14 @@ because it renders or has a tint picker.
 | Square rug (`squarerug`) | Pending | Replace hard slab corners with cloth corners and corner tassels. |
 | Pet bed (`petbed`) | Pending | Raised stuffed rim, recessed fabric centre and a folded seam. |
 | Runner rug (`runner`) | Pending | Long cloth drape, end binding and asymmetric fringe. |
-| Oval rug (`ovalrug`) | Pending | Irregular textile edge and thickness that follows the ellipse. |
-| Door mat (`matrug`) | Pending | Woven reed strips and binding, distinct from the soft rugs. |
-| Pond (`pond`) | Pending | Stone bank, shallows and irregular waterline rather than a flat diamond. |
-| Picnic blanket (`picnic`) | Pending | Cloth thickness, gathered corner and spaced checks following projection. |
-| Patterned rug (`persianrug`) | Pending | Readable border construction and less uniform fringe. |
-| Striped rug (`stripedrug`) | Pending | Bound edges and a stripe rhythm that survives distant viewing. |
+| Oval rug (`ovalrug`) | Refined 2026-10-25 | Offset contact and a distinct braided material are implemented; an irregular textile perimeter remains future work. |
+| Door mat (`matrug`) | Refined 2026-10-25 | Coir material and floor contact now distinguish it from soft rugs; add woven reed strips only if they survive room scale. |
+| Pond (`pond`) | Refined 2026-10-25 | Irregular stone bank, earthen shelf and shallows are implemented; preserve the natural-water material contract. |
+| Garden pond (`gardenpond`) | Refined 2026-10-25 | Inherits the shared natural bank at an 8-by-6 footprint; keep its larger water movement legible without tiling artifacts. |
+| Stepping-stone trail (`gardentrail`) | Refined 2026-10-25 | Five unequal chipped stones now carry offset shadows, highlights and restrained cracks. |
+| Picnic blanket (`picnic`) | Refined 2026-10-25 | Irregular cloth perimeter, binding, gathered corner and sparse fringe are implemented. |
+| Patterned rug (`persianrug`) | Refined 2026-10-25 | Bound edge and offset contact are implemented; less uniform fringe remains. |
+| Striped rug (`stripedrug`) | Refined 2026-10-25 | Bound edge and floor contact support the existing stripe rhythm; soften the perimeter in a later textile pass. |
 | Sheepskin (`sheepskin`) | Pending | Uneven fleece perimeter with a few broad fur masses. |
 
 ### Tables & desks
@@ -139,12 +238,13 @@ because it renders or has a tint picker.
 | Wooden chair (`chair`) | Refined previous pass | Seat/back thickness and timber joints visible from the rear. |
 | Bed (`bed`) | Refined previous pass | Authored raised platform alternative with ladder and under-bed storage. |
 | Floor cushion (`cushion`) | Refined this pass | Replace the remaining angular piping with curved seams and cloth squash. |
+| Flower cushion (`flowercushion`) | Added 2026-10-23 | Layered petal construction and a stitched centre are implemented; add restrained seam variation while preserving its soft-seat readability. |
 | Desk chair (`deskchair`) | Refined this pass | Arm support structure and quarter-view sitter alignment; retain the shaped back shell and layered padded seat. |
 | Beanbag (`beanbag`) | Pending | One pear-shaped slumped cloth body with gathered base, replacing oval layers. |
 | Wooden stool (`woodstool`) | Pending | Carved seat, splayed legs and visible stretcher joints. |
-| Fallen log (`log`) | Pending | Uneven bark silhouette, exposed end grain and a grounded cut face. |
-| Garden bench (`bench`) | Refined this pass | Joinery at the slat supports and subtle timber wear; separate slats, rails and open under-seat construction are now implemented. |
-| Hammock (`hammock`) | Pending | Sagging woven sling, tied ends and a frame whose tension reads clearly. |
+| Fallen log (`log`) | Refined 2026-10-25 | Uneven bark silhouette, branch stub, knot and projecting exposed end grain are implemented. |
+| Garden bench (`bench`) | Refined 2026-10-25 | Separate slats, rails and open under-seat construction now include visible braces and fastening pegs. |
+| Hammock (`hammock`) | Refined 2026-10-25 | Planted tapered posts, tied ropes and an inset sagging cloth sling make the tension readable. |
 
 ### Storage
 
@@ -157,10 +257,11 @@ because it renders or has a tint picker.
 | Wardrobe (`wardrobe`) | Refined this pass | A restrained timber grain pass and distinct rear construction. |
 | Dresser (`dresser`) | Refined this pass | Drawer side depth and a slightly rounded projecting top. |
 | Record crate (`vinylcrate`) | Refined this pass | Open slatted construction and varied sleeve silhouettes. |
-| Laundry basket (`basket`) | Pending | Woven wall construction and irregular folded laundry. |
+| Laundry basket (`basket`) | Refined 2026-10-23 | Tapered wicker, a bound recessed rim and draped cloth implemented; further fold variation remains. |
 | Coat rack (`coatrack`) | Pending | Sculpted hooks, hanging cloth silhouettes and thicker timber joints. |
-| Ladder shelf (`ladder`) | Pending | Actual shelf boards with depth, angled side rails and books resting on them. |
-| Stacked crates (`crates`) | Pending | Open slats, hand cutouts and visible contents instead of closed boxes. |
+| Ladder shelf (`ladder`) | Refined 2026-10-23 | Projected shelf boards, leaning rails and supported contents implemented; assess rail joinery at room scale. |
+| Stacked crates (`crates`) | Refined 2026-10-23 | Open slats, corner battens and a supporting lower lid implemented; carrying cutouts and varied contents remain. |
+| Book trolley (`booktrolley`) | Added 2026-10-23 | Open two-tier frame, casters, side handle and clear usable upper tray; consider a distinct rear view if four-way facing becomes useful. |
 | Bookshelf (`bookshelf`) | Refined previous pass | More depth in leaning books and a less repetitive shelf arrangement. |
 
 ### Plants & greenery
@@ -179,7 +280,7 @@ because it renders or has a tint picker.
 | Orchid (`orchid`) | Refined this pass | More curved petal silhouettes and a taller arched stem. |
 | Potted plant (`plant`) | Refined this pass | Unequal curved leaves, fuller crown and less rigid stem spacing. |
 | Wildflowers (`flowers`) | Pending | Different flower heads, leaves and stem bends rather than identical daisies. |
-| Flower patch (`flowerbed`) | Pending | Soil bed edge and clustered blooms of different heights. |
+| Flower patch (`flowerbed`) | Refined 2026-10-24 | Soil inset, broad leaves and two flower species now form unequal clusters; future work should stay restrained at room scale. |
 
 ### Tech & music
 
@@ -195,13 +296,13 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Maple (`mapletree`) | Pending | Branching trunk and irregular maple canopy clusters instead of stacked ovals. |
-| Leaf pile (`leafpile`) | Pending | Overlapping broad leaf groups and uneven low mound outline. |
-| Hay bale (`haybale`) | Pending | Rounded bound straw volume and bands that wrap both visible faces. |
-| Pumpkin (`pumpkin`) | Pending | Stronger lobed silhouette and recessed stalk rather than surface stripes alone. |
-| Jack-o'-lantern (`jackolantern`) | Pending | Cut openings with thickness and an uneven segmented shell. |
+| Maple (`mapletree`) | Refined | A connected shadow crown, overlapping tilted lobes and partly hidden branch forks form one full canopy instead of a stack of ovals. |
+| Leaf pile (`leafpile`) | Refined 2026-10-24 | Low scalloped masses, broad individual leaves and veins replace the tall abstract pile. |
+| Hay bale (`haybale`) | Refined 2026-10-25 | Slightly bulging straw faces, loose ends and four wrapping band surfaces replace the crate-like box. |
+| Pumpkin (`pumpkin`) | Refined 2026-10-24 | Filled overlapping lobes, volume shading and a rear-growing stalk replace surface stripes alone. |
+| Jack-o'-lantern (`jackolantern`) | Refined 2026-10-24 | Dark recesses and warm inner facets give the cut openings visible shell thickness. |
 | Rake (`rake`) | Pending | Separated metal teeth and a believable handle/head connection. |
-| Scarecrow (`scarecrow`) | Pending | Loose cloth sleeves, hat brim depth and visible crossbar attachment. |
+| Scarecrow (`scarecrow`) | Refined 2026-10-25 | Loose sleeves, straw cuffs, stitched hem and separate hat crown/brim now expose its construction. |
 | Turkey (`turkey`) | Pending | Layered feather shapes and distinct neck/head volume. |
 | Wreath (`wreath`) | Pending | An irregular leafy ring with overlapping branches and tied ribbon. |
 
@@ -209,15 +310,15 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Snowy pine (`snowpine`) | Pending | Uneven loaded boughs and snow caps with physical thickness. |
-| Snowman (`snowman`) | Pending | Slightly irregular snow masses, inset facial pieces and wrapped scarf. |
-| Snow drift (`snowdrift`) | Pending | Low irregular snow mound with a grounded underside. |
-| Snowballs (`snowballs`) | Pending | Compressed snow spheres with soft contact stacking. |
-| Christmas tree (`christmastree`) | Pending | Layered branch silhouette, wrapped garland and supported ornaments. |
-| Snow angel (`snowangel`) | Pending | Depressed snow impression with a shallow rim, not an outlined figure. |
+| Snowy pine (`snowpine`) | Refined | Five broad curved tiers overlap darker rear boughs; small offset snow shelves leave the conifer silhouette visible. |
+| Snowman (`snowman`) | Refined 2026-10-25 | Three unequal irregular snow masses, cool away-side shading and the wrapped scarf replace perfect balls. |
+| Snow drift (`snowdrift`) | Refined 2026-10-24 | Low compound snow mass with an irregular cool underside and restrained highlight. |
+| Snowballs (`snowballs`) | Refined 2026-10-24 | Unequal hand-packed silhouettes, flattened contacts and short lower-right facets replace perfect spheres. |
+| Christmas tree (`christmastree`) | Refined | Foreground and interstitial boughs make a dense crown without repeating identical triangles; the wrapped garland and ornaments remain independently readable. |
+| Snow angel (`snowangel`) | Refined 2026-10-24 | Broad depressed fields and broken rim catches replace the continuous chalk-like outline. |
 | Christmas lights (`christmaslights`) | Pending | Individual bulb housings and a sagging supported cable. |
 | Snowy chimney (`chimney`) | Pending | Brick courses, mortar recess and separate cap/smoke opening. |
-| Firewood (`logstack`) | Pending | Unequal split logs, bark sides and projecting cut ends. |
+| Firewood (`logstack`) | Refined 2026-10-25 | Separate bark bodies support four unequal projecting split-log ends with restrained growth rings. |
 | Ice lantern (`icelantern`) | Pending | Thick translucent shell, melted rim and inset candle. |
 | Icicles (`icicles`) | Pending | Unequal tapered hanging shards with supported attachment edges. |
 
@@ -225,10 +326,10 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Blossom tree (`blossomtree`) | Pending | Branching tree with irregular blossom clusters and visible gaps. |
-| Tulips (`tulips`) | Pending | Cup-shaped petal heads, curved broad leaves and unequal stems. |
+| Blossom tree (`blossomtree`) | Refined | A connected rear crown and overlapping pink lobes partly hide the forked branches, with small flowers and falling petals preserving species identity. |
+| Tulips (`tulips`) | Refined 2026-10-24 | Unequal leaning stems, cup-shaped heads and broad curved leaves give the cluster a planted rhythm. |
 | Watering can (`wateringcan`) | Pending | Rounded reservoir, rolled rim, hollow spout and separate handle. |
-| Bird bath (`birdbath`) | Pending | Thick carved basin, water recess and sculpted pedestal. |
+| Bird bath (`birdbath`) | Refined 2026-10-24 | Shaped foot, pedestal and capital support a thick basin with water recessed below its rim. |
 | Seedlings (`seedtray`) | Pending | Raised tray edges, separate soil cells and varied seedlings. |
 | Bunting (`bunting`) | Pending | Sagging cord, folded cloth flags and visible attachment points. |
 
@@ -236,11 +337,12 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Swimming pool (`pool`) | Pending | Thick coping, inset waterline, step entry and readable shallow/deep planes. |
-| Coconut palm (`coconutpalm`) | Pending | Curved trunk, hanging segmented fronds and coconuts nestled at the crown. |
-| Pool umbrella (`poolumbrella`) | Pending | Curved fabric panels, ribs and a more grounded stand. |
+| Swimming pool (`pool`) | Refined 2026-10-25 | Thick built coping, inset water and three submerged entry ledges are implemented. |
+| Long swimming pool (`longpool`) | Refined 2026-10-25 | Inherits the built-water construction at seven tiles with repeated coping joints and an unstretched inset plane. |
+| Coconut palm (`coconutpalm`) | Refined | Curved ringed trunk, nine layered segmented fronds with unequal droop/value and a three-coconut crown. |
+| Pool umbrella (`poolumbrella`) | Refined 2026-10-24 | Curved scalloped panels, underside ribs, connected pole and weighted base provide fabric and structural reads. |
 | Beach ball (`beachball`) | Pending | Panel seams following a rounded sphere and floor contact. |
-| Sun lounger (`sunlounger`) | Pending | Curved reclining seat, separate slats and visible hinge structure. |
+| Sun lounger (`sunlounger`) | Refined 2026-10-24 | Neutral frame, planted legs, braces, hinge hardware and a tensioned fabric sling are visibly separate. |
 
 ### Kitchen
 
@@ -274,6 +376,8 @@ because it renders or has a tint picker.
 | Standing mirror (`standmirror`) | Pending | Frame thickness, rear easel support and a grounded stand. |
 | Guitar (`guitar`) | Pending | Body bevel, recessed sound hole, bridge and tuning peg detail. |
 | Stack of books (`bookstack`) | Pending | Unequal covers, visible page blocks and less perfect alignment. |
+| Open journal (`openjournal`) | Added 2026-10-23 | Bound page spread, ribbon and pencil; retain readable page planes and cover tint when adding future variants. |
+| Folded blanket (`foldedblanket`) | Added 2026-10-23 | Staggered folded layers, rounded cloth edges and loose fringe are implemented; add subtle thickness variation without making the stack noisy. |
 | Aquarium (`aquarium`) | Pending | Glass frame thickness, gravel bank and identifiable underwater plants. |
 | Upright piano (`piano`) | Pending | Separate keybed, unequal black/white keys, lid and leg construction. |
 | Easel (`easel`) | Pending | Actual crossed support joints, tray lip and canvas frame depth. |
@@ -343,12 +447,12 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Tree (`tree`) | Refined this pass | Unequal branching crown masses and a bark/branch construction pass. |
-| Pine tree (`pine`) | Pending | Individual branch tiers and irregular needle silhouette. |
-| Birch tree (`birch`) | Refined this pass | Branch splits and a lighter, more open cluster arrangement. |
-| Hedge (`hedge`) | Pending | Irregular clipped foliage top and visible rooted base. |
-| Rock (`rock`) | Pending | Unequal facets, chipped outline and a grounded underside. |
-| Bush (`bush`) | Refined this pass | Unequal leaf groups with visible inner branching. |
+| Tree (`tree`) | Refined 2026-10-24 | Shared broadleaf construction gives it a joined crown, branching depth and a full room-scale silhouette. |
+| Pine tree (`pine`) | Refined 2026-10-24 | Five asymmetric curved tiers overlap darker rear boughs around a visible trunk. |
+| Birch tree (`birch`) | Refined 2026-10-24 | A tapered forked trunk and three open leaf clusters preserve its lighter species silhouette. |
+| Hedge (`hedge`) | Refined 2026-10-24 | Organic clipped foliage, a ragged top and lower stems replace the hard box silhouette. |
+| Rock (`rock`) | Refined 2026-10-24 | Unequal planes, chipped edges and a dark grounded facet create a compact stone mass. |
+| Bush (`bush`) | Refined 2026-10-24 | Overlapping clustered foliage, inner branches and a ground shadow replace the flat blob. |
 
 ## Definition of a reviewed improvement
 

@@ -12,7 +12,7 @@ const { player, station } = vi.hoisted(() => ({
 }));
 
 vi.mock("../store", () => ({
-  useStore: () => ({
+  useAudioStore: () => ({
     musicOn: true,
     musicStations: [station],
     activeStationKey: `youtube::${station.id}`,

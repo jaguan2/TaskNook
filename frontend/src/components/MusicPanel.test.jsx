@@ -21,7 +21,7 @@ const mockStore = vi.hoisted(() => ({
   stopAllSounds: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../store", () => ({ useAudioStore: () => mockStore }));
 
 afterEach(() => {
   cleanup();

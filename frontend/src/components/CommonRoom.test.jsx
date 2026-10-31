@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CommonRoom from "./CommonRoom";
@@ -45,7 +46,7 @@ describe("common-room seats", () => {
     expect(screen.queryByRole("button", { name: /Drag and drop to change seats/ })).toBeNull();
     fireEvent.keyDown(document.querySelector('[data-common-person="you"]'), { key: "Enter" });
     expect(screen.getByRole("group", { name: "Common room seats" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Drag and drop to change seats/ }).textContent).toBe("Done choosing");
+    expect(screen.getByRole("button", { name: "Close seat chooser" }).textContent).toBe("Done choosing");
   });
   it("clips the translated stone material to the actual Willow terrace", () => {
     const { container } = render(<CommonRoom session={createCommonSession("willow-pond")} character={DEFAULT_CHARACTER} />);
@@ -72,13 +73,31 @@ describe("common-room seats", () => {
       expect(centre[1]).toBeCloseTo(at.y - s.z, 5);
     }
   );
-  it("returns keyboard focus to the seat chooser after settling", () => {
-    render(<CommonRoom session={createCommonSession("common-cottage")} character={DEFAULT_CHARACTER} onChooseSeat={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Drag and drop to change seats/ }));
+  it("returns focus to the moved resident after the hint expires, and Escape closes only the chooser", () => {
+    vi.useFakeTimers();
+    function Room() {
+      const [session, setSession] = useState(() => createCommonSession("common-cottage"));
+      return <CommonRoom session={session} character={DEFAULT_CHARACTER}
+        onChooseSeat={(id) => setSession((current) => settleCommonGuest(current, id))} />;
+    }
+    const escaped = vi.fn();
+    const { container } = render(<div onKeyDown={escaped}><Room /></div>);
+    act(() => vi.advanceTimersByTime(5_001));
+    const resident = () => screen.getByRole("button", { name: /Move your character/ });
+    fireEvent.keyDown(resident(), { key: "Enter" });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close seat chooser" }));
     const seat = screen.getByRole("button", { name: "Reading armchair" });
     seat.focus();
     fireEvent.click(seat);
-    expect(document.activeElement === screen.getByRole("button", { name: /Drag and drop to change seats/ })).toBe(true);
+    expect(container.querySelector('[data-common-person="you"]').getAttribute("data-seat")).toBe("window-right");
+    expect(document.activeElement).toBe(resident());
+    expect(screen.queryByRole("group", { name: "Common room seats" })).toBeNull();
+    fireEvent.keyDown(resident(), { key: "Enter" });
+    escaped.mockClear();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Close seat chooser" }), { key: "Escape" });
+    expect(escaped).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(resident());
+    expect(screen.queryByRole("group", { name: "Common room seats" })).toBeNull();
   });
   it("defines every SVG paint and clip used by all authored scenes", () => {
     for (const sceneId of Object.keys(COMMON_PLACES)) {

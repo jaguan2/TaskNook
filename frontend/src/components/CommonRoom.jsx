@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { COMMON_PLACES, resolveCommonProps } from "../lib/commonRooms";
 import { floorPatch, isoBox, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
@@ -10,6 +10,8 @@ import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
 import CommonLibraryScene from "./CommonLibraryScene";
 import PersonaNameTag from "./PersonaNameTag";
+import IsoContactShadow from "./IsoContactShadow";
+import { CottageFloorShade, CottageLightDefs, CottageTableLight, CottageWallLight } from "./CommonCottageLighting";
 
 function Surface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color } = surface;
@@ -26,23 +28,27 @@ function Surface({ surface, clipId }) {
   </>;
 }
 
-function Prop({ p, scene }) {
+function Prop({ p, scene, uid, lamp, lampGlow }) {
   const Sprite = ISO_SPRITES[p.item];
+  const item = ISO_ITEMS[p.item];
   const at = project(p.gx, p.gy);
   const z = scene.surfaces[p.level || "ground"].z;
   return <g data-common-prop={p.id} transform={`translate(${at.x},${at.y - z - (p._rest || 0)})`}
     style={{ ...(p.tint && { "--tint": p.tint }), ...ambienceVars(p.gx, p.gy) }}>
+    {scene.kind === "cottage" && !item.wall && (item.layer || 0) >= 0 && !p._rest &&
+      <IsoContactShadow foot={footOf(p.item, p.rot)} height={item.hitH} paint={`${uid}-contact`} />}
     <g transform={p.rot % 2 === 1 ? "scale(-1,1)" : undefined}>
       <Sprite rot={(p.rot || 0) % 2} back={p.rot >= 2} />
     </g>
+    {lamp && <CottageTableLight p={p} lamp={lamp} uid={uid} strength={lampGlow} />}
   </g>;
 }
 
-function SeatedPerson({ seat, scene, person, character, activity, now, guest, onGrab, onChoose }) {
+function SeatedPerson({ seat, scene, person, character, activity, now, guest, guestRef, onGrab, onChoose }) {
   const Resident = ISO_SPRITES.resident;
   const at = project(seat.gx, seat.gy);
   const z = scene.surfaces[seat.level].z;
-  return <g data-common-person={guest ? "you" : person.username} data-seat={seat.id}
+  return <g ref={guest ? guestRef : undefined} data-common-person={guest ? "you" : person.username} data-seat={seat.id}
     transform={`translate(${at.x},${at.y - z})`}
     role={guest ? "button" : undefined} tabIndex={guest ? 0 : undefined}
     aria-label={guest ? "Move your character. Drag to an open seat or press Enter to choose." : undefined}
@@ -77,11 +83,13 @@ function SeatedName({ seat, scene, person, guest, friendship }) {
 
 /** An authored split-level scene. Only seat selection is interactive; neither
  * its architecture nor the user's home layout enters the decoration pipeline. */
-export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, friendship, onChooseSeat }) {
+export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, paused = false, friendship, onChooseSeat }) {
   const scene = COMMON_PLACES[session.sceneId];
   const uid = useId();
   const svgRef = useRef(null);
   const chooserRef = useRef(null);
+  const guestRef = useRef(null);
+  const returnFocusRef = useRef(false);
   const heldRef = useRef(null);
   const dragRef = useRef(null);
   const [choosing, setChoosing] = useState(false);
@@ -90,9 +98,18 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const [dragTargetId, setDragTargetId] = useState(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    if (paused) return undefined;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(timer);
-  }, []);
+  }, [paused]);
+  useLayoutEffect(() => {
+    if (choosing) chooserRef.current?.focus({ preventScroll: true });
+    else if (returnFocusRef.current) {
+      returnFocusRef.current = false;
+      guestRef.current?.focus({ preventScroll: true });
+    }
+  }, [choosing, session.guestSeatId]);
   useEffect(() => {
     const timer = setTimeout(() => setHintVisible(false), 5_000);
     return () => clearTimeout(timer);
@@ -100,12 +117,13 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const people = new Map(session.occupants.map((person) => [person.seatId, person]));
   const guestSeat = scene.seats.find((seat) => seat.id === session.guestSeatId);
   const openSeats = scene.seats.filter((seat) => !people.has(seat.id));
+  const closeChooser = () => {
+    returnFocusRef.current = true;
+    setChoosing(false);
+  };
   const choose = (seat) => {
     onChooseSeat(seat.id);
-    setChoosing(false);
-    // The selected target unmounts with the list. Keep keyboard users on the
-    // persistent chooser rather than dropping focus onto the document body.
-    chooserRef.current?.focus({ preventScroll: true });
+    closeChooser();
   };
   const pointerInScene = (e) => {
     const ctm = svgRef.current?.getScreenCTM();
@@ -196,8 +214,11 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
       entries.push({ id: `person-${seat.id}`, layer: 0, depth: isoDepth(furniture) + (seat.facing === "back" ? -0.01 : 0.01), seat, person, guest });
     }
     return entries.sort((a, b) => a.layer - b.layer || a.depth - b.depth)
-      .map((entry) => entry.p ? <Prop key={entry.id} p={entry.p} scene={scene} /> :
+      .map((entry) => entry.p ? <Prop key={entry.id} p={entry.p} scene={scene} uid={uid} lampGlow={lampGlow}
+        lamp={scene.kind === "cottage" && ISO_ITEMS[entry.p.item].surface
+          ? props.find((p) => p.on === entry.id && ISO_ITEMS[p.item].glow && !p.off) : null} /> :
         <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now}
+          guestRef={guestRef}
           onGrab={startGuestDrag} onChoose={() => setChoosing(true)} />);
   };
   // Floor lift and clip share one coordinate space. Lifting only each pool
@@ -232,10 +253,11 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
     <svg ref={svgRef} viewBox={scene.viewBox || "-260 -190 580 470"}
-      className={`h-full w-full ${reduceMotion ? "cottage-preview" : ""}`} role="img" aria-label={scene.ariaLabel}
+      className={`h-full w-full ${reduceMotion ? "cottage-preview" : scene.kind === "library" ? "common-library-calm" : ""}`} role="img" aria-label={scene.ariaLabel}
       onPointerMove={moveGuestDrag} onPointerUp={endGuestDrag} onPointerCancel={endGuestDrag}
       onLostPointerCapture={endGuestDrag}>
       <defs>
+        {scene.kind === "cottage" && <CottageLightDefs uid={uid} />}
         <linearGradient id="isoScreen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4a3a6b" /><stop offset="1" stopColor="#2c2148" />
         </linearGradient>
@@ -270,6 +292,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
           d={`M${P(0, t)} L${P(0, t, 40)}`} stroke="#4f4a49" strokeWidth="1" opacity=".22" />)}
         {[1.6, 3.2, 4.8, 8.8, 10.4].map((t) => <path key={`right-panel-${t}`}
           d={`M${P(t, 0)} L${P(t, 0, 40)}`} stroke="#4f4746" strokeWidth="1" opacity=".22" />)}
+        <CottageWallLight uid={uid} roofH={cottageRoofH} strength={lampGlow} />
         <polygon points={wallRect("left", 0.4, 2.3, 55, 70)} fill="#c6a980" stroke="#e0c59d" strokeWidth="4" />
         <polygon points={wallRect("left", 0.5, 2.1, 59, 62)} fill={windowFill} />
         <polygon points={wallRect("right", 6.1, 2.3, 36, 66)} fill="#c6a980" stroke="#d8bd94" strokeWidth="4" />
@@ -281,6 +304,8 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <path d={`M${P(0, 1.55, 59)} L${P(0, 1.55, 121)} M${P(7.25, 0, 40)} L${P(7.25, 0, 98)}`} stroke="#ddc29b" strokeWidth="3" />
         <Surface surface={scene.surfaces.ground} clipId={clip("ground")} />
         <Surface surface={scene.surfaces.nook} clipId={clip("nook")} />
+        <CottageFloorShade surface={scene.surfaces.ground} clipId={clip("ground")} />
+        <CottageFloorShade surface={scene.surfaces.nook} clipId={clip("nook")} />
         {/* Solid risers meet the platform; the lower step is nearest. */}
         {[36, 24, 12].map((h, i) => { const b = isoBox(3.15, 3.1 + i * 0.5, 1.25, 0.5, h); return <g key={h}>
           <polygon points={b.left} fill="#8d7054" /><polygon points={b.right} fill="#755c48" /><polygon points={b.top} fill="#ceb190" />
@@ -353,13 +378,24 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         <PersonaNameTag data-common-name="you" y="-52">You</PersonaNameTag>
       </g>}
     </svg>
-    {(hintVisible || choosing) && <div className="absolute top-6 left-1/2 z-20 w-max max-w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 text-center">
-      <button ref={chooserRef} type="button" aria-expanded={choosing} onClick={() => setChoosing((open) => !open)}
-        aria-label={`Drag and drop to change seats. Current seat: ${guestSeat.label}. Click to choose from a list.`}
+    {(hintVisible || choosing) && <div
+      className={choosing
+        ? "common-seat-picker absolute right-6 top-6 z-40 w-[min(24rem,calc(100%-6rem))] rounded-2xl p-2 shadow-soft"
+        : "common-seat-hint absolute top-6 left-1/2 z-20 w-max max-w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 text-center"}
+      onKeyDown={(event) => {
+        if (choosing && event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeChooser();
+        }
+      }}>
+      <button ref={chooserRef} type="button" aria-expanded={choosing}
+        onClick={() => choosing ? closeChooser() : setChoosing(true)}
+        aria-label={choosing ? "Close seat chooser" : `Drag and drop to change seats. Current seat: ${guestSeat.label}. Click to choose from a list.`}
         className="pill glass px-4 py-2 text-xs font-semibold text-cream shadow-soft hover:bg-white/10">
         {choosing ? "Done choosing" : "Drag and drop to change seats"}
       </button>
-      {choosing && <div className="glass mt-2 flex max-h-[min(20rem,50vh)] max-w-[30rem] flex-wrap justify-center gap-1.5 overflow-y-auto rounded-2xl p-2 text-left" role="group" aria-label="Common room seats">
+      {choosing && <div className="cozy-scroll mt-2 flex max-h-[min(24rem,calc(100dvh-10rem))] flex-wrap gap-1.5 overflow-y-auto rounded-xl p-1 text-left" role="group" aria-label="Common room seats">
         {scene.seats.map((seat) => { const person = people.get(seat.id); return <button key={seat.id} type="button"
           disabled={!!person} aria-pressed={seat.id === session.guestSeatId} onClick={() => choose(seat)}
           className={`pill px-3 py-2 text-xs disabled:opacity-50 ${seat.id === session.guestSeatId ? "bg-glow/20 text-glow" : "text-cream hover:bg-white/10"}`}>

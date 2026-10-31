@@ -55,6 +55,12 @@ check; only looking caught them.
 - Every sprite is drawn for **a footprint anchored at grid (0,0)**. The scene
   places it with `translate(project(gx, gy))`, which works because the
   projection is linear — never bake a position into a sprite.
+- Broad water follows that footprint too. Pools use projected basin, coping
+  and inset-water polygons; natural ponds build their irregular shoreline
+  from grid-space points. Do not substitute a screen-space ellipse: its wide
+  sides can cross the platform even when placement validation says the item
+  fits. The moving water surface is clipped to the declared footprint as a
+  final containment guard.
 - `project`/`unproject` are exact inverses. That is what makes grid-dragging
   work; don't add rounding to either.
 
@@ -95,6 +101,16 @@ Bookshelves use a continuous dark recess behind the rails and varied books,
 ceramics and baskets. Keep contents warm and muted so the selected furniture
 tint still dominates. Material review fixtures cover light, dark and sage
 paint, including front and rear chair/sofa views.
+
+The ladder shelf has projected boards with decreasing depth along leaning
+side rails; its contents rest at the boards' actual top heights. Stacked crates
+use separate slats and corner battens, with a boarded lower lid supporting
+the open upper crate. The laundry basket uses tapered wicker, an inset bound
+rim and a single draped cloth. These preserve their original placement bounds.
+`IsoStorageItems.jsx` owns those three models. `IsoStudyItems.jsx` owns the
+book trolley and open journal: the trolley's books are fixed lower-shelf art,
+while its clear upper tray is a normal catalog surface at 32 px. The journal
+uses ordinary tabletop stacking; neither piece needs special scene behavior.
 
 ### Persona proportions
 
@@ -158,6 +174,13 @@ hems and ochre stitching for denim, a pressed crease for dress trousers,
 and an elastic cuff for joggers. Bare shins draw behind the shorts' thighs
 so the shin's round cap cannot erase the cloth hem. Review every bottom
 seated as well as standing; the distinct-artwork test covers both poses.
+
+Beds keep the same complete customized resident for the lying pose, then
+repaint the bed's own duvet above the sleeper. That foreground layer is what
+makes the character look tucked in without introducing a second generic body
+or blanket model; hair, skin, body sliders and clothing remain the real saved
+look. The sleeper and cover both follow the bed's grid orientation. Other
+lie-on furniture keeps the flat pose without borrowing the bed duvet.
 
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
@@ -294,6 +317,14 @@ under-shadow at the hem (`OUTER_BULK`), a `collar` slot renders after the
 body's own neck, and a `back` slot serves the turned-away view (the hoodie's
 hood hangs down it). Registry keys are pinned against the catalog both ways.
 
+The October 26 silhouette pass gives **short, bob and long** authored curves
+instead of the repeated dome/tooth outline: a dominant fringe sweep, unequal
+curl-under ends and tapered highlights. Keep their front, profile and rear
+outlines coherent. The closed-mass and restrained tonal rules still apply;
+the kit is a starting tool rather than a required silhouette for every cut.
+Long falls remain behind the torso; a broad coat can naturally occlude most
+of them from the front. Do not widen all hair into a cape to avoid that.
+
 **Learned from:** every style once put its length in `HairFront`, which paints
 after the head. Side pieces ran to `headY + 9…13` against a 7.3px head radius —
 past the chin — so all six hairstyles closed around the face and read as a hood
@@ -317,6 +348,13 @@ silhouette instead of adding another full sphere around it. Hats may replace
 the crown layer while preserving the hairstyle's length behind the body;
 headphones set `coversHair: false`, hug the crown, and stop their cups above the
 jaw so the selected hair still reads.
+
+Covered profile/rear hair uses a shared skull-and-fall clip in `HairUnderHat`:
+the crown fits inside `HEAD_R`, while the nape and length remain free below
+the band. Rendering no hair at all left a bald patch under rear hats and
+removed the bob in profile. The skull-shaped upper mask also supports high
+beret rims without a bare horizontal strip. Complete rear falls suppress
+their separate behind-body length whether or not a hat is worn.
 
 Direction belongs in the registry entry when the object materially changes:
 `Hat` accepts the resident view and selects a `side` renderer when present. The
@@ -367,6 +405,10 @@ of the catalog:
 | `ScreenFace` | screens | glass inset in its bezel + a hint of picture |
 | `isoBox` | raw geometry | when a helper genuinely can't say it |
 
+`IsoRugItems.jsx` owns every rug sprite plus the private `RugGround` and
+`Fringe` construction helpers. Add new rug silhouettes there and keep only
+their stable `ISO_SPRITES` registrations in the root furniture module.
+
 **Detail belongs in the helper before the individual sprite.** One edit to
 `TintedBox` raises the whole catalog; an over-detailed bookshelf beside a
 hundred flat boxes looks *worse* than uniform.
@@ -376,8 +418,8 @@ hundred flat boxes looks *worse* than uniform.
 - **Wall items**: draw inside `<g transform={skewY(SKEW)}>`, y=0 at the floor
   line, negative y upward.
 - **Flat things**: `floorPatch(gx, gy, dx, dy)` — a diamond in the floor plane.
-- **Derive texture from POSITION, never `Math.random`.** The scene re-renders
-  on the timer tick; a randomised floor would crawl.
+- **Derive texture from POSITION, never `Math.random`.** A scene render must
+  not generate a different floor pattern.
 
 ---
 
@@ -421,16 +463,20 @@ things make it a pot, and all three are silhouette rather than surface:
 2. **A lip** standing slightly proud of the body at the top.
 3. **Soil sunk below the rim**, so you are looking INTO something.
 
-`PlantPot` does all three; `PlantBase` wraps it for the leafy ones. A bonsai
+`IsoPlantItems.jsx` owns the shared potted-plant family. Its exported `PlantPot`
+does all three and remains available to the cactus still living in the root
+furniture module; its private `PlantBase` wraps the shared pot. A bonsai
 keeps its shallow rectangular tray — that IS what a bonsai grows in.
 
 ---
 
 ## 6. Motion
 
-- CSS keyframe classes only: `room-sway`, `steam-puff`, `animate-flicker`,
-  `room-flicker`, `resident-type`. The scene re-renders every second, and CSS
-  animations live on the element, so they survive it for free.
+- Decorative motion uses the existing CSS keyframe classes: `room-sway`,
+  `steam-puff`, `animate-flicker`, `room-flicker`, `resident-type`. Miniatures
+  stay still, widget mode pauses the hidden scene, and live scenes respect
+  reduced motion. CSS animation still costs rendering work even without a
+  React render; new details do not automatically need animation.
 - **A CSS animation's `transform` overrides an SVG `transform` attribute
   entirely.** Put the attribute transform on a wrapper `<g>` and animate a
   child. (Hit twice; the desk plant's foliage once dropped 16px into its pot.)

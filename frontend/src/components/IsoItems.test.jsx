@@ -38,6 +38,99 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(container.querySelector(".room-breathe")).toBeNull();
   });
 
+  it.each([
+    ["pond", "3.5x2.5", "0,0 84,42 24,72 -60,30"],
+    ["gardenpond", "8x6", "0,0 192,96 48,168 -144,72"],
+    ["pool", "3.5x2.5", "0,0 84,42 24,72 -60,30"],
+    ["longpool", "7x2.5", "0,0 168,84 108,114 -60,30"],
+  ])("clips %s water to its catalog footprint", (key, footprint, expectedClip) => {
+    const Water = ISO_SPRITES[key];
+    const { container } = draw(<Water />);
+    const body = container.querySelector(`[data-water-body][data-footprint="${footprint}"]`);
+
+    expect(body).toBeTruthy();
+    expect(body.querySelector('[data-water-clip="true"]')?.getAttribute("clip-path")).toMatch(
+      /^url\(#(?:pond|pool)-footprint-[^)]+\)$/
+    );
+    expect(body.querySelector("clipPath polygon")?.getAttribute("points")).toBe(expectedClip);
+  });
+
+  it("distinguishes natural pond banks from built pool coping", () => {
+    const PondSprite = ISO_SPRITES.pond;
+    const PoolSprite = ISO_SPRITES.pool;
+    const pond = draw(<PondSprite />).container;
+
+    expect(pond.querySelector('[data-water-material="natural-bank"]')).toBeTruthy();
+    expect(pond.querySelector('[data-water-part="bank"]')).toBeTruthy();
+    expect(pond.querySelector('[data-water-part="shallows"]')).toBeTruthy();
+    cleanup();
+
+    const pool = draw(<PoolSprite />).container;
+    expect(pool.querySelector('[data-water-material="built-coping"]')).toBeTruthy();
+    expect(pool.querySelector('[data-water-part="coping"]')).toBeTruthy();
+    expect(pool.querySelectorAll('[data-water-part="entry-step"]')).toHaveLength(3);
+  });
+
+  it("builds outdoor resting pieces from visible supports and material layers", () => {
+    const expectations = [
+      ["bench", "joinery", 1],
+      ["log", "end-grain", 1],
+      ["hammock", "post", 2],
+      ["hammock", "rope", 1],
+      ["hammock", "sling", 1],
+    ];
+    for (const [key, part, count] of expectations) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelectorAll(`[data-outdoor-part="${part}"]`), `${key} ${part}`).toHaveLength(count);
+      cleanup();
+    }
+  });
+
+  it("gives outdoor ground pieces irregular edges, binding and contact", () => {
+    const Trail = ISO_SPRITES.gardentrail;
+    const PicnicBlanket = ISO_SPRITES.picnic;
+    const { container: trail } = draw(<Trail />);
+    expect(trail.querySelectorAll('[data-ground-part="chipped-stone"]')).toHaveLength(5);
+    cleanup();
+
+    const { container: picnic } = draw(<PicnicBlanket />);
+    expect(picnic.querySelector('[data-ground-material="picnic-cloth"]')).toBeTruthy();
+    expect(picnic.querySelector('[data-ground-part="binding"]')).toBeTruthy();
+    expect(picnic.querySelector('[data-ground-part="gathered-corner"]')).toBeTruthy();
+    const checks = picnic.querySelector('[data-ground-part="checks"]');
+    expect(checks?.getAttribute("clip-path")).toMatch(/^url\(#.+\)$/);
+    expect(picnic.querySelector("clipPath polygon")?.getAttribute("points")).toBeTruthy();
+    cleanup();
+
+    for (const key of ["ovalrug", "matrug", "persianrug", "stripedrug"]) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelector("[data-ground-material]"), `${key} lacks material construction`).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("builds the seasonal anchors from broad material parts", () => {
+    const expectations = [
+      ["haybale", "wrap-band", 4],
+      ["scarecrow", "cloth-sleeves", 1],
+      ["scarecrow", "hat-brim", 1],
+      ["snowman", "snow-mass", 3],
+      ["logstack", "split-log", 4],
+    ];
+    for (const [key, part, count] of expectations) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelectorAll(`[data-seasonal-part="${part}"]`), `${key} ${part}`).toHaveLength(count);
+      cleanup();
+    }
+
+    const Firewood = ISO_SPRITES.logstack;
+    const { container } = draw(<Firewood />);
+    expect(container.querySelector('[data-seasonal-part="bark"]')?.getAttribute("style")).toContain("--tint");
+  });
+
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is
@@ -76,12 +169,29 @@ describe("the isometric catalog and its artwork agree", () => {
     // The point of coming back to SVG for upholstery: a picked colour has to
     // reach the fabric. A sprite that paints only literal fills would pass
     // every other test here and silently ignore the picker.
-    for (const key of ["bed", "sofa", "armchair", "cushion"]) {
+    for (const key of [
+      "bed", "sofa", "armchair", "cushion", "flowercushion", "foldedblanket",
+      "picnic", "bench", "log", "hammock", "haybale", "scarecrow", "logstack",
+    ]) {
       expect(ISO_ITEMS[key].tintable, `${key} is marked untintable`).not.toBe(false);
       const Sprite = ISO_SPRITES[key];
       const { container } = draw(<Sprite />);
       expect(container.innerHTML, `${key} never references var(--tint)`).toContain("--tint");
       cleanup();
+    }
+  });
+
+  it("recolours both flower-patch species", () => {
+    expect(ISO_ITEMS.flowerbed.tintable).not.toBe(false);
+    const Flowerbed = ISO_SPRITES.flowerbed;
+    const { container } = draw(<Flowerbed />);
+
+    for (const kind of ["daisy", "bell"]) {
+      const flowers = container.querySelectorAll(`[data-flower-kind="${kind}"]`);
+      expect(flowers.length, `${kind} flowers are missing`).toBeGreaterThan(0);
+      for (const flower of flowers) {
+        expect(flower.innerHTML, `${kind} ignores the selected tint`).toContain("--tint");
+      }
     }
   });
 
@@ -466,6 +576,33 @@ describe("the isometric catalog and its artwork agree", () => {
         seen.set(html, key);
         cleanup();
       }
+    });
+
+    it.each(["bob", "long"])("keeps the rear %s haircut below a hat, with instance-local clipping", (hair) => {
+      const character = { ...DEFAULT_CHARACTER, hair, hairColor: "#123456", hat: "beanie" };
+      const { container } = draw(<>
+        <Resident character={character} facing="back" />
+        <Resident character={character} facing="back" seated seatH={19} />
+      </>);
+      const rearHair = [...container.querySelectorAll(`[data-hair-back="${hair}"]`)];
+      expect(rearHair).toHaveLength(2);
+      const clips = rearHair.map((layer) => layer.parentElement.getAttribute("clip-path"));
+      expect(new Set(clips).size).toBe(2);
+      for (const [index, layer] of rearHair.entries()) {
+        expect(layer.querySelector('[fill="#123456"]')).toBeTruthy();
+        const id = clips[index].slice(5, -1);
+        const clip = [...container.querySelectorAll("clipPath")].find((node) => node.id === id);
+        expect(clip?.querySelector("rect")).toBeTruthy();
+      }
+    });
+
+    it.each(["beanie", "beret"])("retains the profile bob beneath a %s", (hat) => {
+      const { container } = draw(<Resident facing="side" character={{
+        ...DEFAULT_CHARACTER, hair: "bob", hairColor: "#123456", hat,
+      }} />);
+      const haircut = container.querySelector('[clip-path$="-hat-hair)"]');
+      expect(haircut?.querySelector('[fill="#123456"]')).toBeTruthy();
+      expect(haircut?.querySelector("clipPath circle")).toBeTruthy();
     });
 
     it("the two models cut different silhouettes", () => {
