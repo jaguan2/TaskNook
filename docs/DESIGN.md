@@ -583,7 +583,7 @@ chair, because a preview that lies is worse than no preview.
 - Hard-to-reverse actions get no confirmation dialogs; they get forgiving
   models instead (validation relocates, tolerates, heals). Where real work
   would be lost outright, the button itself arms first — a two-tap "sure?"
-  state (`lib/useArmed.js`), never a modal. **Every delete of user data
+  state (`hooks/useArmed.js`), never a modal. **Every delete of user data
   arms**: tasks, custom stations, scene presets, friends, clearing the room,
   resetting a block in progress. Putting decor items away doesn't (they come
   straight back from the catalog), and ungrouping doesn't (the tasks stay).

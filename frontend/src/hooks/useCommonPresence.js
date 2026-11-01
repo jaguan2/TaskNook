@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { settleCommonGuest } from "./commonRooms";
+import { settleCommonGuest } from "../lib/commonRooms";
 import {
   advanceCommonPresence,
   createCommonPresence,
   createCommonPresences,
   joinCommonPresence,
-} from "./commonPresence";
+} from "../lib/commonPresence";
 
 /**
  * Own the complete render-only lifecycle of common-place populations. The

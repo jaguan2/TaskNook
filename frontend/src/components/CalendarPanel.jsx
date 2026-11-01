@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSystemStore, useTaskStore } from "../store";
-import { api } from "../lib/api";
+import { api } from "../services/api";
 import { toISO } from "../lib/dates";
 import { focusSummary, intensityOf, intensityScale, localTodayISO } from "../lib/stats";
 import { formatSpan } from "../lib/breaks";

@@ -2,9 +2,9 @@
 import { StrictMode } from "react";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { PROGRESSION_KEY } from "./progression";
+import { PROGRESSION_KEY } from "../lib/progression";
 import { useProgression } from "./useProgression";
-import { readJSON, removeStored } from "./storage";
+import { readJSON, removeStored } from "../services/storage";
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 7, 12)); removeStored(PROGRESSION_KEY); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); removeStored(PROGRESSION_KEY); });

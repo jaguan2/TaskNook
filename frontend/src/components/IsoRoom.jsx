@@ -24,9 +24,9 @@ import {
 } from "../lib/isoRoom";
 import { unproject } from "../lib/iso";
 import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
-import { useNpcActivity } from "../lib/useNpcActivity";
-import { useIsoCamera } from "../lib/useIsoCamera";
-import { overSoftSpot, usePetRoaming } from "../lib/usePetRoaming";
+import { useNpcActivity } from "../hooks/useNpcActivity";
+import { useIsoCamera } from "../hooks/useIsoCamera";
+import { overSoftSpot, usePetRoaming } from "../hooks/usePetRoaming";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoBedTuck from "./IsoBedTuck";

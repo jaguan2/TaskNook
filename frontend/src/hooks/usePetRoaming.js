@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ISO_ITEMS, footOf, footprintFree, petTemper } from "./isoRoom";
+import { ISO_ITEMS, footOf, footprintFree, petTemper } from "../lib/isoRoom";
 
 export function overSoftSpot(placements, gx, gy, footprint) {
   return placements.some((placement) => {

@@ -53,7 +53,7 @@ Custom definitions and ongoing progress survive day changes. Malformed markers,
 duplicate IDs, obsolete catalog entries and invalid counters are sanitized and
 bounded. Clearing browser storage clears these goals; no new database table is used.
 
-`lib/challenges.js` owns the pure model; `lib/useChallenges.js` owns persistence and
+`lib/challenges.js` owns the pure model; `hooks/useChallenges.js` owns persistence and
 day reconciliation; the store exposes its state/actions. Successful task/message
 writes and accepted visits emit explicit events. Timer completion emits session and
 minute events only after `logSession` succeeds, before the later stats refresh.

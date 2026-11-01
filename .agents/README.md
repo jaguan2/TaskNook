@@ -13,9 +13,14 @@ locally — **the database is SQLite (a local file), with no cloud/AWS dependenc
 ```
 TaskNook/
 ├── backend/              # Flask REST API (Python)
-│   ├── app.py            # App factory, core routes, auth, seeding, static serving
+│   ├── app.py            # App factory, shared policies, seeding, static serving
 │   ├── request_validation.py # Shared JSON/scalar request validators
 │   ├── routes/           # Blueprint package
+│   │   ├── auth.py       # Registration, login, logout and session lookup
+│   │   ├── tasks.py      # Task CRUD, groups, ordering and archiving
+│   │   ├── calendar.py   # Calendar events
+│   │   ├── sessions.py   # Focus history and productivity summaries
+│   │   ├── social.py     # Friends, visits and visit access
 │   │   ├── chat.py       # Threads, messages and unread state
 │   │   └── room_profile.py # Room/profile routes + JSON validation
 │   ├── models.py         # SQLAlchemy models + db instance
@@ -27,22 +32,25 @@ TaskNook/
 │   └── src/
 │       ├── main.jsx      # Entry; <ErrorBoundary><StoreProvider><TimerProvider><App/>
 │       ├── App.jsx       # Shell: cottage scene, dock, drawers, HUD cards
-│       ├── store.jsx     # Single state owner: account, tasks, friends, stats,
-│       │                 #   room and ambient audio
+│       ├── store.jsx     # Domain-context composition: account, tasks, social + room
 │       ├── storeContexts.jsx # Stable domain contexts + narrow consumer hooks
 │       ├── timer.jsx     # The focus timer, in its OWN provider (see below) —
 │       │                 #   its 1Hz tick must not re-render the whole app
-│       ├── lib/
-│       │   ├── api.js        # fetch wrapper; token in localStorage
+│       ├── hooks/        # Reusable hooks + focused state controllers and tests
+│       ├── services/     # Browser/external-system boundaries + colocated tests
+│       │   ├── api.js        # fetch wrapper; token in guarded storage
 │       │   ├── storage.js    # THE localStorage gateway (never call it directly)
-│       │   ├── algorithms.js # task-ordering strategies (pure functions)
 │       │   ├── audio.js      # procedural rain/snow/storm via Web Audio API
+│       │   └── desktop.js    # optional pywebview desktop bridge
+│       ├── lib/          # Pure domain rules, parsing, geometry and catalog data
+│       │   ├── algorithms.js # task-ordering strategies (pure functions)
 │       │   ├── weather.js    # Open-Meteo: geolocation/geocoding + current conditions
 │       │   ├── musicLink.js  # resolves a pasted link to a YouTube/Spotify station
 │       │   ├── youtube.js    # YouTube URL/ID parsing (pure)
 │       │   ├── spotify.js    # Spotify URL parsing (pure)
 │       │   ├── room.js       # freeform decoration model: catalog, zones, presets
-│       │   ├── isoRoom.js    # isometric geometry, placement, validation, registry API
+│       │   ├── isoCatalog.js # isometric environments, item metadata + pet vocabulary
+│       │   ├── isoRoom.js    # isometric geometry, placement, validation + catalog facade
 │       │   ├── isoPresets.js # ready-made isometric room data
 │       │   ├── profile.js    # who you are + how your resident is drawn (pure)
 │       │   ├── chat.js       # what a bot says back, and when (pure)
@@ -61,7 +69,7 @@ TaskNook/
 
 ### Data flow
 
-`component → domain store hook/action → lib/api.js → Flask /api → SQLAlchemy → SQLite`
+`component → domain store hook/action → services/api.js → Flask /api → SQLAlchemy → SQLite`
 
 Write actions apply their committed API payload locally, then refresh only the
 resources that operation can have changed. A failed follow-up read must not
@@ -244,7 +252,7 @@ the place's simulated neighbours and the user's selected seat. `activePlace` is
 home/friend/common; `leaveVisit` returns home from either kind of destination.
 Friends shows each present neighbour by name before entry, and the scene paints
 the same labels plus `You` in a final overlay above furniture. `lib/commonPresence.js`
-owns the pure turnover policy and `lib/useCommonPresence.js` owns one in-memory
+owns the pure turnover policy and `hooks/useCommonPresence.js` owns one in-memory
 population per place, scheduling a single arrival or departure every 30 minutes
 to 4 hours; the Friends cards and the joined session
 must both use that store-owned population so the roster and visible occupants
@@ -286,7 +294,7 @@ art work are in `docs/COMMON_ROOMS.md`.
 `lib/challenges.js` selects three prompts from nine developer-authored choices,
 one each for focus, tasks and social activities. Each category changes on
 adjacent LOCAL days. Replacing an unfinished prompt preserves the other slots,
-avoids active duplicates and prefers unseen choices. `lib/useChallenges.js`
+avoids active duplicates and prefers unseen choices. `hooks/useChallenges.js`
 keeps the bounded v2 `{version, day, daily, seen, custom}` device marker in
 `tasknook.challenges` through the storage gateway. V1 migration preserves
 today's original prompts and earned credit. Daily selections/progress and daily
@@ -305,7 +313,7 @@ is no missed-goal backlog. See `docs/CHALLENGES.md`.
 ## Profile levels
 
 `lib/progression.js` owns the level curve (100 XP for level 2, then 150, 200,
-etc.) and reward eligibility. `lib/useProgression.js` persists the device marker
+etc.) and reward eligibility. `hooks/useProgression.js` persists the device marker
 in `tasknook.progression`, outside React updaters. Saved study minutes from the
 existing all-history `sessionDays` map give 1 XP/minute, including old sessions;
 `LevelCard` also totals that same map into the Profile's exact lifetime study
@@ -385,7 +393,7 @@ running `git commit` yourself.
   and the timer with it. Without these a single throw is a blank window, and
   the packaged app is `--windowed`, so a blank window is indistinguishable
   from one that never launched.
-- **localStorage goes through `lib/storage.js`** (`readStored`/`writeStored`/
+- **localStorage goes through `services/storage.js`** (`readStored`/`writeStored`/
   `readJSON`/`writeJSON`/`removeStored`) — never `localStorage.*` directly.
   Both halves of the API throw for real reasons (QuotaExceededError when the
   profile is full; SecurityError when storage is disabled or partitioned),
@@ -396,7 +404,7 @@ running `git commit` yourself.
   three of them). Hover-revealed row controls use `.hover-reveal`
   (index.css) — visible on touch, revealed by keyboard focus — never raw
   `opacity-0 group-hover:opacity-100`. Every delete of user data is a
-  two-tap armed ✕ ("sure?") via the shared `lib/useArmed.js` hook — tasks,
+  two-tap armed ✕ ("sure?") via the shared `hooks/useArmed.js` hook — tasks,
   custom stations, scene presets, friends, room clear, and the timer reset
   once a block has progress. See docs/DESIGN.md's "Chrome vocabulary" for
   the full delete/selection grammar.
@@ -932,7 +940,7 @@ running `git commit` yourself.
   the progress bar's total stretches and the logged session reflects real
   planned time; nudges reset on start/reset/mode-switch/completion and are
   focus-phase only. Phase edges play a quiet procedural chime (`playChime` in
-  `lib/audio.js`) and post a system notification — permission is requested on
+  `services/audio.js`) and post a system notification — permission is requested on
   the first ▶ press (never at boot); without that request `notify()` is
   permanently dead ("default" permission). `skipBreak` ends a break early
   into the next round; changing pomodoro settings mid-run no longer resets
@@ -1021,7 +1029,7 @@ running `git commit` yourself.
   Promise-returning call through to `Window.on_top`'s runtime
   setter, dispatched on the WinForms UI thread by `_on_native_thread`
   (bridge calls run on workers; a direct property write can fail in the exe).
-  No restart is needed. `lib/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
+  No restart is needed. `services/desktop.js` is the bridge: `hasDesktopApi()` feature-detects
   it, `onDesktopApiReady()` listens for pywebview's `pywebviewready` event
   (the bridge injects asynchronously, so it may not exist yet on first
   render even inside the real desktop window). `TopBar.jsx` only renders the
@@ -1040,7 +1048,7 @@ running `git commit` yourself.
   **Before touching any UI, read `docs/DESIGN.md`** — the full design-rules
   sheet (zone ownership map, motion rules, composition, tinting, the
   new-feature checklist). It is the authority on visual decisions.
-- **Ambient audio**: `lib/audio.js` is a procedural **mixer** — channels
+- **Ambient audio**: `services/audio.js` is a procedural **mixer** — channels
   (`SOUND_CHANNELS`: rain, storm, snow, wind, fireplace, cafe, paper) play
   simultaneously, each at its own volume, via `setChannel(name, 0..1)` /
   `applyMix`. No audio files, works offline. The noise channels share one
@@ -1425,7 +1433,7 @@ running `git commit` yourself.
   a placement: two cats are two rows, and removing one takes its name along.
   The LOOK is the coat/breed (`CAT_COATS`: ink/ginger/grey tabby/tuxedo/
   calico/siamese/tortoiseshell; `DOG_BREEDS`: golden/shiba/corgi/dalmatian/
-  husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoRoom.js
+  husky; `BUNNY_COATS`: cloud/snow/cocoa — lib/isoCatalog.js
   owns the vocabulary, `CAT_COAT_STYLES`/`DOG_BREED_STYLES` in IsoPetItems.jsx
   the artwork, same catalog-vs-artwork split as rotations): purely visual,
   default stored implicitly, per-species whitelist on the client, one flat
@@ -1438,7 +1446,7 @@ running `git commit` yourself.
   fore-aft sweep on DIAGONAL pairs (near-front with far-rear) — the same
   pedalling-not-walking fix the residents' stride made; front/back facings
   keep the `leg-step` piston, since legs seen end-on lift, not sweep.
-  `PET_TEMPERS` (mellow default/curious/sleepy, lib/isoRoom.js) reaches
+  `PET_TEMPERS` (mellow default/curious/sleepy, lib/isoCatalog.js) reaches
   the wander engine as three numbers — move chance per tick, soft-spot
   stickiness, drift range — so a curious pet ranges the room and won't
   settle while a sleepy one barely leaves its spot; "mellow" is stored
@@ -1616,7 +1624,8 @@ running `git commit` yourself.
   (`tasknook.isoView`, clamped so the room's centre can't leave the view).
   The wheel listener is added manually with `{passive:false}` — React's
   onWheel is passive and can't preventDefault.
-  Model in `lib/isoRoom.js` (footprints, half-tile snapping,
+  Catalog metadata lives in `lib/isoCatalog.js`; behavior lives in
+  `lib/isoRoom.js` (footprints, half-tile snapping,
   depth sort by front corner, validation), projection in `lib/iso.js` (2:1
   dimetric; `project`/`unproject` are exact inverses — that's what makes
   grid-dragging work), preset data in `lib/isoPresets.js`, and sprites
@@ -1817,10 +1826,10 @@ running `git commit` yourself.
 
 ## Adding things
 
-- **New API endpoint**: add the route to the relevant blueprint/module (chat
-  lives in `routes/chat.py`; room and profile live in
-  `routes/room_profile.py`; remaining families are registered in `app.py`) and
-  use `@require_auth` for authed routes. Then add a method in `lib/api.js`, then
+- **New API endpoint**: add the route to the relevant domain blueprint under
+  `routes/` (`auth`, `tasks`, `calendar`, `sessions`, `social`, `chat`, or
+  `room_profile`) and
+  use `@require_auth` for authed routes. Then add a method in `services/api.js`, then
   consume it via an action in `store.jsx`.
 - **New model field**: edit `models.py`, update the relevant `to_dict()`, then
   **generate a migration** — do not just delete the DB:
@@ -1879,7 +1888,8 @@ running `git commit` yourself.
   signature step aside during room decorating), toggle `visibility` on a
   wrapper: it removes the element from hit-testing without restarting
   animations.
-  **Settings → HUD elements** (`store.jsx`'s `hudVisibility`, persisted as
+  **Settings → HUD elements** (`hooks/useAppearanceSettings.js`'s
+  `hudVisibility`, persisted as
   `tasknook.hudVisibility`) reuses the exact same convention for a second,
   user-driven reason to hide the same cards: Session/Timer, To-do list and the
   music bar each get "on"/"faded"/"hidden" via `App.jsx`'s `hudWrapClass`

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   chatMessages: vi.fn(), sendChatMessage: vi.fn(), markChatRead: vi.fn(),
   deleteChat: vi.fn(), listeners: new Map(),
 }));
-vi.mock("../lib/api", () => ({ api: { chatMessages: mocks.chatMessages } }));
+vi.mock("../services/api", () => ({ api: { chatMessages: mocks.chatMessages } }));
 const subscribeChat = (id, fn) => {
   mocks.listeners.set(id, fn);
   return () => mocks.listeners.delete(id);

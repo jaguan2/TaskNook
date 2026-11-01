@@ -3,8 +3,8 @@ import { StrictMode } from "react";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useChallenges } from "./useChallenges";
-import { CHALLENGES_KEY, challengeFor, dailyChallengeIds } from "./challenges";
-import { readJSON, removeStored, writeJSON } from "./storage";
+import { CHALLENGES_KEY, challengeFor, dailyChallengeIds } from "../lib/challenges";
+import { readJSON, removeStored, writeJSON } from "../services/storage";
 
 beforeEach(() => {
   vi.useFakeTimers();

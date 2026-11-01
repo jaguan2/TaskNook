@@ -2,10 +2,10 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useProfileCharacter } from "./useProfileCharacter";
-import { removeStored, writeJSON, writeStored } from "./storage";
-import { api } from "./api";
+import { removeStored, writeJSON, writeStored } from "../services/storage";
+import { api } from "../services/api";
 
-vi.mock("./api", () => ({ api: { getProfile: vi.fn(), saveProfile: vi.fn() } }));
+vi.mock("../services/api", () => ({ api: { getProfile: vi.fn(), saveProfile: vi.fn() } }));
 
 const deferred = () => {
   let resolve, reject;

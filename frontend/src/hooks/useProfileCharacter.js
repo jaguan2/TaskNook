@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "./api";
-import { validateCharacter, validateProfile } from "./profile";
-import { readJSON, readStored, removeStored, writeStored } from "./storage";
-import { createWriteQueue } from "./writeQueue";
+import { api } from "../services/api";
+import { validateCharacter, validateProfile } from "../lib/profile";
+import { readJSON, readStored, removeStored, writeStored } from "../services/storage";
+import { createWriteQueue } from "../lib/writeQueue";
 
 const CHARACTER_KEY = "tasknook.character";
 const CHARACTER_DIRTY_KEY = "tasknook.character.dirty";

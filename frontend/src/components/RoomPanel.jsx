@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useRoomStore, useSocialStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { COTTAGE_SETTINGS, ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
 import {
   ISO_ENVS,

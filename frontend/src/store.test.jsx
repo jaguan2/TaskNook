@@ -2,11 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { StoreProvider, useStore, useSystemStore, useTaskStore } from "./store";
-import { api } from "./lib/api";
-import { readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
+import { api } from "./services/api";
+import { readStored, removeStored, writeJSON, writeStored } from "./services/storage";
 import { localTodayISO } from "./lib/stats";
 
-vi.mock("./lib/api", () => ({
+vi.mock("./services/api", () => ({
   getToken: () => "test-token", setToken: vi.fn(), setReauthorizer: vi.fn(),
   api: Object.fromEntries([
     "me", "listTasks", "stats", "listFriends", "sessionDays", "listEvents", "listChats",

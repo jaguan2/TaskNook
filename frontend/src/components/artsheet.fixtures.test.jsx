@@ -42,7 +42,8 @@ const DIR = globalThis.process?.env?.SHEET_DIR;
 describe.skipIf(!DIR)("art sheet fixtures", () => {
   it("renders the whole wardrobe to SVG files", () => {
     mkdirSync(DIR, { recursive: true });
-    const widgetCss = readFileSync("src/index.css", "utf8").split("/* Widget mode is one composed surface")[1];
+    const widgetCss = readFileSync("src/styles/focus-widget.css", "utf8")
+      .split("/* Widget mode is one composed surface")[1];
     const widgetBase = { clock: "18:42", running: true, task: "Sketch the next chapter", progress: .25,
       round: 2, rounds: 4, today: 42, goal: 90, canFinish: true };
     for (const [name, props] of Object.entries({ focus: {}, break: { inBreak: true, clock: "04:30", progress: .1 }, stopwatch: { stopwatch: true, clock: "1:04:12", rounds: 0 }, idle: { running: false, canFinish: false, clock: "25:00", progress: 0 } })) {

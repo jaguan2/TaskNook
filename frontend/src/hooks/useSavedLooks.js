@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { readJSON, writeJSON } from "./storage";
-import { LOOK_NAME_MAX, SAVED_LOOK_LIMIT, saveLookSnapshot, validateSavedLooks } from "./savedLooks";
+import { readJSON, writeJSON } from "../services/storage";
+import { LOOK_NAME_MAX, SAVED_LOOK_LIMIT, saveLookSnapshot, validateSavedLooks } from "../lib/savedLooks";
 
 const STORAGE_KEY = "tasknook.characterLooks";
 

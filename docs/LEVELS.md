@@ -28,7 +28,7 @@ window crossing midnight doesn't extend a login streak by itself.
 ## Persistence and action boundaries
 
 `lib/progression.js` contains the pure curve, validation and eligibility model.
-`lib/useProgression.js` keeps `tasknook.progression` through the storage gateway;
+`hooks/useProgression.js` keeps `tasknook.progression` through the storage gateway;
 the store integrates the recorded study map and explicit successful NPC/challenge
 actions. Profile renders the store marker through `LevelCard.jsx`.
 

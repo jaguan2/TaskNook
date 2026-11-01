@@ -9,7 +9,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { useSystemStore, useTaskStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { toISO } from "../lib/dates";
 import ConfirmDialog from "./ConfirmDialog";
 
@@ -324,7 +324,7 @@ export default function HudTasks({ onOpenTasks }) {
   const [renameDraft, setRenameDraft] = useState("");
   const dragFrom = useRef(null); // { section, index }
 
-  // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
+  // Two-tap delete, the app-wide rhythm (see hooks/useArmed.js).
   // One row open at a time: two open note editors on a 288px list is a wall of
   // form, and the point of putting this on the row was to keep the list a list.
   const [expandedId, setExpandedId] = useState(null);

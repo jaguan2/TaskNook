@@ -5,7 +5,7 @@ import { Check, ChevronLeft, Flame, Hourglass, Pause, Play, Settings2, Target, T
 import { useTaskStore } from "../store";
 import { useTimer } from "../timer";
 import { focusStreak, localTodayISO } from "../lib/stats";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { shouldDismissAtEdge } from "../lib/widgetDrag";
 import FocusWidget from "./FocusWidget";
 
@@ -74,7 +74,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
   }, [compact, dragX, dragY]);
 
   // ✕ discards the block (nothing is logged), so once there's real progress
-  // on the clock it arms first — the app-wide two-tap rhythm (lib/useArmed).
+  // on the clock it arms first — the app-wide two-tap rhythm (hooks/useArmed).
   const [armedId, arm] = useArmed();
   const confirmReset = armedId === "reset";
 

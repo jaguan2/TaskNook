@@ -19,11 +19,11 @@ vi.mock("../store", () => ({
   useSettingsStore: () => mockStore,
   useSystemStore: () => mockStore,
 }));
-vi.mock("../lib/storage", () => ({
+vi.mock("../services/storage", () => ({
   readStored: () => null,
   writeStored: storage.writeStored,
 }));
-vi.mock("../lib/desktop", () => ({
+vi.mock("../services/desktop", () => ({
   hasDesktopApi: () => true,
   onDesktopApiReady: () => () => {},
   setAlwaysOnTop: desktop.setAlwaysOnTop,

@@ -14,7 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useWeatherStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { formatPopulation, temperatureFor } from "../lib/weather";
 import { WEATHER_OPTIONS } from "./TopBar";
 

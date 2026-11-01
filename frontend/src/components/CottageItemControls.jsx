@@ -1,6 +1,6 @@
 import { Copy, X } from "lucide-react";
 import { GRID, ITEMS, clampToRoom } from "../lib/room";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 
 export default function CottageItemControls({ placement, onMove, onDuplicate, onRemove, onClose }) {
   const item = ITEMS[placement.item];

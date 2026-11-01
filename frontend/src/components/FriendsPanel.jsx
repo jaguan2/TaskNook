@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart } from "lucide-react";
 import { useSettingsStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
 import { chatTitle, whenLabel } from "../lib/chat";

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readJSON, writeJSON } from "./storage";
+import { readJSON, writeJSON } from "../services/storage";
 import {
   PROGRESSION_KEY, normalizeProgression, recordLogin, recordNeighbourXP,
   rewardChallengeProgress, syncStudyXP,
-} from "./progression";
+} from "../lib/progression";
 
 export function useProgression(ready, onSaveError) {
   const [progression, setProgression] = useState(() => normalizeProgression(readJSON(PROGRESSION_KEY)));

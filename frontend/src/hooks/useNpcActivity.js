@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { npcActivity } from "./visiting";
+import { npcActivity } from "../lib/visiting";
 
 // A clock local to this NPC: changing their pose must not tick the room,
 // store, furniture or the user's focus timer. Idle has no activity prop.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TILE_W } from "./iso";
-import { readStored, writeStored } from "./storage";
+import { TILE_W } from "../lib/iso";
+import { readStored, writeStored } from "../services/storage";
 
 export const DEFAULT_ISO_VIEW = { x: 0, y: 0, w: 640, h: 480 };
 const VIEW_MIN_W = 220;

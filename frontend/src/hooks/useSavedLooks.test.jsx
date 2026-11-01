@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { useSavedLooks } from "./useSavedLooks";
-import { DEFAULT_CHARACTER } from "./profile";
-import { readJSON, removeStored, writeJSON } from "./storage";
+import { DEFAULT_CHARACTER } from "../lib/profile";
+import { readJSON, removeStored, writeJSON } from "../services/storage";
 
 beforeEach(() => removeStored("tasknook.characterLooks"));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });

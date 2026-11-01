@@ -230,8 +230,10 @@ TaskNook/
 │   └── preview.png           # The screenshot at the top of this README
 │
 ├── backend/                  # Flask REST API (SQLite, fully local)
-│   ├── app.py                # App factory, core routes, auth, seeding, static serving
+│   ├── app.py                # App factory, shared policies, seeding, static serving
 │   ├── routes/               # API blueprints
+│   │   ├── auth.py, tasks.py, calendar.py       # Account and planning APIs
+│   │   ├── sessions.py, social.py               # Productivity and friends APIs
 │   │   ├── chat.py           # Chat threads, messages and unread state
 │   │   └── room_profile.py   # Room/profile routes + payload validation
 │   ├── request_validation.py # Shared request-value validation
@@ -248,9 +250,11 @@ TaskNook/
     └── src/
         ├── main.jsx          # Entry point
         ├── App.jsx           # Shell: scene, dock, panels, timer, intro animation
-        ├── store.jsx         # Single source of truth (React Context)
+        ├── store.jsx         # Composes stable domain contexts and controllers
         ├── timer.jsx         # Separate timer provider and status context
-        ├── index.css         # Tailwind layers + shared styles
+        ├── index.css         # Tailwind layers, theme, shared scene motion
+        ├── styles/           # Weather/runtime and focus-widget styles
+        ├── hooks/            # Reusable React hooks + colocated tests
         ├── components/
         │   ├── Cottage.jsx, IsoRoom.jsx, CommonRoom.jsx  # Scene renderers
         │   ├── HudFocusCard.jsx, FocusWidget.jsx, HudTasks.jsx
@@ -258,13 +262,16 @@ TaskNook/
         │   ├── TaskPanel, CalendarPanel, FriendsPanel, ChallengesPanel,
         │   │   MusicPanel, WeatherPanel, RoomPanel, ProfilePanel, SettingsPanel (.jsx)
         │   └── WeatherOverlay.jsx # Full-screen rain / snow / storm visuals
-        └── lib/
-            ├── api.js             # Fetch wrapper (bearer-token auth)
-            ├── storage.js         # Guarded browser-storage gateway
+        ├── services/              # Browser and external-system boundaries
+        │   ├── api.js             # Fetch wrapper (bearer-token auth)
+        │   ├── storage.js         # Guarded browser-storage gateway
+        │   ├── audio.js           # Procedural rain/snow/storm (Web Audio API)
+        │   └── desktop.js         # Optional native desktop bridge
+        └── lib/                   # Pure rules, parsing, geometry and catalogs
             ├── algorithms.js      # Task-ordering strategies (pure functions)
-            ├── audio.js           # Procedural rain/snow/storm (Web Audio API)
             ├── weather.js         # Open-Meteo real-weather client
-            ├── isoRoom.js, isoPresets.js, commonRooms.js  # Room data and geometry
+            ├── isoCatalog.js, isoRoom.js, isoPresets.js   # Room vocabulary and geometry
+            ├── commonRooms.js                             # Shared-room scene data
             ├── challenges.js, progression.js  # Challenge and profile-XP rules
             └── musicLink.js, youtube.js, spotify.js  # Music-link parsing
 ```

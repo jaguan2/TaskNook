@@ -3,7 +3,8 @@
 How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
 is the authority on the *models* — the `ISO_SPRITES` registry in
-`frontend/src/components/IsoItems.jsx`, its focused `Iso*Items` family modules,
+`frontend/src/components/IsoItems.jsx`, its focused `Iso*Items` family modules
+(including café, plants, rugs, outdoors, lighting and seasonal sets),
 and the character package in
 `frontend/src/components/character/` (body rig, hair and garment REGISTRIES,
 pose assembly — split out because the character is the fastest-growing
@@ -505,7 +506,7 @@ thing is recognisable.
 
 ## 8. Adding an item — checklist
 
-- [ ] Catalog entry in `lib/isoRoom.js` with `foot`, `hitH`, and any of
+- [ ] Catalog entry in `lib/isoCatalog.js` with `foot`, `hitH`, and any of
       `stacks` / `surface` / `seat` / `wall` / `glow` / `tintable: false`
 - [ ] Listed in exactly ONE `ISO_ITEM_GROUPS` section (a test enforces this —
       a key missing from the sections can never be placed)

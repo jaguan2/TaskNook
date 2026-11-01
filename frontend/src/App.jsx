@@ -14,7 +14,7 @@ import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
-import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./lib/desktop";
+import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./services/desktop";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CommonRoomChat from "./components/CommonRoomChat";
 import { COMMON_PLACES } from "./lib/commonRooms";

@@ -13,7 +13,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { readStored, writeStored } from "../lib/storage";
+import { readStored, writeStored } from "../services/storage";
 
 // Lucide stroke icons, not emoji: they inherit the theme's text colour and
 // render identically on every OS (Windows emoji looked out of place — user

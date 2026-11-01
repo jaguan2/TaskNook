@@ -14,6 +14,11 @@ import {
   systemPrefersReduced,
 } from "./motion";
 
+const stylesheetSource = () =>
+  ["index.css", "styles/weather.css", "styles/focus-widget.css"]
+    .map((file) => readFileSync(resolve(process.cwd(), "src", file), "utf8"))
+    .join("\n");
+
 /**
  * Every sprite source that draws a room's inhabitants, concatenated. The
  * characters and pets moved out of IsoItems.jsx into focused modules, but for
@@ -109,7 +114,7 @@ const EXEMPT_FROM_SILENCE = {
 };
 
 describe("nothing animates under reduced motion", () => {
-  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const css = stylesheetSource();
 
   it("silences every animated class, by construction", () => {
     // The reduced-motion rule is an EXPLICIT selector list, so a new animation
@@ -186,7 +191,7 @@ describe("the pre-paint script agrees with the app", () => {
   // Resolved from the working directory, not import.meta.url — vitest's jsdom
   // transform doesn't hand these modules a file: URL.
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
-  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const css = stylesheetSource();
 
   it("uses the same storage key the store writes", () => {
     expect(html).toContain('"tasknook.motion"');
@@ -220,7 +225,7 @@ describe("the pre-paint script agrees with the app", () => {
 // pinned in the reduced-motion describe above).
 describe("transitions are gated in JS, because CSS can't reach them", () => {
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
-  const petRoaming = readFileSync(resolve(process.cwd(), "src/lib/usePetRoaming.js"), "utf8");
+  const petRoaming = readFileSync(resolve(process.cwd(), "src/hooks/usePetRoaming.js"), "utf8");
   const overlay = readFileSync(resolve(process.cwd(), "src/components/WeatherOverlay.jsx"), "utf8");
 
   it("the wander glide only gets its transition when motion is allowed", () => {
@@ -249,7 +254,7 @@ describe("transitions are gated in JS, because CSS can't reach them", () => {
 // STEP_S without retuning the keyframes and the feet disagree with the floor
 // again, which is the exact ice-skating this clock was built to kill.
 describe("the walk shares one clock", () => {
-  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const css = stylesheetSource();
   const STRIDE = STEP_S * 2;
 
   it("glideMs walks whole steps at constant speed, clamped to watchable", () => {
@@ -415,7 +420,7 @@ describe("the walk shares one clock", () => {
 // two halves in two languages — the scene sets `--phase` per placement, the
 // stylesheet spends it as a delay — and either half alone silently does nothing.
 describe("ambient loops are desynchronised per item", () => {
-  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const css = stylesheetSource();
   const isoRoom = readFileSync(resolve(process.cwd(), "src/components/IsoRoom.jsx"), "utf8");
   const items = spriteSources();
   const roomItems = readFileSync(resolve(process.cwd(), "src/components/RoomItems.jsx"), "utf8");
@@ -657,7 +662,7 @@ describe("ambient loops are desynchronised per item", () => {
 // motion is harder to get right than continuous motion, and the two ways it goes
 // wrong are both invisible in a code review, so they're pinned here.
 describe("idle gestures read as occasional, not as a loop", () => {
-  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+  const css = stylesheetSource();
   const items = spriteSources();
   const GESTURES = [
     "gesture-look", "gesture-yawn", "gesture-yawn-mouth",

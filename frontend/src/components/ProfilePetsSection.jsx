@@ -9,7 +9,7 @@ import Choices from "./ProfileChoiceGroup";
  * cat or dog placed in the room gets a NAME and a TEMPER. Identity lives on
  * the placement itself (a pet IS a placement), so two cats are two rows and
  * removing one takes its name with it. The temper reaches the wander engine
- * (lib/isoRoom.js `PET_TEMPERS`): a curious pet ranges the whole room and
+ * (lib/isoCatalog.js `PET_TEMPERS`): a curious pet ranges the whole room and
  * won't settle on a rug; a sleepy one barely leaves its spot. The name shows
  * when you pick the pet up in the room.
  */

@@ -2,9 +2,9 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import ChallengesPanel from "./ChallengesPanel";
-import { useChallenges } from "../lib/useChallenges";
+import { useChallenges } from "../hooks/useChallenges";
 import { CHALLENGES_KEY } from "../lib/challenges";
-import { removeStored, writeJSON } from "../lib/storage";
+import { removeStored, writeJSON } from "../services/storage";
 
 let store;
 const error = vi.fn();

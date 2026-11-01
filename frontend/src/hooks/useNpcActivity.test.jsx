@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { npcActivity } from "./visiting";
+import { npcActivity } from "../lib/visiting";
 import { useNpcActivity } from "./useNpcActivity";
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });

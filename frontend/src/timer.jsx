@@ -7,9 +7,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { api } from "./lib/api";
-import { normalizeChimeVolume, playChime } from "./lib/audio";
-import { readJSON, readStored, writeStored } from "./lib/storage";
+import { api } from "./services/api";
+import { normalizeChimeVolume, playChime } from "./services/audio";
+import { readJSON, readStored, writeStored } from "./services/storage";
 import {
   elapsedFrom,
   normalizeFocusMinutes,

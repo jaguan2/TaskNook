@@ -17,10 +17,10 @@ import {
 } from "lucide-react";
 import { useAudioStore } from "../store";
 import { stationKey } from "../lib/musicLink";
-import { SOUND_CHANNELS } from "../lib/audio";
-import { useArmed } from "../lib/useArmed";
+import { SOUND_CHANNELS } from "../services/audio";
+import { useArmed } from "../hooks/useArmed";
 
-// lib/audio.js stays UI-free (pure Web Audio), so the channel icons live
+// services/audio.js stays UI-free (pure Web Audio), so the channel icons live
 // here at the display layer.
 const CHANNEL_ICONS = {
   rain: CloudRain,

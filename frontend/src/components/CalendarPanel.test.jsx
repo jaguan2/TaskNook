@@ -15,7 +15,7 @@ const mockStore = vi.hoisted(() => ({
   sessionDays: {},
 }));
 
-vi.mock("../lib/api", () => ({ api: mockApi }));
+vi.mock("../services/api", () => ({ api: mockApi }));
 vi.mock("../store", () => ({
   useTaskStore: () => mockStore,
   useSystemStore: () => mockStore,

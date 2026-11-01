@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSocialStore, useSystemStore } from "../store";
-import { api } from "../lib/api";
-import { useArmed } from "../lib/useArmed";
+import { api } from "../services/api";
+import { useArmed } from "../hooks/useArmed";
 import { chatTitle, dialogueOptions, whenLabel } from "../lib/chat";
 import { npcActivity } from "../lib/visiting";
 

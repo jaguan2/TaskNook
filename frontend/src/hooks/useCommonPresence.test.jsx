@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { COMMON_PRESENCE_MIN_MS } from "./commonPresence";
+import { COMMON_PRESENCE_MIN_MS } from "../lib/commonPresence";
 import { useCommonPresence } from "./useCommonPresence";
 
 let presence;

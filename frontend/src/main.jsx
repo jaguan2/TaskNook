@@ -5,6 +5,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { StoreProvider } from "./store";
 import { TimerProvider } from "./timer";
 import "./index.css";
+import "./styles/weather.css";
+import "./styles/focus-widget.css";
 import "./responsive.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

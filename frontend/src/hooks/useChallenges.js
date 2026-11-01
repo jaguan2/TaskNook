@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CHALLENGES_KEY, addCustomChallenge, changeCustomProgress, normalizeChallenges,
   recordChallenge, removeCustomChallenge, replaceDailyChallenge, resetCustomChallenge,
-} from "./challenges";
-import { readJSON, writeJSON } from "./storage";
+} from "../lib/challenges";
+import { readJSON, writeJSON } from "../services/storage";
 
 export function useChallenges(onSaveError, onProgress) {
   const [challenges, setChallenges] = useState(() =>

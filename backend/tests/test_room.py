@@ -239,20 +239,20 @@ def frontend_environments():
     did. Parsing is deliberately strict: a source change this can't read is an
     error, not a silently-passing test.
     """
-    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    js = ISO_CATALOG_JS.read_text(encoding="utf-8")
     block = re.search(r"export const ISO_ENVS = \{(.*?)\n\};", js, re.S)
-    assert block, f"couldn't find ISO_ENVS in {ISO_ROOM_JS} — has it moved?"
+    assert block, f"couldn't find ISO_ENVS in {ISO_CATALOG_JS} — has it moved?"
     keys = re.findall(r"^  (\w+): \{$", block.group(1), re.M)
     assert keys, "found ISO_ENVS but parsed no keys out of it"
     return keys
 
 
-ISO_ROOM_JS = (
-    pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "isoRoom.js"
+ISO_CATALOG_JS = (
+    pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "isoCatalog.js"
 )
 
 
-@pytest.mark.skipif(not ISO_ROOM_JS.exists(), reason="frontend sources not present")
+@pytest.mark.skipif(not ISO_CATALOG_JS.exists(), reason="frontend sources not present")
 def test_backend_accepts_every_environment_the_frontend_ships(client, auth):
     """The drift guard.
 
@@ -553,10 +553,10 @@ def test_iso_rejects_malformed_pet_identity(client, auth, field, value):
 )
 def test_pet_tempers_match_frontend():
     """PET_TEMPERS is duplicated across two languages (the ISO_ENVS drift
-    contract): the backend must accept every key lib/isoRoom.js defines."""
-    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    contract): the backend must accept every key lib/isoCatalog.js defines."""
+    js = ISO_CATALOG_JS.read_text(encoding="utf-8")
     block = re.search(r"export const PET_TEMPERS = \[(.*?)\];", js, re.S)
-    assert block, f"couldn't find PET_TEMPERS in {ISO_ROOM_JS} — has it moved?"
+    assert block, f"couldn't find PET_TEMPERS in {ISO_CATALOG_JS} — has it moved?"
     keys = set(re.findall(r"key: \"(\w+)\"", block.group(1)))
     assert keys, "found PET_TEMPERS but parsed no keys out of it"
     from app import PET_TEMPERS
@@ -573,11 +573,11 @@ def test_pet_looks_match_frontend():
     same both-languages drift contract as PET_TEMPERS/ISO_ENVS. One flat set
     on the backend, because which species a look belongs to is catalog
     knowledge the backend deliberately doesn't have."""
-    js = ISO_ROOM_JS.read_text(encoding="utf-8")
+    js = ISO_CATALOG_JS.read_text(encoding="utf-8")
     keys = set()
     for name in ("CAT_COATS", "DOG_BREEDS", "BUNNY_COATS"):
         block = re.search(rf"export const {name} = \[(.*?)\];", js, re.S)
-        assert block, f"couldn't find {name} in {ISO_ROOM_JS} — has it moved?"
+        assert block, f"couldn't find {name} in {ISO_CATALOG_JS} — has it moved?"
         found = set(re.findall(r"key: \"(\w+)\"", block.group(1)))
         assert found, f"found {name} but parsed no keys out of it"
         keys |= found

@@ -10,7 +10,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { useAudioStore } from "../store";
-import { readJSON, readStored, writeJSON, writeStored } from "../lib/storage";
+import { readJSON, readStored, writeJSON, writeStored } from "../services/storage";
 import { formatClock } from "../lib/time";
 import { stationKey, stationUrl } from "../lib/musicLink";
 

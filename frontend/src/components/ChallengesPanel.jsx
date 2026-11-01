@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Check, ClipboardList, Leaf, Play, Plus, RefreshCw, RotateCcw, Users, X } from "lucide-react";
 import { useChallengeStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import {
   CHALLENGE_TARGET_MAX, CHALLENGE_TITLE_MAX, CHALLENGE_TRACKING,
   CUSTOM_CHALLENGE_LIMIT, challengeFor,

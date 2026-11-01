@@ -11,12 +11,12 @@ import {
   PictureInPicture2,
 } from "lucide-react";
 import { useSettingsStore, useSystemStore, useWeatherStore } from "../store";
-import { readStored, writeStored } from "../lib/storage";
+import { readStored, writeStored } from "../services/storage";
 import {
   hasDesktopApi,
   onDesktopApiReady,
   setAlwaysOnTop as applyAlwaysOnTop,
-} from "../lib/desktop";
+} from "../services/desktop";
 
 // Historically the top bar — now the BOTTOM-RIGHT corner cluster (clock,
 // ambient toggles, account), Virtual Cottage-style. The top corners belong to
