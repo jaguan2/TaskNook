@@ -11,7 +11,7 @@ const { STATION, LIST, store } = vi.hoisted(() => ({
 }));
 
 vi.mock("../store", () => ({
-  useStore: () => ({
+  useAudioStore: () => ({
     musicOn: true,
     musicStations: [store.station, LIST],
     activeStationKey: `${store.station.provider}:${store.station.kind || ""}:${store.station.id}`,

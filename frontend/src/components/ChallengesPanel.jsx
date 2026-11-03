@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Check, ClipboardList, Leaf, Play, Plus, RefreshCw, RotateCcw, Users, X } from "lucide-react";
-import { useStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useChallengeStore } from "../store";
+import { useArmed } from "../hooks/useArmed";
 import {
   CHALLENGE_TARGET_MAX, CHALLENGE_TITLE_MAX, CHALLENGE_TRACKING,
   CUSTOM_CHALLENGE_LIMIT, challengeFor,
@@ -73,7 +73,7 @@ function ProgressLine({ progress, target, unit }) {
 
 export default function ChallengesPanel() {
   const { challenges, replaceChallenge, addCustomChallenge,
-    advanceChallenge, resetChallenge, removeChallenge } = useStore();
+    advanceChallenge, resetChallenge, removeChallenge } = useChallengeStore();
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState("daily");
   const [armed, arm] = useArmed();

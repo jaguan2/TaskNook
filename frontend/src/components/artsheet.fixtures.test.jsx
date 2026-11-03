@@ -42,7 +42,8 @@ const DIR = globalThis.process?.env?.SHEET_DIR;
 describe.skipIf(!DIR)("art sheet fixtures", () => {
   it("renders the whole wardrobe to SVG files", () => {
     mkdirSync(DIR, { recursive: true });
-    const widgetCss = readFileSync("src/index.css", "utf8").split("/* Widget mode is one composed surface")[1];
+    const widgetCss = readFileSync("src/styles/focus-widget.css", "utf8")
+      .split("/* Widget mode is one composed surface")[1];
     const widgetBase = { clock: "18:42", running: true, task: "Sketch the next chapter", progress: .25,
       round: 2, rounds: 4, today: 42, goal: 90, canFinish: true };
     for (const [name, props] of Object.entries({ focus: {}, break: { inBreak: true, clock: "04:30", progress: .1 }, stopwatch: { stopwatch: true, clock: "1:04:12", rounds: 0 }, idle: { running: false, canFinish: false, clock: "25:00", progress: 0 } })) {
@@ -97,6 +98,14 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
         views: views.length, foot: item.foot, height: item.hitH });
     }
     writeFileSync(`${DIR}/../catalog.json`, JSON.stringify(inventory, null, 2));
+    // Painted frames, timber and wicker must remain readable in quiet tints.
+    for (const key of ["ladder", "crates", "basket", "booktrolley", "openjournal"]) {
+      const Sprite = ISO_SPRITES[key];
+      for (const tint of ["#d7c6a8", "#4b414d", "#789388"]) {
+        save(`study-${key}-${tint.slice(1)}`,
+          <g style={{ "--tint": tint }}><Sprite /></g>, "-30 -78 82 110");
+      }
+    }
     // Face and lap pose review: skin contrast, accessories and body extremes
     // belong in the same sheet as the authored outfits.
     for (const [name, extra] of Object.entries({
@@ -228,7 +237,10 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // IsoRoom includes its positioning div; the exported asset is SVG only.
     writeFileSync(`${DIR}/scene-visit.svg`, scene.slice(scene.indexOf("<svg"), scene.lastIndexOf("</svg>") + 6)
       .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
-    for (const key of ["loft", "home"]) {
+    // Keep the principal room plus the seasonal/tree-heavy presets in the
+    // visual sheet. A catalog cutout cannot catch scale, overlap or a weak
+    // room composition around a large silhouette.
+    for (const key of ["loft", "home", "terrace", "garden", "fall", "winter", "holiday", "summer"]) {
       const room = isoPresetLayout(key);
       const presetScene = renderToStaticMarkup(
         <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />
@@ -272,6 +284,24 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       );
       save(`hair-side-${key}`, <Resident character={dressed({ hair: key })} facing="side" />);
       save(`hair-back-${key}`, <Resident character={dressed({ hair: key })} facing="back" />);
+    }
+    // Silhouette review at both body extremes: headwear keeps its authored
+    // fit, and long hair must still clear the shoulders when worn loose.
+    for (const hair of ["short", "bob", "long"]) {
+      for (const [name, extra] of Object.entries({
+        light: { model: "fem", skin: "#f2d3bb", hairColor: "#e7dcc7", width: 6.2, shoulders: -1.6, height: 26, torso: 14 },
+        dark: { model: "masc", skin: "#774c37", hairColor: "#302329", width: 8.4, shoulders: 1, height: 32, torso: 20 },
+        headphones: { hairColor: "#9a6b46", hat: "headphones", glasses: "round" },
+        beanie: { hairColor: "#9a6b46", hat: "beanie", coat: "puffer" },
+        cap: { hairColor: "#9a6b46", hat: "cap" },
+        beret: { hairColor: "#9a6b46", hat: "beret" },
+        straw: { hairColor: "#9a6b46", hat: "straw" },
+      })) {
+        for (const facing of ["front", "side", "back"]) {
+          save(`hair-fit-${hair}-${name}-${facing}`,
+            <Resident character={dressed({ hair, ...extra })} facing={facing} />);
+        }
+      }
     }
     // Tops and coats render in THREE colourways — the marks live on these
     // two slots, and a mark tuned on the default mid green can vanish on a

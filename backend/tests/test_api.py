@@ -167,6 +167,26 @@ def test_stats_are_zero_for_an_empty_account(client, auth):
     }
 
 
+def test_archiving_preserves_todays_credit_in_self_and_friend_stats(app, client, auth):
+    client.post("/api/tasks", json={"name": "still to do"}, headers=auth)
+    for name, archived in [("done on the list", False), ("journal today", True), ("journal long ago", True)]:
+        task = client.post("/api/tasks", json={"name": name}, headers=auth).get_json()
+        client.put(f"/api/tasks/{task['id']}", json={"completed": True}, headers=auth)
+        if archived:
+            assert client.post(f"/api/tasks/{task['id']}/archive", headers=auth).status_code == 200
+        if name == "journal long ago":
+            with app.app_context():
+                db.session.get(Task, task["id"]).completed_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=400)
+                db.session.commit()
+    client.post("/api/sessions", json={"minutes": 25}, headers=auth)
+    expected = {"tasksTotal": 2, "tasksDone": 1, "tasksDoneToday": 2, "completion": 50, "focusMinutesToday": 25}
+    assert client.get("/api/stats", headers=auth).get_json() == expected
+    observer = {"Authorization": f"Bearer {register(client, 'observer')}"}
+    client.post("/api/friends", json={"username": "tester"}, headers=observer)
+    friend = next(row for row in client.get("/api/friends", headers=observer).get_json() if row["username"] == "tester")
+    assert {key: friend[key] for key in expected} == expected
+
+
 def test_uncompleting_a_task_clears_it_from_today(client, auth):
     task = client.post("/api/tasks", json={"name": "oops"}, headers=auth).get_json()
     client.put(f"/api/tasks/{task['id']}", json={"completed": True}, headers=auth)

@@ -37,7 +37,7 @@ export default function CharacterPresets({ character, onPick }) {
                 : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
             }`}
           >
-            <svg viewBox={view === "seated" ? "-22 -40 44 80" : "-19 -66 38 80"} className="h-24 w-[4.5rem] shrink-0" aria-hidden="true">
+            <svg viewBox={view === "seated" ? "-22 -40 44 80" : "-19 -66 38 80"} className="cottage-preview h-24 w-[4.5rem] shrink-0" aria-hidden="true">
               <ellipse cx="0" cy={view === "seated" && shown.seatPose === "crossed" ? 25 : view === "seated" ? 32 : 11}
                 rx="13" ry="2.2" fill="#000" opacity="0.16" />
               <Resident character={shown} facing={view === "back" ? "back" : "front"}

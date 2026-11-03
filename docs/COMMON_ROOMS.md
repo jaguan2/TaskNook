@@ -32,7 +32,7 @@ lamp pools. Detail stays around edges and thresholds so all six seats remain
 readable. Fixed props reuse the refined seating, storage, lamps and species-specific plants.
 The renderer is `components/CommonRoom.jsx`; the scene manifest and seat
 rules are `lib/commonRooms.js`. `lib/commonPresence.js` owns the familiar cast
-and turnover rules; `lib/useCommonPresence.js` owns the slow scheduler and
+and turnover rules; `hooks/useCommonPresence.js` owns the slow scheduler and
 session lifecycle. Occupancy lives only in the store's
 in-memory presence map and current common-room session. Entry cancels pending knocks and supersedes stale friend-room
 requests. Choosing a seat does not write to the home API or its saved camera.
@@ -49,6 +49,15 @@ seat, then clears after five seconds; clicking it exposes the same choices as
 accessible buttons and keeps the chooser visible while it is in use. Willow Pond is
 shown at [sunset](screenshots/43-willow-pond.webp) and with its
 [seat choices open](screenshots/44-willow-pond-seats.webp).
+
+Press Enter or Space on your resident to open the same seat choices after the
+hint disappears. The bounded chooser sits above other HUD cards; choosing a
+seat or pressing Escape returns focus to your resident. Escape while the
+chooser is open leaves you in the common place.
+
+Common Cottage also uses static floor contact shadows, shaded wall junctions
+and warm light clipped to the supporting desks and tables. These additions
+preserve the split-level layout and seats; they add no animated effects.
 
 ## Second place: Willow Pond
 
@@ -103,8 +112,10 @@ expands the page or makes the last seats unreachable in smaller windows.
 
 `CommonLibraryScene.jsx` owns only the library architecture. The shared
 `CommonRoom.jsx` still owns prop stacking, people, lamp pools and seat selection.
-Windows respond to time of day; candle flicker and a few drifting dust motes
-reuse the existing motion rules and stop under reduced motion. The library
+Windows respond to time of day. Six chandelier flames and a few drifting dust
+motes retain ambient motion, alongside the guest's focus/break cues. Repetitive
+prop, floor-light and background-resident loops stay still in this large hall;
+reduced motion silences the remaining animation too. The library
 does not change decoration, saved-home state, timer or visit permissions.
 
 Current captures: [library arrival](screenshots/48-grand-library.webp) and
@@ -207,12 +218,12 @@ occlusion, theme colours and live lighting harder to maintain.
 |---|---|---|
 | `lib/commonRooms.js` | Place manifests, floor heights, fixed props and explicit seats | Stable place/seat IDs; occupancy is separate from authored furniture |
 | `lib/commonPresence.js` | Pure common-place roster and 30-minute-to-4-hour turnover policy | One arrival/departure per deadline; user's occupied seat stays reserved |
-| `lib/useCommonPresence.js` | In-memory populations, deadline timer and joined session | Friends roster and visible room share one population source |
+| `hooks/useCommonPresence.js` | In-memory populations, deadline timer and joined session | Friends roster and visible room share one population source |
 | `lib/commonChat.js` | Welcome/presence text, bounded history and responder selection | Reuses NPC voices but does not create API conversations or persistence |
 | `CommonRoom.jsx` | Shared props, characters, lighting and seat interaction | Supports each place's floor heights without editable-home validation |
 | `CommonRoomChat.jsx` | Visit-local transcript, shortcuts, reply timers and moderation state | Enter and `/` never steal keys from an active form/control; timers clear on exit |
 | `CommonGardenScene.jsx` | Willow Pond's lawn, terrace, paths and pergola | Outdoor geometry stays separate from cottage architecture |
-| `lib/isoRoom.js` / `IsoRoom.jsx` | Catalog sprites, placement helpers and editable-home rendering | The home format remains a single editable floor; its stair sprite does not add an upper storey |
+| `lib/isoCatalog.js`, `lib/isoRoom.js` / `IsoRoom.jsx` | Catalog metadata, placement helpers and editable-home rendering | The home format remains a single editable floor; its stair sprite does not add an upper storey |
 | `App.jsx` | Chooses home, friend visit or common place; keeps HUD/audio mounted | A common place does not require `visiting.friend` |
 | `store.jsx` | In-memory population and selected seat; entry and return | Seat changes do not save the home or award an arbitrary friend's visit bond |
 
@@ -248,7 +259,7 @@ The store exposes the active place explicitly as home, friend visit or common ro
 friend visits use the friend access/knock flow and existing visit bond logic.
 Common-room participation must not award a visit to an arbitrary host. Keep
 home-layout writes tied to home; returning restores its saved camera and
-layout. Any future remembered common-room seat uses `lib/storage.js` and is
+layout. Any future remembered common-room seat uses `services/storage.js` and is
 revalidated against the scene version and current occupancy.
 
 ### Height and occlusion

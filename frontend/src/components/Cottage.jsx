@@ -83,6 +83,7 @@ function Cottage({
   onDuplicateItem,
   // resolved by App from the Motion setting + the OS preference
   reduceMotion = false,
+  paused = false,
 }) {
   const [flash, setFlash] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -100,7 +101,8 @@ function Cottage({
   useEffect(() => {
     // Gated for reduced motion too — the flash is a photosensitivity
     // concern, and as a transition it escapes the CSS animation block.
-    if (weather !== "storm" || reduceMotion) return undefined;
+    setFlash(false);
+    if (weather !== "storm" || reduceMotion || paused) return undefined;
     let timer;
     let flashTimer;
     const scheduleFlash = () => {
@@ -115,7 +117,7 @@ function Cottage({
       clearTimeout(timer);
       clearTimeout(flashTimer);
     };
-  }, [weather, reduceMotion]);
+  }, [weather, reduceMotion, paused]);
 
   // Leaving edit mode drops any selection so no ghost outline lingers.
   useEffect(() => {
@@ -276,6 +278,7 @@ function Cottage({
     >
       <svg
         aria-hidden={preview || undefined}
+        aria-label={preview ? undefined : "Classic cottage scene"}
         ref={svgRef}
         viewBox={VIEW_BOX}
         preserveAspectRatio={preview ? "xMidYMid meet" : "xMidYMax meet"}

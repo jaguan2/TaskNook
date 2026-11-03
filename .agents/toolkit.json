@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/jaguan2/agent-toolkit.git",
+  "revision": "4892ac2257bf0610ce763cb601e0ef2a6fb33b0e",
+  "skills": [
+    "toolkit-engineering",
+    "toolkit-structural-review",
+    "toolkit-verify"
+  ]
+}

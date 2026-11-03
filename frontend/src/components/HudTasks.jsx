@@ -8,8 +8,8 @@ import {
   SlidersHorizontal,
   StickyNote,
 } from "lucide-react";
-import { useStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useSystemStore, useTaskStore } from "../store";
+import { useArmed } from "../hooks/useArmed";
 import { toISO } from "../lib/dates";
 import ConfirmDialog from "./ConfirmDialog";
 
@@ -21,9 +21,8 @@ import ConfirmDialog from "./ConfirmDialog";
 // drawer stays behind ⚙.
 
 // Row lives at module scope, NOT inside HudTasks: an inner component gets a
-// new function identity every render, so React remounts every row — and the
-// store re-renders this HUD once per second while a focus session runs, which
-// killed in-flight drag-reorders (learned the hard way).
+// new function identity every render, so React remounts every row on a store
+// update. Stable component identity preserves in-flight drag-reorders.
 /**
  * The expanded half of a task row: a note, a deadline, and the two fields that
  * previously had no editor anywhere in the app.
@@ -37,9 +36,8 @@ import ConfirmDialog from "./ConfirmDialog";
  * A local draft holds the text until focus leaves.
  *
  * At module scope for the same reason `Row` is, and here it matters twice over:
- * an inner component gets a fresh identity every render, and this HUD re-renders
- * once a second while a focus block runs — so the remount would wipe the half
- * written note out from under you, once per second.
+ * an inner component gets a fresh identity every render. A store update must
+ * not remount the editor and wipe a half-written note.
  */
 function TaskDetails({ task, editTask, onClose }) {
   const [notes, setNotes] = useState(task.notes || "");
@@ -317,8 +315,8 @@ export default function HudTasks({ onOpenTasks }) {
     renameTaskGroup,
     toggleRoutine,
     editTask,
-    showToast,
-  } = useStore();
+  } = useTaskStore();
+  const { showToast } = useSystemStore();
   const [draft, setDraft] = useState("");
   const [draftGroup, setDraftGroup] = useState("");
   const [groupDraft, setGroupDraft] = useState(null); // null = closed, "" = typing
@@ -326,7 +324,7 @@ export default function HudTasks({ onOpenTasks }) {
   const [renameDraft, setRenameDraft] = useState("");
   const dragFrom = useRef(null); // { section, index }
 
-  // Two-tap delete, the app-wide rhythm (see lib/useArmed.js).
+  // Two-tap delete, the app-wide rhythm (see hooks/useArmed.js).
   // One row open at a time: two open note editors on a 288px list is a wall of
   // form, and the point of putting this on the row was to keep the list a list.
   const [expandedId, setExpandedId] = useState(null);

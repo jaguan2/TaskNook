@@ -71,7 +71,7 @@ const LOOKS = {
   summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 31 },
   maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 26, torso: 14.5 },
 };
-const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer" };
+const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer", "59": "winter" };
 const CHARACTERS = [
   ["33", "character-study", "study", "Body"],
   ["34", "character-casual", "casual", "Outfit"],
@@ -144,6 +144,7 @@ const ROOMS = [
   ["30", "plant-shop", "Plant shop", { weather: "off", time: "day" }],
   ["31", "winter-yard", "Winter yard", { weather: "snow", time: "night" }],
   ["32", "poolside", "Poolside", { weather: "off", time: "day" }],
+  ["59", "holiday-hearth", "Holiday hearth", { weather: "snow", time: "night" }],
 ];
 
 // The weather set is deliberately ONE room in five conditions, so the only
@@ -250,27 +251,38 @@ function makePage(cdp) {
   const closePanels = () =>
     evaluate(`document.querySelectorAll('button[aria-label^="Close"]').forEach(b => b.click()); 'ok'`);
 
+  const screenPoint = (selector, mode = "center") => evaluate(`(() => {
+    const selector = ${JSON.stringify(selector)};
+    const node = document.querySelector(selector);
+    if (!node) throw new Error('MISSING:' + selector);
+    if (${JSON.stringify(mode)} === 'origin') {
+      const point = node.ownerSVGElement.createSVGPoint();
+      const screen = point.matrixTransform(node.getScreenCTM());
+      return { x: screen.x, y: screen.y };
+    }
+    const box = node.getBoundingClientRect();
+    if (${JSON.stringify(mode)} === 'visible') {
+      // A seated body overlaps its chair, so the group's geometric centre can
+      // belong to the furniture painted in front. Find a pixel that really
+      // hit-tests to this placement.
+      for (let y = box.top + 2; y < box.bottom; y += 3) {
+        for (let x = box.left + 2; x < box.right; x += 3) {
+          if (document.elementFromPoint(x, y)?.closest(selector) === node) return { x, y };
+        }
+      }
+      throw new Error('NO VISIBLE HIT:' + selector);
+    }
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  })()`);
+
   /** Carry the common-room guest with the same pointer gesture used in-app. */
   const dragCommonGuest = async (seatId) => {
-    const centerOf = (selector) => evaluate(`(() => {
-      const node = document.querySelector(${JSON.stringify(selector)});
-      if (!node) throw new Error('MISSING:${selector}');
-      const box = node.getBoundingClientRect();
-      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-    })()`);
-    const originOf = (selector) => evaluate(`(() => {
-      const node = document.querySelector(${JSON.stringify(selector)});
-      if (!node) throw new Error('MISSING:${selector}');
-      const point = node.ownerSVGElement.createSVGPoint();
-      const transformed = point.matrixTransform(node.getScreenCTM());
-      return { x: transformed.x, y: transformed.y };
-    })()`);
-    const from = await centerOf('[data-common-person="you"]');
+    const from = await screenPoint('[data-common-person="you"]');
     await send("Input.dispatchMouseEvent", {
       type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
     });
     await sleep(150);
-    const to = await originOf(`[data-drop-seat="${seatId}"]`);
+    const to = await screenPoint(`[data-drop-seat="${seatId}"]`, "origin");
     await send("Input.dispatchMouseEvent", {
       type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
     });
@@ -280,6 +292,37 @@ function makePage(cdp) {
     });
     await sleep(500);
     return evaluate(`document.querySelector('[data-common-person="you"]')?.getAttribute('data-seat')`);
+  };
+
+  /** Carry the home profile character to a catalog item using the real pointer
+   * path. The item's placement origin is a valid point inside a bed and makes
+   * this exercise the same cursor-anchored landing rule as a hand drag. */
+  const dragSelfToItem = async (item) => {
+    const from = await screenPoint('[data-item="you"]', "visible");
+    const to = await screenPoint(`[data-item="${item}"]`, "origin");
+    const before = await evaluate(`({
+      cursor: document.querySelector('[data-item="you"]')?.style.cursor || null,
+      from: ${JSON.stringify(from)},
+      to: ${JSON.stringify(to)}
+    })`);
+    await send("Input.dispatchMouseEvent", {
+      type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
+    });
+    await sleep(150);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
+    });
+    await sleep(200);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseReleased", x: to.x, y: to.y, button: "left", buttons: 0, clickCount: 1,
+    });
+    await sleep(700);
+    return evaluate(`({
+      lying: !!document.querySelector('[data-item="you"] [data-resident-pose="lying"]'),
+      tucked: !!document.querySelector('[data-item="you"] [data-bed-tuck-cover="true"]'),
+      itemCount: document.querySelectorAll('[data-item="you"]').length,
+      before: ${JSON.stringify(before)}
+    })`);
   };
 
   const shot = async (file, format = "webp", capture = {}) => {
@@ -292,7 +335,7 @@ function makePage(cdp) {
     return r.data.length;
   };
 
-  return { evaluate, load, setStorage, clickText, closePanels, dragCommonGuest, shot };
+  return { evaluate, load, setStorage, clickText, closePanels, dragCommonGuest, dragSelfToItem, shot };
 }
 
 /**
@@ -320,6 +363,36 @@ async function seatResident(page) {
   await sleep(1800);
   await page.closePanels();
   return 'profile character seated by the app';
+}
+
+/** Open one exact catalog group without colliding with similarly named presets. */
+async function openCatalogGroup(page, label) {
+  await page.evaluate(`(async () => {
+    const want = ${JSON.stringify(label)};
+    const toggle = [...document.querySelectorAll('button')].find(
+      button => button.textContent.includes('Browse by category'));
+    if (!toggle) throw new Error('Furniture catalog toggle missing');
+    if (toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
+
+    let button = null;
+    for (let i = 0; i < 20; i++) {
+      button = [...document.querySelectorAll('button')].find(candidate =>
+        [...candidate.querySelectorAll('span')].some(
+          span => span.children.length === 0 && span.textContent.trim() === want));
+      if (button) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!button) throw new Error(want + ' catalog group missing');
+    if (button.getAttribute('aria-expanded') !== 'true') button.click();
+    for (let i = 0; i < 20; i++) {
+      if (button.getAttribute('aria-expanded') === 'true') {
+        button.scrollIntoView({ block: 'start' });
+        return 'ok';
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error(want + ' catalog group did not expand');
+  })()`);
 }
 
 /** Tasks, groups and focus time — the content every shot shares. */
@@ -480,6 +553,7 @@ async function main() {
     "tasknook.timeOfDay.auto": "0",
     "tasknook.weather.automatch": "0",
     "tasknook.weather.random": "0",
+    "tasknook.backdrop": "gradient",
     "tasknook.walkHinted": "1",
   });
 
@@ -520,6 +594,20 @@ async function main() {
   await page.clickText("Loft");
   await sleep(1800);
   await seatResident(page);
+
+  // ---- 55 solid backdrop: the same atmospheric scene without a sky wash ----
+  if (want("55")) {
+    await page.setStorage({
+      ...ambient({ weather: "off", time: "night" }),
+      "tasknook.backdrop": "solid",
+    });
+    await page.load();
+    await page.closePanels();
+    await sleep(2000);
+    const bytes = await page.shot(join(OUT_DIR, "55-solid-backdrop.webp"));
+    console.log(`  55-solid-backdrop.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
+  }
+
   // ---- weather, all on the default room ----
   for (const [n, name, amb] of WEATHER) {
     if (!want(n)) continue;
@@ -545,6 +633,15 @@ async function main() {
         await page.clickText("Face", { exact: true });
         await sleep(700);
       }
+      if (n === "21") {
+        await page.evaluate(`(() => {
+          const label = [...document.querySelectorAll('p')].find(
+            e => e.textContent.trim() === 'Backdrop');
+          label?.closest('[role="group"]')?.scrollIntoView({ block: 'center' });
+          return 'ok';
+        })()`);
+        await sleep(500);
+      }
     }
     const bytes = await page.shot(join(OUT_DIR, `${n}-${name}.webp`));
     console.log(`  ${n}-${name}.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
@@ -555,17 +652,32 @@ async function main() {
     await page.load();
     await page.clickText("Room", { exact: true });
     await sleep(1600);
-    await page.clickText("Browse by category");
-    await page.clickText("Seating");
-    await page.evaluate(`(() => {
-      const h = [...document.querySelectorAll('*')].find(
-        e => e.children.length === 0 && /^seating/i.test(e.textContent.trim()));
-      h?.scrollIntoView({ block: 'start' });
-      return 'ok';
-    })()`);
+    await openCatalogGroup(page, "Seating & beds");
     await sleep(1400);
     const b = await page.shot(join(OUT_DIR, "24-furniture.webp"));
     console.log(`  24-furniture.webp  ${Math.round(b * 0.75 / 1024)}kB`);
+  }
+
+  // ---- 57 autumn catalog: the complete seasonal decoration set in the real picker ----
+  if (want("57")) {
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await sleep(1600);
+    await openCatalogGroup(page, "Autumn");
+    await sleep(1400);
+    const bytes = await page.shot(join(OUT_DIR, "57-autumn-decorations.webp"));
+    console.log(`  57-autumn-decorations.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
+  }
+
+  // ---- 58 winter catalog: outdoor snow pieces plus the indoor holiday set ----
+  if (want("58")) {
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await sleep(1600);
+    await openCatalogGroup(page, "Winter");
+    await sleep(1400);
+    const bytes = await page.shot(join(OUT_DIR, "58-winter-decorations.webp"));
+    console.log(`  58-winter-decorations.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
   }
 
   // ---- 25 decorating: edit mode, grid on, HUD stood aside ----
@@ -796,6 +908,29 @@ async function main() {
     await sleep(1000);
     await page.shot(join(OUT_DIR, "47-profile-levels.webp"));
     console.log("  profile: level, XP and check-in streak");
+  }
+
+  // ---- 56 sleeping: carry the real profile character into the Loft bed ----
+  if (want("56")) {
+    await setCharacter(page, "winter");
+    await page.setStorage({
+      ...ambient({ weather: "off", time: "night" }),
+      "tasknook.isoView": "",
+      "tasknook.isoPreview": "1",
+    });
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await page.clickText("Loft");
+    await sleep(1800);
+    await seatResident(page);
+    await page.load();
+    await page.closePanels();
+    const result = await page.dragSelfToItem("bed");
+    if (!result.lying || !result.tucked)
+      throw new Error(`Bed carry did not resolve to the tucked pose: ${JSON.stringify(result)}`);
+    await sleep(1600);
+    const bytes = await page.shot(join(OUT_DIR, "56-tucked-in-bed.webp"));
+    console.log(`  56-tucked-in-bed.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

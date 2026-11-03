@@ -3,6 +3,7 @@ import { floorPatch, floorPoints, project } from "../lib/iso";
 import {
   ISO_ITEMS,
   cutsToMask,
+  envOf,
   partitionPieces,
   seatFor,
   seatedPlacement,
@@ -28,10 +29,9 @@ const PREVIEW_FULL_WALL_H = 100;
 /**
  * One catalog sprite in the picker.
  *
- * memo'd because RoomPanel calls useStore(), so every store change re-rendered
- * all ~132 of these — and the panel is on screen whenever you're decorating,
- * since "Decorate" is toggled from inside it. Its props are a single string, so
- * the comparison is free and always correct.
+ * Memoized because the catalog can mount more than a hundred of these at once;
+ * unrelated panel state should not rebuild every SVG thumbnail. Its prop is a
+ * single string, so the comparison is free and always correct.
  */
 function IsoItemPreviewInner({ itemKey }) {
   const item = ISO_ITEMS[itemKey];
@@ -61,7 +61,7 @@ function IsoItemPreviewInner({ itemKey }) {
     <svg
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
-      className="h-9 w-9 shrink-0"
+      className="cottage-preview h-9 w-9 shrink-0"
       aria-hidden="true"
     >
       <g ref={gRef}>
@@ -94,7 +94,7 @@ function IsoPresetPreviewInner({ preset }) {
     ...(preset.size.arches && { arches: preset.size.arches }),
   };
   const shapedFloor = mask?.some((row) => row.includes("0"));
-  const grass = preset.size.env === "garden";
+  const floorFill = envOf(preset.size.env).preview;
   // Seat personas before sorting, exactly as the scene does — otherwise the
   // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
   // the depth sort orders them from the wrong spot.
@@ -154,7 +154,7 @@ function IsoPresetPreviewInner({ preset }) {
   return (
     <svg
       viewBox={`${L.x - 6} -118 ${R.x - L.x + 12} ${F.y + 132}`}
-      className="h-24 w-full"
+      className="cottage-preview h-24 w-full"
       aria-hidden="true"
     >
       {shellRuns.map((run, index) => (
@@ -173,7 +173,7 @@ function IsoPresetPreviewInner({ preset }) {
               <polygon
                 key={`${tx}-${ty}`}
                 points={floorPatch(tx, ty, 1, 1)}
-                fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+                fill={floorFill}
                 opacity="0.8"
               />
             ) : null
@@ -182,7 +182,7 @@ function IsoPresetPreviewInner({ preset }) {
       ) : (
         <polygon
           points={floorPoints(w, d)}
-          fill={grass ? "#3d6a50" : "rgb(var(--color-wine))"}
+          fill={floorFill}
           opacity="0.8"
         />
       )}

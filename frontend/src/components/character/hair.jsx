@@ -33,10 +33,16 @@
 //     Budget stays capped: wedges + lines + band + brow + hem crescents
 //     and nothing else.
 //
+// Short, bob and long use authored curves instead of the dome/tooth kit:
+// a dominant sweep and unequal ends give these smooth cuts their shape.
+// They retain one closed silhouette and the same restrained tonal budget.
+// Keep their front/profile/rear outlines together when revising a cut.
+//
 // Layers (see index.jsx): `front` draws over the head inside the gesture
 // wrappers; `length` draws before the torso so it hangs behind the body;
 // `back` replaces everything when the figure turns away. The old `behind`
 // layer is retired — crown volume welds into `front` now.
+import { useId } from "react";
 import { HEAD_R, farColor } from "../../lib/body";
 import { GLINT, SHADE, HAIR_LIFT } from "./body";
 
@@ -279,41 +285,43 @@ const SHORT_CLUMPS = [
   [2.5, 0.4],
 ];
 
-const shortBrow = (headY) => (
-  <g fill="#000" opacity="0.1">
-    <path d={`M${-R + 0.9} ${headY - 0.6} q2.2 1.5 4.5 0.4 q-2 1.5 -4.5 0.2 z`} />
-    <path d={`M1.4 ${headY - 0.8} q3.3 2.1 5.8 0.5 q-2.4 1.6 -5.8 0.1 z`} />
-  </g>
-);
-
 export const HAIR_REGISTRY = {
   short: {
+    back: ({ headY, color }) => (
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-7.6 1.3 C-8.8 -3.9 -5.7 -9.9 -0.7 -9.8
+          C3.3 -10.3 7.7 -7.1 8.1 -2.4 L8.5 0.5 L7.1 0
+          Q7.2 4.4 4.8 5.9 L4.3 5 Q0.8 8 -3.9 6 L-4 5
+          Q-6.8 4.7 -7.6 1.3 Z" fill={color} />
+        <path d="M-6.1 0.8 Q-5.2 5.8 -1 5.8 Q3.1 6.1 5.7 3.3
+          Q4.8 6.9 0.1 7 Q-5.8 6.7 -6.1 0.8 Z" fill={SHADE} opacity="0.2" />
+        <path d="M-5.2 -5 Q-1.7 -8.1 2.7 -6.8 Q-1.5 -7.1 -5.2 -5 Z" fill={GLINT} opacity="0.18" />
+      </g>
+    ),
     side: ({ headY, color }) => (
-      <>
-        <path d={sideWigPath(headY, {
-          fringeX: -5.5,
-          fringeY: -2.8,
-          apex: 10.1,
-          backX: 7.8,
-          napeY: 2.8,
-          earX: 1.5,
-          earY: 1.5,
-        })} fill={color} />
-        <path d={`M-4.4 ${headY - 8.1} q1.7 -3 4.2 -2.3 q-1.7 1.1 -2.1 3.2 z`} fill={color} />
-        {sideShine(headY, 10.1)}
-        <path d={`M-5.8 ${headY - 1.8} q2.2 1.5 4.1 0.3 q-1.8 1.4 -4.1 0.2 z`}
-          fill="#000" opacity="0.1" />
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-6.6 -0.8 Q-8.2 -4.6 -3.4 -8.8 Q0 -11.2 4.4 -7.9
+          Q8.7 -5.1 8 0.3 L8.6 1.6 L7 1.1 Q6.6 4.2 4.2 4.8
+          L3.1 2 Q1.6 0.8 0.2 1.6 L-0.1 -0.5 Q-2.4 0.7 -4.6 -1.5
+          Q-5 -0.2 -6.6 -0.8 Z" fill={color} />
+        <path d="M3.7 -5.8 Q7 -2.8 5.6 2.5 L7 1.1 Q6.6 4.2 4.2 4.8
+          L3.1 2 Q4.5 -0.3 3.7 -5.8 Z" fill={SHADE} opacity="0.2" />
+        <path d="M-5.6 -4.3 Q-3.2 -8.5 1.7 -7.6 Q-2.6 -7.3 -5.6 -4.3 Z" fill={GLINT} opacity="0.18" />
+      </g>
     ),
     front: ({ headY, color }) => (
-      <>
-        {wig(headY, color, SHORT_CFG, SHORT_CLUMPS)}
-        <path d={`M-4.2 ${headY - 8.2} q1.7 -3 4.2 -2.3 q-1.5 1.1 -2 3.2 z`} fill={color} />
-        <path d={`M-1.3 ${headY - 8.6} Q-2.5 ${headY - 5.4} -2.8 ${headY - 2.2}`}
-          fill="none" stroke="#000" strokeWidth="0.65" strokeLinecap="round" opacity="0.12" />
-        {shine(headY, SHORT_CFG.apex)}
-        {shortBrow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        {/* One side-swept fringe, with smaller tips following its direction. */}
+        <path d="M-7.6 1.3 C-8.8 -3.9 -5.7 -9.9 -0.7 -9.8
+          C3.3 -10.3 7.7 -7.1 8.1 -2.4 L8.7 0.1 Q6.6 0.5 5.3 -1.6
+          Q5.9 0.2 5.1 1.1 Q1.5 0.6 -0.8 -3 Q-1.5 -0.3 -4.3 0.8
+          L-4.1 -0.9 Q-5.2 1.2 -7.6 1.3 Z" fill={color} />
+        <path d="M-7.6 1.3 Q-5.2 1.2 -4.1 -0.9 L-4.3 0.8
+          Q-1.5 -0.3 -0.8 -3 Q1.5 0.6 5.1 1.1 L5.4 0
+          Q1.9 -0.6 -0.8 -4.3 Q-3.5 -1.1 -7.6 0.2 Z" fill={SHADE} opacity="0.18" />
+        <path d="M-6.2 -4.3 Q-4.6 -8.8 0.5 -8 Q-3.7 -7.1 -6.2 -4.3 Z
+          M1.1 -7.7 Q5.8 -6.3 6.7 -2.5 Q4.3 -5.4 1.1 -7.7 Z" fill={GLINT} opacity="0.16" />
+      </g>
     ),
   },
   buzz: {
@@ -396,83 +404,67 @@ export const HAIR_REGISTRY = {
     // the front's behind-body curtain let the sweater cut through the hair.
     backIncludesLength: true,
     back: ({ headY, color }) => (
-      <g data-hair-back="bob">
-        <path d={`M -8.2 ${headY + 1} Q -9.5 ${headY - 8.6} -1 ${headY - 9.6}
-          Q 8.6 ${headY - 10.1} 9.1 ${headY - 1}
-          Q 11.1 ${headY + 8.2} 7.5 ${headY + 10.4}
-          Q 0 ${headY + 12} -7.5 ${headY + 10.4}
-          Q -10.7 ${headY + 8.3} -8.2 ${headY + 1} Z`} fill={color} />
-        <path d={`M -7.7 ${headY - 2} Q -8.1 ${headY + 6.8} -5.4 ${headY + 9.4}
-          Q 0 ${headY + 10.8} 7.5 ${headY + 9.5}
-          Q 1 ${headY + 12.1} -7.5 ${headY + 10.4}
-          Q -10.1 ${headY + 7} -7.7 ${headY - 2} Z`} fill={SHADE} opacity="0.28" />
-        <path d={`M -4.6 ${headY - 5.8} Q 0 ${headY - 9} 5.1 ${headY - 5.6}
-          Q 7.7 ${headY - 2.8} 7.2 ${headY + 2.2}
-          Q 5.5 ${headY - 4.9} -4.6 ${headY - 5.8} Z`} fill={GLINT} opacity="0.16" />
-        <path d={`M 1.5 ${headY - 5} Q 4 ${headY + 1} 2.8 ${headY + 8.6}`}
-          fill="none" stroke={SHADE} strokeWidth="0.65" opacity="0.22" />
+      <g data-hair-back="bob" transform={`translate(0 ${headY})`}>
+        <path d="M-8 -0.6 C-8.7 -5.8 -5.9 -9.4 -1.3 -9.4
+          C4.8 -10 8.4 -6.7 8.5 -1.3 Q10.4 6.6 8.7 9.6
+          Q5.1 11.5 1.1 10.1 Q-3.4 11.1 -7.3 9.8
+          Q-10.4 8.5 -8 -0.6 Z" fill={color} />
+        <path d="M-7.4 -2.4 Q-8.4 6.3 -5.4 8.8 Q0 10.2 6.8 9.1
+          Q4.2 11.1 1.1 10.1 Q-3.4 11.1 -7.3 9.8
+          Q-10.4 8.5 -7.4 -2.4 Z" fill={SHADE} opacity="0.24" />
+        <path d="M-5.4 -5.3 Q-2.1 -8.9 2.7 -7.3 Q0.7 -7.2 -0.5 -6.8
+          Q-3.2 -7 -5.4 -5.3 Z" fill={GLINT} opacity="0.17" />
       </g>
     ),
-    // The dark back sheet curls IN under the jaw (the make-or-break — a
-    // flared hem reads as a lampshade); the front wig carries the blunt
-    // fringe. Two masses, two tones, per the method's long-hair form.
-    // Profile: ONE helmet mass — skull, ear and all — its bottom edge
-    // tucking inward under the jaw, the same make-or-break curl.
+    // Unequal curl-under ends keep the bob close to the jaw in every view.
     side: ({ headY, color }) => (
-      <>
-        <path
-          d={`M -6.4 ${headY - 1.4}
-              Q -8.4 ${headY - 6} -2.6 ${headY - 9.6}
-              Q 4.4 ${headY - 10.4} 8.4 ${headY - 5}
-              Q 10.2 ${headY + 1} 8 ${headY + 6.4}
-              Q 6.6 ${headY + 9} 3.4 ${headY + 8.6}
-              Q 0.4 ${headY + 8.4} -1.2 ${headY + 6.6}
-              Q -4.8 ${headY + 5} -5.2 ${headY + 1.6}
-              Q -5.4 ${headY - 0.2} -6.4 ${headY - 1.4} z`}
-          fill={color}
-        />
-        {sideShine(headY, 9.9)}
-        {sideBrow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-6.6 -0.6 Q-8.4 -5.6 -2.6 -9.4 Q3.8 -10.6 7.6 -5.8
+          C9.3 -2 9.8 4.3 8.1 7.5 Q6.6 10.2 3.2 9.2
+          Q4.6 8.8 5.1 7.3 Q1.1 8.5 -0.3 5.9 Q-1.6 3.9 -1.7 2.4
+          Q-2.1 -0.4 -4.5 -1.8 Q-5 0.1 -6.6 -0.6 Z" fill={color} />
+        <path d="M6 -4.6 Q9.4 4.2 5.1 7.3 Q4.6 8.8 3.2 9.2
+          Q6.6 10.2 8.1 7.5 Q10 1.9 6 -4.6 Z" fill={SHADE} opacity="0.22" />
+        <path d="M-5.8 -4.4 Q-3.2 -8.7 1.9 -7.5 Q-2.8 -7.2 -5.8 -4.4 Z" fill={GLINT} opacity="0.18" />
+      </g>
     ),
     length: ({ headY, color }) => (
-      <path
-        d={`M-8.8 ${headY - 3} q-4.4 6.6 -3.2 11.6 q0.9 2.5 3.2 2.8
-            L8.8 ${headY + 11.4} q2.3 -0.3 3.2 -2.8 q1.2 -5 -3.2 -11.6 z`}
-        fill={farColor(color)}
-      />
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-7.4 -4 C-9.6 -2 -10.2 4 -9.2 7.7 Q-8.3 10.3 -5.7 9.9
+          Q-6.8 8 -6.7 6.2 L5.9 6 Q6.4 9.4 8.7 9.6
+          Q10.4 6.6 9.1 2.3 L7.6 -4 Z" fill={farColor(color)} />
+      </g>
     ),
     front: ({ headY, color }) => (
-      <>
-        {wig(headY, color, { sideX: 8.5, apex: 9.5, baseY: 0.9 }, [ [2.1, 2.8], [3.5, 1.2], [5, 1.7], [4.1, 1.1], [2.3, 2.9], ])}
-        {shine(headY, 9.5)}
-        {brow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-7.8 1.4 C-8.7 -2.7 -6.6 -8.6 -1.3 -9.4
+          C4.2 -10.3 8.6 -6.1 8.2 -0.5 L7.4 3.5 Q5.6 2.4 5.2 -0.6
+          Q3.4 0.6 1.8 -0.1 L2.2 -1.4 Q-0.7 0.4 -3.1 -0.3
+          L-2.8 -1.5 Q-4.4 0 -5.5 -0.4 Q-6.6 1.6 -7.8 1.4 Z" fill={color} />
+        <path d="M-7.8 1.4 Q-6.6 1.6 -5.5 -0.4 Q-4.4 0 -2.8 -1.5
+          L-3.1 -0.3 Q-0.7 0.4 2.2 -1.4 L1.8 -0.1 Q3.4 0.6 5.2 -0.6
+          L4.7 -1.8 Q0.8 -0.8 -1.5 -2.5 Q-4.8 -1.4 -7.6 0 Z" fill={SHADE} opacity="0.18" />
+        <path d="M-6.3 -4.4 Q-4 -8.6 0.9 -7.8 Q-3.2 -7 -6.3 -4.4 Z
+          M2.7 -7.2 Q6.7 -5.5 6.8 -2.1 Q5.6 -4.6 2.7 -7.2 Z" fill={GLINT} opacity="0.16" />
+      </g>
     ),
   },
   long: {
     backIncludesLength: true,
     back: ({ headY, color }) => (
-      <g data-hair-back="long">
-        <path d={`M -8.5 ${headY} Q -9.3 ${headY - 8.5} -1 ${headY - 9.6}
-          Q 8.8 ${headY - 10.4} 9 ${headY}
-          Q 8.8 ${headY + 11} 11.4 ${headY + 21}
-          Q 8.2 ${headY + 23.1} 5.2 ${headY + 21.6}
-          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
-          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
-          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={color} />
-        <path d={`M -6.8 ${headY - 3} Q -5.6 ${headY + 10} -7.2 ${headY + 20.1}
-          Q -1.3 ${headY + 23} 5.2 ${headY + 21.6}
-          Q 1.2 ${headY + 24.1} -1.6 ${headY + 22.2}
-          Q -6 ${headY + 23.7} -10.5 ${headY + 21}
-          Q -8 ${headY + 9} -8.5 ${headY} Z`} fill={SHADE} opacity="0.27" />
-        <path d={`M -3.9 ${headY - 6.2} Q 3 ${headY - 9.1} 6.4 ${headY - 3.9}
-          Q 7.2 ${headY + 4} 6.2 ${headY + 13.6}
-          Q 4.9 ${headY + 7} 4.9 ${headY - 0.7}
-          Q 3.9 ${headY - 5.3} -3.9 ${headY - 6.2} Z`} fill={GLINT} opacity="0.14" />
-        <path d={`M -2.4 ${headY - 4} Q -0.3 ${headY + 6} -2.2 ${headY + 19}
-          M 2.2 ${headY + 3} Q 4 ${headY + 13} 3.2 ${headY + 20.1}`}
-          fill="none" stroke={SHADE} strokeWidth="0.75" strokeLinecap="round" opacity="0.22" />
+      <g data-hair-back="long" transform={`translate(0 ${headY})`}>
+        <path d="M-8.2 0 C-9.2 -6.2 -5.6 -9.6 -1.3 -9.6
+          C4.7 -10.5 8.9 -6.4 8.9 -0.3 C8.6 9.2 9.6 16.4 12.1 21.1
+          Q10.2 22.1 8.4 20.2 Q9 22.2 10.2 23 Q6.7 23.1 4.5 21.6
+          Q0.3 24.6 -3.1 22.2 Q-7.2 23 -10.4 20.8
+          Q-9.5 17.2 -9.9 12.4 Q-10.4 6.2 -8.2 0 Z" fill={color} />
+        <path d="M-6.5 -3.8 Q-7.8 6.5 -7 13.9 Q-6.5 19.3 -3.1 22.2
+          Q-7.2 23 -10.4 20.8 Q-9.5 17.2 -9.9 12.4
+          Q-10.4 6.2 -8.2 0 Z" fill={SHADE} opacity="0.24" />
+        <path d="M-4.8 -5.7 Q0.6 -9.6 4.4 -5.7 Q7.6 1.3 6.3 10.1
+          Q5.4 3.7 4.1 -1.2 Q2 -5.7 -4.8 -5.7 Z" fill={GLINT} opacity="0.14" />
+        <path d="M1.2 -3.6 Q-0.7 4.4 1.2 12.2 Q2.3 17.5 0.4 21"
+          fill="none" stroke={SHADE} strokeWidth="0.65" strokeLinecap="round" opacity="0.2" />
       </g>
     ),
     // Dark back sheet to below the shoulders + two base-tone curtains riding
@@ -480,74 +472,59 @@ export const HAIR_REGISTRY = {
     // Profile: the whole fall hangs BEHIND the figure — dark sheet plus one
     // base-tone strand riding it, before the torso so it drapes down the back.
     sideLength: ({ headY, color }) => (
-      <>
-        <path
-          d={`M -1.6 ${headY - 7.2} Q 9.4 ${headY - 5.4} 9.8 ${headY + 4}
-              Q 10.6 ${headY + 14} 8.6 ${headY + 22} q -5 2.4 -9.2 0.6
-              Q 1.8 ${headY + 8} -1.6 ${headY - 7.2} z`}
-          fill={farColor(color)}
-        />
-        <path
-          d={`M 5.4 ${headY - 3.6} q 3.6 9.2 2.4 21.6 q -2.6 1.4 -4.6 0.4 q 1.6 -12.4 -1 -18.6 z`}
-          fill={color}
-        />
-        {/* the same hem value step the front curtains carry */}
-        <path
-          d={`M 8.3 ${headY + 20.8} q -3.2 2.2 -7.4 1.5 q 3.9 1.5 7.7 -0.7 z`}
-          fill="#000"
-          opacity="0.13"
-        />
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-1.6 -7.2 Q9.4 -5.4 9.8 4 Q9.3 14.2 12 21
+          Q10.3 21.4 8.5 19.6 Q9 21.8 10.1 23 Q6.1 23.5 3.6 21.1
+          Q1.3 22.7 -0.6 22 Q1.9 8.2 -1.6 -7.2 Z" fill={farColor(color)} />
+        <path d="M5 -3.8 Q8.9 3.2 7.4 11.4 Q6.4 17.6 10.1 23
+          Q6.1 23.5 3.6 21.1 Q4.8 12.3 3.1 4.2 Z" fill={color} />
+        <path d="M6 3 Q7.6 11.6 6.4 16.3 Q5.7 9.3 6 3 Z" fill={GLINT} opacity="0.13" />
+      </g>
     ),
     side: ({ headY, color }) => (
-      <>
-        <path d={sideWigPath(headY, { apex: 9.8, napeY: 5.2, earY: 3.6 })} fill={color} />
-        {sideShine(headY, 9.8)}
-        {sideBrow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-6.6 -0.7 Q-8.6 -5.7 -2.5 -9.4 C4.6 -11.5 9.2 -4.7 8.6 1
+          Q8.2 4.4 6.4 6.7 Q3.6 5.3 2.7 2.2 Q1.6 0.5 0 1.6
+          Q-0.7 0.2 -0.9 -1.4 Q-3.3 -0.6 -4.8 -2.5
+          Q-5.4 -1 -6.6 -0.7 Z" fill={color} />
+        <path d="M5.6 -4.5 Q9.6 2.4 6.4 6.7 Q3.6 5.3 2.7 2.2
+          Q5 3.1 5.6 -4.5 Z" fill={SHADE} opacity="0.19" />
+        <path d="M-5.7 -4.3 Q-3.4 -8.7 1.9 -7.7 Q-2.6 -7.1 -5.7 -4.3 Z" fill={GLINT} opacity="0.17" />
+      </g>
     ),
     length: ({ headY, color }) => (
-      <>
-        <path
-          d={`M-9 ${headY - 3} q-6 15 -5.4 25 l28.8 0 q0.6 -10 -5.4 -25 z`}
-          fill={farColor(color)}
-        />
-        {[-1, 1].map((s) => (
-          <g key={s}>
-            <path
-              d={`M${s * 8.6} ${headY - 1.5} q${s * 3.6} 8.5 ${s * 2.9} 20.5
-                  q${-s * 2.4} 1.4 ${-s * 4.6} 0.4 q${s * 0.4} -12 ${-s * 1.4} -19.4 z`}
-              fill={color}
-            />
-            {/* the texture pass the curtains were missing — the one flat,
-                markless mass left in the set read as a cape, not hair: a
-                hem crescent (the under-layer value step every other wig
-                carries) and one tapered flow line following the fall,
-                stopping short of both edges per the doctrine above. */}
-            <path
-              d={`M${s * 11.4} ${headY + 18.6} q${-s * 1.6} 2 ${-s * 4.2} 1.7
-                  q${s * 2.5} 0.9 ${s * 4.3} -0.7 z`}
-              fill="#000"
-              opacity="0.13"
-            />
-            <path
-              d={`M${s * 9.4} ${headY + 2.4} q${s * 1.5} 7.6 ${s * 1} 14.4`}
-              stroke="#000"
-              strokeWidth="0.8"
-              strokeLinecap="round"
-              fill="none"
-              opacity="0.11"
-            />
-          </g>
-        ))}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        {/* Weighted falls turn inward at unequal ends, rather than making
+            a straight cape behind the shoulders. Keep the central sheet
+            behind the torso so coats and every body width remain usable. */}
+        <path d="M-8 -3 C-10.9 1 -12.9 9.7 -12.2 16.2
+          Q-12 20 -9.3 22 Q-9.8 19.7 -9.3 18.6 Q-7.5 22.2 -4.5 22.5
+          Q-5.7 21 -5.8 19.7 L6.5 19 Q7.6 22.8 11 23
+          Q10.1 21.7 10.3 20 Q12.2 21.5 13.2 20.6
+          C11.1 17.6 11.8 11.1 10.5 5 Q9.6 0.4 8 -3 Z" fill={farColor(color)} />
+        <path d="M-8.1 -1.8 C-9.5 4.8 -10.7 11.3 -9.3 18.6
+          Q-7.5 22.2 -4.5 22.5 Q-6.9 19.2 -6.8 15.5
+          C-6.5 8.7 -7.1 3.6 -6.4 -1.1 Z
+          M7.7 -2 C8.9 5.6 7.9 11.5 8.9 17.8 Q9.1 21.2 11 23
+          Q10.1 21.7 10.3 20 Q12.2 21.5 13.2 20.6
+          C10.6 17.6 10.4 10.6 10 5.2 Q9.5 0.7 7.7 -2 Z" fill={color} />
+        <path d="M-8.1 2.5 Q-9.6 10.6 -7.7 16.9 Q-8.3 9 -8.1 2.5 Z
+          M9 5.9 Q9.7 12.6 10.9 16.8 Q10.2 9.8 9 5.9 Z" fill={GLINT} opacity="0.13" />
+      </g>
     ),
     front: ({ headY, color }) => (
-      <>
-        {wig(headY, color, { sideX: 8.4, apex: 9.6, baseY: 0.8 }, [ [2, 2.6], [3.8, 1.3], [5.2, 1.8], [3.6, 1.1], [2.2, 2.7], ])}
-        {shine(headY, 9.6)}
-        {brow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-7.7 2.8 C-9 -0.9 -8.2 -7.4 -2.3 -9.4
+          C2.1 -11 7.1 -8.7 8.1 -3 Q8.8 0.3 7.7 3.6
+          Q5.8 2.3 5.2 -0.5 Q4 -0.2 2.6 -1.4
+          Q0.8 -2.7 0 -4.7 Q-0.9 -1.2 -4.5 0.8
+          L-4.4 -0.8 Q-5.3 1.8 -7.7 2.8 Z" fill={color} />
+        <path d="M-7.7 2.8 Q-5.3 1.8 -4.4 -0.8 L-4.5 0.8 Q-0.9 -1.2 0 -4.7
+          Q0.8 -2.7 2.6 -1.4 Q4 -0.2 5.2 -0.5 L4.8 -1.8
+          Q1.2 -3 0.1 -6 Q-2.6 -1.6 -7.6 1.2 Z" fill={SHADE} opacity="0.18" />
+        <path d="M-6.7 -3.2 Q-5 -8.4 -0.2 -8.3 Q-3.5 -6.9 -6.7 -3.2 Z
+          M1 -8.2 Q6 -6.9 6.7 -2.9 Q4.6 -6 1 -8.2 Z" fill={GLINT} opacity="0.16" />
+      </g>
     ),
   },
   ponytail: {
@@ -1490,17 +1467,31 @@ export function HairSideLength({ style, headY, color }) {
   return HAIR_REGISTRY[style]?.sideLength?.({ headY, color }) ?? null;
 }
 
+/** A hat fits the skull, while the haircut's nape/fall remains unconstrained.
+ * Keeping the skull as well as the lower fall avoids skin strips under high
+ * beret rims. Each resident needs its own clip in a shared scene SVG. */
+function HairUnderHat({ headY, children }) {
+  const id = useId();
+  return <g clipPath={`url(#${id}-hat-hair)`}>
+    <defs><clipPath id={`${id}-hat-hair`}>
+      <circle cy={headY} r={HEAD_R} />
+      <rect x="-24" y={headY - 0.5} width="48" height="48" />
+    </clipPath></defs>
+    {children}
+  </g>;
+}
+
 /** The profile hair over the skull. Styles without one get the generic wig. */
-export function HairSide({ style, headY, color }) {
+export function HairSide({ style, headY, color, covered = false }) {
   const draw = HAIR_REGISTRY[style]?.side;
-  if (draw) return draw({ headY, color });
-  return (
+  const art = draw ? draw({ headY, color }) : (
     <>
       <path d={sideWigPath(headY)} fill={color} />
       {sideShine(headY, 9.7)}
       {sideBrow(headY)}
     </>
   );
+  return covered ? <HairUnderHat headY={headY}>{art}</HairUnderHat> : art;
 }
 
 /**
@@ -1509,10 +1500,9 @@ export function HairSide({ style, headY, color }) {
  * touch wider than the skull. Styles whose backs genuinely differ override
  * `back` (the buzz's stubble); everyone else gets the default.
  */
-export function HairBack({ style, headY, color }) {
+export function HairBack({ style, headY, color, covered = false }) {
   const entry = HAIR_REGISTRY[style];
-  if (entry?.back) return entry.back({ headY, color, R });
-  return (
+  const art = entry?.back ? entry.back({ headY, color, R }) : (
     <>
       <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
       {shine(headY, R + 2)}
@@ -1523,4 +1513,5 @@ export function HairBack({ style, headY, color }) {
       />
     </>
   );
+  return covered ? <HairUnderHat headY={headY}>{art}</HairUnderHat> : art;
 }

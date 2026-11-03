@@ -125,7 +125,7 @@ function Chandelier({ uid, lampGlow, gx, gy }) {
         <path d={`M${x} ${y} v-11`} stroke="#ab864d" strokeWidth="2" />
         <ellipse cx={x} cy={y - 9} rx="4.1" ry="1.6" fill="#d1ae70" />
         <rect x={x - 1.7} y={y - 20} width="3.4" height="10.5" rx=".5" fill="#eed6a6" />
-        <g className="pool-flicker">
+        <g data-library-flame="true" className={i % 4 === 1 ? "pool-flicker" : undefined}>
           <ellipse cx={x} cy={y - 24} rx="7" ry="9" fill={`url(#${uid}-light)`} opacity={lampGlow * .75} />
           <path d={`M${x} ${y - 21} Q${x - 4} ${y - 25} ${x} ${y - 29} Q${x + 4} ${y - 25} ${x} ${y - 21}`} fill="#ffe8a6" />
         </g>

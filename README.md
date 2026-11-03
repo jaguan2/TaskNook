@@ -143,7 +143,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 >
 > After changing anything there, prove the artifact still works:
 > `set TASKNOOK_SELFTEST=1 && TaskNook.exe` → exit code must be `0`. CI runs
-> this on every push for exactly this reason.
+> this for pull requests and main-branch pushes for exactly this reason.
 
 </details>
 
@@ -167,8 +167,8 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 | **Day / sunset / night** | Switch the scene's lighting — sky color, city lights, and a sun or moon — to match the mood you want. The whole backdrop joins in: twinkling stars and a glowing moon at night, a warm sun by day, and drifting clouds on cloudy days (storm-dark when it pours). |
 | **Real weather** | A built-in weather panel shows the actual current conditions where you are (via [Open-Meteo](https://open-meteo.com/), free & keyless) — geolocation first, manual city search as a fallback. "Match my real weather" auto-syncs the ambience and time of day to reality. |
 | **Classic cottage** | An alternative flat SVG desk scene with freeform decoration, recolourable furniture and city, woodland or seaside window views. Start from Cozy lounge, Classic study, Greenhouse, Library, Night owl, Woodland nook or Seaside studio. Select decorations to nudge with arrow keys, duplicate their colours or remove them with confirmation. Its layout is saved separately from the isometric home. |
-| **Isometric room** | The default scene uses hand-authored SVG models on a dimetric grid. Zoom, pan and recenter; paint a custom floor plan, resize it from 3×3 to 48×48, and arrange furniture with half-tile snapping and supported rotations. The catalog has 161 entries across 18 groups, with tabletop stacking, wall decorations, recolouring and seasonal pieces. Choose an indoor room, café, library, terrace or garden. Presets include Loft, Shared home, Cozy study, Cozy cabin, Reading room, Study hall, Corner café, Plant shop, Terrace, Secret garden, seasonal yards, Poolside and an empty room. |
-| **Character & residents** | Customize your character's body, face, hair, clothing and accessories, or start from one of ten complete looks, including Winter reader and Garden helper. Save up to twelve named outfits on your device and reapply them while preserving your skin tone. People stay where you settle them: carry them onto a chair, soft ground or a clear floor spot. Seated focus and break poses follow activity; pets provide the wandering motion. |
+| **Isometric room** | The default scene uses hand-authored SVG models on a dimetric grid. Zoom, pan and recenter; paint a custom floor plan, resize it from 3×3 to 48×48, and arrange furniture with half-tile snapping and supported rotations. The catalog has 184 entries across 18 groups, with tabletop stacking, wall decorations, recolouring and seasonal pieces. Choose an indoor room, café, library, terrace or garden. Presets include Loft, Shared home, Cozy study, Cozy cabin, Holiday hearth, Reading room, Study hall, Corner café, Plant shop, Terrace, Secret garden, seasonal yards, Poolside and an empty room. |
+| **Character & residents** | Customize your character's body, face, hair, clothing and accessories, or start from one of twelve complete looks, including Cabin weekend, Snow day and Winter reader. Save up to twelve named outfits on your device and reapply them while preserving your skin tone. People stay where you settle them: carry them onto a chair, soft ground or a clear floor spot. Seated focus and break poses follow activity; pets provide the wandering motion. |
 | **Timer widget** | On Windows, Widget Mode becomes a borderless 340×300 timer. Drag its header to move it; expand or press Escape to return to your room with the timer intact. The desktop Always On Top toggle keeps it above other windows. Browser mode offers the compact timer inside the page. |
 | **Pets that live here** | A cat, a dog and a rabbit that wander the room on their own, pick their way around the furniture, and curl up asleep when they find a rug, a blanket or a pet bed. |
 | **Friends & chat** | Local simulated neighbours have daily activity, productivity, chat choices and friendship levels. Visit their rooms or receive drop-ins at home. The local account starts with four demo friends; these are NPCs, not other installations. |
@@ -217,15 +217,26 @@ TaskNook/
 ├── desktop.py                # Native-window launcher (pywebview + waitress)
 ├── requirements-desktop.txt  # Desktop-app Python deps (pulls in backend deps too)
 ├── README.md
-├── AGENTS.md                 # Canonical contributor and assistant guidance
-├── CLAUDE.md                 # Entry point to the same guidance for Claude tools
+├── AGENTS.md                 # Agent-tool discovery pointer
+├── CLAUDE.md                 # Claude-tool discovery pointer
+├── .agents/
+│   ├── README.md             # Canonical contributor and assistant guidance
+│   ├── SKILLS.md             # Installed workflow sources and maintenance guide
+│   └── skills/               # TaskNook engineering and review workflows
 ├── docs/
 │   ├── README.md             # Current guides and historical review index
+│   ├── CHANGELOG.md          # Dated project history
 │   ├── screenshots/          # App screenshots and model closeups
 │   └── preview.png           # The screenshot at the top of this README
 │
 ├── backend/                  # Flask REST API (SQLite, fully local)
-│   ├── app.py                # Routes, token auth, demo seeding, static serving
+│   ├── app.py                # App factory, shared policies, seeding, static serving
+│   ├── routes/               # API blueprints
+│   │   ├── auth.py, tasks.py, calendar.py       # Account and planning APIs
+│   │   ├── sessions.py, social.py               # Productivity and friends APIs
+│   │   ├── chat.py           # Chat threads, messages and unread state
+│   │   └── room_profile.py   # Room/profile routes + payload validation
+│   ├── request_validation.py # Shared request-value validation
 │   ├── models.py             # Users, tasks, focus sessions, tokens, chats, calendar events
 │   ├── schema.py             # Startup migration + pre-upgrade backup lifecycle
 │   ├── migrations/           # Alembic history — the source of truth for the schema
@@ -239,9 +250,11 @@ TaskNook/
     └── src/
         ├── main.jsx          # Entry point
         ├── App.jsx           # Shell: scene, dock, panels, timer, intro animation
-        ├── store.jsx         # Single source of truth (React Context)
+        ├── store.jsx         # Composes stable domain contexts and controllers
         ├── timer.jsx         # Separate timer provider and status context
-        ├── index.css         # Tailwind layers + shared styles
+        ├── index.css         # Tailwind layers, theme, shared scene motion
+        ├── styles/           # Weather/runtime and focus-widget styles
+        ├── hooks/            # Reusable React hooks + colocated tests
         ├── components/
         │   ├── Cottage.jsx, IsoRoom.jsx, CommonRoom.jsx  # Scene renderers
         │   ├── HudFocusCard.jsx, FocusWidget.jsx, HudTasks.jsx
@@ -249,13 +262,16 @@ TaskNook/
         │   ├── TaskPanel, CalendarPanel, FriendsPanel, ChallengesPanel,
         │   │   MusicPanel, WeatherPanel, RoomPanel, ProfilePanel, SettingsPanel (.jsx)
         │   └── WeatherOverlay.jsx # Full-screen rain / snow / storm visuals
-        └── lib/
-            ├── api.js             # Fetch wrapper (bearer-token auth)
-            ├── storage.js         # Guarded browser-storage gateway
+        ├── services/              # Browser and external-system boundaries
+        │   ├── api.js             # Fetch wrapper (bearer-token auth)
+        │   ├── storage.js         # Guarded browser-storage gateway
+        │   ├── audio.js           # Procedural rain/snow/storm (Web Audio API)
+        │   └── desktop.js         # Optional native desktop bridge
+        └── lib/                   # Pure rules, parsing, geometry and catalogs
             ├── algorithms.js      # Task-ordering strategies (pure functions)
-            ├── audio.js           # Procedural rain/snow/storm (Web Audio API)
             ├── weather.js         # Open-Meteo real-weather client
-            ├── isoRoom.js, isoPresets.js, commonRooms.js  # Room data and geometry
+            ├── isoCatalog.js, isoRoom.js, isoPresets.js   # Room vocabulary and geometry
+            ├── commonRooms.js                             # Shared-room scene data
             ├── challenges.js, progression.js  # Challenge and profile-XP rules
             └── musicLink.js, youtube.js, spotify.js  # Music-link parsing
 ```

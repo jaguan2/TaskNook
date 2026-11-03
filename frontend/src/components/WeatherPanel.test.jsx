@@ -32,7 +32,7 @@ const mockStore = vi.hoisted(() => ({
   setAutoTimeOfDay: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../store", () => ({ useWeatherStore: () => mockStore }));
 
 afterEach(() => {
   cleanup();

@@ -18,7 +18,8 @@ process.once("exit", removeE2eRunDirectory);
 
 export default defineConfig({
   testDir: here,
-  testMatch: "smoke.spec.mjs",
+  testMatch: "*.spec.mjs",
+  snapshotPathTemplate: "{testDir}/{testFileName}-snapshots/{arg}{ext}",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,

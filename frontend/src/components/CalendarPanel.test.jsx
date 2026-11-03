@@ -15,8 +15,11 @@ const mockStore = vi.hoisted(() => ({
   sessionDays: {},
 }));
 
-vi.mock("../lib/api", () => ({ api: mockApi }));
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../services/api", () => ({ api: mockApi }));
+vi.mock("../store", () => ({
+  useTaskStore: () => mockStore,
+  useSystemStore: () => mockStore,
+}));
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });

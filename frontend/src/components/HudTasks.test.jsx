@@ -21,7 +21,10 @@ const mockStore = vi.hoisted(() => ({
   showToast: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../store", () => ({
+  useTaskStore: () => mockStore,
+  useSystemStore: () => mockStore,
+}));
 
 afterEach(() => {
   cleanup();

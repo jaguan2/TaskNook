@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "../store";
-import { api } from "../lib/api";
-import { useArmed } from "../lib/useArmed";
+import { useSocialStore, useSystemStore } from "../store";
+import { api } from "../services/api";
+import { useArmed } from "../hooks/useArmed";
 import { chatTitle, dialogueOptions, whenLabel } from "../lib/chat";
 import { npcActivity } from "../lib/visiting";
 
@@ -28,7 +28,8 @@ const mergeMessages = (previous, incoming) => [...new Map(
  * close/reopen and for unprompted check-ins.
  */
 export default function ChatThread({ chat, onBack }) {
-  const { user, sendChatMessage, subscribeChat, markChatRead, deleteChat } = useStore();
+  const { user } = useSystemStore();
+  const { sendChatMessage, subscribeChat, markChatRead, deleteChat } = useSocialStore();
   const [messages, setMessages] = useState(null);
   const [sending, setSending] = useState(false);
   const [pending, setPending] = useState([]);

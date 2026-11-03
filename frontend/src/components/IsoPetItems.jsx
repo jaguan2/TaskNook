@@ -9,7 +9,7 @@ import { VolumeDefs, sphereFill } from "./character/volume";
 // nose and whiskers, pink inner ears, and a belly shadow so it sits ON the
 // floor rather than hovering over it.
 //
-// CAT COATS (lib/isoRoom.js CAT_COATS owns the vocabulary; this owns the
+// CAT COATS (lib/isoCatalog.js CAT_COATS owns the vocabulary; this owns the
 // artwork — the same catalog-vs-artwork split as rotations). A coat is a
 // PALETTE plus at most two mark systems, applied to every pose:
 //   fur / chest  — the base and the lighter front (chest, muzzle, paws)
@@ -409,7 +409,7 @@ function Cat({ awake = false, moving = false, facing = "side", held = false, loo
 // distinct SILHOUETTE, since at this size that's all you get — the dog is long
 // and low with a plumed tail, the rabbit is a vertical teardrop with ears.
 
-// DOG BREEDS (lib/isoRoom.js DOG_BREEDS owns the vocabulary). A breed earns
+// DOG BREEDS (lib/isoCatalog.js DOG_BREEDS owns the vocabulary). A breed earns
 // its slot the way every model does — by changing the SILHOUETTE: the shiba's
 // pricked triangle ears and tail curled in a tight loop, the corgi's stub legs
 // under a long body with oversized upright ears, the dalmatian's spots on

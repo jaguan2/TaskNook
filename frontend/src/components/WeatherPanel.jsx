@@ -13,8 +13,8 @@ import {
   Sunset,
   Wand2,
 } from "lucide-react";
-import { useStore } from "../store";
-import { useArmed } from "../lib/useArmed";
+import { useWeatherStore } from "../store";
+import { useArmed } from "../hooks/useArmed";
 import { formatPopulation, temperatureFor } from "../lib/weather";
 import { WEATHER_OPTIONS } from "./TopBar";
 
@@ -52,7 +52,7 @@ export default function WeatherPanel() {
     moveSavedWeatherPreset,
     autoTimeOfDay,
     setAutoTimeOfDay,
-  } = useStore();
+  } = useWeatherStore();
 
   const [city, setCity] = useState("");
   // The name that produced the list on screen. The header used to interpolate

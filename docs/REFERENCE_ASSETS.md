@@ -20,7 +20,7 @@ check current artwork and remaining work before changing a sprite.
 | Café: vine-covered arch and room divider | `archway`, partitions, plants | Architecture exists. An optional climbing-plant treatment would connect plants to the structure instead of adding unrelated pots. |
 | Café: pictures, wall-mounted supply shelves and window curtains | `frame`, `poster`, `wallshelf`, `curtain` | Improve variety through a few authored arrangements, keeping objects legible at room scale. |
 | [Loft](inpso/ss_82d9f29a63805ec614dc8262cef91726b1238f21.1920x1080.jpg): colourful stacked storage cubbies | `bookcase`, `shelf`, `tvunit` | A staggered cubby cabinet would add a genuinely different outline. Current shelves are rectangular carcasses. |
-| Loft: bed with bright bedding, loose pillows and a flower cushion | `bed`, `cushion` | Layered bedding exists; a separate flower cushion would add a readable new shape. Avoid making every bed permanently busy. |
+| Loft: bed with bright bedding, loose pillows and a flower cushion | `bed`, `cushion`, `flowercushion`, `foldedblanket` | **Improved:** the catalog now has a lobed flower floor cushion and a separately placeable folded throw. They stay optional instead of making every bed permanently busy. |
 | Loft: compact sink, hob and toaster run | `sink`, `oven`, `counter`, `toaster` | Assets already exist. Arrange them as a coherent kitchenette before adding duplicate appliances. |
 | Loft: raised sleeping platform, rail and stairs | No functional raised floor | Larger architecture work: needs elevation, placement, sorting and access rules together. A decorative ladder alone would imply functionality the room does not have. |
 

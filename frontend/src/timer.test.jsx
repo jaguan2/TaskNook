@@ -2,8 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TimerProvider, useTimer } from "./timer";
-import { api } from "./lib/api";
-import { readStored, removeStored, writeStored } from "./lib/storage";
+import { api } from "./services/api";
+import { readStored, removeStored, writeStored } from "./services/storage";
 
 const mockStore = vi.hoisted(() => ({
   activeTask: null,
@@ -15,11 +15,16 @@ const mockStore = vi.hoisted(() => ({
 }));
 const mockPlayChime = vi.hoisted(() => vi.fn());
 
-vi.mock("./store", () => ({ useStore: () => mockStore }));
-vi.mock("./lib/api", () => ({
+vi.mock("./store", () => ({
+  useTaskStore: () => mockStore,
+  useSystemStore: () => mockStore,
+  useSocialStore: () => mockStore,
+  useChallengeStore: () => mockStore,
+}));
+vi.mock("./services/api", () => ({
   api: { logSession: vi.fn(async () => ({})) },
 }));
-vi.mock("./lib/audio", async (importOriginal) => ({
+vi.mock("./services/audio", async (importOriginal) => ({
   ...(await importOriginal()),
   playChime: mockPlayChime,
 }));

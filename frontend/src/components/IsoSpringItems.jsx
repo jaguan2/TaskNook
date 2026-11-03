@@ -1,27 +1,32 @@
 import { SKEW, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
+import { BroadleafTree } from "./IsoTreePrimitives";
 
 // The counterweight to winter: pastels, and everything is either growing or
 // about to. Containers stay warm neutrals so the blossom keeps being the hero.
 
 export function BlossomTree() {
-  // Same construction as the maple, in blossom: deep rose through to near-white
-  // at the crown, with a few petals below the mass so it reads as dropping
-  // rather than as a solid pink cloud.
   const c = project(0.75, 0.75);
+  const crown = [
+    { dx: -29, dy: -70, width: 50, height: 35, color: "#c96f91", dark: true, tilt: -9, variant: 1 },
+    { dx: 8, dy: -70, width: 56, height: 38, color: "#dc8eaa", tilt: 4, variant: 2 },
+    { dx: 35, dy: -82, width: 42, height: 33, color: "#dc8eaa", dark: true, tilt: 12, variant: 0 },
+    { dx: -17, dy: -99, width: 54, height: 38, color: "#e5a0b9", tilt: 8, variant: 2 },
+    { dx: 18, dy: -104, width: 53, height: 37, color: "#efb8cd", tilt: -6, variant: 1 },
+  ];
+  const flowers = [[-31, -78], [-12, -96], [18, -96], [34, -78], [6, -115], [24, -107]];
   return (
-    <g>
-      <path
-        d={`M${c.x - 5} ${c.y} L${c.x - 3} ${c.y - 42} L${c.x + 3} ${c.y - 42} L${c.x + 5} ${c.y} Z`}
-        fill="#7a5a4a"
-      />
-      <g className="room-sway">
-        <ellipse cx={c.x} cy={c.y - 54} rx="32" ry="20" style={tinted("#d98aa8")} />
-        <ellipse cx={c.x} cy={c.y - 54} rx="32" ry="20" fill="#000" opacity="0.12" />
-        <ellipse cx={c.x - 7} cy={c.y - 70} rx="25" ry="16" style={tinted("#eaa7c0")} />
-        <ellipse cx={c.x + 8} cy={c.y - 83} rx="16" ry="11" style={tinted("#f7cddd")} />
-        <ellipse cx={c.x + 10} cy={c.y - 85} rx="8" ry="5" fill="#fff" opacity="0.55" />
-      </g>
+    <>
+      <BroadleafTree center={c} kind="blossom" trunkColor="#7a5a4a"
+        rearColor="#c86f91" clusters={crown} shadowOpacity={0.18}
+        canopyDetails={<>{flowers.map(([dx, dy]) => (
+          <g key={`${dx}-${dy}`} transform={`translate(${c.x + dx},${c.y + dy})`}>
+            <circle cx="-2" cy="0" r="2.4" fill="#f7d7e2" />
+            <circle cx="2" cy="0" r="2.4" fill="#edabc3" />
+            <circle cy="-2" r="2.2" fill="#f9e0e8" />
+            <circle r="0.8" fill="#e4b45f" />
+          </g>
+        ))}</>} />
       {/* petals on the way down, OUTSIDE the swaying canopy so they read loose */}
       {[
         [-18, -30],
@@ -30,7 +35,7 @@ export function BlossomTree() {
       ].map(([dx, dy]) => (
         <ellipse key={dx} cx={c.x + dx} cy={c.y + dy} rx="2.2" ry="1.2" fill="#f7cddd" opacity="0.75" />
       ))}
-    </g>
+    </>
   );
 }
 
@@ -38,31 +43,32 @@ export function Tulips() {
   // Cup-shaped heads on straight stems in a terracotta pot. The cup IS the read:
   // three notches at the top, oversized per rule 5.
   const c = project(0.3, 0.3);
-  const stem = (x, h, fill) => (
+  const stem = (x, h, fill, lean = 0, tilt = 0) => (
     <g key={x}>
       <path
-        d={`M${x} -6 q${x * 0.14} ${-h * 0.55} 0 ${-h}`}
+        d={`M${x} -6 Q${x + lean * 0.3} ${-6 - h * 0.55} ${x + lean} ${-6 - h}`}
         fill="none"
         stroke="#4f7d52"
         strokeWidth="1.5"
         strokeLinecap="round"
       />
-      <path
-        d={`M${x - 3.2} ${-6 - h} q0 -4.6 3.2 -5.4 q3.2 0.8 3.2 5.4 q-1.6 1.8 -3.2 0.4 q-1.6 1.4 -3.2 -0.4 z`}
-        fill={fill}
-      />
-      <path d={`M${x} ${-11.4 - h} q3.2 0.8 3.2 5.4 q-1.6 1.8 -3.2 0.4 z`} fill="#000" opacity="0.16" />
+      <g transform={`translate(${x + lean},${-6 - h}) rotate(${tilt})`}>
+        <path d="M-3.6 0 Q-4 -5 0 -6.2 Q4 -5 3.6 0 Q1.8 2 0 0.5 Q-1.8 2 -3.6 0 Z" fill={fill} />
+        <path d="M0 -6.2 Q4 -5 3.6 0 Q1.8 2 0 0.5 Z" fill="#000" opacity="0.15" />
+        <path d="M-2.5 -1.2 Q-1.8 -4.4 0 -5.2" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.2" />
+      </g>
     </g>
   );
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       <ellipse cx="0" cy="-1" rx="9" ry="4" fill="#000" opacity="0.18" />
-      {stem(-4.4, 11, "#e0607f")}
-      {stem(4.2, 14, "#f0a2b8")}
-      {stem(0, 18, "#e8546f")}
-      {/* two leaves, wide and low, so the pot isn't a bare cylinder */}
-      <path d="M-2 -7 q-8 -3 -10 -10 q8 2 10 10 z" fill="#4f7d52" />
-      <path d="M2 -7 q8 -2 10 -8 q-8 1 -10 8 z" fill="#5d8f5f" />
+      {stem(-4.4, 11, "#e0607f", -1.4, -9)}
+      {stem(4.2, 14, "#f0a2b8", 1.2, 8)}
+      {stem(0, 18, "#e8546f", -0.3, -2)}
+      {/* Broad, curved leaves overlap the stems at unequal heights. */}
+      <path d="M-2 -7 Q-10 -8 -12 -19 Q-5 -16 -2 -7 Z" fill="#4f7d52" />
+      <path d="M1 -7 Q8 -10 11 -18 Q12 -10 2 -6 Z" fill="#5d8f5f" />
+      <path d="M-0.5 -8 Q-6 -14 -4 -22 Q1 -16 1 -8 Z" fill="#6a9b64" />
       <path d="M-7.4 -2 l1.4 -7 l12 0 l1.4 7 q-7.4 3 -14.8 0 z" style={tinted("#b5673f")} />
       <path d="M0 -2 l0 -9 l6 0 l1.4 7 q-3.7 1.6 -7.4 2 z" fill="#000" opacity="0.2" />
       <path d="M-8 -9.4 q8 -3 16 0 l0 2 q-8 3 -16 0 z" style={tinted("#c67a4e")} />
@@ -109,13 +115,21 @@ export function BirdBath() {
   return (
     <g transform={`translate(${c.x}, ${c.y})`}>
       <ellipse cx="0" cy="-1" rx="11" ry="4.6" fill="#000" opacity="0.2" />
-      <ellipse cx="0" cy="-2" rx="9" ry="3.8" style={tinted("#9d9aa8")} />
-      <path d="M-3.6 -4 l1 -14 l5.2 0 l1 14 q-3.6 1.6 -7.2 0 z" style={tinted("#b0adba")} />
-      <path d="M0 -4 l0 -18 l2.6 0 l1 14 q-1.8 1.2 -3.6 0.8 z" fill="#000" opacity="0.2" />
-      <path d="M-11 -18 q11 -4 22 0 l-2.6 5 q-8.4 3 -16.8 0 z" style={tinted("#b0adba")} />
-      <ellipse cx="0" cy="-18" rx="11" ry="4.4" style={tinted("#c2bfca")} />
-      <ellipse className="room-breathe" cx="0" cy="-18" rx="8.4" ry="3.2" fill="#7fc4d8" opacity="0.75" />
-      <ellipse className="pond-ripple" cx="1.4" cy="-18.4" rx="3.4" ry="1.3" fill="#fff" opacity="0.4" />
+      <ellipse cx="0" cy="-2.8" rx="9" ry="3.6" style={tinted("#9d9aa8")} />
+      <ellipse cx="0" cy="-4.6" rx="6.5" ry="2.5" style={tinted("#b0adba")} />
+      {/* Shaped pedestal: flared foot, narrow shaft and a small capital. */}
+      <path d="M-5 -5 Q-3 -9 -2.2 -18 L2.2 -18 Q3 -9 5 -5 Q0 -2.5 -5 -5 Z"
+        style={tinted("#aaa7b4")} />
+      <path d="M0 -5 L0 -18 L2.2 -18 Q3 -9 5 -5 Q2.5 -3.5 0 -3.7 Z" fill="#000" opacity="0.2" />
+      <ellipse cx="0" cy="-18.5" rx="5.3" ry="2.1" style={tinted("#bbb7c2")} />
+      {/* Bowl underside and thick rolled rim. Water sits visibly below it. */}
+      <path d="M-12 -22 Q0 -16 12 -22 L9 -16 Q0 -12 -9 -16 Z" style={tinted("#aaa7b4")} />
+      <path d="M0 -16 Q8 -16 12 -22 L9 -16 Q5 -13 0 -13 Z" fill="#000" opacity="0.2" />
+      <ellipse cx="0" cy="-22" rx="12" ry="5" style={tinted("#c2bfca")} />
+      <ellipse cx="0" cy="-21.4" rx="9.4" ry="3.7" fill="#595b68" opacity="0.45" />
+      <ellipse className="room-breathe" cx="0" cy="-21.8" rx="8.4" ry="3" fill="#7fc4d8" opacity="0.72" />
+      <path d="M-10.4 -23 Q0 -27 10.4 -23" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.35" />
+      <ellipse className="pond-ripple" cx="1.4" cy="-22" rx="3.4" ry="1.2" fill="#fff" opacity="0.38" />
     </g>
   );
 }

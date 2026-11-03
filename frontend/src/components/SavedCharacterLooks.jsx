@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useArmed } from "../lib/useArmed";
+import { useArmed } from "../hooks/useArmed";
 import { LOOK_NAME_MAX, SAVED_LOOK_LIMIT } from "../lib/savedLooks";
 import { characterFromPreset, characterPresetMatches } from "../lib/characterPresets";
 

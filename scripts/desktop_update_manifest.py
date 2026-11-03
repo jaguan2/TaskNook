@@ -18,11 +18,13 @@ SOURCE_PATHS = (
     "frontend/.nvmrc",
     "frontend/package.json",
     "frontend/package-lock.json",
+    "frontend/vite.config.js",
     "scripts/desktop_package.py",
     "scripts/desktop_update_manifest.py",
 )
 SOURCE_GLOBS = (
     "backend/*.py",
+    "backend/routes/*.py",
     "backend/migrations/*.py",
     "backend/migrations/*.ini",
     "backend/migrations/*.mako",

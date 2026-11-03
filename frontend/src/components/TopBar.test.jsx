@@ -14,12 +14,16 @@ const mockStore = vi.hoisted(() => ({
 const desktop = vi.hoisted(() => ({ setAlwaysOnTop: vi.fn() }));
 const storage = vi.hoisted(() => ({ writeStored: vi.fn() }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
-vi.mock("../lib/storage", () => ({
+vi.mock("../store", () => ({
+  useWeatherStore: () => mockStore,
+  useSettingsStore: () => mockStore,
+  useSystemStore: () => mockStore,
+}));
+vi.mock("../services/storage", () => ({
   readStored: () => null,
   writeStored: storage.writeStored,
 }));
-vi.mock("../lib/desktop", () => ({
+vi.mock("../services/desktop", () => ({
   hasDesktopApi: () => true,
   onDesktopApiReady: () => () => {},
   setAlwaysOnTop: desktop.setAlwaysOnTop,

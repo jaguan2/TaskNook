@@ -23,7 +23,7 @@ const mockStore = vi.hoisted(() => ({
   setDailyGoal: vi.fn(),
 }));
 
-vi.mock("../store", () => ({ useStore: () => mockStore }));
+vi.mock("../store", () => ({ useTaskStore: () => mockStore }));
 vi.mock("../timer", () => ({
   useTimer: () => ({
     focusMinutesLive: 0,

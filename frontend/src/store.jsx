@@ -1,21 +1,34 @@
 import {
-  createContext,
-  useContext,
   useState,
   useEffect,
   useRef,
   useCallback,
   useMemo,
 } from "react";
-import { api, getToken, setReauthorizer, setToken } from "./lib/api";
-import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./lib/storage";
+import { StoreContextsProvider } from "./storeContexts";
+import { useEventCallback } from "./hooks/useEventCallback";
+import { useAppearanceSettings } from "./hooks/useAppearanceSettings";
+import { useSoundMixer } from "./hooks/useSoundMixer";
+export {
+  useStore,
+  useSystemStore,
+  useChallengeStore,
+  useTaskStore,
+  useProfileStore,
+  useSocialStore,
+  useRoomStore,
+  useWeatherStore,
+  useAudioStore,
+  useSettingsStore,
+} from "./storeContexts";
+import { api, getToken, setReauthorizer, setToken } from "./services/api";
+import { readJSON, readStored, removeStored, writeJSON, writeStored } from "./services/storage";
 import { toISO } from "./lib/dates";
 import { localTodayISO } from "./lib/stats";
 import { timeOfDayNow } from "./lib/daylight";
 import { ALGORITHM_KEYS, applyAlgorithm, shuffledIds } from "./lib/algorithms";
-import { COLOR_SCHEME_KEYS, normalizeBrightness, normalizeHex } from "./lib/palette";
 import { KNOCK_WAIT_MS, resolveVisitRoom } from "./lib/visiting";
-import { useCommonPresence } from "./lib/useCommonPresence";
+import { useCommonPresence } from "./hooks/useCommonPresence";
 import {
   HOME_VISITOR_KICK_COOLDOWN_MS,
   HOME_VISITOR_TICK_MS,
@@ -27,11 +40,11 @@ import {
 } from "./lib/homeVisitors";
 import { BOND_POINTS, clampBond, levelFor } from "./lib/friendship";
 import { createChatSignals } from "./lib/chatSignals";
-import { useChallenges } from "./lib/useChallenges";
-import { useProgression } from "./lib/useProgression";
+import { useChallenges } from "./hooks/useChallenges";
+import { useProgression } from "./hooks/useProgression";
 import { totalStudyMinutes } from "./lib/progression";
-import { useSavedLooks } from "./lib/useSavedLooks";
-import { useProfileCharacter } from "./lib/useProfileCharacter";
+import { useSavedLooks } from "./hooks/useSavedLooks";
+import { useProfileCharacter } from "./hooks/useProfileCharacter";
 import {
   MESSAGE_MAX,
   botReply,
@@ -47,8 +60,6 @@ const CHECKIN_KEY = "tasknook.chat.checkin";
 // Marks a local room mirror that has not yet been acknowledged by SQLite.
 // It is intentionally separate from the room JSON: an empty room is valid.
 const ROOM_DIRTY_KEY = "tasknook.room.dirty";
-import { MOTION_MODES, applyMotionMode } from "./lib/motion";
-import { SOUND_CHANNELS, applyMix, normalizeSoundMix, setChannel } from "./lib/audio";
 import {
   CUSTOM_STATION_LIMIT,
   moveStation,
@@ -102,16 +113,6 @@ import {
   validateIsoLayout,
 } from "./lib/isoRoom";
 
-const StoreContext = createContext(null);
-export const useStore = () => useContext(StoreContext);
-
-// Which persistent HUD surfaces a viewer can dial back — "on" (default),
-// "faded" (dimmed but still there/interactive), or "hidden" (visibility:
-// hidden, same convention as the decorating chrome fade — never unmounted,
-// so nothing replays its .intro-chrome boot animation on return).
-const HUD_VIS_MODES = ["on", "faded", "hidden"];
-const DEFAULT_HUD_VISIBILITY = { timer: "on", tasks: "on", music: "on", clock: "on", chat: "on" };
-
 const LOCAL_ACCOUNT = { username: "you", password: "tasknook-local-cottage" };
 
 const sortEvents = (rows) => [...rows].sort((a, b) =>
@@ -161,6 +162,14 @@ const BUILT_IN_STATIONS = [
 ];
 
 export function StoreProvider({ children }) {
+  const { soundMix, setSoundLevel, stopAllSounds, applySoundMix } = useSoundMixer();
+  const {
+    widgetMode, setWidgetMode, brightness, setBrightness,
+    colorScheme, setColorScheme, customColor, setCustomColor,
+    customSurface, setCustomSurface, backdropStyle, setBackdropStyle,
+    motionMode, setMotionMode, hudVisibility, setHudVisibility,
+    setAllHudVisibility,
+  } = useAppearanceSettings();
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
   // Set only when the local-account bootstrap itself fails — App shows a real
@@ -242,59 +251,6 @@ export function StoreProvider({ children }) {
     setWeatherUnitState(next);
     writeStored("tasknook.weatherUnit", next);
   }, []);
-  // Per-channel ambience volumes (rain, storm, snow, wind, fireplace, cafe,
-  // paper).
-  // Slider positions persist; actual audio only starts from a user gesture.
-  const [soundMix, setSoundMixState] = useState(() => {
-    try {
-      return normalizeSoundMix(readJSON("tasknook.soundMix", {}));
-    } catch {
-      return {};
-    }
-  });
-  const soundMixRef = useRef(soundMix);
-  soundMixRef.current = soundMix;
-  // Web Audio can't start until the user interacts with the page, so a saved
-  // mix resumes on the first click/tap rather than on load.
-  useEffect(() => {
-    if (!Object.values(soundMixRef.current).some((v) => v > 0)) return undefined;
-    const resume = () => applyMix(soundMixRef.current);
-    window.addEventListener("pointerdown", resume, { once: true });
-    return () => window.removeEventListener("pointerdown", resume);
-  }, []);
-  // Set several channels at once. Side effects (audio, mirror write) stay
-  // OUTSIDE the setState updater — updaters must be pure, and StrictMode's
-  // double-invoke would otherwise fire them twice. The ref carries the
-  // freshest mix so back-to-back calls in one tick compose correctly.
-  // The mix write is debounced, the AUDIO is not. A drag fires one of these per
-  // pointer event, and `writeStored` is a synchronous serialise-and-write; the
-  // only thing that needs to survive is the final value, whereas the gain change
-  // and the state update have to be immediate or you can hear the lag.
-  const mixSaveTimer = useRef(null);
-  useEffect(() => () => clearTimeout(mixSaveTimer.current), []);
-  const applySoundPatch = useCallback((patch) => {
-    const next = { ...soundMixRef.current };
-    for (const [name, v] of Object.entries(patch)) {
-      next[name] = Math.max(0, Math.min(1, Number(v) || 0));
-    }
-    soundMixRef.current = next;
-    setSoundMixState(next);
-    clearTimeout(mixSaveTimer.current);
-    mixSaveTimer.current = setTimeout(() => {
-      // From the ref, so the last write always carries the latest mix.
-      writeStored("tasknook.soundMix", JSON.stringify(soundMixRef.current));
-    }, 250);
-    for (const name of Object.keys(patch)) setChannel(name, next[name]);
-  }, []);
-  const setSoundLevel = useCallback(
-    (name, v) => applySoundPatch({ [name]: v }),
-    [applySoundPatch]
-  );
-  const stopAllSounds = useCallback(() => {
-    const silence = {};
-    for (const { key } of SOUND_CHANNELS) silence[key] = 0;
-    applySoundPatch(silence);
-  }, [applySoundPatch]);
   const [timeOfDay, setTimeOfDayState] = useState(() => {
     const saved = readStored("tasknook.timeOfDay");
     return TIMES_OF_DAY.includes(saved) ? saved : "night";
@@ -328,19 +284,6 @@ export function StoreProvider({ children }) {
       readStored("tasknook.music.on") === "1" &&
       readStored("tasknook.autoResumeMusic") !== "0"
   );
-
-  // Widget Mode: the whole app collapses to just the (already-draggable)
-  // focus card floating over a plain backdrop — meant to sit alongside other
-  // work, not replace the cottage. Persisted like dockCollapsed/musicOn,
-  // since leaving it on and relaunching (esp. paired with Always On Top on
-  // desktop) is the exact use case.
-  const [widgetMode, setWidgetModeState] = useState(
-    () => readStored("tasknook.widgetMode") === "1"
-  );
-  const setWidgetMode = useCallback((value) => {
-    setWidgetModeState(value);
-    writeStored("tasknook.widgetMode", value ? "1" : "0");
-  }, []);
 
   // ---- Real-world weather ----
   const [realWeather, setRealWeather] = useState(null);
@@ -405,93 +348,8 @@ export function StoreProvider({ children }) {
     writeStored("tasknook.dailyGoal", String(clamped));
   };
 
-  // ---- Settings ----
-  const [brightness, setBrightnessState] = useState(() =>
-    normalizeBrightness(readStored("tasknook.brightness"))
-  );
   const weatherFetchRef = useRef({ id: 0, active: false });
   const weatherSearchRef = useRef(0);
-  const [colorScheme, setColorSchemeState] = useState(() => {
-    const saved = readStored("tasknook.colorScheme");
-    return COLOR_SCHEME_KEYS.includes(saved) ? saved : "plum";
-  });
-  // Base colour for the "custom" scheme; the full ramp is derived from its
-  // hue/saturation (see lib/palette.js). Defaults to the classic plum rose.
-  // normalizeHex on load: a corrupt value would derive "NaN NaN NaN" for
-  // every theme variable and unstyle the whole app with no way back.
-  const [customColor, setCustomColorState] = useState(
-    () => normalizeHex(readStored("tasknook.customColor")) || "#d98a93"
-  );
-  // The custom scheme's backdrop hue — null means "follow the accent",
-  // which is everything the one-colour custom scheme ever did. Stored
-  // separately so the two can differ (teal accent on warm brown surfaces).
-  const [customSurface, setCustomSurfaceState] = useState(() =>
-    normalizeHex(readStored("tasknook.customSurface"))
-  );
-
-  // How much the room is allowed to move. "auto" follows the OS preference,
-  // which is what everything did before there was a setting at all — the
-  // other two let someone have a calm room without changing their whole
-  // system, or keep the room alive despite a system-wide preference they set
-  // for something else.
-  const [motionMode, setMotionModeState] = useState(() => {
-    const saved = readStored("tasknook.motion");
-    return MOTION_MODES.includes(saved) ? saved : "auto";
-  });
-  const setMotionMode = useCallback((mode) => {
-    if (!MOTION_MODES.includes(mode)) return;
-    setMotionModeState(mode);
-    writeStored("tasknook.motion", mode);
-    applyMotionMode(mode);
-  }, []);
-  // Keep the attribute honest if the OS preference changes mid-session while
-  // we're on "auto" — index.html only set it once, at boot.
-  useEffect(() => {
-    applyMotionMode(motionMode);
-    if (motionMode !== "auto") return undefined;
-    let mq;
-    try {
-      mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    } catch {
-      return undefined;
-    }
-    const onChange = () => applyMotionMode("auto");
-    if (mq.addEventListener) mq.addEventListener("change", onChange);
-    else mq.addListener(onChange);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
-      else mq.removeListener(onChange);
-    };
-  }, [motionMode]);
-
-  // Per-element HUD fade/hide (Settings). Merged against the default shape
-  // rather than trusted whole — an older save (or a hand-edited one) missing
-  // a key must still yield "on" for that key, not undefined.
-  const [hudVisibility, setHudVisibilityState] = useState(() => {
-    const saved = readJSON("tasknook.hudVisibility", {});
-    const merged = { ...DEFAULT_HUD_VISIBILITY };
-    for (const key of Object.keys(DEFAULT_HUD_VISIBILITY)) {
-      if (HUD_VIS_MODES.includes(saved?.[key])) merged[key] = saved[key];
-    }
-    return merged;
-  });
-  const setHudVisibility = useCallback((key, mode) => {
-    if (!(key in DEFAULT_HUD_VISIBILITY) || !HUD_VIS_MODES.includes(mode)) return;
-    setHudVisibilityState((prev) => {
-      const next = { ...prev, [key]: mode };
-      writeJSON("tasknook.hudVisibility", next);
-      return next;
-    });
-  }, []);
-  const setAllHudVisibility = useCallback((mode) => {
-    if (!HUD_VIS_MODES.includes(mode)) return;
-    const next = Object.fromEntries(
-      Object.keys(DEFAULT_HUD_VISIBILITY).map((key) => [key, mode])
-    );
-    writeJSON("tasknook.hudVisibility", next);
-    setHudVisibilityState(next);
-  }, []);
-
   const [customStations, setCustomStations] = useState(() => {
     try {
       return validateCustomStations(readJSON("tasknook.music.custom", []));
@@ -1019,7 +877,7 @@ export function StoreProvider({ children }) {
     })();
   }, []);
 
-  // Teach api.js how to get a fresh token when one is pruned mid-session. Same
+  // Teach services/api.js how to get a fresh token when one is pruned mid-session. Same
   // login-or-register as boot; registered once, and it returns the token so the
   // interrupted call can be replayed.
   useEffect(() => {
@@ -2307,11 +2165,7 @@ export function StoreProvider({ children }) {
     // A saved scene is an explicit user snapshot, so restoring its sounds IS
     // what applying it means (unlike the weather quick-picks, which are
     // visual-only). Legacy presets from before the mixer just set the visual.
-    if (preset.soundMix) {
-      const patch = {};
-      for (const { key } of SOUND_CHANNELS) patch[key] = preset.soundMix[key] || 0;
-      applySoundPatch(patch);
-    }
+    if (preset.soundMix) applySoundMix(preset.soundMix);
   };
   const deleteWeatherPreset = (name) => {
     const next = weatherPresets.filter((p) => p.name !== name);
@@ -2337,33 +2191,6 @@ export function StoreProvider({ children }) {
     writeJSON("tasknook.weather.presets", next);
     setWeatherPresets(next);
     return true;
-  };
-
-  // ---------- Settings ----------
-  const setBrightness = (v) => {
-    const clean = normalizeBrightness(v);
-    setBrightnessState(clean);
-    writeStored("tasknook.brightness", String(clean));
-  };
-  const setColorScheme = (scheme) => {
-    if (!COLOR_SCHEME_KEYS.includes(scheme)) return;
-    setColorSchemeState(scheme);
-    writeStored("tasknook.colorScheme", scheme);
-  };
-  // Picking a colour implies you want the custom scheme.
-  // (motion setter is below, next to its state)
-  const setCustomColor = (hex) => {
-    setCustomColorState(hex);
-    writeStored("tasknook.customColor", hex);
-    setColorScheme("custom");
-  };
-  // null = follow the accent again (the key is removed, not stored as "null").
-  const setCustomSurface = (hex) => {
-    const clean = hex === null ? null : normalizeHex(hex);
-    setCustomSurfaceState(clean);
-    if (clean === null) removeStored("tasknook.customSurface");
-    else writeStored("tasknook.customSurface", clean);
-    setColorScheme("custom");
   };
 
   // ---------- Real-world weather ----------
@@ -2679,199 +2506,212 @@ export function StoreProvider({ children }) {
     );
   }, []);
 
-  const value = {
-    user,
-    booting,
-    bootError,
-    toast,
-    showToast,
-    dismissToast,
+  // Several commands intentionally close over the latest optimistic state or
+  // request generation. Their implementations therefore change as that state
+  // changes, but callers only need a stable command surface. Keep those two
+  // concerns separate at the context boundary.
+  const stableSetDailyGoal = useEventCallback(setDailyGoal);
+  const stableAddTask = useEventCallback(addTask);
+  const stableToggleTask = useEventCallback(toggleTask);
+  const stableEditTask = useEventCallback(editTask);
+  const stableRemoveTask = useEventCallback(removeTask);
+  const stableReorderTasks = useEventCallback(reorderTasks);
+  const stableAddTaskGroup = useEventCallback(addTaskGroup);
+  const stableRemoveTaskGroup = useEventCallback(removeTaskGroup);
+  const stableRenameTaskGroup = useEventCallback(renameTaskGroup);
+  const stableToggleRoutine = useEventCallback(toggleRoutine);
+  const stableChooseAlgorithm = useEventCallback(chooseAlgorithm);
+  const stableAddEvent = useEventCallback(addEvent);
+  const stableArchiveTask = useEventCallback(archiveTask);
+  const stableRemoveEvent = useEventCallback(removeEvent);
+  const stableAddFriend = useEventCallback(addFriend);
+  const stableRemoveFriend = useEventCallback(removeFriend);
+  const stableVisitFriend = useEventCallback(visitFriend);
+  const stableKnockFriend = useEventCallback(knockFriend);
+  const stableOpenChatWith = useEventCallback(openChatWith);
+  const stableOpenGroupChat = useEventCallback(openGroupChat);
+  const stableSendChatMessage = useEventCallback(sendChatMessage);
+  const stableDeleteChat = useEventCallback(deleteChat);
+  const stableSetVisitAccess = useEventCallback(setVisitAccess);
+  const stableSetWeather = useEventCallback(setWeather);
+  const stableSetTimeOfDay = useEventCallback(setTimeOfDay);
+  const stableSetAutoTimeOfDay = useEventCallback(setAutoTimeOfDay);
+  const stableSaveWeatherPreset = useEventCallback(saveWeatherPreset);
+  const stableApplyWeatherPreset = useEventCallback(applyWeatherPreset);
+  const stableDeleteWeatherPreset = useEventCallback(deleteWeatherPreset);
+  const stableRenameSavedWeatherPreset = useEventCallback(renameSavedWeatherPreset);
+  const stableMoveSavedWeatherPreset = useEventCallback(moveSavedWeatherPreset);
+  const stableChooseWeatherPlace = useEventCallback(chooseWeatherPlace);
+  const stableSearchWeatherCity = useEventCallback(searchWeatherCity);
+  const stableToggleAutoMatchWeather = useEventCallback(toggleAutoMatchWeather);
+  const stableToggleRandomWeather = useEventCallback(toggleRandomWeather);
+  const stableToggleMusic = useEventCallback(toggleMusic);
+  const stableSelectStation = useEventCallback(selectStation);
+  const stableAddCustomStation = useEventCallback(addCustomStation);
+  const stableRemoveCustomStation = useEventCallback(removeCustomStation);
+  const stableRenameCustomStation = useEventCallback(renameCustomStation);
+  const stableMoveCustomStation = useEventCallback(moveCustomStation);
 
-    challenges,
-    progression,
-    recordChallengeEvent,
-    replaceChallenge,
-    addCustomChallenge,
-    advanceChallenge,
-    resetChallenge,
-    removeChallenge,
+  // Each domain value is stable until something in that domain changes. The
+  // former all-in-one context rebuilt a ~190-property object for every toast,
+  // task, weather update or room drag and invalidated every store consumer.
+  const systemStore = useMemo(() => ({
+    user, booting, bootError, toast, showToast, dismissToast,
+  }), [user, booting, bootError, toast, showToast, dismissToast]);
 
-    tasks,
-    events,
-    orderedTasks,
-    addTask,
-    toggleTask,
-    editTask,
-    removeTask,
-    archiveTask,
-    reorderTasks,
+  const challengeStore = useMemo(() => ({
+    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    advanceChallenge, resetChallenge, removeChallenge,
+  }), [
+    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    advanceChallenge, resetChallenge, removeChallenge,
+  ]);
 
-    taskGroups,
-    addTaskGroup,
-    removeTaskGroup,
-    renameTaskGroup,
-    toggleRoutine,
-
-    algorithm,
-    chooseAlgorithm,
-
-    profile,
-    character,
-    saveProfile,
-    saveCharacter,
-    savedLooks,
-    saveCharacterLook,
-    removeCharacterLook,
-
-    friends,
-    addFriend,
-    removeFriend,
-    stats,
-    sessionDays,
-    refreshAll,
-    refreshTasks,
-    refreshFocus,
-    refreshEvents,
-    addEvent,
-    removeEvent,
-    dailyGoal,
-    setDailyGoal,
-
-    // chat
-    chats,
-    chatsError,
-    chatsLoading,
-    refreshChats,
-    openChatWith,
-    nudgeFromFriend,
-    openGroupChat,
-    sendChatMessage,
-    subscribeChat,
-    markChatRead,
-    deleteChat,
-    friendship,
-
-    // room decoration
-    cottageView,
-    setCottageView,
-    roomPlacements,
-    roomEditMode,
-    setRoomEditMode,
-    moveRoomItem,
-    addRoomItem,
-    duplicateRoomItem,
-    removeRoomItem,
-    applyRoomPreset,
-    clearRoom,
-    setRoomItemTint,
-    isoPreview,
-    setIsoPreview,
-    isoRoom,
-    lastIsoAddedId,
-    moveIsoItem,
-    addIsoItem,
-    removeIsoItem,
-    rotateIsoItem,
-    setIsoItemTint,
-    toggleIsoItem,
-    setIsoSize,
-    setIsoTile,
-    setIsoPartition,
-    setIsoArch,
-    resetIsoPartitions,
-    resetIsoShape,
-    setIsoEnv,
-    setIsoWalls,
-    setIsoWallColor,
-    setIsoLighting,
-    visiting,
-    commonRoom,
-    commonPresence,
-    activePlace: commonRoom ? { kind: "common", id: commonRoom.sceneId } : visiting ? { kind: "friend", id: visiting.friend.id } : { kind: "home" },
-    enterCommonRoom,
-    chooseCommonSeat,
-    visitFriend,
-    knockFriend,
-    knockingId,
-    leaveVisit,
-    moveVisitGuest,
-    walkIsoPersona,
-    homeVisitors,
-    homeScene,
-    moveHomePersona,
-    kickHomeVisitor,
-    setPetIdentity,
-    setVisitAccess,
-    applyIsoPreset,
-    selfInRoom,
-    setSelfInRoom,
-
-    // the timer's target task (the timer itself is in timer.jsx)
-    activeTask,
-    activeTaskId,
+  const taskStore = useMemo(() => ({
+    tasks, events, orderedTasks, addTask: stableAddTask,
+    toggleTask: stableToggleTask, editTask: stableEditTask,
+    removeTask: stableRemoveTask, archiveTask: stableArchiveTask,
+    reorderTasks: stableReorderTasks, taskGroups,
+    addTaskGroup: stableAddTaskGroup, removeTaskGroup: stableRemoveTaskGroup,
+    renameTaskGroup: stableRenameTaskGroup, toggleRoutine: stableToggleRoutine,
+    algorithm, chooseAlgorithm: stableChooseAlgorithm, stats,
+    sessionDays, refreshAll, refreshTasks, refreshFocus, refreshEvents,
+    addEvent: stableAddEvent, removeEvent: stableRemoveEvent, dailyGoal,
+    setDailyGoal: stableSetDailyGoal, activeTask, activeTaskId,
     setActiveTaskId,
+  }), [
+    tasks, events, orderedTasks, stableAddTask, stableToggleTask,
+    stableEditTask, stableRemoveTask, stableArchiveTask, stableReorderTasks,
+    taskGroups, stableAddTaskGroup, stableRemoveTaskGroup,
+    stableRenameTaskGroup, stableToggleRoutine, algorithm,
+    stableChooseAlgorithm, stats,
+    sessionDays, refreshAll, refreshTasks, refreshFocus, refreshEvents,
+    stableAddEvent, stableRemoveEvent, dailyGoal, stableSetDailyGoal,
+    activeTask, activeTaskId,
+  ]);
 
-    // ambient
-    weatherMode,
-    setWeather,
-    soundMix,
-    setSoundLevel,
-    stopAllSounds,
-    timeOfDay,
-    setTimeOfDay,
-    musicOn,
-    toggleMusic,
-    autoResumeMusic,
-    setAutoResumeMusic,
-    widgetMode,
-    setWidgetMode,
-    musicStations,
-    activeStationKey: resolvedStationKey,
-    selectStation,
-    addCustomStation,
-    removeCustomStation,
-    renameCustomStation,
-    moveCustomStation,
+  const profileStore = useMemo(() => ({
+    progression, profile, character, saveProfile, saveCharacter, savedLooks,
+    saveCharacterLook, removeCharacterLook,
+  }), [
+    progression, profile, character, saveProfile, saveCharacter, savedLooks,
+    saveCharacterLook, removeCharacterLook,
+  ]);
 
-    // real-world weather
-    realWeather,
-    weatherStatus,
-    weatherError,
-    weatherLocationLabel,
-    weatherPlaces,
-    weatherUnit,
-    setWeatherUnit,
-    chooseWeatherPlace,
-    autoMatchWeather,
-    autoRandomWeather,
-    toggleRandomWeather,
-    autoTimeOfDay,
-    setAutoTimeOfDay,
-    toggleAutoMatchWeather,
-    refreshRealWeather,
-    searchWeatherCity,
-    weatherPresets,
-    saveWeatherPreset,
-    applyWeatherPreset,
-    deleteWeatherPreset,
-    renameSavedWeatherPreset,
-    moveSavedWeatherPreset,
+  const socialStore = useMemo(() => ({
+    friends, addFriend: stableAddFriend, removeFriend: stableRemoveFriend,
+    chats, chatsError, chatsLoading, refreshChats,
+    openChatWith: stableOpenChatWith, nudgeFromFriend,
+    openGroupChat: stableOpenGroupChat, sendChatMessage: stableSendChatMessage,
+    subscribeChat, markChatRead, deleteChat: stableDeleteChat, friendship,
+    visiting, commonRoom, commonPresence,
+    activePlace: commonRoom
+      ? { kind: "common", id: commonRoom.sceneId }
+      : visiting
+        ? { kind: "friend", id: visiting.friend.id }
+        : { kind: "home" },
+    enterCommonRoom, chooseCommonSeat, visitFriend: stableVisitFriend,
+    knockFriend: stableKnockFriend, knockingId,
+    leaveVisit, moveVisitGuest, homeVisitors, homeScene, moveHomePersona,
+    kickHomeVisitor, setVisitAccess: stableSetVisitAccess,
+  }), [
+    friends, stableAddFriend, stableRemoveFriend, chats, chatsError,
+    chatsLoading, refreshChats, stableOpenChatWith, nudgeFromFriend,
+    stableOpenGroupChat, stableSendChatMessage, subscribeChat, markChatRead,
+    stableDeleteChat, friendship,
+    visiting, commonRoom, commonPresence, enterCommonRoom, chooseCommonSeat,
+    stableVisitFriend, stableKnockFriend, knockingId, leaveVisit,
+    moveVisitGuest, homeVisitors, homeScene, moveHomePersona, kickHomeVisitor,
+    stableSetVisitAccess,
+  ]);
 
-    // settings
-    brightness,
-    setBrightness,
-    colorScheme,
-    setColorScheme,
-    customColor,
-    setCustomColor,
-    customSurface,
-    setCustomSurface,
-    motionMode,
-    setMotionMode,
-    hudVisibility,
-    setHudVisibility,
-    setAllHudVisibility,
-  };
+  const roomStore = useMemo(() => ({
+    cottageView, setCottageView, roomPlacements, roomEditMode, setRoomEditMode,
+    moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
+    applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
+    isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
+    setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
+    setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
+  }), [
+    cottageView, setCottageView, roomPlacements, roomEditMode, setRoomEditMode,
+    moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
+    applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
+    isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
+    setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
+    setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
+  ]);
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  const weatherStore = useMemo(() => ({
+    weatherMode, setWeather: stableSetWeather, timeOfDay,
+    setTimeOfDay: stableSetTimeOfDay, realWeather,
+    weatherStatus, weatherError, weatherLocationLabel, weatherPlaces,
+    weatherUnit, setWeatherUnit, chooseWeatherPlace: stableChooseWeatherPlace,
+    autoMatchWeather, autoRandomWeather,
+    toggleRandomWeather: stableToggleRandomWeather, autoTimeOfDay,
+    setAutoTimeOfDay: stableSetAutoTimeOfDay,
+    toggleAutoMatchWeather: stableToggleAutoMatchWeather, refreshRealWeather,
+    searchWeatherCity: stableSearchWeatherCity, weatherPresets,
+    saveWeatherPreset: stableSaveWeatherPreset,
+    applyWeatherPreset: stableApplyWeatherPreset,
+    deleteWeatherPreset: stableDeleteWeatherPreset,
+    renameSavedWeatherPreset: stableRenameSavedWeatherPreset,
+    moveSavedWeatherPreset: stableMoveSavedWeatherPreset,
+  }), [
+    weatherMode, stableSetWeather, timeOfDay, stableSetTimeOfDay, realWeather,
+    weatherStatus, weatherError, weatherLocationLabel, weatherPlaces,
+    weatherUnit, setWeatherUnit, stableChooseWeatherPlace, autoMatchWeather,
+    autoRandomWeather, stableToggleRandomWeather, autoTimeOfDay,
+    stableSetAutoTimeOfDay, stableToggleAutoMatchWeather, refreshRealWeather,
+    stableSearchWeatherCity, weatherPresets, stableSaveWeatherPreset,
+    stableApplyWeatherPreset, stableDeleteWeatherPreset,
+    stableRenameSavedWeatherPreset, stableMoveSavedWeatherPreset,
+  ]);
+
+  const audioStore = useMemo(() => ({
+    soundMix, setSoundLevel, stopAllSounds, musicOn,
+    toggleMusic: stableToggleMusic,
+    autoResumeMusic, setAutoResumeMusic, musicStations,
+    activeStationKey: resolvedStationKey, selectStation: stableSelectStation,
+    addCustomStation: stableAddCustomStation,
+    removeCustomStation: stableRemoveCustomStation,
+    renameCustomStation: stableRenameCustomStation,
+    moveCustomStation: stableMoveCustomStation,
+  }), [
+    soundMix, setSoundLevel, stopAllSounds, musicOn, stableToggleMusic,
+    autoResumeMusic, setAutoResumeMusic, musicStations, resolvedStationKey,
+    stableSelectStation, stableAddCustomStation, stableRemoveCustomStation,
+    stableRenameCustomStation, stableMoveCustomStation,
+  ]);
+
+  const settingsStore = useMemo(() => ({
+    widgetMode, setWidgetMode, brightness, setBrightness,
+    colorScheme, setColorScheme, customColor, setCustomColor, customSurface,
+    setCustomSurface, backdropStyle, setBackdropStyle, motionMode,
+    setMotionMode, hudVisibility, setHudVisibility, setAllHudVisibility,
+  }), [
+    widgetMode, setWidgetMode, brightness, setBrightness, colorScheme,
+    setColorScheme, customColor, setCustomColor, customSurface,
+    setCustomSurface, backdropStyle, setBackdropStyle, motionMode,
+    setMotionMode, hudVisibility, setHudVisibility, setAllHudVisibility,
+  ]);
+
+  return (
+    <StoreContextsProvider
+      system={systemStore}
+      challenges={challengeStore}
+      tasks={taskStore}
+      profile={profileStore}
+      social={socialStore}
+      room={roomStore}
+      weather={weatherStore}
+      audio={audioStore}
+      settings={settingsStore}
+    >
+      {children}
+    </StoreContextsProvider>
+  );
 }

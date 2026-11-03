@@ -3,9 +3,9 @@ import { useState } from "react";
 import { afterEach, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import SavedCharacterLooks from "./SavedCharacterLooks";
-import { useSavedLooks } from "../lib/useSavedLooks";
+import { useSavedLooks } from "../hooks/useSavedLooks";
 import { DEFAULT_CHARACTER } from "../lib/profile";
-import { removeStored } from "../lib/storage";
+import { removeStored } from "../services/storage";
 
 afterEach(cleanup);
 const toast = () => {};

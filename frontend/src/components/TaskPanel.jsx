@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Archive, CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Pencil, Sparkles, Target } from "lucide-react";
-import { useStore } from "../store";
+import { useTaskStore } from "../store";
 import { useTimer } from "../timer";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
 import { focusStreak, localTodayISO } from "../lib/stats";
@@ -61,7 +61,7 @@ export default function TaskPanel() {
     sessionDays,
     dailyGoal,
     setDailyGoal,
-  } = useStore();
+  } = useTaskStore();
   // The FULL timer context, deliberately: the goal ring displays live minutes,
   // so this panel ticking once a second while open is correct — the same
   // bargain the focus card makes. Components that merely react to a session

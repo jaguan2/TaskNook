@@ -1,11 +1,10 @@
-# Normalise every text file to LF **in the repository**, whatever each clone's
-# core.autocrlf happens to be. Without this, a machine with autocrlf unset (as
-# this one is) can rewrite line endings on pull and show the ENTIRE tree as
-# modified — 45 files, 22299 insertions and 22299 deletions, with `git diff -w`
-# completely empty. It looks like a huge outgoing change and is pure noise.
+# Keep text LF in both the repository and working copies, independently of
+# core.autocrlf. JSX multiline attribute values retain carriage returns in
+# the production bundle, so Windows CRLF checkout can change Vite chunk hashes
+# and make the committed executable fail its source/bundle verification.
 # Rules below override this one; later lines win, so the binaries and the two
 # launchers keep their own treatment.
-* text=auto
+* text=auto eol=lf
 
 # Binaries must never get end-of-line conversion applied — that would corrupt
 # them. TaskNook.exe is committed on purpose, so this matters here.

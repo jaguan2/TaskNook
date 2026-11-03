@@ -1,7 +1,7 @@
 # Handoff review and stability patch — October 6, 2026
 
 > Historical snapshot. Test counts, build identities and repository state
-> describe this review, not the current checkout. Use [AGENTS.md](../../AGENTS.md)
+> describe this review, not the current checkout. Use [repository guidance](../../.agents/README.md)
 > and the [current documentation index](../README.md) for working guidance.
 
 Reviewed `docs/archive/HANDOFF-2026-10-06.md` against `f30e062`, covering the seven

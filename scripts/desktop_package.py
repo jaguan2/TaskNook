@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_SPECS = (
     ("build/desktop-build.json", "."),
     ("backend/*.py", "backend"),
+    ("backend/routes/*.py", "backend/routes"),
     ("backend/migrations/*.py", "backend/migrations"),
     ("backend/migrations/*.ini", "backend/migrations"),
     ("backend/migrations/*.mako", "backend/migrations"),

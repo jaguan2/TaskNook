@@ -3,13 +3,32 @@ import { floorPatch, isoBox, project } from "../lib/iso";
 /** One leaf cluster, with an irregular outline and broad light/shadow masses.
  * Build a canopy from differently scaled clusters rather than stacked ovals.
  */
-export function LeafCluster({ x = 0, y = 0, width = 32, height = 24, fallback = "#3f7f63", dark = false }) {
-  return <g transform={`translate(${x},${y}) scale(${width / 32},${height / 24})`}>
-    <path d="M-15 3 Q-19 -3 -12 -7 Q-13 -13 -6 -12 Q-2 -17 4 -12 Q11 -14 12 -8 Q19 -7 16 0 Q19 7 11 9 Q7 15 1 11 Q-6 15 -10 9 Q-17 10 -15 3 Z"
-      style={{ fill: `var(--tint, ${fallback})` }} />
-    <path d="M-15 3 Q-7 8 0 5 Q9 9 16 0 Q19 7 11 9 Q7 15 1 11 Q-6 15 -10 9 Q-17 10 -15 3 Z"
-      fill="#142d23" opacity={dark ? 0.3 : 0.16} />
-    <path d="M-12 -5 Q-9 -10 -4 -8 Q1 -13 5 -9 Q10 -10 11 -5 Q6 -7 2 -3 Q-4 -7 -8 -3 Z"
+const LEAF_CLUSTER_SHAPES = [
+  {
+    outline: "M-15 3 Q-19 -3 -12 -7 Q-13 -13 -6 -12 Q-2 -17 4 -12 Q11 -14 12 -8 Q19 -7 16 0 Q19 7 11 9 Q7 15 1 11 Q-6 15 -10 9 Q-17 10 -15 3 Z",
+    shadow: "M-16 1 Q-11 6 -6 5 Q-2 10 3 7 Q9 10 16 1 Q19 7 11 9 Q7 15 1 11 Q-6 15 -10 9 Q-17 10 -16 1 Z",
+    highlight: "M-12 -5 Q-9 -10 -4 -8 Q1 -13 5 -9 Q10 -10 11 -5 Q6 -7 2 -3 Q-4 -7 -8 -3 Z",
+  },
+  {
+    outline: "M-16 4 Q-20 -1 -13 -7 Q-16 -13 -7 -13 Q-2 -18 4 -12 Q12 -15 14 -7 Q20 -4 15 2 Q18 8 9 10 Q4 15 -2 10 Q-9 14 -12 8 Q-19 10 -16 4 Z",
+    shadow: "M-17 2 Q-10 7 -5 4 Q0 11 5 7 Q11 11 16 2 Q18 8 9 10 Q4 15 -2 10 Q-9 14 -12 8 Q-19 10 -17 2 Z",
+    highlight: "M-13 -6 Q-8 -12 -3 -9 Q2 -14 6 -10 Q12 -11 12 -5 Q7 -8 3 -4 Q-3 -7 -8 -3 Z",
+  },
+  {
+    outline: "M-14 5 Q-20 0 -12 -7 Q-13 -15 -4 -13 Q1 -19 7 -12 Q14 -12 14 -5 Q20 -2 15 4 Q16 11 7 11 Q1 16 -4 10 Q-11 14 -14 7 Q-19 9 -14 5 Z",
+    shadow: "M-15 3 Q-10 8 -4 6 Q1 12 7 8 Q12 11 15 4 Q16 11 7 11 Q1 16 -4 10 Q-11 14 -14 7 Q-19 9 -15 3 Z",
+    highlight: "M-11 -7 Q-7 -13 -2 -10 Q2 -15 7 -10 Q12 -10 12 -5 Q7 -7 3 -3 Q-2 -7 -7 -4 Z",
+  },
+];
+
+export function LeafCluster({ x = 0, y = 0, width = 32, height = 24, fallback = "#3f7f63", dark = false, tilt = 0, variant = 0 }) {
+  const shape = LEAF_CLUSTER_SHAPES[Math.abs(variant) % LEAF_CLUSTER_SHAPES.length];
+  const paint = { fill: `var(--tint, ${fallback})` };
+  return <g transform={`translate(${x},${y}) rotate(${tilt}) scale(${width / 32},${height / 24})`}>
+    <path d={shape.outline} style={paint} />
+    <path d={shape.shadow}
+      fill="#142d23" opacity={dark ? 0.34 : 0.2} />
+    <path d={shape.highlight}
       fill="#f4efd0" opacity="0.14" />
   </g>;
 }

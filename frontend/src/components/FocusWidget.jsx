@@ -1,6 +1,6 @@
 import { ArrowUpRight, Check, Coffee, Pause, Play, RotateCcw, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import { hasDesktopWidgetApi, onDesktopApiReady } from "../lib/desktop";
+import { hasDesktopWidgetApi, onDesktopApiReady } from "../services/desktop";
 
 // A dedicated small-window surface. Timer state and actions stay in the HUD's
 // existing provider; entering or leaving this view never starts a second clock.

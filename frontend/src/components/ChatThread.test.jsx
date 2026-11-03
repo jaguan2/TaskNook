@@ -7,15 +7,18 @@ const mocks = vi.hoisted(() => ({
   chatMessages: vi.fn(), sendChatMessage: vi.fn(), markChatRead: vi.fn(),
   deleteChat: vi.fn(), listeners: new Map(),
 }));
-vi.mock("../lib/api", () => ({ api: { chatMessages: mocks.chatMessages } }));
+vi.mock("../services/api", () => ({ api: { chatMessages: mocks.chatMessages } }));
 const subscribeChat = (id, fn) => {
   mocks.listeners.set(id, fn);
   return () => mocks.listeners.delete(id);
 };
-vi.mock("../store", () => ({ useStore: () => ({
-  user: { id: 1 }, sendChatMessage: mocks.sendChatMessage,
+vi.mock("../store", () => ({
+  useSystemStore: () => ({ user: { id: 1 } }),
+  useSocialStore: () => ({
+  sendChatMessage: mocks.sendChatMessage,
   markChatRead: mocks.markChatRead, deleteChat: mocks.deleteChat, subscribeChat,
-}) }));
+  }),
+}));
 const chat = { id: 8, members: [{ id: 1, displayName: "You" }, { id: 2, username: "luna", displayName: "Luna" }] };
 const message = (id, body) => ({ id, body, senderId: 2, createdAt: new Date(Date.UTC(2026, 0, 1) + id * 1000).toISOString() });
 beforeEach(() => {
