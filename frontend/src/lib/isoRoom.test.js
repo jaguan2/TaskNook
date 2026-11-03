@@ -74,6 +74,7 @@ describe("iso catalog integrity", () => {
     expect(fairyLights.toggleable).toBe(true);
     expect(fairyLights.glow[1]).toBeLessThanOrEqual(0.2);
     expect(fairyLights.glow[1]).toBeLessThan(ISO_ITEMS.sconce.glow[1]);
+    expect(ISO_ITEMS.christmaslights.toggleable).toBe(true);
   });
 });
 
@@ -395,12 +396,14 @@ describe("validateIsoLayout", () => {
       placements: [
         { id: "off", item: "fairylights", gx: 0, gy: 2, off: true },
         { id: "on", item: "fairylights", gx: 0, gy: 4, off: false },
+        { id: "holiday-off", item: "christmaslights", gx: 0, gy: 6, off: true },
         { id: "chair", item: "stool", gx: 4, gy: 4, off: true },
       ],
     });
 
     expect(out.placements.find((p) => p.id === "off").off).toBe(true);
     expect(out.placements.find((p) => p.id === "on").off).toBeUndefined();
+    expect(out.placements.find((p) => p.id === "holiday-off").off).toBe(true);
     expect(out.placements.find((p) => p.id === "chair").off).toBeUndefined();
   });
 
@@ -987,6 +990,20 @@ describe("presets", () => {
     expect(table.gx).toBeGreaterThan(loungers[0].gx);
     expect(table.gx).toBeLessThan(loungers[1].gx);
     expect(table.gy).toBeGreaterThan(loungers[0].gy);
+  });
+
+  it("keeps Holiday hearth a restrained, usable indoor winter lounge", () => {
+    const holiday = ISO_PRESETS.holiday;
+    const keys = holiday.items.map((p) => p.item);
+    expect(holiday.size).toMatchObject({ w: 9, d: 7, env: "room", lighting: "candle" });
+    expect(holiday.items.length).toBeLessThanOrEqual(15);
+    expect(keys).toEqual(expect.arrayContaining([
+      "fireplace", "christmastree", "giftstack", "evergreengarland", "stocking",
+      "ciderset", "blanketbasket", "snowglobe",
+    ]));
+    expect(keys.filter((key) => ["bed", "resident", "sled", "chimney"].includes(key))).toEqual([]);
+    expect(keys.some((key) => key === "sofa" || key === "armchair")).toBe(true);
+    expect(freeSeatSpot(isoPresetLayout("holiday").placements)).toBeTruthy();
   });
 
   it("EVERY preset survives validation with all its furniture", () => {

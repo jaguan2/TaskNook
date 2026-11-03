@@ -38,6 +38,18 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(container.querySelector(".room-breathe")).toBeNull();
   });
 
+  it("dims Christmas-light bulbs and stops their twinkle when switched off", () => {
+    const ChristmasLights = ISO_SPRITES.christmaslights;
+    const { container, rerender } = draw(<ChristmasLights />);
+
+    expect(container.querySelector('[data-seasonal-structure="christmas-lights"]').dataset.lit).toBe("true");
+    expect(container.querySelector(".pool-breathe")).toBeTruthy();
+
+    rerender(<svg><ChristmasLights lit={false} /></svg>);
+    expect(container.querySelector('[data-seasonal-structure="christmas-lights"]').dataset.lit).toBe("false");
+    expect(container.querySelector(".pool-breathe")).toBeNull();
+  });
+
   it.each([
     ["pond", "3.5x2.5", "0,0 84,42 24,72 -60,30"],
     ["gardenpond", "8x6", "0,0 192,96 48,168 -144,72"],
@@ -116,8 +128,51 @@ describe("the isometric catalog and its artwork agree", () => {
       ["haybale", "wrap-band", 4],
       ["scarecrow", "cloth-sleeves", 1],
       ["scarecrow", "hat-brim", 1],
+      ["cornstalks", "corn-stalk", 5],
+      ["cornstalks", "corn-cob", 2],
+      ["applecrate", "apple", 5],
+      ["mushroompatch", "mushroom", 3],
+      ["leafgarland", "garland-leaf", 5],
+      ["leafbarrow", "barrow-leaf", 4],
+      ["mums", "mum-bloom", 5],
+      ["harvestbasket", "basket-gourds", 1],
+      ["acornbowl", "acorn", 3],
+      ["harvestsign", "sign-board", 1],
+      ["ciderset", "cider-cup", 2],
+      ["rake", "rake-handle", 1],
+      ["rake", "rake-head", 1],
+      ["rake", "rake-socket", 1],
+      ["rake", "rake-tine", 7],
+      ["turkey", "turkey-tail-feather", 7],
+      ["turkey", "turkey-wing", 1],
+      ["turkey", "turkey-neck", 1],
+      ["turkey", "turkey-foot", 2],
+      ["wreath", "wreath-branch", 3],
+      ["wreath", "wreath-leaf", 11],
+      ["wreath", "wreath-ribbon-tail", 2],
       ["snowman", "snow-mass", 3],
       ["logstack", "split-log", 4],
+      ["christmaslights", "light-cable", 1],
+      ["christmaslights", "light-clip", 2],
+      ["christmaslights", "light-socket", 6],
+      ["christmaslights", "light-bulb", 6],
+      ["chimney", "brick-course", 4],
+      ["chimney", "chimney-cap", 1],
+      ["chimney", "smoke-opening", 1],
+      ["chimney", "smoke-puff", 3],
+      ["icelantern", "ice-shell", 1],
+      ["icelantern", "ice-rim", 2],
+      ["icelantern", "ice-candle", 1],
+      ["icelantern", "ice-flame", 1],
+      ["icicles", "snow-ledge", 1],
+      ["icicles", "ice-shard", 6],
+      ["sled", "sled-runner", 2],
+      ["sled", "sled-slat", 4],
+      ["giftstack", "wrapped-gift", 3],
+      ["snowglobe", "glass-dome", 1],
+      ["evergreengarland", "evergreen-sprig", 7],
+      ["stocking", "stocking-body", 1],
+      ["blanketbasket", "blanket-roll", 3],
     ];
     for (const [key, part, count] of expectations) {
       const Sprite = ISO_SPRITES[key];
@@ -172,6 +227,7 @@ describe("the isometric catalog and its artwork agree", () => {
     for (const key of [
       "bed", "sofa", "armchair", "cushion", "flowercushion", "foldedblanket",
       "picnic", "bench", "log", "hammock", "haybale", "scarecrow", "logstack",
+      "sled", "giftstack", "snowglobe", "stocking", "blanketbasket", "wreath", "rake",
     ]) {
       expect(ISO_ITEMS[key].tintable, `${key} is marked untintable`).not.toBe(false);
       const Sprite = ISO_SPRITES[key];
@@ -503,6 +559,20 @@ describe("the isometric catalog and its artwork agree", () => {
       cleanup();
       const maxi = draw(<Resident character={{ ...DEFAULT_CHARACTER, pants: "maxi" }} />);
       expect(maxi.container.querySelectorAll('[data-skirt-fold="maxi"]')).toHaveLength(1);
+    });
+
+    it("gives the seasonal cold-weather garments defining construction", () => {
+      const cases = [
+        [{ garment: "flannel" }, '[data-flannel-band]', 4],
+        [{ garment: "fleece" }, '[data-fleece-yoke="front"]', 1],
+        [{ coat: "parka" }, '[data-parka-pocket]', 2],
+        [{ coat: "peacoat" }, '[data-peacoat-button="front"]', 6],
+      ];
+      for (const [wardrobe, selector, count] of cases) {
+        const { container } = draw(<Resident character={{ ...DEFAULT_CHARACTER, ...wardrobe }} />);
+        expect(container.querySelectorAll(selector), selector).toHaveLength(count);
+        cleanup();
+      }
     });
 
     it("every scarf renders, and each draws its own geometry", () => {

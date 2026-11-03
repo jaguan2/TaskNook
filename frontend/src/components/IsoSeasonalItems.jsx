@@ -1,14 +1,36 @@
 export {
+  AppleCrate,
+  Cornstalks,
   HayBale,
   JackOLantern,
+  LeafGarland,
   LeafPile,
   MapleTree,
+  MushroomPatch,
   Pumpkin,
   Rake,
   Scarecrow,
   Turkey,
   Wreath,
 } from "./IsoAutumnItems";
+
+export {
+  AcornBowl,
+  CiderSet,
+  HarvestBasket,
+  HarvestSign,
+  LeafWheelbarrow,
+  MumPlanter,
+} from "./IsoHarvestItems";
+
+export {
+  BlanketBasket,
+  EvergreenGarland,
+  GiftPile,
+  KnitStocking,
+  SnowGlobe,
+  WoodenSled,
+} from "./IsoHolidayItems";
 
 export {
   Chimney,

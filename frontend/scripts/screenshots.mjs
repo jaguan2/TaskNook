@@ -71,7 +71,7 @@ const LOOKS = {
   summer: { model: "masc", skin: "#b47c55", hair: "undercut", hairColor: "#47332d", garment: "swim", outfit: "#69a5aa", pants: "shorts", trouser: "#d3946b", hat: "straw", width: 7.8, height: 31 },
   maker: { model: "fem", skin: "#c08552", hair: "pigtails", hairColor: "#51362f", garment: "tank", outfit: "#d98a72", coat: "none", pants: "cargo", trouser: "#6f8063", shoes: "sandals", shoeColor: "#8e526c", width: 6.2, shoulders: -0.8, height: 26, torso: 14.5 },
 };
-const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer" };
+const ROOM_LOOK = { "01": "casual", "02": "study", "03": "winter", "04": "study", "05": "cafe", "06": "garden", "07": "cafe", "08": "casual", "09": "garden", "28": "study", "30": "garden", "31": "winter", "32": "summer", "59": "winter" };
 const CHARACTERS = [
   ["33", "character-study", "study", "Body"],
   ["34", "character-casual", "casual", "Outfit"],
@@ -144,6 +144,7 @@ const ROOMS = [
   ["30", "plant-shop", "Plant shop", { weather: "off", time: "day" }],
   ["31", "winter-yard", "Winter yard", { weather: "snow", time: "night" }],
   ["32", "poolside", "Poolside", { weather: "off", time: "day" }],
+  ["59", "holiday-hearth", "Holiday hearth", { weather: "snow", time: "night" }],
 ];
 
 // The weather set is deliberately ONE room in five conditions, so the only
@@ -362,6 +363,36 @@ async function seatResident(page) {
   await sleep(1800);
   await page.closePanels();
   return 'profile character seated by the app';
+}
+
+/** Open one exact catalog group without colliding with similarly named presets. */
+async function openCatalogGroup(page, label) {
+  await page.evaluate(`(async () => {
+    const want = ${JSON.stringify(label)};
+    const toggle = [...document.querySelectorAll('button')].find(
+      button => button.textContent.includes('Browse by category'));
+    if (!toggle) throw new Error('Furniture catalog toggle missing');
+    if (toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
+
+    let button = null;
+    for (let i = 0; i < 20; i++) {
+      button = [...document.querySelectorAll('button')].find(candidate =>
+        [...candidate.querySelectorAll('span')].some(
+          span => span.children.length === 0 && span.textContent.trim() === want));
+      if (button) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!button) throw new Error(want + ' catalog group missing');
+    if (button.getAttribute('aria-expanded') !== 'true') button.click();
+    for (let i = 0; i < 20; i++) {
+      if (button.getAttribute('aria-expanded') === 'true') {
+        button.scrollIntoView({ block: 'start' });
+        return 'ok';
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error(want + ' catalog group did not expand');
+  })()`);
 }
 
 /** Tasks, groups and focus time — the content every shot shares. */
@@ -621,17 +652,32 @@ async function main() {
     await page.load();
     await page.clickText("Room", { exact: true });
     await sleep(1600);
-    await page.clickText("Browse by category");
-    await page.clickText("Seating");
-    await page.evaluate(`(() => {
-      const h = [...document.querySelectorAll('*')].find(
-        e => e.children.length === 0 && /^seating/i.test(e.textContent.trim()));
-      h?.scrollIntoView({ block: 'start' });
-      return 'ok';
-    })()`);
+    await openCatalogGroup(page, "Seating & beds");
     await sleep(1400);
     const b = await page.shot(join(OUT_DIR, "24-furniture.webp"));
     console.log(`  24-furniture.webp  ${Math.round(b * 0.75 / 1024)}kB`);
+  }
+
+  // ---- 57 autumn catalog: the complete seasonal decoration set in the real picker ----
+  if (want("57")) {
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await sleep(1600);
+    await openCatalogGroup(page, "Autumn");
+    await sleep(1400);
+    const bytes = await page.shot(join(OUT_DIR, "57-autumn-decorations.webp"));
+    console.log(`  57-autumn-decorations.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
+  }
+
+  // ---- 58 winter catalog: outdoor snow pieces plus the indoor holiday set ----
+  if (want("58")) {
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await sleep(1600);
+    await openCatalogGroup(page, "Winter");
+    await sleep(1400);
+    const bytes = await page.shot(join(OUT_DIR, "58-winter-decorations.webp"));
+    console.log(`  58-winter-decorations.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
   }
 
   // ---- 25 decorating: edit mode, grid on, HUD stood aside ----

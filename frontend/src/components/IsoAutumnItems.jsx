@@ -1,6 +1,7 @@
 import { SKEW, TILE_W, floorPatch, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
 import { BroadleafTree } from "./IsoTreePrimitives";
+import { TintedBox } from "./IsoItemPrimitives";
 
 // A seasonal set. The rules these follow are the ones cozy isometric games
 // (Animal Crossing, Stardew, Unpacking, Cozy Grove) all converge on, and they
@@ -188,19 +189,28 @@ export function Rake() {
   // Leans, because a rake standing bolt upright reads as a broom. The fan of
   // tines is the whole silhouette.
   const c = project(0.2, 0.2);
+  const teeth = [
+    [-10, 5.5, -1.2], [-7, 7, -0.8], [-4, 8, -0.4], [0, 8.5, 0],
+    [4, 8, 0.5], [7, 7, 0.9], [10, 5.5, 1.3],
+  ];
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-seasonal-structure="rake">
       <ellipse cx="2" cy="-1" rx="7" ry="3" fill="#000" opacity="0.16" />
-      <path d="M6 -2 L-3 -56" stroke="#a87f5f" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M6 -2 L-3 -56" stroke="#000" strokeWidth="1" opacity="0.14" strokeLinecap="round" />
+      <path data-seasonal-part="rake-handle" d="M6 -2 L-3 -56"
+        style={{ stroke: "var(--tint, #a87f5f)" }} strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M5 -3 L-4 -55" stroke="#fff" strokeWidth="0.8" opacity="0.16" strokeLinecap="round" />
       <g transform="translate(6,-2)">
-        <path d="M-9 0 q9 -5 18 0" fill="none" stroke="#5b5166" strokeWidth="1.8" />
-        {[-9, -5.5, -2, 1.5, 5, 8.5].map((x, i) => (
+        <path data-seasonal-part="rake-socket" d="M-3 -7 L2 -8 L4 -1 L-2 0 Z" fill="#4d4854" />
+        <path data-seasonal-part="rake-head" d="M-11 0 Q0 -6 11 0" fill="none"
+          stroke="#5b5166" strokeWidth="2.4" strokeLinecap="round" />
+        {teeth.map(([x, len, spread]) => (
           <path
             key={x}
-            d={`M${x} ${-1.6 + Math.abs(i - 2.5) * 0.5} l${(x + 1) * 0.14} 5.5`}
+            data-seasonal-part="rake-tine"
+            d={`M${x} ${-1.5 + Math.abs(x) * 0.08} q${spread} ${len * 0.55} ${spread * 1.4} ${len}`}
+            fill="none"
             stroke="#5b5166"
-            strokeWidth="1.4"
+            strokeWidth="1.5"
             strokeLinecap="round"
           />
         ))}
@@ -245,21 +255,142 @@ export function Scarecrow() {
 
 export function Turkey() {
   const c = project(0.45, 0.4);
-  const feathers = [-58, -36, -14, 8, 30, 52];
+  const feathers = [
+    [-64, 0.82, "#9b4935"], [-43, 0.94, "#c06336"], [-22, 1.04, "#d18a3d"],
+    [0, 1.08, "#b95635"], [22, 1.02, "#d49a43"], [43, 0.92, "#b55335"], [64, 0.8, "#8f4637"],
+  ];
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-seasonal-structure="turkey">
       <ellipse cx="0" cy="-1" rx="13" ry="5" fill="#000" opacity="0.15" />
-      <g transform="translate(3,-17)">
-        {feathers.map((a, i) => (
-          <ellipse key={a} cx="0" cy="-11" rx="5.2" ry="13" fill={i % 2 ? "#b85c35" : "#d58b3f"} transform={`rotate(${a})`} />
+      <g transform="translate(3,-14)">
+        {feathers.map(([angle, scale, fill]) => (
+          <g key={angle} transform={`rotate(${angle}) scale(${scale})`}
+            data-seasonal-part="turkey-tail-feather">
+            <path d="M-4 1 Q-7 -8 -2 -18 Q0 -23 2 -18 Q7 -8 4 1 Q0 5 -4 1 Z" fill={fill} />
+            <path d="M-2 -3 Q-3 -10 0 -18 Q3 -10 2 -3 Q0 0 -2 -3 Z"
+              fill="#f0b858" opacity="0.48" />
+            <path d="M0 -17 L0 1" stroke="#6f3b2f" strokeWidth="1" opacity="0.54" />
+          </g>
         ))}
       </g>
-      <ellipse cx="0" cy="-12" rx="11" ry="9" style={tinted("#7f4e37")} />
-      <circle cx="-7" cy="-23" r="5.2" fill="#9d5438" />
-      <circle cx="-8.5" cy="-24" r="1" fill="#2b2350" />
-      <path d="M-12 -22 l-6 2 l5 2 z" fill="#d8a13f" />
-      <path d="M-6 -19 q4 4 0 8" fill="none" stroke="#b8433c" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M-5 -4 l-2 5 M3 -4 l2 5" stroke="#9b6b3c" strokeWidth="1.5" />
+      <path data-seasonal-part="turkey-body"
+        d="M-11 -12 Q-10 -22 -1 -23 Q9 -22 12 -12 Q11 -3 1 -2 Q-9 -3 -11 -12 Z"
+        style={tinted("#7f4e37")} />
+      <path d="M4 -21 Q11 -19 12 -12 Q11 -4 2 -2 Q7 -10 4 -21 Z" fill="#000" opacity="0.18" />
+      <path data-seasonal-part="turkey-wing" d="M-5 -13 Q1 -19 7 -13 Q3 -6 -5 -8 Z" fill="#b76a43" opacity="0.82" />
+      <path data-seasonal-part="turkey-neck" d="M-5 -17 Q-10 -20 -9 -25 Q-8 -31 -3 -31 Q2 -29 1 -24 Q0 -20 -2 -17 Z"
+        fill="#9d5438" />
+      <circle cx="-5.3" cy="-26.5" r="1" fill="#2b2350" />
+      <path d="M-8 -24 l-7 2 l6 2.2 z" fill="#d8a13f" />
+      <path d="M-2 -22 q4 4 0 9" fill="none" stroke="#b8433c" strokeWidth="2.4" strokeLinecap="round" />
+      <path data-seasonal-part="turkey-foot" d="M-5 -4 l-2 5 l-3 1 M-7 1 l2 2"
+        fill="none" stroke="#9b6b3c" strokeWidth="1.5" strokeLinecap="round" />
+      <path data-seasonal-part="turkey-foot" d="M3 -4 l2 5 l3 1 M5 1 l-2 2"
+        fill="none" stroke="#9b6b3c" strokeWidth="1.5" strokeLinecap="round" />
+    </g>
+  );
+}
+
+export function Cornstalks() {
+  const c = project(0.4, 0.4);
+  const stalks = [
+    { x: -8, h: 58, lean: -5 },
+    { x: -4, h: 67, lean: -2 },
+    { x: 0, h: 62, lean: 1 },
+    { x: 4, h: 70, lean: 3 },
+    { x: 8, h: 59, lean: 6 },
+  ];
+  return (
+    <g transform={`translate(${c.x},${c.y})`} data-seasonal-structure="cornstalk-bundle">
+      <ellipse cx="0" cy="0" rx="13" ry="5" fill="#000" opacity="0.16" />
+      {stalks.map(({ x, h, lean }, index) => (
+        <g key={x} data-seasonal-part="corn-stalk" transform={`translate(${x},0) rotate(${lean})`}>
+          <path d={`M0 -2 Q${lean * -0.12} ${-h / 2} 0 ${-h}`} fill="none" stroke="#b58b3d" strokeWidth="2.2" strokeLinecap="round" />
+          <path d={`M0 ${-h * 0.42} Q${index % 2 ? 11 : -11} ${-h * 0.52} ${index % 2 ? 12 : -12} ${-h * 0.67} Q${index % 2 ? 4 : -4} ${-h * 0.61} 0 ${-h * 0.49} Z`} fill="#c39a46" />
+          <path d={`M0 ${-h * 0.62} Q${index % 2 ? -10 : 10} ${-h * 0.74} ${index % 2 ? -8 : 8} ${-h * 0.88} Q${index % 2 ? -3 : 3} ${-h * 0.77} 0 ${-h * 0.69} Z`} fill="#d0aa55" />
+        </g>
+      ))}
+      {[-5, 5].map((x) => (
+        <g key={x} data-seasonal-part="corn-cob" transform={`translate(${x},-34) rotate(${x < 0 ? -12 : 12})`}>
+          <ellipse cx="0" cy="0" rx="3.2" ry="7" fill="#d8a83e" />
+          <path d="M-3 1 Q0 7 3 1 Q1 9 0 11 Q-1 9 -3 1 Z" fill="#7b7136" />
+        </g>
+      ))}
+      <path d="M-10 -24 Q0 -20 10 -24 L9 -19 Q0 -16 -9 -19 Z" fill="#8a5346" />
+      <path d="M-9 -21 Q0 -18 9 -21" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.16" />
+    </g>
+  );
+}
+
+export function AppleCrate() {
+  const W = 0.8;
+  const D = 0.6;
+  const H = 17;
+  const apples = [
+    [0.19, 0.18, 8], [0.43, 0.15, 9], [0.65, 0.2, 8],
+    [0.3, 0.4, 8], [0.56, 0.41, 9],
+  ];
+  return (
+    <g data-seasonal-structure="apple-crate">
+      <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#8b5d3d" dark={0.36} mid={0.2} />
+      {[5, 11].map((lift) => (
+        <g key={lift} transform={`translate(0,${-lift})`} opacity="0.8">
+          <polygon data-seasonal-part="crate-slat" points={floorPatch(0.02, D - 0.09, W - 0.04, 0.06)} fill="#d0a06c" />
+        </g>
+      ))}
+      {apples.map(([gx, gy, lift], index) => {
+        const p = project(gx, gy);
+        return <g key={`${gx}-${gy}`} transform={`translate(${p.x},${p.y - H - lift + 7})`} data-seasonal-part="apple">
+          <circle cx="0" cy="0" r="5.1" fill={index % 2 ? "#b8483e" : "#c85b3f"} />
+          <path d="M0 -4.5 q1 -4 3 -5" fill="none" stroke="#5d4b2e" strokeWidth="1.3" strokeLinecap="round" />
+          <path d="M2 -7 q4 -1 5 2 q-4 1 -5 -2 z" fill="#53663a" />
+          <circle cx="-1.5" cy="-1.5" r="1.2" fill="#fff" opacity="0.16" />
+        </g>;
+      })}
+    </g>
+  );
+}
+
+export function MushroomPatch() {
+  const mushrooms = [
+    { gx: 0.22, gy: 0.25, h: 15, r: 8, cap: "#b6533d" },
+    { gx: 0.5, gy: 0.18, h: 20, r: 9, cap: "#c06b3f" },
+    { gx: 0.61, gy: 0.48, h: 13, r: 7, cap: "#8a5346" },
+  ];
+  return (
+    <g data-seasonal-structure="mushroom-patch">
+      <polygon points={floorPatch(0.05, 0.06, 0.7, 0.58)} fill="#6b5137" opacity="0.42" />
+      <path d={`M${project(0.1, 0.55).x} ${project(0.1, 0.55).y} q9 -7 17 0 q-9 5 -17 0 z`} fill="#a8442f" opacity="0.72" />
+      {mushrooms.map(({ gx, gy, h, r, cap }) => {
+        const p = project(gx, gy);
+        return <g key={`${gx}-${gy}`} transform={`translate(${p.x},${p.y})`} data-seasonal-part="mushroom">
+          <path d={`M-2 -1 Q-3 ${-h * 0.55} -1.5 ${-h + 2} L1.5 ${-h + 2} Q3 ${-h * 0.55} 2 -1 Z`} fill="#e8d9bd" />
+          <path d={`M${-r} ${-h + 1} Q0 ${-h - r * 0.85} ${r} ${-h + 1} Q0 ${-h + r * 0.35} ${-r} ${-h + 1} Z`} fill={cap} />
+          <path d={`M${-r + 2} ${-h} Q0 ${-h - r * 0.58} ${r - 2} ${-h}`} fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.16" />
+        </g>;
+      })}
+    </g>
+  );
+}
+
+export function LeafGarland() {
+  const leaves = [
+    { x: 4, y: -66, color: "#a8442f", turn: -18 },
+    { x: 12, y: -62, color: "#d58b3f", turn: 12 },
+    { x: 21, y: -61, color: "#b6533d", turn: -8 },
+    { x: 30, y: -63, color: "#d0a03f", turn: 16 },
+    { x: 38, y: -68, color: "#963c2d", turn: -14 },
+  ];
+  return (
+    <g transform={`skewY(${SKEW})`} data-seasonal-structure="leaf-garland">
+      <path d="M2 -69 Q20 -55 40 -71" fill="none" stroke="#765039" strokeWidth="1.7" strokeLinecap="round" />
+      {leaves.map(({ x, y, color, turn }) => (
+        <g key={x} transform={`translate(${x},${y}) rotate(${turn})`} data-seasonal-part="garland-leaf">
+          <path d="M0 -5 L2 -2 L6 -3 L4 1 L7 4 L2 4 L0 8 L-2 4 L-7 4 L-4 1 L-6 -3 L-2 -2 Z" fill={color} />
+          <path d="M0 -4 L0 9" stroke="#6f3828" strokeWidth="0.8" opacity="0.6" />
+        </g>
+      ))}
+      {[9, 34].map((x) => <circle key={x} cx={x} cy={x === 9 ? -58 : -61} r="2.2" fill="#7a4b2f" />)}
     </g>
   );
 }
@@ -268,31 +399,51 @@ export function Wreath() {
   // A wall piece, so it lives in the wall's skewed plane like a picture frame.
   const cx = 14;
   const cy = -58;
+  const leaves = [
+    [8, 10.5, "#587343", 1], [39, 11.5, "#7d7b3d", 0.92], [72, 10.5, "#b46b37", 1.02],
+    [106, 11.5, "#526d42", 0.9], [142, 10.2, "#c07d3b", 1], [174, 11.6, "#6f7a3d", 0.95],
+    [207, 10.5, "#a65336", 1.04], [239, 11.3, "#4f7047", 0.92], [271, 10.4, "#c18a3e", 1],
+    [303, 11.5, "#607846", 0.96], [334, 10.3, "#a85a38", 1.02],
+  ];
   return (
-    <g transform={`skewY(${SKEW})`}>
-      <circle cx={cx} cy={cy} r="11" fill="none" stroke="#3f5f3a" strokeWidth="6" />
-      <circle cx={cx} cy={cy} r="11" fill="none" stroke="#000" strokeWidth="6" opacity="0.12" />
-      {/* sprigs and berries around the ring, placed by angle so it stays even */}
-      {[20, 70, 130, 190, 250, 310].map((a) => {
-        const r = (a * Math.PI) / 180;
+    <g transform={`skewY(${SKEW})`} data-seasonal-structure="autumn-wreath">
+      <path d={`M${cx - 10} ${cy - 2} Q${cx - 8} ${cy - 13} ${cx + 2} ${cy - 12}
+        Q${cx + 13} ${cy - 9} ${cx + 11} ${cy + 2} Q${cx + 7} ${cy + 13} ${cx - 3} ${cy + 11}
+        Q${cx - 14} ${cy + 7} ${cx - 10} ${cy - 2} Z`} fill="none" stroke="#6d4c34" strokeWidth="3.2" />
+      <g fill="none" style={{ stroke: "var(--tint, #3f5f3a)" }} strokeWidth="4.5" strokeLinecap="round">
+        <path data-seasonal-part="wreath-branch"
+          d={`M${cx - 9} ${cy - 5} Q${cx - 2} ${cy - 14} ${cx + 8} ${cy - 7}`} />
+        <path data-seasonal-part="wreath-branch"
+          d={`M${cx + 10} ${cy - 3} Q${cx + 12} ${cy + 8} ${cx + 1} ${cy + 11}`} />
+        <path data-seasonal-part="wreath-branch"
+          d={`M${cx - 4} ${cy + 10} Q${cx - 14} ${cy + 5} ${cx - 9} ${cy - 5}`} />
+      </g>
+      {leaves.map(([angle, radius, fill, scale]) => {
+        const r = (angle * Math.PI) / 180;
+        const x = cx + Math.cos(r) * radius;
+        const y = cy + Math.sin(r) * radius;
         return (
-          <ellipse
-            key={a}
-            cx={cx + Math.cos(r) * 11}
-            cy={cy + Math.sin(r) * 11}
-            rx="4.5"
-            ry="3"
-            fill="#4f8f6a"
-            transform={`rotate(${a} ${cx + Math.cos(r) * 11} ${cy + Math.sin(r) * 11})`}
-          />
+          <g key={angle} transform={`translate(${x},${y}) rotate(${angle + 90}) scale(${scale})`}
+            data-seasonal-part="wreath-leaf">
+            <path d="M-5 0 Q-3 -4 0 -2 Q3 -5 6 0 Q3 4 0 6 Q-3 4 -5 0 Z" fill={fill} />
+            <path d="M0 -1 L0 6" stroke="#5f422e" strokeWidth="0.8" opacity="0.5" />
+          </g>
         );
       })}
-      {[0, 100, 210, 300].map((a) => {
+      {[18, 128, 224, 322].map((a) => {
         const r = (a * Math.PI) / 180;
-        return <circle key={a} cx={cx + Math.cos(r) * 10} cy={cy + Math.sin(r) * 10} r="1.7" fill="#c0563f" />;
+        return <circle key={a} cx={cx + Math.cos(r) * 9.5} cy={cy + Math.sin(r) * 9.5} r="1.7" fill="#b9493e" />;
       })}
-      <path d={`M${cx - 5} ${cy + 12} q5 -4 10 0 q-5 5 -10 0 z`} fill="#a8442f" />
-      <path d={`M${cx - 3} ${cy + 13} l-2 7 M${cx + 3} ${cy + 13} l2 7`} stroke="#a8442f" strokeWidth="1.8" />
+      <path data-seasonal-part="wreath-ribbon"
+        d={`M${cx - 1} ${cy + 10} Q${cx - 8} ${cy + 7} ${cx - 9} ${cy + 13}
+          Q${cx - 7} ${cy + 17} ${cx} ${cy + 12} Q${cx + 7} ${cy + 17} ${cx + 9} ${cy + 12}
+          Q${cx + 8} ${cy + 7} ${cx + 1} ${cy + 10} Z`} fill="#a84445" />
+      <path data-seasonal-part="wreath-ribbon-tail"
+        d={`M${cx - 2} ${cy + 12} L${cx - 5} ${cy + 22} L${cx} ${cy + 19} L${cx} ${cy + 12} Z`}
+        fill="#913940" />
+      <path data-seasonal-part="wreath-ribbon-tail"
+        d={`M${cx + 2} ${cy + 12} L${cx + 5} ${cy + 22} L${cx} ${cy + 19} L${cx} ${cy + 12} Z`}
+        fill="#84333b" />
     </g>
   );
 }

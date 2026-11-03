@@ -280,6 +280,9 @@ export const OUTFITS = [
   // Button-up: collar wings + placket + buttons — the neck-and-centre marks
   // are what separate a shirt from a tee at this size.
   { key: "shirt", label: "Button-up" },
+  // A heavier overshirt with a contrast yoke, pocket, cuffs, and broad plaid
+  // built into the garment art. It is not just the button-up with a print.
+  { key: "flannel", label: "Flannel shirt", inner: true },
   // A rounded contrast collar and bow make the blouse legible beside the
   // sharp-winged button-up; the second colour owns those details.
   { key: "blouse", label: "Blouse", inner: true },
@@ -292,6 +295,9 @@ export const OUTFITS = [
   // Turtleneck = the collar swallows the neck (the one garment that changes
   // the NECK line, via the registry's `collar` slot).
   { key: "turtleneck", label: "Turtleneck" },
+  // Quarter-zip fleece: a high contrast yoke and stand collar give the warm
+  // pullover its own silhouette and two-tone split at miniature scale.
+  { key: "fleece", label: "Fleece pullover", inner: true },
   // Sweater vest: knit over the shirt, and the first top whose SLEEVES belong
   // to the layer underneath — `sleeves: "inner"` paints the arms in the inner
   // colour, a torso-vs-arms split no other garment has.
@@ -318,6 +324,8 @@ export const COATS = [
   { key: "cardigan", label: "Cardigan" },
   { key: "blazer", label: "Blazer" },
   { key: "puffer", label: "Puffer" },
+  { key: "parka", label: "Parka" },
+  { key: "peacoat", label: "Peacoat" },
   // Varsity: the coat whose SLEEVES are the second colour — the classic wool
   // body / leather arms split, via the same `sleeves: "inner"` wiring as the
   // vest. Ribbed trims in the sleeve colour tie the two halves together.
@@ -338,8 +346,8 @@ export const COATS = [
  * shin, the wide leg drops as a straight column, joggers taper to an elastic
  * cuff, skirts replace the trouser legs with bare legs under a flare.
  * Khakis are trousers in a khaki COLOUR — that's what TROUSER_COLORS is for.
- * With seven tops, seven coats and nine bottoms the wardrobe is 441
- * silhouette combinations before a single colour is picked.
+ * With thirteen tops, eleven outer-layer choices and eleven bottoms the
+ * wardrobe is 1,573 silhouette combinations before a colour is picked.
  */
 export const PANTS = [
   { key: "trousers", label: "Trousers" },

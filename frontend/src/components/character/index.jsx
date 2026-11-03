@@ -178,7 +178,9 @@ export function Resident({
   const coatStyle = tinted(ch.coatColor || "#8a5346");
   const sleeveShort = !coatWorn && wornGarment.sleeves === "short";
   const sleeveless = !coatWorn && wornGarment.sleeves === "none";
-  const sleeveBulk = coatWorn ? (ch.coat === "puffer" ? 1.6 : 0.9) : 0;
+  const sleeveBulk = coatWorn
+    ? (ch.coat === "puffer" ? 1.6 : ch.coat === "parka" ? 1.25 : 0.9)
+    : 0;
   // The arm's sleeve is painted by whatever's outermost — except the
   // `sleeves: "inner"` garments, whose whole point is arms in the SECOND
   // colour: the vest's shirt sleeves, the varsity's leather arms.

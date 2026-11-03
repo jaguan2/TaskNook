@@ -240,7 +240,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // Keep the principal room plus the seasonal/tree-heavy presets in the
     // visual sheet. A catalog cutout cannot catch scale, overlap or a weak
     // room composition around a large silhouette.
-    for (const key of ["loft", "home", "terrace", "garden", "fall", "winter", "summer"]) {
+    for (const key of ["loft", "home", "terrace", "garden", "fall", "winter", "holiday", "summer"]) {
       const room = isoPresetLayout(key);
       const presetScene = renderToStaticMarkup(
         <IsoRoom size={room} placements={room.placements} saveView={false} reduceMotion timeOfDay="day" />

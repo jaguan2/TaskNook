@@ -158,14 +158,14 @@ room-scale captures together; tests cannot approve the art direction.
 The following common-room pass refines the shared figure without changing
 that seated rig: fitted shirt/blouse collars, narrow knit necklines and
 smaller shaped palms replace the broad neck oval and round mitten masses.
-All ten starting looks remain complete and editable. Loft, Corner café and
+All twelve starting looks remain complete and editable. Loft, Corner café and
 Reading room now make more deliberate use of the refined fern, orchid and
 table-lamp models; new common-room props also use the updated upholstery and
 storage. These are refinements, not completion of the resident backlog.
 
-Review both body models and all ten complete looks (fall girl/guy,
-school girl/boy, office female/male, lofi girl, cozy gamer, winter reader and
-garden helper), front and rear,
+Review both body models and all twelve complete looks (fall girl/guy,
+school girl/boy, office female/male, lofi girl, cozy gamer, winter reader,
+cabin weekend, snow day and garden helper), front and rear,
 in idle/focus/break poses. Test every bottom at multiple seat heights, all
 body-slider extremes, long hair, hats, glasses and light/dark custom colours.
 Keep these individual art passes open:
@@ -301,10 +301,20 @@ because it renders or has a tint picker.
 | Hay bale (`haybale`) | Refined 2026-10-25 | Slightly bulging straw faces, loose ends and four wrapping band surfaces replace the crate-like box. |
 | Pumpkin (`pumpkin`) | Refined 2026-10-24 | Filled overlapping lobes, volume shading and a rear-growing stalk replace surface stripes alone. |
 | Jack-o'-lantern (`jackolantern`) | Refined 2026-10-24 | Dark recesses and warm inner facets give the cut openings visible shell thickness. |
-| Rake (`rake`) | Pending | Separated metal teeth and a believable handle/head connection. |
+| Rake (`rake`) | Refined 2026-11-02 | Seven separated metal tines, curved head and a visible socket now connect cleanly to the tintable leaning handle. |
 | Scarecrow (`scarecrow`) | Refined 2026-10-25 | Loose sleeves, straw cuffs, stitched hem and separate hat crown/brim now expose its construction. |
-| Turkey (`turkey`) | Pending | Layered feather shapes and distinct neck/head volume. |
-| Wreath (`wreath`) | Pending | An irregular leafy ring with overlapping branches and tied ribbon. |
+| Turkey (`turkey`) | Refined 2026-11-02 | Seven unequal layered tail feathers, a built wing, curved neck, smaller head and planted feet replace the radial-flower construction. |
+| Wreath (`wreath`) | Refined 2026-11-02 | Irregular twig arcs, overlapping turning leaves, a clear inner opening and constructed ribbon replace the perfect clock-like ring. |
+| Cornstalks (`cornstalks`) | Added 2026-11-02 | Five unequal stalks, broad leaves, visible cobs and a tied waist form one readable bundle. |
+| Apple crate (`applecrate`) | Added 2026-11-02 | Projected timber slats support five oversized apples with stems and leaves. |
+| Mushroom patch (`mushroompatch`) | Added 2026-11-02 | Three unequal caps, planted stems and ground leaves make a low woodland cluster. |
+| Leaf garland (`leafgarland`) | Added 2026-11-02 | A sagging wall cord supports broad turning leaves with visible attachment points. |
+| Leaf wheelbarrow (`leafbarrow`) | Added 2026-11-02 | Built tray, wheel, handles and a readable mound of broad leaves. |
+| Potted mums (`mums`) | Added 2026-11-02 | Shared tapered pot construction supports five large seasonal blooms. |
+| Harvest basket (`harvestbasket`) | Added 2026-11-02 | Woven tapered basket, proud handle and oversized gourds. |
+| Acorn bowl (`acornbowl`) | Added 2026-11-02 | A small tintable bowl holds three chunky cap-and-nut silhouettes. |
+| Harvest sign (`harvestsign`) | Added 2026-11-02 | Grounded timber post and irregular broad sign board with restrained painted marks. |
+| Hot cider set (`ciderset`) | Added 2026-11-02 | A rounded handled jug and two oversized mugs form a stackable tabletop set. |
 
 ### Winter
 
@@ -316,11 +326,17 @@ because it renders or has a tint picker.
 | Snowballs (`snowballs`) | Refined 2026-10-24 | Unequal hand-packed silhouettes, flattened contacts and short lower-right facets replace perfect spheres. |
 | Christmas tree (`christmastree`) | Refined | Foreground and interstitial boughs make a dense crown without repeating identical triangles; the wrapped garland and ornaments remain independently readable. |
 | Snow angel (`snowangel`) | Refined 2026-10-24 | Broad depressed fields and broken rim catches replace the continuous chalk-like outline. |
-| Christmas lights (`christmaslights`) | Pending | Individual bulb housings and a sagging supported cable. |
-| Snowy chimney (`chimney`) | Pending | Brick courses, mortar recess and separate cap/smoke opening. |
+| Christmas lights (`christmaslights`) | Refined 2026-11-02 | Supported sagging cable, wall clips, dark sockets and independently timed bulb shells now include an on/off state. |
+| Snowy chimney (`chimney`) | Refined 2026-11-02 | Four staggered brick courses, a proud projected cap, inset smoke opening, snow shelf and unequal smoke puffs replace the plain box. |
 | Firewood (`logstack`) | Refined 2026-10-25 | Separate bark bodies support four unequal projecting split-log ends with restrained growth rings. |
-| Ice lantern (`icelantern`) | Pending | Thick translucent shell, melted rim and inset candle. |
-| Icicles (`icicles`) | Pending | Unequal tapered hanging shards with supported attachment edges. |
+| Ice lantern (`icelantern`) | Refined 2026-11-02 | Irregular translucent shell, split melted rim, inset candle and unified flame replace the straight white cylinder. |
+| Icicles (`icicles`) | Refined 2026-11-02 | Authored unequal widths, gaps and lengths hang from an irregular supported snow ledge with two-tone ice facets. |
+| Wooden sled (`sled`) | Added 2026-11-02 | Four broad timber slats sit proud of two curved metal runners and a pull rope. |
+| Wrapped gifts (`giftstack`) | Added 2026-11-02 | Three offset constructed packages share one muted palette and attached broad ribbons. |
+| Snow globe (`snowglobe`) | Added 2026-11-02 | Thick tintable base, translucent dome and one oversized snow-covered pine. |
+| Evergreen garland (`evergreengarland`) | Added 2026-11-02 | An unlit sagging wall spine carries seven broad sprigs, berries and one ribbon. |
+| Knit stocking (`stocking`) | Added 2026-11-02 | Oversized hooked foot, pale cuff, heel shadow and restrained knit ribs. |
+| Blanket basket (`blanketbasket`) | Added 2026-11-02 | A tapered woven basket holds three broad fringed textile rolls. |
 
 ### Spring
 

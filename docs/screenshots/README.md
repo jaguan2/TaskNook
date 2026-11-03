@@ -6,7 +6,7 @@ focus sessions created through the actual REST endpoints; rooms are entered
 through the same controls you would use. Room/UI captures are WebP, usually 1600×1000;
 the Grand Library captures use the review browser's 1280×720 viewport.
 Character examples extract the real editor SVG and render it as a sharp model
-closeup: individual portraits are 600×800, and eight-look sheets are 1600×1000.
+closeup: individual portraits are 600×800, and twelve-look sheets are 1600×1000.
 They contain model artwork and preset labels, without application chrome.
 
 Regenerate them with `frontend/scripts/screenshots.mjs` — the capture pipeline
@@ -61,7 +61,14 @@ their existing residents.
 | ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — an expanded pond clearing with four inward-facing benches, a near-bank stepping-stone trail, flowering trees and low planting. |
 | ![Terrace](07-terrace.webp) **Terrace** — a sheltered candlelit dining group and a layered reading corner under string lights, with a clear route between them. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
 | ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — maples, a half-raked leaf pile, pumpkins, a scarecrow and a wandering turkey. | ![Winter yard](31-winter-yard.webp) **Winter yard** — a snow-covered play space with a decorated tree and a sheltered bench under falling snow. |
-| ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and a grouped row of sun loungers. | |
+| ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and a grouped row of sun loungers. | ![Holiday hearth](59-holiday-hearth.webp) **Holiday hearth** — a bedless indoor winter lounge organized around a fireplace, decorated tree and conversation seating. |
+
+The Autumn picker now includes both large outdoor anchors and small indoor
+accents without forcing all of them into the Autumn yard preset.
+
+![Autumn decoration catalog](57-autumn-decorations.webp) **Autumn decorations** — the live catalog group, including the maple, pumpkins, harvest structures, flowers, tabletop accents and wall pieces.
+
+![Winter decoration catalog](58-winter-decorations.webp) **Winter decorations** — the live catalog group, pairing outdoor snow pieces with gifts, textiles, wall accents and tabletop holiday decor.
 
 ## Weather & time of day
 
@@ -85,14 +92,14 @@ gradient.
 ### Character examples
 
 These closeups show the actual model artwork at a useful scale. The preset
-sheets include all ten looks, with their standing and personality-specific
+sheets include all twelve looks, with their standing and personality-specific
 seated poses.
 
 | | |
 |---|---|
 | ![Locs, gold sweater and teal maxi skirt](33-character-study.webp) **Study** — locs, a warm knit and a maxi skirt. | ![Curly hair, glasses, cardigan and jeans](34-character-casual.webp) **Casual** — a taller, broader model with curly hair, round glasses and layered denim styling. |
 | ![Braids, puffer jacket, scarf and winter hat](35-character-winter.webp) **Winter** — braids, a puffer, scarf, trapper hat and boots. | ![Buzz cut, overalls and denim shorts](36-character-garden.webp) **Garden** — a buzz cut, olive overalls, denim shorts and work boots. |
-| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all ten presets, including fall, school, office, lofi, gamer, winter and garden styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all ten presets using relaxed, ankle-crossed and cross-legged silhouettes, with no app UI obscuring the models. |
+| ![Character starting looks](37-character-presets.webp) **Starting looks** — closeups of all twelve presets, including fall, school, office, lofi, gamer, cabin and winter styles. | ![Seated character preset previews](38-character-presets-seated.webp) **Seated looks** — all twelve presets using relaxed, ankle-crossed and cross-legged silhouettes, with no app UI obscuring the models. |
 | ![Sleeveless maker outfit](42-character-customization.webp) **Expanded customization** — a compact body template with a true sleeveless tank, pocketed cargo pants and skin-aware sandals. | ![Character tucked into the Loft bed](56-tucked-in-bed.webp) **Tucked in** — the actual customized resident lies beneath the selected bed's duvet instead of floating above it or changing into a generic sleeping model. |
 
 ### Personalization tools

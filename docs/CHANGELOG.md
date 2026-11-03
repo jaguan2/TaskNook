@@ -15,6 +15,39 @@ project already uses.
 
 ---
 
+## 2026-11-02
+
+**NEW**
+- **Cold-weather wardrobe.** Added a true flannel overshirt, quarter-zip
+  fleece, hooded parka and double-breasted peacoat. Each has authored front,
+  profile and back construction rather than relying on labels or recolours.
+- **Seasonal starting looks.** Added Cabin weekend and Snow day, while the
+  existing Fall style guy now uses the constructed flannel. Applying any look
+  continues to preserve the user's selected skin, eye colour and eye placement.
+- **Autumn decorations.** Added bundled cornstalks, an apple crate, a mushroom
+  patch, a wall-hung leaf garland, a leaf-filled wheelbarrow, potted mums, a
+  gourd basket, an acorn bowl, a rustic sign and a hot-cider set. The new
+  harvest pieces live in their own focused sprite module, and existing room
+  presets remain unchanged.
+- **Indoor winter decorations.** Added a wooden sled, wrapped gifts, a snow
+  globe, evergreen garland, knit stocking and blanket basket. They complement
+  the outdoor snow set from a focused holiday module without crowding the
+  Winter yard preset.
+- **Holiday hearth preset.** Added a bedless indoor winter lounge with a
+  fireplace, decorated tree, conversation seating and a restrained selection
+  of the new tabletop, textile and wall decorations.
+
+**UPDATED**
+- **Seasonal model coverage.** Registry parity, all-facing render checks,
+  garment construction assertions and broad-material decoration checks cover
+  the expanded wardrobe and catalog. The generated art sheet includes every
+  new item and preset for light, dark, standing, back and seated review.
+- **Legacy seasonal construction.** Rebuilt the turkey, Autumn wreath, snowy
+  chimney, Christmas lights, rake, ice lantern and icicles with clearer
+  material silhouettes. Christmas lights can now be switched on and off like
+  fairy lights, while the wreath and rake colour pickers now change their
+  primary materials instead of doing nothing.
+
 ## 2026-08-19 (night)
 
 **ADJUSTED**

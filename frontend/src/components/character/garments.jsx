@@ -276,6 +276,49 @@ export const GARMENT_REGISTRY = {
       </>
     ),
   },
+  flannel: {
+    // A true overshirt rather than a plaid print: the broad contrast grid is
+    // clipped by the torso, while the yoke, doubled pockets and heavy cuffs
+    // make the cut survive even when the character is room-sized.
+    finish: MATTE,
+    cuffs: true,
+    back: ({ sh, top, bot, inner }) => (
+      <>
+        <path data-flannel-yoke="back" d={`M ${-sh + 0.8} ${top + 1} Q 0 ${top + 3.8} ${sh - 0.8} ${top + 1} L ${sh - 1.2} ${top + 5.4} Q 0 ${top + 7.2} ${-sh + 1.2} ${top + 5.4} Z`} fill={inner} opacity="0.78" />
+        {[top + 7.3, top + 13.1].map((y) => (
+          <path key={y} data-flannel-band="horizontal" d={`M ${-sh + 1} ${y} Q 0 ${y + 1.4} ${sh - 1} ${y}`} stroke={inner} strokeWidth="2.1" fill="none" opacity="0.72" />
+        ))}
+        {[-3.8, 3.8].map((x) => (
+          <path key={x} data-flannel-band="vertical" d={`M ${x} ${top + 5} L ${x * 1.2} ${bot - 0.8}`} stroke={inner} strokeWidth="1.7" opacity="0.7" />
+        ))}
+      </>
+    ),
+    side: ({ hem, top, bot, inner }) => (
+      <>
+        <path data-flannel-yoke="side" d={`M ${-3.7} ${top + 0.8} Q 0 ${top + 3.2} 3.5 ${top + 1.2} L 2.8 ${top + 5.2} Q 0 ${top + 6.2} -3.8 ${top + 4.8} Z`} fill={inner} opacity="0.78" />
+        {[top + 8, top + 13.4].map((y) => (
+          <path key={y} data-flannel-band="horizontal" d={`M ${-hem + 1.2} ${y} Q 0 ${y + 1} ${hem - 1.2} ${y}`} stroke={inner} strokeWidth="2" fill="none" opacity="0.72" />
+        ))}
+        <path data-flannel-band="vertical" d={`M -1.7 ${top + 5} L -2.2 ${bot - 0.8}`} stroke={inner} strokeWidth="1.7" opacity="0.7" />
+        <path d={`M ${-hem + 1.4} ${top + 4} L ${-hem + 1.8} ${bot}`} stroke="#000" strokeWidth="0.9" opacity="0.2" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, inner }) => (
+      <>
+        <path data-flannel-yoke="front" d={`M ${-sh + 0.8} ${top + 0.8} L -1 ${top + 5.7} L 0 ${top + 4.7} L 1 ${top + 5.7} L ${sh - 0.8} ${top + 0.8} L ${sh - 1.2} ${top + 6.1} Q 0 ${top + 7.8} ${-sh + 1.2} ${top + 6.1} Z`} fill={inner} opacity="0.78" />
+        {[top + 8.2, top + 13.8].map((y) => (
+          <path key={y} data-flannel-band="horizontal" d={`M ${-sh + 0.9} ${y} Q 0 ${y + 1.5} ${sh - 0.9} ${y}`} stroke={inner} strokeWidth="2.1" fill="none" opacity="0.72" />
+        ))}
+        {[-4, 4].map((x) => (
+          <path key={x} data-flannel-band="vertical" d={`M ${x} ${top + 6} L ${x * 1.18} ${bot - 0.8}`} stroke={inner} strokeWidth="1.7" opacity="0.7" />
+        ))}
+        <path d={`M 0 ${top + 4.8} L 0 ${bot - 0.6}`} stroke="#000" strokeWidth="1" opacity="0.26" />
+        {[8, 11.8, 15.6].map((dy) => <circle key={dy} cx="-1.05" cy={top + dy} r="0.68" fill="#000" opacity="0.46" />)}
+        <path data-flannel-pocket="left" d={`M ${-sh + 1.4} ${top + 7.3} L -1.5 ${top + 8.1} L -1.8 ${top + 12.2} L ${-sh + 1.6} ${top + 11.5} Z`} fill={inner} opacity="0.82" />
+        <path d={`M ${-hem + 1.1} ${bot - 0.5} Q 0 ${bot + 1.7} ${hem - 1.1} ${bot - 0.5}`} fill="none" stroke="#000" strokeWidth="0.9" opacity="0.18" />
+      </>
+    ),
+  },
   blouse: {
     // A broad Peter Pan collar and small bow in the second colour distinguish
     // this soft silhouette from the button-up's sharp collar and placket.
@@ -682,6 +725,36 @@ export const GARMENT_REGISTRY = {
       );
     },
   },
+  fleece: {
+    // A high-pile quarter zip: the second colour forms the shoulder yoke and
+    // stand collar, while a deep pouch and elastic hem keep it out of generic
+    // sweater territory.
+    finish: KNIT,
+    cuffs: true,
+    back: ({ sh, hem, top, bot, inner }) => (
+      <>
+        <path data-fleece-yoke="back" d={`M ${-sh + 0.5} ${top + 0.8} Q 0 ${top + 5.6} ${sh - 0.5} ${top + 0.8} L ${sh - 1} ${top + 6.1} Q 0 ${top + 8.3} ${-sh + 1} ${top + 6.1} Z`} fill={inner} opacity="0.9" />
+        <rect x={-hem + 1.3} y={bot - 2.4} width={(hem - 1.3) * 2} height="2.4" rx="1.1" fill="#000" opacity="0.14" />
+      </>
+    ),
+    side: ({ sh, hem, top, bot, inner }) => (
+      <>
+        <path data-fleece-yoke="side" d={`M ${-sh + 0.5} ${top + 0.8} Q 0 ${top + 5.4} ${sh - 1} ${top + 1.3} L ${sh - 1.5} ${top + 6.2} Q 0 ${top + 7.2} ${-sh + 1.1} ${top + 5.8} Z`} fill={inner} opacity="0.9" />
+        <path data-fleece-zip="side" d={`M -1.8 ${top + 2.6} L -1.4 ${top + 8.2}`} stroke="#000" strokeWidth="1" opacity="0.34" />
+        <rect x={-hem + 1.2} y={bot - 2.4} width={(hem - 1.2) * 2} height="2.4" rx="1.1" fill="#000" opacity="0.14" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, waistY, inner }) => (
+      <>
+        <path data-fleece-yoke="front" d={`M ${-sh + 0.5} ${top + 0.7} Q 0 ${top + 5.9} ${sh - 0.5} ${top + 0.7} L ${sh - 1} ${top + 6.1} Q 0 ${top + 8.4} ${-sh + 1} ${top + 6.1} Z`} fill={inner} opacity="0.9" />
+        <rect x="-3.7" y={top - 0.3} width="7.4" height="3.1" rx="1.4" fill={inner} />
+        <path data-fleece-zip="front" d={`M 0 ${top + 1.1} L 0 ${top + 9.2}`} stroke="#000" strokeWidth="1" opacity="0.4" />
+        <circle cx="0" cy={top + 8.8} r="0.65" fill="#000" opacity="0.45" />
+        <path data-fleece-pocket="front" d={`M ${-hem + 2} ${waistY + 0.8} Q 0 ${waistY + 4.4} ${hem - 2} ${waistY + 0.8} L ${hem - 2.7} ${bot - 2.7} L ${-hem + 2.7} ${bot - 2.7} Z`} fill="#000" opacity="0.11" />
+        <rect x={-hem + 1.3} y={bot - 2.4} width={(hem - 1.3) * 2} height="2.4" rx="1.1" fill="#000" opacity="0.14" />
+      </>
+    ),
+  },
   blazer: {
     // A tailored shell: long notched lapels form a deep V, the waist closes
     // at one button, and the hem splits into two fronts. Those marks remain
@@ -769,6 +842,77 @@ export const GARMENT_REGISTRY = {
         {/* the zip: fixed neutral, its pull at the collar */}
         <path d={`M 0 ${top + 1.6} L 0 ${bot + 0.8}`} stroke="#000" strokeWidth="0.8" opacity="0.3" />
         <circle cx="0" cy={top + 3.4} r="0.65" fill="#000" opacity="0.42" />
+      </>
+    ),
+  },
+  parka: {
+    // The parka is longer and hooded rather than quilted: a broad storm
+    // collar, dropped hem and oversized cargo pockets carry the silhouette.
+    finish: MATTE,
+    cuffs: true,
+    drape: true,
+    back: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell(1.25)}</g>
+        <path d={`M ${-hem - 1.2} ${bot} L ${hem + 1.2} ${bot} L ${hem + 0.7} ${bot + 5.2} Q 0 ${bot + 6.5} ${-hem - 0.7} ${bot + 5.2} Z`} style={outfit} />
+        <path data-parka-hood="back" d={`M -4.8 ${top - 0.8} Q 0 ${top - 3.4} 4.8 ${top - 0.8} Q 6 ${top + 3.8} 3.2 ${top + 7.5} Q 0 ${top + 9.2} -3.2 ${top + 7.5} Q -6 ${top + 3.8} -4.8 ${top - 0.8} Z`} fill="#000" opacity="0.18" />
+        <path d={`M 0 ${bot + 1} L 0 ${bot + 5.7}`} stroke="#000" strokeWidth="1" opacity="0.2" />
+      </>
+    ),
+    side: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell(1.25)}</g>
+        <path d={`M ${-hem - 1} ${bot} L ${hem + 1} ${bot} L ${hem + 0.5} ${bot + 5.2} L ${-hem - 0.5} ${bot + 5.2} Z`} style={outfit} />
+        <path data-parka-hood="side" d={`M 0 ${top - 1} Q 5.7 ${top - 2} 6.2 ${top + 3.2} Q 6 ${top + 7} 2 ${top + 7.8} Q -0.5 ${top + 5.8} 0 ${top - 1} Z`} fill="#000" opacity="0.17" />
+        <path data-parka-pocket="side" d={`M ${-hem + 1.3} ${bot - 6.8} L 2.3 ${bot - 6} L 2 ${bot - 2.1} L ${-hem + 1.7} ${bot - 2.8} Z`} fill="#000" opacity="0.16" />
+      </>
+    ),
+    draw: ({ sh, hem, top, bot, outfit, shell }) => (
+      <>
+        <path data-parka-hood="front" d={`M ${-sh + 0.4} ${top + 1.8} Q ${-sh + 0.2} ${top - 4.2} -1 ${top - 3.7} L 1 ${top - 3.7} Q ${sh - 0.2} ${top - 4.2} ${sh - 0.4} ${top + 1.8} Z`} style={outfit} />
+        <g style={outfit}>{shell(1.25)}</g>
+        <path d={`M ${-hem - 1.2} ${bot} L ${hem + 1.2} ${bot} L ${hem + 0.7} ${bot + 5.2} Q 0 ${bot + 6.5} ${-hem - 0.7} ${bot + 5.2} Z`} style={outfit} />
+        <path d={`M ${-sh + 1.1} ${top + 1.7} Q 0 ${top + 5.4} ${sh - 1.1} ${top + 1.7}`} fill="none" stroke="#000" strokeWidth="1.1" opacity="0.22" />
+        <path d={`M 0 ${top + 4} L 0 ${bot + 4.9}`} stroke="#000" strokeWidth="1" opacity="0.3" />
+        {[-1, 1].map((side) => (
+          <path key={side} data-parka-pocket={side < 0 ? "left" : "right"} d={`M ${side * 1.8} ${bot - 7.2} L ${side * (hem + 0.1)} ${bot - 6.4} L ${side * (hem - 0.2)} ${bot - 1.8} L ${side * 2} ${bot - 2.7} Z`} fill="#000" opacity="0.15" />
+        ))}
+        <path d={`M ${-hem - 0.6} ${bot + 4.4} Q 0 ${bot + 6.2} ${hem + 0.6} ${bot + 4.4}`} fill="none" stroke="#000" strokeWidth="1" opacity="0.18" />
+      </>
+    ),
+  },
+  peacoat: {
+    // A compact tailored winter coat: broad lapels and two brass button rows
+    // distinguish it from the single-button blazer in every view.
+    finish: CRISP,
+    cuffs: true,
+    drape: true,
+    back: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell(1.1)}</g>
+        <path d={`M ${-hem - 0.5} ${bot - 0.4} L ${hem + 0.5} ${bot - 0.4} L ${hem} ${bot + 3.2} Q 0 ${bot + 4.2} ${-hem} ${bot + 3.2} Z`} style={outfit} />
+        <path data-peacoat-yoke="back" d={`M -5.8 ${top + 1.2} Q 0 ${top + 5.6} 5.8 ${top + 1.2}`} fill="none" stroke="#000" strokeWidth="1.2" opacity="0.2" />
+        <path d={`M -4.2 ${bot - 3.4} Q 0 ${bot - 1.8} 4.2 ${bot - 3.4}`} fill="none" stroke="#000" strokeWidth="1.1" opacity="0.2" />
+      </>
+    ),
+    side: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell(1.1)}</g>
+        <path d={`M ${-hem - 0.4} ${bot - 0.4} L ${hem + 0.4} ${bot - 0.4} L ${hem} ${bot + 3.2} L ${-hem} ${bot + 3.2} Z`} style={outfit} />
+        <path data-peacoat-lapel="side" d={`M -3.9 ${top + 0.4} L 0.5 ${top + 5} L -2 ${top + 8.1} L -4.8 ${top + 3.5} Z`} fill="#000" opacity="0.16" />
+        {[top + 9, top + 13].map((y) => <circle key={y} data-peacoat-button="side" cx="-1.1" cy={y} r="0.78" fill={BRASS} />)}
+      </>
+    ),
+    draw: ({ hem, top, bot, outfit, shell }) => (
+      <>
+        <g style={outfit}>{shell(1.1)}</g>
+        <path d={`M ${-hem - 0.5} ${bot - 0.4} L ${hem + 0.5} ${bot - 0.4} L ${hem} ${bot + 3.2} Q 0 ${bot + 4.2} ${-hem} ${bot + 3.2} Z`} style={outfit} />
+        <path data-peacoat-lapel="left" d={`M -4.4 ${top + 0.4} L -0.8 ${top + 4.4} L -3.1 ${top + 6.3} L 0 ${top + 10.2} L -6 ${top + 4.1} Z`} fill="#000" opacity="0.16" />
+        <path data-peacoat-lapel="right" d={`M 4.4 ${top + 0.4} L 0.8 ${top + 4.4} L 3.1 ${top + 6.3} L 0 ${top + 10.2} L 6 ${top + 4.1} Z`} fill="#fff" opacity="0.1" />
+        {[-2.1, 2.1].flatMap((x) => [8.4, 12, 15.6].map((dy) => (
+          <circle key={`${x}-${dy}`} data-peacoat-button="front" cx={x} cy={top + dy} r="0.78" fill={BRASS} opacity="0.92" />
+        )))}
+        <path d={`M ${-hem + 1.4} ${bot - 3.4} L -2.8 ${bot - 2.8} M ${hem - 1.4} ${bot - 3.4} L 2.8 ${bot - 2.8}`} stroke="#000" strokeWidth="1.1" opacity="0.2" />
       </>
     ),
   },
@@ -1151,7 +1295,7 @@ export function GarmentCollar({ kind, headY, torsoY, outfit }) {
 /** A fitted neckline, instead of a broad oval covering the shirt opening and
  * the neck. Tailored tops keep two collar leaves; knitwear has a narrow band. */
 export function Neckline({ kind, torsoY, outfit, view = "front" }) {
-  const tailored = ["shirt", "tie", "blouse"].includes(kind);
+  const tailored = ["shirt", "flannel", "tie", "blouse"].includes(kind);
   return <g transform={`translate(0,${torsoY})`}>
     <g transform={view === "side" ? "scale(.72,1)" : undefined}>
       {tailored && view !== "back" ? <>

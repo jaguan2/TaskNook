@@ -8,8 +8,8 @@ import {
 
 describe("character presets", () => {
   it("ships uniquely named starting looks including winter and gardening outfits", () => {
-    expect(CHARACTER_PRESETS).toHaveLength(10);
-    expect(new Set(CHARACTER_PRESETS.map((preset) => preset.key)).size).toBe(10);
+    expect(CHARACTER_PRESETS).toHaveLength(12);
+    expect(new Set(CHARACTER_PRESETS.map((preset) => preset.key)).size).toBe(12);
     expect(CHARACTER_PRESETS.map((preset) => preset.label)).toEqual([
       "Fall style girl",
       "Fall style guy",
@@ -20,6 +20,8 @@ describe("character presets", () => {
       "Lofi girl",
       "Cozy gamer",
       "Winter reader",
+      "Cabin weekend",
+      "Snow day",
       "Garden helper",
     ]);
   });

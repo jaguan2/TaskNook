@@ -40,7 +40,7 @@ room's seat placement rules. Review these after changing furniture: an empty
 chair can look good while its backrest hides the sitter or its seat floats
 under them. The bench also joins the cream/dark/sage material fixtures.
 
-`seated-look-*` fixtures show all ten complete looks, front/rear and
+`seated-look-*` fixtures show all twelve complete looks, front/rear and
 idle/focus/break, using the established seated rig. Check them alongside
 standing, carried and ordinary seated views. The experimental skewed chair
 pose was rejected and removed; a future seated perspective needs a coherent

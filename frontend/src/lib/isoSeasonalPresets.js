@@ -56,6 +56,40 @@ export function createIsoSeasonalPresets() {
       { item: "bunny", gx: 8, gy: 6.5, tint: "#d8dde2" },
     ],
   },
+  holiday: {
+    label: "Holiday hearth",
+    icon: "\u{1F381}",
+    size: {
+      w: 9,
+      d: 7,
+      env: "room",
+      lighting: "candle",
+      wallColors: { left: "#6f5148", right: "#4e4740" },
+    },
+    items: [
+      // A bedless indoor winter room: the hearth and tree are the anchors,
+      // while the open seat belongs to the player. This complements the
+      // outdoor Winter yard without turning the general Cozy cabin seasonal.
+      { item: "fireplace", gx: 3.5, gy: 0 },
+      { item: "christmastree", gx: 6.5, gy: 0.5 },
+      { item: "giftstack", gx: 7, gy: 2.5 },
+      // Keep both wall pieces clear of the fireplace and the tree canopy.
+      { item: "evergreengarland", gx: 0.5, gy: 0 },
+      { item: "stocking", gx: 2.5, gy: 0, tint: "#a9474c" },
+      // Reuse the cabin's proven conversation geometry, but give this lounge
+      // its own rug and a served table rather than a sleeping corner.
+      { item: "persianrug", gx: 0.5, gy: 3.5, tint: "#8e3a3f" },
+      { item: "sofa", gx: 0, gy: 3.5, rot: 1, tint: "#61765d" },
+      { item: "coffeetable", gx: 1.5, gy: 4, rot: 1, tint: "#9b7659" },
+      { item: "ciderset", gx: 2, gy: 4 },
+      { item: "armchair", gx: 3, gy: 4.5, tint: "#8f6b58" },
+      { item: "blanketbasket", gx: 3.5, gy: 5.5, tint: "#9b7659" },
+      // One small display gets one object, avoiding stacked-item overlap.
+      { item: "sidetable", gx: 4.5, gy: 4.5, tint: "#7a5947" },
+      { item: "snowglobe", gx: 5, gy: 4.5, tint: "#5e735d" },
+      { item: "cat", gx: 6, gy: 5.5, tint: "#3a3142" },
+    ],
+  },
   summer: {
     label: "Poolside",
     icon: "⛱️",
