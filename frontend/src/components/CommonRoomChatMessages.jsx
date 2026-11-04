@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n/I18nProvider";
+
 export default function CommonRoomChatMessages({
   open,
   deafened,
@@ -5,17 +7,18 @@ export default function CommonRoomChatMessages({
   pending,
   scrollerRef,
 }) {
+  const { formatList, t } = useI18n();
   return (
     <div
       ref={scrollerRef}
       role="log"
       aria-live="polite"
-      aria-label="Room messages"
+      aria-label={t("chat.room.messages")}
       className={`${open ? "max-h-44" : "max-h-20"} cozy-scroll overflow-y-auto border-t border-white/5 bg-night/20 px-3 py-2`}
     >
       {deafened && (
         <p className="mb-1 text-center text-[10px] font-semibold text-petal/50">
-          Incoming room chat is paused
+          {t("chat.room.paused")}
         </p>
       )}
       <div className="space-y-1">
@@ -34,8 +37,9 @@ export default function CommonRoomChatMessages({
       </div>
       {pending.length > 0 && !deafened && (
         <p role="status" className="mt-1 text-[10px] text-petal/45">
-          {pending.map((item) => item.label).join(" and ")}
-          {pending.length === 1 ? " is" : " are"} typing…
+          {t(pending.length === 1 ? "chat.room.typingOne" : "chat.room.typingMany", {
+            names: formatList(pending.map((item) => item.label)),
+          })}
         </p>
       )}
     </div>

@@ -15,6 +15,27 @@ project already uses.
 
 ---
 
+## 2026-11-03
+
+**NEW**
+- **App language setting.** Settings now offers English, Spanish, Simplified
+  Chinese, Japanese and Korean. The choice is saved per device, follows the
+  browser/OS language on first launch, and updates the document language for
+  assistive technology.
+- **Localized rooms and conversations.** Panel chrome, room-building controls,
+  every current furniture and decoration name, preset/category labels, common
+  room chat, NPC dialogue choices, replies, check-ins and relative timestamps
+  now use the selected language. Saved item keys and user-written names remain
+  unchanged, so switching language cannot invalidate an existing room.
+
+**UPDATED**
+- **Translation growth path.** Locale copy, catalog labels and dialogue packs
+  are separate modules with English fallback. Coverage tests require each
+  supported language to name every catalog resource and preserve every message
+  placeholder, preventing future additions from silently appearing in English
+  or dropping dynamic names and counts. Language choices use native radio
+  controls, and multi-person chat statuses use locale-aware name lists.
+
 ## 2026-11-02
 
 **NEW**

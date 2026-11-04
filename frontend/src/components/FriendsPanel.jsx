@@ -8,6 +8,7 @@ import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 import { COMMON_PLACES } from "../lib/commonRooms";
 import FriendsLeaderboard from "./FriendsLeaderboard";
+import { useI18n } from "../i18n/I18nProvider";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
 
@@ -28,6 +29,7 @@ const ACTIVITY_LINE = {
 const ACTIVITY_DOT = { focus: "bg-glow", break: "bg-sage", idle: "bg-petal/40" };
 
 export default function FriendsPanel() {
+  const { label, language, t } = useI18n();
   // The knock timer lives in the STORE, not here — this drawer closes for
   // all sorts of reasons mid-wait, and a knock that died with it broke
   // "the bots always answer". Scheduled chat replies live there for exactly
@@ -237,23 +239,23 @@ export default function FriendsPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2" aria-label="Common places">
-        <p className="text-xs font-semibold text-petal/65">Places to settle together</p>
+      <section className="space-y-2" aria-label={t("friends.places.aria")}>
+        <p className="text-xs font-semibold text-petal/65">{t("friends.places.title")}</p>
         {Object.values(COMMON_PLACES).map((place) => {
           const joined = commonRoom?.sceneId === place.id;
           const occupants = joined
             ? commonRoom.occupants || place.neighbours
             : commonPresence?.[place.id]?.occupants || place.neighbours;
           const attendees = joined
-            ? [...occupants, { username: "you", label: "You" }]
+            ? [...occupants, { username: "you", label: t("friends.places.you") }]
             : occupants;
           return <button key={place.id} type="button"
           onClick={() => enterCommonRoom(place.id)} disabled={joined}
           className="flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-3 text-left transition hover:bg-white/10">
           <span className="text-2xl" aria-hidden="true">{place.icon}</span>
-          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-cream">{place.label}</span>
-            <span className="mt-1 block text-[11px] text-petal/60">{place.description}</span>
-            <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wide text-petal/55">Here now</span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-cream">{label("commonPlaces", place.id, place.label)}</span>
+            <span className="mt-1 block text-[11px] text-petal/60">{label("commonPlaceDescriptions", place.id, place.description)}</span>
+            <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wide text-petal/55">{t("friends.places.hereNow")}</span>
             <span className="mt-1 flex flex-wrap gap-1">
               {attendees.map((person) => <span key={person.username} title={`@${person.username}`}
                 className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-cream/85">
@@ -261,10 +263,10 @@ export default function FriendsPanel() {
               </span>)}
             </span>
             <span className="mt-1.5 block text-[10px] text-petal/45">
-              {place.seats.length - attendees.length} open seats
+              {t("friends.places.openSeats", { count: place.seats.length - attendees.length })}
             </span>
           </span>
-          <span className="text-xs text-glow">{joined ? "Here" : "Join"}</span>
+          <span className="text-xs text-glow">{joined ? t("friends.places.here") : t("friends.places.join")}</span>
         </button>})}
       </section>
       <FriendsLeaderboard
@@ -329,7 +331,7 @@ export default function FriendsPanel() {
                 <span className="text-base">👥</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-cream">
-                    {chatTitle(c, user?.id)}
+                    {chatTitle(c, user?.id, language)}
                   </span>
                   {c.lastMessage && (
                     <span className="block truncate text-[11px] text-petal/50">
@@ -339,7 +341,7 @@ export default function FriendsPanel() {
                 </span>
                 {c.lastMessage && (
                   <span className="shrink-0 text-[10px] text-petal/40">
-                    {whenLabel(c.lastMessage.createdAt, Date.now())}
+                    {whenLabel(c.lastMessage.createdAt, Date.now(), language)}
                   </span>
                 )}
                 {/* The Settings "Chat" visibility only quiets the unread

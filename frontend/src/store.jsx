@@ -45,6 +45,7 @@ import { useProgression } from "./hooks/useProgression";
 import { totalStudyMinutes } from "./lib/progression";
 import { useSavedLooks } from "./hooks/useSavedLooks";
 import { useProfileCharacter } from "./hooks/useProfileCharacter";
+import { useI18n } from "./i18n/I18nProvider";
 import {
   MESSAGE_MAX,
   botReply,
@@ -162,6 +163,7 @@ const BUILT_IN_STATIONS = [
 ];
 
 export function StoreProvider({ children }) {
+  const { language } = useI18n();
   const { soundMix, setSoundLevel, stopAllSounds, applySoundMix } = useSoundMixer();
   const {
     widgetMode, setWidgetMode, brightness, setBrightness,
@@ -1953,8 +1955,8 @@ export function StoreProvider({ children }) {
           // being answered may itself have tipped a level.
           const bond = bondLevelOf(username);
           const reply = optionId
-            ? replyToOption(username, optionId, Date.now(), seed + i, bond)
-            : botReply(username, text, Date.now(), seed + i, bond);
+            ? replyToOption(username, optionId, Date.now(), seed + i, bond, language)
+            : botReply(username, text, Date.now(), seed + i, bond, language);
           await api.sendMessage(chat.id, reply, friend.id);
           notifyChat(chat.id);
           refreshChats();
@@ -2010,9 +2012,9 @@ export function StoreProvider({ children }) {
       if (!list.length) return;
       const speaker = nudgeSpeaker(list.map((f) => f.username), Date.now());
       const friend = list.find((f) => f.username === speaker);
-      if (friend) await botSays(friend, breakNudgeLine(speaker, spanLabel, Date.now() % 997));
+      if (friend) await botSays(friend, breakNudgeLine(speaker, spanLabel, Date.now() % 997, language));
     },
-    [botSays]
+    [botSays, language]
   );
 
   /**
@@ -2032,7 +2034,7 @@ export function StoreProvider({ children }) {
     if (!list.length) return;
     const today = toISO(new Date());
     if (readStored(CHECKIN_KEY) === today) return;
-    const plan = dailyCheckIn(list.map((f) => f.username), today);
+    const plan = dailyCheckIn(list.map((f) => f.username), today, language);
     if (!plan) return;
     const nowDate = new Date();
     if (nowDate.getHours() * 60 + nowDate.getMinutes() < plan.minute) return;
@@ -2043,7 +2045,7 @@ export function StoreProvider({ children }) {
     writeStored(CHECKIN_KEY, today);
     const ok = await botSays(friend, plan.text);
     if (!ok) removeStored(CHECKIN_KEY); // let a failed day try again
-  }, [botSays]);
+  }, [botSays, language]);
 
   // Checked on a slow timer as well as on arrival: the app is left open for
   // hours at a time (it's half ambient furniture), so the appointed minute

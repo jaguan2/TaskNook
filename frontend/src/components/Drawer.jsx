@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion, useDragControls } from "framer-motion";
 import { Pin, X } from "lucide-react";
 import { shouldDismissAtEdge } from "../lib/widgetDrag";
+import { useI18n } from "../i18n/I18nProvider";
 
 export default function Drawer({
   title,
@@ -14,6 +15,7 @@ export default function Drawer({
   onPointerDownCapture,
   children,
 }) {
+  const { t } = useI18n();
   const dragControls = useDragControls();
   const drawerRef = useRef(null);
 
@@ -57,7 +59,7 @@ export default function Drawer({
     >
       <header
         onPointerDown={(e) => dragControls.start(e)}
-        title="Drag to move · drag almost off-screen to close"
+        title={t("drawer.drag")}
         className="flex cursor-grab items-start justify-between border-b border-white/10 px-5 py-4 active:cursor-grabbing"
       >
         <div>
@@ -67,7 +69,7 @@ export default function Drawer({
         <div className="flex items-center gap-1">
           <button
             onClick={onTogglePin}
-            title={pinned ? "Unpin" : "Pin in place"}
+            title={pinned ? t("drawer.unpin") : t("drawer.pin")}
             className={`pill grid h-8 w-8 place-items-center transition ${
               pinned ? "bg-glow text-plum" : "text-cream hover:bg-white/10"
             }`}
@@ -76,8 +78,8 @@ export default function Drawer({
           </button>
           <button
             onClick={onClose}
-            title="Close (Esc)"
-            aria-label="Close (Esc)"
+            title={t("drawer.close")}
+            aria-label={t("drawer.close")}
             className="pill grid h-8 w-8 place-items-center text-cream hover:bg-white/10"
           >
             <X size={16} />

@@ -4,6 +4,7 @@ import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { StoreProvider } from "./store";
 import { TimerProvider } from "./timer";
+import { I18nProvider } from "./i18n/I18nProvider";
 import "./index.css";
 import "./styles/weather.css";
 import "./styles/focus-widget.css";
@@ -17,11 +18,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       {/* TimerProvider nests INSIDE the store (it reads the active task and
           logs sessions through it) and wraps App, so the timer's per-second
           tick reaches only the components that display a clock. */}
-      <StoreProvider>
-        <TimerProvider>
-          <App />
-        </TimerProvider>
-      </StoreProvider>
+      <I18nProvider>
+        <StoreProvider>
+          <TimerProvider>
+            <App />
+          </TimerProvider>
+        </StoreProvider>
+      </I18nProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

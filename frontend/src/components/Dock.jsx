@@ -14,23 +14,25 @@ import {
   Users,
 } from "lucide-react";
 import { readStored, writeStored } from "../services/storage";
+import { useI18n } from "../i18n/I18nProvider";
 
 // Lucide stroke icons, not emoji: they inherit the theme's text colour and
 // render identically on every OS (Windows emoji looked out of place — user
 // feedback).
 const ITEMS = [
-  { key: "tasks", Icon: ClipboardList, label: "Tasks" },
-  { key: "calendar", Icon: CalendarDays, label: "Calendar" },
-  { key: "friends", Icon: Users, label: "Friends" },
-  { key: "challenges", Icon: Leaf, label: "Challenges" },
-  { key: "music", Icon: Headphones, label: "Sounds" },
-  { key: "weather", Icon: CloudSun, label: "Weather" },
-  { key: "room", Icon: Sofa, label: "Room" },
-  { key: "profile", Icon: UserRound, label: "Profile" },
-  { key: "settings", Icon: Settings, label: "Settings" },
+  { key: "tasks", Icon: ClipboardList, labelKey: "panel.tasks.title" },
+  { key: "calendar", Icon: CalendarDays, labelKey: "panel.calendar.title" },
+  { key: "friends", Icon: Users, labelKey: "panel.friends.title" },
+  { key: "challenges", Icon: Leaf, labelKey: "panel.challenges.title" },
+  { key: "music", Icon: Headphones, labelKey: "panel.music.title" },
+  { key: "weather", Icon: CloudSun, labelKey: "panel.weather.title" },
+  { key: "room", Icon: Sofa, labelKey: "panel.room.title" },
+  { key: "profile", Icon: UserRound, labelKey: "panel.profile.title" },
+  { key: "settings", Icon: Settings, labelKey: "panel.settings.title" },
 ];
 
 export default function Dock({ active, onSelect, onWarm }) {
+  const { t } = useI18n();
   // Collapsible so the scene can breathe (VC2 keeps its chrome ghosted and
   // minimal). Persisted per device — it's a display preference.
   const [collapsed, setCollapsed] = useState(
@@ -41,7 +43,7 @@ export default function Dock({ active, onSelect, onWarm }) {
     const rect = event.currentTarget.getBoundingClientRect();
     const narrow = window.innerWidth < 600;
     setTooltip({
-      label: item.label,
+      label: t(item.labelKey),
       left: narrow ? rect.left + rect.width / 2 : rect.right + 8,
       top: narrow ? rect.top - 8 : rect.top + rect.height / 2,
     });
@@ -69,8 +71,8 @@ export default function Dock({ active, onSelect, onWarm }) {
       >
         {collapsed ? (
           <button
-            title="Open menu"
-            aria-label="Open menu"
+            title={t("dock.open")}
+            aria-label={t("dock.open")}
             onClick={toggle}
             className="dock-open pill grid h-10 w-10 place-items-center text-cream transition hover:bg-white/10"
           >
@@ -79,8 +81,8 @@ export default function Dock({ active, onSelect, onWarm }) {
         ) : (
           <>
             <button
-              title="Collapse menu"
-              aria-label="Collapse menu"
+              title={t("dock.collapse")}
+              aria-label={t("dock.collapse")}
               onClick={toggle}
               className="dock-collapse pill grid h-5 w-10 shrink-0 place-items-center text-petal/50 transition hover:bg-white/10 hover:text-cream"
             >
@@ -103,7 +105,7 @@ export default function Dock({ active, onSelect, onWarm }) {
                 }`}
               >
                 <item.Icon size={17} />
-                <span className="sr-only">{item.label}</span>
+                <span className="sr-only">{t(item.labelKey)}</span>
               </button>
             ))}
             </div>

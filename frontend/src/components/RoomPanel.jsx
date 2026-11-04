@@ -1,7 +1,8 @@
-import { useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useRoomStore, useSocialStore } from "../store";
 import { useArmed } from "../hooks/useArmed";
+import { useI18n } from "../i18n/I18nProvider";
 import { COTTAGE_SETTINGS, ITEMS, ITEM_KEYS, PRESETS } from "../lib/room";
 import {
   ISO_ENVS,
@@ -45,10 +46,10 @@ const PRESET_ROOMS = Object.fromEntries(Object.entries(PRESETS).map(([key, prese
   [key, preset.placements.map((p, i) => ({ ...p, id: `${key}-${i}` }))]));
 
 const ZONE_SECTIONS = [
-  { zone: "wall", label: "On the wall" },
-  { zone: "desk", label: "On the desk" },
-  { zone: "floor", label: "On the floor" },
-  { zone: "ceiling", label: "Ceiling" },
+  { zone: "wall", labelKey: "wall" },
+  { zone: "desk", labelKey: "desk" },
+  { zone: "floor", labelKey: "floor" },
+  { zone: "ceiling", labelKey: "ceiling" },
 ];
 
 function ItemPreview({ itemKey }) {
@@ -73,6 +74,7 @@ function ItemPreview({ itemKey }) {
 }
 
 export default function RoomPanel() {
+  const { label, locale, t } = useI18n();
   const {
     cottageView,
     setCottageView,
@@ -132,16 +134,29 @@ export default function RoomPanel() {
     acc[p.item] = (acc[p.item] || 0) + 1;
     return acc;
   }, {});
+  const isoItemLabel = useCallback(
+    (key) => label("isoItems", key, ISO_ITEMS[key]?.label || key),
+    [label]
+  );
+  const cottageItemLabel = useCallback(
+    (key) => label("cottageItems", key, ITEMS[key]?.label || key),
+    [label]
+  );
+  const matchesCatalogQuery = useCallback((translated, english, query) => {
+    const needle = query.trim().toLocaleLowerCase(locale);
+    if (!needle) return true;
+    return translated.toLocaleLowerCase(locale).includes(needle)
+      || english.toLocaleLowerCase(locale).includes(needle);
+  }, [locale]);
   const visibleItemGroups = useMemo(() => {
-    const query = catalogQuery.trim().toLocaleLowerCase();
     return ISO_ITEM_GROUPS.map((group) => ({
       ...group,
       keys: group.keys.filter((key) => {
         if (ISO_ITEMS[key].wall && !envHasWalls(isoEnv, isoRoom.walls)) return false;
-        return !query || ISO_ITEMS[key].label.toLocaleLowerCase().includes(query);
+        return matchesCatalogQuery(isoItemLabel(key), ISO_ITEMS[key].label, catalogQuery);
       }),
     })).filter((group) => group.keys.length);
-  }, [catalogQuery, isoEnv, isoRoom.walls]);
+  }, [catalogQuery, isoEnv, isoRoom.walls, isoItemLabel, matchesCatalogQuery]);
   const visibleItemCount = visibleItemGroups.reduce((total, group) => total + group.keys.length, 0);
 
   // While VISITING, the whole panel stands down — not just the Decorate
@@ -156,16 +171,18 @@ export default function RoomPanel() {
     return (
       <div className="space-y-3 rounded-2xl bg-white/5 px-4 py-6 text-center">
         <p className="text-sm font-semibold text-cream">
-          {commonRoom ? "You're in a furnished common place 🏡" : `You're at ${visiting.friend.displayName}'s place ☕`}
+          {commonRoom
+            ? t("room.visiting.common.title")
+            : t("room.visiting.friend.title", { name: visiting.friend.displayName })}
         </p>
         <p className="text-xs text-petal/60">
-          {commonRoom ? "Pick an open seat and settle in. This shared space is already furnished." : "Decorating works on your own room — head home first."}
+          {commonRoom ? t("room.visiting.common.description") : t("room.visiting.friend.description")}
         </p>
         <button
           onClick={leaveVisit}
           className="pill bg-glow px-4 py-2 text-sm font-semibold text-plum hover:bg-amber"
         >
-          Head home
+          {t("room.visiting.home")}
         </button>
       </div>
     );
@@ -185,20 +202,20 @@ export default function RoomPanel() {
         >
           {roomEditMode ? (
             <>
-              <Check size={16} /> Done decorating
+              <Check size={16} /> {t("room.decorate.done")}
             </>
           ) : (
             <>
-              <Sofa size={16} /> Decorate the room
+              <Sofa size={16} /> {t("room.decorate.start")}
             </>
           )}
         </button>
         <p className="text-xs text-petal/60">
           {roomEditMode
             ? isoPreview
-              ? "Drag furniture across the grid — half-tile snapping. Tap an item for colours and ✕ to put it away."
-              : "Drag to arrange, or select an item for arrow-key movement, duplicate, colours and two-tap removal."
-            : "Turn on decorating to drag things around the room."}
+              ? t("room.decorate.help.iso")
+              : t("room.decorate.help.classic")
+            : t("room.decorate.help.off")}
         </p>
       </section>
 
@@ -206,7 +223,7 @@ export default function RoomPanel() {
       <section className="space-y-2 rounded-2xl border border-glow/20 bg-glow/5 p-3">
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-            <Boxes size={15} className="text-petal/70" /> Isometric room
+            <Boxes size={15} className="text-petal/70" /> {t("room.iso.title")}
           </p>
           <button
             onClick={() => setIsoPreview(!isoPreview)}
@@ -214,14 +231,14 @@ export default function RoomPanel() {
               isoPreview ? "bg-glow text-plum" : "bg-white/10 text-petal hover:bg-white/20"
             }`}
           >
-            {isoPreview ? "On" : "Off"}
+            {isoPreview ? t("common.on") : t("common.off")}
           </button>
         </div>
         {isoPreview ? (
           <>
             <div className="flex items-center gap-2">
               <span className="w-10 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                width
+                {t("room.iso.width")}
               </span>
               <input
                 type="range"
@@ -230,14 +247,14 @@ export default function RoomPanel() {
                 step="1"
                 value={isoRoom.w}
                 onChange={(e) => setIsoSize(Number(e.target.value), isoRoom.d)}
-                aria-label="Room width"
+                aria-label={t("room.iso.widthAria")}
                 className="flex-1 accent-glow"
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.w}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-10 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                depth
+                {t("room.iso.depth")}
               </span>
               <input
                 type="range"
@@ -246,7 +263,7 @@ export default function RoomPanel() {
                 step="1"
                 value={isoRoom.d}
                 onChange={(e) => setIsoSize(isoRoom.w, Number(e.target.value))}
-                aria-label="Room depth"
+                aria-label={t("room.iso.depthAria")}
                 className="flex-1 accent-glow"
               />
               <span className="w-6 text-right text-xs tabular-nums text-petal/70">{isoRoom.d}</span>
@@ -255,7 +272,7 @@ export default function RoomPanel() {
                 are drawn explicitly in the floor-plan editor below. */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                floor
+                {t("room.iso.floor")}
               </span>
               {ISO_ENV_KEYS.map((env) => (
                 <button
@@ -267,16 +284,16 @@ export default function RoomPanel() {
                       : "bg-white/10 text-petal hover:bg-white/20"
                   }`}
                 >
-                  {ISO_ENVS[env].icon} {ISO_ENVS[env].label}
+                  {ISO_ENVS[env].icon} {label("isoEnvs", env, ISO_ENVS[env].label)}
                 </button>
               ))}
               <span className="w-full text-[10px] text-petal/40">
-                Each floor sets its exterior edge; draw interior walls in the floor plan.
+                {t("room.iso.floorHelp")}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                light
+                {t("room.iso.light")}
               </span>
               {ISO_LIGHTING_KEYS.map((key) => (
                 <button
@@ -288,11 +305,11 @@ export default function RoomPanel() {
                       : "bg-white/10 text-petal hover:bg-white/20"
                   }`}
                 >
-                  {ISO_LIGHTING[key].label}
+                  {label("isoLighting", key, ISO_LIGHTING[key].label)}
                 </button>
               ))}
               <span className="w-full text-[10px] text-petal/40">
-                Candlelight breathes gently; reduced-motion mode keeps it still.
+                {t("room.iso.lightHelp")}
               </span>
             </div>
             {/* A 48×48 plan is 2,304 interactive cells. Keep that DOM out of
@@ -306,10 +323,10 @@ export default function RoomPanel() {
               >
                 <span>
                   <span className="block text-[10px] font-semibold uppercase tracking-wide text-petal/60">
-                    Floor plan
+                    {t("room.plan.title")}
                   </span>
                   <span className="block text-[10px] text-petal/40">
-                    {isoRoom.w}×{isoRoom.d} · open to reshape
+                    {t("room.plan.summary", { width: isoRoom.w, depth: isoRoom.d })}
                   </span>
                 </span>
                 <ChevronDown
@@ -321,7 +338,7 @@ export default function RoomPanel() {
                 <div className="border-t border-white/10 p-2.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                      Drag to draw
+                      {t("room.plan.draw")}
                     </span>
                     <span className="flex items-center gap-2">
                       {(isoRoom.partitions?.length > 0 || isoRoom.arches?.length > 0) && (
@@ -329,7 +346,7 @@ export default function RoomPanel() {
                           onClick={resetIsoPartitions}
                           className="text-[10px] font-semibold text-petal/55 hover:text-danger"
                         >
-                          Clear walls
+                          {t("room.plan.clearWalls")}
                         </button>
                       )}
                       {isoRoom.mask && (
@@ -337,18 +354,18 @@ export default function RoomPanel() {
                           onClick={resetIsoShape}
                           className="text-[10px] font-semibold text-glow/80 hover:text-glow"
                         >
-                          ⟲ Full floor
+                          {t("room.plan.fullFloor")}
                         </button>
                       )}
                     </span>
                   </div>
-                  <div className="mb-2 grid grid-cols-5 gap-1" role="group" aria-label="Floor-plan tool">
+                  <div className="mb-2 grid grid-cols-5 gap-1" role="group" aria-label={t("room.plan.toolAria")}>
                     {[
-                      { key: "floor", label: "Floor" },
-                      { key: "wall-h", label: "Wall ↔" },
-                      { key: "wall-v", label: "Wall ↕" },
-                      { key: "arch-h", label: "Arch ↔" },
-                      { key: "arch-v", label: "Arch ↕" },
+                      { key: "floor", labelKey: "room.plan.floor" },
+                      { key: "wall-h", labelKey: "room.plan.wallH" },
+                      { key: "wall-v", labelKey: "room.plan.wallV" },
+                      { key: "arch-h", labelKey: "room.plan.archH" },
+                      { key: "arch-v", labelKey: "room.plan.archV" },
                     ].map((tool) => (
                       <button
                         key={tool.key}
@@ -364,13 +381,13 @@ export default function RoomPanel() {
                             : "bg-white/5 text-petal/60 hover:bg-white/10"
                         }`}
                       >
-                        {tool.label}
+                        {t(tool.labelKey)}
                       </button>
                     ))}
                   </div>
                   <div className="mb-2 flex items-center gap-1.5 text-[10px] text-petal/55">
                     <span className="h-2.5 w-4 rounded-[3px] border border-cream/70 bg-plum/80" />
-                    Filled shapes show each item's full footprint.
+                    {t("room.plan.footprints")}
                   </div>
                   <div className="relative rounded-lg bg-white/5 p-1">
                     <div
@@ -426,8 +443,10 @@ export default function RoomPanel() {
                               if (paintMode.kind === "floor") setIsoTile(x, y, paintMode.on);
                               else applyBoundary(paintMode.kind, paintMode.plane, paintMode.on);
                             }}
-                            title={`Tile ${x + 1}, ${y + 1}${
-                              occupants.length ? ` — occupied by ${occupants.join(", ")}` : ""
+                            title={`${t("room.plan.tile", { x: x + 1, y: y + 1 })}${
+                              occupants.length
+                                ? ` — ${t("room.plan.occupied", { items: occupants.map(isoItemLabel).join(", ") })}`
+                                : ""
                             }`}
                             data-occupied={occupants.length ? "true" : undefined}
                             className={`relative aspect-square cursor-crosshair rounded-[2px] transition-colors ${
@@ -484,22 +503,18 @@ export default function RoomPanel() {
                     </div>
                   </div>
                   <p className="mt-2 text-[10px] text-petal/45">
-                    Draw solid walls or passable arch openings along tile edges. Start on the same type to erase it.
+                    {t("room.plan.help")}
                   </p>
                 </div>
               )}
             </div>
             <p className="text-xs text-petal/50">
-              A {isoRoom.w}×{isoRoom.d} floor — resize it, shape the floor, and
-              divide it into rooms with drawn walls.
-              Furniture stays on the drawn floor. Scroll to zoom, drag empty
-              space to look around, double-click to recenter.
+              {t("room.iso.summary", { width: isoRoom.w, depth: isoRoom.d })}
             </p>
           </>
         ) : (
           <p className="text-xs text-petal/60">
-            The Sims-style room (beta): place furniture on a resizable tile
-            grid. Both rooms keep their own layouts.
+            {t("room.iso.offHelp")}
           </p>
         )}
       </section>
@@ -515,7 +530,7 @@ export default function RoomPanel() {
       {isoPreview && (
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-            Start from a preset
+            {t("room.presets.title")}
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             {ISO_PRESET_KEYS.map((key) => (
@@ -523,18 +538,18 @@ export default function RoomPanel() {
                 key={key}
                 type="button"
                 onClick={() => applyIsoPreset(key)}
-                title={`Use ${ISO_PRESETS[key].label}`}
+                title={t("room.presets.use", { name: label("isoPresets", key, ISO_PRESETS[key].label) })}
                 className="rounded-xl bg-white/5 p-2 text-left transition hover:bg-white/15"
               >
                 <IsoPresetPreview preset={ISO_PRESETS[key]} />
                 <span className="mt-1 block truncate text-center text-xs font-medium text-cream">
-                  {ISO_PRESETS[key].icon} {ISO_PRESETS[key].label}
+                  {ISO_PRESETS[key].icon} {label("isoPresets", key, ISO_PRESETS[key].label)}
                 </span>
               </button>
             ))}
           </div>
           <p className="mt-2 text-xs text-petal/50">
-            One click replaces the current layout (floor size included) — then tweak from there.
+            {t("room.presets.isoHelp")}
           </p>
         </section>
       )}
@@ -550,10 +565,10 @@ export default function RoomPanel() {
           >
             <span>
               <span className="block text-xs font-semibold uppercase tracking-wide text-petal/60">
-                Furniture
+                {t("room.catalog.title")}
               </span>
               <span className="block text-[10px] text-petal/40">
-                Browse by category · sprites load one category at a time
+                {t("room.catalog.description")}
               </span>
             </span>
             <ChevronDown
@@ -572,8 +587,8 @@ export default function RoomPanel() {
                   type="search"
                   value={catalogQuery}
                   onChange={(e) => setCatalogQuery(e.target.value)}
-                  placeholder="Find furniture"
-                  aria-label="Search furniture"
+                  placeholder={t("room.catalog.search")}
+                  aria-label={t("room.catalog.searchAria")}
                   className="w-full rounded-full border border-white/10 bg-white/5 py-1.5 pl-8 pr-3 text-xs text-cream outline-none placeholder:text-petal/35 focus:border-glow/50"
                 />
               </label>
@@ -593,7 +608,7 @@ export default function RoomPanel() {
                         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
                       >
                         <span className="text-[11px] font-semibold text-petal/70">
-                          {group.label}
+                          {label("isoGroups", group.label, group.label)}
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] text-petal/40">
                           {keys.length}
@@ -609,7 +624,7 @@ export default function RoomPanel() {
                             <button
                               key={key}
                               onClick={() => addIsoItem(key)}
-                              title={"Add " + ISO_ITEMS[key].label.toLowerCase()}
+                              title={t("room.catalog.addTitle", { name: isoItemLabel(key) })}
                               className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
                             >
                               <span>
@@ -617,12 +632,12 @@ export default function RoomPanel() {
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-xs font-medium text-cream">
-                                  {ISO_ITEMS[key].label}
+                                  {isoItemLabel(key)}
                                 </span>
                                 <span className="text-[10px] text-petal/50">
-                                  {isoCounts[key] ? isoCounts[key] + " placed · " : ""}
+                                  {isoCounts[key] ? `${t("common.placed", { count: isoCounts[key] })} · ` : ""}
                                   <span className="hover-reveal text-glow/80 transition">
-                                    + add
+                                    {t("common.add")}
                                   </span>
                                 </span>
                               </span>
@@ -635,13 +650,12 @@ export default function RoomPanel() {
                 })}
                 {visibleItemGroups.length === 0 && (
                   <p className="rounded-xl bg-white/5 px-3 py-5 text-center text-xs text-petal/55">
-                    No furniture matches “{catalogQuery.trim()}”.
+                    {t("room.catalog.empty", { query: catalogQuery.trim() })}
                   </p>
                 )}
               </div>
               <p className="mt-2 text-xs text-petal/50">
-                {visibleItemCount} pieces available. Tap a placed item for its controls:
-                ⟳ mirrors it, 🎨 recolours, ✕ puts it away.
+                {t("room.catalog.summary", { count: visibleItemCount })}
               </p>
             </>
           )}
@@ -649,9 +663,9 @@ export default function RoomPanel() {
       )}
 
       {!isoPreview && <section>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">Outside your window</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">{t("room.classic.window")}</p>
         <div className="flex flex-wrap gap-1.5">
-          {Object.entries(COTTAGE_SETTINGS).map(([key, label]) => <button key={key} aria-pressed={cottageView === key} onClick={() => setCottageView(key)} className={`pill px-3 py-1.5 text-xs ${cottageView === key ? "bg-rose/25 text-cream" : "bg-white/10 text-petal"}`}>{label}</button>)}
+          {Object.entries(COTTAGE_SETTINGS).map(([key, settingLabel]) => <button key={key} aria-pressed={cottageView === key} onClick={() => setCottageView(key)} className={`pill px-3 py-1.5 text-xs ${cottageView === key ? "bg-rose/25 text-cream" : "bg-white/10 text-petal"}`}>{label("cottageSettings", key, settingLabel)}</button>)}
         </div>
       </section>}
 
@@ -659,7 +673,7 @@ export default function RoomPanel() {
       {!isoPreview && (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-          Start from a preset
+          {t("room.presets.title")}
         </p>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(PRESETS).map(([key, preset]) => (
@@ -669,7 +683,7 @@ export default function RoomPanel() {
               className="overflow-hidden rounded-xl bg-white/5 text-left text-xs font-semibold text-petal hover:bg-white/15"
             >
               <Cottage preview reduceMotion setting={preset.setting || "city"} timeOfDay={key === "seaside" || key === "greenhouse" ? "day" : "night"} room={PRESET_ROOMS[key]} />
-              <span className="block px-3 py-2">{preset.label}</span>
+              <span className="block px-3 py-2">{label("cottagePresets", key, preset.label)}</span>
             </button>
           ))}
         </div>
@@ -686,34 +700,34 @@ export default function RoomPanel() {
             }`}
           >
             {armedId === "clear" ? (
-              "sure?"
+              t("common.sure")
             ) : (
               <>
-                <Eraser size={12} /> Clear the room
+                <Eraser size={12} /> {t("room.classic.clear")}
               </>
             )}
           </button>
         </div>
         <p className="mt-2 text-xs text-petal/50">
-          Presets replace the current layout — then tweak from there.
+          {t("room.presets.classicHelp")}
         </p>
       </section>
       )}
 
       {!isoPreview && <label className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-petal/60">
         <Search size={14} />
-        <input aria-label="Search cottage decorations" placeholder="Find a decoration..." value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-cream outline-none" />
+        <input aria-label={t("room.classic.searchAria")} placeholder={t("room.classic.search")} value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-cream outline-none" />
       </label>}
-      {!isoPreview && !ITEM_KEYS.some((key) => ITEMS[key].label.toLowerCase().includes(catalogQuery.trim().toLowerCase())) && <p className="text-xs text-petal/60">No matching decorations. Try a different name.</p>}
+      {!isoPreview && !ITEM_KEYS.some((key) => matchesCatalogQuery(cottageItemLabel(key), ITEMS[key].label, catalogQuery)) && <p className="text-xs text-petal/60">{t("room.classic.empty")}</p>}
       {/* Inventory (classic scene) */}
       {!isoPreview &&
-        ZONE_SECTIONS.filter(({ zone }) => ITEM_KEYS.some((key) => ITEMS[key].zone === zone && ITEMS[key].label.toLowerCase().includes(catalogQuery.trim().toLowerCase()))).map(({ zone, label }) => (
+        ZONE_SECTIONS.filter(({ zone }) => ITEM_KEYS.some((key) => ITEMS[key].zone === zone && matchesCatalogQuery(cottageItemLabel(key), ITEMS[key].label, catalogQuery))).map(({ zone, labelKey }) => (
         <section key={zone}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-            {label}
+            {label("cottageZones", labelKey, labelKey)}
           </p>
           <div className="grid grid-cols-2 gap-1.5">
-            {ITEM_KEYS.filter((k) => ITEMS[k].zone === zone && ITEMS[k].label.toLowerCase().includes(catalogQuery.trim().toLowerCase())).map((key) => {
+            {ITEM_KEYS.filter((k) => ITEMS[k].zone === zone && matchesCatalogQuery(cottageItemLabel(k), ITEMS[k].label, catalogQuery)).map((key) => {
               // Fixed items (string lights) are singletons — once placed,
               // adding another is a no-op, so say so instead of a dead button.
               const maxed = ITEMS[key].fixed && counts[key] > 0;
@@ -722,7 +736,7 @@ export default function RoomPanel() {
                   key={key}
                   onClick={() => addRoomItem(key)}
                   disabled={maxed}
-                  title={maxed ? "Already up" : `Add ${ITEMS[key].label.toLowerCase()}`}
+                  title={maxed ? t("room.classic.alreadyUp") : t("room.catalog.addTitle", { name: cottageItemLabel(key) })}
                   className={`group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition ${
                     maxed ? "opacity-50" : "hover:bg-white/15"
                   }`}
@@ -730,15 +744,15 @@ export default function RoomPanel() {
                   <ItemPreview itemKey={key} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-medium text-cream">
-                      {ITEMS[key].label}
+                      {cottageItemLabel(key)}
                     </span>
                     <span className="text-[10px] text-petal/50">
-                      {counts[key] ? `${counts[key]} placed · ` : ""}
+                      {counts[key] ? `${t("common.placed", { count: counts[key] })} · ` : ""}
                       {maxed ? (
-                        "up ✓"
+                        t("room.classic.up")
                       ) : (
                         <span className="hover-reveal text-glow/80 transition">
-                          + add
+                          {t("common.add")}
                         </span>
                       )}
                     </span>

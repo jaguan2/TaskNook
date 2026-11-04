@@ -19,6 +19,15 @@
  * would be two simulations telling different stories about the same person.
  */
 import { npcActivity } from "./visiting";
+import { languageMeta, normalizeLanguage } from "../i18n";
+import {
+  dialoguePack,
+  localizedCheckIn,
+  localizedNudge,
+  localizedOptionLabel,
+  localizedReply,
+  localizedTopic,
+} from "../i18n/dialogue";
 
 /** Longest a message can be — matches MESSAGE_MAX on the column. */
 export const MESSAGE_MAX = 2000;
@@ -437,23 +446,27 @@ const CELEBRATE = {
  * `theirTurn` — the last message in the thread is theirs — swaps in "Thanks",
  * which is the one option that only makes sense as a response.
  */
-export function dialogueOptions(username, now, { theirTurn = false, lastMessage = "" } = {}) {
+export function dialogueOptions(username, now, { theirTurn = false, lastMessage = "", language = "en" } = {}) {
+  const makeOptions = (ids) => ids.map((id) => ({
+    id,
+    label: localizedOptionLabel(language, id, OPTION_LABEL[id]),
+  }));
   if (theirTurn && /\b(tea|kettle|chai|earl grey|matcha)\b/i.test(lastMessage)) {
     const ids = /\b(jasmine|ginger|earl grey|cinnamon chai)\b/i.test(lastMessage)
       ? ["tea_milk", "tea_share", "working", "thanks"] : THREAD_MENU;
-    return ids.map((id) => ({ id, label: OPTION_LABEL[id] }));
+    return makeOptions(ids);
   }
   if (theirTurn && /\b(topic|star|chart|astronomy|poetry|nebula|book|chapter|essay|recipe|baking|problem|notes|block|list)\w*\b/i.test(lastMessage)) {
-    return ["celebrate", "encourage", "study", "thanks"].map((id) => ({ id, label: OPTION_LABEL[id] }));
+    return makeOptions(["celebrate", "encourage", "study", "thanks"]);
   }
   if (theirTurn && /\b(breathe|small|tiniest|rest|tired|step)\w*\b/i.test(lastMessage)) {
-    return ["joke", "study", "thanks"].map((id) => ({ id, label: OPTION_LABEL[id] }));
+    return makeOptions(["joke", "study", "thanks"]);
   }
   const { state } = npcActivity(username, now);
   const byPart = MENU[state] || MENU.idle;
   const ids = [...(byPart[dayPartOf(now)] || byPart.afternoon)];
   if (theirTurn && !ids.includes("thanks")) ids.splice(ids.length - 1, 0, "thanks");
-  return ids.map((id) => ({ id, label: OPTION_LABEL[id] }));
+  return makeOptions(ids);
 }
 
 /**
@@ -463,8 +476,17 @@ export function dialogueOptions(username, now, { theirTurn = false, lastMessage 
  * with lines only a close friend says. Defaults to 1 so every reply pinned
  * before the bond existed still lands word-for-word.
  */
-export function replyToOption(username, optionId, now, seed = 0, bond = 1) {
+export function replyToOption(username, optionId, now, seed = 0, bond = 1, language = "en") {
   const { state, minutesLeft } = npcActivity(username, now);
+  if (dialoguePack(language)) {
+    const kind = OPTION_SHAPE[optionId] || (optionId === "howsit" ? state : optionId);
+    const h = hash(username, optionId, seed);
+    return localizedReply(language, kind, h, {
+      left: minutesLeft,
+      blocks: blocksLeftOf(username, now),
+      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), topicOf(username, now)),
+    });
+  }
   if (optionId === "tea") return (TEA[username] || TEA.mochi)[0];
   if (optionId === "tea_milk") return (TEA[username] || TEA.mochi)[1];
   if (optionId === "celebrate") return pick(CELEBRATE[username] || CELEBRATE.kai, hash(username, optionId, seed));
@@ -509,6 +531,12 @@ const LOWMOOD = /\b(tired|exhausted|stressed|overwhelmed|burnt? ?out|can'?t focu
 function intentOf(text) {
   const body = String(text || "").trim();
   if (!body) return { shape: null };
+  if (/(谢谢|多谢|ありがとう|ありがと|고마워|감사|gracias)/i.test(body)) return { shape: "thanks" };
+  if (/(再见|晚安|じゃあね|またね|おやすみ|안녕히|잘 자|나중에|adiós|hasta luego|buenas noches)/i.test(body)) return { shape: "bye" };
+  if (/(笑话|冗談|농담|chiste)/i.test(body)) return { shape: "joke" };
+  if (/(一起.*(学习|读书)|一緒に.*(勉強|学習)|같이.*(공부|학습)|estudiar juntos)/i.test(body)) return { option: "study" };
+  if (/(累|压力|焦虑|始められ|疲れ|ストレス|힘들|피곤|스트레스|cansad|agotad|estresad)/i.test(body)) return { shape: "encourage" };
+  if (/^(你好|嗨|哈喽|こんにちは|こんばんは|やあ|안녕|hola|buenas)[！!。.\s]*$/i.test(body)) return { shape: "greeting" };
   // Celebrate a stated win, never "haven't finished" or a question about them.
   if (!/\b(not|never|haven't|havent|hadn't|didn't|didnt)\b|\?/i.test(body)
     && /\bi(?:'ve| have)?\s+(?:(?:just|finally|already)\s+)?(?:finished|completed|checked off|got it done)\b/i.test(body)) {
@@ -537,10 +565,10 @@ function intentOf(text) {
  * `seed` distinguishes repeats — pass the thread's message count, so asking
  * the same thing twice doesn't get the same words back.
  */
-export function botReply(username, text, now, seed = 0, bond = 1) {
+export function botReply(username, text, now, seed = 0, bond = 1, language = "en") {
   const intent = intentOf(text);
-  if (intent.option) return replyToOption(username, intent.option, now, seed, bond);
-  return replyFor(username, intent.shape, text, now, seed, bond);
+  if (intent.option) return replyToOption(username, intent.option, now, seed, bond, language);
+  return replyFor(username, intent.shape, text, now, seed, bond, language);
 }
 
 // Generic pools for the two shapes only typed text can reach.
@@ -560,10 +588,16 @@ const EXTRA_SHAPED = {
  * menu) and `salt` is whatever should make repeats differ — the text you
  * typed, or the option id. Split out so the two entry points can't drift.
  */
-function replyFor(username, shape, salt, now, seed = 0, bond = 1) {
+function replyFor(username, shape, salt, now, seed = 0, bond = 1, language = "en") {
   const { state, minutesLeft } = npcActivity(username, now);
   const h = hash(username, salt, seed);
   const vars = { left: minutesLeft, topic: topicOf(username, now), blocks: blocksLeftOf(username, now) };
+  if (dialoguePack(language)) {
+    return localizedReply(language, shape || state, h, {
+      ...vars,
+      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), vars.topic),
+    });
+  }
 
   // Busy beats chatty: mid-block, they answer the way someone typing with one
   // hand does, whatever you asked. (A plea for encouragement still gets a
@@ -666,7 +700,7 @@ const CHECKIN = {
  * a check-in at 04:00 would be waiting for you every morning, which reads as a
  * backlog rather than as someone thinking of you.
  */
-export function dailyCheckIn(usernames, dayKey) {
+export function dailyCheckIn(usernames, dayKey, language = "en") {
   const names = [...(usernames || [])].filter(Boolean).sort();
   if (!names.length) return null;
   const h = hash("checkin", dayKey);
@@ -679,7 +713,8 @@ export function dailyCheckIn(usernames, dayKey) {
   return {
     username,
     minute,
-    text: pick(pool, hash("say", dayKey, username)),
+    text: localizedCheckIn(language, band, hash("say", dayKey, username))
+      || pick(pool, hash("say", dayKey, username)),
   };
 }
 
@@ -695,8 +730,9 @@ const NUDGE_LINES = [
  * plainer words and is the reliable channel — this is the warm one, and it
  * lands in a thread so it's still there when you come back.
  */
-export function breakNudgeLine(username, spanLabel, seed = 0) {
-  return pick(NUDGE_LINES, hash("nudge", username, seed)).replace("{mins}", spanLabel);
+export function breakNudgeLine(username, spanLabel, seed = 0, language = "en") {
+  return localizedNudge(language, spanLabel, hash("nudge", username, seed))
+    || pick(NUDGE_LINES, hash("nudge", username, seed)).replace("{mins}", spanLabel);
 }
 
 /** Who says it: whoever is least busy, so the nudge doesn't come mid-block. */
@@ -710,30 +746,32 @@ export function nudgeSpeaker(usernames, now) {
 }
 
 /** A thread's display name: its title, or whoever else is in it. */
-export function chatTitle(chat, myId) {
+export function chatTitle(chat, myId, language = "en") {
   if (!chat) return "";
   if (chat.title) return chat.title;
   const others = (chat.members || []).filter((m) => m.id !== myId);
-  if (others.length === 0) return "Just you";
+  if (others.length === 0) return dialoguePack(language)?.justYou || "Just you";
   return others.map((m) => m.displayName).join(", ");
 }
 
 /** Short relative time for a message stamp — "now", "12m", "3h", "Tue". */
-export function whenLabel(iso, now) {
+export function whenLabel(iso, now, language = "en") {
   if (!iso) return "";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
   const mins = Math.floor((now - then) / 60000);
-  if (mins < 1) return "now";
+  const pack = dialoguePack(language);
+  if (mins < 1) return pack?.now || "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
+  if (days === 1) return pack?.yesterday || "yesterday";
+  const locale = languageMeta(normalizeLanguage(language)).locale;
   if (days < 7) {
-    return new Date(then).toLocaleDateString([], { weekday: "short" });
+    return new Date(then).toLocaleDateString(locale, { weekday: "short" });
   }
   // Local parts, never toISOString — the same day-boundary rule as everywhere
   // else in the app.
-  return new Date(then).toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(then).toLocaleDateString(locale, { month: "short", day: "numeric" });
 }

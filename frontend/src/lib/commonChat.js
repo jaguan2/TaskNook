@@ -1,19 +1,20 @@
 import { groupResponders } from "./chat";
+import { translate } from "../i18n";
 
 export const COMMON_CHAT_MAX_LENGTH = 280;
 export const COMMON_CHAT_MAX_MESSAGES = 60;
 
-export function commonChatWelcome(displayName, roomName) {
+export function commonChatWelcome(displayName, roomName, language = "en") {
   const name = String(displayName || "You").trim() || "You";
   const room = String(roomName || "the common room").trim() || "the common room";
-  return `Welcome ${name} to ${room}`;
+  return translate(language, "chat.room.welcome", { name, room }, `Welcome ${name} to ${room}`);
 }
 
-export function commonChatPresence(change) {
+export function commonChatPresence(change, language = "en") {
   const label = change?.person?.label || change?.person?.username;
   if (!label) return null;
-  if (change.type === "joined") return `${label} joined the room`;
-  if (change.type === "left") return `${label} left the room`;
+  if (change.type === "joined") return translate(language, "chat.room.joined", { name: label }, `${label} joined the room`);
+  if (change.type === "left") return translate(language, "chat.room.left", { name: label }, `${label} left the room`);
   return null;
 }
 

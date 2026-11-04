@@ -102,6 +102,10 @@ describe("chat delivery and recovery", () => {
     act(() => mocks.listeners.get(chat.id)({ messagesChanged: false, pending: [{ displayName: "Luna" }] }));
     expect(screen.getByRole("status").textContent).toBe("Luna is taking a moment to reply…");
     expect(mocks.chatMessages).toHaveBeenCalledTimes(reads);
+    act(() => mocks.listeners.get(chat.id)({ messagesChanged: false, pending: [
+      { displayName: "Luna" }, { displayName: "Kai" },
+    ] }));
+    expect(screen.getByRole("status").textContent).toBe("Luna and Kai are taking a moment to reply…");
     act(() => mocks.listeners.get(chat.id)({ messagesChanged: false, pending: [] }));
     expect(screen.queryByRole("status")).toBeNull();
   });

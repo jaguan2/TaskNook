@@ -17,11 +17,12 @@ import { levelFor } from "../lib/friendship";
 import { isTypingTarget } from "../lib/typing";
 import CommonRoomChatMessages from "./CommonRoomChatMessages";
 import CommonRoomRoster from "./CommonRoomRoster";
+import { useI18n } from "../i18n/I18nProvider";
 
-const initial = (user, roomName) => [{
+const initial = (user, roomName, language) => [{
   id: "welcome",
   kind: "system",
-  body: commonChatWelcome(user?.displayName || user?.username, roomName),
+  body: commonChatWelcome(user?.displayName || user?.username, roomName, language),
 }];
 
 const isControlTarget = (target) => {
@@ -31,13 +32,14 @@ const isControlTarget = (target) => {
 };
 
 export default function CommonRoomChat({ session, roomName, user, friendship = {}, disabled = false }) {
+  const { language, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [selfMuted, setSelfMuted] = useState(false);
   const [deafened, setDeafened] = useState(false);
   const [mutedPeople, setMutedPeople] = useState(() => new Set());
-  const [messages, setMessages] = useState(() => initial(user, roomName));
+  const [messages, setMessages] = useState(() => initial(user, roomName, language));
   const [pending, setPending] = useState([]);
   const inputRef = useRef(null);
   const scrollerRef = useRef(null);
@@ -100,11 +102,17 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
     if (!changeKey || seenChange.current === changeKey) return;
     seenChange.current = changeKey;
     if (deafened) return;
-    const body = commonChatPresence(session.change);
+    const body = commonChatPresence(session.change, language);
     if (!body) return;
     const message = { id: `presence-${changeKey}`, kind: "system", body };
     setMessages((current) => appendCommonChatMessage(current, message));
-  }, [changeKey, deafened, session.change]);
+  }, [changeKey, deafened, language, session.change]);
+
+  useEffect(() => {
+    setMessages((current) => current.map((message) => message.id === "welcome"
+      ? { ...message, body: commonChatWelcome(user?.displayName || user?.username, roomName, language) }
+      : message));
+  }, [language, roomName, user?.displayName, user?.username]);
 
   const visibleMessages = useMemo(
     () => messages.filter((message) =>
@@ -165,7 +173,7 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
         kind: "npc",
         username: responder.username,
         label: responder.label,
-        body: botReply(responder.username, body, Date.now(), id, bond),
+        body: botReply(responder.username, body, Date.now(), id, bond, language),
       }));
     }, replyDelayMs(responder.username, sentAt, id));
     timers.current.add(timeout);
@@ -177,7 +185,7 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
     <section
       data-common-room-chat
       data-common-chat-open={open ? "true" : "false"}
-      aria-label="Common room chat"
+      aria-label={t("chat.room.aria")}
       className="common-room-chat absolute z-30 w-[min(22rem,calc(100vw-7.5rem))]"
     >
       <div className="glass overflow-hidden rounded-2xl border border-white/10 shadow-soft backdrop-blur-xl">
@@ -191,8 +199,8 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
           className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-cream transition hover:bg-white/10"
         >
           <MessageCircle size={14} className="text-glow" />
-          <span className="flex-1">Room chat</span>
-          {!open && <span className="font-normal text-petal/50">Enter or /</span>}
+          <span className="flex-1">{t("chat.room.title")}</span>
+          {!open && <span className="font-normal text-petal/50">{t("chat.room.openHint")}</span>}
           <ChevronDown size={14} className={`transition ${open ? "rotate-180" : ""}`} />
         </button>
 
@@ -214,11 +222,11 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
                 aria-controls="common-room-participants"
                 className="pill flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold text-petal transition hover:bg-white/10 hover:text-cream"
               >
-                <Users size={12} /> {session.occupants.length + 1} here
+                <Users size={12} /> {t("chat.room.here", { count: session.occupants.length + 1 })}
                 <span className="text-petal/40">Tab</span>
               </button>
               <span className="ml-auto text-[10px] text-petal/40">
-                Esc closes
+                {t("chat.room.closeHint")}
               </span>
             </div>
 
@@ -260,14 +268,14 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
                 }}
                 disabled={selfMuted}
                 maxLength={COMMON_CHAT_MAX_LENGTH}
-                aria-label="Message the room"
-                placeholder={selfMuted ? "Unmute yourself to chat" : "Message the room…"}
+                aria-label={t("chat.room.message")}
+                placeholder={selfMuted ? t("chat.room.unmuteHint") : t("chat.room.placeholder")}
                 className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-cream placeholder:text-petal/40 focus:border-glow/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={selfMuted || !draft.trim()}
-                aria-label="Send room message"
+                aria-label={t("chat.room.send")}
                 className="pill grid h-8 w-8 place-items-center bg-white/10 text-petal transition hover:bg-white/20 disabled:opacity-35"
               >
                 <Send size={13} />

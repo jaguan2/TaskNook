@@ -14,6 +14,7 @@ import { useReducedMotionPref } from "./lib/motion";
 import { isTypingTarget } from "./lib/typing";
 import { moodFor } from "./lib/profile";
 import { derivePalette, PALETTE_VARS } from "./lib/palette";
+import { useI18n } from "./i18n/I18nProvider";
 import { hasDesktopWidgetApi, onDesktopApiReady, setDesktopWidgetMode } from "./services/desktop";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CommonRoomChat from "./components/CommonRoomChat";
@@ -64,15 +65,15 @@ const warmPanel = (key) => PANEL_LOADERS[key]?.().catch(() => undefined);
 
 const PANELS = {
   // Tasks owns goals and list completion; Calendar owns focus history.
-  tasks: { title: "Tasks", subtitle: "Add, arrange & check things off", Comp: TaskPanel },
-  calendar: { title: "Calendar", subtitle: "Plan tasks across your days", Comp: CalendarPanel },
-  friends: { title: "Friends", subtitle: "Cheer on your cottage neighbours", Comp: FriendsPanel },
-  challenges: { title: "Challenges", subtitle: "Little things to try today", Comp: ChallengesPanel },
-  music: { title: "Sounds", subtitle: "Set the mood for deep focus", Comp: MusicPanel },
-  weather: { title: "Weather", subtitle: "Check the sky outside, for real", Comp: WeatherPanel },
-  room: { title: "Room", subtitle: "Make the space yours — drag to arrange", Comp: RoomPanel },
-  profile: { title: "Profile", subtitle: "Who you are, and who lives here", Comp: ProfilePanel },
-  settings: { title: "Settings", subtitle: "Brightness & colours", Comp: SettingsPanel },
+  tasks: { titleKey: "panel.tasks.title", subtitleKey: "panel.tasks.subtitle", Comp: TaskPanel },
+  calendar: { titleKey: "panel.calendar.title", subtitleKey: "panel.calendar.subtitle", Comp: CalendarPanel },
+  friends: { titleKey: "panel.friends.title", subtitleKey: "panel.friends.subtitle", Comp: FriendsPanel },
+  challenges: { titleKey: "panel.challenges.title", subtitleKey: "panel.challenges.subtitle", Comp: ChallengesPanel },
+  music: { titleKey: "panel.music.title", subtitleKey: "panel.music.subtitle", Comp: MusicPanel },
+  weather: { titleKey: "panel.weather.title", subtitleKey: "panel.weather.subtitle", Comp: WeatherPanel },
+  room: { titleKey: "panel.room.title", subtitleKey: "panel.room.subtitle", Comp: RoomPanel },
+  profile: { titleKey: "panel.profile.title", subtitleKey: "panel.profile.subtitle", Comp: ProfilePanel },
+  settings: { titleKey: "panel.settings.title", subtitleKey: "panel.settings.subtitle", Comp: SettingsPanel },
 };
 
 // "faded" stays interactive (a quieter HUD, not a hidden one); "hidden" and
@@ -86,6 +87,7 @@ function hudWrapClass(hiddenByEdit, visMode) {
 }
 
 export default function App() {
+  const { label, t } = useI18n();
   const {
     booting,
     bootError,
@@ -471,16 +473,16 @@ export default function App() {
             exit={{ y: 24, opacity: 0 }}
             onClick={leaveVisit}
             aria-label={commonRoom
-              ? `Return home from ${COMMON_PLACES[commonRoom.sceneId].label}`
-              : `Return home from ${visiting.friend.displayName}'s room`}
-            title="Return home"
+              ? t("visit.returnFromPlace", { place: label("commonPlaces", commonRoom.sceneId, COMMON_PLACES[commonRoom.sceneId].label) })
+              : t("visit.returnFromFriend", { name: visiting.friend.displayName })}
+            title={t("visit.returnHome")}
             className="room-action-chip pill glass absolute z-30 flex h-11 w-11 items-center justify-center gap-1.5 px-2 text-sm font-semibold text-glow shadow-soft hover:bg-white/10 xl:w-auto xl:max-w-[calc(100vw-24rem)] xl:justify-start xl:px-4"
           >
             <ArrowLeft aria-hidden className="shrink-0" size={16} strokeWidth={2.2} />
             {commonRoom ? <>
-              <span className="hidden min-w-0 truncate xl:inline">{COMMON_PLACES[commonRoom.sceneId].icon} {COMMON_PLACES[commonRoom.sceneId].label}</span>
-              <span className="ml-1 hidden shrink-0 text-petal/60 xl:inline">· Common room</span>
-            </> : <span className="hidden min-w-0 truncate xl:inline">{visiting.friend.avatar} In {visiting.friend.displayName}&apos;s room</span>}
+              <span className="hidden min-w-0 truncate xl:inline">{COMMON_PLACES[commonRoom.sceneId].icon} {label("commonPlaces", commonRoom.sceneId, COMMON_PLACES[commonRoom.sceneId].label)}</span>
+              <span className="ml-1 hidden shrink-0 text-petal/60 xl:inline">· {t("visit.commonRoom")}</span>
+            </> : <span className="hidden min-w-0 truncate xl:inline">{visiting.friend.avatar} {t("visit.inFriendRoom", { name: visiting.friend.displayName })}</span>}
           </motion.button>
         )}
       </AnimatePresence>
@@ -493,7 +495,7 @@ export default function App() {
           <CommonRoomChat
             key={`chat-${commonRoom.sceneId}`}
             session={commonRoom}
-            roomName={COMMON_PLACES[commonRoom.sceneId].label}
+            roomName={label("commonPlaces", commonRoom.sceneId, COMMON_PLACES[commonRoom.sceneId].label)}
             user={user}
             friendship={friendship}
             disabled={widgetMode || hudVisibility.chat === "hidden"}
@@ -609,8 +611,8 @@ export default function App() {
           return (
             <Drawer
               key={key}
-              title={Def.title}
-              subtitle={Def.subtitle}
+              title={t(Def.titleKey)}
+              subtitle={t(Def.subtitleKey)}
               pinned={pinned}
               onTogglePin={() => togglePin(key)}
               onClose={() => closePanel(key)}
@@ -621,7 +623,7 @@ export default function App() {
               {/* Each panel is its own chunk; the fallback is a beat at most
                   (local file), so keep it quiet rather than a spinner. */}
               <Suspense
-                fallback={<p className="px-1 py-4 text-xs text-petal/40">Opening…</p>}
+                fallback={<p className="px-1 py-4 text-xs text-petal/40">{t("common.opening", undefined, "Opening…")}</p>}
               >
                 <Def.Comp />
               </Suspense>

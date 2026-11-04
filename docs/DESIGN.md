@@ -625,6 +625,14 @@ chair, because a preview that lies is worse than no preview.
   as a prop instead. The lightning flash is the standing example: a
   full-screen white pulse is a photosensitivity concern, not just a motion
   one.
+- **Language is display state, never persistence identity.** Settings →
+  Language stores a locale code (`en`, `es`, `zh-CN`, `ja`, `ko`) separately
+  from the main room/task store. Catalog items, presets and common places keep
+  their stable English keys in SQLite/local storage and resolve translated
+  labels only while rendering. User-written task titles, room names and saved
+  look names are never translated. New languages belong in `src/i18n/`, must
+  fall back to English per key, and must pass the catalog coverage test before
+  shipping.
 
 ## Chrome vocabulary
 

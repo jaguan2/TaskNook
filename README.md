@@ -173,6 +173,7 @@ to disable checks. Source launches and `TASKNOOK_SELFTEST` never check online.
 | **Pets that live here** | A cat, a dog and a rabbit that wander the room on their own, pick their way around the furniture, and curl up asleep when they find a rug, a blanket or a pet bed. |
 | **Friends & chat** | Local simulated neighbours have daily activity, productivity, chat choices and friendship levels. Visit their rooms or receive drop-ins at home. The local account starts with four demo friends; these are NPCs, not other installations. |
 | **Common places** | Join Common Cottage, Willow Pond or the Grand Library, each with authored furniture and multiple floor heights. Cottage and Pond have six seats with three NPC neighbours; the Grand Library has thirty-six seats with twelve neighbours across its reading tables and gallery. Choose an open seat. Common places have fixed decoration and leave your home layout unchanged. |
+| **Languages** | Switch the interface, room catalog and simulated dialogue between English, Spanish, Simplified Chinese, Japanese and Korean from Settings. The choice persists on the device; user-written tasks and saved names stay as entered. |
 
 **Ordering algorithms:**
 

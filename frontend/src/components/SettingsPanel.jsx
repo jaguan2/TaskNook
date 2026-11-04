@@ -2,33 +2,35 @@ import { useEffect, useState } from "react";
 import { EyeOff, MonitorCog, Music2, Palette, SunMedium, Waves, Wind } from "lucide-react";
 import { useAudioStore, useSettingsStore } from "../store";
 import { paletteSwatch, hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
+import { useI18n } from "../i18n/I18nProvider";
+import LanguageSettings from "./settings/LanguageSettings";
 
 const MOTION_OPTIONS = [
-  { key: "auto", label: "Auto", Icon: MonitorCog },
-  { key: "full", label: "Full", Icon: Wind },
-  { key: "reduced", label: "Reduced", Icon: Waves },
+  { key: "auto", labelKey: "settings.motion.auto", Icon: MonitorCog },
+  { key: "full", labelKey: "settings.motion.full", Icon: Wind },
+  { key: "reduced", labelKey: "settings.motion.reduced", Icon: Waves },
 ];
 
 // Matches store.jsx's DEFAULT_HUD_VISIBILITY keys — a mismatched key here
 // would silently no-op the button (setHudVisibility guards against unknown
 // keys) instead of throwing, so keep the two lists in sync by hand.
 const HUD_ELEMENTS = [
-  { key: "timer", label: "Session & timer" },
-  { key: "tasks", label: "To-do list" },
-  { key: "music", label: "Music bar" },
-  { key: "clock", label: "Clock" },
-  { key: "chat", label: "Room chat & unread badges" },
+  { key: "timer", labelKey: "settings.hud.timer" },
+  { key: "tasks", labelKey: "settings.hud.tasks" },
+  { key: "music", labelKey: "settings.hud.music" },
+  { key: "clock", labelKey: "settings.hud.clock" },
+  { key: "chat", labelKey: "settings.hud.chat" },
 ];
 const VIS_OPTIONS = [
-  { key: "on", label: "Show" },
-  { key: "faded", label: "Dim" },
-  { key: "hidden", label: "Hide" },
+  { key: "on", labelKey: "settings.hud.show" },
+  { key: "faded", labelKey: "settings.hud.dim" },
+  { key: "hidden", labelKey: "settings.hud.hide" },
 ];
 
 const HUD_PRESETS = [
-  { key: "on", label: "Show all" },
-  { key: "faded", label: "Dim all" },
-  { key: "hidden", label: "Hide all" },
+  { key: "on", labelKey: "settings.hud.showAll" },
+  { key: "faded", labelKey: "settings.hud.dimAll" },
+  { key: "hidden", labelKey: "settings.hud.hideAll" },
 ];
 
 // One-tap starting points for the custom scheme.
@@ -69,14 +71,15 @@ function Slider({ label, min, max, value, onChange, trackStyle }) {
 // Preset ramps live in index.css as [data-theme] blocks; the swatches here
 // are their night / rose / petal stops.
 const COLOR_SCHEMES = [
-  { key: "plum", label: "Plum Night", swatch: ["#2b1830", "#d98a93", "#f3c6c0"] },
-  { key: "abyss", label: "Abyssal Deep", swatch: ["#01162b", "#6a90b4", "#d2dbeb"] },
-  { key: "shore", label: "Sea Breeze", swatch: ["#2c3943", "#9dabb4", "#ece6e3"] },
-  { key: "linen", label: "Linen Afternoon", swatch: ["#3a4147", "#9b8c7d", "#d7d2c4"] },
-  { key: "walnut", label: "Walnut Cream", swatch: ["#373a37", "#ab9d78", "#e5e2cd"] },
+  { key: "plum", labelKey: "settings.colour.plum", swatch: ["#2b1830", "#d98a93", "#f3c6c0"] },
+  { key: "abyss", labelKey: "settings.colour.abyss", swatch: ["#01162b", "#6a90b4", "#d2dbeb"] },
+  { key: "shore", labelKey: "settings.colour.shore", swatch: ["#2c3943", "#9dabb4", "#ece6e3"] },
+  { key: "linen", labelKey: "settings.colour.linen", swatch: ["#3a4147", "#9b8c7d", "#d7d2c4"] },
+  { key: "walnut", labelKey: "settings.colour.walnut", swatch: ["#373a37", "#ab9d78", "#e5e2cd"] },
 ];
 
 export default function SettingsPanel() {
+  const { t } = useI18n();
   const {
     brightness,
     setBrightness,
@@ -113,13 +116,17 @@ export default function SettingsPanel() {
 
   return (
     <div className="space-y-5">
+      <LanguageSettings />
+
+      <hr className="border-white/10" />
+
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <SunMedium size={15} className="text-petal/70" /> Brightness
+          <SunMedium size={15} className="text-petal/70" /> {t("settings.brightness.title")}
         </p>
-        <p className="text-xs text-petal/60">Dims or brightens the whole scene.</p>
+        <p className="text-xs text-petal/60">{t("settings.brightness.description")}</p>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-petal/60">dim</span>
+          <span className="text-xs text-petal/60">{t("settings.brightness.dim")}</span>
           <input
             type="range"
             min="0.6"
@@ -127,10 +134,10 @@ export default function SettingsPanel() {
             step="0.05"
             value={brightness}
             onChange={(e) => setBrightness(Number(e.target.value))}
-            aria-label="Scene brightness"
+            aria-label={t("settings.brightness.aria")}
             className="flex-1 accent-glow"
           />
-          <span className="text-xs text-petal/60">bright</span>
+          <span className="text-xs text-petal/60">{t("settings.brightness.bright")}</span>
         </div>
       </section>
 
@@ -139,14 +146,14 @@ export default function SettingsPanel() {
           it was a system-wide OS setting. */}
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <Waves size={15} className="text-petal/70" /> Motion
+          <Waves size={15} className="text-petal/70" /> {t("settings.motion.title")}
         </p>
         <p className="text-xs text-petal/60">
           {motionMode === "auto"
-            ? "Following your system setting."
+            ? t("settings.motion.description.auto")
             : motionMode === "reduced"
-            ? "The room holds still — plants, weather, the cat and the clouds."
-            : "Everything moves, even if your system asks otherwise."}
+            ? t("settings.motion.description.reduced")
+            : t("settings.motion.description.full")}
         </p>
         <div className="flex flex-wrap gap-2">
           {MOTION_OPTIONS.map((m) => (
@@ -159,7 +166,7 @@ export default function SettingsPanel() {
                   : "bg-white/10 text-petal hover:bg-white/20"
               }`}
             >
-              <m.Icon size={13} /> {m.label}
+              <m.Icon size={13} /> {t(m.labelKey)}
             </button>
           ))}
         </div>
@@ -173,12 +180,12 @@ export default function SettingsPanel() {
           (see App.jsx's hudWrapClass). */}
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <EyeOff size={15} className="text-petal/70" /> HUD elements
+          <EyeOff size={15} className="text-petal/70" /> {t("settings.hud.title")}
         </p>
         <p className="text-xs text-petal/60">
-          Quiet the scene without stopping timers, music, or notifications.
+          {t("settings.hud.description")}
         </p>
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1" role="group" aria-label="All HUD elements">
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1" role="group" aria-label={t("settings.hud.allAria")}>
           {HUD_PRESETS.map((preset) => {
             const selected = Object.values(hudVisibility).every((mode) => mode === preset.key);
             return (
@@ -192,7 +199,7 @@ export default function SettingsPanel() {
                     : "text-petal/80 hover:bg-white/10 hover:text-cream"
                 }`}
               >
-                {preset.label}
+                {t(preset.labelKey)}
               </button>
             );
           })}
@@ -200,11 +207,11 @@ export default function SettingsPanel() {
         <div className="space-y-2 pt-1">
           {HUD_ELEMENTS.map((el) => (
             <div key={el.key} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-petal/80">{el.label}</span>
+              <span className="text-xs text-petal/80">{t(el.labelKey)}</span>
               <div
-                className="grid w-36 grid-cols-3 gap-0.5 rounded-full bg-white/5 p-0.5"
+                className="grid w-40 shrink-0 grid-cols-3 gap-0.5 rounded-full bg-white/5 p-0.5"
                 role="group"
-                aria-label={`${el.label} visibility`}
+                aria-label={t("settings.hud.visibilityAria", { name: t(el.labelKey) }, `${t(el.labelKey)} visibility`)}
               >
                 {VIS_OPTIONS.map((v) => (
                   <button
@@ -217,7 +224,7 @@ export default function SettingsPanel() {
                         : "text-petal/70 hover:bg-white/10 hover:text-cream"
                     }`}
                   >
-                    {v.label}
+                    {t(v.labelKey)}
                   </button>
                 ))}
               </div>
@@ -225,7 +232,7 @@ export default function SettingsPanel() {
           ))}
         </div>
         <p className="rounded-lg bg-white/5 px-2.5 py-2 text-[11px] leading-relaxed text-petal/60">
-          Hidden HUDs keep running. Open Settings from the left dock whenever you want them back.
+          {t("settings.hud.help")}
         </p>
       </section>
 
@@ -236,13 +243,13 @@ export default function SettingsPanel() {
           both gate on this same setting, so they can't disagree). */}
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <Music2 size={15} className="text-petal/70" /> Music on startup
+          <Music2 size={15} className="text-petal/70" /> {t("settings.music.title")}
         </p>
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-petal/60">
             {autoResumeMusic
-              ? "Resumes where you left off if music was playing when you last closed TaskNook."
-              : "Always starts silent — press play yourself each time."}
+              ? t("settings.music.description.on")
+              : t("settings.music.description.off")}
           </p>
           <button
             onClick={() => setAutoResumeMusic(!autoResumeMusic)}
@@ -253,7 +260,7 @@ export default function SettingsPanel() {
                 : "bg-white/10 text-petal hover:bg-white/20"
             }`}
           >
-            {autoResumeMusic ? "On" : "Off"}
+            {autoResumeMusic ? t("common.on") : t("common.off")}
           </button>
         </div>
       </section>
@@ -262,9 +269,9 @@ export default function SettingsPanel() {
 
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-          <Palette size={15} className="text-petal/70" /> Colour scheme
+          <Palette size={15} className="text-petal/70" /> {t("settings.colour.title")}
         </p>
-        <p className="text-xs text-petal/60">Re-tint the whole app, including the desk scene.</p>
+        <p className="text-xs text-petal/60">{t("settings.colour.description")}</p>
         <div className="flex flex-wrap gap-2">
           {COLOR_SCHEMES.map((s) => (
             <button
@@ -285,7 +292,7 @@ export default function SettingsPanel() {
                   />
                 ))}
               </span>
-              {s.label}
+              {t(s.labelKey)}
             </button>
           ))}
 
@@ -307,24 +314,24 @@ export default function SettingsPanel() {
                 />
               ))}
             </span>
-            Custom
+            {t("settings.colour.custom")}
           </button>
         </div>
 
         <div
           role="group"
-          aria-label="Backdrop style"
+          aria-label={t("settings.backdrop.aria", undefined, "Backdrop style")}
           className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2"
         >
           <div>
-            <p className="text-xs font-semibold text-cream">Backdrop</p>
-            <p className="text-[10px] text-petal/55">Soft glow or flat colour; sky details stay.</p>
+            <p className="text-xs font-semibold text-cream">{t("settings.backdrop.title")}</p>
+            <p className="text-[10px] text-petal/55">{t("settings.backdrop.description")}</p>
           </div>
           <div className="flex shrink-0 gap-1">
             {[
-              ["gradient", "Gradient"],
-              ["solid", "Solid"],
-            ].map(([key, label]) => (
+              ["gradient", "settings.backdrop.gradient"],
+              ["solid", "settings.backdrop.solid"],
+            ].map(([key, labelKey]) => (
               <button
                 key={key}
                 onClick={() => setBackdropStyle(key)}
@@ -335,7 +342,7 @@ export default function SettingsPanel() {
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >
-                {label}
+                {t(labelKey)}
               </button>
             ))}
           </div>
@@ -351,13 +358,13 @@ export default function SettingsPanel() {
                 type="color"
                 value={customColor}
                 onChange={(e) => setCustomColor(e.target.value)}
-                aria-label="Pick a base colour"
-                title="Base colour"
+                aria-label={t("settings.colour.base")}
+                title={t("settings.colour.base")}
                 className="h-9 w-9 shrink-0 rounded-lg border border-white/20 bg-transparent p-0"
               />
               <label className="flex-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                  Hex code
+                  {t("settings.colour.hex")}
                 </span>
                 <input
                   type="text"
@@ -373,7 +380,7 @@ export default function SettingsPanel() {
             </div>
 
             <Slider
-              label="Hue"
+              label={t("settings.colour.hue")}
               min={0}
               max={360}
               value={Math.round(h)}
@@ -384,7 +391,7 @@ export default function SettingsPanel() {
               }}
             />
             <Slider
-              label="Saturation"
+              label={t("settings.colour.saturation")}
               min={0}
               max={100}
               value={Math.round(s)}
@@ -396,7 +403,7 @@ export default function SettingsPanel() {
 
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                Quick
+                {t("settings.colour.quick")}
               </span>
               {QUICK_HUES.map((hex) => (
                 <button
@@ -416,7 +423,7 @@ export default function SettingsPanel() {
                 here can wash the text out. */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                Backdrop
+                {t("settings.backdrop.title")}
               </span>
               <button
                 onClick={() => setCustomSurface(null)}
@@ -426,14 +433,14 @@ export default function SettingsPanel() {
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >
-                Match accent
+                {t("settings.colour.matchAccent")}
               </button>
               {SURFACE_HUES.map((hex) => (
                 <button
                   key={hex}
                   onClick={() => setCustomSurface(hex)}
                   title={hex}
-                  aria-label={`Backdrop colour ${hex}`}
+                  aria-label={t("settings.colour.backdropAria", { hex })}
                   className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
                     customSurface === hex ? "border-glow" : "border-white/25"
                   }`}
@@ -443,8 +450,7 @@ export default function SettingsPanel() {
             </div>
 
             <p className="text-xs text-petal/60">
-              Only the hue &amp; saturation are used — TaskNook builds the rest of
-              the palette so it always stays readable.
+              {t("settings.colour.note")}
             </p>
           </div>
         )}

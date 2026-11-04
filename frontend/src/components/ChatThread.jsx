@@ -4,15 +4,7 @@ import { api } from "../services/api";
 import { useArmed } from "../hooks/useArmed";
 import { chatTitle, dialogueOptions, whenLabel } from "../lib/chat";
 import { npcActivity } from "../lib/visiting";
-
-// What a friend is doing, shown under their name in the thread header — the
-// same line the Friends list gives them, so the two never disagree about the
-// person you're looking at.
-const ACTIVITY_LINE = {
-  focus: (m) => `📖 focusing — ${m}m left`,
-  break: () => "☕ on a break",
-  idle: () => "🪴 pottering about",
-};
+import { useI18n } from "../i18n/I18nProvider";
 
 const MESSAGE_PAGE_SIZE = 200;
 const mergeMessages = (previous, incoming) => [...new Map(
@@ -28,6 +20,7 @@ const mergeMessages = (previous, incoming) => [...new Map(
  * close/reopen and for unprompted check-ins.
  */
 export default function ChatThread({ chat, onBack }) {
+  const { formatList, language, t } = useI18n();
   const { user } = useSystemStore();
   const { sendChatMessage, subscribeChat, markChatRead, deleteChat } = useSocialStore();
   const [messages, setMessages] = useState(null);
@@ -152,8 +145,12 @@ export default function ChatThread({ chat, onBack }) {
     // isn't a non-sequitur.
     const last = messages?.[messages.length - 1];
     const theirTurn = !!last && last.senderId !== user?.id;
-    return dialogueOptions(speaker, now, { theirTurn, lastMessage: theirTurn ? last.body : "" });
-  }, [speaker, now, messages, user?.id]);
+    return dialogueOptions(speaker, now, {
+      theirTurn,
+      lastMessage: theirTurn ? last.body : "",
+      language,
+    });
+  }, [speaker, now, messages, user?.id, language]);
 
   const say = async (option, draft = false) => {
     if (sendLock.current) return;
@@ -169,7 +166,7 @@ export default function ChatThread({ chat, onBack }) {
     }
   };
 
-  const title = chatTitle(chat, user?.id);
+  const title = chatTitle(chat, user?.id, language);
   const solo = !chat.isGroup && others.length === 1 ? others[0] : null;
   const activity = solo ? npcActivity(solo.username, now) : null;
 
@@ -178,8 +175,8 @@ export default function ChatThread({ chat, onBack }) {
       <div className="flex items-center gap-2">
         <button
           onClick={onBack}
-          title="Back to friends"
-          aria-label="Back to friends"
+          title={t("chat.thread.back")}
+          aria-label={t("chat.thread.back")}
           className="pill grid h-8 w-8 shrink-0 place-items-center text-cream transition hover:bg-white/10"
         >
           ‹
@@ -191,21 +188,21 @@ export default function ChatThread({ chat, onBack }) {
           </p>
           <p className="truncate text-[11px] text-petal/60">
             {activity
-              ? ACTIVITY_LINE[activity.state](activity.minutesLeft)
+              ? t(`chat.activity.${activity.state}`, { minutes: activity.minutesLeft })
               : others.map((m) => m.displayName).join(", ")}
           </p>
         </div>
         <button
           onClick={() => arm(chat.id, () => deleteChat(chat.id).then((deleted) => deleted && onBack()))}
-          title="Delete this chat"
-          aria-label={armedId === chat.id ? "Tap again to delete this chat" : "Delete this chat"}
+          title={t("chat.thread.delete")}
+          aria-label={armedId === chat.id ? t("chat.thread.deleteConfirm") : t("chat.thread.delete")}
           className={`shrink-0 transition ${
             armedId === chat.id
               ? "confirming text-[10px] font-bold text-danger"
               : "text-sm text-petal/40 hover:text-danger"
           }`}
         >
-          {armedId === chat.id ? "sure?" : "✕"}
+          {armedId === chat.id ? t("common.sure") : "✕"}
         </button>
       </div>
 
@@ -224,25 +221,24 @@ export default function ChatThread({ chat, onBack }) {
         {hasOlder && (
           <button className="pill self-center px-3 py-1 text-xs text-petal disabled:opacity-40"
             disabled={loadingOlder} onClick={loadOlder}>
-            {loadingOlder ? "Loading earlier messages…" : "Load earlier messages"}
+            {loadingOlder ? t("chat.thread.loadingEarlier") : t("chat.thread.loadEarlier")}
           </button>
         )}
-        {olderError && <p role="alert" className="text-center text-xs text-danger">Couldn't load earlier messages. Try again.</p>}
+        {olderError && <p role="alert" className="text-center text-xs text-danger">{t("chat.thread.olderError")}</p>}
         {messages === null && !loadError && (
-          <p className="py-6 text-center text-xs text-petal/50">one moment…</p>
+          <p className="py-6 text-center text-xs text-petal/50">{t("chat.thread.loading")}</p>
         )}
         {loadError && (
           <div role="alert" className="py-4 text-center text-xs text-danger">
-            <p>Couldn't load this conversation.</p>
+            <p>{t("chat.thread.loadError")}</p>
             <button className="pill mt-2 px-3 py-1 text-cream" onClick={() => setReload((n) => n + 1)}>
-              Try again
+              {t("chat.thread.retry")}
             </button>
           </div>
         )}
         {messages?.length === 0 && !loadError && (
           <p className="py-6 text-center text-xs text-petal/60">
-            Say hello 👋 {solo ? solo.displayName : "everyone"} will answer when
-            they&apos;re free.
+            {t("chat.thread.empty", { name: solo ? solo.displayName : t("chat.thread.everyone") })}
           </p>
         )}
         {messages?.map((m) => {
@@ -268,7 +264,7 @@ export default function ChatThread({ chat, onBack }) {
                 {m.body}
               </div>
               <span className="px-1 pt-0.5 text-[10px] text-petal/40">
-                {whenLabel(m.createdAt, now)}
+                {whenLabel(m.createdAt, now, language)}
               </span>
             </div>
           );
@@ -278,8 +274,9 @@ export default function ChatThread({ chat, onBack }) {
 
       {pending.length > 0 && (
         <p role="status" className="px-1 text-[11px] text-petal/60">
-          {pending.map((reply) => reply.displayName).join(" and ")}
-          {pending.length === 1 ? " is" : " are"} taking a moment to reply…
+          {t(pending.length === 1 ? "chat.thread.replyingOne" : "chat.thread.replyingMany", {
+            names: formatList(pending.map((reply) => reply.displayName)),
+          })}
         </p>
       )}
 
@@ -291,7 +288,7 @@ export default function ChatThread({ chat, onBack }) {
           The options re-derive from `now` (a 30s tick already runs here for the
           timestamps), so a friend who finishes a focus block mid-thread starts
           offering different things to say. */}
-      <div className="flex shrink-0 flex-col gap-1.5" aria-label="Things you can say">
+      <div className="flex shrink-0 flex-col gap-1.5" aria-label={t("chat.thread.options")}>
         {options.map((o) => (
           <button
             key={o.id}
@@ -323,16 +320,16 @@ export default function ChatThread({ chat, onBack }) {
             type="text"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder="…or say it your way"
+            placeholder={t("chat.thread.placeholder")}
             maxLength={280}
-            aria-label="Type a message"
+            aria-label={t("chat.thread.type")}
             className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream placeholder:text-petal/40 focus:border-glow/50 focus:outline-none"
           />
           <button
             type="submit"
             disabled={sending || !typed.trim()}
             className="pill bg-white/10 px-3 py-2 text-sm text-petal transition hover:bg-white/20 disabled:opacity-40"
-            aria-label="Send"
+            aria-label={t("chat.thread.send")}
           >
             ↑
           </button>
