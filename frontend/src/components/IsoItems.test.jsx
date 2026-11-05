@@ -186,6 +186,46 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(container.querySelector('[data-seasonal-part="bark"]')?.getAttribute("style")).toContain("--tint");
   });
 
+  it("constructs kitchen props from distinct believable materials", () => {
+    const expected = {
+      fridge: "gasketed-enamel",
+      kettle: "brushed-metal",
+      pot: "riveted-metal",
+      teapot: "thrown-ceramic",
+      fruitbowl: "ceramic-bowl",
+      bread: "bread-and-board",
+      cake: "layered-cake",
+    };
+    for (const [key, material] of Object.entries(expected)) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(
+        container.querySelector(`[data-kitchen-material="${material}"]`),
+        `${key} lacks ${material} construction`
+      ).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("terminates freestanding and suspended parts in visible supports", () => {
+    const expectations = {
+      railing: ["lower-rail", "handrail"],
+      desklamp: ["shade-hinge"],
+      hangplant: ["hanger", "pot", "soil", "pot-rim"],
+      flowers: ["soil-patch", "grass-overlap"],
+    };
+
+    for (const [key, parts] of Object.entries(expectations)) {
+      const Sprite = ISO_SPRITES[key];
+      const { container } = draw(<Sprite />);
+      expect(container.querySelector("[data-contact-structure]"), `${key} lacks a contact structure`).toBeTruthy();
+      for (const part of parts) {
+        expect(container.querySelector(`[data-contact-part="${part}"]`), `${key} lacks ${part}`).toBeTruthy();
+      }
+      cleanup();
+    }
+  });
+
   it.each(ISO_ITEM_KEYS)("%s renders in every facing without throwing", (key) => {
     // The scene has no per-sprite error handling — one throw in here used to
     // take the entire app down (there's a boundary now, but a blank room is

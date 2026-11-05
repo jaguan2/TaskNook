@@ -1,8 +1,9 @@
 # Model review captures
 
 Comparison sheets use the real SVG artwork with the scene's paint definitions
-and default theme colours. They are captured against a light neutral background
-so plant structure, glass, cabinet recesses and clothing overlaps are visible.
+and default theme colours. Earlier comparison layouts use a light neutral field;
+the generated catalog captures use the art sheet's dark review cards so their
+labels and room-scale silhouettes remain visible together.
 
 - [Study and storage](study-storage.webp): October 23 before/after ladder
   shelf, crates and basket, plus the new book trolley and open journal.
@@ -11,6 +12,13 @@ so plant structure, glass, cabinet recesses and clothing overlaps are visible.
   a review layout rather than a shipped preset.
 - [Plants](plants.webp), [storage](storage.webp), [lighting](lighting.webp):
   complete entries in those catalog groups, including pieces not used in presets.
+- [Kitchen](kitchen.webp) and [food & drink](food-drink.webp): the November 4
+  material pass in its complete catalog groups. Fridge, kettle, stockpot, teapot,
+  fruit bowl, bread and cake are revised; the surrounding items show the next-pass
+  baseline rather than implying the whole group is finished.
+- [Contact and supports](contact-supports.webp): the November 4 catalog audit's
+  four physical-read fixes together — planted railing, attached desk-lamp shade,
+  contained hanging plant and grounded wildflowers.
 - [Seated front](seated-front.webp) and [seated rear](seated-back.webp): all eight
   authored looks on the restored seated rig, each in break, focus and idle poses,
   at a chair height of 19.

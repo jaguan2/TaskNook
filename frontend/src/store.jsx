@@ -1915,8 +1915,9 @@ export function StoreProvider({ children }) {
   const sendChatMessage = async (chat, body, optionId = null) => {
     const text = body.trim().slice(0, MESSAGE_MAX);
     if (!text || !chat) return false;
+    let outgoing;
     try {
-      await api.sendMessage(chat.id, text);
+      outgoing = await api.sendMessage(chat.id, text);
       if ((chat.members || []).some((member) => member.id !== userRef.current?.id)) {
         recordChallengeEvent("friend-message");
       }
@@ -1936,7 +1937,13 @@ export function StoreProvider({ children }) {
     others.forEach((m) => addBond(m.username, BOND_POINTS.message));
     others.forEach((m) => recordNeighbour(m.username));
     const now = Date.now();
-    const seed = Date.now() % 1000;
+    // The persisted message id is a stable conversation turn. Using the
+    // current millisecond made an identical saved transcript produce a
+    // different NPC reply after a reload or a test retry.
+    const persistedId = Number(outgoing?.id);
+    const seed = Number.isSafeInteger(persistedId) && persistedId > 0
+      ? persistedId
+      : now % 1000;
     const speaking = chat.isGroup
       ? groupResponders(others.map((m) => m.username), text, now, seed)
       : [others[0].username];

@@ -16,13 +16,18 @@ function Vessel({ r, h, fill, lid, ry = 0.45 }) {
   const e = r * ry;
   return (
     <g>
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill={fill} />
-      <ellipse cx="0" cy="0" rx={r} ry={e} fill="#000" opacity="0.3" />
-      <rect x={-r} y={-h} width={r * 2} height={h} fill={fill} />
-      <rect x={-r} y={-h} width={r * 0.55} height={h} fill="#fff" opacity="0.13" />
-      <rect x={r * 0.45} y={-h} width={r * 0.55} height={h} fill="#000" opacity="0.14" />
+      {/* A manufactured vessel has a rolled rim, straight wall and planted
+          base. Broad glossy highlights made every material look ballooned. */}
+      <path d={`M${-r} ${-h} L${-r} -1 Q0 ${e * 0.55} ${r} -1 L${r} ${-h} Z`} fill={fill} />
+      <path d={`M0 ${-h} L${r} ${-h} L${r} -1 Q${r * 0.55} ${e * 0.2} 0 0 Z`}
+        fill="#000" opacity="0.16" />
+      <path d={`M${-r + 1.2} ${-h + 1} V-2.2`} stroke="#fff" strokeWidth="0.8" opacity="0.1" />
+      <ellipse cx="0" cy="-1" rx={r} ry={e} fill="#000" opacity="0.24" />
       <ellipse cx="0" cy={-h} rx={r} ry={e} fill={lid || fill} />
-      {lid && <ellipse cx="0" cy={-h} rx={r * 0.6} ry={e * 0.6} fill="#000" opacity="0.12" />}
+      <ellipse cx="0" cy={-h} rx={r - 0.9} ry={Math.max(0.7, e - 0.55)}
+        fill="#000" opacity={lid ? 0.12 : 0.24} />
+      <path d={`M${-r + 0.8} ${-h - 0.2} Q0 ${-h - e + 0.2} ${r - 0.8} ${-h - 0.2}`}
+        fill="none" stroke="#fff" strokeWidth="0.65" opacity="0.18" />
     </g>
   );
 }
@@ -165,17 +170,25 @@ export function Kettle() {
   // lid. Drawn as two thin strokes leaving the shoulders they read as horns.
   const c = project(0.175, 0.175);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="-0.5" rx="7" ry="3" fill="#000" opacity="0.18" />
-      {/* spout first, so the body overlaps its root */}
-      <path d="M4 -11 L13 -13.5 L12.5 -10.5 L4 -6.5 Z" fill="#7d8c99" />
-      <path d="M4 -11 L13 -13.5 L12.8 -12 L4 -9 Z" fill="#fff" opacity="0.14" />
-      <g transform="translate(0,-1)">
-        <Vessel r={6} h={9} fill="#8d99a6" lid="#a8b3bd" />
-      </g>
-      {/* bail handle, over the top */}
-      <path d="M-5.5 -11.5 q5.5 -8 11 0" fill="none" stroke="#5b5166" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="0" cy="-11.4" r="1.5" fill="#5b5166" />
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="brushed-metal">
+      <ellipse cx="0" cy="-0.4" rx="7" ry="2.7" fill="#000" opacity="0.18" />
+      {/* Faceted brushed-metal body and a planted heating ring. The old
+          perfect cylinder + white stripe read as a soft plastic toy. */}
+      <path d="M-5.8 -10.5 L-6.7 -2.4 Q0 0.4 6.7 -2.4 L5.8 -10.5 Z" fill="#8996a0" />
+      <path d="M0 -10.5 H5.8 L6.7 -2.4 Q3.6 -0.8 0 -0.7 Z" fill="#000" opacity="0.16" />
+      <path d="M-4.5 -9.5 L-5.2 -3.2" stroke="#fff" strokeWidth="0.8" opacity="0.12" />
+      <ellipse cx="0" cy="-2" rx="6.6" ry="2.4" fill="none" stroke="#4f5960" strokeWidth="1" opacity="0.75" />
+      {/* Long filled spout with a dark opening; one clear side silhouette. */}
+      <path d="M4.5 -8.8 L13 -13.2 L13.4 -10.4 L5.3 -5.8 Z" fill="#71808b" />
+      <path d="M12.2 -13.1 L13.7 -13.6 L13.4 -10.4 L12 -10.7 Z" fill="#343b41" />
+      <ellipse cx="0" cy="-10.5" rx="5.8" ry="2.3" fill="#aab4bb" />
+      <ellipse cx="0" cy="-10.6" rx="4.3" ry="1.55" fill="#606a72" opacity="0.45" />
+      <ellipse cx="0" cy="-11.1" rx="3.3" ry="1.3" fill="#bbc3c8" />
+      <circle cx="0" cy="-12.4" r="1.15" fill="#4e4557" />
+      {/* Bail handle has visible hinge blocks rather than growing from the body. */}
+      <rect x="-6.5" y="-9.8" width="2.2" height="3" rx="0.5" fill="#4e4557" />
+      <rect x="4.3" y="-9.8" width="2.2" height="3" rx="0.5" fill="#4e4557" />
+      <path d="M-5.4 -8.8 Q0 -19 5.4 -8.8" fill="none" stroke="#4e4557" strokeWidth="1.7" strokeLinecap="round" />
     </g>
   );
 }
@@ -183,15 +196,18 @@ export function Kettle() {
 export function Pot() {
   const c = project(0.2, 0.2);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="riveted-metal">
       <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
       <g transform="translate(0,-1)">
         <Vessel r={7} h={8} fill="#5b6b6b" lid="#7d8c8c" />
       </g>
-      {/* two ear handles */}
-      <rect x="-10.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <rect x="7.5" y="-7" width="3" height="2.2" rx="1.1" fill="#3f4a4a" />
-      <circle cx="0" cy="-10.5" r="1.5" fill="#3f4a4a" />
+      {/* Riveted handles and a separate lid keep the stockpot constructed. */}
+      <path d="M-6.5 -7.2 H-10.5 V-4.8 H-7" fill="none" stroke="#344040" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M6.5 -7.2 H10.5 V-4.8 H7" fill="none" stroke="#344040" strokeWidth="2" strokeLinejoin="round" />
+      <circle cx="-5.6" cy="-6.8" r="0.65" fill="#c7d0ce" />
+      <circle cx="5.6" cy="-6.8" r="0.65" fill="#c7d0ce" />
+      <ellipse cx="0" cy="-9.4" rx="5" ry="1.9" fill="none" stroke="#aeb9b7" strokeWidth="0.9" />
+      <rect x="-1.5" y="-11.1" width="3" height="1.5" rx="0.45" fill="#344040" />
     </g>
   );
 }
@@ -205,16 +221,24 @@ export function Pot() {
 export function Teapot() {
   const c = project(0.2, 0.175);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="thrown-ceramic">
       <ellipse cx="0" cy="-0.5" rx="7.5" ry="3.2" fill="#000" opacity="0.18" />
-      {/* rounder than the kettle — that roundness IS the difference */}
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" style={tinted("#c98a9b")} />
-      <ellipse cx="-2.2" cy="-7.5" rx="3" ry="2.2" fill="#fff" opacity="0.18" />
-      <ellipse cx="0" cy="-6" rx="7" ry="5.6" fill="#000" opacity="0.06" />
-      <path d="M6 -7 q5 0 5.5 -4" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M-6.5 -8 q-4.5 -2 -1 -5.5" fill="none" style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2" strokeLinecap="round" />
-      <ellipse cx="0" cy="-11" rx="3.6" ry="1.6" style={tinted("#d9a0ad")} />
-      <circle cx="0" cy="-12.6" r="1.3" fill="#8a5a66" />
+      {/* Ceramic body: foot, belly, shoulder and neck. A single ellipse made
+          it look like an inflated ball instead of thrown pottery. */}
+      <ellipse cx="0" cy="-2.3" rx="5.3" ry="1.8" style={tinted("#b8798a")} />
+      <path d="M-5.3 -3 Q-7.2 -6.2 -5.2 -9.2 Q-3.8 -11.2 -2.6 -11.6 H2.6 Q3.8 -11.2 5.2 -9.2 Q7.2 -6.2 5.3 -3 Q0 -0.5 -5.3 -3 Z"
+        style={tinted("#c98a9b")} />
+      <path d="M0 -11.6 H2.6 Q3.8 -11.2 5.2 -9.2 Q7.2 -6.2 5.3 -3 Q2.7 -1.6 0 -1.4 Z"
+        fill="#000" opacity="0.11" />
+      <path d="M-4.6 -8.9 Q-3.4 -10.2 -2.3 -10.3" fill="none" stroke="#fff" strokeWidth="0.85" opacity="0.16" />
+      {/* Filled spout and hollow handle show wall thickness and attachment. */}
+      <path d="M4.6 -8.5 L12 -12.3 L11.3 -8.8 L5.2 -5.8 Z" style={tinted("#c98a9b")} />
+      <path d="M10.8 -12.2 L12 -12.6 L11.3 -8.8 L10.4 -9.1 Z" fill="#6f4650" />
+      <path d="M-5.1 -9.5 Q-11 -11.8 -10.2 -6.3 Q-9.8 -3.4 -5.4 -4.1" fill="none"
+        style={{ stroke: "var(--tint, #c98a9b)" }} strokeWidth="2.2" strokeLinecap="round" />
+      <ellipse cx="0" cy="-11.7" rx="3.5" ry="1.45" style={tinted("#d9a0ad")} />
+      <ellipse cx="0" cy="-11.8" rx="2.4" ry="0.9" fill="#7e505b" opacity="0.3" />
+      <rect x="-1.1" y="-13.2" width="2.2" height="1.5" rx="0.45" fill="#704751" />
       <SteamWisps x={9} y={-13} scale={0.65} />
     </g>
   );
@@ -223,15 +247,31 @@ export function Teapot() {
 export function FruitBowl() {
   const c = project(0.2, 0.2);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="ceramic-bowl">
       <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* fruit first, then the bowl in front — they sit INSIDE it */}
-      <circle cx="-3" cy="-7" r="3.2" fill="#c0563f" />
-      <circle cx="2.5" cy="-7.5" r="3" fill="#d98b3a" />
-      <circle cx="0" cy="-9" r="2.6" fill="#7faf8f" />
-      <circle cx="-3.6" cy="-8" r="1" fill="#fff" opacity="0.3" />
-      <path d="M-8.5 -5 q8.5 6 17 0 q-2 -3.5 -8.5 -3.5 q-6.5 0 -8.5 3.5 z" style={tinted("#e2d6c4")} />
-      <path d="M0 -1.6 q6 -0.6 8.5 -3.4 q-2 3.6 -8.5 3.8 z" fill="#000" opacity="0.16" />
+      {/* The interior sits behind the fruit. Only the near rim is reinforced
+          later; a full pale outline looked like a floating ring. */}
+      <ellipse cx="0" cy="-6.1" rx="7.8" ry="2.8" fill="#5f5148" opacity="0.34" />
+      <path d="M-7.6 -6.2 Q0 -9.2 7.6 -6.2" fill="none"
+        style={{ stroke: "var(--tint, #a88e76)" }} strokeWidth="1.15" />
+      {/* Broad overlapping fruit profiles, not identical glossy balls. Their
+          lower halves extend behind the basin painted below, so the near rim
+          visibly contains them instead of leaving them floating above it. */}
+      <g transform="translate(0,2.1) scale(1.08)">
+        <path d="M-6.2 -6.5 Q-6.6 -10 -3.4 -10.6 Q-0.2 -10 -0.5 -6.4 Z" fill="#b94e3c" />
+        <path d="M-3.8 -10.5 q0.4 -2 2 -2.6" fill="none" stroke="#526b45" strokeWidth="1" />
+        <path d="M0.2 -6.2 Q0 -10 3.1 -10.5 Q6 -9.7 5.5 -6 Z" fill="#d18435" />
+        <path d="M-1.2 -8 Q-0.6 -11.7 1.6 -12.4 Q4.1 -11.3 3.5 -8 Z" fill="#769a65" />
+        <path d="M1 -12.2 q1.5 -1.4 3 -0.4" fill="none" stroke="#4d704c" strokeWidth="1" />
+      </g>
+      {/* A solid basin, weighty near rim and small planted foot. */}
+      <path d="M-8.2 -5.8 Q-6.8 -0.8 0 -0.4 Q6.8 -0.8 8.2 -5.8 Q4.5 -3.6 0 -3.4 Q-4.5 -3.6 -8.2 -5.8 Z"
+        style={tinted("#a88e76")} />
+      <path d="M0 -0.4 Q5.8 -0.8 8.2 -5.8 Q6 -3.8 3.2 -3.5 L1.8 -0.6 Z" fill="#000" opacity="0.14" />
+      <path d="M-8.2 -5.8 Q0 -2.8 8.2 -5.8" fill="none"
+        style={{ stroke: "var(--tint, #a88e76)" }} strokeWidth="1.5" />
+      <path d="M-6.6 -5.7 Q0 -3.5 6.6 -5.7" fill="none" stroke="#fff" strokeWidth="0.55" opacity="0.16" />
+      <ellipse cx="0" cy="-0.4" rx="3.8" ry="1.15" fill="#8f7b69" opacity="0.55" />
     </g>
   );
 }
@@ -239,17 +279,21 @@ export function FruitBowl() {
 export function Bread() {
   const c = project(0.2, 0.15);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="bread-and-board">
       <ellipse cx="0" cy="-0.5" rx="8" ry="3" fill="#000" opacity="0.16" />
-      {/* board */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#a87f5f" />
-      <ellipse cx="0" cy="-2.4" rx="8" ry="3.4" fill="#b58c6a" />
-      {/* loaf: a dome with three slashes, which is the whole silhouette */}
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q6.5 0 6.5 6 z" fill="#c98a4b" />
-      <path d="M-6.5 -3 q0 -6 6.5 -6 q0 6 0 6 z" fill="#fff" opacity="0.14" />
-      {[-3.4, 0, 3.4].map((x) => (
-        <path key={x} d={`M${x - 1.4} -5.6 l2.4 -1.8`} stroke="#8a5a2f" strokeWidth="1.2" strokeLinecap="round" />
+      {/* A thin timber board has corners and end grain; the old oval looked
+          like a second inflated loaf underneath the bread. */}
+      <path d="M-9 -3 L-1 -7.2 L9 -2.2 L1.2 2 Z" fill="#8b6548" />
+      <path d="M-9 -4.2 L-1 -8.4 L9 -3.4 L1.2 0.8 Z" fill="#b58c6a" />
+      <path d="M6.8 -4.5 L9 -3.4 L1.2 0.8 L-1 0" fill="#000" opacity="0.1" />
+      {/* Loaf has a planted side, uneven crown and a cut heel. */}
+      <path d="M-6.7 -4.3 Q-6.1 -9.6 -1.8 -10.4 Q3.7 -10 6.4 -6.5 L6.1 -3.1 Q0 -0.8 -6.7 -4.3 Z" fill="#bd793d" />
+      <path d="M-6.7 -4.3 Q-6.1 -9.6 -1.8 -10.4 Q0 -8.2 -0.4 -2.5 Q-3.6 -2.8 -6.7 -4.3 Z" fill="#d79a56" />
+      {[-3.7, -0.6, 2.5].map((x) => (
+        <path key={x} d={`M${x - 1} -7 l2.3 -1.7`} stroke="#8d542e" strokeWidth="1.1" strokeLinecap="round" />
       ))}
+      <path d="M5.8 -6.1 q2 -1 3.2 0 v3.5 q-1.7 1.1 -3.1 -0.4 z" fill="#e0ad6a" />
+      <path d="M6.6 -5.4 q0.8 -0.4 1.5 0" stroke="#a26738" strokeWidth="0.7" />
     </g>
   );
 }
@@ -257,19 +301,20 @@ export function Bread() {
 export function Cake() {
   const c = project(0.2, 0.2);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-kitchen-material="layered-cake">
       <ellipse cx="0" cy="-0.5" rx="8" ry="3.4" fill="#000" opacity="0.18" />
-      {/* stand */}
-      <ellipse cx="0" cy="-1.5" rx="8" ry="3.4" fill="#cbd5e8" />
-      <rect x="-1.2" y="-4" width="2.4" height="3" fill="#cbd5e8" />
-      <ellipse cx="0" cy="-4" rx="7" ry="3" fill="#dfe6f2" />
-      {/* two tiers of sponge with a cream band between */}
-      <g transform="translate(0,-4)">
-        <Vessel r={6.5} h={7} fill="#c98a4b" lid="#f2e2cf" />
-        <rect x="-6.5" y="-4.4" width="13" height="2" fill="#f7e9e2" opacity="0.85" />
-      </g>
-      <circle cx="0" cy="-12" r="1.6" fill="#c0563f" />
-      <circle cx="-0.5" cy="-12.5" r="0.5" fill="#fff" opacity="0.5" />
+      {/* Thin ceramic stand; the cake itself exposes a cut face and layers. */}
+      <ellipse cx="0" cy="-1.2" rx="7.8" ry="3" fill="#b9c6d9" />
+      <rect x="-1.1" y="-4" width="2.2" height="3" fill="#b9c6d9" />
+      <ellipse cx="0" cy="-4" rx="7.4" ry="2.8" fill="#dfe6f2" />
+      <path d="M-6 -9.5 Q-4 -12 0 -12.4 L6 -9.8 V-4.8 Q0 -2.6 -6 -5 Z" fill="#bb783d" />
+      <path d="M0 -12.4 L6 -9.8 V-4.8 L0 -6.5 Z" fill="#9e5c32" opacity="0.75" />
+      <path d="M-6 -9.5 Q-4 -12 0 -12.4 L6 -9.8 Q0 -7.4 -6 -9.5 Z" fill="#f0dfc9" />
+      <path d="M-5.8 -6.6 Q0 -4.6 6 -6.3 V-7.8 Q0 -5.8 -5.9 -7.9 Z" fill="#f7e9e2" />
+      <path d="M0.4 -12.1 L6 -9.8 L2.8 -8.7 L-0.6 -10.3 Z" fill="#e6cdb0" />
+      <path d="M0.4 -12.1 L2.8 -8.7" stroke="#a46d43" strokeWidth="0.8" opacity="0.55" />
+      <path d="M-1.2 -12.2 q1.2 -2 2.4 0" fill="none" stroke="#59744e" strokeWidth="1" />
+      <path d="M-1.6 -12.4 Q0 -14.2 1.6 -12.4 Q0 -11.4 -1.6 -12.4 Z" fill="#b94e3c" />
     </g>
   );
 }

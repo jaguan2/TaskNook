@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { useArmed } from "../hooks/useArmed";
 import { chatTitle, dialogueOptions, whenLabel } from "../lib/chat";
 import { npcActivity } from "../lib/visiting";
+import { npcChatProfile } from "../lib/npcChatProfiles";
 import { useI18n } from "../i18n/I18nProvider";
 
 const MESSAGE_PAGE_SIZE = 200;
@@ -169,6 +170,7 @@ export default function ChatThread({ chat, onBack }) {
   const title = chatTitle(chat, user?.id, language);
   const solo = !chat.isGroup && others.length === 1 ? others[0] : null;
   const activity = solo ? npcActivity(solo.username, now) : null;
+  const profile = solo ? npcChatProfile(solo.username) : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -188,7 +190,10 @@ export default function ChatThread({ chat, onBack }) {
           </p>
           <p className="truncate text-[11px] text-petal/60">
             {activity
-              ? t(`chat.activity.${activity.state}`, { minutes: activity.minutesLeft })
+              ? <>
+                  {t(`chat.activity.${activity.state}`, { minutes: activity.minutesLeft })}
+                  <span className="text-petal/40"> · {t(profile.taglineKey)}</span>
+                </>
               : others.map((m) => m.displayName).join(", ")}
           </p>
         </div>
@@ -288,13 +293,17 @@ export default function ChatThread({ chat, onBack }) {
           The options re-derive from `now` (a 30s tick already runs here for the
           timestamps), so a friend who finishes a focus block mid-thread starts
           offering different things to say. */}
-      <div className="flex shrink-0 flex-col gap-1.5" aria-label={t("chat.thread.options")}>
+      <div
+        className="grid shrink-0 grid-cols-2 gap-1.5"
+        role="group"
+        aria-label={t("chat.thread.options")}
+      >
         {options.map((o) => (
           <button
             key={o.id}
             onClick={() => say(o)}
             disabled={sending}
-            className="pill w-full bg-white/10 px-3 py-2 text-left text-sm text-cream transition hover:bg-white/20 disabled:opacity-40"
+            className="pill min-h-9 w-full bg-white/10 px-2.5 py-1.5 text-left text-xs leading-snug text-cream transition hover:bg-white/20 disabled:opacity-40"
           >
             <span className="mr-1.5 text-glow/70">›</span>
             {o.label}
@@ -308,7 +317,7 @@ export default function ChatThread({ chat, onBack }) {
             recognisers don't know gets an in-character acknowledgement
             rather than a non-sequitur. */}
         <form
-          className="flex gap-1.5"
+          className="col-span-2 flex gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();
             const text = typed.trim();

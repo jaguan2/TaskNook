@@ -15,6 +15,36 @@ project already uses.
 
 ---
 
+## 2026-11-04
+
+**ADJUSTED**
+- **Distinct NPC voices.** Luna, Kai, Sora and Mochi now have separate localized
+  conversation profiles, reply rhythms and relationship-aware lines in all five
+  supported languages. Typed localized questions recognize the same everyday
+  intents as the dialogue menu instead of falling back to generic replies.
+- **Friends and chat hierarchy.** The Friends drawer opens on the friend list,
+  keeps Friends, Places and Weekly study in a sticky 44px tab row, separates
+  relationship progress from status, and gives quick replies a compact two-column
+  choice layout. Room name tags and relationship hearts sit closer to residents.
+- **Kitchen and tabletop materials.** Rebuilt the fridge, kettle, stockpot,
+  teapot, fruit bowl, bread and cake around visible joins, recesses, supports,
+  rims and cut surfaces. The pass removes broad glossy bands and repeated domes
+  that made metal, ceramic, timber and food all look like inflated plastic.
+- **Catalog contact and support.** A complete 168-item contact-sheet sweep found
+  and corrected four physical-read errors: the railing now has a lower rail,
+  the desk-lamp arm terminates in a visible shade hinge, the hanging plant has a
+  suspended pot with a readable rim and soil, and wildflower stems enter a small
+  ground patch instead of ending in open air. Catalog footprints and placement
+  behavior are unchanged.
+
+**UPDATED**
+- **Material review contract.** Catalog tests now identify the seven revised
+  material constructions, and the modeling guide records the construction-first
+  rule plus the remaining oven, sink, microwave, toaster, mug, pie and ramen work.
+- **Contact review contract.** Focused sprite tests require the four corrected
+  pieces to keep their visible supports, and a new review capture records the
+  results together at catalog scale.
+
 ## 2026-11-03
 
 **NEW**

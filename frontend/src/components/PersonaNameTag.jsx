@@ -23,17 +23,17 @@ export default function PersonaNameTag({
   const fill = heartProgress == null
     ? null
     : Math.max(0, Math.min(1, Number(heartProgress) || 0));
-  const heartX = Number(x) + Math.max(14, label.length * 3.1 + 6);
+  const heartX = Number(x) + Math.max(13, label.length * 2.9 + 5.5);
   const heartY = Number(y) - 4;
 
   return <g style={style} pointerEvents="none">
     <text
       textAnchor="middle"
-      fontSize="11"
+      fontSize="10"
       fontWeight="600"
       fill="#f2e9dd"
       stroke="#1d0f1f"
-      strokeWidth="2.6"
+      strokeWidth="2.1"
       paintOrder="stroke"
       opacity="0.92"
       x={x}
@@ -42,7 +42,7 @@ export default function PersonaNameTag({
     >
       {children}
     </text>
-    {fill != null && <g transform={`translate(${heartX},${heartY})`}
+    {fill != null && <g transform={`translate(${heartX},${heartY}) scale(.86)`}
       data-friendship-heart={heartId} data-heart-fill={fill}
       aria-label={heartLabel}>
       {heartLabel && <title>{heartLabel}</title>}
@@ -52,7 +52,7 @@ export default function PersonaNameTag({
         </clipPath>
       </defs>
       <path d={HEART_PATH} fill="#24192d" fillOpacity=".76"
-        stroke="#f2e9dd" strokeOpacity=".88" strokeWidth="1.15" />
+        stroke="#f2e9dd" strokeOpacity=".88" strokeWidth="1" />
       <path d={HEART_PATH} fill="#e69aa8" clipPath={`url(#${clipId})`} />
     </g>}
   </g>;

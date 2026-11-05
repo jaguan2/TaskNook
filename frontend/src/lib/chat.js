@@ -19,14 +19,17 @@
  * would be two simulations telling different stories about the same person.
  */
 import { npcActivity } from "./visiting";
+import { npcChatProfile } from "./npcChatProfiles";
 import { languageMeta, normalizeLanguage } from "../i18n";
 import {
   dialoguePack,
   localizedCheckIn,
+  localizedFollowup,
   localizedNudge,
   localizedOptionLabel,
   localizedReply,
   localizedTopic,
+  localizedTypedIntent,
 } from "../i18n/dialogue";
 
 /** Longest a message can be — matches MESSAGE_MAX on the column. */
@@ -299,7 +302,7 @@ const fill = (line, { left, topic, blocks }) =>
 // focusing bot still keeps it short, because being busy outranks being
 // chatty.
 const GREETING = /\b(hi|hey|hello|yo|morning|evening|howdy)\b/i;
-const QUESTION = /\?\s*$/;
+const QUESTION = /[?？]\s*$/;
 const THANKS = /\b(thanks|thank you|ta|cheers)\b/i;
 const BYE = /\b(bye|goodnight|night|see you|later)\b/i;
 
@@ -447,19 +450,21 @@ const CELEBRATE = {
  * which is the one option that only makes sense as a response.
  */
 export function dialogueOptions(username, now, { theirTurn = false, lastMessage = "", language = "en" } = {}) {
+  const profile = npcChatProfile(username);
+  const followup = localizedFollowup(language, lastMessage);
   const makeOptions = (ids) => ids.map((id) => ({
     id,
-    label: localizedOptionLabel(language, id, OPTION_LABEL[id]),
+    label: localizedOptionLabel(language, id, profile.prompts[id] || OPTION_LABEL[id], username),
   }));
-  if (theirTurn && /\b(tea|kettle|chai|earl grey|matcha)\b/i.test(lastMessage)) {
-    const ids = /\b(jasmine|ginger|earl grey|cinnamon chai)\b/i.test(lastMessage)
+  if (theirTurn && (followup === "tea" || followup === "tea-detail" || /\b(tea|kettle|chai|earl grey|matcha)\b/i.test(lastMessage))) {
+    const ids = followup === "tea-detail" || /\b(jasmine|ginger|earl grey|cinnamon chai)\b/i.test(lastMessage)
       ? ["tea_milk", "tea_share", "working", "thanks"] : THREAD_MENU;
     return makeOptions(ids);
   }
-  if (theirTurn && /\b(topic|star|chart|astronomy|poetry|nebula|book|chapter|essay|recipe|baking|problem|notes|block|list)\w*\b/i.test(lastMessage)) {
+  if (theirTurn && (followup === "topic" || /\b(topic|star|chart|astronomy|poetry|nebula|book|chapter|essay|recipe|baking|problem|notes|block|list)\w*\b/i.test(lastMessage))) {
     return makeOptions(["celebrate", "encourage", "study", "thanks"]);
   }
-  if (theirTurn && /\b(breathe|small|tiniest|rest|tired|step)\w*\b/i.test(lastMessage)) {
+  if (theirTurn && (followup === "encourage" || /\b(breathe|small|tiniest|rest|tired|step)\w*\b/i.test(lastMessage))) {
     return makeOptions(["joke", "study", "thanks"]);
   }
   const { state } = npcActivity(username, now);
@@ -484,8 +489,8 @@ export function replyToOption(username, optionId, now, seed = 0, bond = 1, langu
     return localizedReply(language, kind, h, {
       left: minutesLeft,
       blocks: blocksLeftOf(username, now),
-      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), topicOf(username, now)),
-    });
+      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), topicOf(username, now), username),
+    }, username, bond);
   }
   if (optionId === "tea") return (TEA[username] || TEA.mochi)[0];
   if (optionId === "tea_milk") return (TEA[username] || TEA.mochi)[1];
@@ -537,6 +542,8 @@ function intentOf(text) {
   if (/(一起.*(学习|读书)|一緒に.*(勉強|学習)|같이.*(공부|학습)|estudiar juntos)/i.test(body)) return { option: "study" };
   if (/(累|压力|焦虑|始められ|疲れ|ストレス|힘들|피곤|스트레스|cansad|agotad|estresad)/i.test(body)) return { shape: "encourage" };
   if (/^(你好|嗨|哈喽|こんにちは|こんばんは|やあ|안녕|hola|buenas)[！!。.\s]*$/i.test(body)) return { shape: "greeting" };
+  const localizedOption = localizedTypedIntent(body);
+  if (localizedOption) return { option: localizedOption };
   // Celebrate a stated win, never "haven't finished" or a question about them.
   if (!/\b(not|never|haven't|havent|hadn't|didn't|didnt)\b|\?/i.test(body)
     && /\bi(?:'ve| have)?\s+(?:(?:just|finally|already)\s+)?(?:finished|completed|checked off|got it done)\b/i.test(body)) {
@@ -593,10 +600,15 @@ function replyFor(username, shape, salt, now, seed = 0, bond = 1, language = "en
   const h = hash(username, salt, seed);
   const vars = { left: minutesLeft, topic: topicOf(username, now), blocks: blocksLeftOf(username, now) };
   if (dialoguePack(language)) {
-    return localizedReply(language, shape || state, h, {
+    // Keep the same activity contract as English: casual messages wait behind
+    // a focus line, while encouragement and goodbyes still get through.
+    const kind = state === "focus" && shape !== "bye" && shape !== "encourage"
+      ? "focus"
+      : shape || state;
+    return localizedReply(language, kind, h, {
       ...vars,
-      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), vars.topic),
-    });
+      topic: localizedTopic(language, hash(username, dayKeyOf(now), dayPartOf(now)), vars.topic, username),
+    }, username, bond);
   }
 
   // Busy beats chatty: mid-block, they answer the way someone typing with one
@@ -637,9 +649,10 @@ export const REPLY_MAX_MS = 12000;
 export function replyDelayMs(username, now, seed = 0) {
   const { state } = npcActivity(username, now);
   const base = state === "focus" ? 7000 : state === "break" ? 2200 : 3400;
+  const cadence = npcChatProfile(username).cadence;
   // ±40%, deterministically.
   const jitter = ((hash(username, seed) % 81) - 40) / 100;
-  const ms = Math.round(base * (1 + jitter));
+  const ms = Math.round(base * cadence * (1 + jitter));
   return Math.min(REPLY_MAX_MS, Math.max(REPLY_MIN_MS, ms));
 }
 
@@ -713,7 +726,7 @@ export function dailyCheckIn(usernames, dayKey, language = "en") {
   return {
     username,
     minute,
-    text: localizedCheckIn(language, band, hash("say", dayKey, username))
+    text: localizedCheckIn(language, band, hash("say", dayKey, username), username)
       || pick(pool, hash("say", dayKey, username)),
   };
 }
@@ -731,7 +744,7 @@ const NUDGE_LINES = [
  * lands in a thread so it's still there when you come back.
  */
 export function breakNudgeLine(username, spanLabel, seed = 0, language = "en") {
-  return localizedNudge(language, spanLabel, hash("nudge", username, seed))
+  return localizedNudge(language, spanLabel, hash("nudge", username, seed), username)
     || pick(NUDGE_LINES, hash("nudge", username, seed)).replace("{mins}", spanLabel);
 }
 

@@ -33,12 +33,25 @@ Valley, Unpacking, Cozy Grove). A new sprite passes all five or it isn't done.
 5. **Chunky proportions.** Oversize the readable part — a kettle's spout, a
    mug's handle — rather than staying to scale.
 
+**Visible contact is part of the silhouette.** Contents overlap the near rim of
+their container; stems enter soil; articulated parts end in a joint; uprights
+terminate in a rail, socket or planted foot. Merely making coordinates touch is
+not enough when paint order or low contrast hides the connection at room scale.
+Use broad occlusion and one readable support shape instead of adding a shadow
+that implies contact without constructing it.
+
 **Learned from:** a leaf pile whose leaves stood on end read as a *campfire*
 (fix: low, wide, leaves lying down). A kettle whose spout and handle were thin
 strokes leaving the shoulders read as *horns* (fix: cone spout one side, bail
 handle over the top). A toaster that was a white box with a dot read as a
 *bread bin* (fix: two slices poking out). All three passed every automated
 check; only looking caught them.
+
+The same review caught fruit painted wholly above its bowl, loose flower stems,
+an almost invisible desk-lamp arm, a hanging plant whose pot was lost behind its
+foliage and railing balusters without a receiving lower rail. Each model was
+technically inside its footprint; only containment, value and paint-order review
+made the physical error obvious.
 
 ---
 
@@ -399,7 +412,7 @@ of the catalog:
 | `SoftBox` | horizontal upholstery | rounded footprint with thickness and two shaded sides |
 | `PaddedPanel` | upright upholstery | curved crown/corners, shell thickness and optional waist |
 | `PlantPot` | potted plants | taper + lip + soil (see §5) |
-| `Vessel` | cylinders | kettle, stockpot, cake — bottom ellipse, side, top ellipse |
+| `Vessel` | straight cookware | stockpot — rolled rim, straight wall, planted base |
 | `RugGround` | rugs | ground + inset lighter field, so the border is an AREA |
 | `Fringe` | rug edges | strands in GRID space, so they land at the right screen angle |
 | `Planks` | tabletops | seams; a bare slab reads as flat-pack |
@@ -421,6 +434,14 @@ hundred flat boxes looks *worse* than uniform.
 - **Flat things**: `floorPatch(gx, gy, dx, dy)` — a diamond in the floor plane.
 - **Derive texture from POSITION, never `Math.random`.** A scene render must
   not generate a different floor pattern.
+
+Kitchen and tabletop objects still follow the two-to-three-tone rule, but their
+materials must be identified by construction rather than a broad glossy wash.
+Metal uses rolled rims, supported handles, rivets and narrow edge catches;
+ceramic uses a foot, visible interior, wall thickness and seated lids; timber
+uses corners, end grain and thin boards; food uses irregular crowns, overlapping
+forms and cut faces. Avoid perfect domes, repeated circles and full-height white
+highlight bands—together they make unrelated materials look inflatable.
 
 ---
 

@@ -33,8 +33,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("opening conversations", () => {
+  it("opens on friends and keeps the three destinations mutually exclusive", () => {
+    render(<FriendsPanel />);
+    const friends = screen.getByRole("button", { name: "Friends" });
+    const places = screen.getByRole("button", { name: "Places" });
+    const weekly = screen.getByRole("button", { name: "Weekly" });
+    expect(friends.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByLabelText("Friend username")).toBeTruthy();
+
+    fireEvent.click(places);
+    expect(places.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByLabelText("Friend username")).toBe(null);
+    expect(screen.getByRole("button", { name: /Common Cottage/ })).toBeTruthy();
+
+    fireEvent.click(weekly);
+    expect(weekly.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByRole("button", { name: /Common Cottage/ })).toBe(null);
+    expect(screen.getByRole("heading", { name: "Weekly study" })).toBeTruthy();
+  });
+
   it("includes the week-to-date study leaderboard", () => {
     render(<FriendsPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Weekly" }));
     expect(screen.getByRole("heading", { name: "Weekly study" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Weekly study" })).toBeTruthy();
   });
@@ -54,6 +74,7 @@ describe("opening conversations", () => {
 
   it("names everyone in each common place before joining", () => {
     render(<FriendsPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Places" }));
     const cottage = screen.getByRole("button", { name: /Common Cottage/ });
     expect(cottage.textContent).toContain("Here now");
     expect(cottage.textContent).toContain("Kai");
@@ -73,6 +94,7 @@ describe("opening conversations", () => {
   it("includes you in the attendee list after joining", () => {
     mocks.commonRoom = { sceneId: "common-cottage" };
     render(<FriendsPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Places" }));
     const cottage = screen.getByRole("button", { name: /Common Cottage/ });
     expect(cottage.textContent).toContain("You");
     expect(cottage.textContent).toContain("2 open seats");
@@ -89,6 +111,7 @@ describe("opening conversations", () => {
       },
     };
     render(<FriendsPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Places" }));
     const cottage = screen.getByRole("button", { name: /Common Cottage/ });
     expect(cottage.textContent).toContain("Ivy");
     expect(cottage.textContent).toContain("Theo");

@@ -56,6 +56,7 @@ export default function FriendsPanel() {
     commonPresence,
   } = useSocialStore();
   const [username, setUsername] = useState("");
+  const [section, setSection] = useState("friends");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -239,7 +240,28 @@ export default function FriendsPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2" aria-label={t("friends.places.aria")}>
+      <nav
+        className="sticky top-0 z-10 grid grid-cols-3 gap-1 rounded-2xl bg-night/90 p-1 backdrop-blur"
+        aria-label={t("friends.sections.aria")}
+      >
+        {["friends", "places", "weekly"].map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSection(id)}
+            aria-pressed={section === id}
+            className={`min-h-11 rounded-xl px-2 py-1.5 text-xs font-semibold transition ${
+              section === id
+                ? "bg-white/15 text-cream shadow-sm"
+                : "text-petal/60 hover:bg-white/10 hover:text-cream"
+            }`}
+          >
+            {t(`friends.sections.${id}`)}
+          </button>
+        ))}
+      </nav>
+
+      {section === "places" && <section className="space-y-2" aria-label={t("friends.places.aria")}>
         <p className="text-xs font-semibold text-petal/65">{t("friends.places.title")}</p>
         {Object.values(COMMON_PLACES).map((place) => {
           const joined = commonRoom?.sceneId === place.id;
@@ -268,13 +290,14 @@ export default function FriendsPanel() {
           </span>
           <span className="text-xs text-glow">{joined ? t("friends.places.here") : t("friends.places.join")}</span>
         </button>})}
-      </section>
-      <FriendsLeaderboard
+      </section>}
+      {section === "weekly" && <FriendsLeaderboard
         user={user}
         friends={friends}
         sessionDays={sessionDays}
         now={now}
-      />
+      />}
+      {section === "friends" && <>
       {chatsError && (
         <div role="alert" className="rounded-xl bg-white/5 p-3 text-xs text-danger">
           <p>Couldn't refresh conversations. Your saved chats are still there.</p>
@@ -385,10 +408,10 @@ export default function FriendsPanel() {
           return (
             <div
               key={f.id}
-              className="group rounded-2xl bg-white/5 px-3 py-3 transition hover:bg-white/10"
+              className="group rounded-2xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10"
             >
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-wine text-xl">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-wine text-lg">
                   {f.avatar}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -414,7 +437,7 @@ export default function FriendsPanel() {
                   </p>
                 </div>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-sage to-glow transition-all duration-700"
                   style={{ width: `${completion}%` }}
@@ -425,13 +448,21 @@ export default function FriendsPanel() {
                   Rose DECORATES here (the meaning is the width + label, which
                   survive any theme's re-tint of rose). */}
               <div
-                className="mt-1.5 flex items-center gap-2"
+                className="mt-1 flex items-center gap-1.5"
                 title={`Friendship grows as you chat, visit and spend time together${
                   bond.next ? ` — ${bond.next} to the next level` : " — as close as it gets"
                 }`}
               >
-                <Heart size={10} className="shrink-0 text-rose" fill="currentColor" />
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                <Heart size={9} className="shrink-0 text-rose" fill="currentColor" />
+                <div
+                  className="h-1 w-24 max-w-28 overflow-hidden rounded-full bg-white/10"
+                  role="progressbar"
+                  aria-label={`${f.displayName} friendship`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(bond.frac * 100)}
+                  aria-valuetext={bond.label}
+                >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-rose to-blush transition-all duration-700"
                     style={{ width: `${Math.round(bond.frac * 100)}%` }}
@@ -446,7 +477,7 @@ export default function FriendsPanel() {
                   position was set by the length of the presence text beside it
                   ("pottering about" vs "focusing — 6m left"). Chat and the door
                   are a pair and now sit as one. */}
-              <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="mt-1.5 flex items-center justify-between gap-2">
                 <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => chatWith(f)}
@@ -507,6 +538,7 @@ export default function FriendsPanel() {
           );
         })}
       </div>
+      </>}
     </div>
   );
 }

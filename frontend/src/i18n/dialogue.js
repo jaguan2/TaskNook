@@ -1,4 +1,5 @@
 import { normalizeLanguage } from "./index";
+import { DIALOGUE_PERSONAS, dialoguePersona } from "./dialoguePersonas";
 
 const PACKS = {
   es: {
@@ -148,31 +149,163 @@ export function dialoguePack(language) {
   return PACKS[normalizeLanguage(language)] || null;
 }
 
-export function localizedOptionLabel(language, id, fallback) {
-  return dialoguePack(language)?.options?.[id] || fallback;
+export function localizedOptionLabel(language, id, fallback, username) {
+  const normalized = normalizeLanguage(language);
+  return dialoguePersona(normalized, username)?.options?.[id]
+    || dialoguePack(normalized)?.options?.[id]
+    || fallback;
 }
 
-export function localizedTopic(language, seed = 0, fallback = "") {
-  const topics = dialoguePack(language)?.topics;
+export function localizedTopic(language, seed = 0, fallback = "", username) {
+  const normalized = normalizeLanguage(language);
+  const topics = dialoguePersona(normalized, username)?.topics
+    || dialoguePack(normalized)?.topics;
   return topics?.[Math.abs(seed) % topics.length] || fallback;
 }
 
-export function localizedReply(language, kind, seed = 0, values = {}) {
-  const lines = dialoguePack(language)?.lines?.[kind]
-    || dialoguePack(language)?.lines?.ack;
+export function localizedReply(language, kind, seed = 0, values = {}, username, bond = 1) {
+  const normalized = normalizeLanguage(language);
+  const pack = dialoguePack(normalized);
+  const persona = dialoguePersona(normalized, username);
+  const personaLines = persona?.lines?.[kind];
+  const sharedLines = pack?.lines?.[kind] || pack?.lines?.ack;
+  // Authored persona copy stays the majority voice, while the shared pack
+  // supplies enough variation that frequent greetings and acknowledgements
+  // do not repeat word-for-word every turn.
+  const base = personaLines?.length === 1 && sharedLines?.length
+    ? [...personaLines, ...personaLines, ...personaLines, ...sharedLines]
+    : personaLines || sharedLines;
+  const close = bond >= 4 ? persona?.close?.[kind] : null;
+  const lines = base?.length && close?.length ? [...base, ...close] : base;
   if (!lines?.length) return null;
   return fill(lines[Math.abs(seed) % lines.length], values);
 }
 
-export function localizedCheckIn(language, band, seed = 0) {
-  const lines = dialoguePack(language)?.checkins;
-  if (!lines?.length) return null;
+export function localizedCheckIn(language, band, seed = 0, username) {
+  const normalized = normalizeLanguage(language);
   const index = band === "morning" ? 0 : band === "afternoon" ? 1 : 2;
-  return lines[index] || lines[Math.abs(seed) % lines.length];
+  const personal = dialoguePersona(normalized, username)?.checkins?.[index];
+  const shared = dialoguePack(normalized)?.checkins?.[index];
+  const lines = [...new Set([personal, shared].filter(Boolean))];
+  return lines.length ? lines[Math.abs(seed) % lines.length] : null;
 }
 
-export function localizedNudge(language, spanLabel, seed = 0) {
-  const lines = dialoguePack(language)?.nudges;
+export function localizedNudge(language, spanLabel, seed = 0, username) {
+  const normalized = normalizeLanguage(language);
+  const personal = dialoguePersona(normalized, username)?.nudges;
+  const shared = dialoguePack(normalized)?.nudges;
+  const lines = personal?.length === 1 && shared?.length
+    ? [...personal, ...personal, ...personal, ...shared]
+    : personal || shared;
   if (!lines?.length) return null;
   return fill(lines[Math.abs(seed) % lines.length], { mins: spanLabel });
+}
+
+// A rendered NPC line becomes the next turn's context. Keep these recognisers
+// beside the translated dialogue instead of asking the English chat model to
+// reverse-parse Spanish, Chinese, Japanese or Korean text.
+const FOLLOWUP_WORDS = {
+  es: {
+    tea: ["té", "chai", "taza", "tetera"],
+    teaDetail: ["jazmín", "jengibre", "earl grey", "canela"],
+    topic: ["tema", "capítulo", "ensayo", "receta", "notas", "lista", "bloque", "proyecto"],
+    encourage: ["respira", "pequeño", "descansa", "cansad", "paso"],
+  },
+  "zh-CN": {
+    tea: ["茶", "一杯", "茶壶"],
+    teaDetail: ["茉莉", "姜", "伯爵", "肉桂"],
+    topic: ["主题", "章节", "文章", "食谱", "笔记", "清单", "专注", "项目"],
+    encourage: ["呼吸", "小步", "休息", "累", "一步"],
+  },
+  ja: {
+    tea: ["お茶", "チャイ", "一杯", "ケトル"],
+    teaDetail: ["ジャスミン", "ジンジャー", "アールグレイ", "シナモン"],
+    topic: ["テーマ", "章", "エッセイ", "レシピ", "ノート", "リスト", "集中", "プロジェクト"],
+    encourage: ["深呼吸", "小さ", "休憩", "疲れ", "一歩"],
+  },
+  ko: {
+    tea: ["차를", "차 한 잔", "찻잔", "주전자"],
+    teaDetail: ["재스민", "생강", "얼그레이", "시나몬"],
+    topic: ["주제", "챕터", "에세이", "레시피", "노트", "목록", "집중", "프로젝트"],
+    encourage: ["숨", "작은", "쉬어", "피곤", "한 걸음"],
+  },
+};
+
+const FOLLOWUP_KINDS = {
+  "tea-detail": ["tea"],
+  tea: ["tea_milk", "tea_share"],
+  topic: ["focus", "working", "plans"],
+  encourage: ["encourage"],
+};
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function matchesGeneratedTemplate(body, template) {
+  const pattern = escapeRegExp(template).replace(/\\\{\w+\\\}/g, ".+?");
+  return new RegExp(`^${pattern}$`, "iu").test(body);
+}
+
+function generatedFollowup(language, body) {
+  const normalized = normalizeLanguage(language);
+  const sources = [dialoguePack(normalized), ...Object.values(DIALOGUE_PERSONAS[normalized] || {})];
+  for (const [result, kinds] of Object.entries(FOLLOWUP_KINDS)) {
+    for (const source of sources) {
+      for (const kind of kinds) {
+        const templates = [
+          ...(source?.lines?.[kind] || []),
+          ...(source?.close?.[kind] || []),
+        ];
+        if (templates.some((template) => matchesGeneratedTemplate(body, template))) return result;
+      }
+    }
+  }
+  const topics = Object.values(DIALOGUE_PERSONAS[normalized] || {})
+    .flatMap((persona) => persona.topics || []);
+  if (topics.some((topic) => body.includes(String(topic).toLocaleLowerCase(normalized)))) {
+    return "topic";
+  }
+  return null;
+}
+
+function containsWord(body, word, language) {
+  if (language === "es") {
+    return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegExp(word)}(?:$|[^\\p{L}\\p{N}])`, "iu")
+      .test(body);
+  }
+  return body.includes(word);
+}
+
+export function localizedFollowup(language, text) {
+  const normalized = normalizeLanguage(language);
+  const words = FOLLOWUP_WORDS[normalized];
+  if (!words) return null;
+  const body = String(text || "").toLocaleLowerCase(normalized);
+  const generated = generatedFollowup(normalized, body);
+  if (generated) return generated;
+  const has = (group) => words[group].some((word) => containsWord(body, word, normalized));
+  if (has("tea")) return has("teaDetail") ? "tea-detail" : "tea";
+  if (has("topic")) return "topic";
+  if (has("encourage")) return "encourage";
+  return null;
+}
+
+const LOCALIZED_TYPED = {
+  working: /(你在(?:做|学|读)什么|在忙什么|何を(?:勉強|学習|読ん)|何してる|(?:무엇|뭐).*(?:공부|읽|하[고는])|(?:qué|que).*(?:estudi|trabaj|leyendo|haciendo))/i,
+  onlong: /(多久|多长时间|几点.*结束|どのくらい|いつまで|何時まで|얼마나|언제까지|몇 시까지|cuánto tiempo|cuanto tiempo|hasta cuándo|hasta cuando|hasta qué hora|hasta que hora)/i,
+  tea: /(什么茶|哪种茶|何のお茶|どんなお茶|무슨 차|어떤 차|qué té|que té)/i,
+  tea_milk: /(牛奶|蜂蜜|ミルク|はちみつ|蜂蜜|우유|꿀|leche|miel)/i,
+  tea_share: /(给我.*(?:茶|一杯)|留.*(?:茶|一杯)|お茶.*(?:分け|残して)|一杯.*(?:残して|ちょうだい)|차.*(?:나눠|남겨)|(?:guarda|comparte|sirve).*(?:taza|té))/i,
+  celebrate: /(完成了|做完了|写完了|读完了|終わった|終えた|できた|完了した|끝냈어|끝났어|완료했어|다 했어|terminé|he terminado|acabé|completé|lo hice)/i,
+};
+const LOCALIZED_NEGATIVE = /(没|还没|没有|まだ|ない|なかった|아직|못|안\s|\bno\b|todavía no|todavia no)/i;
+
+export function localizedTypedIntent(text) {
+  const body = String(text || "").trim();
+  if (!body) return null;
+  if (!LOCALIZED_NEGATIVE.test(body) && !/[?？]\s*$/.test(body)
+    && LOCALIZED_TYPED.celebrate.test(body)) return "celebrate";
+  for (const id of ["tea_share", "tea_milk", "tea", "onlong", "working"]) {
+    if (LOCALIZED_TYPED[id].test(body)) return id;
+  }
+  return null;
 }

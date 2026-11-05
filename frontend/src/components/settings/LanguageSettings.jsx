@@ -18,7 +18,7 @@ export default function LanguageSettings() {
             <label
               key={option.key}
               lang={option.locale}
-              className={`flex min-h-10 cursor-pointer items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-semibold transition focus-within:ring-2 focus-within:ring-glow/60 ${
+              className={`flex min-h-11 cursor-pointer items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-semibold transition focus-within:ring-2 focus-within:ring-glow/60 ${
                 selected
                   ? "border-glow/60 bg-glow text-plum"
                   : "border-white/10 bg-white/5 text-petal hover:border-white/20 hover:bg-white/10"

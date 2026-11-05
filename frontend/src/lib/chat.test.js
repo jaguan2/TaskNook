@@ -113,6 +113,15 @@ describe("the wait before a reply", () => {
     const free = replyDelayMs("luna", instantWhere("luna", "break"), 1);
     expect(busy).toBeGreaterThan(free);
   });
+
+  it("cadence is part of personality, not one robotic typing rhythm", () => {
+    const average = (name) => {
+      const now = instantWhere(name, "idle");
+      return Array.from({ length: 40 }, (_, seed) => replyDelayMs(name, now, seed))
+        .reduce((sum, value) => sum + value, 0) / 40;
+    };
+    expect(average("kai")).toBeLessThan(average("sora"));
+  });
 });
 
 describe("who answers in a group", () => {
@@ -230,7 +239,10 @@ describe("dialogue options are an RPG menu, not a text box", () => {
       for (const o of opts) {
         // A label that isn't in the table would render as an empty button.
         expect(OPTION_LABEL[o.id], `unknown option ${o.id}`).toBeTruthy();
-        expect(o.label).toBe(OPTION_LABEL[o.id]);
+        expect(o.label).toBeTruthy();
+        if (!["howsit", "working", "study"].includes(o.id)) {
+          expect(o.label).toBe(OPTION_LABEL[o.id]);
+        }
       }
       // Distinct ids: two buttons saying the same thing is a menu bug.
       expect(new Set(opts.map((o) => o.id)).size).toBe(opts.length);

@@ -28,26 +28,68 @@ contact sheet, including every advertised rear view. `npm run art` now writes
 `frontend/art-sheet/catalog.json` and the complete `catalog-*` SVG fixtures,
 as well as all wardrobe fixtures. An item absent from presets still gets reviewed.
 
-## Next iteration draft — kitchen materials and tabletop life
+## Implemented 2026-11-04 — contact and support audit
+
+A second complete contact-sheet pass checked whether contents are contained,
+parts visibly meet their supports, and floor pieces terminate at the ground.
+Four clear errors were corrected without changing footprints, heights or
+placement behavior:
+
+1. The railing's posts and balusters now enter a projected lower rail rather
+   than appearing to stop independently above the floor.
+2. The desk lamp now uses a readable mid-value metal and an explicit pivot where
+   the articulated arm enters the shade.
+3. The hanging plant's cord forks into a two-point hanger; foliage is painted
+   behind a tapered pot, recessed soil and a visible front rim.
+4. Wildflower stem ends are hidden by an irregular soil patch and foreground
+   grass, with broad leaves breaking up the repeated-stem rhythm.
+
+`docs/model-review/contact-supports.webp` records all four at catalog scale,
+and the sprite tests protect the required supporting parts. Softer style issues
+noticed during the sweep remain roadmap work rather than being mixed into this
+physical-contact fix.
+
+## Implemented 2026-11-04 — kitchen and tabletop material pass
+
+The first kitchen batch replaces the most inflated-looking round props with
+constructed material profiles while preserving their catalog contracts:
+
+1. **Manufactured metal.** The kettle now has a faceted reservoir, planted
+   heating ring, dark spout opening, separate lid and supported bail handle.
+   The stockpot adds a rolled rim, recessed lid, rivets and attached handles.
+2. **Enamel appliance construction.** The fridge separates its gasketed upper
+   and lower doors, proud metal handles, recessed toe-kick and supporting feet.
+3. **Thrown ceramic.** The teapot uses a foot, belly, shoulder and neck with a
+   hollow handle, attached spout and seated lid. The fruit bowl exposes a dark
+   interior, weighted near rim and planted foot around individually shaped fruit.
+4. **Food with cut surfaces.** Bread now sits on a thin timber board with end
+   grain, an irregular scored crust and cut heel. Cake exposes sponge, cream and
+   a cut face on a thin ceramic stand instead of reading as stacked cylinders.
+5. **A shared restraint.** Broad rectangular shine bands and perfect domes were
+   removed from these pieces. Narrow edge catches, recesses, joins and contact
+   planes now identify metal, ceramic, timber and food at room scale.
+
+The art sheet and focused catalog test cover all seven material constructions.
+Keys, footprints, heights, stacking behavior and tint contracts remain unchanged.
+
+## Next kitchen follow-up — fixed run and remaining tabletop life
 
 The outdoor pass now gives five presets a stronger ground plane. The next
 cohesive pass should improve the everyday objects people actually work beside,
 without turning kitchens into dense prop displays:
 
-1. **Set the module boundary first.** Extract the remaining kitchen appliances,
-   cookware and food sprites from `IsoItems.jsx` into a small number of material-
-   based modules. Keep registry keys, stack heights and footprints unchanged.
-2. **Build the fixed kitchen run.** Give the oven recessed glass and controls,
-   the sink a thick inset basin and curved supported faucet, and the fridge
-   separate doors, gasket gap, handles, feet and toe-kick.
-3. **Refine the small appliances.** Rebuild the microwave, toaster and kettle
-   around wall thickness, openings, handles and feet rather than decorated boxes.
-4. **Make cookware hollow and supported.** Add rolled rims, visible interiors
-   and attached handles to the stockpot, teapot, mug and serving bowl while
-   preserving their tabletop placement contracts.
-5. **Give food a readable profile.** Prioritize bread, fruit bowl, cake, pie and
-   ramen. Use overlapping broad forms and cut surfaces that survive room zoom;
-   avoid garnish detail that collapses into noise.
+1. **Complete the module boundary.** Move the fridge and any remaining kitchen
+   appliance art out of `IsoItems.jsx` without changing registry keys, heights or
+   footprints.
+2. **Build the fixed kitchen run.** Give the oven recessed glass and controls
+   and the sink a thick inset basin with a curved supported faucet.
+3. **Refine the remaining small appliances.** Rebuild the microwave and toaster
+   around wall thickness, openings, controls and feet rather than decorated boxes.
+4. **Finish hollow tabletop vessels.** Add wall thickness and supported handles
+   to the mug; keep the completed stockpot, teapot and serving bowl as the material
+   reference for future pieces.
+5. **Finish the food group.** Prioritize pie and ramen, using broad cut surfaces
+   and overlap that survive room zoom without garnish noise.
 6. **Repeat the room-scale review loop.** Judge Corner café, Cozy cabin and the
    kitchen-heavy home arrangements beside the isolated cutouts. Check counter
    stacking, rear paint order, routes and tint behavior before refreshing only
@@ -279,7 +321,7 @@ because it renders or has a tint picker.
 | Succulent (`succulent`) | Refined this pass | A fuller tilted rosette and ceramic pot rather than a flat star. |
 | Orchid (`orchid`) | Refined this pass | More curved petal silhouettes and a taller arched stem. |
 | Potted plant (`plant`) | Refined this pass | Unequal curved leaves, fuller crown and less rigid stem spacing. |
-| Wildflowers (`flowers`) | Pending | Different flower heads, leaves and stem bends rather than identical daisies. |
+| Wildflowers (`flowers`) | Contact fixed 2026-11-04 | Soil, foreground grass and broad leaves now plant the stems; vary the remaining flower heads and stem bends in a later silhouette pass. |
 | Flower patch (`flowerbed`) | Refined 2026-10-24 | Soil inset, broad leaves and two flower species now form unequal clusters; future work should stay restrained at room scale. |
 
 ### Tech & music
@@ -368,18 +410,18 @@ because it renders or has a tint picker.
 | Sink (`sink`) | Pending | Inset basin with wall thickness, rim and curved faucet. |
 | Microwave (`microwave`) | Pending | Door-frame thickness, recessed controls and supporting feet. |
 | Toaster (`toaster`) | Pending | Rounded housing, recessed slots, lever and crumb-tray seam. |
-| Kettle (`kettle`) | Pending | Separate spout, lid rim and loop handle around a rounded reservoir. |
-| Stockpot (`pot`) | Pending | Rolled rim, hollow inner wall and physically attached handles. |
-| Little fridge (`fridge`) | Pending | Separate door faces, gasket gap, handle supports and toe-kick. |
+| Kettle (`kettle`) | Refined 2026-11-04 | Faceted reservoir, heating ring, dark spout opening, separate lid and supported bail handle are implemented. |
+| Stockpot (`pot`) | Refined 2026-11-04 | Rolled rim, recessed lid, rivets and attached handles are implemented. |
+| Little fridge (`fridge`) | Refined 2026-11-04 | Gasketed door faces, proud handles, recessed toe-kick and supporting feet are implemented. |
 
 ### Food & drink
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Teapot (`teapot`) | Pending | Sculpted body, lid seat and continuous hollow spout/handle. |
-| Fruit bowl (`fruitbowl`) | Pending | Thick bowl rim and individually shaped fruit with overlapping depth. |
-| Bread (`bread`) | Pending | Irregular loaf outline, sliced end and scored crust following curvature. |
-| Cake (`cake`) | Pending | Layered sponge/icing thickness and uneven decoration placement. |
+| Teapot (`teapot`) | Refined 2026-11-04 | Foot, belly, shoulder and neck now support a hollow handle, filled spout and seated lid. |
+| Fruit bowl (`fruitbowl`) | Refined 2026-11-04 | Recessed interior, weighted near rim, planted foot and overlapping shaped fruit are implemented. |
+| Bread (`bread`) | Refined 2026-11-04 | Thin timber board, irregular scored loaf and cut heel are implemented. |
+| Cake (`cake`) | Refined 2026-11-04 | Exposed sponge, cream layers, cut face and thin ceramic stand are implemented. |
 | Pie (`pie`) | Pending | Rolled crust rim, recessed filling and overlapping lattice strips. |
 | Ramen (`ramen`) | Pending | Bowl-wall thickness, noodle loops and individually shaped toppings. |
 | Mug (`mug`) | Pending | Curved hollow handle, lip thickness and recessed drink surface. |
@@ -406,7 +448,7 @@ because it renders or has a tint picker.
 
 | Item (catalog key) | Status | Next modeling work |
 |---|---|---|
-| Desk lamp (`desklamp`) | Refined this pass | More curved metal shade and attached hinge-arm segments. |
+| Desk lamp (`desklamp`) | Contact fixed 2026-11-04 | Mid-value metal and a visible shade pivot keep the articulated arm connected at room scale. |
 | Jar of lights (`lightjar`) | Pending | Glass thickness, screw lid and softly separated lights inside. |
 | Lava lamp (`lavalamp`) | Pending | Thick glass chamber, cap/base materials and more organic wax shapes. |
 | Mushroom lamp (`mushroomlamp`) | Pending | Curved translucent shade lip and sculpted stem/base. |
@@ -437,7 +479,7 @@ because it renders or has a tint picker.
 | Door (`doorway`) | Pending | Recessed frame and panelled door with separate handle depth. |
 | Tall window (`bigwindow`) | Pending | Mullion/frame depth, sill projection and separate glass plane. |
 | Staircase (`stairs`) | Pending | Individual treads, risers and open stringer construction. |
-| Railing (`railing`) | Pending | Top rail, individual post attachments and timber end joints. |
+| Railing (`railing`) | Contact fixed 2026-11-04 | A planted lower rail now receives every upright; individual post attachments and timber end joints remain future detail work. |
 | Pillar (`pillar`) | Pending | Separate capital/base proportions and fluted or bevelled shaft. |
 
 ### On the wall
@@ -451,7 +493,7 @@ because it renders or has a tint picker.
 | Poster (`poster`) | Pending | Paper corners, attachment points and restrained curl. |
 | Menu board (`menuboard`) | Pending | Recessed chalk surface and shaped timber frame. |
 | Curtains (`curtain`) | Refined this pass | Projecting rail, brackets and rings; gathered upper folds, tied-back waists and softly fanned uneven hems. |
-| Hanging plant (`hangplant`) | Pending | Arcing trailing vines, distinct small leaves and visible pot rim. |
+| Hanging plant (`hangplant`) | Contact fixed 2026-11-04 | Split hanger, tapered vessel, recessed soil and front rim visibly contain the foliage; richer trailing leaves remain future work. |
 | Neon sign (`neon`) | Pending | Tubing mounted on standoffs with a separate cable. |
 | Fairy lights (`fairylights`) | Pending | Sagging cable, distinct bulbs and clear attachment points. |
 | Wall sconce (`sconce`) | Pending | Bracket connection, shade depth and wall contact. |

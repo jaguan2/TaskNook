@@ -429,11 +429,13 @@ function Stairs({ back }) {
 }
 
 function Railing() {
-  // Posts, a handrail, and thin balusters between them.
+  // Posts, a handrail, and thin balusters tied into a planted sole rail. The
+  // sole matters at room scale: verticals that simply stop at the floor read
+  // as loose sticks hovering in front of it.
   const W = 2;
   const H = 32;
   return (
-    <g>
+    <g data-contact-structure="railing">
       {[0.04, W / 2 - 0.07, W - 0.18].map((gx) => (
         <TintedBox key={gx} gx={gx} gy={0.05} dx={0.14} dy={0.14} h={H} fallback="#6b4436" dark={0.36} mid={0.2} />
       ))}
@@ -453,8 +455,31 @@ function Railing() {
           />
         );
       })}
+      <g data-contact-part="lower-rail">
+        <TintedBox
+          gx={0.02}
+          gy={0.055}
+          dx={W - 0.04}
+          dy={0.13}
+          h={4}
+          fallback="#8f5d49"
+          dark={0.38}
+          mid={0.22}
+        />
+      </g>
       <g transform={`translate(0,${-H})`}>
-        <TintedBox gx={0} gy={0.02} dx={W} dy={0.2} h={5} fallback="#a87f5f" dark={0.28} mid={0.14} />
+        <g data-contact-part="handrail">
+          <TintedBox
+            gx={0}
+            gy={0.02}
+            dx={W}
+            dy={0.2}
+            h={5}
+            fallback="#a87f5f"
+            dark={0.28}
+            mid={0.14}
+          />
+        </g>
       </g>
     </g>
   );
@@ -1088,18 +1113,28 @@ function Fridge() {
   const H = 42;
   const face = W * (TILE_W / 2);
   return (
-    <g>
+    <g data-kitchen-material="gasketed-enamel">
       {/* enamel white by default, and it opts out of the tint like the other
           appliances — but stays tintable for a retro mint or coral one */}
       <TintedBox gx={0} gy={0} dx={W} dy={D} h={H} fallback="#e6e2dc" dark={0.3} mid={0.16} />
       <g transform={`translate(${project(0, D).x}, ${project(0, D).y}) skewY(${SKEW})`}>
-        <line x1="0" y1={-H + 13} x2={face} y2={-H + 13} stroke="#000" strokeWidth="1" opacity="0.2" />
-        <rect x={face - 5} y={-H + 4} width="1.8" height="7" rx="0.9" fill="#000" opacity="0.3" />
-        <rect x={face - 5} y={-H + 16} width="1.8" height="15" rx="0.9" fill="#000" opacity="0.3" />
+        {/* Separate gasketed doors, proud handles and a recessed toe-kick.
+            They read as assembled enamel panels instead of one toy block. */}
+        <rect x="1.5" y={-H + 2} width={face - 3} height="11" fill="#fff" opacity="0.06"
+          stroke="#000" strokeWidth="0.8" strokeOpacity="0.2" />
+        <rect x="1.5" y={-H + 14} width={face - 3} height="28" fill="#fff" opacity="0.035"
+          stroke="#000" strokeWidth="0.8" strokeOpacity="0.2" />
+        <rect x={face - 6.3} y={-H + 4} width="1.3" height="7" fill="#9b9690" />
+        <rect x={face - 6.3} y={-H + 17} width="1.3" height="14" fill="#9b9690" />
+        <rect x={face - 6.8} y={-H + 4} width="0.7" height="7" fill="#fff" opacity="0.35" />
+        <rect x={face - 6.8} y={-H + 17} width="0.7" height="14" fill="#fff" opacity="0.35" />
+        <rect x="1.5" y="-4.3" width={face - 3} height="4.3" fill="#000" opacity="0.18" />
         {/* magnets — a bare fridge is a filing cabinet */}
         <rect x="4" y={-H + 19} width="4.5" height="5.5" rx="0.6" fill="#e8a3a8" />
         <circle cx="12" cy={-H + 22} r="1.7" fill="#7faf8f" />
       </g>
+      <rect x="2.5" y="-1.5" width="3.5" height="2.2" fill="#696461" />
+      <rect x="18" y="4.5" width="3.5" height="2.2" fill="#514d4b" />
     </g>
   );
 }
@@ -1753,22 +1788,30 @@ function VinylCrate() {
 function DeskLamp() {
   const c = project(0.2, 0.2);
   const H = 23;
+  const METAL = "#665a70";
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
-      <ellipse cx="0" cy="0" rx="6" ry="3" style={tinted("#3a3142")} />
+    <g transform={`translate(${c.x}, ${c.y})`} data-contact-structure="desk-lamp">
+      <ellipse cx="0" cy="0" rx="6" ry="3" style={tinted(METAL)} />
       <ellipse cx="0" cy="0" rx="6" ry="3" fill="#000" opacity="0.3" />
       <path
         d={`M0 -1 L-3 ${-H} L7 ${-H - 4}`}
         fill="none"
-        style={{ stroke: "var(--tint, #3a3142)" }}
+        style={{ stroke: `var(--tint, ${METAL})` }}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d={`M2 ${-H - 9} L12 ${-H - 3} L8 ${-H + 3} L-1 ${-H - 3} Z`} style={tinted("#3a3142")} />
+      <path d={`M2 ${-H - 9} L12 ${-H - 3} L8 ${-H + 3} L-1 ${-H - 3} Z`} style={tinted(METAL)} />
+      <path d={`M2 ${-H - 9} L12 ${-H - 3}`} fill="none" stroke="#fff3e0" strokeWidth="0.8" opacity="0.16" />
       <path d={`M1 ${-H - 2} L7 ${-H + 1}`} fill="none" stroke="#fff3e0" strokeWidth="0.8" opacity="0.28" />
-      <circle cx="-3" cy={-H} r="2" fill="#b99b62" />
-      <circle cx="0" cy="-4" r="1.5" fill="#b99b62" />
+      <circle cx="-3" cy={-H} r="2" style={tinted(METAL)} />
+      <circle cx="-3" cy={-H} r="0.65" fill="#c3a56c" />
+      {/* The shade overlaps the arm, but a visible pivot is what makes the
+          two silhouettes read as one articulated object rather than a gap. */}
+      <circle data-contact-part="shade-hinge" cx="7" cy={-H - 4} r="2.15" style={tinted(METAL)} />
+      <circle cx="7" cy={-H - 4} r="0.7" fill="#c3a56c" />
+      <circle cx="0" cy="-4" r="1.5" style={tinted(METAL)} />
+      <circle cx="0" cy="-4" r="0.55" fill="#c3a56c" />
       <ellipse cx="8" cy={-H + 2} rx="5" ry="2.6" fill="#ffe9b0" opacity="0.75" className="room-breathe" />
     </g>
   );
@@ -1864,17 +1907,22 @@ function Curtain() {
 
 function HangingPlant() {
   return (
-    <g transform={`skewY(${SKEW})`}>
-      <line x1="8" y1="-104" x2="8" y2="-88" stroke="#6b4a39" strokeWidth="1" />
+    <g transform={`skewY(${SKEW})`} data-contact-structure="hanging-plant">
+      <line x1="8" y1="-104" x2="8" y2="-96" stroke="#6b4a39" strokeWidth="1.2" />
       {/* the sway class sits on a group with NO transform attribute of its
           own — a CSS transform on an element that also has one would win
           outright and drop the pot through the wall */}
       <g className="room-sway-hanging">
-        <path d="M2 -88 l12 0 l-2 10 l-8 0 z" style={tinted("#c0563f")} />
-        <path d="M8 -88 l6 0 l-2 10 l-4 0 z" fill="#000" opacity="0.18" />
+        <path data-contact-part="hanger" d="M8 -96 L2.5 -87 M8 -96 L13.5 -87" fill="none" stroke="#6b4a39" strokeWidth="1" />
+        {/* Leaves sit behind the vessel; their roots disappear below its rim. */}
         <path d="M4 -88 q-4 12 -2 23 q4 -11 3 -23 z" fill="#3f7f63" />
         <path d="M11 -88 q5 10 3 21 q-5 -10 -4 -21 z" fill="#56a07c" />
         <path d="M8 -88 q0 15 1 25 q2 -13 1 -25 z" fill="#3f7f63" />
+        <path data-contact-part="pot" d="M2 -88 l12 0 l-2 10 l-8 0 z" style={tinted("#c0563f")} />
+        <path d="M8 -88 l6 0 l-2 10 l-4 0 z" fill="#000" opacity="0.18" />
+        <ellipse cx="8" cy="-88" rx="6.2" ry="2" fill="#7d4838" />
+        <ellipse data-contact-part="soil" cx="8" cy="-88.3" rx="4.7" ry="1.2" fill="#493529" />
+        <path data-contact-part="pot-rim" d="M1.5 -88.7 Q8 -85.9 14.5 -88.7" fill="none" stroke="#e0785c" strokeWidth="1.7" />
       </g>
     </g>
   );
@@ -2233,7 +2281,15 @@ function Computer() {
 function Flowers() {
   const c = project(0.35, 0.3);
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g transform={`translate(${c.x}, ${c.y})`} data-contact-structure="wildflowers">
+      {/* The soil and foreground grass overlap every stem end. Without that
+          contact the cluster reads as cut flowers suspended above the tile. */}
+      <path
+        data-contact-part="soil-patch"
+        d="M-14 0 Q-8 -5 -1 -3 Q6 -6 13 -1 Q10 4 3 5 Q-5 6 -14 0 Z"
+        fill="#604934"
+      />
+      <path d="M-12 0 Q-6 -3 0 -2 Q7 -4 11 -1 Q6 2 0 3 Q-7 3 -12 0 Z" fill="#7b6244" />
       {[
         [-9, -2, "#e8a3a8"],
         [0, -5, "#e8b04b"],
@@ -2242,6 +2298,10 @@ function Flowers() {
       ].map(([x, dy, fill]) => (
         <g key={`${x}-${dy}`}>
           <path d={`M${x} ${dy} q1 -8 0 -13`} stroke="#3f7f63" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path
+            d={`M${x - 0.2} ${dy - 6} q${x < 0 ? -5 : 5} -3 ${x < 0 ? -6 : 6} 1 q${x < 0 ? 4 : -4} 0 ${x < 0 ? 6 : -6} -1 z`}
+            fill="#4f8c6e"
+          />
           <g className="room-sway">
             {[0, 72, 144, 216, 288].map((deg) => {
               const r = (deg * Math.PI) / 180;
@@ -2260,6 +2320,14 @@ function Flowers() {
           </g>
         </g>
       ))}
+      <path
+        data-contact-part="grass-overlap"
+        d="M-12 1 l2 -7 l1 7 l4 -5 l-1 6 l5 -5 l-2 6 l6 -5 l-2 6 l6 -5 l-1 5 l5 -4"
+        fill="none"
+        stroke="#3f7f63"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
     </g>
   );
 }
