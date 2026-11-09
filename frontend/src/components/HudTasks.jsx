@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useRef, useState } from "react";
 import {
   CalendarClock,
@@ -40,6 +41,7 @@ import ConfirmDialog from "./ConfirmDialog";
  * not remount the editor and wipe a half-written note.
  */
 function TaskDetails({ task, editTask, onClose }) {
+  const { t: ui } = useI18n();
   const [notes, setNotes] = useState(task.notes || "");
   const [name, setName] = useState(task.name);
   const [due, setDue] = useState(task.dueDate || "");
@@ -72,7 +74,7 @@ function TaskDetails({ task, editTask, onClose }) {
         onBlur={() => commit({ name: name.trim() || task.name })}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         maxLength={200}
-        aria-label="Task name"
+        aria-label={ui("tasks.name")}
         className="w-full rounded-md bg-white/10 px-2 py-1 text-sm text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
       <textarea
@@ -81,8 +83,8 @@ function TaskDetails({ task, editTask, onClose }) {
         onBlur={() => commit({ notes })}
         rows={2}
         maxLength={2000}
-        placeholder="Notes…"
-        aria-label="Notes"
+        placeholder={ui("hud.notesPlaceholder")}
+        aria-label={ui("hud.notes")}
         className="cozy-scroll w-full resize-none rounded-md bg-white/10 px-2 py-1 text-xs text-cream outline-none placeholder:text-petal/40 focus:bg-white/15"
       />
       <div className="flex items-center gap-2">
@@ -99,31 +101,31 @@ function TaskDetails({ task, editTask, onClose }) {
               setDuration(next);
               commit({ duration: next });
             }}
-            aria-label="Estimated minutes"
+            aria-label={ui("tasks.minutes")}
             className="w-14 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
           />
-          min
+          <span className="shrink-0 whitespace-nowrap">{ui("units.minutes")}</span>
         </label>
         <label className="flex items-center gap-1 text-[11px] text-petal/60">
-          Priority
+          {ui("tasks.priority")}
           <select
             value={priority}
             onChange={(e) => {
               setPriority(e.target.value);
               commit({ priority: e.target.value });
             }}
-            aria-label="Task priority"
+            aria-label={ui("hud.taskPriority")}
             className="rounded-md bg-plum/90 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-plum"
           >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="low">{ui("tasks.low")}</option>
+            <option value="medium">{ui("tasks.medium")}</option>
+            <option value="high">{ui("tasks.high")}</option>
           </select>
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
-          <CalendarClock size={12} /> Planned
+          <CalendarClock size={12} /> {ui("hud.planned")}
           <input
             type="date"
             value={scheduled}
@@ -133,12 +135,12 @@ function TaskDetails({ task, editTask, onClose }) {
                 editTask(task.id, { scheduledDate: e.target.value || null });
               }
             }}
-            aria-label="Scheduled date"
+            aria-label={ui("hud.scheduled")}
             className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
           />
         </label>
         <label className="flex items-center gap-1.5 text-[11px] text-petal/60">
-          <CalendarClock size={12} /> Due
+          <CalendarClock size={12} /> {ui("tasks.due")}
           <input
             type="date"
             value={due}
@@ -150,7 +152,7 @@ function TaskDetails({ task, editTask, onClose }) {
                 editTask(task.id, { dueDate: e.target.value || null });
               }
             }}
-            aria-label="Due date"
+            aria-label={ui("tasks.due")}
             className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] text-cream outline-none focus:bg-white/15"
           />
         </label>
@@ -158,7 +160,7 @@ function TaskDetails({ task, editTask, onClose }) {
           onClick={onClose}
           className="ml-auto px-1 text-[11px] text-petal/50 transition hover:text-cream"
         >
-          done
+          {ui("hud.close")}
         </button>
       </div>
     </div>
@@ -182,6 +184,7 @@ function Row({
   onToggleExpand,
   editTask,
 }) {
+  const { t: ui } = useI18n();
   const expanded = expandedId === task.id;
   // A deadline that has passed (or lands today) is the only thing in the list
   // allowed to shout. Compared as LOCAL date strings, never a UTC timestamp —
@@ -208,8 +211,8 @@ function Row({
       </span>
       <button
         onClick={() => toggleTask(task)}
-        title={task.completed ? "Mark as not done" : "Mark complete"}
-        aria-label={task.completed ? `Mark ${task.name} as not done` : `Mark ${task.name} complete`}
+        title={task.completed ? ui("tasks.undo") : ui("tasks.complete")}
+        aria-label={ui(task.completed ? "hud.undoName" : "hud.completeName", { name: task.name })}
         className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border-2 text-[11px] transition ${
           task.completed
             ? "border-sage bg-sage text-plum"
@@ -220,7 +223,7 @@ function Row({
       </button>
       <button
         onClick={() => !task.completed && setActiveTaskId(task.id)}
-        title={task.completed ? undefined : "Focus on this task"}
+        title={task.completed ? undefined : ui("tasks.focus")}
         className="min-w-0 flex-1 text-left"
       >
         <span
@@ -233,7 +236,7 @@ function Row({
           }`}
         >
           {task.routine && (
-            <span title="Daily routine" className="mr-1 inline-block align-middle text-sage">
+            <span title={ui("hud.routine")} className="mr-1 inline-block align-middle text-sage">
               <Repeat size={10} />
             </span>
           )}
@@ -241,13 +244,13 @@ function Row({
         </span>
       </button>
       {task.notes && (
-        <span title={task.notes} aria-label="Has notes" className="shrink-0 text-petal/40">
+        <span title={task.notes} aria-label={ui("hud.hasNotes")} className="shrink-0 text-petal/40">
           <StickyNote size={11} />
         </span>
       )}
       {task.dueDate && (
         <span
-          title={`Due ${task.dueDate}`}
+          title={ui("tasks.dueOn", { date: task.dueDate })}
           className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${
             overdue ? "text-danger" : "text-petal/50"
           }`}
@@ -257,7 +260,7 @@ function Row({
       )}
       {task.scheduledDate && !task.completed && (
         <span
-          title={`Planned for ${task.scheduledDate}`}
+          title={ui("calendar.plannedFor", { date: task.scheduledDate })}
           className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10px] font-semibold text-sage"
         >
           <CalendarClock size={10} /> {task.scheduledDate.slice(5)}
@@ -265,8 +268,8 @@ function Row({
       )}
       <button
         onClick={() => onToggleExpand(task.id)}
-        title={expanded ? "Hide details" : "Edit task details"}
-        aria-label="Edit task details"
+        title={ui(expanded ? "hud.hideDetails" : "hud.editDetails")}
+        aria-label={ui("hud.editDetails")}
         aria-expanded={expanded}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           expanded ? "text-glow" : "text-petal/30 hover:text-cream"
@@ -276,8 +279,8 @@ function Row({
       </button>
       <button
         onClick={() => toggleRoutine(task)}
-        title={task.routine ? "Routine: resets daily. Click to make one-off" : "Make a daily routine"}
-        aria-label={task.routine ? `Make ${task.name} one-off` : `Make ${task.name} a daily routine`}
+        title={ui(task.routine ? "hud.routineHelp" : "hud.makeRoutine")}
+        aria-label={ui(task.routine ? "hud.onceName" : "hud.routineName", { name: task.name })}
         className={`hover-reveal shrink-0 px-0.5 transition ${
           task.routine ? "text-sage" : "text-petal/30 hover:text-sage"
         }`}
@@ -286,8 +289,8 @@ function Row({
       </button>
       <button
         onClick={() => requestDelete(task)}
-        title="Delete task"
-        aria-label="Delete task"
+        title={ui("tasks.delete")}
+        aria-label={ui("tasks.delete")}
         className="hover-reveal shrink-0 px-1 text-sm text-petal/30 transition hover:text-danger"
       >
         ✕
@@ -301,6 +304,7 @@ function Row({
 }
 
 export default function HudTasks({ onOpenTasks }) {
+  const { t: ui } = useI18n();
   const {
     orderedTasks,
     toggleTask,
@@ -356,7 +360,7 @@ export default function HudTasks({ onOpenTasks }) {
     } catch (err) {
       console.error("Quick-add failed:", err);
       setDraft(name); // give the typed text back instead of eating it
-      showToast("Couldn't add the task 🌧️");
+      showToast(ui("hud.addError"));
     }
   };
 
@@ -421,7 +425,7 @@ export default function HudTasks({ onOpenTasks }) {
     <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col max-[599px]:invisible">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
-          To-Do List{" "}
+          {ui("hud.title")}{" "}
           <span className="font-cozy text-sm font-semibold text-petal/60">
             ({done.length}/{currentTasks.length})
           </span>
@@ -430,10 +434,10 @@ export default function HudTasks({ onOpenTasks }) {
           {groupDraft === null ? (
             <button
               onClick={() => setGroupDraft("")}
-              title="New group"
+              title={ui("hud.newGroup")}
               className="pill flex items-center gap-0.5 px-2 py-0.5 text-xs text-petal/60 hover:bg-white/10 hover:text-petal"
             >
-              <Plus size={11} /> Group
+              <Plus size={11} /> {ui("hud.group")}
             </button>
           ) : (
             <form onSubmit={submitGroup}>
@@ -443,15 +447,15 @@ export default function HudTasks({ onOpenTasks }) {
                 onChange={(e) => setGroupDraft(e.target.value)}
                 onBlur={submitGroup}
                 maxLength={60}
-                placeholder="Group name"
+                placeholder={ui("hud.groupName")}
                 className="w-24 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-cream placeholder:text-petal/40 outline-none"
               />
             </form>
           )}
           <button
             onClick={onOpenTasks}
-            title="Open the full task manager (priorities, ordering, durations)"
-            aria-label="Open the full task manager (priorities, ordering, durations)"
+            title={ui("hud.manager")}
+            aria-label={ui("hud.manager")}
             className="pill px-2 py-1 text-petal/60 hover:bg-white/10 hover:text-petal"
           >
             <SlidersHorizontal size={13} />
@@ -461,7 +465,7 @@ export default function HudTasks({ onOpenTasks }) {
 
       <div className="cozy-scroll cozy-scroll--bare min-h-0 flex-1 overflow-y-auto">
         {currentTasks.length === 0 && taskGroups.length === 0 && (
-          <p className="px-2 py-3 text-xs text-petal/50">All clear 🌿</p>
+          <p className="px-2 py-3 text-xs text-petal/50">{ui("hud.clear")}</p>
         )}
         {sections.map((section) =>
           section.key === "" ? (
@@ -484,7 +488,7 @@ export default function HudTasks({ onOpenTasks }) {
                     }}
                     onBlur={finishGroupRename}
                     maxLength={60}
-                    aria-label="Task group name"
+                    aria-label={ui("hud.taskGroup")}
                     className="w-28 rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-cream outline-none"
                   />
                 ) : (
@@ -498,8 +502,8 @@ export default function HudTasks({ onOpenTasks }) {
                     setRenamingGroup(section.key);
                     setRenameDraft(section.key);
                   }}
-                  title="Rename group"
-                  aria-label={`Rename ${section.key} group`}
+                  title={ui("hud.renameGroup")}
+                  aria-label={ui("hud.renameGroupName", { name: section.key })}
                   className="hover-reveal px-1 text-petal/30 transition hover:text-cream"
                 >
                   <Pencil size={10} />
@@ -509,11 +513,11 @@ export default function HudTasks({ onOpenTasks }) {
                     so one stray tap mustn't scatter a whole section. */}
                 <button
                   onClick={() => arm(`group:${section.key}`, () => removeTaskGroup(section.key))}
-                  title="Remove group (its tasks stay, ungrouped)"
+                  title={ui("hud.removeGroup")}
                   aria-label={
                     confirmId === `group:${section.key}`
-                      ? "Tap again to remove this group"
-                      : "Remove group (its tasks stay, ungrouped)"
+                      ? ui("hud.confirmGroup")
+                      : ui("hud.removeGroup")
                   }
                   className={`hover-reveal px-1 transition ${
                     confirmId === `group:${section.key}`
@@ -521,11 +525,11 @@ export default function HudTasks({ onOpenTasks }) {
                       : "text-xs text-petal/30 hover:text-danger"
                   }`}
                 >
-                  {confirmId === `group:${section.key}` ? "sure?" : "✕"}
+                  {confirmId === `group:${section.key}` ? ui("common.sure") : "✕"}
                 </button>
               </div>
               {section.tasks.length === 0 && (
-                <p className="px-2 pb-1 text-[11px] italic text-petal/35">nothing here yet</p>
+                <p className="px-2 pb-1 text-[11px] italic text-petal/35">{ui("hud.emptyGroup")}</p>
               )}
               {section.tasks.map((task, i) => (
                 <Row
@@ -558,18 +562,18 @@ export default function HudTasks({ onOpenTasks }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           maxLength={200}
-          placeholder="＋ New Task"
+          placeholder={ui("hud.newTask")}
           className="min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-cream placeholder:text-petal/40 outline-none"
         />
         {taskGroups.length > 0 && (
           <select
             value={draftGroup}
             onChange={(e) => setDraftGroup(e.target.value)}
-            title="Add into group"
-            aria-label="Add into group"
+            title={ui("hud.addGroup")}
+            aria-label={ui("hud.addGroup")}
             className="max-w-[7rem] rounded-lg bg-white/10 px-1.5 py-0.5 text-xs text-petal outline-none"
           >
-            <option value="">No group</option>
+            <option value="">{ui("hud.noGroup")}</option>
             {taskGroups.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -579,8 +583,8 @@ export default function HudTasks({ onOpenTasks }) {
         )}
       </form>
     </div>
-    <ConfirmDialog open={!!deleting} title="Delete task?"
-      message={`Remove “${deleting?.name || "this task"}” permanently?`}
+    <ConfirmDialog open={!!deleting} title={ui("tasks.deleteTitle")}
+      message={ui("tasks.deleteMessage", { name: deleting?.name || ui("tasks.thisTask") })}
       onCancel={() => setDeleting(null)}
       onConfirm={() => { removeTask(deleting.id); setDeleting(null); }} />
     </>

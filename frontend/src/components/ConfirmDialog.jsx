@@ -1,9 +1,11 @@
+import { useI18n } from "../i18n/I18nProvider";
 /** A deliberate pause before removing user data — a dialog, never a row whose
  * label morphs into “sure?”. The action remains explicit even during a run of
  * deletions, which is when a tiny state change is easiest to miss. */
 import { useEffect } from "react";
 
-export default function ConfirmDialog({ open, title, message, confirmLabel = "Delete", onCancel, onConfirm }) {
+export default function ConfirmDialog({ open, title, message, confirmLabel, onCancel, onConfirm }) {
+  const { t: ui } = useI18n();
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event) => {
@@ -20,8 +22,8 @@ export default function ConfirmDialog({ open, title, message, confirmLabel = "De
         <h2 id="confirm-title" className="text-base font-bold text-cream">{title}</h2>
         <p id="confirm-message" className="mt-2 text-sm text-petal/70">{message}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" autoFocus onClick={onCancel} className="pill bg-white/10 px-3 py-1.5 text-sm font-semibold text-petal hover:bg-white/20">Cancel</button>
-          <button type="button" onClick={onConfirm} className="pill bg-danger/90 px-3 py-1.5 text-sm font-bold text-plum hover:bg-danger">{confirmLabel}</button>
+          <button type="button" autoFocus onClick={onCancel} className="pill bg-white/10 px-3 py-1.5 text-sm font-semibold text-petal hover:bg-white/20">{ui("actions.cancel")}</button>
+          <button type="button" onClick={onConfirm} className="pill bg-danger/90 px-3 py-1.5 text-sm font-bold text-plum hover:bg-danger">{confirmLabel ?? ui("actions.delete")}</button>
         </div>
       </div>
     </div>

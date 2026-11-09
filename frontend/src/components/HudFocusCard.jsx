@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../lib/time";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
@@ -21,6 +22,7 @@ const fmt = (seconds) => formatClock(seconds, { padMinutes: true });
 // else (mode, presets, pomodoro plan) tucked behind the ⚙ expander. The task
 // name appears centred above only when there IS one; no idle filler text.
 export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand }) {
+  const { t: ui } = useI18n();
   // This card IS the clock, so it's the one component that should re-render
   // every second — it reads the full timer context on purpose.
   const {
@@ -97,7 +99,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
   const progress = stopwatch ? (elapsed % 60) / 60 : total > 0 ? 1 - remaining / total : 0;
   const barColor = inBreak ? "#7faf8f" : stopwatch ? "#6fb8cf" : "#ffe9b0";
 
-  const heading = inBreak ? "Break time ☕" : activeTask?.name;
+  const heading = inBreak ? ui("timer.breakTime") : activeTask?.name;
 
   const hasProgress = stopwatch ? elapsed > 0 : running || remaining < total;
   const requestReset = () => {
@@ -148,7 +150,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
         <div className="glass relative w-full rounded-2xl px-4 pb-3 pt-2 shadow-soft">
           <div
             onPointerDown={(e) => dragControls.start(e)}
-            title="Drag to move"
+            title={ui("timer.drag")}
             className="mx-auto mb-1 h-1.5 w-10 cursor-grab rounded-full bg-white/20 active:cursor-grabbing"
           />
 
@@ -174,7 +176,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             {!stopwatch && !inBreak && (
               <button
                 onClick={() => nudgeTimer(-60)}
-                title="One minute less"
+                title={ui("timer.less")}
                 className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
               >
                 −1:00
@@ -186,16 +188,16 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             {inBreak && (
               <button
                 onClick={skipBreak}
-                title="Skip the break — straight into the next round"
+                title={ui("timer.skipTitle")}
                 className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
               >
-                Skip ▸
+                {ui("timer.skip")}
               </button>
             )}
             {!stopwatch && !inBreak && (
               <button
                 onClick={() => nudgeTimer(60)}
-                title="One more minute"
+                title={ui("timer.more")}
                 className="pill px-1.5 py-0.5 text-[10px] font-semibold text-petal/50 hover:bg-white/10 hover:text-cream"
               >
                 +1:00
@@ -219,21 +221,21 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
           <div className="mt-2 flex items-center justify-center gap-1.5">
             <button
               onClick={requestReset}
-              title="Reset (discards this block — nothing is logged)"
-              aria-label="Reset (discards this block — nothing is logged)"
+              title={ui("timer.reset")}
+              aria-label={ui("timer.reset")}
               className={`pill grid h-8 place-items-center transition ${
                 confirmReset
                   ? "px-2 text-[10px] font-bold text-danger hover:bg-white/10"
                   : "w-8 text-sm text-petal/70 hover:bg-white/10 hover:text-cream"
               }`}
             >
-              {confirmReset ? "sure?" : "✕"}
+              {confirmReset ? ui("common.sure") : "✕"}
             </button>
             {!running ? (
               <button
                 onClick={startTimer}
-                title={stopwatch ? "Start tracking" : "Start focusing"}
-                aria-label={stopwatch ? "Start tracking" : "Start focusing"}
+                title={stopwatch ? ui("timer.startTracking") : ui("timer.startFocus")}
+                aria-label={stopwatch ? ui("timer.startTracking") : ui("timer.startFocus")}
                 className="pill grid h-9 w-12 place-items-center bg-glow text-plum shadow-soft hover:bg-amber"
               >
                 <Play size={16} />
@@ -241,8 +243,8 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             ) : (
               <button
                 onClick={pauseTimer}
-                title="Pause"
-                aria-label="Pause"
+                title={ui("timer.pause")}
+                aria-label={ui("timer.pause")}
                 className="pill grid h-9 w-12 place-items-center bg-blush text-plum shadow-soft hover:bg-rose"
               >
                 <Pause size={16} />
@@ -252,8 +254,8 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
               <button
                 onClick={finishStopwatch}
                 disabled={elapsed === 0}
-                title="Finish and log the tracked time"
-                aria-label="Finish and log the tracked time"
+                title={ui("timer.finishLog")}
+                aria-label={ui("timer.finishLog")}
                 className="pill grid h-8 w-8 place-items-center bg-sage/80 text-plum hover:bg-sage disabled:opacity-40"
               >
                 <Check size={15} />
@@ -261,8 +263,8 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             )}
             <button
               onClick={() => setExpanded((e) => !e)}
-              title="Timer options"
-              aria-label="Timer options"
+              title={ui("timer.options")}
+              aria-label={ui("timer.options")}
               aria-expanded={expanded}
               className={`pill grid h-8 w-8 place-items-center transition ${
                 expanded ? "bg-white/15 text-cream" : "text-petal/70 hover:bg-white/10 hover:text-cream"
@@ -277,8 +279,8 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
             <div className="focus-options glass absolute left-[calc(100%+0.5rem)] top-0 flex w-[13.5rem] flex-col gap-1.5 rounded-2xl px-4 py-3 shadow-soft">
               <div className="flex justify-center gap-1">
                 {[
-                  { key: "timer", label: "Timer", Icon: Hourglass },
-                  { key: "stopwatch", label: "Stopwatch", Icon: Timer },
+                  { key: "timer", Icon: Hourglass },
+                  { key: "stopwatch", Icon: Timer },
                 ].map((m) => (
                   <button
                     key={m.key}
@@ -290,7 +292,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
-                    <m.Icon size={10} /> {m.label}
+                    <m.Icon size={10} /> {ui(`timer.${m.key}`)}
                   </button>
                 ))}
               </div>
@@ -307,19 +309,19 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                         key={m}
                         onClick={() => setFocus(m)}
                         disabled={running}
-                        title={running ? "Finish or reset the block to change its length" : undefined}
+                        title={running ? ui("timer.lengthHelp") : undefined}
                         className={`pill px-2 py-0.5 text-[11px] font-semibold transition ${
                           focusMinutes === m
                             ? "bg-glow text-plum"
                             : "bg-white/10 text-petal hover:bg-white/20"
                         } ${running ? "cursor-not-allowed opacity-40" : ""}`}
                       >
-                        {m}m
+                        {ui("units.shortMinutes", { count: m })}
                       </button>
                     ))}
                   </div>
                   <label className="mx-auto flex max-w-48 items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                    Chime
+                    {ui("timer.chime")}
                     <input
                       type="range"
                       min="0"
@@ -327,11 +329,11 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                       step="0.1"
                       value={chimeVolume}
                       onChange={(e) => setChimeVolume(Number(e.target.value))}
-                      aria-label="Timer chime volume"
+                      aria-label={ui("timer.chimeVolume")}
                       className="min-w-0 flex-1 accent-glow"
                     />
                     <span className="w-7 text-right normal-case tabular-nums">
-                      {chimeVolume === 0 ? "off" : `${Math.round(chimeVolume * 100)}%`}
+                      {chimeVolume === 0 ? ui("timer.off") : `${Math.round(chimeVolume * 100)}%`}
                     </span>
                   </label>
                   <button
@@ -342,13 +344,13 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                         : "bg-white/10 text-petal hover:bg-white/20"
                     }`}
                   >
-                    🍅 Pomodoro {pomodoro.enabled ? "on" : "off"}
+                    🍅 Pomodoro {pomodoro.enabled ? ui("timer.on") : ui("timer.off")}
                   </button>
                   {pomodoro.enabled && (
                     <>
                       <div className="flex items-center justify-center gap-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                          break
+                          {ui("timer.break")}
                         </span>
                         {BREAK_PRESETS.map((m) => (
                           <button
@@ -360,13 +362,13 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
                                 : "bg-white/10 text-petal hover:bg-white/20"
                             }`}
                           >
-                            {m}m
+                            {ui("units.shortMinutes", { count: m })}
                           </button>
                         ))}
                       </div>
                       <div className="flex items-center justify-center gap-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-                          rounds
+                          {ui("timer.rounds")}
                         </span>
                         {ROUND_PRESETS.map((n) => (
                           <button
@@ -388,7 +390,7 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
               )}
               {stopwatch && (
                 <p className="text-center text-[10px] text-petal/60">
-                  Counts up — ✓ logs the tracked time.
+                  {ui("timer.stopwatchHelp")}
                 </p>
               )}
             </div>
@@ -398,17 +400,17 @@ export default function HudFocusCard({ compact = false, onEdgeDismiss, onExpand 
         {/* Daily goal + streak: chromeless, straight on the backdrop (VC2
             keeps this on the main screen, not buried in a stats dialog). */}
         <p
-          title="Today's focus vs your daily goal (set in Tasks) and your streak of goal-met days"
+          title={ui("timer.goalHelp")}
           className={`mt-1.5 flex items-center justify-center gap-1 text-center text-[11px] font-semibold drop-shadow ${
             goalMet ? "text-sage" : "text-petal/60"
           }`}
         >
           <Target size={11} className="shrink-0" />
-          {focusMinutesLive}/{dailyGoal}m{goalMet ? " ✓" : ""}
+          {focusMinutesLive}/{ui("units.shortMinutes", { count: dailyGoal })}{goalMet ? " ✓" : ""}
           {streak > 0 && (
             <span className="ml-1 flex items-center gap-0.5">
               <Flame size={11} className="shrink-0 text-amber" />
-              {streak}d
+              {ui("units.shortDays", { count: streak })}
             </span>
           )}
         </p>

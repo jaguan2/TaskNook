@@ -15,6 +15,21 @@ project already uses.
 
 ---
 
+## 2026-11-09
+
+**FIXED**
+- **Translated primary controls.** Task creation/editing, the timer and widget,
+  calendar planning, challenge forms/prompts and profile navigation now use the
+  selected language, including their accessibility labels and duration units.
+  Language changes preserve drafts and user-written names; stored identifiers
+  and task priorities keep their existing values.
+- **Consistent NPC activity.** Typed greetings and dialogue choices now share
+  the same busy-reply policy. Localized work, study and wrap-up answers distinguish
+  focus, breaks and idle time instead of describing every state as active work.
+- **Common-place browser checks.** The widget and iPhone Duo smoke journeys
+  open the Places tab before joining a common room. Browser regressions now also
+  exercise task saves and reloads in Spanish, Simplified Chinese, Japanese and Korean.
+
 ## 2026-11-04
 
 **ADJUSTED**

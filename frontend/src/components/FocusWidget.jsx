@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { ArrowUpRight, Check, Coffee, Pause, Play, RotateCcw, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { hasDesktopWidgetApi, onDesktopApiReady } from "../services/desktop";
@@ -7,33 +8,34 @@ import { hasDesktopWidgetApi, onDesktopApiReady } from "../services/desktop";
 export default function FocusWidget({ clock, running, inBreak, stopwatch, task,
   progress, round, rounds, today, goal, confirmReset, canFinish,
   onToggle, onReset, onFinish, onSkip, onNudge, onExpand }) {
+  const { t: ui } = useI18n();
   const [desktop, setDesktop] = useState(hasDesktopWidgetApi);
   useEffect(() => onDesktopApiReady(() => setDesktop(hasDesktopWidgetApi())), []);
-  const mode = inBreak ? "Take a breath" : stopwatch ? "Stopwatch" : "Focus";
-  const status = running ? "In progress" : canFinish ? "Paused" : "Ready when you are";
+  const mode = inBreak ? ui("widget.breathe") : stopwatch ? ui("timer.stopwatch") : ui("widget.focus");
+  const status = running ? ui("widget.progress") : canFinish ? ui("widget.paused") : ui("widget.ready");
   const ring = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
-  return <section className={`focus-widget ${inBreak ? "focus-widget-break" : ""}`} aria-label="Focus widget">
+  return <section className={`focus-widget ${inBreak ? "focus-widget-break" : ""}`} aria-label={ui("widget.region")}>
     <header className="focus-widget-header">
       {/* Keep buttons OUTSIDE the native drag region so clicking Expand can
           never move the OS window. pywebview handles window movement itself. */}
-      <span className={`focus-widget-mode ${desktop ? "pywebview-drag-region" : ""}`} title={desktop ? "Drag to move the timer" : undefined}>{inBreak ? <Coffee size={15} /> : <Timer size={15} />}{mode}</span>
-      <button className="focus-widget-icon" onClick={onExpand} aria-label="Exit Widget Mode" title="Back to your room (Escape)"><ArrowUpRight size={18} /></button>
+      <span className={`focus-widget-mode ${desktop ? "pywebview-drag-region" : ""}`} title={desktop ? ui("widget.drag") : undefined}>{inBreak ? <Coffee size={15} /> : <Timer size={15} />}{mode}</span>
+      <button className="focus-widget-icon" onClick={onExpand} aria-label={ui("widget.exit")} title={ui("widget.home")}><ArrowUpRight size={18} /></button>
     </header>
-    <p className="focus-widget-task" title={task || undefined}>{inBreak ? "A little room to recharge." : task || "Make space for one thing."}</p>
+    <p className="focus-widget-task" title={task || undefined}>{inBreak ? ui("widget.recharge") : task || ui("widget.oneThing")}</p>
     <div className="focus-widget-clock-row">
-      <div className="focus-widget-time"><p className={`focus-widget-clock ${clock.length > 5 ? "focus-widget-clock-long" : ""}`} role="timer" aria-label={stopwatch ? "Elapsed time" : "Time remaining"}>{clock}</p><p className="focus-widget-status">{status}</p></div>
-      <svg className="focus-widget-ring" viewBox="0 0 64 64" role="img" aria-label={`${Math.round(ring * 100)}% ${stopwatch ? "of daily goal" : "of session complete"}`}>
+      <div className="focus-widget-time"><p className={`focus-widget-clock ${clock.length > 5 ? "focus-widget-clock-long" : ""}`} role="timer" aria-label={stopwatch ? ui("widget.elapsed") : ui("widget.remaining")}>{clock}</p><p className="focus-widget-status">{status}</p></div>
+      <svg className="focus-widget-ring" viewBox="0 0 64 64" role="img" aria-label={ui(stopwatch ? "widget.goalPercent" : "widget.sessionPercent", { percent: Math.round(ring * 100) })}>
         <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" strokeWidth="4" opacity=".12" />
         <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" pathLength="100" strokeDasharray={`${ring * 100} 100`} transform="rotate(-90 32 32)" />
         <circle cx="32" cy="32" r="4" fill="currentColor" opacity={running ? 1 : .4} />
       </svg>
     </div>
     <div className="focus-widget-actions">
-      <button className="focus-widget-primary" onClick={onToggle}>{running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}{running ? "Pause" : canFinish ? "Resume" : inBreak ? "Start break" : "Start"}</button>
-      {stopwatch ? <button className="focus-widget-secondary" onClick={onFinish} disabled={!canFinish} aria-label="Finish and log the tracked time"><Check size={16} /> Finish</button>
-        : <button className="focus-widget-secondary" onClick={inBreak ? onSkip : onNudge}>{inBreak ? "Skip break" : "+1 min"}</button>}
-      <button className={`focus-widget-icon ${confirmReset ? "text-danger" : ""}`} onClick={onReset} aria-label={confirmReset ? "Confirm reset" : "Reset session"} title="Reset discards this session">{confirmReset ? <span className="text-[11px]">sure?</span> : <RotateCcw size={16} />}</button>
+      <button className="focus-widget-primary" onClick={onToggle}>{running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}{running ? ui("timer.pause") : canFinish ? ui("widget.resume") : inBreak ? ui("widget.startBreak") : ui("widget.start")}</button>
+      {stopwatch ? <button className="focus-widget-secondary" onClick={onFinish} disabled={!canFinish} aria-label={ui("timer.finishLog")}><Check size={16} /> {ui("widget.finish")}</button>
+        : <button className="focus-widget-secondary" onClick={inBreak ? onSkip : onNudge}>{inBreak ? ui("widget.skipBreak") : ui("widget.more")}</button>}
+      <button className={`focus-widget-icon ${confirmReset ? "text-danger" : ""}`} onClick={onReset} aria-label={confirmReset ? ui("widget.confirmReset") : ui("widget.reset")} title={ui("widget.resetHelp")}>{confirmReset ? <span className="text-[11px]">{ui("common.sure")}</span> : <RotateCcw size={16} />}</button>
     </div>
-    <footer className="focus-widget-footer"><span>{Math.floor(today)} / {goal} min today</span><span>{rounds ? `Round ${round} of ${rounds}` : "TaskNook"}</span></footer>
+    <footer className="focus-widget-footer"><span>{ui("widget.today", { minutes: Math.floor(today), goal })}</span><span>{rounds ? ui("widget.round", { round, total: rounds }) : "TaskNook"}</span></footer>
   </section>;
 }

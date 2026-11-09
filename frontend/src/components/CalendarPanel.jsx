@@ -1,10 +1,10 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useEffect, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSystemStore, useTaskStore } from "../store";
 import { api } from "../services/api";
 import { toISO } from "../lib/dates";
 import { focusSummary, intensityOf, intensityScale, localTodayISO } from "../lib/stats";
-import { formatSpan } from "../lib/breaks";
 import ConfirmDialog from "./ConfirmDialog";
 
 function monthMatrix(year, month) {
@@ -17,9 +17,9 @@ function monthMatrix(year, month) {
   return cells;
 }
 
-const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function CalendarPanel() {
+  const { t: ui, formatDate, formatDuration, language, locale } = useI18n();
   const { tasks, events, addTask, editTask, addEvent, removeEvent, sessionDays } = useTaskStore();
   const { showToast } = useSystemStore();
   // "Today" is state on a slow tick, not a render-time `new Date()`: TaskNook
@@ -82,7 +82,10 @@ export default function CalendarPanel() {
   }, [selected, selectedMinutes, journalRetry]);
 
   const cells = monthMatrix(view.y, view.m);
-  const monthName = new Date(view.y, view.m).toLocaleString([], {
+  const week = Array.from({ length: 7 }, (_, i) => language === "en"
+    ? ["M", "T", "W", "T", "F", "S", "S"][i]
+    : formatDate(new Date(2026, 0, 5 + i), { weekday: "narrow" }));
+  const monthName = formatDate(new Date(view.y, view.m), {
     month: "long",
     year: "numeric",
   });
@@ -118,9 +121,7 @@ export default function CalendarPanel() {
   const shadeFor = (iso) => DEPTH[Math.min(DEPTH.length - 1, intensityOf(sessionDays[iso], scale))];
   const spanFor = (minutes) => {
     if (!minutes) return null;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+    return formatDuration(minutes, { short: true });
   };
 
   // Summarize the same saved history that shades the month grid. Update when
@@ -150,7 +151,7 @@ export default function CalendarPanel() {
       setCreateTitle("");
     } catch {
       // addEvent supplies its own useful toast; addTask predates that contract.
-      if (createKind === "task") showToast("Couldn't schedule that task 🌧️");
+      if (createKind === "task") showToast(ui("calendar.saveError"));
     } finally {
       setCreating(false);
     }
@@ -172,8 +173,8 @@ export default function CalendarPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={() => shift(-1)} title="Previous month"
-        aria-label="Previous month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+        <button onClick={() => shift(-1)} title={ui("calendar.previous")}
+        aria-label={ui("calendar.previous")} className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronLeft size={15} />
         </button>
         <div className="flex items-center gap-2">
@@ -183,18 +184,18 @@ export default function CalendarPanel() {
               onClick={goToday}
               className="pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-petal hover:bg-white/20"
             >
-              Today
+              {ui("calendar.today")}
             </button>
           )}
         </div>
-        <button onClick={() => shift(1)} title="Next month"
-        aria-label="Next month" className="pill px-3 py-1 text-cream hover:bg-white/10">
+        <button onClick={() => shift(1)} title={ui("calendar.next")}
+        aria-label={ui("calendar.next")} className="pill px-3 py-1 text-cream hover:bg-white/10">
           <ChevronRight size={15} />
         </button>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center">
-        {WEEK.map((d, i) => (
+        {week.map((d, i) => (
           <span key={i} className="text-[10px] font-semibold text-petal/50">{d}</span>
         ))}
         {cells.map((date, i) => {
@@ -216,16 +217,16 @@ export default function CalendarPanel() {
               onClick={() => setSelected(iso)}
               title={
                 span
-                  ? `${span} focused`
+                  ? ui("calendar.focused", { span })
                   : isActive
-                  ? "You completed a task this day"
+                  ? ui("calendar.taskDay")
                   : undefined
               }
-              aria-label={`${date.toLocaleDateString([], {
+              aria-label={`${date.toLocaleDateString(locale, {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
-              })}${span ? `, ${span} focused` : ""}${count ? `, ${count} planned task${count === 1 ? "" : "s"}` : ""}`}
+              })}${span ? `, ${ui("calendar.focused", { span })}` : ""}${count ? `, ${ui(count === 1 ? "calendar.plannedOne" : "calendar.planned", { count })}` : ""}`}
               className={`relative grid h-9 place-items-center rounded-lg text-xs transition ${
                 isSel
                   ? "bg-glow font-bold text-plum"
@@ -249,35 +250,35 @@ export default function CalendarPanel() {
 
       <form onSubmit={createForDay} className="space-y-2 rounded-2xl bg-white/5 p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream"><CalendarPlus size={15} /> Add to {selected}</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cream"><CalendarPlus size={15} /> {ui("calendar.addTo", { date: selected })}</p>
           <div className="flex rounded-full bg-white/10 p-0.5 text-[11px] font-semibold">
-            {[["task", "Task"], ["event", "Event"]].map(([key, label]) => (
+            {["task", "event"].map((key) => (
               <button key={key} type="button" onClick={() => setCreateKind(key)}
-                className={`rounded-full px-2 py-1 ${createKind === key ? "bg-glow text-plum" : "text-petal"}`}>{label}</button>
+                className={`rounded-full px-2 py-1 ${createKind === key ? "bg-glow text-plum" : "text-petal"}`}>{ui(`calendar.${key}`)}</button>
             ))}
           </div>
         </div>
         <input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} maxLength={200}
-          placeholder={createKind === "task" ? "e.g. Physics 2 exam" : "e.g. Dentist appointment"}
+          placeholder={ui(createKind === "task" ? "calendar.taskExample" : "calendar.eventExample")}
           className="w-full rounded-xl bg-white/10 px-3 py-2 text-sm text-cream outline-none focus:bg-white/15" />
-        {createKind === "event" && <label className="flex items-center gap-2 text-xs text-petal/70">Starts at
+        {createKind === "event" && <label className="flex items-center gap-2 text-xs text-petal/70">{ui("calendar.starts")}
           <input type="time" value={eventTime} onChange={(e) => setEventTime(e.target.value)} className="rounded-lg bg-white/10 px-2 py-1 text-cream outline-none" />
         </label>}
         <button disabled={creating} className="pill w-full bg-glow py-1.5 text-sm font-bold text-plum hover:bg-amber disabled:opacity-50">
-          Add {createKind}
+          {ui(createKind === "task" ? "calendar.addTask" : "calendar.addEvent")}
         </button>
       </form>
 
       {/* The legend has to explain a SCALE now, not a single colour. */}
       <div className="flex items-center gap-1.5 text-[10px] text-petal/50">
-        <span>less</span>
+        <span>{ui("calendar.less")}</span>
         {DEPTH.map((d, i) => (
           <span
             key={i}
             className={`h-2.5 w-2.5 rounded-sm ${i === 0 ? "bg-white/10" : d.split(" ")[0]}`}
           />
         ))}
-        <span>more focus</span>
+        <span>{ui("calendar.more")}</span>
       </div>
 
       {/* Only once there's history — an all-zero readout over a fresh install
@@ -285,14 +286,13 @@ export default function CalendarPanel() {
       {summary.activeDays > 0 && (
         <p className="flex flex-wrap items-center gap-x-3 text-xs text-petal/60">
           <span>
-            <span className="font-semibold text-cream">{summary.activeDays}</span> day
-            {summary.activeDays === 1 ? "" : "s"} focused
+            {ui(summary.activeDays === 1 ? "calendar.dayFocused" : "calendar.daysFocused", { count: summary.activeDays })}
           </span>
-          {summary.bestMinutes > 0 && <span>best {spanFor(summary.bestMinutes)}</span>}
-          <span>this week {spanFor(summary.last7) || "0m"}</span>
+          {summary.bestMinutes > 0 && <span>{ui("calendar.best", { span: spanFor(summary.bestMinutes) })}</span>}
+          <span>{ui("calendar.week", { span: spanFor(summary.last7) || formatDuration(0, { short: true }) })}</span>
           {summary.deltaPct !== null && (
             <span className={summary.deltaPct >= 0 ? "text-sage" : "text-petal/70"}>
-              {summary.deltaPct >= 0 ? "▲" : "▼"} {Math.abs(summary.deltaPct)}% vs last week
+              {summary.deltaPct >= 0 ? "▲" : "▼"} {ui("calendar.delta", { percent: Math.abs(summary.deltaPct) })}
             </span>
           )}
         </p>
@@ -306,8 +306,8 @@ export default function CalendarPanel() {
       {journal && journal.entries.length > 0 && (
         <div>
           <p className="mb-2 flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-petal/60">
-            <span>Focused on</span>
-            <span className="normal-case text-glow">{formatSpan(journal.total)}</span>
+            <span>{ui("calendar.focusedOn")}</span>
+            <span className="normal-case text-glow">{formatDuration(journal.total)}</span>
           </p>
           <div className="space-y-1.5">
             {journal.entries.map((e, i) => (
@@ -323,10 +323,10 @@ export default function CalendarPanel() {
                   {/* A block run with no active task is common and legitimate;
                       the server sends null so this stays distinguishable from
                       a task someone actually named "Focus". */}
-                  {e.taskName || "Untitled block"}
+                  {e.taskName || ui("calendar.untitled")}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-petal/70">
-                  {formatSpan(e.minutes)}
+                  {formatDuration(e.minutes)}
                   {e.sessions > 1 && (
                     <span className="text-petal/40"> · {e.sessions}×</span>
                   )}
@@ -338,25 +338,25 @@ export default function CalendarPanel() {
       )}
       {journalError && (
         <div className="flex items-center justify-between gap-3 rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">
-          <span>Couldn't load this day's focus.</span>
+          <span>{ui("calendar.loadError")}</span>
           <button
             onClick={() => setJournalRetry((value) => value + 1)}
             className="pill bg-white/10 px-2 py-1 font-semibold hover:bg-white/20"
           >
-            Retry
+            {ui("actions.retry")}
           </button>
         </div>
       )}
 
       {dayEvents.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">Appointments</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">{ui("calendar.appointments")}</p>
           <div className="space-y-1.5">
             {dayEvents.map((event) => (
               <div key={event.id} className="flex items-center gap-2 rounded-xl bg-glow/10 px-3 py-2">
                 <span className="shrink-0 text-xs font-bold text-glow">{event.startTime}</span>
                 <span className="min-w-0 flex-1 truncate text-sm text-cream">{event.title}</span>
-                <button onClick={() => setDeletingEvent(event)} aria-label={`Delete ${event.title}`}
+                <button onClick={() => setDeletingEvent(event)} aria-label={ui("calendar.deleteName", { name: event.title })}
                   className="text-sm text-petal/45 hover:text-danger">✕</button>
               </div>
             ))}
@@ -368,7 +368,7 @@ export default function CalendarPanel() {
       {completedOnSelected.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-            Completed
+            {ui("calendar.completed")}
           </p>
           <div className="space-y-1.5">
             {completedOnSelected.map((t) => (
@@ -389,15 +389,15 @@ export default function CalendarPanel() {
       {/* Scheduled on selected day */}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-          Planned for {selected}
+          {ui("calendar.plannedFor", { date: selected })}
         </p>
         {scheduled.length === 0 ? (
           <p className="rounded-xl bg-white/5 px-3 py-3 text-center text-xs text-petal/60">
             {/* The actual gesture is a click on an unscheduled row — the old
                 copy promised a drag-and-drop that doesn't exist. */}
             {unscheduled.length > 0
-              ? "Nothing scheduled — pick a task below to plan it here."
-              : "Nothing scheduled for this day."}
+              ? ui("calendar.pickTask")
+              : ui("calendar.empty")}
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -413,7 +413,7 @@ export default function CalendarPanel() {
                   onClick={() => editTask(t.id, { scheduledDate: null })}
                   className="shrink-0 text-xs text-petal/60 hover:text-danger"
                 >
-                  Unschedule
+                  {ui("calendar.unschedule")}
                 </button>
               </div>
             ))}
@@ -425,7 +425,7 @@ export default function CalendarPanel() {
       {unscheduled.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-            Unscheduled
+            {ui("calendar.unscheduled")}
           </p>
           <div className="space-y-1.5">
             {unscheduled.map((t) => (
@@ -435,7 +435,7 @@ export default function CalendarPanel() {
                 className="flex w-full items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-left transition hover:bg-white/10"
               >
                 <span className="min-w-0 flex-1 truncate text-sm text-cream">{t.name}</span>
-                <span className="shrink-0 text-xs text-glow">+ add to {selected.slice(5)}</span>
+                <span className="shrink-0 text-xs text-glow">{ui("calendar.addDate", { date: selected.slice(5) })}</span>
               </button>
             ))}
           </div>
@@ -443,8 +443,8 @@ export default function CalendarPanel() {
       )}
       <ConfirmDialog
         open={!!deletingEvent}
-        title="Delete appointment?"
-        message={`Remove “${deletingEvent?.title || "this appointment"}” from your calendar?`}
+        title={ui("calendar.deleteTitle")}
+        message={ui("calendar.deleteMessage", { name: deletingEvent?.title || ui("calendar.thisEvent") })}
         onCancel={() => setDeletingEvent(null)}
         onConfirm={() => { removeEvent(deletingEvent.id); setDeletingEvent(null); }}
       />

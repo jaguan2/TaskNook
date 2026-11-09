@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useRef, useState } from "react";
 import { Check, ClipboardList, Leaf, Play, Plus, RefreshCw, RotateCcw, Users, X } from "lucide-react";
 import { useChallengeStore } from "../store";
@@ -12,6 +13,7 @@ const fieldClass = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-
 const actionClass = "pill inline-flex items-center gap-1.5 px-2 py-1 text-xs text-petal/80 transition hover:bg-white/10 hover:text-cream disabled:opacity-40";
 
 function ChallengeForm({ onAdd, onCancel }) {
+  const { t: ui } = useI18n();
   const [title, setTitle] = useState("");
   const [target, setTarget] = useState("1");
   const [cadence, setCadence] = useState("daily");
@@ -21,49 +23,50 @@ function ChallengeForm({ onAdd, onCancel }) {
     onAdd({ title, target: Number(target), cadence, tracking });
   };
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4" aria-label="New personal challenge">
+    <form onSubmit={submit} className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4" aria-label={ui("challenges.form")}>
       <label className="block space-y-1 text-xs text-petal/80">
-        <span>Your goal</span>
+        <span>{ui("challenges.goal")}</span>
         <input autoFocus required maxLength={CHALLENGE_TITLE_MAX} value={title}
-          onChange={(event) => setTitle(event.target.value)} placeholder="Read a chapter, practice a skill..." className={fieldClass} />
+          onChange={(event) => setTitle(event.target.value)} placeholder={ui("challenges.placeholder")} className={fieldClass} />
       </label>
       <label className="block space-y-1 text-xs text-petal/80">
-        <span>Track progress</span>
+        <span>{ui("challenges.track")}</span>
         <select value={tracking} onChange={(event) => setTracking(event.target.value)} className={fieldClass}>
-          {CHALLENGE_TRACKING.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+          {CHALLENGE_TRACKING.map(({ key }) => <option key={key} value={key}>{ui(`tracking.${key}`)}</option>)}
         </select>
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1 text-xs text-petal/80">
-          <span>Target ({CHALLENGE_TRACKING.find(({ key }) => key === tracking).unit})</span>
+          <span>{ui("challenges.target", { unit: ui(`challengeUnit.${CHALLENGE_TRACKING.find(({ key }) => key === tracking).unit}`) })}</span>
           <input type="number" required min="1" max={CHALLENGE_TARGET_MAX} step="1" value={target}
             onChange={(event) => setTarget(event.target.value)} className={fieldClass} />
         </label>
         <label className="block space-y-1 text-xs text-petal/80">
-          <span>Repeat</span>
+          <span>{ui("challenges.repeat")}</span>
           <select value={cadence} onChange={(event) => setCadence(event.target.value)} className={fieldClass}>
-            <option value="daily">Daily</option>
-            <option value="ongoing">Ongoing</option>
+            <option value="daily">{ui("challenges.daily")}</option>
+            <option value="ongoing">{ui("challenges.ongoing")}</option>
           </select>
         </label>
       </div>
       <p className="text-xs leading-relaxed text-petal/60">
-        {cadence === "daily" ? "Progress starts fresh each day; your goal stays in the list." : "Keep your progress across days until you reach your goal."}
-        {tracking === "focus-minutes" && " Minutes count when a timer block finishes or you save the stopwatch."}
-        {tracking === "focus-started" && " Pressing play to start or resume focus counts."}
+        {cadence === "daily" ? ui("challenges.dailyHelp") : ui("challenges.ongoingHelp")}
+        {tracking === "focus-minutes" && ui("challenges.minutesHelp")}
+        {tracking === "focus-started" && ui("challenges.startHelp")}
       </p>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className={actionClass}>Cancel</button>
-        <button type="submit" className="pill bg-glow px-3 py-1.5 text-sm font-semibold text-plum">Add challenge</button>
+        <button type="button" onClick={onCancel} className={actionClass}>{ui("actions.cancel")}</button>
+        <button type="submit" className="pill bg-glow px-3 py-1.5 text-sm font-semibold text-plum">{ui("challenges.add")}</button>
       </div>
     </form>
   );
 }
 
 function ProgressLine({ progress, target, unit }) {
+  const { t: ui } = useI18n();
   return target > 1 ? (
     <div className="space-y-1.5">
-      <span className="text-xs text-petal/70">{progress} / {target} {unit}</span>
+      <span className="text-xs text-petal/70">{progress} / {target} {unit ? ui(`challengeUnit.${unit}`) : ""}</span>
       <div className="h-1 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
         <div className="h-full rounded-full bg-sage" style={{ width: `${progress / target * 100}%` }} />
       </div>
@@ -72,6 +75,7 @@ function ProgressLine({ progress, target, unit }) {
 }
 
 export default function ChallengesPanel() {
+  const { t: ui, formatDate } = useI18n();
   const { challenges, replaceChallenge, addCustomChallenge,
     advanceChallenge, resetChallenge, removeChallenge } = useChallengeStore();
   const [showForm, setShowForm] = useState(false);
@@ -94,34 +98,34 @@ export default function ChallengesPanel() {
 
   return (
     <div className="space-y-5">
-      <div role="tablist" aria-label="Challenge lists" onKeyDown={switchTab} className="flex gap-1 rounded-full bg-white/5 p-1">
-        {[["daily", "Daily"], ["personal", "My challenges"]].map(([key, label]) => (
+      <div role="tablist" aria-label={ui("challenges.lists")} onKeyDown={switchTab} className="flex gap-1 rounded-full bg-white/5 p-1">
+        {["daily", "personal"].map((key) => (
           <button key={key} type="button" role="tab" id={`challenges-${key}-tab`} aria-controls={`challenges-${key}`}
             aria-selected={view === key} tabIndex={view === key ? 0 : -1} onClick={() => setView(key)}
-            className={`pill flex-1 px-3 py-1.5 text-sm transition ${view === key ? "bg-glow text-plum" : "text-petal/70 hover:bg-white/10"}`}>{label}</button>
+            className={`pill flex-1 px-3 py-1.5 text-sm transition ${view === key ? "bg-glow text-plum" : "text-petal/70 hover:bg-white/10"}`}>{ui(`challenges.${key}`)}</button>
         ))}
       </div>
       <div role="tabpanel" id="challenges-daily" aria-labelledby="challenges-daily-tab" hidden={view !== "daily"} className="space-y-5">
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-cream">
           <Leaf size={18} className="text-sage" aria-hidden="true" />
-          <h3 className="font-display font-bold">A little inspiration for today</h3>
+          <h3 className="font-display font-bold">{ui("challenges.inspiration")}</h3>
         </div>
         <p className="text-sm leading-relaxed text-petal/80">
-          A different set each day. Replace any prompt that doesn't fit your plans.
+          {ui("challenges.description")}
         </p>
         <div className="flex items-center justify-between text-xs text-petal/70">
-          <time dateTime={challenges.day}>{new Date(`${challenges.day}T12:00:00`).toLocaleDateString(undefined, {
+          <time dateTime={challenges.day}>{formatDate(new Date(`${challenges.day}T12:00:00`), {
             month: "short", day: "numeric",
           })}</time>
-          <span role="status" aria-live="polite">{count} of {challenges.daily.length} completed</span>
+          <span role="status" aria-live="polite">{ui("challenges.completedCount", { count, total: challenges.daily.length })}</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
           <div className="h-full rounded-full bg-sage" style={{ width: `${count / challenges.daily.length * 100}%` }} />
         </div>
       </div>
 
-      <ul className="space-y-3" aria-label="Today's challenges">
+      <ul className="space-y-3" aria-label={ui("challenges.todayList")}>
         {challenges.daily.map(({ id, progress }, slot) => {
           const challenge = challengeFor(id);
           const done = progress >= challenge.target;
@@ -134,16 +138,16 @@ export default function ChallengesPanel() {
                   {done ? <Check size={16} aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
                 </span>
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <h4 className="text-sm font-semibold text-cream">{challenge.title}</h4>
-                  <p className="text-xs leading-relaxed text-petal/80">{challenge.description}</p>
+                  <h4 className="text-sm font-semibold text-cream">{ui(`prompt.${id}.title`)}</h4>
+                  <p className="text-xs leading-relaxed text-petal/80">{ui(`prompt.${id}.description`)}</p>
                   <p className={`text-xs leading-relaxed ${done ? "text-sage" : "text-petal/60"}`}>
-                    {done ? "Completed today" : challenge.hint}
+                    {done ? ui("challenges.completedToday") : ui(`prompt.${id}.hint`)}
                   </p>
                   <ProgressLine progress={progress} target={challenge.target} unit={challenge.unit} />
-                  {!done && <button type="button" aria-label={`Replace ${challenge.title}`}
+                  {!done && <button type="button" aria-label={ui("challenges.replaceName", { name: ui(`prompt.${id}.title`) })}
                     onClick={() => progress ? arm(`replace:${id}`, () => replaceChallenge(id)) : replaceChallenge(id)}
                     className={`${actionClass} ${armed === `replace:${id}` ? "text-danger" : ""}`}>
-                    <RefreshCw size={12} aria-hidden="true" />{armed === `replace:${id}` ? "Replace?" : "Replace"}
+                    <RefreshCw size={12} aria-hidden="true" />{armed === `replace:${id}` ? ui("challenges.replaceConfirm") : ui("challenges.replace")}
                   </button>}
                 </div>
               </div>
@@ -151,21 +155,21 @@ export default function ChallengesPanel() {
           );
         })}
       </ul>
-      <p className="text-center text-xs leading-relaxed text-petal/60">Daily prompts and progress start fresh tomorrow. Try whichever ones feel right.</p>
+      <p className="text-center text-xs leading-relaxed text-petal/60">{ui("challenges.tomorrow")}</p>
       </div>
 
       <section role="tabpanel" id="challenges-personal" aria-labelledby="challenges-personal-tab" hidden={view !== "personal"} className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 id="personal-challenges-title" className="font-display font-bold text-cream">My challenges</h3>
+          <h3 id="personal-challenges-title" className="font-display font-bold text-cream">{ui("challenges.personal")}</h3>
           <button ref={addButton} type="button" onClick={() => setShowForm((value) => !value)}
             aria-expanded={showForm} className={actionClass}>
-            <Plus size={13} aria-hidden="true" />New challenge
+            <Plus size={13} aria-hidden="true" />{ui("challenges.new")}
           </button>
         </div>
-        <p className="text-xs leading-relaxed text-petal/70">Write your own goal. Make it daily, or keep working on it across days.</p>
+        <p className="text-xs leading-relaxed text-petal/70">{ui("challenges.personalHelp")}</p>
         {showForm && <ChallengeForm onAdd={add} onCancel={closeForm} />}
-        {!challenges.custom.length && !showForm && <p className="py-2 text-center text-xs text-petal/50">A small goal of your own can start here.</p>}
-        <ul className="space-y-3" aria-label="Personal challenges">
+        {!challenges.custom.length && !showForm && <p className="py-2 text-center text-xs text-petal/50">{ui("challenges.empty")}</p>}
+        <ul className="space-y-3" aria-label={ui("challenges.personalList")}>
           {challenges.custom.map((goal) => {
             const done = goal.progress >= goal.target;
             const tracking = CHALLENGE_TRACKING.find(({ key }) => key === goal.tracking);
@@ -173,35 +177,35 @@ export default function ChallengesPanel() {
               <li key={goal.id} className={`space-y-2 rounded-2xl border p-4 ${done ? "border-sage/30 bg-sage/10" : "border-white/10 bg-white/5"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="min-w-0 break-words text-sm font-semibold text-cream">{goal.title}</h4>
-                  <button type="button" aria-label={`Delete ${goal.title}`} onClick={() => arm(`delete:${goal.id}`, () => {
+                  <button type="button" aria-label={ui("calendar.deleteName", { name: goal.title })} onClick={() => arm(`delete:${goal.id}`, () => {
                     removeChallenge(goal.id);
                     addButton.current?.focus({ preventScroll: true });
                   })}
                     className={`${actionClass} shrink-0 hover:text-danger ${armed === `delete:${goal.id}` ? "text-danger" : ""}`}>
-                    {armed === `delete:${goal.id}` ? "sure?" : <X size={13} aria-hidden="true" />}
+                    {armed === `delete:${goal.id}` ? ui("common.sure") : <X size={13} aria-hidden="true" />}
                   </button>
                 </div>
-                <p className="text-xs text-petal/60">{goal.cadence === "daily" ? "Daily" : "Ongoing"} / {tracking.label}</p>
+                <p className="text-xs text-petal/60">{ui(`challenges.${goal.cadence}`)} / {ui(`tracking.${tracking.key}`)}</p>
                 <ProgressLine progress={goal.progress} target={goal.target} unit={tracking.unit} />
-                {done && <p className="flex items-center gap-1.5 text-xs text-sage"><Check size={13} aria-hidden="true" />{goal.cadence === "daily" ? "Completed today" : "Goal reached"}</p>}
+                {done && <p className="flex items-center gap-1.5 text-xs text-sage"><Check size={13} aria-hidden="true" />{ui(goal.cadence === "daily" ? "challenges.completedToday" : "challenges.reached")}</p>}
                 <div className="flex flex-wrap items-center gap-1">
                   {goal.tracking === "manual" && !done && <button type="button" onClick={() => advanceChallenge(goal.id)} className="pill bg-glow/15 px-2.5 py-1 text-xs text-glow hover:bg-glow/25">
-                    {goal.target === 1 ? "Mark complete" : "+1 step"}
+                    {ui(goal.target === 1 ? "tasks.complete" : "challenges.step")}
                   </button>}
-                  {goal.tracking === "manual" && goal.progress > 0 && <button type="button" aria-label={`Undo one step for ${goal.title}`} onClick={() => advanceChallenge(goal.id, -1)} className={actionClass}>Undo</button>}
-                  {goal.progress > 0 && <button type="button" aria-label={`Reset ${goal.title} progress`} onClick={() => arm(`reset:${goal.id}`, () => {
+                  {goal.tracking === "manual" && goal.progress > 0 && <button type="button" aria-label={ui("challenges.undoName", { name: goal.title })} onClick={() => advanceChallenge(goal.id, -1)} className={actionClass}>{ui("challenges.undo")}</button>}
+                  {goal.progress > 0 && <button type="button" aria-label={ui("challenges.resetName", { name: goal.title })} onClick={() => arm(`reset:${goal.id}`, () => {
                     resetChallenge(goal.id);
                     addButton.current?.focus({ preventScroll: true });
                   })}
                     className={`${actionClass} ${armed === `reset:${goal.id}` ? "text-danger" : ""}`}>
-                    <RotateCcw size={12} aria-hidden="true" />{armed === `reset:${goal.id}` ? "Reset?" : "Reset"}
+                    <RotateCcw size={12} aria-hidden="true" />{armed === `reset:${goal.id}` ? ui("challenges.resetConfirm") : ui("challenges.reset")}
                   </button>}
                 </div>
               </li>
             );
           })}
         </ul>
-        {challenges.custom.length >= CUSTOM_CHALLENGE_LIMIT && <p className="text-xs text-petal/60">You have {CUSTOM_CHALLENGE_LIMIT} personal challenges. Remove one to make room for another.</p>}
+        {challenges.custom.length >= CUSTOM_CHALLENGE_LIMIT && <p className="text-xs text-petal/60">{ui("challenges.limit", { count: CUSTOM_CHALLENGE_LIMIT })}</p>}
       </section>
     </div>
   );

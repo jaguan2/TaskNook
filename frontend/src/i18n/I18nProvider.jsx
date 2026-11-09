@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { readStored, writeStored } from "../services/storage";
 import {
   DEFAULT_LANGUAGE,
+  formatDuration as durationLabel,
   LANGUAGE_STORAGE_KEY,
   languageMeta,
   normalizeLanguage,
@@ -20,6 +21,7 @@ const fallbackValue = {
   formatNumber: (value, options) => new Intl.NumberFormat(fallbackMeta.locale, options).format(value),
   formatDate: (value, options) => new Intl.DateTimeFormat(fallbackMeta.locale, options).format(new Date(value)),
   formatList: (values, options) => new Intl.ListFormat(fallbackMeta.locale, options).format(values),
+  formatDuration: (minutes, options) => durationLabel(DEFAULT_LANGUAGE, minutes, options),
 };
 
 // English is a safe standalone default for component tests and previews. The
@@ -72,6 +74,10 @@ export function I18nProvider({ children }) {
     (values, options) => new Intl.ListFormat(meta.locale, options).format(values),
     [meta.locale]
   );
+  const formatDuration = useCallback(
+    (minutes, options) => durationLabel(language, minutes, options),
+    [language]
+  );
 
   const value = useMemo(() => ({
     language,
@@ -83,7 +89,8 @@ export function I18nProvider({ children }) {
     formatNumber,
     formatDate,
     formatList,
-  }), [language, meta.locale, meta.direction, setLanguage, t, label, formatNumber, formatDate, formatList]);
+    formatDuration,
+  }), [language, meta.locale, meta.direction, setLanguage, t, label, formatNumber, formatDate, formatList, formatDuration]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

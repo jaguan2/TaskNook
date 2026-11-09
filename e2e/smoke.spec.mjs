@@ -66,6 +66,7 @@ test("hidden room chat cannot intercept widget shortcuts and retains its draft",
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("navigation", { name: "Friends panel sections" }).getByRole("button", { name: "Places", exact: true }).click();
   await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
   await page.getByRole("button", { name: /Room chat/ }).click();
   await page.getByRole("textbox", { name: "Message the room" }).fill("Keep my room-chat draft");
@@ -142,6 +143,7 @@ test("the iPhone Duo keeps primary controls usable when closed and unfolded", as
   await drawer.getByRole("button", { name: "Close (Esc)" }).click();
 
   await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("navigation", { name: "Friends panel sections" }).getByRole("button", { name: "Places", exact: true }).click();
   await page.getByRole("button", { name: /Common Cottage.*Join/ }).click();
   await page.getByRole("button", { name: /Room chat/ }).click();
   const roomChat = page.locator("[data-common-room-chat]");

@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Shirt, UserRound } from "lucide-react";
 import { useProfileStore, useRoomStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
@@ -61,14 +62,7 @@ import ProfilePetsSection from "./ProfilePetsSection";
  * The next step, when it's earned: lift this column into a dressing-room
  * scene mode (ACNH's mirror is furniture, not a menu).
  */
-const TABS = [
-  { key: "looks", label: "Looks" },
-  { key: "body", label: "Body" },
-  { key: "face", label: "Face" },
-  { key: "hair", label: "Hair" },
-  { key: "outfit", label: "Outfit" },
-  { key: "extras", label: "Extras" },
-];
+const TABS = ["looks", "body", "face", "hair", "outfit", "extras"];
 
 /**
  * The dressing-room stage has front, seated and back views. The seated view is
@@ -77,6 +71,7 @@ const TABS = [
  * per zoom level so a slider change never resets the camera.
  */
 function CharacterStage({ character, view }) {
+  const { t: ui } = useI18n();
   const [zoom, setZoom] = useState(1.35);
   // The camera can MOVE now, not just zoom: dragging the stage pans the view
   // (the iso room's own grammar). Double-click brings the camera home.
@@ -112,7 +107,7 @@ function CharacterStage({ character, view }) {
       className={`h-44 w-full ${dragRef.current ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ touchAction: "none" }}
       role="img"
-      aria-label={`${view === "back" ? "Back" : view === "seated" ? "Seated" : "Front"} view of your character — drag to move and scroll to zoom`}
+      aria-label={ui("profile.stage", { view: ui(`profile.${view === "back" ? "Back" : view === "seated" ? "Seated" : "Front"}`) })}
       onPointerDown={(e) => {
         dragRef.current = {
           x: e.clientX,
@@ -250,6 +245,7 @@ function ShoesIcon({ character, shoes }) {
 }
 
 function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swatchValue, onSwatch }) {
+  const { t: ui } = useI18n();
   // A real GRID, not a wrap of fixed-width chips: the cells share the row's
   // full width, so the drawer's space is spent on bigger icons instead of a
   // ragged right margin (owner: "utilize the blank space a little more").
@@ -291,7 +287,7 @@ function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swat
   const swatches = pop ? swatchesFor?.(value) : null;
   return (
     <div className="relative">
-      <div className="grid w-full grid-cols-5 gap-1.5" role="group" aria-label={label}>
+      <div className="grid w-full grid-cols-5 gap-1.5" role="group" aria-label={ui(`profile.${label}`, undefined, label)}>
         {options.map((o) => (
           <button
             key={o.key}
@@ -338,7 +334,7 @@ function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swat
               DISMISSES it (owner, 2026-08-19: it used to sit there until
               you clicked away). The tile still reopens it any time. */}
           <Swatches
-            label={`${label} colour`}
+            label={ui("profile.colorFor", { label: ui(`profile.${label}`, undefined, label) })}
             options={swatches}
             value={swatchValue}
             onPick={(hex) => {
@@ -353,10 +349,11 @@ function IconGrid({ label, options, value, onPick, renderIcon, swatchesFor, swat
 }
 
 function Field({ label, children }) {
+  const { t: ui } = useI18n();
   return (
     <label className="block">
       <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-petal/50">
-        {label}
+        {ui(`profile.${label}`, undefined, label)}
       </span>
       {children}
     </label>
@@ -371,8 +368,9 @@ const inputClass =
 const LAYERED = new Set(OUTFITS.filter((o) => o.inner).map((o) => o.key));
 
 function Swatches({ options, value, onPick, label }) {
+  const { t: ui } = useI18n();
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
+    <div className="flex flex-wrap gap-2" role="group" aria-label={ui(`profile.${label}`, undefined, label)}>
       {options.map((o) => {
         const active = value.toLowerCase() === o.hex.toLowerCase();
         return (
@@ -405,6 +403,7 @@ function BodySlider({
   labels = ["Smaller", "Middle", "Larger"],
   neutralValue = (range[0] + range[1]) / 2,
 }) {
+  const { t: ui, language } = useI18n();
   const size = value < neutralValue - Number(step) / 2
     ? labels[0]
     : value > neutralValue + Number(step) / 2
@@ -412,20 +411,20 @@ function BodySlider({
       : labels[1];
   return (
     <label className="grid grid-cols-[4.25rem_1fr_3rem] items-center gap-2 text-xs text-petal/70">
-      <span className="shrink-0">{label}</span>
+      <span className="shrink-0">{ui(`profile.${label}`, undefined, label)}</span>
       <input
         type="range"
         min={range[0]}
         max={range[1]}
         step={step}
         value={value}
-        aria-label={`${ariaPrefix} ${label.toLowerCase()}`}
+        aria-label={language === "en" ? `${ariaPrefix} ${label.toLowerCase()}` : `${ui(`profile.${ariaPrefix}`)} ${ui(`profile.${label}`)}`}
         onChange={(e) => onDraft(Number(e.target.value))}
         onPointerUp={onCommit}
         onBlur={onCommit}
         className="h-1 flex-1 accent-glow"
       />
-      <span className="text-right text-[10px] text-petal/45">{size}</span>
+      <span className="text-right text-[10px] text-petal/45">{ui(`profile.${size}`, undefined, size)}</span>
     </label>
   );
 }
@@ -437,6 +436,7 @@ function BodySlider({
  * setting up; completion means it gets out of the way (owner request).
  */
 function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) {
+  const { t: ui } = useI18n();
   const [open, setOpen] = useState(() => !profile.displayName);
   const line = [
     profile.displayName,
@@ -455,10 +455,10 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
         className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/5"
       >
         <UserRound size={15} className="shrink-0 text-petal/70" />
-        <span className="shrink-0 text-sm font-semibold text-cream">About you</span>
+        <span className="shrink-0 text-sm font-semibold text-cream">{ui("profile.about")}</span>
         {!open && (
           <span className="min-w-0 flex-1 truncate text-right text-xs text-petal/50">
-            {line || "say hello"}
+            {line || ui("profile.hello")}
           </span>
         )}
         <ChevronDown
@@ -471,14 +471,14 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
       {open && (
         <div className="space-y-3 px-3 pb-3">
           <p className="text-xs text-petal/60">
-            Only ever stored on this machine, in your own database.
+            {ui("profile.local")}
           </p>
           <Field label="Name">
             <input
               className={inputClass}
               value={draft.displayName}
               maxLength={60}
-              placeholder="What should we call you?"
+              placeholder={ui("profile.nameHint")}
               onChange={(e) => setDraft({ ...draft, displayName: e.target.value })}
               onBlur={() => commit("displayName")}
             />
@@ -488,7 +488,7 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
               className={inputClass}
               value={draft.pronouns}
               maxLength={32}
-              placeholder="they/them"
+              placeholder={ui("profile.pronounHint")}
               onChange={(e) => setDraft({ ...draft, pronouns: e.target.value })}
               onBlur={() => commit("pronouns")}
             />
@@ -514,7 +514,7 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
               className={`${inputClass} h-16 resize-none`}
               value={draft.bio}
               maxLength={BIO_MAX}
-              placeholder="A line about you."
+              placeholder={ui("profile.bioHint")}
               onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
               onBlur={() => commit("bio")}
             />
@@ -554,6 +554,7 @@ function AboutPanel({ profile, summary, draft, setDraft, commit, saveProfile }) 
 }
 
 export default function ProfilePanel() {
+  const { t: ui } = useI18n();
   const { progression, profile, character, saveProfile, saveCharacter,
     savedLooks, saveCharacterLook, removeCharacterLook } = useProfileStore();
   const { sessionDays } = useTaskStore();
@@ -614,13 +615,13 @@ export default function ProfilePanel() {
             one flick from anywhere (owner request). */}
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-cream">
-            <Shirt size={15} className="text-petal/70" /> Your character
+            <Shirt size={15} className="text-petal/70" /> {ui("profile.character")}
           </p>
           <label
             className="flex cursor-pointer items-center gap-1.5 text-xs text-petal/70"
-            title="Your character appears once in the room, and thinks about what you're doing."
+            title={ui("profile.inRoomHelp")}
           >
-            In the room
+            {ui("profile.inRoom")}
             <input
               type="checkbox"
               checked={selfInRoom}
@@ -639,7 +640,7 @@ export default function ProfilePanel() {
             <div
               className="absolute right-2 top-2 flex rounded-full bg-plum/75 p-0.5 backdrop-blur-sm"
               role="group"
-              aria-label="Character preview view"
+              aria-label={ui("profile.preview")}
             >
               {["front", "seated", "back"].map((view) => (
                 <button
@@ -653,25 +654,25 @@ export default function ProfilePanel() {
                       : "text-petal/70 hover:bg-white/10 hover:text-cream"
                   }`}
                 >
-                  {view}
+                  {ui(`profile.${view}`)}
                 </button>
               ))}
             </div>
           </div>
-          <div className="mt-2 flex gap-1" role="tablist" aria-label="Character">
-            {TABS.map((t) => (
+          <div className="mt-2 flex gap-1" role="tablist" aria-label={ui("profile.tabs")}>
+            {TABS.map((key) => (
               <button
-                key={t.key}
+                key={key}
                 role="tab"
-                aria-selected={tab === t.key}
-                onClick={() => setTab(t.key)}
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
                 className={`flex-1 rounded-xl py-1.5 text-[11px] font-semibold transition ${
-                  tab === t.key
+                  tab === key
                     ? "bg-glow text-plum"
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >
-                {t.label}
+                {ui(`profile.${key}`)}
               </button>
             ))}
           </div>
@@ -681,7 +682,7 @@ export default function ProfilePanel() {
           {tab === "looks" && (
             <>
               <p className="text-xs leading-relaxed text-petal/65">
-                Start with a complete outfit, then make it yours. Your skin and face stay the same.
+                {ui("profile.looksHelp")}
               </p>
               <SavedCharacterLooks character={character} looks={savedLooks} onPick={saveCharacter}
                 onSave={saveCharacterLook} onRemove={removeCharacterLook} />
@@ -709,7 +710,7 @@ export default function ProfilePanel() {
               </Field>
               <Field label="Build">
                 <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Body size templates">
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label={ui("profile.Body size templates")}>
                     {BODY_SIZE_PRESETS.map((preset) => {
                       const selected = bodySizePresetMatches(shown, preset);
                       return (

@@ -9,6 +9,8 @@ import {
 } from "../lib/isoRoom";
 import { CATALOGS } from "./catalogs";
 import { COMMON_PLACES } from "../lib/commonRooms";
+import { ALGORITHM_KEYS } from "../lib/algorithms";
+import { CHALLENGE_TRACKING, DAILY_CHALLENGES } from "../lib/challenges";
 import en from "./locales/en";
 import es from "./locales/es";
 import ja from "./locales/ja";
@@ -16,6 +18,7 @@ import ko from "./locales/ko";
 import zhCN from "./locales/zhCN";
 import {
   interpolate,
+  formatDuration,
   languageMeta,
   normalizeLanguage,
   resourceLabel,
@@ -83,4 +86,24 @@ describe("interface translation coverage", () => {
       }
     });
   }
+});
+
+describe("primary workflow vocabulary", () => {
+  it("formats saved minute counts in the selected language", () => {
+    expect(formatDuration("en", 125)).toBe("2 hours 5 min");
+    expect(formatDuration("en", 125, { short: true })).toBe("2h 5m");
+    expect(formatDuration("es", 125)).toBe("2 horas 5 minutos");
+    expect(formatDuration("ja", 125)).toBe("2 時間 5 分");
+    expect(formatDuration("ko", 0)).toBe("0분");
+  });
+
+  it.each(TRANSLATED_LANGUAGES)("%s covers dynamic task and challenge controls", (language) => {
+    const keys = [
+      ...ALGORITHM_KEYS.flatMap((key) => [`algo.${key}.label`, `algo.${key}.hint`]),
+      ...DAILY_CHALLENGES.flatMap(({ id }) => ["title", "description", "hint"].map((field) => `prompt.${id}.${field}`)),
+      ...CHALLENGE_TRACKING.flatMap(({ key, unit }) => [`tracking.${key}`, `challengeUnit.${unit}`]),
+    ];
+    const messages = { es, "zh-CN": zhCN, ja, ko }[language].messages;
+    for (const key of keys) expect(typeof messages[key], key).toBe("string");
+  });
 });

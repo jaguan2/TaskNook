@@ -2,6 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import TaskPanel from "./TaskPanel";
+import { I18nProvider } from "../i18n/I18nProvider";
+import LanguageSettings from "./settings/LanguageSettings";
+import { removeStored, writeStored } from "../services/storage";
 
 const mockStore = vi.hoisted(() => ({
   orderedTasks: [
@@ -36,6 +39,39 @@ vi.mock("../timer", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  removeStored("tasknook.language");
+});
+
+describe("translated task workflow", () => {
+  it.each([
+    ["es", "¿Qué necesitas hacer?", "+ Añadir tarea", "Meta diaria"],
+    ["zh-CN", "需要做什么？", "+ 添加任务", "每日目标"],
+    ["ja", "何をする？", "+ タスクを追加", "毎日の目標"],
+    ["ko", "무엇을 해야 하나요?", "+ 할 일 추가", "일일 목표"],
+  ])("renders and saves tasks in %s without translating user content", async (language, placeholder, add, goal) => {
+    writeStored("tasknook.language", language);
+    render(<I18nProvider><TaskPanel /></I18nProvider>);
+    expect(screen.getByText(goal).textContent).toContain(goal);
+    expect(screen.getByText("First task").textContent).toBe("First task");
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: "My 日本語 notes" } });
+    fireEvent.click(screen.getByRole("button", { name: add }));
+    expect(mockStore.addTask).toHaveBeenCalledWith({
+      name: "My 日本語 notes", duration: 25, priority: "medium", dueDate: null,
+    });
+  });
+
+  it("switches language without losing the task draft and translates deletion controls", () => {
+    writeStored("tasknook.language", "en");
+    render(<I18nProvider><LanguageSettings /><TaskPanel /></I18nProvider>);
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Keep my draft" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Español" }));
+    expect(screen.getByPlaceholderText("¿Qué necesitas hacer?").value).toBe("Keep my draft");
+    fireEvent.click(screen.getAllByRole("button", { name: "Eliminar tarea" })[0]);
+    expect(screen.getByRole("dialog").textContent).toContain("¿Eliminar tarea?");
+    expect(screen.getByRole("dialog").textContent).toContain("First task");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByPlaceholderText("¿Qué necesitas hacer?").value).toBe("Keep my draft");
+  });
 });
 
 describe("manual task ordering", () => {

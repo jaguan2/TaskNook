@@ -482,9 +482,13 @@ export function dialogueOptions(username, now, { theirTurn = false, lastMessage 
  * before the bond existed still lands word-for-word.
  */
 export function replyToOption(username, optionId, now, seed = 0, bond = 1, language = "en") {
+  if (Object.hasOwn(OPTION_SHAPE, optionId) || optionId === "encourage" || optionId === "joke") {
+    const shape = Object.hasOwn(OPTION_SHAPE, optionId) ? OPTION_SHAPE[optionId] : optionId;
+    return replyFor(username, shape, optionId, now, seed, bond, language);
+  }
   const { state, minutesLeft } = npcActivity(username, now);
   if (dialoguePack(language)) {
-    const kind = OPTION_SHAPE[optionId] || (optionId === "howsit" ? state : optionId);
+    const kind = OPTION_LINES[optionId] ? `${optionId}.${state}` : optionId;
     const h = hash(username, optionId, seed);
     return localizedReply(language, kind, h, {
       left: minutesLeft,
@@ -495,9 +499,6 @@ export function replyToOption(username, optionId, now, seed = 0, bond = 1, langu
   if (optionId === "tea") return (TEA[username] || TEA.mochi)[0];
   if (optionId === "tea_milk") return (TEA[username] || TEA.mochi)[1];
   if (optionId === "celebrate") return pick(CELEBRATE[username] || CELEBRATE.kai, hash(username, optionId, seed));
-  if (optionId === "encourage" || optionId === "joke") {
-    return replyFor(username, optionId, optionId, now, seed, bond);
-  }
   if (optionId === "tea_share") {
     return pick([
       "already poured you one ☕ come claim it",

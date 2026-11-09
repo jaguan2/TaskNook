@@ -1,10 +1,10 @@
+import { useI18n } from "../i18n/I18nProvider";
 import { useState, useRef } from "react";
 import { Archive, CalendarClock, ChevronDown, ChevronUp, Flame, GripVertical, Pencil, Sparkles, Target } from "lucide-react";
 import { useTaskStore } from "../store";
 import { useTimer } from "../timer";
 import { ALGORITHMS, ALGORITHM_KEYS } from "../lib/algorithms";
 import { focusStreak, localTodayISO } from "../lib/stats";
-import { formatSpan } from "../lib/breaks";
 import ConfirmDialog from "./ConfirmDialog";
 
 // The three are a SCALE, so all three colours have to be fixed ones or the
@@ -45,6 +45,7 @@ function GoalRing({ minutes, goal }) {
 }
 
 export default function TaskPanel() {
+  const { t: ui, formatDuration } = useI18n();
   const {
     orderedTasks,
     algorithm,
@@ -134,7 +135,6 @@ export default function TaskPanel() {
     reorderTasks(next);
   };
 
-  const algo = ALGORITHMS[algorithm];
 
   const completion = stats.completion || 0;
   const totalPlannedMin = active.reduce((sum, t) => sum + t.duration, 0);
@@ -156,7 +156,7 @@ export default function TaskPanel() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={200}
-          placeholder="What needs doing?"
+          placeholder={ui("tasks.placeholder")}
           className="w-full rounded-xl bg-white/10 px-3 py-2 text-cream placeholder:text-petal/50 outline-none focus:ring-2 focus:ring-glow/50"
         />
         <div className="flex gap-2">
@@ -166,34 +166,34 @@ export default function TaskPanel() {
               type="number"
               min="1"
               max="1440"
-              aria-label="Estimated minutes"
+              aria-label={ui("tasks.minutes")}
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className="w-full bg-transparent text-cream outline-none"
             />
-            min
+            <span className="shrink-0 whitespace-nowrap">{ui("units.minutes")}</span>
           </label>
           <select
-            aria-label="Priority"
+            aria-label={ui("tasks.priority")}
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
             className="rounded-xl bg-white/10 px-3 py-2 text-sm text-cream outline-none"
           >
-            <option className="bg-plum" value="low">Low</option>
-            <option className="bg-plum" value="medium">Medium</option>
-            <option className="bg-plum" value="high">High</option>
+            <option className="bg-plum" value="low">{ui("tasks.low")}</option>
+            <option className="bg-plum" value="medium">{ui("tasks.medium")}</option>
+            <option className="bg-plum" value="high">{ui("tasks.high")}</option>
           </select>
         </div>
         <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-petal">
-          Due date <span className="text-petal/50">(optional)</span>
+          {ui("tasks.due")} <span className="text-petal/50">{ui("tasks.optional")}</span>
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-            aria-label="Due date" className="ml-auto min-w-0 bg-transparent text-cream outline-none" />
+            aria-label={ui("tasks.due")} className="ml-auto min-w-0 bg-transparent text-cream outline-none" />
         </label>
         <button
           disabled={busy}
           className="pill w-full bg-glow py-2 font-semibold text-plum hover:bg-amber disabled:opacity-50"
         >
-          + Add task
+          {ui("tasks.add")}
         </button>
         {error && <p className="text-xs text-danger">{error}</p>}
       </form>
@@ -201,7 +201,7 @@ export default function TaskPanel() {
       {/* Algorithm selector */}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-petal/60">
-          Arrange by
+          {ui("tasks.arrange")}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {ALGORITHM_KEYS.map((key) => (
@@ -214,18 +214,18 @@ export default function TaskPanel() {
                   : "bg-white/10 text-petal hover:bg-white/20"
               }`}
             >
-              {ALGORITHMS[key].icon} {ALGORITHMS[key].label}
+              {ALGORITHMS[key].icon} {ui(`algo.${key}.label`)}
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs text-petal/60">{algo.hint}</p>
+        <p className="mt-2 text-xs text-petal/60">{ui(`algo.${algorithm}.hint`)}</p>
       </div>
 
       {/* Active tasks */}
       <div className="space-y-2">
         {active.length === 0 && (
           <p className="rounded-xl bg-white/5 px-3 py-6 text-center text-sm text-petal/60">
-            No tasks yet — add one above to start your cozy session. 🌿
+            {ui("tasks.empty")}
           </p>
         )}
         {active.map((task, index) => (
@@ -243,8 +243,8 @@ export default function TaskPanel() {
           >
             <button
               onClick={() => toggleTask(task)}
-              title="Mark complete"
-              aria-label="Mark complete"
+              title={ui("tasks.complete")}
+              aria-label={ui("tasks.complete")}
               className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-petal/50 text-transparent hover:border-glow"
             >
               ✓
@@ -253,23 +253,23 @@ export default function TaskPanel() {
               {editingId === task.id ? (
                 <input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
                   onBlur={() => finishRename(task)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                  aria-label="Task name" maxLength={200}
+                  aria-label={ui("tasks.name")} maxLength={200}
                   className="w-full rounded-md bg-white/10 px-1.5 py-0.5 text-sm font-medium text-cream outline-none focus:bg-white/15" />
               ) : (
-                <button onClick={() => setActiveTaskId(task.id)} title="Focus on this task" className="min-w-0 text-left">
+                <button onClick={() => setActiveTaskId(task.id)} title={ui("tasks.focus")} className="min-w-0 text-left">
                   <p className="truncate text-sm font-medium text-cream">{task.name}</p>
                 </button>
               )}
               <div className="mt-0.5 flex items-center gap-2">
-                <span className="text-xs text-petal/70">{task.duration} min</span>
+                <span className="text-xs text-petal/70">{task.duration} {ui("units.minutes")}</span>
                 <span
                   className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_STYLE[task.priority]}`}
                 >
-                  {task.priority}
+                  {ui(`tasks.${task.priority}`)}
                 </span>
                 {task.dueDate && (
                   <span
-                    title={`Due ${task.dueDate}`}
+                    title={ui("tasks.dueOn", { date: task.dueDate })}
                     className={`flex items-center gap-0.5 text-[10px] font-semibold ${
                       task.dueDate < localTodayISO() ? "text-danger" : "text-petal/60"
                     }`}
@@ -278,11 +278,11 @@ export default function TaskPanel() {
                   </span>
                 )}
                 {activeTaskId === task.id && (
-                  <span className="text-[10px] font-semibold text-glow">● focusing</span>
+                  <span className="text-[10px] font-semibold text-glow">{ui("tasks.focusing")}</span>
                 )}
               </div>
             </div>
-            <button onClick={() => { setEditingId(task.id); setRenameDraft(task.name); }} title="Rename task" aria-label={`Rename ${task.name}`}
+            <button onClick={() => { setEditingId(task.id); setRenameDraft(task.name); }} title={ui("tasks.rename")} aria-label={ui("tasks.renameName", { name: task.name })}
               className="hover-reveal shrink-0 text-petal/40 hover:text-cream"><Pencil size={13} /></button>
             {algorithm === "custom" && (
               <div className="flex shrink-0 items-center gap-0.5">
@@ -290,8 +290,8 @@ export default function TaskPanel() {
                 <button
                   onClick={() => moveTask(index, -1)}
                   disabled={index === 0}
-                  title="Move task up"
-                  aria-label={`Move ${task.name} up`}
+                  title={ui("tasks.up")}
+                  aria-label={ui("tasks.upName", { name: task.name })}
                   className="text-petal/50 hover:text-cream disabled:opacity-20"
                 >
                   <ChevronUp size={13} />
@@ -299,8 +299,8 @@ export default function TaskPanel() {
                 <button
                   onClick={() => moveTask(index, 1)}
                   disabled={index === active.length - 1}
-                  title="Move task down"
-                  aria-label={`Move ${task.name} down`}
+                  title={ui("tasks.down")}
+                  aria-label={ui("tasks.downName", { name: task.name })}
                   className="text-petal/50 hover:text-cream disabled:opacity-20"
                 >
                   <ChevronDown size={13} />
@@ -309,8 +309,8 @@ export default function TaskPanel() {
             )}
             <button
               onClick={() => requestDelete(task)}
-              title="Delete task"
-              aria-label="Delete task"
+              title={ui("tasks.delete")}
+              aria-label={ui("tasks.delete")}
               className="hover-reveal shrink-0 text-sm text-petal/40 transition hover:text-danger"
             >
               ✕
@@ -323,7 +323,7 @@ export default function TaskPanel() {
       {done.length > 0 && (
         <div className="space-y-2 pt-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-petal/60">
-            Done · {done.length}
+            {ui("tasks.done", { count: done.length })}
           </p>
           {done.map((task) => (
             <div
@@ -332,8 +332,8 @@ export default function TaskPanel() {
             >
               <button
                 onClick={() => toggleTask(task)}
-                title="Mark as not done"
-                aria-label="Mark as not done"
+                title={ui("tasks.undo")}
+                aria-label={ui("tasks.undo")}
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sage text-xs text-plum"
               >
                 ✓
@@ -341,12 +341,12 @@ export default function TaskPanel() {
               <p className="flex-1 truncate text-sm text-cream line-through">
                 {task.name}
               </p>
-              {!task.routine && <button onClick={() => archiveTask(task.id)} title="Archive to journal" aria-label={`Archive ${task.name}`}
+              {!task.routine && <button onClick={() => archiveTask(task.id)} title={ui("tasks.archive")} aria-label={ui("tasks.archiveName", { name: task.name })}
                 className="shrink-0 text-petal/45 hover:text-glow"><Archive size={14} /></button>}
               <button
                 onClick={() => requestDelete(task)}
-                title="Delete task"
-                aria-label="Delete task"
+                title={ui("tasks.delete")}
+                aria-label={ui("tasks.delete")}
                 className="shrink-0 text-sm text-petal/40 transition hover:text-danger"
               >
                 ✕
@@ -365,7 +365,7 @@ export default function TaskPanel() {
       {stats.tasksTotal > 0 && (
         <div className="pt-2">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-cream">List completion</p>
+            <p className="text-sm font-semibold text-cream">{ui("tasks.completion")}</p>
             <p className="text-sm font-bold text-glow">{completion}%</p>
           </div>
           <div className="h-4 w-full overflow-hidden rounded-full bg-white/10">
@@ -375,9 +375,9 @@ export default function TaskPanel() {
             />
           </div>
           <p className="mt-1 text-xs text-petal/60">
-            {stats.tasksDone} of {stats.tasksTotal} tasks done
-            {stats.tasksDoneToday > 0 && <> · {stats.tasksDoneToday} today</>}
-            {totalPlannedMin > 0 && <> · {totalPlannedMin}m still planned</>}
+            {ui("tasks.completedCount", { done: stats.tasksDone, total: stats.tasksTotal })}
+            {stats.tasksDoneToday > 0 && <> · {ui("tasks.today", { count: stats.tasksDoneToday })}</>}
+            {totalPlannedMin > 0 && <> · {ui("tasks.plannedMinutes", { minutes: totalPlannedMin })}</>}
           </p>
         </div>
       )}
@@ -392,16 +392,15 @@ export default function TaskPanel() {
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-semibold text-cream">
-            Daily goal{" "}
+            {ui("tasks.goal")}{" "}
             <span className={goalMet ? "text-sage" : "text-glow"}>
-              {focusMinutesLive} / {dailyGoal} min
+              {focusMinutesLive} / {dailyGoal} {ui("units.minutes")}
             </span>
           </p>
           <p className="flex items-center gap-1 text-xs text-petal/60">
             <Flame size={12} className="shrink-0 text-amber" />{" "}
-            <span className="font-semibold text-cream">{streak}</span> day
-            {streak === 1 ? "" : "s"} streak
-            {goalMet ? " — today's in the bag." : streak > 0 ? " — keep it alive!" : ""}
+            {ui(streak === 1 ? "tasks.streakOne" : "tasks.streak", { count: streak })}
+            {goalMet ? ui("tasks.goalMet") : streak > 0 ? ui("tasks.keepGoing") : ""}
           </p>
           <div className="flex items-center gap-1.5 pt-0.5">
             {[60, 120, 180, 240].map((m) => (
@@ -414,7 +413,7 @@ export default function TaskPanel() {
                     : "bg-white/10 text-petal hover:bg-white/20"
                 }`}
               >
-                {m >= 60 ? `${m / 60}h` : `${m}m`}
+                {formatDuration(m, { short: true })}
               </button>
             ))}
           </div>
@@ -429,7 +428,7 @@ export default function TaskPanel() {
           covers studying without one. */}
       <label className="flex cursor-pointer items-center justify-between gap-3">
         <span className="text-xs text-petal/70">
-          Nudge me to stretch after {formatSpan(breakNudgeMinutes)} without a break
+          {ui("tasks.nudge", { span: formatDuration(breakNudgeMinutes) })}
         </span>
         <input
           type="checkbox"
@@ -439,8 +438,8 @@ export default function TaskPanel() {
         />
       </label>
     </div>
-    <ConfirmDialog open={!!deleting} title="Delete task?"
-      message={`Remove “${deleting?.name || "this task"}” permanently?`}
+    <ConfirmDialog open={!!deleting} title={ui("tasks.deleteTitle")}
+      message={ui("tasks.deleteMessage", { name: deleting?.name || ui("tasks.thisTask") })}
       onCancel={() => setDeleting(null)}
       onConfirm={() => { removeTask(deleting.id); setDeleting(null); }} />
     </>

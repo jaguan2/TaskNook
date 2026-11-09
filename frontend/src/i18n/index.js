@@ -4,6 +4,7 @@ import ja from "./locales/ja";
 import ko from "./locales/ko";
 import zhCN from "./locales/zhCN";
 import { CATALOGS } from "./catalogs";
+import { formatSpan } from "../lib/breaks";
 
 export const DEFAULT_LANGUAGE = "en";
 export const LANGUAGE_STORAGE_KEY = "tasknook.language";
@@ -60,4 +61,22 @@ export function resourceLabel(language, namespace, key, fallback = key) {
 
 export function supportedLanguageKeys() {
   return LANGUAGES.map((entry) => entry.key);
+}
+
+/** Focus durations use local units without changing stored minute counts. */
+export function formatDuration(language, minutes, { short = false } = {}) {
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (normalizeLanguage(language) === "en") {
+    return short
+      ? hours ? `${hours}h${remainder ? ` ${remainder}m` : ""}` : `${remainder}m`
+      : formatSpan(minutes);
+  }
+  const locale = languageMeta(language).locale;
+  const unit = (value, name) => new Intl.NumberFormat(locale, {
+    style: "unit", unit: name, unitDisplay: short ? "short" : "long",
+  }).format(value);
+  return hours
+    ? `${unit(hours, "hour")}${remainder ? ` ${unit(remainder, "minute")}` : ""}`
+    : unit(remainder, "minute");
 }

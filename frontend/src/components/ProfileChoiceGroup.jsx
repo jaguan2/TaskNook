@@ -1,6 +1,9 @@
+import { useI18n } from "../i18n/I18nProvider";
+
 export default function ProfileChoiceGroup({ options, value, onPick, label }) {
+  const { t: ui } = useI18n();
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
+    <div className="flex flex-wrap gap-2" role="group" aria-label={ui(`profile.${label}`, undefined, label)}>
       {options.map((option) => (
         <button
           key={option.key}
