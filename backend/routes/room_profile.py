@@ -98,6 +98,20 @@ def clean_layout(placements, xkey, ykey):
                 return None
             entry["tint"] = tint
 
+        # Shelf contents belong to each placement, alongside its finish tint.
+        if "decor" in placement:
+            decor = placement["decor"]
+            if item not in {"bookshelf", "bookcase", "shelf", "ladder", "wallshelf", "plantshelf"}:
+                return None
+            if not isinstance(decor, dict) or set(decor) - {"layout", "bookColor"}:
+                return None
+            if "layout" in decor and decor["layout"] not in ("books", "plants", "mixed", "empty"):
+                return None
+            if "bookColor" in decor and not _hex_color(decor["bookColor"]):
+                return None
+            if decor:
+                entry["decor"] = {**decor, **({"bookColor": decor["bookColor"].lower()} if "bookColor" in decor else {})}
+
         rotation = placement.get("rot")
         if rotation is not None:
             if not (

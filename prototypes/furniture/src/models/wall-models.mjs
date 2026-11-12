@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { beam, bentTube, material } from './geometry.mjs';
-import { board, clothRibbon } from './storage-parts.mjs';
+import { board, clothRibbon, stored } from './storage-parts.mjs';
 import { fitOrganic, leaf, oval, pot } from './organic-parts.mjs';
 import { brass, disc, frame, outlineSolid, ring, warmInk } from './object-parts.mjs';
 import { candleOn, glowingMaterial, shade, source } from './lighting-parts.mjs';
@@ -21,8 +21,10 @@ const builds = {
     const paint = material(s.colorRole, s.defaultColor); board(root, 'shelf-board', [1.48, .055, .27], [0, .21, 0], paint);
     board(root, 'wall-receiving-cleat', [1.43, .22, .035], [0, .12, -.116], paint);
     for (const x of [-.50, .50]) beam(root, `shelf-bracket-${x}`, [x, .015, -.10], [x, .205, .11], .018, paint);
-    for (let i = 0; i < 4; i++) board(root, `shelf-book-${i}`, [.075, .27 + i % 2 * .05, .14], [-.39 + i * .08, .371 + i % 2 * .025, -.01], material('book-cloth', i % 2 ? '#9a9e83' : '#b3987b'), .004);
-    const soil = pot(root, 'shelf-pot', .42, 0, .234, .09, .12, material('pot', '#b69e80')); leaf(root, 'shelf-leaf', [.42, soil.y - .01, 0], [.43, soil.y + .20, 0], .12, material('foliage', '#869574'));
+    const contentsStart = root.children.length;
+    for (let i = 0; i < 4; i++) board(root, `shelf-book-${i}`, [.075, .27 + i % 2 * .05, .14], [-.39 + i * .08, .371 + i % 2 * .025, -.01], material(`book-cover-${i % 2}`, i % 2 ? '#cf765c' : '#6b986a'), .004);
+    const soil = pot(root, 'shelf-pot', .42, 0, .234, .09, .12, material('pot', '#b69e80')); leaf(root, 'shelf-leaf', [.42, soil.y - .01, 0], [.43, soil.y + .20, 0], .12, material('foliage', '#69915c'));
+    stored(root, 'wall-shelf-contents', root.children.slice(contentsStart), root.getObjectByName('shelf-board'));
   },
   mirror(root, s) { const radius = s.height / 2; ring(root, 'round-mirror-frame', radius - .018, .018, [0, radius, 0], material(s.colorRole, s.defaultColor)); disc(root, 'round-reflective-panel', radius - .028, .025, [0, radius, 0], material('mirror-glass', '#b1c6be'), 'xy'); },
   wallclock(root, s) {

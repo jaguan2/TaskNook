@@ -316,7 +316,7 @@ was hidden behind the bench and was extended into the clear lawn.
 The production-browser regression samples each route against the actual SVG
 water fill, checks the shore excursion and reduced motion, and verifies that
 visiting does not modify the home layout. Captures:
-[swimming](model-review/willow-swim.webp), [on land](model-review/willow-shore.webp).
+[Willow Pond](screenshots/43-willow-pond.webp), [occupied places](screenshots/44-willow-pond-seats.webp).
 
 ## Delivery and visual acceptance
 

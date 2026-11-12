@@ -1,6 +1,7 @@
+import { furnitureFacingRotation } from "./furnitureFacing";
 import { CHARACTER_PRESETS } from "./characterPresets";
 import { deriveNpcCharacter } from "./visiting";
-import { ISO_ITEMS, stackedPlacement } from "./isoRoom";
+import { ISO_ITEMS, seatedPlacement, stackedPlacement } from "./isoRoom";
 import { WILLOW_DUCKS } from "./commonWildlife";
 
 // Fixed places are authored scenes, not editable home layouts. A surface's
@@ -54,8 +55,8 @@ const libraryTableSeats = libraryTables.flatMap(({ item, gx, gy, seats }) => {
   return seats.map((seat) => ({ ...seat, gx: gx + w / 2 - .4, gy: gy + (seat.facing === "back" ? d + .35 : -1) }));
 });
 const libraryArmchairs = [
-  { id: "fireside", label: "Fireside armchair", gx: 1.9, gy: 7.25, tint: "#9a6954" },
-  { id: "fireside-front", label: "Hearth reading chair", gx: 3.4, gy: 12.1, tint: "#8e5954" },
+  { id: "fireside", label: "Fireside armchair", gx: 1.9, gy: 7.25, rot: 3, tint: "#9a6954" },
+  { id: "fireside-front", label: "Hearth reading chair", gx: 3.4, gy: 12.1, rot: 2, tint: "#8e5954" },
   { id: "fireside-end", label: "Tall window armchair", gx: 1.8, gy: 16.3, tint: "#8f7860" },
   { id: "quiet-corner", label: "Quiet corner armchair", gx: 25.4, gy: 6.5, tint: "#71826b" },
   { id: "quiet-front", label: "Quiet aisle armchair", gx: 27, gy: 11.4, tint: "#8f7860" },
@@ -69,7 +70,7 @@ const librarySofas = [
     { id: "entry-inner-left", label: "Quiet sofa left" }, { id: "entry-inner-right", label: "Quiet sofa right" },
   ] },
 ];
-export const COMMON_PLACES = {
+const authoredPlaces = {
   "common-cottage": {
     id: "common-cottage", label: "Common Cottage", icon: "🏡",
     kind: "cottage",
@@ -81,8 +82,8 @@ export const COMMON_PLACES = {
       nook: { gx: 0, gy: 0, dx: 4.4, dy: 3.1, z: 36, color: "#c8a27a" },
     },
     seats: [
-      { id: "window-left", label: "Window armchair", level: "nook", gx: 0.8, gy: 1.325, height: 22, furniture: "nook-chair-left" },
-      { id: "window-right", label: "Reading armchair", level: "nook", gx: 2.8, gy: 1.325, height: 22, furniture: "nook-chair-right" },
+      { id: "window-left", label: "Window armchair", level: "nook", gx: 0.875, gy: 1.25, height: 22, furniture: "nook-chair-left" },
+      { id: "window-right", label: "Reading armchair", level: "nook", gx: 2.575, gy: 1.25, height: 22, furniture: "nook-chair-right" },
       { id: "study-left", label: "Left study desk", level: "ground", gx: 6.4, gy: 2.8, height: 24, facing: "back", furniture: "study-chair-left" },
       { id: "study-right", label: "Right study desk", level: "ground", gx: 8.6, gy: 2.8, height: 24, facing: "back", furniture: "study-chair-right" },
       { id: "lounge-left", label: "Sofa by the plants", level: "ground", gx: 2.65, gy: 5.975, height: 22, furniture: "lounge-sofa" },
@@ -97,8 +98,8 @@ export const COMMON_PLACES = {
     props: [
       prop("nook-shelf", "bookshelf", 2.8, 0, { level: "nook", tint: "#95704f" }),
       prop("nook-rug", "persianrug", 0.4, 0.7, { level: "nook", tint: "#a96e62" }),
-      prop("nook-chair-left", "armchair", 0.7, 1.15, { level: "nook", tint: "#869b78" }),
-      prop("nook-chair-right", "armchair", 2.7, 1.15, { level: "nook", tint: "#b58a73" }),
+      prop("nook-chair-left", "armchair", 0.7, 1.15, { level: "nook", rot: 1, tint: "#88a195" }),
+      prop("nook-chair-right", "armchair", 2.7, 1.15, { level: "nook", rot: 3, tint: "#88a195" }),
       prop("nook-table", "sidetable", 1.9, 1.6, { level: "nook", tint: "#987351" }),
       prop("nook-lamp", "tablelamp", 1.9, 1.6, { level: "nook", on: "nook-table", tint: "#d9b77e" }),
       prop("nook-books", "bookstack", 2.25, 1.65, { level: "nook", on: "nook-table" }),
@@ -162,8 +163,10 @@ export const COMMON_PLACES = {
       ...libraryGallery.map(({ id, label, gx, gy }) => ({ id, label, level: "gallery", gx: gx + .1, gy: gy + .175,
         height: 22, furniture: `${id}-chair` })),
       ...libraryTableSeats.map((seat) => ({ ...seat, level: "ground", height: 19, furniture: `${seat.id}-chair` })),
-      ...libraryArmchairs.map(({ id, label, gx, gy }) => ({ id, label, level: "ground", gx: gx + .1, gy: gy + .175,
-        height: 22, furniture: `${id}-chair` })),
+      ...libraryArmchairs.map(({ id, label, gx, gy, rot = 0 }) => {
+        const pose = seatedPlacement({ item: "resident" }, { placement: { id, item: "armchair", gx, gy, rot }, height: 22 });
+        return { id, label, level: "ground", gx: pose.gx, gy: pose.gy, height: 22, furniture: `${id}-chair` };
+      }),
       ...librarySofas.flatMap(({ id, gx, gy, seats }) => seats.map((seat, i) => ({ ...seat, level: "ground",
         gx: gx + i * 1.2, gy: gy + .175, height: 22, furniture: id }))),
     ],
@@ -185,7 +188,7 @@ export const COMMON_PLACES = {
     props: [
       ...libraryGallery.flatMap(({ id, gx, gy, tint }) => [
         prop(`${id}-rug`, "persianrug", gx - 1, gy - .75, { level: "gallery", tint }),
-        prop(`${id}-chair`, "armchair", gx, gy, { level: "gallery", tint }),
+        prop(`${id}-chair`, "armchair", gx, gy, { level: "gallery", tint: "#8e5954" }),
         prop(`${id}-table`, "sidetable", gx + 1.3, gy + .15, { level: "gallery", tint: "#705039" }),
         prop(`${id}-books`, "bookstack", gx + 1.95, gy + .4, { level: "gallery", on: `${id}-table` }),
       ]),
@@ -202,16 +205,16 @@ export const COMMON_PLACES = {
       ]),
       ...libraryTableSeats.map(({ id, gx, gy, facing }) => prop(`${id}-chair`, "chair", gx, gy,
         { rot: facing === "back" ? 2 : 0, tint: "#785338" })),
-      ...libraryArmchairs.flatMap(({ id, gx, gy, tint }) => [
+      ...libraryArmchairs.flatMap(({ id, gx, gy, tint, rot = 0 }) => [
         prop(`${id}-rug`, "persianrug", gx - .85, gy - .4, { tint }),
-        prop(`${id}-chair`, "armchair", gx, gy, { tint }),
-        prop(`${id}-table`, "sidetable", gx + 1.35, gy + .4, { tint: "#785338" }),
-        prop(`${id}-candle`, "candle", gx + 1.4, gy + .45, { on: `${id}-table`, tint: "#e1c59a" }),
+        prop(`${id}-chair`, "armchair", gx, gy, { rot, tint: "#8e5954" }),
+        prop(`${id}-table`, "sidetable", rot % 2 ? gx - .175 : gx + 1.35, rot % 2 ? gy + 1.2 : gy + .4, { tint: "#785338" }),
+        prop(`${id}-candle`, "candle", rot % 2 ? gx - .125 : gx + 1.4, rot % 2 ? gy + 1.25 : gy + .45, { on: `${id}-table`, tint: "#e1c59a" }),
         prop(`${id}-books`, "bookstack", gx + 1.95, gy + .65, { on: `${id}-table` }),
       ]),
       ...librarySofas.flatMap(({ id, gx, gy, tint }) => [
         prop(`${id}-rug`, "persianrug", gx - .35, gy - .5, { tint }),
-        prop(id, "sofa", gx, gy, { tint }),
+        prop(id, "sofa", gx, gy, { tint: "#8e5954" }),
         prop(`${id}-table`, "coffeetable", gx + .15, gy + 1.45, { tint: "#785338" }),
         prop(`${id}-books`, "bookstack", gx + .25, gy + 1.5, { on: `${id}-table` }),
         prop(`${id}-mug`, "mug", gx + 1.05, gy + 1.6, { on: `${id}-table`, tint: "#ddd0ae" }),
@@ -270,10 +273,10 @@ export const COMMON_PLACES = {
       prop("pond-wildflowers", "flowers", 6.4, 3.8, { tint: "#d6b06f" }),
       prop("pond-tulips", "tulips", 11.2, 2.2, { tint: "#d78f88" }),
       prop("birdbath", "birdbath", 4.85, 1.7, { tint: "#8c8a79" }),
-      prop("pond-bench", "bench", 7.4, 4.45, { tint: "#9a6f4d" }),
+      prop("pond-bench", "bench", 7.4, 4.75, { rot: 2, tint: "#9a6f4d" }),
       prop("patio-table", "diningtable", 2.25, 5.25, { level: "patio", tint: "#9a704f" }),
-      prop("patio-chair-left", "chair", 1.3, 5.9, { level: "patio", rot: 2, tint: "#8d664a" }),
-      prop("patio-chair-right", "chair", 4, 5.2, { level: "patio", tint: "#8d664a" }),
+      prop("patio-chair-left", "chair", 1.3, 5.9, { level: "patio", rot: 1, tint: "#8d664a" }),
+      prop("patio-chair-right", "chair", 4, 5.2, { level: "patio", rot: 3, tint: "#8d664a" }),
       prop("patio-laptop", "laptop", 2.45, 5.35, { level: "patio", on: "patio-table" }),
       prop("patio-books", "bookstack", 3.35, 5.35, { level: "patio", on: "patio-table" }),
       prop("patio-mug", "mug", 3.15, 5.75, { level: "patio", on: "patio-table", tint: "#e5c89d" }),
@@ -303,6 +306,18 @@ export const COMMON_PLACES = {
     ],
   },
 };
+
+// The support owns each occupant's direction. Keep authored multi-seat sofa
+// slots, but derive front/rear pose and mirroring from the furniture's rot so
+// a later layout edit cannot leave people looking through their backrests.
+export const COMMON_PLACES = Object.fromEntries(Object.entries(authoredPlaces).map(([id, scene]) => [id, {
+  ...scene,
+  seats: scene.seats.map(seat => {
+    const support = scene.props.find(p => p.id === seat.furniture);
+    const rot = furnitureFacingRotation(support.item, support.rot);
+    return { ...seat, rot, facing: rot >= 2 ? "back" : "front" };
+  }),
+}]));
 
 // Reuse the home renderer's support and depth rules so tabletop details sit
 // on the catalog's actual surface and paint after their supporting furniture.

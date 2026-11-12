@@ -54,17 +54,15 @@ const NPC_HOMES = {
   mochi: "cafeteria",
 };
 
-// Where each owner belongs in their home — seats the NPC pass deliberately
-// left empty (luna's desk chair, kai's writing desk, sora's north pond bench),
-// or open floor for the host (mochi in front of her counter). These are
-// checked by visiting.test.js against the real presets, and findFreeSpot
-// is the net if a preset ever shifts underneath one.
-const NPC_SPOTS = {
-  luna: { gx: 1, gy: 2.5 },
-  kai: { gx: 7.5, gy: 8 },
-  sora: { gx: 7.25, gy: 2.5 },
-  mochi: { gx: 4, gy: 2 },
-};
+// Derived owners follow the actual furniture, so a preset redesign cannot
+// leave them standing at obsolete coordinates. A stored `you` still overrides
+// this default. The cafe host works behind the counter rather than occupying
+// a customer chair.
+function ownerSpot(username, layout, placements) {
+  if (username !== "mochi") return freeSeatSpot(placements);
+  const counter = placements.find(p => p.item === "barcounter");
+  return counter && findFreeSpot("resident", 0, layout, counter.gx, Math.max(0, counter.gy - 1), placements);
+}
 
 // Outfit hexes from the field-proven preset tints — bots dress like the
 // rooms they keep.
@@ -151,7 +149,7 @@ export function resolveVisitRoom(data, guest = null) {
   // thought bubble) belong to your own room, so it becomes the owner's
   // resident: its spot is where they chose to be, its sprite wears their
   // character via the personas map.
-  let ownerWant = NPC_SPOTS[data?.username];
+  let ownerWant = ownerSpot(data?.username, layout, placements);
   const youIdx = placements.findIndex((p) => ISO_ITEMS[p.item]?.self);
   if (youIdx >= 0) {
     ownerWant = { gx: placements[youIdx].gx, gy: placements[youIdx].gy };

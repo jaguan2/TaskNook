@@ -65,6 +65,9 @@ export { GLASSES_REGISTRY } from "./glasses";
 export function Resident({
   seated = false,
   lying = false,
+  lyingReversed = false,
+  lyingRise = 0,
+  lyingLift = 0,
   seatH = 0,
   // A rug can override this to the cross-legged floor pose. Otherwise the
   // character's saved sitting style supplies their chair personality.
@@ -132,15 +135,21 @@ export function Resident({
   // naturally. Reusing the standing figure preserves their actual hair,
   // clothes and proportions without maintaining another anatomy system.
   if (lying) {
+    const angle = 90 - SKEW + (lyingReversed ? 180 : 0);
+    const radians = angle * Math.PI / 180;
+    const cosine = Math.cos(radians) * .78, sine = Math.sin(radians) * .78;
+    const feet = lyingReversed ? { x: 16, y: -8 } : { x: -16, y: 8 };
+    // Reclined supports raise the head in screen Y independently of compass
+    // direction. Rotating that elevation with the body would put the head
+    // beneath the chair in a reverse view. Keep feet fixed and lift along the
+    // figure's length, using its actual body metrics for every custom build.
+    const incline = lyingRise / Math.max(1, Math.abs(standHeadY));
+    const transform = lyingRise
+      ? `translate(${feet.x}, ${feet.y - lyingLift}) matrix(${cosine} ${sine} ${-sine} ${cosine + incline} 0 0)`
+      : `translate(${feet.x}, ${feet.y - lyingLift}) rotate(${angle}) scale(0.78)`;
     return (
-      <g data-resident-pose="lying" transform={`translate(${c.x}, ${c.y})`}>
-        {/* The bed's long grid axis projects down-left at SKEW degrees. A
-            standing figure grows upward from its feet, so rotating it by
-            90-SKEW points its head toward the pillows. The small down-left
-            offset puts the feet toward the footboard; scale keeps every body
-            slider and hat inside the mattress. Cancel the nested Resident's
-            own standard floor anchor before applying the bed transform. */}
-        <g transform={`translate(-16, 8) rotate(${90 - SKEW}) scale(0.78)`}>
+      <g data-resident-pose="lying" data-lying-rise={lyingRise} data-lying-reversed={lyingReversed ? "true" : "false"} transform={`translate(${c.x}, ${c.y})`}>
+        <g transform={transform}>
           {/* Animation gets a separate wrapper: CSS transform animations
               override an SVG transform attribute when both occupy one node,
               which would silently stand the sleeper back up. */}

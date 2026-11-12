@@ -2,8 +2,8 @@
 
 This records catalog/seating work and its later alignment follow-ups.
 Comparison images are dated review snapshots. The later character
-baseline is documented in [the model spec](MODELS.md) and
-[the archived handoff](archive/HANDOFF-2026-10-06.md); remaining work lives in
+baseline is documented in [the model spec](../../MODELS.md) and
+[the archived handoff](../HANDOFF-2026-10-06.md); remaining work lives in
 [the modeling roadmap](MODELING_ROADMAP.md).
 
 The main gap from the Virtual Cottage 2 references is the design of each
@@ -37,11 +37,11 @@ the pet rewrite, identifying the short-leg, motion and paw-visibility fixes.
 The full stage/form set and cream/dark/sage furniture were reviewed at enlarged
 scale, followed by the actual built room, sleeping cover and pet carrying at
 1600×1000 and the room at 900×640. Captures:
-[furniture](model-review/furniture-cohesion.webp),
-[cats](model-review/cat-growth.webp), [dogs](model-review/dog-growth.webp),
-[rabbits](model-review/bunny-growth.webp),
-[occupied bed](model-review/occupied-bed.webp),
-[carried pet](model-review/carried-pet.webp).
+[furniture](images/furniture-cohesion.webp),
+[cats](../../model-review/cat-growth.webp), [dogs](../../model-review/dog-growth.webp),
+[rabbits](../../model-review/bunny-growth.webp),
+[occupied bed](../../model-review/occupied-bed.webp),
+[carried pet](images/carried-pet.webp).
 
 Saved layouts and growth metadata keep their existing formats. This pass
 changes the drawing and Profile thumbnail framing, with no persistence or
@@ -70,7 +70,7 @@ The second Codex session implemented this furniture pass, tested the drawn
 cushion heights and shared bed cover, and reviewed cream/dark/sage and seated
 body extremes. The final built Loft was checked at 1600×1000 and 900×640;
 the live focus capture and workstation contact sheet below were refreshed again
-after the furniture revision. [Furniture family](model-review/furniture-cohesion.webp).
+after the furniture revision. [Furniture family](images/furniture-cohesion.webp).
 
 Willow Pond now has two authored ducks with separate swimming and walking
 poses. One swims a closed route; the other leaves the southwest bank, walks
@@ -83,7 +83,7 @@ The real-room pass caught a landing route hidden by the bench; the final path
 extends into visible lawn while clearing seats. Browser tests sample swim
 positions against the actual SVG water fill, check dry-land travel and reduced
 motion, and verify home data stays unchanged. Captures:
-[swimming](model-review/willow-swim.webp), [on land](model-review/willow-shore.webp).
+[swimming](images/willow-swim.webp), [on land](images/willow-shore.webp).
 
 Final combined validation: **1,511 frontend tests passed**, one opt-in art test
 skipped; **102 backend room tests and 21 desktop packaging tests passed**;
@@ -119,8 +119,8 @@ artwork; those assemblies now follow the same stage proportions.
 Reviewed all 135 stage/form/pose fixtures at more than 2× scale and the built
 app at 1440×1000 and 900×640. Cats and dogs retain their distinct facings and
 carried poses; rabbits retain their existing shared awake/held silhouette.
-Captures: [cats](model-review/cat-growth.webp),
-[dogs](model-review/dog-growth.webp), [rabbits](model-review/bunny-growth.webp).
+Captures: [cats](../../model-review/cat-growth.webp),
+[dogs](../../model-review/dog-growth.webp), [rabbits](../../model-review/bunny-growth.webp).
 The real-room comparison and Profile controls are recorded under ignored
 `build/skill-verification/pets-2026-11-10/`.
 
@@ -143,9 +143,9 @@ focus, and broad desktops painting over near-side sitters in some directions.
   backrest in front. Empty chairs retain that order when someone is carried away.
   The preset thumbnails share equipment ownership, facing and depth rules.
 
-![Current built Loft with its actual timer running](model-review/loft-focus.webp)
+![Current built Loft with its actual timer running](../../model-review/loft-focus.webp)
 
-![Four workstation directions and body/clothing extremes](model-review/workstation-contact.webp)
+![Four workstation directions and body/clothing extremes](images/workstation-contact.webp)
 
 The second Codex agent implemented the desk switch and preset clearances,
 then independently reviewed the shared contact/depth logic, room capture and
@@ -197,8 +197,8 @@ extremes, headphones and 36 front/profile/rear hat combinations. The final
 art sheet has 841 pieces, including 63 reusable fit fixtures. The built SPA
 was also checked by applying each revised look through Profile, switching
 preview views, placing the character in Cozy study and checking day/night.
-The refreshed [standing](screenshots/37-character-presets.webp) and
-[seated](screenshots/38-character-presets-seated.webp) sheets remain model-only
+The refreshed [standing](../../screenshots/37-character-presets.webp) and
+[seated](../../screenshots/38-character-presets-seated.webp) sheets remain model-only
 closeups extracted from the real editor. The independent review accepted this
 as a silhouette improvement, without claiming reference-level anatomy.
 
@@ -242,11 +242,11 @@ Secret Garden, Terrace, Autumn yard, Winter yard and Poolside were reviewed as
 isolated SVG scenes and then recaptured from the built app against a disposable
 database. The layouts remain intentionally open: no route was narrowed merely
 to display another revised prop. The five refreshed screenshots are
-[Secret Garden](screenshots/06-secret-garden.webp),
-[Terrace](screenshots/07-terrace.webp),
-[Autumn yard](screenshots/09-autumn-yard.webp),
-[Winter yard](screenshots/31-winter-yard.webp) and
-[Poolside](screenshots/32-poolside.webp).
+[Secret Garden](../../screenshots/06-secret-garden.webp),
+[Terrace](../../screenshots/07-terrace.webp),
+[Autumn yard](../../screenshots/09-autumn-yard.webp),
+[Winter yard](../../screenshots/31-winter-yard.webp) and
+[Poolside](../../screenshots/32-poolside.webp).
 
 The structural review found no new branching or state surface. Focused rendering
 checks cover the two water materials, outdoor supports, ground bindings,
@@ -330,7 +330,7 @@ requested outfit presets are already available in Profile → Looks; their
 closeup sheets are refreshed. Loft, Corner café and Reading room use the
 refined plant/lamp models more deliberately. The first fixed split-level
 Common Cottage is implemented with six seats and three simulated neighbours;
-see [the scene and remaining work](COMMON_ROOMS.md). It is a first art pass,
+see [the scene and remaining work](../../COMMON_ROOMS.md). It is a first art pass,
 not a claim that the catalog or character modeling is complete.
 
 ## Study and storage follow-up — October 23, 2026
@@ -358,9 +358,9 @@ Storage and the journal in Decoration. Existing furniture footprints, seat
 heights, saved layouts and character poses are unchanged. The models live in
 focused storage/study modules instead of enlarging the main sprite file.
 
-![Before/after storage and new study pieces](model-review/study-storage.webp)
+![Before/after storage and new study pieces](images/study-storage.webp)
 
-![The new pieces in a furnished study and reading nook](model-review/study-nook.webp)
+![The new pieces in a furnished study and reading nook](images/study-nook.webp)
 
 The room above is a review arrangement, not an additional shipped preset.
 It keeps the window workstation separate from the lounge, places the trolley
@@ -391,8 +391,8 @@ with the references.
 ## Earlier October findings
 
 The later compact resident, quieter face/glasses and fitted headgear work is
-recorded in [the October 6 handoff](archive/HANDOFF-2026-10-06.md). The subsequent
-[stability review](archive/STABILITY-REVIEW-2026-10-06.md) fixes transformed clipping,
+recorded in [the October 6 handoff](../HANDOFF-2026-10-06.md). The subsequent
+[stability review](../STABILITY-REVIEW-2026-10-06.md) fixes transformed clipping,
 seat focus and obsolete visit feedback while retaining that character baseline.
 
 Reviewed all **161 catalog items across 18 groups**, including advertised
@@ -450,21 +450,21 @@ not a claim of reference parity or proof that animation is flawless.
 
 | Comparison | Captured views |
 |---|---|
-| [Plants](model-review/plants.webp) | Every plant catalog entry |
-| [Storage](model-review/storage.webp) | Every storage catalog entry |
-| [Lighting](model-review/lighting.webp) | Every light/warmth catalog entry |
-| [Seated front](model-review/seated-front.webp) | Eight looks, break/focus/idle |
-| [Seated rear](model-review/seated-back.webp) | Eight looks, break/focus/idle |
-| [Live Loft focus](model-review/loft-focus.webp) | The restored seated rig in the actual built app while its timer is running |
-| [Seating comparison](model-review/seating-comparison.webp) | Before/after armchair, sofa, desk chair and garden bench, front/rear |
-| [Seating colours](model-review/seating-colours.webp) | Cream/dark/sage in both facings |
-| [Seated contact front](model-review/seating-contact-front.webp), [rear](model-review/seating-contact-back.webp) | Body extremes on the four pieces, idle/focus/break |
+| [Plants](images/plants.webp) | Every plant catalog entry |
+| [Storage](images/storage.webp) | Every storage catalog entry |
+| [Lighting](images/lighting.webp) | Every light/warmth catalog entry |
+| [Seated front](../../model-review/seated-front.webp) | Eight looks, break/focus/idle |
+| [Seated rear](../../model-review/seated-back.webp) | Eight looks, break/focus/idle |
+| [Live Loft focus](../../model-review/loft-focus.webp) | The restored seated rig in the actual built app while its timer is running |
+| [Seating comparison](images/seating-comparison.webp) | Before/after armchair, sofa, desk chair and garden bench, front/rear |
+| [Seating colours](images/seating-colours.webp) | Cream/dark/sage in both facings |
+| [Seated contact front](../../model-review/seating-contact-front.webp), [rear](../../model-review/seating-contact-back.webp) | Body extremes on the four pieces, idle/focus/break |
 
 Wardrobe, palette, seat height, placement and rendering checks protect the
 current implementation. The rejected prototype's reach/mirror tests were
 removed with it. Run lint, tests, the production build, art generation and the
 frozen desktop self-test when changing this artwork. Dated validation results
-are preserved in [the stability review](archive/STABILITY-REVIEW-2026-10-06.md).
+are preserved in [the stability review](../STABILITY-REVIEW-2026-10-06.md).
 
 Live checks cover all three open seats, timer continuity, unchanged home
 layout/camera, the fixed-room decoration guard, reduced motion and the
@@ -477,7 +477,7 @@ improvement. The next approach is a coherent static pose and garment design,
 then furniture contact and occlusion, and only then animation/customisation.
 
 See [the complete per-item roadmap](MODELING_ROADMAP.md) for what to do next,
-[the model spec](MODELS.md) for current contracts and
+[the model spec](../../MODELS.md) for current contracts and
 [the earlier reference pass](ART_REVIEW.md) for the bedding/profile work.
 
 ---

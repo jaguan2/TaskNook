@@ -1,8 +1,8 @@
 # Standalone catalog review sheets
 
-Current illustrated GLB snapshots for all 184 catalog keys. The [coverage ledger](../../CATALOG_3D_MIGRATION.md) lists each source key and asset; [the approach](../../CATALOG_3D_APPROACH.md) describes construction and checks. These are separate from the production SVG renderer.
+Current illustrated GLB snapshots for all 184 catalog keys. The [coverage ledger](../../CATALOG_3D_MIGRATION.md) lists each source key and asset; [the approach](../../CATALOG_3D_APPROACH.md) describes construction and checks. The 179 prop GLBs also power the [actual isometric game](../../ROOM_MODEL_INTEGRATION.md); customized actors keep their SVG artwork.
 
-Refreshed November 11, 2026: all 18 section sheets, five illustrated room
+Refreshed November 12, 2026: all 18 section sheets, five illustrated room
 arrangements and the bed/seated calibration views were rendered from the current
 assets. The full workshop capture passed 1,524 color/angle checks plus browser
 interactions. Existing image paths are preserved. Run `npm.cmd run qa` from
@@ -35,4 +35,4 @@ Room arrangements: [study](furniture-3d-study.png), [café](furniture-3d-cafe.pn
 Current calibration views: [illustrated bed](furniture-illustrated-bed.png) and
 [actual SVG resident seated on the 3D armchair](furniture-illustrated-seated.png).
 
-The [character and pet review](../../CHARACTER_PET_REVIEW.md) covers the preserved production SVGs and the compact 3D resident refinement. The [earlier physical-lighting room](furniture-3d-room.png) is retained as a dated comparison.
+The [character and pet review](../../CHARACTER_PET_REVIEW.md) covers the preserved production SVGs and the compact 3D resident refinement. Earlier prototype comparisons are in the [modelling archive](../../archive/modeling/README.md).

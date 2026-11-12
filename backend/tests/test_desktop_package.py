@@ -147,6 +147,9 @@ def test_changed_paths_uses_the_merge_base_range(monkeypatch, tmp_path):
     "paths, message",
     [
         ({"frontend/src/App.jsx"}, "runtime files changed"),
+        ({"prototypes/furniture/assets/sofa.glb"}, "runtime files changed"),
+        ({"prototypes/furniture/assets/manifest.json"}, "runtime files changed"),
+        ({"prototypes/furniture/src/viewer/illustrated-style.mjs"}, "runtime files changed"),
         ({"TaskNook.exe"}, "must change together"),
         ({"desktop-update.json"}, "must change together"),
     ],
@@ -164,5 +167,16 @@ def test_release_pair_accepts_a_runtime_change_with_both_artifacts():
 
 def test_release_pair_does_not_require_a_rebuild_for_tests_only():
     desktop_package.require_release_pair(
-        {"backend/tests/test_room.py", "frontend/src/store.test.jsx"}
+        {"backend/tests/test_room.py", "frontend/src/store.test.jsx",
+         "prototypes/furniture/assets/characters/manifest.json"}
     )
+
+
+def test_catalog_binary_changes_invalidate_the_desktop_source_fingerprint(tmp_path):
+    assets = tmp_path / 'prototypes/furniture/assets'
+    assets.mkdir(parents=True)
+    model = assets / 'sofa.glb'
+    model.write_bytes(b'glTF\x02\r\nfirst model')
+    previous = source_fingerprint(tmp_path)
+    model.write_bytes(b'glTF\x02\r\nrevised model')
+    assert source_fingerprint(tmp_path) != previous

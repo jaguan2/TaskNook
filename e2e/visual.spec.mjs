@@ -13,6 +13,9 @@ test("the default isometric room keeps its composed silhouette", async ({ page }
 
   await page.goto("/");
   await expect(page.locator("[data-iso-room-scene]")).toBeVisible();
+  await expect(page.locator('[data-iso-room-scene] [data-catalog-model="bed"]')).toHaveAttribute('data-model-source', 'glb');
+  await expect(page.locator('[data-model-state="loading"]')).toHaveCount(0, { timeout: 60000 });
+  await expect(page.locator('[data-model-state="error"]')).toHaveCount(0);
   await expect(page).toHaveScreenshot("default-isometric-room.png", {
     animations: "disabled",
     caret: "hide",

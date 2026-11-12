@@ -46,10 +46,7 @@ export const ISO_ENVS = {
     preview: "#503522",
     lip: ["#2a1a12", "#221410"],
     window: true,
-    // The only indoor env without them, which is why the Reading room and the
-    // Study hall had NOTHING above eye level — both have walls shelved end to
-    // end, so there's no free run to hang a pendant in, and the env is the
-    // only place the ceiling zone can be filled without displacing furniture.
+    // Ambient lighting belongs to the environment, above bookcases and desks.
     lights: true,
   },
   cafe: {
@@ -129,13 +126,10 @@ export const ISO_ITEMS = {
   squarerug: { label: "Square rug", icon: "🟪", foot: [2.5, 2], layer: -1, hitH: 10, softSeat: true },
   desk: { label: "Workstation", icon: "🖥️", foot: [2.2, 1.2], hitH: 44, surface: 30, backView: true },
   stool: { label: "Stool", icon: "🪑", foot: [0.8, 0.8], hitH: 28, seat: 20 },
-  // Every item here is hand-drawn SVG (see the notes atop the Iso*Items modules). The
-  // Kenney PNG era left two flags behind that no catalog entry needs any
-  // more: `noMirror` (raster needed a second render per orientation; vector
-  // just mirrors) and `variants` (raster needed pre-shaded colourway files;
-  // vector reads `--tint` and takes any colour). `tintable: false` survives
-  // for the handful of pieces that are inherently multi-coloured — an
-  // aquarium, a pond — where one flat colour would destroy them.
+  // Props use complete GLB geometry in all four facings; customized actors
+  // and graphics-failure fallback retain their SVG drawings. `backView` only
+  // describes fallback artwork and does not limit a model's rotation. Fixed
+  // palettes opt out of recolouring with `tintable: false`.
   //
   // `seat` is where a persona's feet land, so it tracks the actual cushion
   // top; `hitH` parks the ⟳/✕ buttons just clear of the tallest part. Both
@@ -214,7 +208,7 @@ export const ISO_ITEMS = {
   coconutpalm: { label: "Coconut palm", icon: "🌴", foot: [1.5, 1.5], hitH: 122 },
   poolumbrella: { label: "Pool umbrella", icon: "⛱️", foot: [1.5, 1.5], hitH: 86 },
   beachball: { label: "Beach ball", icon: "🏖️", foot: [0.6, 0.6], hitH: 22, tintable: false },
-  sunlounger: { label: "Sun lounger", icon: "🪑", foot: [1.6, 0.85], hitH: 46, seat: 18, lie: true },
+  sunlounger: { forward: "+X", lieRise: 14, label: "Sun lounger", icon: "🪑", foot: [1.6, 0.85], hitH: 46, seat: 18, lie: true },
   // ---- kitchen ---------------------------------------------------------
   oven: { label: "Oven", icon: "🍳", foot: [0.9, 0.7], hitH: 42, surface: 40 },
   sink: { label: "Sink", icon: "🚰", foot: [0.9, 0.65], hitH: 36 },
@@ -378,7 +372,7 @@ export const ISO_ITEMS = {
   // a checkered board is two colours by definition — one flat tint erases it
   chess: { label: "Chess set", icon: "♟️", foot: [0.6, 0.5], hitH: 14, stacks: true, tintable: false },
   // ---- more outdoors ----
-  hammock: { label: "Hammock", icon: "🏝️", foot: [2.2, 0.9], hitH: 44, seat: 22, lie: true },
+  hammock: { forward: "+X", lieLift: 6, label: "Hammock", icon: "🏝️", foot: [2.2, 0.9], hitH: 44, seat: 22, lie: true },
   lantern: { label: "Garden lantern", icon: "🏮", foot: [0.5, 0.5], hitH: 58, flicker: true, glow: [26, 0.45] },
 };
 

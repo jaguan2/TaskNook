@@ -152,16 +152,16 @@ describe("grid maths", () => {
 });
 
 describe("four-way rotation", () => {
-  const twoWay = ISO_ITEM_KEYS.find((k) => !ISO_ITEMS[k].backView && !ISO_ITEMS[k].wall);
+  const twoWay = ISO_ITEM_KEYS.find((k) => ISO_ITEMS[k].roamer);
 
-  it("gives four facings only to items that ship back-view artwork", () => {
-    // A half turn on the grid is scale(-1,-1) on screen — the sprite upside
-    // down. Anything without a real back view must stay a two-way item.
+  it("gives complete ground GLBs all four facings, independent of old SVG back views", () => {
     for (const key of ISO_ITEM_KEYS) {
-      const expected = ISO_ITEMS[key].wall ? 2 : ISO_ITEMS[key].backView ? 4 : 2;
-      expect(rotationsFor(key), key).toBe(expected);
+      const item = ISO_ITEMS[key];
+      expect(rotationsFor(key), key).toBe(item.wall || item.persona || item.roamer ? 2 : 4);
     }
-    expect(ISO_ITEM_KEYS.some((k) => ISO_ITEMS[k].backView)).toBe(true);
+    for (const key of ["bed", "sunlounger", "bookshelf", "wardrobe", "bookcase"]) {
+      expect([0, 1, 2, 3].map(rot => nextRot(key, rot))).toEqual([1, 2, 3, 0]);
+    }
   });
 
   it("wall decor stays two-way — there rot picks the wall, not a facing", () => {
@@ -751,20 +751,17 @@ describe("environments", () => {
 });
 
 describe("presets", () => {
-  it("ships the plant shop as a stocked, functional retail room", () => {
+  it("gives the compact plant shop stocked walls, one display and an intentional owner seat", () => {
     const shop = ISO_PRESETS.plantshop;
-    const keys = shop.items.map((p) => p.item);
-    const greenery = new Set([
-      "plantshelf", "monstera", "palm", "fern", "snakeplant", "plant",
-      "succulent", "orchid", "bonsai", "terrarium", "seedtray", "wateringcan",
-      "hangplant",
-    ]);
+    const keys = shop.items.map(p => p.item);
     expect(shop.size.env).toBe("cafe");
-    expect(keys.filter((key) => key === "plantshelf")).toHaveLength(6);
-    expect(keys.filter((key) => key === "doorway")).toHaveLength(0);
-    expect(keys.filter((key) => key === "bigwindow")).toHaveLength(1);
-    expect(keys.filter((key) => greenery.has(key)).length).toBeGreaterThanOrEqual(18);
-    expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "resident", "bigwindow"]));
+    expect(keys.filter(key => key === "plantshelf")).toHaveLength(4);
+    expect(keys.filter(key => key === "diningtable")).toHaveLength(2);
+    expect(keys).toEqual(expect.arrayContaining(["barcounter", "till", "woodstool", "seedtray", "bigwindow"]));
+    expect(keys).not.toContain("sidetable");
+    const layout = isoPresetLayout("plantshop");
+    const arrival = freeSeatSpot(layout.placements);
+    expect(seatFor({ item: "resident", ...arrival }, layout.placements)?.placement.item).toBe("woodstool");
   });
 
   it("turns every desk chair toward its computer", () => {
@@ -822,8 +819,9 @@ describe("presets", () => {
     // The built-in left window spans gy 1.05–3.55. A desk facing the
     // opposite wall can still be near a window, so pin the facing as well.
     expect(loft.find((p) => p.item === "desk")).toMatchObject({ gx: 0, gy: 1.5, rot: 1 });
-    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1, gy: 2.5, rot: 3 });
+    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1, gy: 2, rot: 3 });
     expect(loft.some((p) => p.item === "mushroomlamp")).toBe(false);
+    expect(loft.some((p) => p.item === "sidetable")).toBe(false);
   });
 
   it.each(["loft", "classic"])("tucks the %s workstation chair beneath the worktop while clearing the drawer cabinet", (key) => {
@@ -855,55 +853,35 @@ describe("presets", () => {
     expect(obstructions.filter((p) => footprintsOverlap(chair, p))).toEqual([]);
   });
 
-  it("builds Secret garden around one central pond with seating on every side", () => {
+  it("keeps Secret garden a private pond-view group rather than a public clearing", () => {
     const garden = isoPresetLayout("garden");
-    expect({ w: garden.w, d: garden.d, env: garden.env }).toEqual({ w: 16, d: 14, env: "garden" });
-    expect(garden.placements.find((p) => p.item === "gardenpond")).toMatchObject({
-      item: "gardenpond", gx: 4, gy: 3.5,
-    });
-    expect(garden.placements.find((p) => p.item === "gardentrail")).toMatchObject({
-      item: "gardentrail", gx: 12, gy: 10, rot: 1,
-    });
-    const benches = garden.placements
-      .filter((p) => p.item === "bench")
-      .map(({ item, gx, gy, rot }) => ({ item, gx, gy, rot }));
-    expect(benches).toEqual([
-      { item: "bench", gx: 7, gy: 2.5, rot: 0 },
-      { item: "bench", gx: 12.5, gy: 5.5, rot: 3 },
-      { item: "bench", gx: 7, gy: 10.5, rot: 2 },
-      { item: "bench", gx: 3, gy: 5.5, rot: 1 },
-    ]);
+    expect(garden.w * garden.d).toBeLessThanOrEqual(72);
+    expect(garden.placements.filter(p => p.item === "pond")).toHaveLength(1);
+    expect(garden.placements.some(p => p.item === "gardenpond")).toBe(false);
+    expect(garden.placements.filter(p => p.item === "bench")).toHaveLength(1);
+    expect(garden.placements.find(p => p.item === "bench").rot).toBe(2);
+    expect(garden.placements.find(p => p.item === "log").rot).toBe(2);
+    expect(garden.placements.some(p => p.item === "gardentrail")).toBe(true);
   });
 
-  it("divides the Terrace into dining and reading zones", () => {
+  it("gives the Terrace one outdoor dining group without an orphan drawer cabinet", () => {
     const items = ISO_PRESETS.terrace.items;
-    const table = items.find((p) => p.item === "diningtable");
-    const diningSeats = items.filter((p) => p.item === "woodstool");
-    const readingSeat = items.find((p) => p.item === "armchair");
-    const softSeat = items.find((p) => p.item === "cushion");
-
-    expect(table.gx).toBeLessThan(4);
-    expect(diningSeats).toHaveLength(3);
-    expect(diningSeats.every((p) => p.gx < 4)).toBe(true);
-    expect(readingSeat.gx).toBeGreaterThanOrEqual(5);
-    expect(softSeat.gx).toBeGreaterThan(readingSeat.gx);
-    expect(items).toEqual(expect.arrayContaining([
-      expect.objectContaining({ item: "ovalrug" }),
-      expect.objectContaining({ item: "candelabra" }),
-    ]));
-    expect(items.some((p) => p.item === "flowercushion" || p.item === "foldedblanket")).toBe(false);
-    expect(items).toHaveLength(16);
+    expect(items.filter(p => p.item === "diningtable")).toHaveLength(1);
+    expect(items.filter(p => p.item === "woodstool")).toHaveLength(2);
+    expect(items.some(p => p.item === "candelabra")).toBe(true);
+    expect(items.some(p => ["armchair", "cushion", "sidetable"].includes(p.item))).toBe(false);
+    expect(items.length).toBeLessThanOrEqual(15);
   });
 
-  it("pairs one sleeping corner with two opposing workstations", () => {
+  it("pairs one sleeping corner with two coordinated wall workstations", () => {
     const items = ISO_PRESETS.home.items;
     const beds = items.filter((p) => p.item === "bed");
     const desks = items.filter((p) => p.item === "desk");
     const chairs = items.filter((p) => p.item === "deskchair");
     expect(beds).toHaveLength(1);
     expect(desks).toHaveLength(2);
-    expect(desks.map((p) => p.rot || 0).sort()).toEqual([0, 2]);
-    expect(chairs.map((p) => p.rot).sort()).toEqual([0, 2]);
+    expect(desks.map((p) => p.rot || 0).sort()).toEqual([1, 1]);
+    expect(chairs.map((p) => p.rot).sort()).toEqual([3, 3]);
     // One roommate is already settled; your arrival should take the other desk.
     const layout = isoPresetLayout("home");
     const free = freeSeatSpot(layout.placements);
@@ -1015,7 +993,7 @@ describe("presets", () => {
     expect(ISO_PRESETS.summer.items.some((p) => p.item === "pool")).toBe(false);
     const loungers = ISO_PRESETS.summer.items.filter((p) => p.item === "sunlounger");
     expect(new Set(loungers.map((p) => p.gy)).size).toBe(1);
-    const table = ISO_PRESETS.summer.items.find((p) => p.item === "sidetable");
+    const table = ISO_PRESETS.summer.items.find((p) => p.item === "cafetable");
     expect(table.gx).toBeGreaterThan(loungers[0].gx);
     expect(table.gx).toBeLessThan(loungers[1].gx);
     expect(table.gy).toBeGreaterThan(loungers[0].gy);
@@ -1024,11 +1002,11 @@ describe("presets", () => {
   it("keeps Holiday hearth a restrained, usable indoor winter lounge", () => {
     const holiday = ISO_PRESETS.holiday;
     const keys = holiday.items.map((p) => p.item);
-    expect(holiday.size).toMatchObject({ w: 9, d: 7, env: "room", lighting: "candle" });
+    expect(holiday.size).toMatchObject({ w: 8, d: 6, env: "room", lighting: "candle" });
     expect(holiday.items.length).toBeLessThanOrEqual(15);
     expect(keys).toEqual(expect.arrayContaining([
       "fireplace", "christmastree", "giftstack", "evergreengarland", "stocking",
-      "ciderset", "blanketbasket", "snowglobe",
+      "ciderset", "blanketbasket",
     ]));
     expect(keys.filter((key) => ["bed", "resident", "sled", "chimney"].includes(key))).toEqual([]);
     expect(keys.some((key) => key === "sofa" || key === "armchair")).toBe(true);

@@ -1,3 +1,5 @@
+import { furnitureFacingLabel } from "../lib/furnitureFacing";
+import { SHELF_ITEMS } from "../lib/shelfDecor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
@@ -31,6 +33,7 @@ import { usePetGrowthClock } from "../hooks/usePetGrowthClock";
 import { petAppearance } from "../lib/pets";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
+import IsoCatalogModel, { hasCatalogModel } from './IsoCatalogModel';
 import IsoBedTuck from "./IsoBedTuck";
 import ExteriorWall from "./ExteriorWall";
 import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
@@ -43,7 +46,7 @@ import IsoContactShadow from "./IsoContactShadow";
 import IsoCarryOverlay from "./IsoCarryOverlay";
 import { orderWorkstationSeats, resolveWorkstations, seatedWorkTarget } from "../lib/workstations";
 
-// The interactive isometric room (beta): a resizable W×D tile floor whose
+// The interactive isometric room: a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
 // the flat scene — pointer → getScreenCTM().inverse() → unproject → snap →
 // clamp — which works because project/unproject are exact inverses.
@@ -170,6 +173,7 @@ const PlacedItem = memo(function PlacedItem({
   reduceMotion,
   paused,
   onStartDrag,
+  onCustomizeItem,
   // A visited room's people: {character, label} for THIS placement. Lets a
   // generic `resident` wear someone else's look without `self` semantics.
   personaInfo = null,
@@ -183,6 +187,7 @@ const PlacedItem = memo(function PlacedItem({
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
   const at = project(p.gx, p.gy);
+  const customizable = !!onCustomizeItem && SHELF_ITEMS.includes(p.item);
   const persona = !!item?.persona;
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
@@ -220,7 +225,7 @@ const PlacedItem = memo(function PlacedItem({
             // duration is per-glide (constant speed, whole steps) so the
             // stride always agrees with the ground covered.
             transition: `transform ${glide.ms}ms ${GLIDE_EASE}`,
-            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
+            ...((toggleable || customizable) ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -228,7 +233,7 @@ const PlacedItem = memo(function PlacedItem({
       : {
           transform: `translate(${at.x},${at.y})`,
           style: {
-            ...(toggleable ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
+            ...((toggleable || customizable) ? { cursor: "pointer" } : walkable && { cursor: "grab" }),
             ...ambience,
             ...(p.tint && { "--tint": p.tint }),
           },
@@ -238,6 +243,14 @@ const PlacedItem = memo(function PlacedItem({
       {...placeProps}
       data-placement-id={p.id}
       data-item={p.item}
+      role={customizable ? "button" : undefined}
+      tabIndex={customizable ? 0 : undefined}
+      aria-label={customizable ? `Customize ${item.label}` : undefined}
+      onKeyDown={customizable ? e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault(); e.stopPropagation(); onCustomizeItem(p.id);
+        }
+      } : undefined}
       className={editMode ? "room-item" : undefined}
       onPointerDown={(e) => onStartDrag?.(p, e)}
     >
@@ -267,8 +280,8 @@ const PlacedItem = memo(function PlacedItem({
           scale={item.roamer ? petAppearance(p, petNow).scale : 1} />}
       {/* Mirroring about the origin is a grid TRANSPOSE — the item
           faces the other wall and its footprint swaps to match.
-          noMirror items (rendered PNGs) ship a real second render
-          per orientation instead: pass rot through, skip the flip. */}
+          GLBs own their orientation in the model renderer. Apply this SVG
+          flip only to actors and fallback drawings. */}
       {(() => {
         // The mirror serves two masters now: the odd ROTATIONS (a grid
         // transpose) and the walk FACING (the sprites are drawn facing
@@ -276,14 +289,17 @@ const PlacedItem = memo(function PlacedItem({
         // going — before this, a figure slid backward while looking at you).
         // XOR, because two mirrors cancel.
         const flip = ((p._seatRot ?? p.rot ?? 0) % 2 === 1) !== (glide.facing > 0);
-        const spriteFlip = persona && p._lieOn
-          ? (p._lieOn.rot || 0) % 2 === 1
+        const spriteFlip = persona && p._lie
+          ? (p._lieFacing || 0) % 2 === 1
           : flip;
         const sprite = persona ? (
           <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
             <Sprite
               seated={!!p._seat && !p._lie}
               lying={!!p._lie}
+              lyingReversed={p._lieFacing >= 2}
+              lyingRise={p._lieRise || 0}
+              lyingLift={p._lieLift || 0}
               seatH={p._seat || 0}
               seatPose={p._seatPose}
               workTarget={p._workTarget}
@@ -310,25 +326,33 @@ const PlacedItem = memo(function PlacedItem({
           <Sprite pet={p} now={petNow} awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} look={p.look} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
-            {/* rot 2/3 are the AWAY-facing pair, and they're a
-                different drawing — a half turn on the grid is
-                scale(-1,-1) on screen, i.e. upside down, so it can
-                never be faked. `back` picks the real back view;
-                only items with one are ever given a rot ≥ 2. */}
-            <Sprite
-              showLaptop={!p._equipped}
-              rot={(p.rot || 0) % 2}
-              back={(p.rot || 0) >= 2}
-              variant={item.variants?.[p.tint]}
+            {/* The model renderer owns GLB orientation. Only the SVG fallback
+                needs the scene's transpose and rear-view props. */}
+            <IsoCatalogModel
+              item={p.item}
+              tint={p.tint}
+              decor={p.decor}
+              rot={p.rot || 0}
               lit={!p.off}
-            />
+              showLaptop={p.item === 'desk' && !p._equipped}
+            >
+              <g transform={hasCatalogModel(p.item) && flip ? 'scale(-1,1)' : undefined}>
+                <Sprite
+                  showLaptop={!p._equipped}
+                  rot={(p.rot || 0) % 2}
+                  back={(p.rot || 0) >= 2}
+                  variant={item.variants?.[p.tint]}
+                  lit={!p.off}
+                />
+              </g>
+            </IsoCatalogModel>
           </g>
         );
         // Facing default is -1 (drawn direction) and furniture never glides,
         // so for everything but a walker this is exactly the old rot mirror.
         return (
           <>
-            {spriteFlip ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+            {spriteFlip && !hasCatalogModel(p.item) ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
             {persona && <IsoBedTuck lieOn={p._lieOn} personaAt={at} />}
           </>
         );
@@ -395,6 +419,7 @@ function IsoSceneInner({
   cx,
   cy,
   onStartDrag,
+  onCustomizeItem,
   onRotateItem,
   onRemoveItem,
   onToggleItem,
@@ -914,6 +939,7 @@ function IsoSceneInner({
                 reduceMotion={reduceMotion}
                 paused={paused}
                 onStartDrag={onStartDrag}
+                onCustomizeItem={onCustomizeItem}
                 personaInfo={personas ? personas[p.id] : null}
                 walkable={walkableBy(p, { editMode, walkId, walkPersonas })}
                 toggleable={!!onToggleItem && !!ISO_ITEMS[p.item]?.toggleable}
@@ -966,8 +992,20 @@ function IsoSceneInner({
                     strokeDasharray="6 4"
                     opacity="0.9"
                   />
+                  <text x={hitR.x - 18} y={-item.hitH - 16} textAnchor="middle" fill="#ffe9b0" fontSize="9" pointerEvents="none" data-facing-label={p.id}>
+                    {furnitureFacingLabel(p)}
+                  </text>
                   <g
                     className="room-remove"
+                    data-rotate-item={p.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Rotate ${item.label}. Facing ${furnitureFacingLabel(p)}.`}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault(); e.stopPropagation(); onRotateItem?.(p.id);
+                      }
+                    }}
                     onPointerDown={(e) => {
                       e.stopPropagation();
                       onRotateItem?.(p.id);
@@ -1078,6 +1116,7 @@ function IsoRoom({
   onRemoveItem,
   onRotateItem,
   onTintItem,
+  onDecorItem,
   onToggleItem,
 }) {
   const petNow = usePetGrowthClock(placements);
@@ -1138,7 +1177,7 @@ function IsoRoom({
   // keeps App's window listener out of this one (same trick as TopBar's
   // weather popover).
   useEffect(() => {
-    if (!editMode || !selectedId) return undefined;
+    if (!selectedId) return undefined;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
@@ -1167,6 +1206,11 @@ function IsoRoom({
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
+        if (onDecorItem && SHELF_ITEMS.includes(placement.item)) {
+          pointerOnItemRef.current = true;
+          toggleRef.current = { id: placement.id, customize: true, clientX: e.clientX, clientY: e.clientY };
+          return;
+        }
         if (ISO_ITEMS[placement.item]?.toggleable && onToggleItem) {
           pointerOnItemRef.current = true;
           toggleRef.current = {
@@ -1238,7 +1282,7 @@ function IsoRoom({
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, svgRef]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onDecorItem, svgRef]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1340,7 +1384,8 @@ function IsoRoom({
       e?.type === "pointerup" &&
       Math.hypot(e.clientX - toggle.clientX, e.clientY - toggle.clientY) < 6;
     if (toggleClick) {
-      onToggleItem?.(toggle.id);
+      if (toggle.customize) setSelectedId(toggle.id);
+      else onToggleItem?.(toggle.id);
       // A tiny hand wobble within the click threshold is not a camera move.
       cancelPan();
       return;
@@ -1350,18 +1395,19 @@ function IsoRoom({
 
   const startPan = (e) => {
     if (!toggleRef.current) pointerOnItemRef.current = false;
-    if (editMode) setSelectedId(null);
+    setSelectedId(null);
     beginPan(e);
   };
 
   // The RAW placement, not the render-resolved one: the picker lives outside
   // the svg and only needs the stored tint and the item.
   const selectedRaw =
-    editMode && selectedId ? placements.find((p) => p.id === selectedId) : null;
+    selectedId ? placements.find((p) => p.id === selectedId) : null;
 
   return (
     <div className="pointer-events-auto absolute inset-0 select-none">
       <svg
+        data-room-renderer="glb-composite"
         ref={svgRef}
         aria-label="Isometric room scene"
         data-iso-room-scene
@@ -1399,6 +1445,7 @@ function IsoRoom({
           cx={cx}
           cy={cy}
           onStartDrag={onStartDrag}
+          onCustomizeItem={onDecorItem ? setSelectedId : undefined}
           onRotateItem={onRotateItem}
           onRemoveItem={onRemoveItem}
           onToggleItem={onToggleItem}
@@ -1432,6 +1479,8 @@ function IsoRoom({
             placement={selectedRaw}
             item={ISO_ITEMS[selectedRaw.item]}
             onTint={onTintItem}
+            onDecor={onDecorItem}
+            onClose={() => setSelectedId(null)}
           />
         )}
     </div>

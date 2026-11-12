@@ -15,6 +15,8 @@ test('preview serves local assets, rejects writes, and contains file access', as
       assert.equal(response.status, 200, 'organized viewer entry is unreachable');
       assert.equal(response.headers.get('content-type'), mime);
     }
+    assert.equal((await fetch(`${base}/game.webp`)).headers.get('content-type'), 'image/webp');
+    assert.equal((await fetch(`${base}/current.webp`)).status, 404);
     const asset = await fetch(`${base}/assets/armchair.glb`, { method: 'HEAD' });
     assert.equal(asset.headers.get('content-type'), 'model/gltf-binary');
     assert.equal((await asset.arrayBuffer()).byteLength, 0);

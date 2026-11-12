@@ -25,7 +25,7 @@ function expectInsideViewport(box, { width, height }) {
   expect(box.y + box.height).toBeLessThanOrEqual(height);
 }
 
-for (const rot of [0, 1]) {
+for (const rot of [0, 1, 2, 3]) {
   test(`tucked bedding keeps the bed's material, facing ${rot}`, async ({ page, request }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const token = await createLayoutUser(page, request);
@@ -44,11 +44,16 @@ for (const rot of [0, 1]) {
     expect(response.status()).toBe(200);
     await page.goto("/");
     await expect(page.locator('[data-placement-id="red-resident"] [data-bed-tuck-cover]')).toHaveCount(1);
+    await expect(page.locator('[data-model-state="loading"]')).toHaveCount(0, { timeout: 60000 });
+    await expect(page.locator('[data-model-state="error"]')).toHaveCount(0);
+    await expect(page.locator('[data-placement-id="plain-bed"] [data-catalog-model]')).toHaveAttribute('data-model-facing', ['south', 'east', 'north', 'west'][rot]);
+    await expect(page.locator('[data-placement-id="red-resident"] [data-resident-pose="lying"]')).toHaveAttribute('data-lying-reversed', rot >= 2 ? 'true' : 'false');
     const paints = await page.evaluate(() => {
       const paint = (selector) => {
         const root = document.querySelector(selector);
-        const duvet = [...root.querySelectorAll("[style]")].find((element) => element.style.fill.includes("#f2e9dd"));
-        return getComputedStyle(duvet).fill;
+        const model = root.matches('[data-catalog-model]') ? root : root.querySelector('[data-catalog-model]');
+        if (model.dataset.modelSource !== 'glb') throw new Error('Expected the actual model, not fallback bedding');
+        return model.dataset.modelColor;
       };
       return {
         plain: paint('[data-placement-id="plain-bed"]'),
@@ -58,9 +63,19 @@ for (const rot of [0, 1]) {
       };
     });
     expect(paints).toEqual({
-      plain: "rgb(242, 233, 221)", plainCover: "rgb(242, 233, 221)",
-      blue: "rgb(99, 142, 174)", blueCover: "rgb(99, 142, 174)",
+      plain: "#8baba0", plainCover: "#8baba0",
+      blue: "#638eae", blueCover: "#638eae",
     });
+    const coverPixels = await page.evaluate(async () => {
+      const hashes = [];
+      for (const selector of ['red-resident', 'other-resident']) {
+        const href = document.querySelector(`[data-placement-id="${selector}"] [data-model-part="duvet"] image`).getAttribute('href');
+        const bytes = await (await fetch(href)).arrayBuffer();
+        hashes.push([...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].join(','));
+      }
+      return hashes;
+    });
+    expect(coverPixels[0]).not.toBe(coverPixels[1]);
     await page.screenshot({ path: testInfo.outputPath("bedding.png") });
   });
 }

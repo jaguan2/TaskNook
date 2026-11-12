@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { catalogModelAssets } from './scripts/catalog-model-assets.mjs';
+import { fileURLToPath } from 'node:url';
 
 const normalizeLineEndings = (source) => source.replace(/\r\n?/g, "\n");
 
@@ -29,8 +31,9 @@ export default defineConfig({
       transformIndexHtml: { order: "pre", handler: normalizeLineEndings },
     },
     react(),
+    catalogModelAssets(),
   ],
-  server: { port: 5173, proxy },
+  server: { port: 5173, proxy, fs: { allow: [fileURLToPath(new URL('..', import.meta.url))] } },
   preview: { proxy },
   build: {
     // Never inline assets as base64: the eager Kenney-render glob was
@@ -44,6 +47,7 @@ export default defineConfig({
         // icon library. Keep third-party code in one cache-stable file instead
         // of re-downloading it with every scene/catalog revision.
         manualChunks(id) {
+          if (id.includes('node_modules/three/')) return 'room-models-vendor';
           if (id.includes("node_modules")) return "vendor";
           return undefined;
         },

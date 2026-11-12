@@ -6,6 +6,7 @@ import { npcActivity } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
+import IsoCatalogModel from './IsoCatalogModel';
 import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
 import CommonLibraryScene from "./CommonLibraryScene";
@@ -37,9 +38,11 @@ function Prop({ p, scene, uid, lamp, lampGlow }) {
     style={{ ...(p.tint && { "--tint": p.tint }), ...ambienceVars(p.gx, p.gy) }}>
     {scene.kind === "cottage" && !item.wall && (item.layer || 0) >= 0 && !p._rest &&
       <IsoContactShadow foot={footOf(p.item, p.rot)} height={item.hitH} paint={`${uid}-contact`} />}
+    <IsoCatalogModel item={p.item} tint={p.tint} rot={p.rot || 0} showLaptop={p.item === 'desk' && !p._equipped}>
     <g transform={p.rot % 2 === 1 ? "scale(-1,1)" : undefined}>
       <Sprite rot={(p.rot || 0) % 2} back={p.rot >= 2} />
     </g>
+    </IsoCatalogModel>
     {lamp && <CottageTableLight p={p} lamp={lamp} uid={uid} strength={lampGlow} />}
   </g>;
 }
@@ -63,8 +66,10 @@ function SeatedPerson({ seat, scene, person, character, activity, now, guest, gu
     style={{ ...ambienceVars(seat.gx, seat.gy), ...(guest && { touchAction: "none" }) }}>
     <ellipse cx="0" cy="10" rx="9" ry="2.5" fill="#302433" opacity=".18" />
     <g transform={`translate(0,${-seat.height})`}>
-      <Resident seated seatH={seat.height} character={guest ? character : person.character}
-        facing={seat.facing || "front"} activity={guest ? activity : npcActivity(person.username, now).state} />
+      <g transform={seat.rot % 2 ? "scale(-1,1)" : undefined}>
+        <Resident seated seatH={seat.height} character={guest ? character : person.character}
+          facing={seat.facing || "front"} mirrored={seat.rot % 2 === 1} activity={guest ? activity : npcActivity(person.username, now).state} />
+      </g>
     </g>
   </g>;
 }
@@ -254,7 +259,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg ref={svgRef} viewBox={scene.viewBox || "-260 -190 580 470"}
+    <svg ref={svgRef} data-room-renderer="glb-composite" viewBox={scene.viewBox || "-260 -190 580 470"}
       className={`h-full w-full ${reduceMotion ? "cottage-preview" : scene.kind === "library" ? "common-library-calm" : ""}`} role="img" aria-label={scene.ariaLabel}
       onPointerMove={moveGuestDrag} onPointerUp={endGuestDrag} onPointerCancel={endGuestDrag}
       onLostPointerCapture={endGuestDrag}>

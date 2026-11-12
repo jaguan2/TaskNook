@@ -17,6 +17,7 @@ import {
 } from "../lib/isoRoom";
 import ExteriorWall from "./ExteriorWall";
 import { ISO_SPRITES } from "./IsoItems";
+import IsoCatalogModel, { hasCatalogModel } from './IsoCatalogModel';
 import PartitionWall from "./PartitionWall";
 import { orderWorkstationSeats, resolveWorkstations } from "../lib/workstations";
 
@@ -43,10 +44,17 @@ function IsoItemPreviewInner({ itemKey }) {
   // Measure, don't guess. Every sprite is drawn around its own origin with
   // wildly different extents — a wall clock hangs ~100px above the floor line,
   // a rug is flat around it, a tree is 128 tall — so no single hand-written
-  // viewBox frames them all. getBBox is exact and runs once per item.
+  // viewBox frames them all. ResizeObserver measures again when an asynchronous GLB image arrives.
   useLayoutEffect(() => {
-    const measured = gRef.current?.getBBox?.();
-    if (measured && measured.width > 0 && measured.height > 0) setBox(measured);
+    const measure = () => {
+      const measured = gRef.current?.getBBox?.();
+      if (measured && measured.width > 0 && measured.height > 0) setBox(previous =>
+        previous && ['x', 'y', 'width', 'height'].every(key => previous[key] === measured[key]) ? previous : measured);
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    if (gRef.current) observer?.observe(gRef.current);
+    return () => observer?.disconnect();
   }, [itemKey]);
 
   if (!item || !Sprite) return null;
@@ -66,7 +74,7 @@ function IsoItemPreviewInner({ itemKey }) {
       aria-hidden="true"
     >
       <g ref={gRef}>
-        <Sprite />
+        <IsoCatalogModel item={itemKey}><Sprite /></IsoCatalogModel>
       </g>
     </svg>
   );
@@ -131,7 +139,7 @@ function IsoPresetPreviewInner({ preset }) {
     const at = project(p.gx, p.gy);
     const sprite = item.persona ? (
       <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-        <Sprite seated={!!p._seat && !p._lie} lying={!!p._lie}
+        <Sprite seated={!!p._seat && !p._lie} lying={!!p._lie} lyingReversed={p._lieFacing >= 2} lyingRise={p._lieRise || 0} lyingLift={p._lieLift || 0}
           seatH={p._seat || 0} seatPose={p._seatPose} facing={p._facing} />
       </g>
     ) : (
@@ -143,13 +151,18 @@ function IsoPresetPreviewInner({ preset }) {
         variant={item.variants?.[p.tint]}
       />
     );
+    const rotation = (p._lieFacing ?? p._seatRot ?? p.rot ?? 0);
     return (
       <g
         key={key}
-        transform={`translate(${at.x},${at.y})`}
+        transform={`translate(${at.x},${at.y - (p._rest || 0)})`}
         style={p.tint ? { "--tint": p.tint } : undefined}
       >
-        {(p._seatRot ?? p.rot ?? 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+        {hasCatalogModel(p.item)
+          ? <IsoCatalogModel item={p.item} tint={p.tint} decor={p.decor} rot={rotation} lit={!p.off} showLaptop={p.item === 'desk' && !workstations.get(p.id)?.equipped}>
+              {rotation % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+            </IsoCatalogModel>
+          : rotation % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
       </g>
     );
   };

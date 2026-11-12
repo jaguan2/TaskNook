@@ -170,6 +170,7 @@ def require_release_pair(paths: set[str]) -> None:
         "requirements-desktop-build.txt",
         "scripts/desktop_package.py",
         "scripts/desktop_update_manifest.py",
+        "prototypes/furniture/src/viewer/illustrated-style.mjs",
     }
 
     def reaches_executable(path: str) -> bool:
@@ -179,6 +180,11 @@ def require_release_pair(paths: set[str]) -> None:
             return not path.startswith("backend/tests/")
         if path.startswith("frontend/"):
             return ".test." not in path and not path.startswith("frontend/art-sheet/")
+        if path.startswith("prototypes/furniture/assets/"):
+            model_path = Path(path)
+            return model_path.parent.as_posix() == "prototypes/furniture/assets" and (
+                model_path.suffix == ".glb" or model_path.name == "manifest.json"
+            )
         return False
 
     runtime_changed = any(reaches_executable(path) for path in paths)

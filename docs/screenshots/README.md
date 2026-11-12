@@ -17,11 +17,12 @@ accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
-Refreshed November 11, 2026 from the current built app and an isolated capture
+Refreshed November 12, 2026 from the current built app and an isolated capture
 database, including the README hero, furnished rooms, catalog pickers and
-character closeups. These images show the production SVG renderer. The updated
-[standalone 3D catalog sheets](../model-review/catalog-3d/README.md) show the
-separate GLB work; its models have not replaced the app renderer.
+character closeups. Isometric furniture now comes from the actual GLBs, composed
+with the preserved SVG characters and room layers. Captures wait for the real
+models and refuse loading/error fallback. See [live integration](../ROOM_MODEL_INTEGRATION.md)
+and the [standalone model sheets](../model-review/catalog-3d/README.md).
 
 Refreshed for the item-modeling pass and restored seated rig. The room gallery rotates through six saved
 character looks, covering both body models, different builds and skin tones,
@@ -30,44 +31,22 @@ These are ordinary profile selections, saved through the app's profile API.
 The “In the room” toggle seats your character using the app's placement rules.
 The weather comparison keeps one character and one room throughout.
 
-The seating follow-up replaces the armchair/sofa's slab sides with curved
-upholstery over visible timber frames, layers the desk-chair cushion and
-back shell, and gives the garden bench separate slats and an open frame.
-The gallery uses these updated sprites; [before/after comparisons](../model-review/seating-comparison.webp)
-and [seated contact views](../model-review/seating-contact-front.webp) isolate the changes.
-
-The October pass includes shaped chair frames, padded upholstery, layered bed linen,
-recessed bookshelves, split-leaf plants and the refined character jaw, neck and bun.
-See [the reference review](../ART_REVIEW.md) for the design findings and remaining gaps.
-The Common Cottage views also carry the later curtain pass: visible rails and
-rings, gathered tiebacks and softer lower drape silhouettes in both light and
-dark fabric tints.
-
-The character sheets were refreshed again after the compact-model pass: open
-eyes are quiet dark ovals, eyewear uses a short centred bridge without temple
-strokes, sleeves use the selected model's real arm width, and the resting arms
-and shoulders sit closer to the torso. The standing and seated preset sheets
-share fixed grid bounds so every label remains visible. Seated looks now carry
-Relaxed, Ankles crossed or Cross-legged lower-body silhouettes instead of one
-identical pose across the cast.
+The current furniture has joined frames, padded upholstery, layered bed linen and closed plant vessels. The November 12 refinement shortens chair backs, clears the Loft's front cabinet, aligns its desk chair and makes nursery stock more legible. [Seating contacts](../model-review/seating-contact-front.webp) and the [catalog sheets](../model-review/catalog-3d/README.md) show the production assets.
 
 ## Rooms
 
-Each is a one-click preset: floor size, shape, environment and furniture all
-replaced together. Personal rooms stay deliberately clean, while functional
-public spaces use denser fixtures where the activity calls for them. Your own
-character is seated through the Profile panel; communal rooms also retain
-their existing residents.
+Each is a one-click preset: floor size, shape, environment and furniture are
+replaced together. The [composition pass](../ROOM_LAYOUT_COMPOSITION.md) fits ordinary rooms around a few purposeful groups. Common places retain their larger group layouts. Your own character is seated through the Profile panel.
 
 | | |
 |---|---|
-| ![Shared home](28-shared-home.webp) **Shared home** — a shared room with one bed, opposing laptop desks, wall-side bookshelves and a lilac reading chair. | ![Loft](01-loft-night.webp) **Loft** — the default. A compact open attic with a left-window workstation and a quiet sleeping corner. |
-| ![Cozy study](02-cozy-study.webp) **Cozy study** — desk under the window, you working at it, an easel in the corner and the cat on the rug. | ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — lit hearth with the dog asleep in front of it, snow falling outside. |
-| ![Reading room](04-reading-room.webp) **Reading room** — an arched way through, tall windows, shelves and ladders either side. | ![Corner café](05-corner-cafe.webp) **Corner café** — an open bar run under the menu board, with tables across the floor. |
-| ![Plant shop](30-plant-shop.webp) **Plant shop** — a working nursery with stocked display racks, two plant tables, a checkout counter and a clear browsing aisle. | ![Secret garden](06-secret-garden.webp) **Secret garden** — an expanded pond clearing with four inward-facing benches, a near-bank stepping-stone trail, flowering trees and low planting. |
-| ![Terrace](07-terrace.webp) **Terrace** — a sheltered candlelit dining group and a layered reading corner under string lights, with a clear route between them. | ![Study hall](08-study-hall.webp) **Study hall** — 16×12, four tables with room to spare, pillars flanking the arch, a piano in the corner. |
+| ![Shared home](28-shared-home.webp) **Shared home** — two coordinated window workstations, a sleeping/storage wall and one shared lounge. | ![Loft](01-loft-night.webp) **Loft** — an 8×6 room with a window workstation, sleeping bay and matching conversation seating. |
+| ![Cozy study](02-cozy-study.webp) **Cozy study** — one window desk and a reading corner with a lamp and cat. | ![Cozy cabin](03-cozy-cabin.webp) **Cozy cabin** — sleeping/storage along the wall and a hearth-facing conversation group. |
+| ![Reading room](04-reading-room.webp) **Reading room** — window writing desk, books along the walls and one comfortable reading seat. | ![Corner café](05-corner-cafe.webp) **Corner café** — short service counter, staff aisle and one table with opposing chairs. |
+| ![Plant shop](30-plant-shop.webp) **Plant shop** — potting workstation, stocked wall racks, one display island and checkout. | ![Secret garden](06-secret-garden.webp) **Secret garden** — a compact pond garden with a water-facing bench, log seat and planted approach. |
+| ![Terrace](07-terrace.webp) **Terrace** — one two-person candlelit dining group framed by planting. | ![Study studio](08-study-hall.webp) **Study studio** — an 8×6 room with one shared worktable, books and a reading chair. |
 | ![Autumn yard](09-autumn-yard.webp) **Autumn yard** — maples, a half-raked leaf pile, pumpkins, a scarecrow and a wandering turkey. | ![Winter yard](31-winter-yard.webp) **Winter yard** — a snow-covered play space with a decorated tree and a sheltered bench under falling snow. |
-| ![Poolside](32-poolside.webp) **Poolside** — a tiled terrace with a swimming pool, coconut palms, shade and a grouped row of sun loungers. | ![Holiday hearth](59-holiday-hearth.webp) **Holiday hearth** — a bedless indoor winter lounge organized around a fireplace, decorated tree and conversation seating. |
+| ![Poolside](32-poolside.webp) **Poolside** — two matching loungers face the water, sharing a serving table and nearby shade. | ![Holiday hearth](59-holiday-hearth.webp) **Holiday hearth** — a fireplace-facing lounge with a decorated tree and matching conversation seating. |
 
 The Autumn picker now includes both large outdoor anchors and small indoor
 accents without forcing all of them into the Autumn yard preset.
@@ -75,6 +54,12 @@ accents without forcing all of them into the Autumn yard preset.
 ![Autumn decoration catalog](57-autumn-decorations.webp) **Autumn decorations** — the live catalog group, including the maple, pumpkins, harvest structures, flowers, tabletop accents and wall pieces.
 
 ![Winter decoration catalog](58-winter-decorations.webp) **Winter decorations** — the live catalog group, pairing outdoor snow pieces with gifts, textiles, wall accents and tabletop holiday decor.
+
+## Shelf customization
+
+Click a shelf at home to change its contents and book colours independently of its finish. Bookshelves, bookcases, open shelves, ladders, wall shelves and plant racks support original, books, plants, mixed and open arrangements. Each placement saves its own choices.
+
+![Shelf customization](60-shelf-customization.webp)
 
 ## Weather & time of day
 
@@ -155,3 +140,5 @@ the home remains editable.
 | ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, gradient or solid backdrop, brightness and motion |
 | ![Challenges](45-challenges.webp) **Daily challenges** — three varied prompts, automatic progress and individual replacements. | ![Personal challenges](46-personal-challenges.webp) **My challenges** — write daily or ongoing goals with manual or automatic progress. |
 | ![Profile levels](47-profile-levels.webp) **Levels** — increasing XP requirements, saved study credit, challenge/NPC bonuses and daily login streaks. | |
+
+The composition pass refreshed the gallery and README hero after reviewing every personal preset. Grouped seats face their activity, couch upholstery matches, and common places retain their larger group layouts. [Room composition](../ROOM_LAYOUT_COMPOSITION.md) records the approach and completed coverage; [furniture directions](../ROOM_LAYOUT_DIRECTIONS.md) documents persistent facings.

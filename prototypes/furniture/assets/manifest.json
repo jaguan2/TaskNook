@@ -616,7 +616,7 @@
       "label": "Armchair",
       "width": 1,
       "depth": 0.85,
-      "height": 1.2374368670764582,
+      "height": 1.1195857368787003,
       "controlHeight": 42,
       "seat": 0.6481812160876687,
       "backView": true,
@@ -630,16 +630,16 @@
         "z": 0.395
       },
       "file": "armchair.glb",
-      "bytes": 201688,
+      "bytes": 201692,
       "triangles": 9672,
       "meshes": 9,
-      "sha256": "743ec9730f574bf7a9e4e29ba26c7c17837a5844a587eef17954c66de09476a3"
+      "sha256": "037d65f4470a0ba36670c8819d249b4ca88f02f3057c9327bca37b896ce0c261"
     },
     "chair": {
       "label": "Wooden chair",
       "width": 0.7,
       "depth": 0.7,
-      "height": 1.3552879972742162,
+      "height": 1.1785113019775793,
       "controlHeight": 46,
       "seat": 0.5597928684393502,
       "backView": true,
@@ -653,16 +653,16 @@
         "z": 0.335
       },
       "file": "chair.glb",
-      "bytes": 115492,
+      "bytes": 115500,
       "triangles": 3972,
       "meshes": 12,
-      "sha256": "923f65d5abe74f66cc7ef00ba956d855287013f00066aad2dbf64e65ac1293c5"
+      "sha256": "99cacf7791c6f47618df60f3638f642d44735e84953dd54df13d52c7e6b4ab8f"
     },
     "deskchair": {
       "label": "Desk chair",
       "width": 0.8,
       "depth": 0.8,
-      "height": 1.473139127471974,
+      "height": 1.2963624321753373,
       "controlHeight": 50,
       "seat": 0.7071067811865476,
       "backView": true,
@@ -676,10 +676,10 @@
         "z": 0.34
       },
       "file": "deskchair.glb",
-      "bytes": 164872,
+      "bytes": 164876,
       "triangles": 5980,
       "meshes": 18,
-      "sha256": "6078b11e0984c71902e96213552df4e9941c85a3d6f1b27372df8bed0085669a"
+      "sha256": "3f0f9e818ff94643c8ce6866c030d5530671b4b7ca552524b87d9f318d5d06e4"
     },
     "stool": {
       "label": "Stool",
@@ -840,6 +840,7 @@
       "depth": 0.9,
       "height": 1.2963624321753373,
       "controlHeight": 44,
+      "forward": "+X",
       "seat": 0.6481812160876687,
       "lie": true,
       "section": "seating-beds",
@@ -850,7 +851,7 @@
       "bytes": 119660,
       "triangles": 3928,
       "meshes": 14,
-      "sha256": "055818505e282d12538355331a1a5318571596c38356bb7fe41d44f875078557"
+      "sha256": "148fcb2dcba05030304980642f9e805fb0a0b5a264dc5d142702d1ff818d3bed"
     },
     "coffeetable": {
       "label": "Coffee table",
@@ -1020,10 +1021,10 @@
       "defaultColor": "#b08a61",
       "description": "A tall recessed case with joined shelves, bound books, a ceramic bowl and an open linen bin.",
       "file": "bookshelf.glb",
-      "bytes": 505484,
+      "bytes": 508360,
       "triangles": 11700,
       "meshes": 104,
-      "sha256": "e379b17a1d0ef3c72e383792b258decb167f3672dba323b86b92a722694bf9cd"
+      "sha256": "357055a5c94574079398dfee90040547c994783ac1e68dbcf521d82c653e1ba2"
     },
     "bookcase": {
       "label": "Wide bookcase",
@@ -1036,10 +1037,10 @@
       "defaultColor": "#b08a61",
       "description": "A wide recessed case mixes upright books, stacked folios, a bowl and a supported linen bin.",
       "file": "bookcase.glb",
-      "bytes": 441896,
+      "bytes": 444152,
       "triangles": 10296,
       "meshes": 91,
-      "sha256": "c412760cd7fdecf08c5d1c9925b18b1c51ab19f472436c0d6b188b90984120d5"
+      "sha256": "fe401541662551accd5d1728e89ba3aeee9f6b71374afca4ba609ee2f33c9067"
     },
     "shelf": {
       "label": "Open shelf",
@@ -1052,10 +1053,10 @@
       "defaultColor": "#b08a61",
       "description": "Three supported open shelves sit inside a joined case with books, ceramics and a linen bin.",
       "file": "shelf.glb",
-      "bytes": 202792,
+      "bytes": 203712,
       "triangles": 4896,
       "meshes": 41,
-      "sha256": "7a3dca82ef3c4746ae7e8d604800e95d61b3cf725791f20947b846607b483708"
+      "sha256": "4fd6b69a767a84cb176b5eed7b237f0da55e46dab241a82ef810c751c4923fd6"
     },
     "wardrobe": {
       "label": "Wardrobe",
@@ -1186,10 +1187,10 @@
       "defaultColor": "#b08a61",
       "description": "Leaning front rails and grounded rear supports receive three shelves of decreasing depth and their contents.",
       "file": "ladder.glb",
-      "bytes": 171312,
+      "bytes": 172176,
       "triangles": 3948,
       "meshes": 35,
-      "sha256": "7da7b5881646f4dda575b3c42dc49fbda0363389c116a656cb535ea59e7e1ec8"
+      "sha256": "c77e64d13b46a4c5ed090c3b5eb8f01692da866fd4adec78b7e376dc7eb10eb7"
     },
     "coatrack": {
       "label": "Coat rack",
@@ -1811,10 +1812,10 @@
       "defaultColor": "#a78a66",
       "description": "A joined open display rack carries three trays of independently rooted plants.",
       "file": "plantshelf.glb",
-      "bytes": 449368,
-      "triangles": 13032,
-      "meshes": 88,
-      "sha256": "b04500a7fbb9225635510a5883b70980f9d08cf87212fbce15cb23705a84bc4a"
+      "bytes": 524168,
+      "triangles": 14724,
+      "meshes": 106,
+      "sha256": "e34089df54d97f71d457b84da04d572e3695401938e25ec794b2be6c5e7d3b00"
     },
     "monstera": {
       "label": "Monstera",
@@ -1895,7 +1896,7 @@
       "bytes": 69996,
       "triangles": 1928,
       "meshes": 15,
-      "sha256": "72175a78a9d4261e1182a11eca39568b93d542eaa12df3565f11128ed620f063"
+      "sha256": "0799f050dd93c086765641cf53752906121c837e185e51fc91cde3ac17a3ca55"
     },
     "cactus": {
       "label": "Cactus",
@@ -2008,10 +2009,10 @@
       "defaultColor": "#a38f70",
       "description": "A fitted glass vessel contains a grounded soil bed, stones and a rooted miniature plant.",
       "file": "terrarium.glb",
-      "bytes": 104420,
+      "bytes": 104416,
       "triangles": 3904,
       "meshes": 16,
-      "sha256": "2a3346cd3ffbb66274711f7d1518c6837fb49c3fc900fd095bbb1eba2b10a64f"
+      "sha256": "7e8218ed4fa874e65a1d970d1aaae5fed2ba2482678c7a6f288304bc037d2095"
     },
     "piano": {
       "label": "Upright piano",
@@ -2496,10 +2497,10 @@
       "defaultColor": "#aa8c64",
       "description": "A wall cleat and two diagonal brackets support a shelf with books and a rooted plant.",
       "file": "wallshelf.glb",
-      "bytes": 59384,
+      "bytes": 59784,
       "triangles": 1636,
       "meshes": 11,
-      "sha256": "7ad7628904ac74066804a23f06d695dd9a0595fef0b0acb882857660fac4e0ca"
+      "sha256": "f717ac8e66295c968252706996f2e24a89144e919ee8445d0cdd31fb96d08e81"
     },
     "mirror": {
       "label": "Round mirror",
@@ -3827,6 +3828,7 @@
       "depth": 0.85,
       "height": 0.9428090415820635,
       "controlHeight": 46,
+      "forward": "+X",
       "seat": 0.5303300858899107,
       "lie": true,
       "section": "summer",
@@ -3837,7 +3839,7 @@
       "bytes": 44232,
       "triangles": 648,
       "meshes": 11,
-      "sha256": "ff2da1b7650495f6d3d110a8b79bc279c13e62c3067fb9debe2271c73b1f89c9"
+      "sha256": "889f56b3f4fdd3170993fe5043bac6ae89814550c1f436b1964ac2375ba340e8"
     },
     "tree": {
       "label": "Tree",

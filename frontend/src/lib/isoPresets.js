@@ -1,543 +1,269 @@
 import { createIsoSeasonalPresets } from "./isoSeasonalPresets";
 
-/**
- * Ready-made isometric rooms.
- *
- * Presets are data rather than room-engine behavior. Keeping them in their
- * own module lets future rooms grow without making geometry, placement, and
- * validation code harder to navigate.
- */
+/** Compact personal rooms: group useful furniture first, then fit the floor.
+ * Shared public places and their capacity live separately in commonRooms.js.
+ * Coordinates remain explicit so access, support and facing can be reviewed. */
 export function createIsoPresets(defaultIsoSize) {
   return {
-  home: {
-    label: "Shared home",
-    icon: "🏡",
-    size: {
-      w: 10,
-      d: 9,
-      env: "room",
-      wallColors: { left: "#8b7974", right: "#666c79" },
-      lighting: "golden",
+    home: {
+      label: "Shared home",
+      icon: "🏡",
+      size: { w: 9, d: 8, env: "room", wallColors: { left: "#8b7974", right: "#666c79" }, lighting: "golden" },
+      items: [
+        // Two coordinated window workstations.
+        { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#bb9674" },
+        { item: "computer", gx: 0, gy: 2, rot: 1 },
+        { item: "deskchair", gx: 1, gy: 2, rot: 3, tint: "#78998d" },
+        { item: "desk", gx: 0, gy: 4.5, rot: 1, tint: "#bb9674" },
+        { item: "computer", gx: 0, gy: 5, rot: 1 },
+        { item: "deskchair", gx: 1, gy: 5, rot: 3, tint: "#78998d" },
+        { item: "resident", gx: 1, gy: 5, tint: "#78998d" },
+        // Shared sleeping and storage wall.
+        { item: "bed", gx: 7, gy: 0, tint: "#78998d" },
+        { item: "nightstand", gx: 6, gy: 0, tint: "#bb9674" },
+        { item: "tablelamp", gx: 6, gy: 0, tint: "#dfc591" },
+        { item: "wardrobe", gx: 4.5, gy: 0, tint: "#bb9674" },
+        { item: "bookshelf", gx: 0, gy: 0, tint: "#bb9674" },
+        // One small lounge.
+        { item: "squarerug", gx: 4, gy: 4.5, tint: "#aa8b7c" },
+        { item: "sofa", gx: 4, gy: 4, tint: "#78998d" },
+        { item: "coffeetable", gx: 4.5, gy: 5.5, tint: "#bb9674" },
+        { item: "floorlamp", gx: 6.5, gy: 4.5, tint: "#dfc591" },
+        { item: "fern", gx: 6.5, gy: 6 },
+        { item: "cat", gx: 4, gy: 6.5 },
+        // Light and one wall accent.
+        { item: "bigwindow", gx: 0, gy: 4.5, rot: 1 },
+        { item: "frame", gx: 2.5, gy: 0, tint: "#aa8b7c" },
+      ],
     },
-    items: [
-      // One sleeping corner; the other end of the back wall is for reading.
-      { item: "bed", gx: 0, gy: 0, tint: "#78998d" },
-      { item: "bookshelf", gx: 8, gy: 0, tint: "#bb9674" },
-      { item: "nightstand", gx: 2.5, gy: 0, tint: "#bb9674" },
-      { item: "nightstand", gx: 6.5, gy: 0, tint: "#bb9674" },
-      { item: "tablelamp", gx: 2.5, gy: 0, tint: "#dfc591" },
-      { item: "moonlamp", gx: 6.5, gy: 0 },
-      { item: "wardrobe", gx: 0, gy: 4, rot: 1, tint: "#8b7969" },
-      // Back-to-back desks form one island. The roommates sit opposite one
-      // another, each looking at their own workstation's built-in laptop.
-      { item: "desk", gx: 3.5, gy: 3.5, rot: 2, tint: "#bb9674" },
-      { item: "desk", gx: 3.5, gy: 5, tint: "#bb9674" },
-      { item: "deskchair", gx: 4, gy: 2.5, rot: 0, tint: "#78998d" },
-      { item: "deskchair", gx: 4, gy: 6.5, rot: 2, tint: "#a383aa" },
-      { item: "resident", gx: 4, gy: 2.5, tint: "#78998d" },
-      { item: "armchair", gx: 8, gy: 1.5, tint: "#a383aa" },
-      { item: "desklamp", gx: 5, gy: 3.5, tint: "#dfc591" },
-      { item: "bookstack", gx: 4.5, gy: 3.5 },
-      { item: "succulent", gx: 5, gy: 5.5 },
-      { item: "mug", gx: 4.5, gy: 5.5 },
-      // A soft shared end of the room, leaving both sides of the desks open.
-      { item: "ovalrug", gx: 1, gy: 6.5, tint: "#aa8b7c" },
-      { item: "beanbag", gx: 1, gy: 7, tint: "#78998d" },
-      { item: "cushion", gx: 2.5, gy: 7.5, tint: "#a383aa" },
-      // Tall storage hugs the left wall so the desk island stays visible.
-      { item: "bookshelf", gx: 0, gy: 5.5, rot: 1, tint: "#bb9674" },
-      { item: "cat", gx: 6, gy: 7.5 },
-      // Common window, one clear wall accent and greenery. The corkboard used
-      // to share the wardrobe's exact wall run, leaving only its top visible.
-      { item: "bigwindow", gx: 3.5, gy: 0 },
-      { item: "hangplant", gx: 6.5, gy: 0 },
-      { item: "pennant", gx: 0, gy: 0, tint: "#78998d" },
-      { item: "snakeplant", gx: 7.5, gy: 4.5 },
-      { item: "floorlamp", gx: 0, gy: 8, tint: "#dfc591" },
-    ],
-  },
-  loft: {
-    label: "Loft",
-    icon: "⭐",
-    // A full 10×8 rectangle. It used to cut a 4×3 notch out of the front corner
-    // for an L-shaped attic, but this is the preset a fresh install opens on —
-    // the first thing anyone sees shouldn't be a room with a bite taken out of
-    // it, and the floor plan is a drag-to-draw grid, so anyone who wants the L
-    // can paint it back in two strokes. Removing a cut only ADDS floor, so no
-    // placement can be stranded by this.
-    size: {
-      w: 10,
-      d: 8,
-      wallColors: { left: "#6f566e", right: "#4b425d" },
-      lighting: "golden",
+    loft: {
+      label: "Loft",
+      icon: "⭐",
+      size: { w: 8, d: 6, wallColors: { left: "#6f566e", right: "#4b425d" }, lighting: "golden" },
+      items: [
+        // Window workstation and books.
+        { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#7f9ec9" },
+        { item: "computer", gx: 0, gy: 2, rot: 1 },
+        { item: "deskchair", gx: 1, gy: 2, rot: 3, tint: "#7f9ec9" },
+        { item: "bookshelf", gx: 0, gy: 0 },
+        // Sleeping bay.
+        { item: "bed", gx: 6, gy: 0, tint: "#7f9ec9" },
+        { item: "nightstand", gx: 5, gy: 0.5 },
+        { item: "tablelamp", gx: 5, gy: 0.5, tint: "#e2c69b" },
+        // One conversation group.
+        { item: "squarerug", gx: 3, gy: 3, tint: "#8a7ac2" },
+        { item: "sofa", gx: 3, gy: 2.5, tint: "#7f9ec9" },
+        { item: "coffeetable", gx: 3, gy: 4 },
+        { item: "armchair", gx: 5, gy: 4, rot: 3, tint: "#7f9ec9" },
+        { item: "floorlamp", gx: 6, gy: 3.5 },
+        // Soft edges.
+        { item: "bigwindow", gx: 2.5, gy: 0 },
+        { item: "pennant", gx: 4.5, gy: 0, tint: "#5b6b9b" },
+        { item: "fern", gx: 0.5, gy: 4.5 },
+        { item: "cat", gx: 2, gy: 4.5, tint: "#2c2438" },
+      ],
     },
-    items: [
-      // A restrained starter room leaves open floor and obvious places for
-      // the user to add their own pieces.
-      // ---- SLEEPING, in the right-hand bay -------------------------------
-      { item: "bed", gx: 8, gy: 0, tint: "#7f9ec9" },
-      { item: "nightstand", gx: 7, gy: 0 },
-      { item: "tablelamp", gx: 7, gy: 0, tint: "#e2c69b" },
-      // ---- MEDIA WALL, along the back ------------------------------------
-      { item: "tvunit", gx: 0, gy: 0 },
-      { item: "recordplayer", gx: 2.5, gy: 0, tint: "#4a3a5b" },
-      // The short media wall ends here instead of filling the whole back run.
-      // ---- WINDOW DESK: face the built-in LEFT window (gy 1.05–3.55) -----
-      // Transpose the desk and screen together; rot 3 puts the chair's back
-      // toward the room and its sitter looking along -gx, out the window.
-      { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#7f9ec9" },
-      { item: "computer", gx: 0, gy: 2, rot: 1 },
-      { item: "deskchair", gx: 1, gy: 2.5, rot: 3, tint: "#7f9ec9" },
-      // ---- LOUNGE: an L-group, both seats addressing the table -----------
-      // The lounge takes the old workstation's bay; the desk now owns the
-      // left wall. Keep a gap between the two chairs for carrying residents.
-      { item: "squarerug", gx: 4, gy: 1, tint: "#8a7ac2" },
-      { item: "sofa", gx: 4.5, gy: 0, tint: "#7f9ec9" },
-      { item: "coffeetable", gx: 4.5, gy: 1.5 },
-      { item: "armchair", gx: 3, gy: 1.5, rot: 1, tint: "#7f9ec9" },
-      // Light the outer edge of the lounge without covering the TV screen.
-      { item: "floorlamp", gx: 6.5, gy: 2.5 },
-      // ---- QUIET NOOK ----------------------------------------------------
-      { item: "ovalrug", gx: 2.5, gy: 5.5, tint: "#71658e" },
-      { item: "beanbag", gx: 2.5, gy: 6, tint: "#8a7ac2" },
-      { item: "cat", gx: 4, gy: 6, tint: "#2c2438" },
-      { item: "sidetable", gx: 5, gy: 6.5, tint: "#3a3142" },
-      { item: "moonlamp", gx: 5, gy: 6.5 },
-      // ---- wall, spaced rather than crowded ------------------------------
-      { item: "pennant", gx: 0, gy: 0, tint: "#5b6b9b" },
-      // The second window lights the lounge; work faces the built-in left one.
-      { item: "bigwindow", gx: 4.5, gy: 0 },
-      // A low specimen softens the quiet nook without obscuring the window desk.
-      { item: "fern", gx: 0.5, gy: 5.5 },
-    ],
-  },
-  classic: {
-    label: "Cozy study",
-    icon: "🕯️",
-    size: {
-      w: 9,
-      d: 7,
-      wallColors: { left: "#8a7562", right: "#6f6658" },
-      lighting: "golden",
+    classic: {
+      label: "Cozy study",
+      icon: "🕯️",
+      size: { w: 7, d: 6, wallColors: { left: "#8a7562", right: "#6f6658" }, lighting: "golden" },
+      items: [
+        // The window desk is the primary seat.
+        { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#b78d67" },
+        { item: "computer", gx: 0, gy: 2, rot: 1 },
+        { item: "deskchair", gx: 1, gy: 2, rot: 3, tint: "#71806c" },
+        { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
+        // Books and daylight.
+        { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
+        { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },
+        { item: "bigwindow", gx: 5, gy: 0 },
+        // A single reading corner.
+        { item: "squarerug", gx: 3.5, gy: 3, tint: "#a76f60" },
+        { item: "armchair", gx: 4, gy: 3.5, tint: "#70806a" },
+        { item: "sidetable", gx: 5.5, gy: 3.5, tint: "#a87c59" },
+        { item: "tablelamp", gx: 5.5, gy: 3.5, tint: "#d2a164" },
+        { item: "cat", gx: 3, gy: 5 },
+        { item: "monstera", gx: 6, gy: 4.5 },
+      ],
     },
-    items: [
-      // Put the workstation directly in the broad left-wall window light,
-      // like the references, rather than floating it along the back wall.
-      // It stays deliberately empty: in a personal room the chair is yours.
-      { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#b78d67" },
-      { item: "computer", gx: 0, gy: 2, rot: 1 },
-      { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
-      { item: "mug", gx: 0.5, gy: 3 },
-      // The desk is on the left wall, so its chair faces sideways toward it.
-      { item: "deskchair", gx: 1, gy: 2.5, rot: 3, tint: "#71806c" },
-      // A fuller back wall makes the room feel built-in and collected.
-      { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
-      { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },
-      { item: "bigwindow", gx: 5, gy: 0 },
-      // The pendant fills the room's upper third and warms the plant corner.
-      { item: "pendant", gx: 0, gy: 5, rot: 1 },
-      // The middle is a proper reading nook: layered textile, two seats and
-      // a pool of table light, with the cat's bed just beyond it.
-      { item: "persianrug", gx: 2.5, gy: 3, tint: "#a76f60" },
-      { item: "armchair", gx: 3, gy: 4, tint: "#70806a" },
-      { item: "cushion", gx: 4.5, gy: 5, tint: "#b98568" },
-      { item: "sidetable", gx: 4.5, gy: 4, tint: "#a87c59" },
-      { item: "tablelamp", gx: 4.5, gy: 4, tint: "#d2a164" },
-      { item: "bookstack", gx: 5, gy: 4 },
-      { item: "cat", gx: 5, gy: 3.5 },
-      { item: "petbed", gx: 6.5, gy: 4.5, tint: "#a87569" },
-      // Green corners and a coat by the door soften the room's edges.
-      { item: "monstera", gx: 0.5, gy: 5.5 },
-      { item: "fern", gx: 7.5, gy: 5.5 },
-      { item: "coatrack", gx: 8, gy: 2.5 },
-      // A door, and the two things a studious room collects: something
-      // half-painted, and a globe to spin while thinking.
-      { item: "doorway", gx: 7.5, gy: 0 },
-      { item: "easel", gx: 6.5, gy: 1.5, tint: "#b78d67" },
-      { item: "globe", gx: 2, gy: 5.5 },
-    ],
-  },
-  cabin: {
-    label: "Cozy cabin",
-    icon: "🪵",
-    size: {
-      w: 9,
-      d: 8,
-      wallColors: { left: "#765242", right: "#59423b" },
-      lighting: "candle",
+    cabin: {
+      label: "Cozy cabin",
+      icon: "🪵",
+      size: { w: 8, d: 6, wallColors: { left: "#765242", right: "#59423b" }, lighting: "candle" },
+      items: [
+        // Hearth, sleeping and storage wall.
+        { item: "fireplace", gx: 3, gy: 0 },
+        { item: "bed", gx: 6, gy: 0 },
+        { item: "nightstand", gx: 5, gy: 0 },
+        { item: "candle", gx: 5, gy: 0 },
+        { item: "wardrobe", gx: 0, gy: 0 },
+        { item: "bookshelf", gx: 1.5, gy: 0 },
+        // The lounge faces both the table and the hearth.
+        { item: "squarerug", gx: 1.5, gy: 3 },
+        { item: "sofa", gx: 2, gy: 4, rot: 2, tint: "#8baba0" },
+        { item: "coffeetable", gx: 2.5, gy: 2.5 },
+        { item: "armchair", gx: 1, gy: 2.5, rot: 1, tint: "#8baba0" },
+        { item: "mug", gx: 2.5, gy: 2.5 },
+        // A fireside companion and window dressing.
+        { item: "dog", gx: 3.5, gy: 1.5 },
+        { item: "curtain", gx: 0, gy: 1, rot: 1 },
+        { item: "frame", gx: 0, gy: 4, rot: 1 },
+      ],
     },
-    items: [
-      // The hearth end: fire, the fleece in front of it, the dog asleep on it.
-      { item: "fireplace", gx: 3, gy: 0 },
-      { item: "sheepskin", gx: 3, gy: 1 },
-      { item: "dog", gx: 3.5, gy: 1.5 },
-      // sleeping end
-      { item: "bed", gx: 6.5, gy: 0 },
-      { item: "nightstand", gx: 5.5, gy: 0 },
-      { item: "wardrobe", gx: 0, gy: 0 },
-      { item: "bookshelf", gx: 1.5, gy: 0 },
-      // sitting end, on its own rug
-      { item: "squarerug", gx: 0.5, gy: 3.5 },
-      { item: "sofa", gx: 0, gy: 3.5, rot: 1 },
-      { item: "coffeetable", gx: 1.5, gy: 4, rot: 1 },
-      // A second seat turns these into a conversation nook instead of three
-      // objects lined up against a wall. The smaller lived-in pieces ride the
-      // table rather than consuming more floor.
-      { item: "armchair", gx: 3, gy: 4.5, tint: "#8f6b58" },
-      { item: "mug", gx: 2, gy: 4 },
-      { item: "bookstack", gx: 2.5, gy: 4.5 },
-      { item: "floorlamp", gx: 0.5, gy: 6.5 },
-      { item: "cat", gx: 2, gy: 5.5 },
-      { item: "runner", gx: 4.5, gy: 4.5, tint: "#8a5f52" },
-      { item: "candle", gx: 5.5, gy: 0.5 },
-      // and just enough on the walls
-      { item: "wallshelf", gx: 6.5, gy: 0 },
-      { item: "christmaslights", gx: 4.5, gy: 0 },
-      { item: "frame", gx: 0, gy: 4, rot: 1 },
-      { item: "curtain", gx: 0, gy: 1, rot: 1 },
-      { item: "pendant", gx: 0, gy: 6, rot: 1, tint: "#6f493d" },
-    ],
-  },
-  garden: {
-    label: "Secret garden",
-    icon: "🌿",
-    size: { w: 16, d: 14, env: "garden" },
-    items: [
-      // The pond is the room, not a floor prop tucked against one edge. A
-      // generous clearing and one seat on every side make this a place to
-      // gather, while the tree line and low planting frame rather than cover it.
-      { item: "gardenpond", gx: 4, gy: 3.5 },
-      { item: "bench", gx: 7, gy: 2.5, rot: 0 },
-      { item: "bench", gx: 12.5, gy: 5.5, rot: 3 },
-      { item: "bench", gx: 7, gy: 10.5, rot: 2 },
-      { item: "bench", gx: 3, gy: 5.5, rot: 1 },
-      // A small bend off the near bank gives the clearing an entrance rather
-      // than making every edge feel like an equally empty lawn boundary.
-      { item: "gardentrail", gx: 12, gy: 10, rot: 1 },
-
-      // Keep the tall canopy on the perimeter so every bank stays visible.
-      { item: "tree", gx: 0.5, gy: 0 },
-      { item: "blossomtree", gx: 4.5, gy: 0 },
-      { item: "birch", gx: 13.5, gy: 0.5 },
-      { item: "bush", gx: 0.5, gy: 7 },
-      { item: "bush", gx: 14.5, gy: 10.5 },
-      { item: "flowerbed", gx: 2, gy: 11.5 },
-      { item: "flowerbed", gx: 13.5, gy: 3 },
-      { item: "lightjar", gx: 6.5, gy: 2 },
-      { item: "lightjar", gx: 10, gy: 11 },
-      { item: "dog", gx: 6, gy: 12.5 },
-      { item: "bunny", gx: 2, gy: 9.5 },
-    ],
-  },
-  // THE café — the two café presets merged (owner decision, 2026-08-10):
-  // Corner café's working counter run (bar, espresso machine, pastry case,
-  // till, menu board — the ordering side the owner wanted kept) plus Morning
-  // café's two facing-chair table sets, which were always its best feature.
-  // Two cafés that each had half of a café was a preset slot spent twice;
-  // the Morning café preset is retired. Both halves keep their PROVEN
-  // coordinates — the counter run and the table-set geometry are transplants,
-  // not redesigns, so only the seams needed occupancy-checking.
-  cafeteria: {
-    label: "Corner café",
-    icon: "🥐",
-    size: {
-      w: 10,
-      d: 7,
-      env: "cafe",
-      wallColors: { left: "#8d5947", right: "#68433f" },
-      lighting: "golden",
+    garden: {
+      label: "Secret garden",
+      icon: "🌿",
+      size: { w: 9, d: 7, env: "garden" },
+      items: [
+        // One pond and its water-facing seat.
+        { item: "pond", gx: 3.5, gy: 1.5 },
+        { item: "bench", gx: 4, gy: 5, rot: 2 },
+        { item: "log", gx: 6, gy: 5, rot: 2 },
+        // A framed garden edge.
+        { item: "blossomtree", gx: 0.5, gy: 0 },
+        { item: "tree", gx: 7.5, gy: 0 },
+        { item: "bush", gx: 0.5, gy: 3.5 },
+        { item: "flowers", gx: 1.5, gy: 2 },
+        { item: "flowerbed", gx: 7.5, gy: 4.5 },
+        // A short approach and one companion.
+        { item: "gardentrail", gx: 0.5, gy: 5 },
+        { item: "lantern", gx: 2.5, gy: 4.5 },
+        { item: "bunny", gx: 7.5, gy: 5.5 },
+      ],
     },
-    items: [
-      // a way in, then the bar along the back — four pieces reading as one run
-      { item: "doorway", gx: 0.5, gy: 0 },
-      { item: "menuboard", gx: 2.5, gy: 0 },
-      { item: "barcounter", gx: 4, gy: 1 },
-      { item: "barcounter", gx: 5, gy: 1 },
-      { item: "barcounter", gx: 6, gy: 1 },
-      { item: "coffeecounter", gx: 7, gy: 1 },
-      { item: "pastrycase", gx: 4, gy: 1 },
-      { item: "till", gx: 6, gy: 1 },
-      // behind it — the shelves stop short of the menu board so it isn't
-      // drawn behind them
-      { item: "shelf", gx: 5, gy: 0 },
-      { item: "shelf", gx: 6, gy: 0 },
-      { item: "fridge", gx: 8, gy: 0 },
-      // someone at the bar
-      { item: "woodstool", gx: 5, gy: 2 },
-      { item: "resident", gx: 5, gy: 2 },
-      // Seating set A on the room's one rug: two chairs across a table,
-      // genuinely facing each other (rot 0 looks toward +gy, rot 2 back
-      // toward −gy — possible since chairs ship real back-view artwork).
-      { item: "persianrug", gx: 0.5, gy: 2, tint: "#7a4034" },
-      { item: "cafetable", gx: 2, gy: 3 },
-      { item: "orchid", gx: 2.5, gy: 3.5 },
-      { item: "chair", gx: 2.5, gy: 2 },
-      { item: "chair", gx: 2.5, gy: 4.5, rot: 2 },
-      // a customer — a café with nobody in it reads as closed
-      { item: "resident", gx: 2.5, gy: 4.5, tint: "#6fb8cf" },
-      // seating set B, same geometry, shifted right and forward — served
-      // (the mug) but empty: that table is yours
-      { item: "cafetable", gx: 6, gy: 4 },
-      { item: "mug", gx: 6, gy: 4 },
-      { item: "chair", gx: 6.5, gy: 3 },
-      { item: "chair", gx: 6.5, gy: 5.5, rot: 2 },
-      // green in the far corner
-      { item: "monstera", gx: 9, gy: 6 },
-      { item: "fern", gx: 0.5, gy: 5.5 },
-    ],
-  },
-  // A working little nursery rather than a generic green room: merchandise
-  // climbs both walls, two island tables hold the small pots, and the checkout
-  // run faces the open central aisle. The tile floor and deep green walls come
-  // from the supplied shop reference; the warm timber keeps it in TaskNook's
-  // softer palette instead of turning the room into a garden centre warehouse.
-  plantshop: {
-    label: "Plant shop",
-    icon: "🪴",
-    size: {
-      w: 12,
-      d: 9,
-      env: "cafe",
-      wallColors: { left: "#58735f", right: "#3f5d52" },
-      lighting: "natural",
+    cafeteria: {
+      label: "Corner café",
+      icon: "🥐",
+      size: { w: 7, d: 6, env: "cafe", wallColors: { left: "#8d5947", right: "#68433f" }, lighting: "golden" },
+      items: [
+        // A short counter with a real staff aisle behind it.
+        { item: "barcounter", gx: 4, gy: 1.5 },
+        { item: "barcounter", gx: 5, gy: 1.5 },
+        { item: "coffeecounter", gx: 6, gy: 1.5 },
+        { item: "pastrycase", gx: 4, gy: 1.5 },
+        { item: "till", gx: 5, gy: 1.5 },
+        { item: "shelf", gx: 5, gy: 0 },
+        { item: "fridge", gx: 6, gy: 0 },
+        // One served two-person table.
+        { item: "persianrug", gx: 1, gy: 2, rot: 1, tint: "#7a4034" },
+        { item: "cafetable", gx: 1.5, gy: 3 },
+        { item: "chair", gx: 2, gy: 2 },
+        { item: "chair", gx: 2, gy: 4.5, rot: 2 },
+        { item: "orchid", gx: 1.5, gy: 3 },
+        { item: "resident", gx: 2, gy: 4.5, tint: "#6fb8cf" },
+        // Entrance and shop identity.
+        { item: "doorway", gx: 0.5, gy: 0 },
+        { item: "menuboard", gx: 2.5, gy: 0 },
+        { item: "monstera", gx: 6, gy: 4.5 },
+      ],
     },
-    items: [
-      // The room shell already supplies the left-wall window. A doorway in
-      // this corner projected through that glass, so the open cutaway is the
-      // shop entrance and this wall stays dedicated to daylight and stock.
-      { item: "bigwindow", gx: 4.5, gy: 0 },
-      { item: "menuboard", gx: 7, gy: 0, tint: "#466b54" },
-      { item: "hangplant", gx: 9.5, gy: 0, tint: "#5f8b63" },
-
-      // Six merchandise racks form an L around the perimeter. They are one
-      // movable fixture each, so the preset stays pleasant to edit despite
-      // looking densely stocked.
-      { item: "plantshelf", gx: 7, gy: 0.5, tint: "#6c5d46" },
-      { item: "plantshelf", gx: 8.5, gy: 0.5, tint: "#6c5d46" },
-      { item: "plantshelf", gx: 10, gy: 0.5, tint: "#6c5d46" },
-      { item: "plantshelf", gx: 0, gy: 3, rot: 1, tint: "#6c5d46" },
-      { item: "plantshelf", gx: 0, gy: 4.5, rot: 1, tint: "#6c5d46" },
-      { item: "plantshelf", gx: 0, gy: 6, rot: 1, tint: "#6c5d46" },
-
-      // Two low display islands, with each small plant landing on the real
-      // tabletop surface. The rug distinguishes the browsing zone from the
-      // checkout lane without blocking circulation.
-      { item: "stripedrug", gx: 3, gy: 2.5, tint: "#6d946d" },
-      { item: "diningtable", gx: 3.5, gy: 3, tint: "#9a7959" },
-      { item: "succulent", gx: 3.5, gy: 3, tint: "#c7775b" },
-      { item: "orchid", gx: 4.5, gy: 3, tint: "#a87591" },
-      { item: "seedtray", gx: 4, gy: 3.5, tint: "#6d946d" },
-      { item: "diningtable", gx: 6.5, gy: 5, tint: "#9a7959" },
-      { item: "bonsai", gx: 6.5, gy: 5, tint: "#b76b50" },
-      { item: "plant", gx: 7.5, gy: 5.5, tint: "#d09a64" },
-      { item: "wateringcan", gx: 7, gy: 5, tint: "#6b8f87" },
-
-      // Checkout across the front-left, with the staff side kept clear.
-      { item: "barcounter", gx: 1.5, gy: 7.5, tint: "#9a7959" },
-      { item: "barcounter", gx: 2.5, gy: 7.5, tint: "#9a7959" },
-      { item: "barcounter", gx: 3.5, gy: 7.5, tint: "#9a7959" },
-      { item: "succulent", gx: 1.5, gy: 7.5, tint: "#c7775b" },
-      { item: "till", gx: 2.5, gy: 7.5 },
-      { item: "resident", gx: 2.5, gy: 6.5, tint: "#d8b477" },
-
-      // The bigger specimens anchor corners and make the stock vary in height.
-      { item: "palm", gx: 10.5, gy: 2.5, tint: "#5f8b63" },
-      { item: "snakeplant", gx: 8.5, gy: 2, tint: "#d09a64" },
-      { item: "sidetable", gx: 9, gy: 4.5, tint: "#6c5d46" },
-      { item: "terrarium", gx: 9, gy: 4.5 },
-      { item: "resident", gx: 5, gy: 5.5, tint: "#8a7396" },
-      { item: "fern", gx: 8.5, gy: 7.5, tint: "#b76b50" },
-      { item: "fern", gx: 9.5, gy: 7.5, tint: "#d09a64" },
-      { item: "monstera", gx: 10.5, gy: 7.5, tint: "#b76b50" },
-    ],
-  },
-  // A READING room: bookcases wall to wall, one long table down the middle,
-  // and the clutter of somebody mid-project.
-  library: {
-    label: "Reading room",
-    icon: "📚",
-    size: { w: 11, d: 9, env: "library" },
-    items: [
-      // ---- ENCLOSED BY BOOKS ----------------------------------------------
-      // The point of this room is being surrounded, so shelving takes all
-      // THREE edges: the tall run along both walls, and a lower run along the
-      // right-hand rim that you look over rather than at.
-      { item: "bookshelf", gx: 0, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 1.5, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 6, gy: 0, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 7.5, gy: 0, tint: "#5c3a2c" },
-      // left wall, stopping short of the window bay (gy 1–2.5) — books over
-      // a window would be a dark rectangle exactly where the light is
-      { item: "bookshelf", gx: 0, gy: 3, rot: 1, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 0, gy: 4.5, rot: 1, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 0, gy: 6, rot: 1, tint: "#5c3a2c" },
-      { item: "bookshelf", gx: 0, gy: 7.5, rot: 1, tint: "#5c3a2c" },
-      // the low run along the right rim
-      { item: "bookcase", gx: 10, gy: 2, rot: 1, tint: "#6b4a39" },
-      { item: "bookcase", gx: 10, gy: 4, rot: 1, tint: "#6b4a39" },
-      { item: "bookcase", gx: 10, gy: 6, rot: 1, tint: "#6b4a39" },
-      // two ladders, leaning — they clip the shelves on purpose
-      { item: "ladder", gx: 6.5, gy: 0.5, tint: "#8f5d49" },
-      { item: "ladder", gx: 0.5, gy: 5, rot: 1, tint: "#8f5d49" },
-      { item: "curtain", gx: 0, gy: 1, rot: 1, tint: "#4a3a5b" },
-      // ---- the reading table, centred on its rug ---------------------------
-      { item: "ovalrug", gx: 3, gy: 3.5, tint: "#8a5346" },
-      { item: "diningtable", gx: 3.5, gy: 4 },
-      { item: "desklamp", gx: 3.5, gy: 4 },
-      { item: "bookstack", gx: 4.5, gy: 4 },
-      { item: "chair", gx: 4, gy: 5.5 },
-      { item: "resident", gx: 4, gy: 5.5, tint: "#8a5346" },
-      { item: "sidetable", gx: 1.5, gy: 3 },
-      { item: "tablelamp", gx: 1.5, gy: 3, tint: "#d9b178" },
-      { item: "floorlamp", gx: 8.5, gy: 3 },
-      // ---- a writing corner, tucked out of the middle ----------------------
-      { item: "desk", gx: 6.5, gy: 6.5 },
-      { item: "computer", gx: 7, gy: 6.5 },
-      { item: "deskchair", gx: 7.5, gy: 8, rot: 2 },
-      // ---- stacks on the floor: the tell that someone actually works here --
-      { item: "bookstack", gx: 1, gy: 6.5 },
-      { item: "bookstack", gx: 2, gy: 7.5 },
-      { item: "bookstack", gx: 6.5, gy: 5.5 },
-      { item: "bookstack", gx: 9, gy: 8 },
-      { item: "bookstack", gx: 5.5, gy: 1.5 },
-      { item: "crates", gx: 6, gy: 8, tint: "#5c3a2c" },
-      { item: "cat", gx: 5, gy: 7, tint: "#3a2a24" },
-      { item: "fern", gx: 9.5, gy: 8 },
-      // Arched entrance, a tall window, and a game waiting on the big table.
-      { item: "archway", gx: 3.5, gy: 0 },
-      { item: "bigwindow", gx: 9, gy: 0 },
-      { item: "chess", gx: 4, gy: 4.5 },
-    ],
-  },
-  // Half outdoors: a low balustrade instead of walls, stone underfoot, and
-  // string lights overhead.
-  hall: {
-    label: "Study hall",
-    icon: "🧑‍🤝‍🧑",
-    // The big one: a 16x12 room built for company. Four tables of four with
-    // people sitting ACROSS from each other — only possible since seating got
-    // real back-view artwork, so the far row can turn round (rot 2) instead of
-    // everyone facing the same way.
-    size: { w: 16, d: 12, env: "library" },
-    items: [
-      // ---- shelving along the two walls -------------------------------
-      { item: "bookshelf", gx: 2.0, gy: 0 },
-      { item: "bookshelf", gx: 3.5, gy: 0 },
-      { item: "bookshelf", gx: 9.5, gy: 0 },
-      { item: "bookshelf", gx: 11.0, gy: 0 },
-      { item: "bookshelf", gx: 12.5, gy: 0 },
-      { item: "bookcase", gx: 0, gy: 2, rot: 1 },
-      { item: "bookcase", gx: 0, gy: 4, rot: 1 },
-      { item: "bookcase", gx: 0, gy: 6, rot: 1 },
-      { item: "bookcase", gx: 0, gy: 8, rot: 1 },
-      // ---- four study tables, people facing each other across them ----
-      { item: "diningtable", gx: 4, gy: 3 },
-      { item: "chair", gx: 4, gy: 2 },
-      { item: "resident", gx: 4, gy: 2, tint: "#6fb8cf" },
-      { item: "chair", gx: 5, gy: 2 },
-      { item: "chair", gx: 4, gy: 4.5, rot: 2 },
-      { item: "chair", gx: 5, gy: 4.5, rot: 2 },
-      { item: "diningtable", gx: 9, gy: 3 },
-      { item: "chair", gx: 9, gy: 2 },
-      { item: "chair", gx: 10, gy: 2 },
-      { item: "chair", gx: 9, gy: 4.5, rot: 2 },
-      { item: "resident", gx: 9, gy: 4.5, tint: "#e0774a" },
-      { item: "chair", gx: 10, gy: 4.5, rot: 2 },
-      { item: "diningtable", gx: 4, gy: 7.5 },
-      { item: "chair", gx: 4, gy: 6.5 },
-      { item: "resident", gx: 4, gy: 6.5, tint: "#e0a374" },
-      { item: "chair", gx: 5, gy: 6.5 },
-      { item: "chair", gx: 4, gy: 9, rot: 2 },
-      { item: "chair", gx: 5, gy: 9, rot: 2 },
-      { item: "resident", gx: 5, gy: 9, tint: "#7faf8f" },
-      { item: "diningtable", gx: 9, gy: 7.5 },
-      { item: "chair", gx: 9, gy: 6.5 },
-      { item: "chair", gx: 10, gy: 6.5 },
-      { item: "chair", gx: 9, gy: 9, rot: 2 },
-      { item: "chair", gx: 10, gy: 9, rot: 2 },
-      // ---- something on every table ------------------------------------
-      { item: "mug", gx: 4.5, gy: 3.5 },
-      { item: "bookstack", gx: 5, gy: 3.5 },
-      { item: "mug", gx: 9.5, gy: 3.5 },
-      { item: "bookstack", gx: 10, gy: 3.5 },
-      { item: "mug", gx: 4.5, gy: 8.0 },
-      { item: "bookstack", gx: 5, gy: 8.0 },
-      { item: "mug", gx: 9.5, gy: 8 },
-      { item: "bookstack", gx: 10, gy: 8 },
-      // ---- corners, greenery and light ----------------------------------
-      { item: "ladder", gx: 14.5, gy: 0 },
-      { item: "monstera", gx: 14.5, gy: 2 },
-      { item: "monstera", gx: 1, gy: 10.5 },
-      { item: "plant", gx: 2.5, gy: 5.5 },
-      { item: "floorlamp", gx: 7.5, gy: 5.5 },
-      { item: "floorlamp", gx: 15, gy: 8 },
-      { item: "coatrack", gx: 12, gy: 11 },
-      { item: "runner", gx: 6.5, gy: 10.5, tint: "#8f4a3c" },
-      { item: "cat", gx: 3.5, gy: 11 },
-      { item: "frame", gx: 0.5, gy: 0, tint: "#9a6a45" },
-      { item: "hangplant", gx: 0, gy: 6.5, rot: 1 },
-      { item: "poster", gx: 0, gy: 10, rot: 1 },
-      // ---- a lounge corner at the front, so the room isn't four identical
-      // ---- tables and a lot of empty floorboards -------------------------
-      { item: "squarerug", gx: 12.5, gy: 9, tint: "#8f4a3c" },
-      { item: "coffeetable", gx: 13, gy: 9.5 },
-      { item: "mug", gx: 13.5, gy: 9.5 },
-      { item: "armchair", gx: 13, gy: 8.5, tint: "#7faf8f" },
-      { item: "armchair", gx: 13, gy: 10.5, rot: 2, tint: "#cf8f93" },
-      { item: "resident", gx: 13, gy: 8.5, tint: "#c9a24b" },
-      { item: "beanbag", gx: 1.5, gy: 7.5, tint: "#8a7ac2" },
-      { item: "plant", gx: 2.5, gy: 9.5 },
-      // The hall gets its architecture: an arch to come in by, a window
-      // down the long wall, and a piano in the corner. The piano sits at the
-      // near end of the left wall on purpose — in the far corner a monstera
-      // stood in front of it and hid the keyboard, which is the only part of
-      // an upright that isn't a dark box.
-      { item: "archway", gx: 5.5, gy: 0 },
-      { item: "bigwindow", gx: 7.5, gy: 0 },
-      { item: "piano", gx: 0, gy: 1, tint: "#43302b" },
-    ],
-  },
-  terrace: {
-    label: "Terrace",
-    icon: "🪴",
-    size: { w: 9, d: 7, env: "terrace" },
-    items: [
-      // The planting makes a sheltered back edge instead of scattering one
-      // object into each corner. The open centre remains the route between
-      // the dining and reading zones.
-      { item: "hedge", gx: 0, gy: 0 },
-      { item: "hedge", gx: 2, gy: 0 },
-      { item: "pine", gx: 7, gy: 0 },
-      { item: "flowers", gx: 0.5, gy: 6 },
-
-      // Candlelit dining hugs the sheltered side and keeps all three stools
-      // in a readable conversation group.
-      { item: "diningtable", gx: 1.5, gy: 2, tint: "#9b7659" },
-      { item: "candelabra", gx: 2, gy: 2.5, tint: "#b88a58" },
-      { item: "woodstool", gx: 1.5, gy: 3.5, rot: 0 },
-      { item: "woodstool", gx: 3, gy: 3.5, rot: 0 },
-      { item: "woodstool", gx: 2, gy: 1, rot: 2 },
-
-      // An existing rug and two unlike seats form a deliberate reading corner.
-      // Presets stay composed rather than doubling as a shop window for every
-      // new catalog item.
-      { item: "ovalrug", gx: 5.5, gy: 4, tint: "#9a665d" },
-      { item: "armchair", gx: 6, gy: 4, tint: "#728b79" },
-      { item: "cushion", gx: 7.5, gy: 5, tint: "#c98578" },
-      { item: "sidetable", gx: 5, gy: 5, tint: "#9b7659" },
-      { item: "mug", gx: 5.5, gy: 5, tint: "#d9c5ac" },
-      { item: "cat", gx: 4.5, gy: 6 },
-
-      // One low light marks the far end without blocking the central diagonal.
-      { item: "lantern", gx: 5.5, gy: 1 },
-    ],
-  },
-  ...createIsoSeasonalPresets(),
-  empty: {
-    label: "Empty room",
-    icon: "🫙",
-    size: defaultIsoSize,
-    items: [],
-  },
+    plantshop: {
+      label: "Plant shop",
+      icon: "🪴",
+      size: { w: 9, d: 7, env: "cafe", wallColors: { left: "#58735f", right: "#3f5d52" }, lighting: "natural" },
+      items: [
+        // The proprietor has a genuine potting seat.
+        { item: "diningtable", gx: 0, gy: 1.5, rot: 1, tint: "#9a7959" },
+        { item: "woodstool", gx: 1.5, gy: 2, rot: 3 },
+        { item: "seedtray", gx: 0, gy: 1.5 },
+        { item: "wateringcan", gx: 0, gy: 2.5 },
+        // A single stocked perimeter.
+        { item: "plantshelf", gx: 4.5, gy: 0.5, tint: "#6c5d46" },
+        { item: "plantshelf", gx: 6, gy: 0.5, tint: "#a87c57" },
+        { item: "plantshelf", gx: 7.5, gy: 0.5, tint: "#6c5d46" },
+        { item: "plantshelf", gx: 0, gy: 4, rot: 1, tint: "#6c5d46" },
+        // One display island.
+        { item: "diningtable", gx: 4, gy: 3.5, tint: "#9a7959" },
+        { item: "orchid", gx: 4, gy: 3.5, tint: "#a87591" },
+        { item: "succulent", gx: 5, gy: 4, tint: "#c7775b" },
+        // A short checkout and an open browsing route.
+        { item: "barcounter", gx: 1.5, gy: 5.5, tint: "#9a7959" },
+        { item: "barcounter", gx: 2.5, gy: 5.5, tint: "#9a7959" },
+        { item: "till", gx: 1.5, gy: 5.5 },
+        { item: "monstera", gx: 7.5, gy: 4.5 },
+        { item: "bigwindow", gx: 2, gy: 0 },
+        { item: "menuboard", gx: 0, gy: 0, tint: "#466b54" },
+      ],
+    },
+    library: {
+      label: "Reading room",
+      icon: "📚",
+      size: { w: 8, d: 6, env: "library" },
+      items: [
+        // One window writing desk.
+        { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#9b7659" },
+        { item: "computer", gx: 0, gy: 2, rot: 1 },
+        { item: "deskchair", gx: 1, gy: 2, rot: 3, tint: "#70806a" },
+        { item: "desklamp", gx: 0, gy: 1.5, tint: "#d9b178" },
+        // Books stay on an L-shaped wall run.
+        { item: "bookshelf", gx: 0, gy: 0, tint: "#5c3a2c" },
+        { item: "bookshelf", gx: 1.5, gy: 0, tint: "#5c3a2c" },
+        { item: "bookshelf", gx: 3, gy: 0, tint: "#5c3a2c" },
+        { item: "bookcase", gx: 0, gy: 4, rot: 1, tint: "#6b4a39" },
+        { item: "bigwindow", gx: 5, gy: 0 },
+        // One comfortable reading seat.
+        { item: "squarerug", gx: 4, gy: 3, tint: "#8a5346" },
+        { item: "armchair", gx: 5.5, gy: 3.5, tint: "#70806a" },
+        { item: "sidetable", gx: 4, gy: 3.5, tint: "#6b4a39" },
+        { item: "tablelamp", gx: 4, gy: 3.5, tint: "#d9b178" },
+        { item: "cat", gx: 3, gy: 5, tint: "#3a2a24" },
+        { item: "fern", gx: 7, gy: 5 },
+      ],
+    },
+    hall: {
+      label: "Study studio",
+      icon: "🧑‍🤝‍🧑",
+      size: { w: 8, d: 6, env: "library" },
+      items: [
+        // One shared table for one or two people.
+        { item: "persianrug", gx: 2.5, gy: 1.5, rot: 1, tint: "#8f4a3c" },
+        { item: "diningtable", gx: 3, gy: 2.5 },
+        { item: "chair", gx: 3.5, gy: 1.5 },
+        { item: "chair", gx: 3.5, gy: 4, rot: 2 },
+        { item: "bookstack", gx: 3, gy: 2.5 },
+        { item: "mug", gx: 4, gy: 3 },
+        { item: "desklamp", gx: 4, gy: 2.5 },
+        // A short storage run and a simple reading seat.
+        { item: "bookcase", gx: 0, gy: 0 },
+        { item: "bookcase", gx: 0, gy: 4, rot: 1 },
+        { item: "armchair", gx: 6, gy: 4, tint: "#7faf8f" },
+        { item: "floorlamp", gx: 7, gy: 4 },
+        // Daylight, a noticeboard and soft edges.
+        { item: "bigwindow", gx: 4.5, gy: 0 },
+        { item: "corkboard", gx: 2, gy: 0 },
+        { item: "monstera", gx: 6.5, gy: 1 },
+        { item: "cat", gx: 1.5, gy: 5 },
+      ],
+    },
+    terrace: {
+      label: "Terrace",
+      icon: "🪴",
+      size: { w: 8, d: 6, env: "terrace" },
+      items: [
+        // One outdoor dining group.
+        { item: "persianrug", gx: 2.5, gy: 1.5, rot: 1, tint: "#9a665d" },
+        { item: "diningtable", gx: 3, gy: 2.5, tint: "#9b7659" },
+        { item: "woodstool", gx: 3.5, gy: 1.5 },
+        { item: "woodstool", gx: 3.5, gy: 4, rot: 2 },
+        { item: "candelabra", gx: 3.5, gy: 2.5, tint: "#b88a58" },
+        { item: "mug", gx: 3, gy: 3, tint: "#d9c5ac" },
+        // Planting follows the sheltered edge.
+        { item: "hedge", gx: 0, gy: 0 },
+        { item: "hedge", gx: 2, gy: 0 },
+        { item: "fern", gx: 0.5, gy: 1.5 },
+        { item: "bonsai", gx: 6.5, gy: 0.5 },
+        { item: "plant", gx: 6.5, gy: 2.5 },
+        // A lit approach.
+        { item: "lantern", gx: 1.5, gy: 3.5 },
+        { item: "cat", gx: 6.5, gy: 4.5 },
+      ],
+    },
+    ...createIsoSeasonalPresets(),
+    empty: {
+      label: "Empty room",
+      icon: "🫙",
+      size: defaultIsoSize,
+      items: [],
+    },
   };
 }

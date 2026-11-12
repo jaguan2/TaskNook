@@ -138,7 +138,7 @@ const ROOMS = [
   ["05", "corner-cafe", "Corner café", { weather: "off", time: "day" }],
   ["06", "secret-garden", "Secret garden", { weather: "off", time: "day" }],
   ["07", "terrace", "Terrace", { weather: "off", time: "sunset" }],
-  ["08", "study-hall", "Study hall", { weather: "off", time: "day" }],
+  ["08", "study-hall", "Study studio", { weather: "off", time: "day" }],
   ["09", "autumn-yard", "Autumn yard", { weather: "off", time: "sunset" }],
   ["28", "shared-home", "Shared home", { weather: "off", time: "sunset" }],
   ["30", "plant-shop", "Plant shop", { weather: "off", time: "day" }],
@@ -340,6 +340,23 @@ function makePage(cdp) {
   };
 
   const shot = async (file, format = "webp", capture = {}) => {
+    // Room models are now GLBs rendered on demand. Never publish a loading
+    // fallback merely because a fixed screenshot delay happened to expire.
+    await evaluate(`(async () => {
+      for (let i = 0; i < 200; i++) {
+        const failed = document.querySelector('[data-model-state="error"]');
+        if (failed) throw new Error('Model capture failed: ' + failed.dataset.catalogModel);
+        if (!document.querySelector('[data-model-state="loading"]')) {
+          const urls = [...new Set([...document.querySelectorAll('[data-model-source="glb"] image')].map(node => node.getAttribute('href')))];
+          await Promise.all(urls.map(async url => { const image = new Image(); image.src = url; await image.decode(); }));
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      throw new Error('Room models did not finish loading for capture');
+    })()`);
     const r = await send("Page.captureScreenshot", {
       ...(format === "webp" ? { format: "webp", quality: 92 } : { format: "png" }),
       ...capture,
@@ -355,10 +372,9 @@ function makePage(cdp) {
 /**
  * Put YOU in the room, sitting where a person would actually sit.
  *
- * The personal presets ship their seats empty on purpose (a stranger at your
- * desk reads wrong), so a preset alone gives an unoccupied room — which is what
- * the shots are meant to show you living in. The profile's "In the room"
- * toggle uses the app's own placement logic and survives preset changes.
+ * Add the saved profile character through the app's own seat selection.
+ * Shared home's flatmate and the café customer keep their authored seats.
+ * The profile's "In the room" toggle survives preset changes.
  */
 async function seatResident(page) {
   // Use the actual toggle: the store chooses a legal free seat and inserts
@@ -590,7 +606,7 @@ async function main() {
     const r = await page.clickText(preset);
     if (r !== "ok") { console.log(`  ${n} ${name}: ${r}`); continue; }
     await sleep(2400);
-    // The communal presets already have people; the personal ones don't.
+    // The owner takes an available seat alongside any authored resident.
     const seated = await seatResident(page);
     await page.load(); // re-read the room so the new placement is drawn
     await page.closePanels();
@@ -949,6 +965,29 @@ async function main() {
     await sleep(1600);
     const bytes = await page.shot(join(OUT_DIR, "56-tucked-in-bed.webp"));
     console.log(`  56-tucked-in-bed.webp  ${Math.round(bytes * 0.75 / 1024)}kB`);
+  }
+
+  // Shelf customization uses the real home item controls and persisted layout.
+  if (want("60")) {
+    await page.setStorage({ ...ambient({ weather: "off", time: "day" }), "tasknook.isoView": "", "tasknook.isoPreview": "1" });
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await page.clickText("Plant shop");
+    await sleep(1800);
+    await page.closePanels();
+    await page.evaluate(`(() => {
+      const shelf = document.querySelector('[data-iso-room-scene] [data-item="plantshelf"][role="button"]');
+      if (!shelf) throw new Error('No customizable plant rack');
+      shelf.focus(); shelf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await sleep(300);
+    await page.evaluate(`(() => {
+      const select = document.querySelector('[aria-label="Shelf contents"]');
+      select.value = 'mixed'; select.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelector('[aria-label="Book colour #598fa4"]').click();
+    })()`);
+    await page.shot(join(OUT_DIR, "60-shelf-customization.webp"));
+    console.log("  60-shelf-customization.webp");
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

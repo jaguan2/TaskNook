@@ -1,28 +1,34 @@
 # Standalone furniture study — November 11, 2026
 
+**November 12 update:** [production integration](../../ROOM_MODEL_INTEGRATION.md)
+now uses all 179 furniture/prop GLBs in the actual isometric rooms. The five
+customized actor types keep their SVG rigs. This authoring report retains the
+earlier workshop findings; its integration limitations are superseded by that
+current implementation report.
+
 The owner identified inaccurate construction and disconnected-looking parts
 as the main furniture problem, authorized the standalone prototype, and then
 asked for a less realistic treatment using **Virtual Cottage 2** as the style
 reference. **All 184 entries in all 18 catalog sections now have standalone
 GLBs.** The latest round adds the remaining 124 plants, decorations, electronics,
 architecture, wall fixtures, kitchen/tabletop pieces, seasonal/outdoor models
-and living entries. [The generated tracker](CATALOG_3D_MIGRATION.md) lists every
-covered key, asset and export statistic. [The approach](CATALOG_3D_APPROACH.md)
+and living entries. [The generated tracker](../../CATALOG_3D_MIGRATION.md) lists every
+covered key, asset and export statistic. [The approach](../../CATALOG_3D_APPROACH.md)
 records construction, source ownership, review and cleanup. Export coverage is
 separate from production deployment.
 
-[The review index](model-review/README.md) links the complete set of 18 section
+[The review index](../../model-review/README.md) links the complete set of 18 section
 sheets. The first five furniture sheets below retain their original context.
 
-![The complete seating and beds asset section](model-review/catalog-3d/furniture-seating-section.png)
+![The complete seating and beds asset section](../../model-review/catalog-3d/furniture-seating-section.png)
 
-![The complete tables and desks asset section](model-review/catalog-3d/furniture-tables-section.png)
+![The complete tables and desks asset section](../../model-review/catalog-3d/furniture-tables-section.png)
 
-![The complete storage asset section](model-review/catalog-3d/furniture-storage-section.png)
+![The complete storage asset section](../../model-review/catalog-3d/furniture-storage-section.png)
 
-![The complete rugs and floor asset section](model-review/catalog-3d/furniture-floor-section.png)
+![The complete rugs and floor asset section](../../model-review/catalog-3d/furniture-floor-section.png)
 
-![The complete light and warmth asset section](model-review/catalog-3d/furniture-lighting-section.png)
+![The complete light and warmth asset section](../../model-review/catalog-3d/furniture-lighting-section.png)
 
 ## Current design
 
@@ -35,10 +41,10 @@ parts with camera-specific patches.
 The reference is the supplied Virtual Cottage 2 art: readable rounded silhouettes,
 chunky upholstery, warm timber and limited material detail at normal room scale.
 This pass interprets those cues in original TaskNook models. It does not trace
-or import the reference artwork. The [first physical-lighting room capture](model-review/catalog-3d/furniture-3d-room.png)
+or import the reference artwork. The [first physical-lighting room capture](images/furniture-3d-room.png)
 is retained as the earlier comparison, not the current default.
 
-The [source and workshop](../prototypes/furniture/README.md) live in
+The [source and workshop](../../../prototypes/furniture/README.md) live in
 `prototypes/furniture/`, with a separate pinned dependency lockfile. Node 20
 generates the GLBs directly; Blender was not installed or used. GLBs contain
 portable matte PBR materials and named material roles. The illustrated toon
@@ -46,10 +52,10 @@ palette is applied by the runtime viewer; it is not baked into the portable
 asset or guaranteed to appear identically in another editor.
 
 Per-asset triangle counts, GLB byte sizes and download links are generated from
-the export manifest in [the migration tracker](CATALOG_3D_MIGRATION.md#sections-with-full-asset-coverage).
+the export manifest in [the migration tracker](../../CATALOG_3D_MIGRATION.md#sections-with-full-asset-coverage).
 They are no longer duplicated by hand in this report as the catalog grows.
 
-![Standalone illustrated bed](model-review/catalog-3d/furniture-illustrated-bed.png)
+![Standalone illustrated bed](../../model-review/catalog-3d/furniture-illustrated-bed.png)
 
 Every individual mesh is closed, connected and outward-facing. Multiple meshes
 represent physical parts such as cushions and feet; a complete standalone asset
@@ -123,15 +129,15 @@ remain integration work. Original catalog stacking/glow/flicker metadata is reta
 The workshop offers Lounge, Study, Café, Storage nook, Textile lounge and Hearth & lamps arrangements. These are original
 isolated review layouts, not production presets or saved user rooms.
 
-![Standalone worktop family in the study arrangement](model-review/catalog-3d/furniture-3d-study.png)
+![Standalone worktop family in the study arrangement](../../model-review/catalog-3d/furniture-3d-study.png)
 
-![Standalone worktop family in the café arrangement](model-review/catalog-3d/furniture-3d-cafe.png)
+![Standalone worktop family in the café arrangement](../../model-review/catalog-3d/furniture-3d-cafe.png)
 
-![Storage family in the reading nook](model-review/catalog-3d/furniture-3d-storage.png)
+![Storage family in the reading nook](../../model-review/catalog-3d/furniture-3d-storage.png)
 
-![Floor family in the textile lounge](model-review/catalog-3d/furniture-3d-textiles.png)
+![Floor family in the textile lounge](../../model-review/catalog-3d/furniture-3d-textiles.png)
 
-![Lighting family in the hearth arrangement](model-review/catalog-3d/furniture-3d-lighting.png)
+![Lighting family in the hearth arrangement](../../model-review/catalog-3d/furniture-3d-lighting.png)
 
 The textile lounge raises furniture to the rug's height; its feet are checked
 against the actual rug surface. Room boards now meet the model floor at Y=0.
@@ -148,7 +154,7 @@ seated/lying/carry poses, navigation and all-angle furniture contact remain
 separate integration work. The original SVG calibration described below is
 retained alongside these starter 3D rigs.
 
-![Current Resident on the new armchair](model-review/catalog-3d/furniture-illustrated-seated.png)
+![Current Resident on the new armchair](../../model-review/catalog-3d/furniture-illustrated-seated.png)
 
 The Seating check uses self-contained SVG figures exported from the real
 `Resident` component, actual outfit presets and the Compact/Broad body templates.
@@ -342,7 +348,7 @@ tool; they are required when rendering is integrated into the app.
 
 No catalog asset section remains to author. The ledger and retained sheets cover
 all 184 pieces. Asset export is distinct from switching the shipping renderer;
-that renderer integration remains outstanding.
+the furniture integration is now implemented in [the live game](../../ROOM_MODEL_INTEGRATION.md).
 
 
 1. Continue art-direction refinement against the supplied Virtual Cottage 2
@@ -350,15 +356,14 @@ that renderer integration remains outstanding.
 2. Establish actual three-quarter character poses and all-angle seating contact,
    including wardrobe/body extremes, hands, carries and rotations. The fixed-front
    calibration does not establish these contracts.
-3. Prove one coherent rendering/depth strategy for the SVG room, furniture and
-   characters. A WebGL overlay cannot inherit SVG paint order. This workshop's
-   3D room is separate from the production renderer.
+3. The production depth strategy now uses on-demand GLB renders in the existing
+   SVG layer order. The workshop's fully 3D review room remains separate.
 4. Check dense scenes, GPU memory, frame times and native WebView2. The small
    demand-rendered review scene is not a full-app benchmark.
 
 This extends the [modeling roadmap](MODELING_ROADMAP.md#renderer-decisions).
-The production SVG model spec remains in force for the shipped artwork.
+The model spec remains in force for the shipped grid, contacts and actors.
 
-The subsequent [character/pet review](CHARACTER_PET_REVIEW.md) preserves the cute
+The subsequent [character/pet review](../../CHARACTER_PET_REVIEW.md) preserves the cute
 production SVGs, refines the two 3D starter residents, groups source into
 `src/models/` and `src/viewer/`, and records full application stability checks.

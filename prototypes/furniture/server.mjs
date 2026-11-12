@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const references = {
   '/reference.jpg': fileURLToPath(new URL('../../docs/inpso/ss_11568adac20d4baea389a2e0a1c85137ff403955.1920x1080.jpg', import.meta.url)),
-  '/current.webp': fileURLToPath(new URL('../../docs/model-review/furniture-cohesion.webp', import.meta.url)),
+  '/game.webp': fileURLToPath(new URL('../../docs/screenshots/01-loft-night.webp', import.meta.url)),
 };
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };

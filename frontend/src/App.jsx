@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { CatalogModelStatus } from './components/IsoCatalogModel';
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Sofa, X } from "lucide-react";
 import {
@@ -127,6 +128,7 @@ export default function App() {
     removeIsoItem,
     rotateIsoItem,
     setIsoItemTint,
+    setIsoItemDecor,
     toggleIsoItem,
   } = useRoomStore();
   const { character } = useProfileStore();
@@ -435,6 +437,7 @@ export default function App() {
                 onRemoveItem={removeIsoItem}
                 onRotateItem={rotateIsoItem}
                 onTintItem={setIsoItemTint}
+                onDecorItem={setIsoItemDecor}
                 onToggleItem={toggleIsoItem}
                 personas={homeScene.personas}
                 friendship={friendship}
@@ -695,6 +698,7 @@ export default function App() {
         </div>
       </div>
 
+      <CatalogModelStatus />
     </div>
   );
 }

@@ -4,7 +4,7 @@ Targeted review of `dev` at `8cc9381`, with existing documentation changes
 preserved. The review uses the focused engineering and structural criteria
 developed for the new skills: concrete impact, bounded remedies and relevant
 verification. TaskNook's own skill folders remain proposed in
-[the assessment](../AGENT_SKILLS.md); the installed adaptations are in the
+[the assessment](../../.agents/SKILLS.md); the installed adaptations are in the
 other two projects.
 
 This pass examined frontend save/refresh ownership, challenges and XP, relevant

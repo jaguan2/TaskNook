@@ -4,6 +4,9 @@ The [generated migration ledger](CATALOG_3D_MIGRATION.md) is the item-by-item
 coverage record. It follows the live catalog's section order and lists each
 authored GLB, triangle count and byte size. Export coverage is separate from
 shipping-renderer integration. No catalog key or saved room is renamed.
+The [November 12 production integration](ROOM_MODEL_INTEGRATION.md) now uses
+all 179 furniture/prop exports in the isometric game, while preserving the
+five customized SVG actor types.
 
 ## Authoring
 
@@ -13,7 +16,7 @@ organic structures: joined timber, hollow vessels, curved cloth, rooted leaves,
 closed shells and supported light sources. Unknown keys throw; they never
 silently receive a generic box or another item's model.
 
-Models use X/Z on the floor, Y up and +Z forward. Origins are centred within
+Models use X/Z on the floor and Y up. Most fronts face +Z; loungers and hammocks declare their native +X direction. Origins are centred within
 the existing tile footprint. Catalog seat/surface heights and interaction
 metadata are retained separately from authored physical heights. Wall assets
 have a local mounting back and are reviewed separately from room elevation.
@@ -106,3 +109,15 @@ review. Only recognised regular files in that owned directory are removed.
 Never remove another task's outputs or the owner's unrelated outgoing changes.
 QA closes its own browser/server. Manual preview servers must be stopped when
 review is finished. No commit or push is performed automatically.
+
+## November 12 composition and shelf refinement
+
+This follow-up keeps the original construction workflow and adjusts the result at actual game scale. Revised exports are `armchair`, `chair`, `deskchair`, `bookshelf`, `bookcase`, `shelf`, `ladder`, `wallshelf`, `plantshelf`, `plant` and `terrarium`. The section ledger remains the full 184-piece coverage record.
+
+Chair backs are shorter while seat anchors stay fixed. Books have clearer cover colours. Nursery stock has larger, varied ceramic pots and fuller leaves, with foliage hues that remain readable in the room lighting. The Loft composition removes its floating side cabinet and shifts its workstation chair along the desk bay.
+
+Shelves export names for their support boards and removable stock. The game offers per-placement contents using actual catalog book/plant meshes, fitted to those supports. Choice validation, persistent save flow, resource ownership and compatibility are documented in the [integration guide](ROOM_MODEL_INTEGRATION.md) and [codebase guide](CODEBASE_GUIDE.md).
+
+Historical SVG furniture reports/images and the early physical-lighting prototype are preserved under [the modelling archive](archive/modeling/README.md). Current character/pet SVGs and runtime error fallbacks remain supported; they are not obsolete furniture references.
+
+The [direction and layout audit](ROOM_LAYOUT_DIRECTIONS.md) records the later four-facing integration, native axes, reclined occupant calibration and seating/upholstery rules.

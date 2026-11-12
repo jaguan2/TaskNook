@@ -67,12 +67,11 @@ The screen has an ownership map — respect it:
   same falloff shape rather than a fixed blob. It stacks with the wall-base
   occlusion: together they say "this is a room with air in it", which no amount
   of per-sprite detail can.
-- **When the presets have no room, put it in the ENV.** The Reading room and
-  Study hall had nothing above eye level, but both are shelved wall to wall —
-  there is no free run to hang a pendant in without evicting furniture. The
-  fix was one line: `library` was the only indoor env without `lights`. An env
-  flag dresses every room built on it, present and future, and can't collide
-  with a placement. Reach for the env before editing a preset.
+- **Ambient dressing belongs in the environment.** The library environment
+  owns lights above bookcases and desks. An environment flag dresses each room
+  using it without consuming floor space. Personal presets should contain a
+  few purposeful furniture groups, with the floor fitted around them; larger
+  common places retain space for groups. See [room composition](ROOM_LAYOUT_COMPOSITION.md).
 - **Detail belongs in the shared helper before the individual sprite.** Ninety
   pieces are built from a handful of primitives, so one edit there raises the
   whole catalog and keeps it consistent — an over-detailed bookshelf beside
@@ -697,3 +696,9 @@ chair, because a preview that lies is worse than no preview.
 - [ ] Any new animation added to the `data-motion="reduced"` list?
 - [ ] Does every way it can refuse say so (toast), rather than doing nothing?
 - [ ] Screenshot-reviewed at 1440×900 AND a short window (~1150×720)?
+
+## Furniture facing and group composition
+
+Compose each conversation or dining group around its actual table. Opposing and adjacent seats turn toward the same activity; edge shelves open into the usable room, and scenic benches face their view. A room's couches share a default upholstery, with independent manual recolouring available. New couches inherit existing upholstery at creation.
+
+Direction is stored in `rot`, preserved across saves, and rendered from the model's real geometry. Occupants follow that same direction, including native X-axis recliners and hammocks. See [the direction contract and layout audit](ROOM_LAYOUT_DIRECTIONS.md) before editing a preset or common place.

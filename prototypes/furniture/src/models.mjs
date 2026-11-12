@@ -111,7 +111,8 @@ function seating(root, spec, seats) {
     const pad = rounded(root, `seat-cushion-${i + 1}`, [cushionWidth, .145, .59], [x, 0, .052], cloth, .065, true);
     pad.geometry.computeBoundingBox();
     pad.position.y = seat - pad.geometry.boundingBox.max.y;
-    const back = rounded(root, `back-cushion-${i + 1}`, [cushionWidth + .008, .51, .15], [x, seat + .255 - .025, -.225], cloth, .065, true);
+    const backHeight = Math.min(.51, height - seat - .04);
+    const back = rounded(root, `back-cushion-${i + 1}`, [cushionWidth + .008, backHeight, .15], [x, seat + backHeight / 2 - .025, -.225], cloth, .065, true);
     back.rotation.x = -.105;
   }
 }
@@ -227,6 +228,16 @@ export function createFurniture(key) {
   else if (SEATING_BUILDERS[key]) SEATING_BUILDERS[key](root, spec);
   else if (key === 'sofa' || key === 'armchair') seating(root, spec, key === 'sofa' ? 2 : 1);
   else throw new Error(`No authored model for ${key}`);
+  // Boards and removable contents are named in the exported GLB. The game
+  // uses their real bounds to stock each shelf without floating decorations.
+  const shelfBoards = {
+    bookshelf: ['supported-shelf-0', 'supported-shelf-1', 'supported-shelf-2', 'supported-shelf-3'],
+    bookcase: ['supported-shelf-0', 'supported-shelf-1', 'supported-shelf-2'],
+    shelf: ['supported-shelf-0', 'supported-shelf-1', 'supported-shelf-2'],
+    ladder: ['tapered-depth-shelf-0', 'tapered-depth-shelf-1', 'tapered-depth-shelf-2'],
+    wallshelf: ['shelf-board'], plantshelf: ['tray-0', 'tray-1', 'tray-2'],
+  }[key];
+  if (shelfBoards) root.userData.shelfDecor = { boards: shelfBoards, parts: (root.userData.contents || []).flatMap(content => content.parts) };
   if (spec.seat != null) root.userData.seatAnchor = [spec.contact?.x || 0, spec.seat, 0];
   if (spec.tintable === false) root.traverse(node => { if (node.isMesh) node.material.userData.fixedPalette = true; });
   root.updateMatrixWorld(true);

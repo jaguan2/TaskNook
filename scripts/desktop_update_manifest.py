@@ -19,6 +19,9 @@ SOURCE_PATHS = (
     "frontend/package.json",
     "frontend/package-lock.json",
     "frontend/vite.config.js",
+    "frontend/scripts/catalog-model-assets.mjs",
+    "prototypes/furniture/assets/manifest.json",
+    "prototypes/furniture/src/viewer/illustrated-style.mjs",
     "scripts/desktop_package.py",
     "scripts/desktop_update_manifest.py",
 )
@@ -30,6 +33,7 @@ SOURCE_GLOBS = (
     "backend/migrations/*.mako",
     "backend/migrations/versions/*.py",
     "frontend/dist/**/*",
+    "prototypes/furniture/assets/*.glb",
 )
 TEXT_SUFFIXES = {
     ".bat", ".css", ".html", ".ini", ".js", ".json", ".mako",

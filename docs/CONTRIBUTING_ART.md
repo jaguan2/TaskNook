@@ -7,6 +7,11 @@ page gives you the coordinate system, the entry format, and the review loop.
 
 ## The loop
 
+Furniture now follows the [GLB authoring and live-game review loop](ROOM_MODEL_INTEGRATION.md).
+The SVG workflow here remains the character/pet workflow and a way to inspect
+the earlier furniture drawings used for fallback/comparison. Review current
+furniture in the actual app and the standalone model workshop.
+
 Profile → Looks offers standing, seated and back previews of every complete
 outfit before applying it. Switching preview views does not change the
 character; applying a look preserves the current skin tone, eye color and eye

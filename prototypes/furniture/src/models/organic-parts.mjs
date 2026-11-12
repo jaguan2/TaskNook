@@ -41,7 +41,7 @@ export function pot(root, name, x, z, bottom, radius, height, paint, support) {
 }
 
 export function sprig(root, name, soil, tip, spread, count = 5, split = false) {
-  const stemPaint = material('stems', '#73845c'), foliage = material('foliage', '#7c9270');
+  const stemPaint = material('stems', '#73845c'), foliage = material('foliage', '#6f9f62');
   const origin = [soil.x, soil.y - .012, soil.z], stem = beam(root, `${name}-rooted-stem`, origin, tip, .009, stemPaint);
   joint(root, stem, soil.soil, [soil.x, soil.y - .009, soil.z]);
   for (let i = 0; i < count; i++) {

@@ -1,7 +1,7 @@
 import { beam, joint, material, splayedLeg } from './geometry.mjs';
 import { board, book, bowl, folio, linenBin } from './storage-parts.mjs';
 
-const bookColors = ['#83937e', '#b08070', '#a79572', '#7c8997'];
+const bookColors = ['#6b986a', '#cf765c', '#d0a34d', '#598fa4'];
 const cover = index => material(`book-cover-${index % 4}`, bookColors[index % 4]);
 
 function shelfCase(root, spec, levels) {

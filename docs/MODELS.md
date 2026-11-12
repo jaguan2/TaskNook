@@ -1,6 +1,14 @@
+> Current rendering scope: the isometric game uses 179 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Earlier art reports are in the [modelling archive](archive/modeling/README.md).
+
 # TaskNook model spec
 
-How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
+Isometric game furniture and props now render from standalone GLBs; see
+[the live integration contract](ROOM_MODEL_INTEGRATION.md). The grid, heights,
+materials, contact and silhouette rules below still apply. Ground GLBs keep all four saved directions; see [the direction contract and layout audit](ROOM_LAYOUT_DIRECTIONS.md). `ISO_SPRITES`
+continues to own customized actors and the earlier furniture drawings used
+for explicit loading/error fallback and historical comparisons.
+
+`docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
 is the authority on the *models* — the `ISO_SPRITES` registry in
 `frontend/src/components/IsoItems.jsx`, its focused `Iso*Items` family modules
@@ -197,7 +205,7 @@ repaint the bed's own duvet above the sleeper. That foreground layer is what
 makes the character look tucked in without introducing a second generic body
 or blanket model; hair, skin, body sliders and clothing remain the real saved
 look. The sleeper and cover both follow the bed's grid orientation. Other
-lie-on furniture keeps the flat pose without borrowing the bed duvet.
+lie-on furniture follows its own long axis and recline height without borrowing the bed duvet. Lying figures paint above their support; the bed's near headboard and duvet remain foreground covers.
 
 The people are not furniture and get their own numbers, in **`lib/body.js`**
 — the single home of the body's constants, half-widths, limb thicknesses and
@@ -528,10 +536,10 @@ catalog contract. Bed and sleeping foreground cover reuse one duvet drawing,
 with a thin top layer and curved hanging hems rather than a solid cuboid.
 Do not change geometry/seat anchors to compensate for a cosmetic revision.
 
-Review [the furniture family](model-review/furniture-cohesion.webp) in cream,
-dark and sage tints, front/rear seats and the bed's supported mirror views.
-The refreshed [Loft](model-review/loft-focus.webp) and
-[workstation contacts](model-review/workstation-contact.webp) use these models.
+Current furniture references: [catalog sheets](model-review/catalog-3d/README.md),
+[Loft workstation](model-review/loft-focus.webp) and
+[front/rear seating contacts](model-review/README.md). Earlier SVG construction
+comparisons are preserved in the [modelling archive](archive/modeling/README.md).
 
 ## Pet size, form and growth
 

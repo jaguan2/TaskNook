@@ -1,3 +1,4 @@
+import { furnitureFacing } from "./furnitureFacing";
 import { project } from "./iso";
 import { footOf, isoDepth, ISO_ITEMS, seatedPlacement, stackedPlacement, surfaceFor } from "./isoRoom";
 
@@ -41,7 +42,8 @@ export function seatedWorkTarget(person, seat, stations) {
   const rot = seat.placement.rot || 0;
   const [w, d] = footOf(person.item, person.rot);
   const centre = { gx: person.gx + w / 2, gy: person.gy + d / 2 };
-  const direction = [[0, 1], [1, 0], [0, -1], [-1, 0]][rot];
+  const facing = furnitureFacing(seat.placement);
+  const direction = [facing.gx, facing.gy];
   let best = null;
   let distance = Infinity;
   for (const station of stations.values()) {

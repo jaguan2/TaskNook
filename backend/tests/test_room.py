@@ -706,3 +706,27 @@ def test_legacy_list_config_still_readable(app, client, auth):
 
 
 # The retired unlock ledger is exercised by the migration lifecycle tests.
+
+
+@pytest.mark.parametrize("item", ["bookshelf", "bookcase", "shelf", "ladder", "wallshelf", "plantshelf"])
+def test_shelf_contents_survive_room_roundtrip(client, auth, item):
+    placement = {"id": "stock", "item": item, "gx": 1, "gy": 1,
+                 "decor": {"layout": "mixed", "bookColor": "#598FA4"}}
+    data = {"placements": [], "iso": {"w": 8, "d": 7, "placements": [placement]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0]
+    assert saved["decor"] == {"layout": "mixed", "bookColor": "#598fa4"}
+
+
+@pytest.mark.parametrize("item,decor", [
+    ("desk", {"layout": "plants"}), ("shelf", []), ("shelf", None),
+    ("shelf", {"layout": "anything"}), ("shelf", {"layout": {}}),
+    ("shelf", {"bookColor": "red"}), ("shelf", {"bookColor": 123}),
+    ("shelf", {"extra": "unbounded"}),
+])
+def test_invalid_shelf_contents_do_not_overwrite_saved_room(client, auth, item, decor):
+    assert client.put("/api/room", json={"placements": LAYOUT}, headers=auth).status_code == 200
+    data = {"placements": [], "iso": {"w": 8, "d": 7, "placements": [
+        {"id": "stock", "item": item, "gx": 1, "gy": 1, "decor": decor}]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 400
+    assert client.get("/api/room", headers=auth).get_json()["placements"] == LAYOUT

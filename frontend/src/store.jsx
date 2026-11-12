@@ -1,3 +1,4 @@
+import { cleanShelfDecor } from "./lib/shelfDecor";
 import {
   useState,
   useEffect,
@@ -548,6 +549,14 @@ export function StoreProvider({ children }) {
         return { ...p, tint };
       }),
     }));
+  }, []);
+  const setIsoItemDecor = useCallback((id, value) => {
+    setIsoRoom(prev => ({ ...prev, placements: prev.placements.map(p => {
+      if (p.id !== id) return p;
+      const decor = cleanShelfDecor(p.item, value);
+      const { decor: _previous, ...rest } = p;
+      return decor ? { ...rest, decor } : rest;
+    }) }));
   }, []);
   const toggleIsoItem = useCallback((id) => {
     setIsoRoom((prev) => ({
@@ -2648,7 +2657,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
-    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    rotateIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
     setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
@@ -2657,7 +2666,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
-    rotateIsoItem, setIsoItemTint, toggleIsoItem, setIsoSize, setIsoTile,
+    rotateIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
     setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,

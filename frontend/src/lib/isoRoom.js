@@ -1,8 +1,10 @@
+import { furnitureFacingRotation } from "./furnitureFacing";
 // The isometric room's decoration model: a resizable W×D tile floor and
 // items placed ON the grid as { id, item, gx, gy, tint? } (tile coordinates,
 // half-tile snapping). Pure data + functions; projection math lives in
 // lib/iso.js and the artwork in the components/Iso*Items modules.
 
+import { cleanShelfDecor } from "./shelfDecor";
 import { createIsoPresets } from "./isoPresets";
 import { cleanPetTraits, newPetTraits } from "./pets";
 import {
@@ -219,9 +221,10 @@ export function seatedPlacement(persona, seat) {
   const sf = footOf(seat.placement.item, seat.placement.rot);
   const pf = footOf(persona.item, persona.rot);
   const seatRot = seat.placement.rot || 0;
-  const away = seatRot >= 2;
+  const seatFacing = furnitureFacingRotation(seat.placement.item, seatRot);
+  const away = seatFacing >= 2;
   const shift = away ? -0.15 : 0.15;
-  const alongGx = seatRot % 2 === 1;
+  const alongGx = seatFacing % 2 === 1;
   return {
     gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2 + (alongGx ? shift : 0),
     gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
@@ -231,6 +234,7 @@ export function seatedPlacement(persona, seat) {
     // rotation. Soft ground has no directional backrest.
     _seatRot: seat.soft ? 0 : seatRot,
     _lie: seat.lie,
+    ...(seat.lie && { _lieFacing: seatFacing, _lieRise: ISO_ITEMS[seat.placement.item].lieRise || 0, _lieLift: ISO_ITEMS[seat.placement.item].lieLift || 0 }),
     // The renderer needs the actual lie-on furniture for its foreground
     // bedding layer. This reference exists only on the resolved render copy;
     // stored placements remain the same small JSON objects as before.
@@ -247,7 +251,9 @@ export function seatedPlacement(persona, seat) {
     // their stored `rot` describes the textile, not where a floor-sitter is
     // looking. Keep those residents welcomingly front-facing.
     _facing: seat.soft ? "front" : away ? "back" : "front",
-    _depth: isoDepth(seat.placement) + (away ? -0.01 : 0.01),
+    // Lying figures rest above the support surface. Near headboards and the
+    // duvet have their own foreground cover; a whole chair cannot cover them.
+    _depth: isoDepth(seat.placement) + (away && !seat.lie ? -0.01 : 0.01),
   };
 }
 
@@ -312,28 +318,14 @@ export function surfaceFor(placement, placements) {
 
 export const ISO_ITEM_KEYS = Object.keys(ISO_ITEMS);
 
-/** The placement's effective footprint: rot transposes it. */
-/**
- * Rotation is 0–3, quarter turns anticlockwise on the grid:
- *
- *   0 faces +gy (front-left)   1 faces +gx (front-right)
- *   2 faces −gy (back-right)   3 faces −gx (back-left)
- *
- * Only 0 and 1 come free. A screen mirror `scale(-1,1)` about the origin IS a
- * grid transpose, which is what turns 0 into 1 — but the half-turn to 2 is
- * `scale(-1,-1)`, i.e. the sprite upside down, so the away-facing pair needs
- * REAL back-view artwork. Items that ship it are marked `backView`; everything
- * else stays a two-way item and `rotationsFor` says so, which is what stops a
- * chair ever being drawn on its head.
- */
+/** Saved turns: 0 = south, 1 = east, 2 = north, 3 = west for +Z-front models.
+ * Odd turns transpose the footprint; rear turns use the GLB's actual geometry.
+ * Wall mounts and customized SVG actors keep their two supported orientations. */
 export const ROTATIONS = [0, 1, 2, 3];
 
-/** How many quarter turns this item actually has: 4 with a back view, else 2.
- *  Wall decor is always 2 — there rot picks WHICH WALL, not a facing. */
 export function rotationsFor(itemKey) {
   const item = ISO_ITEMS[itemKey];
-  if (!item || item.wall) return 2;
-  return item.backView ? 4 : 2;
+  return !item || item.wall || item.persona || item.roamer ? 2 : 4;
 }
 
 /** Coerce any stored rot into one this item can actually be drawn in. */
@@ -877,7 +869,13 @@ export function newIsoPlacement(itemKey, existing = [], size = DEFAULT_ISO_SIZE)
     if (!spot) return null; // the drawn shape has no room for this piece
     ({ gx, gy } = spot);
   }
+  // A new couch joins the room's existing upholstery by default. This is
+  // creation-only: recolouring one item never rewrites an existing layout.
+  const couch = ["sofa", "armchair"].includes(itemKey);
+  const peer = couch && (existing.find(p => p.item === "sofa") || existing.find(p => p.item === "armchair"));
+  const tint = peer?.tint && TINT_RE.test(peer.tint) ? peer.tint : undefined;
   return { id: makeId(), item: itemKey, gx: snapHalf(gx), gy: snapHalf(gy),
+    ...(tint && { tint }),
     ...(item.roamer && newPetTraits()) };
 }
 
@@ -936,9 +934,8 @@ export function validateIsoLayout(raw) {
     while (seen.has(id)) id = makeId();
     seen.add(id);
     const tint = typeof p.tint === "string" && TINT_RE.test(p.tint) ? p.tint : undefined;
-    // normalizeRot folds a half turn back to a facing this item can actually
-    // be DRAWN in — a saved rot 2 on something with no back view would
-    // otherwise render upside down. `true` is a legacy shape for rot 1.
+    // Complete ground GLBs preserve all four saved values. Wall mounts and
+    // SVG actors keep their supported pair; `true` is legacy rot 1.
     let rot = normalizeRot(p.item, p.rot === true ? 1 : p.rot);
     // Saved presets from before layout v2 placed every back-wall desk chair
     // at rot 0. That puts its backrest between the resident and a screen
@@ -1000,6 +997,7 @@ export function validateIsoLayout(raw) {
       gy,
       ...(rot && { rot }),
       ...(tint && { tint }),
+      ...(cleanShelfDecor(p.item, p.decor) && { decor: cleanShelfDecor(p.item, p.decor) }),
       ...(name && { name }),
       ...(temper && { temper }),
       ...(look && { look }),

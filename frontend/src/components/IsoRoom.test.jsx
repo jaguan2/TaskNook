@@ -8,6 +8,8 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import IsoRoom from "./IsoRoom";
 import { WALL_H, project } from "../lib/iso";
 import { npcActivity, resolveVisitRoom } from "../lib/visiting";
+import { footOf } from "../lib/isoRoom";
+import { furnitureFacingRotation } from "../lib/furnitureFacing";
 import { validateCharacter } from "../lib/profile";
 
 afterEach(() => {
@@ -501,4 +503,28 @@ describe("IsoRoom at home — walking your own island", () => {
     expect(resident.querySelector('[data-resident-pose="lying"]')).not.toBeNull();
     expect(resident.querySelector('[data-bed-tuck-cover="true"]')).toBeNull();
   });
+});
+
+
+describe("lying furniture directions", () => {
+  for (const item of ["bed", "sunlounger", "hammock"]) for (const rot of [0, 1, 2, 3]) {
+    it(`keeps the sleeper aligned with ${item} at turn ${rot}`, () => {
+      const [w, d] = footOf(item, rot);
+      const placements = [
+        { id: "support", item, gx: 2, gy: 2, rot },
+        { id: "sleeper", item: "resident", gx: 2 + (w - .8) / 2, gy: 2 + (d - .8) / 2 },
+      ];
+      const { container } = render(<IsoRoom size={{ w: 9, d: 8 }} placements={placements} saveView={false} />);
+      const facing = furnitureFacingRotation(item, rot);
+      const person = container.querySelector('[data-placement-id="sleeper"]');
+      const pose = person.querySelector('[data-resident-pose="lying"]');
+      const support = container.querySelector('[data-placement-id="support"]');
+      expect(support.compareDocumentPosition(person)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(pose).not.toBeNull();
+      expect(pose.getAttribute("data-lying-rise")).toBe(item === "sunlounger" ? "14" : "0");
+      expect(pose.getAttribute("data-lying-reversed")).toBe(facing >= 2 ? "true" : "false");
+      expect(!!pose.closest('g[transform="scale(-1,1)"]')).toBe(facing % 2 === 1);
+      expect(person.querySelectorAll('[data-bed-tuck-cover]')).toHaveLength(item === "bed" ? 1 : 0);
+    });
+  }
 });

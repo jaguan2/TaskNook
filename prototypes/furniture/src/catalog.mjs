@@ -70,9 +70,9 @@ const descriptions = {
 const contact = (height, z, x = 0) => ({ seatHeight: height, x, z });
 const ready = {
   sofa: { height: 42, contact: contact(22, .395, -.4235) },
-  armchair: { height: 42, contact: contact(22, .395) },
-  chair: { height: 46, contact: contact(19, .335) },
-  deskchair: { height: 50, contact: contact(24, .34) },
+  armchair: { height: 38, contact: contact(22, .395) },
+  chair: { height: 40, contact: contact(19, .335) },
+  deskchair: { height: 44, contact: contact(24, .34) },
   stool: { height: 20, contact: contact(20, .425) },
   woodstool: { height: 19, colorRole: 'finish', defaultColor: '#b08a61', contact: contact(19, .37) },
   beanbag: { height: 26 },
@@ -134,7 +134,7 @@ const ready = {
 export const FURNITURE = Object.fromEntries(Object.entries({ ...ready, ...ADDITIONAL_DESIGNS }).map(([key, design]) => {
   const item = ISO_ITEMS[key], group = ISO_ITEM_GROUPS.find(group => group.keys.includes(key));
   return [key, { label: item.label, width: item.foot[0], depth: item.foot[1], height: design.height / PIXELS_PER_UNIT,
-    controlHeight: item.hitH, ...(item.seat != null && { seat: item.seat / PIXELS_PER_UNIT }),
+    controlHeight: item.hitH, ...(item.forward && { forward: item.forward }), ...(item.seat != null && { seat: item.seat / PIXELS_PER_UNIT }),
     ...(item.layer != null && { layer: item.layer }), ...(item.softSeat && { softSeat: true }),
     ...(item.tintable === false && { tintable: false }),
     ...(item.stacks && { stacks: true }), ...(item.flicker && { flicker: true }), ...(item.glow && { glow: item.glow }),

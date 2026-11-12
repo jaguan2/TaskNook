@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import ShelfDecorControls from "./ShelfDecorControls";
+import { SHELF_ITEMS } from "../lib/shelfDecor";
 import { hexToHsl, hslToHex, normalizeHex } from "../lib/palette";
 import { ITEMS, TINT_SWATCHES } from "../lib/room";
 // Catalog-agnostic: callers may pass the catalog entry via the `item` prop
@@ -30,7 +32,7 @@ function Slider({ label, min, max, value, onChange, track }) {
   );
 }
 
-// Modelled (PNG) furniture comes in a fixed set of pre-shaded colourways
+// Some flat-room furniture has a fixed set of pre-shaded colourways
 // instead of free tinting — a swatch is a whole recoloured render, so the
 // shading always stays right. The hex IS the stored tint. A separate
 // component (not an early return above the full picker's hooks): the two
@@ -70,7 +72,7 @@ function VariantPicker({ placement, item, onTint }) {
   );
 }
 
-export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
+export default function RoomTintPicker({ placement, item: itemProp, onTint, onDecor, onClose }) {
   const item = itemProp || ITEMS[placement.item];
   // A placement whose catalog entry no longer exists (renamed or removed item)
   // must not take the whole app down — the scenes already skip unknown items.
@@ -78,10 +80,10 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint }) {
   if (item.variants) {
     return <VariantPicker placement={placement} item={item} onTint={onTint} />;
   }
-  return <FullTintPicker placement={placement} item={item} onTint={onTint} />;
+  return <FullTintPicker placement={placement} item={item} onTint={onTint} onDecor={onDecor} onClose={onClose} />;
 }
 
-function FullTintPicker({ placement, item, onTint }) {
+function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
   const active = placement.tint || null;
   // Slider positions are LOCAL STATE, not re-derived from the committed hex on
   // every render. Deriving them was a dead end at both extremes: drag Lightness
@@ -124,7 +126,8 @@ function FullTintPicker({ placement, item, onTint }) {
     // Bottom-centre: guaranteed clear while decorating — the focus timer that
     // normally lives there steps aside in edit mode, and the dock (viewport
     // left) stays untouched.
-    <div className="room-tint-picker glass absolute left-1/2 z-20 w-60 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
+    <div className="room-tint-picker glass absolute left-1/2 z-20 w-60 -translate-x-1/2 max-h-[65vh] overflow-y-auto space-y-2 rounded-2xl p-3 shadow-soft">
+      {onClose && <button type="button" aria-label="Close item customizer" className="float-right text-xs text-petal" onClick={onClose}>Close</button>}
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
         <button
@@ -136,7 +139,9 @@ function FullTintPicker({ placement, item, onTint }) {
         </button>
       </div>
 
-      {/* quick picks */}
+      {onDecor && SHELF_ITEMS.includes(placement.item) && <ShelfDecorControls placement={placement} onDecor={onDecor} />}
+
+      {/* Finish colour */}
       <div className="flex items-center gap-1.5">
         {TINT_SWATCHES.map((color) => (
           <button

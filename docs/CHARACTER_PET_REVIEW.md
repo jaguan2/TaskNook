@@ -1,5 +1,9 @@
 # Character and pet review — November 11, 2026
 
+November 12: [game furniture integration](ROOM_MODEL_INTEGRATION.md) is now
+implemented. The customized SVG actors reviewed here remain the production
+characters and pets; the 179 props use their GLBs.
+
 The production baby, medium (the `teen` stage) and adult pets retain their
 existing cute, rounded artwork. The resident SVG defaults and sampled body
 extremes also retain their existing faces, wardrobe and proportions. The 3D
@@ -47,7 +51,7 @@ silently replaced by these isolated GLBs.
 - `prototypes/furniture/src/models/` owns model families and geometry helpers.
 - `prototypes/furniture/src/viewer/` owns the browser entry, materials, rooms,
   calibration and CSS. `src/models.mjs` remains the authoring entry point.
-- `docs/model-review/catalog-3d/` groups the 26 retained 3D section/room/calibration
+- `docs/model-review/catalog-3d/` groups the 25 retained 3D section/room/calibration
   images, with its own [index](model-review/catalog-3d/README.md).
 - `docs/model-review/characters-and-pets/` holds the five focused source-art sheets.
 

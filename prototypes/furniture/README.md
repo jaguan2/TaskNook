@@ -6,6 +6,11 @@ are real, independently loadable models, generated from editable mesh source.
 They can be imported into Blender or another glTF-compatible editor. Blender
 is not required to regenerate them: the authoring scripts use Three.js.
 
+Since November 12, the 179 furniture/prop exports also power the actual
+isometric game. See [live room integration](../../docs/ROOM_MODEL_INTEGRATION.md).
+Customized people/pets keep their existing SVG rigs; the five living GLBs
+remain standalone starter-rig studies.
+
 From this directory, with Node 20:
 
 ```powershell
@@ -130,9 +135,10 @@ are removed when regenerating.
 - `tests/`: topology, physical contact, catalog dimensions, source/export parity
   and the read-only local server boundary.
 
-This directory is outside the shipping frontend and desktop packaging inputs.
-It does not replace SVG room furniture. See the [design and verification
-report](../../docs/FURNITURE_3D_PROTOTYPE.md) for scope and integration work.
+The production build consumes this directory's exported prop GLBs and shared
+illustrated palette. They are desktop build inputs; the workshop server/UI
+is not shipped. See [live integration](../../docs/ROOM_MODEL_INTEGRATION.md)
+for the actual game renderer, compatibility and verification.
 
 The [catalog migration tracker](../../docs/CATALOG_3D_MIGRATION.md) is generated
 by `npm.cmd run models`. It tracks export coverage; QA evidence and production
@@ -142,3 +148,5 @@ construction, retained evidence and reproducible review steps.
 Ponds and the trail preserve their fixed catalog palettes. Floor-layer and
 soft-seat metadata are retained, but the workshop does not implement production
 floor-sitting, pet occupancy, swimming or water animation.
+
+Current game behavior and rendering ownership are described in the [live integration guide](../../docs/ROOM_MODEL_INTEGRATION.md) and [codebase guide](../../docs/CODEBASE_GUIDE.md). Earlier experiments are preserved in the [modelling archive](../../docs/archive/modeling/README.md).
