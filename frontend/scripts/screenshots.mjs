@@ -294,21 +294,35 @@ function makePage(cdp) {
     return evaluate(`document.querySelector('[data-common-person="you"]')?.getAttribute('data-seat')`);
   };
 
-  /** Carry the home profile character to a catalog item using the real pointer
-   * path. The item's placement origin is a valid point inside a bed and makes
-   * this exercise the same cursor-anchored landing rule as a hand drag. */
+  /** Carry the home profile character to the centre of its actual landing
+   * highlight. The cursor chooses the footprint centre, not its origin. */
   const dragSelfToItem = async (item) => {
     const from = await screenPoint('[data-item="you"]', "visible");
-    const to = await screenPoint(`[data-item="${item}"]`, "origin");
-    const before = await evaluate(`({
-      cursor: document.querySelector('[data-item="you"]')?.style.cursor || null,
-      from: ${JSON.stringify(from)},
-      to: ${JSON.stringify(to)}
-    })`);
+    const cursor = await evaluate(`document.querySelector('[data-item="you"]')?.style.cursor || null`);
     await send("Input.dispatchMouseEvent", {
       type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1,
     });
     await sleep(150);
+    const to = await evaluate(`(async () => {
+      const node = document.querySelector(${JSON.stringify(`[data-item="${item}"]`)});
+      if (!node) throw new Error('Landing item missing');
+      const origin = new DOMPoint(0, 0).matrixTransform(node.getScreenCTM());
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const glow = [...document.querySelectorAll('polygon.room-breathe[fill="#ffe9b0"][stroke="#ffe9b0"]')].find(polygon => {
+          const point = polygon.points.getItem(0);
+          const screen = new DOMPoint(point.x, point.y).matrixTransform(polygon.getScreenCTM());
+          return Math.hypot(screen.x - origin.x, screen.y - origin.y) < 1;
+        });
+        if (glow) {
+          const box = glow.getBBox();
+          const point = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(glow.getScreenCTM());
+          return { x: point.x, y: point.y };
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error('Landing highlight missing');
+    })()`);
+    const before = { cursor, from, to };
     await send("Input.dispatchMouseEvent", {
       type: "mouseMoved", x: to.x, y: to.y, button: "left", buttons: 1,
     });
@@ -745,6 +759,7 @@ async function main() {
     await page.setStorage(ambient({ weather: "off", time: "sunset" }));
     await page.load();
     await page.clickText("Friends", { exact: true });
+    await page.clickText("Places", { exact: true });
     const joined = await page.clickText("Common Cottage");
     if (joined !== "ok") throw new Error("Common Cottage entry: " + joined);
     await sleep(2500);
@@ -785,6 +800,7 @@ async function main() {
       await page.setStorage(ambient({ weather: "off", time: "sunset" }));
       await page.load();
       await page.clickText("Friends", { exact: true });
+      await page.clickText("Places", { exact: true });
       if (await page.clickText("Willow Pond") !== "ok") throw new Error("Willow Pond sunset entry failed");
       await sleep(2500);
       await page.shot(join(OUT_DIR, "43-willow-pond.webp"));
@@ -793,6 +809,7 @@ async function main() {
       await page.setStorage(ambient({ weather: "off", time: "night" }));
       await page.load();
       await page.clickText("Friends", { exact: true });
+      await page.clickText("Places", { exact: true });
       if (await page.clickText("Willow Pond") !== "ok") throw new Error("Willow Pond night entry failed");
       await sleep(2500);
       await page.clickText("Drag and drop to change seats");
@@ -806,6 +823,7 @@ async function main() {
     await page.setStorage(ambient({ weather: "off", time: "night" }));
     await page.load();
     await page.clickText("Friends", { exact: true });
+    await page.clickText("Places", { exact: true });
     if (await page.clickText("Grand Library") !== "ok") throw new Error("Grand Library entry failed");
     await sleep(2500);
     if (want("48")) await page.shot(join(OUT_DIR, "48-grand-library.webp"));
@@ -899,7 +917,7 @@ async function main() {
     await page.clickText("Profile", { exact: true });
     await page.evaluate(`(async () => {
       for (let i = 0; i < 40; i++) {
-        const card = document.querySelector('[aria-label="Your level"]');
+        const card = document.querySelector('[aria-label="Your progress"]');
         if (card) { card.querySelector('details').open = true; return; }
         await new Promise(resolve => setTimeout(resolve, 100));
       }

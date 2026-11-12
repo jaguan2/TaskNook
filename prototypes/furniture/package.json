@@ -1,0 +1,17 @@
+{
+  "name": "tasknook-furniture-prototype",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20 <21" },
+  "scripts": {
+    "models": "node scripts/export.mjs",
+    "characters": "node scripts/export-characters.mjs",
+    "test": "node --test tests",
+    "preview": "node server.mjs",
+    "qa": "node scripts/browser-qa.mjs",
+    "qa:source-art": "node scripts/review-source-characters.mjs",
+    "qa:clean": "node scripts/cleanup-qa.mjs"
+  },
+  "dependencies": { "three": "0.187.0" },
+  "devDependencies": { "@playwright/test": "1.64.0", "gltf-validator": "2.0.0-dev.3.10" }
+}

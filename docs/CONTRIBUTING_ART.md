@@ -167,3 +167,12 @@ omits its behind-body `length` only in an unhatted rear view. This prevents
 the torso from cutting through hair that should lie over the back. Keep the
 full rear silhouette inside the head group so recolours and gestures stay
 attached. Hatted views still use the separate length under the hat.
+## Focused pet and resident review
+
+After installing the frontend and standalone workshop dependencies, run
+`npm.cmd run qa:source-art` from `prototypes/furniture/`. It regenerates the
+production art and checks all three pet growth stages, body forms and five poses
+for clipping and age proportions. It writes focused pet/resident PNG sheets and
+JSON evidence under ignored `build/skill-verification/character-pet-review/`.
+Use `FURNITURE_BROWSER_CHANNEL=chrome` to select installed Chrome. Inspect the
+actual images as well as the numeric checks; those checks cannot approve art.

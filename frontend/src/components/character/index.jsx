@@ -69,6 +69,7 @@ export function Resident({
   // A rug can override this to the cross-legged floor pose. Otherwise the
   // character's saved sitting style supplies their chair personality.
   seatPose = null,
+  workTarget = null,
   // What the timer is doing: "focus" | "break" | null. One string rather than a
   // pair of booleans, because the states are mutually exclusive and two flags
   // can be set at once; it also still changes rarely, which is what the memo'd
@@ -780,7 +781,8 @@ export function Resident({
               an arm reaching overhead while the legs scissor reads as a glitch,
               and both animations would be fighting the swing below. */}
           <g className={typing || moving || held || lap ? undefined : "gesture-stretch"}>
-            <g className={typing ? "resident-type" : undefined}>
+            <g className={typing ? "resident-type" : undefined}
+              style={typing && workTarget ? { "--type-lift": "0.45px" } : undefined}>
               {/* The FAR arm carries leg B's clock, so it opposes the far leg
                   (which is A) — contralateral swing, the thing that separates
                   walking from being wheeled along. */}
@@ -790,6 +792,7 @@ export function Resident({
                     AT the joint and the forearm shows as skin. */}
                 <Arm
                   side={-1}
+                  reach={typing ? workTarget?.hands[0] : null}
                   lap={lap}
                   sh={sh}
                   armW={armW}
@@ -813,6 +816,7 @@ export function Resident({
               <g style={hangLimb(held, 8)}>
                 <Arm
                   side={1}
+                  reach={typing ? workTarget?.hands[1] : null}
                   lap={lap}
                   sh={sh}
                   armW={armW}

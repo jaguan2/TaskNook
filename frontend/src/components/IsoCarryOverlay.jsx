@@ -4,13 +4,13 @@ import { ISO_ITEMS, footOf, seatFor } from "../lib/isoRoom";
 import { ISO_SPRITES } from "./IsoItems";
 import PersonaNameTag from "./PersonaNameTag";
 
-function HeldFigure({ walk, character, personaInfo, label, friendship }) {
+function HeldFigure({ walk, pet, petNow, character, personaInfo, label, friendship }) {
   if (!walk) return null;
   const item = ISO_ITEMS[walk.item];
   const Sprite = ISO_SPRITES[walk.item];
   if (!item || !Sprite) return null;
   const sprite = (
-    <Sprite held character={item.self ? character : personaInfo?.character} look={walk.look} />
+    <Sprite held pet={pet} now={petNow} character={item.self ? character : personaInfo?.character} look={walk.look} />
   );
   const bond = personaInfo?.npcUsername
     ? levelFor(friendship?.[personaInfo.npcUsername] || 0)
@@ -44,6 +44,7 @@ export default function IsoCarryOverlay({
   character,
   personas,
   friendship,
+  petNow,
 }) {
   if (!target) return null;
   const carried = placements.find((placement) => placement.id === target.id);
@@ -91,6 +92,8 @@ export default function IsoCarryOverlay({
         }}
       >
         <HeldFigure
+          pet={carried}
+          petNow={petNow}
           walk={walk}
           character={character}
           personaInfo={personas ? personas[target.id] : null}

@@ -1,7 +1,7 @@
 # Catalog and resident modeling review
 
-This records the October 4 catalog/seating work and its October 6 stability
-follow-up. Comparison images are review snapshots. The later character
+This records catalog/seating work and its later alignment follow-ups.
+Comparison images are dated review snapshots. The later character
 baseline is documented in [the model spec](MODELS.md) and
 [the archived handoff](archive/HANDOFF-2026-10-06.md); remaining work lives in
 [the modeling roadmap](MODELING_ROADMAP.md).
@@ -10,6 +10,167 @@ The main gap from the Virtual Cottage 2 references is the design of each
 object: physical construction, distinct silhouettes, layered materials and
 characters convincingly settled into furniture. Better colours and more
 particles help the atmosphere but cannot replace that work.
+
+## Pet anatomy and furniture joins — November 11, 2026
+
+Follow-up visual review with a second Codex session found specific geometry
+problems that the earlier miniature family sheet had concealed: raised arm
+ends above rear chair backs, a uniformly thick duvet block, frontal pet faces
+on profile bodies, rabbits without distinct rear/held views and body-form
+transforms distorting faces.
+
+- Armchair/sofa backs now use real projected thickness, at 42px, with lower
+  27px arms terminating inside the hull. Seat heights stay 22px. Their edit
+  control height follows the revised back; enlarged individual fixtures and
+  rendered rear-crown clearance tests cover these joins.
+- Bed covers have a thin top and curved hanging hems. The occupied repaint
+  shares that drawing and still covers the existing sleeping plane.
+- Pet bodies use connected outlines with clipped coat marks. Cats and dogs
+  have dedicated profile muzzles and one profile eye; rabbits have distinct
+  profile, rear and carried drawings with ears attached to the whole head.
+- Body forms affect the torso. Face/ear proportions stay independent; corgis
+  retain short legs when turning. Visible front paw tips stay outside the
+  slight upward torso motion. Carried poses are more compact.
+
+The second session implemented furniture geometry and independently reviewed
+the pet rewrite, identifying the short-leg, motion and paw-visibility fixes.
+The full stage/form set and cream/dark/sage furniture were reviewed at enlarged
+scale, followed by the actual built room, sleeping cover and pet carrying at
+1600×1000 and the room at 900×640. Captures:
+[furniture](model-review/furniture-cohesion.webp),
+[cats](model-review/cat-growth.webp), [dogs](model-review/dog-growth.webp),
+[rabbits](model-review/bunny-growth.webp),
+[occupied bed](model-review/occupied-bed.webp),
+[carried pet](model-review/carried-pet.webp).
+
+Saved layouts and growth metadata keep their existing formats. This pass
+changes the drawing and Profile thumbnail framing, with no persistence or
+database schema changes. Evidence is under ignored
+`build/skill-verification/model-revision-2026-11-10/` (the work began November 10).
+
+Validation: **1,525 frontend tests passed**, one opt-in art test skipped;
+relevant component checks passed again after final silhouette/framing changes.
+Lint and production build passed; art generation produced 1,111 fixtures.
+The screenshot regression initially flagged the intended model changes; its
+reference was inspected and regenerated without increasing the tolerance.
+Main-channel desktop build: `976528c752d3475f8e29339229dfea15`.
+
+## Furniture cohesion and park wildlife — November 10, 2026
+
+The furniture-history comparison found that the October 4 upholstered pass
+introduced long exposed timber legs and separated cushions, weakening the
+earlier compact joined silhouette. The revision brings back a joined hull and
+short feet while retaining soft panels and readable cloth construction.
+Armchairs, sofas, dining chairs, desk chairs and beds now live together in
+`IsoSeatingItems.jsx`; the catalog registry and public bed-cover export stay
+compatible. Seat/mattress anchors remain unchanged. Dining cushion artwork is
+corrected from 20.5px to its existing 19px catalog seat height.
+
+The second Codex session implemented this furniture pass, tested the drawn
+cushion heights and shared bed cover, and reviewed cream/dark/sage and seated
+body extremes. The final built Loft was checked at 1600×1000 and 900×640;
+the live focus capture and workstation contact sheet below were refreshed again
+after the furniture revision. [Furniture family](model-review/furniture-cohesion.webp).
+
+Willow Pond now has two authored ducks with separate swimming and walking
+poses. One swims a closed route; the other leaves the southwest bank, walks
+onto the visible lawn and returns. Route, facing and pose use synchronized
+browser keyframes, without per-frame React updates or JavaScript animation
+timers. Reduced motion stays still and widget pause preserves the route phase.
+The second agent independently reviewed this animation/layering boundary.
+
+The real-room pass caught a landing route hidden by the bench; the final path
+extends into visible lawn while clearing seats. Browser tests sample swim
+positions against the actual SVG water fill, check dry-land travel and reduced
+motion, and verify home data stays unchanged. Captures:
+[swimming](model-review/willow-swim.webp), [on land](model-review/willow-shore.webp).
+
+Final combined validation: **1,511 frontend tests passed**, one opt-in art test
+skipped; **102 backend room tests and 21 desktop packaging tests passed**;
+lint, production build and all **18 browser tests passed**. The final route
+adjustment also passed its targeted continuity/clearance tests. Art generation
+produced 1,087 fixtures. Main-channel desktop build identity:
+`e7ba0c9c3ab1477098d0da2b286ff752`. Verification evidence is under ignored
+`build/skill-verification/models-wildlife-2026-11-10/`, with earlier pet/backend
+evidence under `pets-2026-11-10/` and furniture fixtures under `models-2026-11-10/`.
+The EXE/manifest source identity and hash verify; the isolated frozen startup
+self-test exited 0. No native widget behaviour change was made or claimed tested.
+
+## Pet growth and proportions — November 10, 2026
+
+New adoptions now have a stable random adult size and natural, slender or round
+form. Baby pets become teens after two days and adults after seven total days.
+Profile allows adjusting size/form, selecting a stage, and pausing or resuming
+growth without losing elapsed age. Offline time counts for growing pets;
+legacy pets remain adults with their established size.
+
+The domain rules live in `lib/pets.js`. One deadline per room updates stage
+boundaries, with focus/visibility catch-up; Profile additionally refreshes its
+countdown labels each minute. Room JSON stores each pet's traits and elapsed
+age, with bounded backend validation. SVG scaling keeps the existing ground
+anchor and footprint, and younger heads use consistent proportions in each
+supported pose, including carrying.
+
+The second Codex agent implemented and tested backend persistence validation,
+then independently reviewed the frontend lifecycle and rendering paths. That
+review found missing young-head proportions in rear cat/dog and sleeping rabbit
+artwork; those assemblies now follow the same stage proportions.
+
+Reviewed all 135 stage/form/pose fixtures at more than 2× scale and the built
+app at 1440×1000 and 900×640. Cats and dogs retain their distinct facings and
+carried poses; rabbits retain their existing shared awake/held silhouette.
+Captures: [cats](model-review/cat-growth.webp),
+[dogs](model-review/dog-growth.webp), [rabbits](model-review/bunny-growth.webp).
+The real-room comparison and Profile controls are recorded under ignored
+`build/skill-verification/pets-2026-11-10/`.
+
+## Workstation alignment — November 10, 2026
+
+The old `loft-focus.webp` was last captured October 4. Comparing it with the
+current built SPA confirmed both stale evidence and continuing physical errors:
+duplicate desk equipment, a chair too far from the keyboard, hanging arms during
+focus, and broad desktops painting over near-side sitters in some directions.
+
+- A separately stacked computer/laptop replaces the desk's integrated laptop.
+  The default laptop returns when that equipment is moved away.
+- Loft and Cozy study chairs tuck 0.08 tile beneath the desktop, clear the
+  drawers by 0.08 tile, and retain their seat height. Luna uses the revised seat.
+- Residents inherit their chair's mirror. A reachable, correctly faced keyboard
+  supplies the focused hands' projected contact points and bent forearms;
+  sleeves, skin and coats still use the existing wardrobe. The contact movement
+  is smaller than the ordinary typing bob.
+- Near-side chairs and their occupants paint after their workstation, with the
+  backrest in front. Empty chairs retain that order when someone is carried away.
+  The preset thumbnails share equipment ownership, facing and depth rules.
+
+![Current built Loft with its actual timer running](model-review/loft-focus.webp)
+
+![Four workstation directions and body/clothing extremes](model-review/workstation-contact.webp)
+
+The second Codex agent implemented the desk switch and preset clearances,
+then independently reviewed the shared contact/depth logic, room capture and
+larger fixtures. All four directions, compact/broad bodies, short sleeves and
+layered clothing were checked in focus, idle and break. The scene was also
+inspected at 1600×1000 and 900×640. No remaining blocker was found for this
+bounded alignment pass. The established front/rear body remains stylized;
+a complete authored quarter-view figure is still future model work.
+
+Saved furniture coordinates are preserved. Applying Loft or Cozy study again
+loads the closer chair position. Contact, equipment and depth metadata are
+render-only and do not change saved rooms or character formats. Earlier generic
+seated comparison sheets remain historical; the two images above are current.
+
+Validation: **1,491 frontend tests passed**, one existing opt-in art fixture
+skipped; **118 backend room/packaging tests passed**; lint, Node 20 production
+build and all **16 production-browser tests passed**. Art generation produced
+924 fixtures. The first browser attempt lacked its pinned Chromium executable;
+installing that runtime allowed the complete suite to run successfully.
+The main-channel EXE/manifest pair verifies as build
+`6596fcbb561e44678b09038fc72db48e`; an isolated frozen self-test exited 0.
+Evidence is under ignored `build/skill-verification/models-2026-11-10/`.
+The shared upstream review toolkit is unavailable on this machine; review used
+the local project adapters and an independent agent, without claiming the full
+upstream rubric. No native widget behaviour change was made or claimed tested.
 
 ## Character silhouettes and headwear — October 26, 2026
 

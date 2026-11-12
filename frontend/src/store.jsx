@@ -71,6 +71,7 @@ import {
 } from "./lib/musicLink";
 import { TASK_GROUP_LIMIT, TASK_GROUP_MAX, validateTaskGroups } from "./lib/taskGroups";
 import { createWriteQueue } from "./lib/writeQueue";
+import { cleanPetTraits, PET_FORMS, setPetGrowing, setPetStage } from "./lib/pets";
 import {
   TIMES_OF_DAY,
   WEATHER_MODES,
@@ -1764,6 +1765,7 @@ export function StoreProvider({ children }) {
    * survive either path; "mellow" is the default and stored implicitly.
    */
   const setPetIdentity = useCallback((id, patch) => {
+    const now = Date.now();
     setIsoRoom((prev) => {
       const cur = prev.placements.find((p) => p.id === id);
       if (!cur || !ISO_ITEMS[cur.item]?.roamer) return prev;
@@ -1786,6 +1788,13 @@ export function StoreProvider({ children }) {
         if (isStorableLook(cur.item, patch.look)) next.look = patch.look;
         else delete next.look;
       }
+      if ("petForm" in patch && PET_FORMS.some(({ key }) => key === patch.petForm)) next.petForm = patch.petForm;
+      if ("petSize" in patch) {
+        const size = cleanPetTraits({ petSize: patch.petSize }).petSize;
+        if (size !== undefined) next.petSize = size;
+      }
+      if ("stage" in patch) next.growth = setPetStage(next, patch.stage, now);
+      if (typeof patch.growing === "boolean") next.growth = setPetGrowing(next, patch.growing, now);
       return {
         ...prev,
         placements: prev.placements.map((p) => (p.id === id ? next : p)),

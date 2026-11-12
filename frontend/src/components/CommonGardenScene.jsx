@@ -1,5 +1,6 @@
 import { floorPatch, isoBox, project } from "../lib/iso";
 import FloorSurface from "./IsoFloorSurface";
+import CommonWildlife from "./CommonWildlife";
 
 function GardenSurface({ surface, clipId }) {
   const { gx, gy, dx, dy, z, color, style = "grass" } = surface;
@@ -26,7 +27,7 @@ function GardenSurface({ surface, clipId }) {
 /** Outdoor architecture for Willow Pond. Furniture, people, lighting and
  * seat interaction remain in CommonRoom; this component owns only the fixed
  * lawn/terrace/path/pergola composition that makes this place distinct. */
-export default function CommonGardenScene({ scene, uid, clip, glow, layers, lightPools }) {
+export default function CommonGardenScene({ scene, uid, clip, glow, layers, lightPools, reduceMotion, paused }) {
   const P = (gx, gy, z = 0) => {
     const p = project(gx, gy);
     return { x: p.x, y: p.y - z };
@@ -112,7 +113,10 @@ export default function CommonGardenScene({ scene, uid, clip, glow, layers, ligh
     </g>
     {lightPools("ground")}
     {lightPools("patio")}
-    {layers("ground")}
+    {layers("ground", "surface")}
+    <CommonWildlife wildlife={scene.wildlife} pond={scene.props.find(p => p.id === scene.wildlife?.waterProp)}
+      reduceMotion={reduceMotion} paused={paused} />
+    {layers("ground", "above-surface")}
     {layers("patio")}
   </g>;
 }

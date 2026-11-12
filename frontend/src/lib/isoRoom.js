@@ -4,6 +4,7 @@
 // lib/iso.js and the artwork in the components/Iso*Items modules.
 
 import { createIsoPresets } from "./isoPresets";
+import { cleanPetTraits, newPetTraits } from "./pets";
 import {
   ISO_ENV_KEYS,
   ISO_ITEMS,
@@ -225,6 +226,10 @@ export function seatedPlacement(persona, seat) {
     gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2 + (alongGx ? shift : 0),
     gy: seat.placement.gy + sf[1] / 2 - pf[1] / 2 + (alongGx ? 0 : shift),
     _seat: seat.height,
+    _seatId: seat.placement.id,
+    // A resident inherits the chair's grid transpose, not their old standing
+    // rotation. Soft ground has no directional backrest.
+    _seatRot: seat.soft ? 0 : seatRot,
     _lie: seat.lie,
     // The renderer needs the actual lie-on furniture for its foreground
     // bedding layer. This reference exists only on the resolved render copy;
@@ -872,7 +877,8 @@ export function newIsoPlacement(itemKey, existing = [], size = DEFAULT_ISO_SIZE)
     if (!spot) return null; // the drawn shape has no room for this piece
     ({ gx, gy } = spot);
   }
-  return { id: makeId(), item: itemKey, gx: snapHalf(gx), gy: snapHalf(gy) };
+  return { id: makeId(), item: itemKey, gx: snapHalf(gx), gy: snapHalf(gy),
+    ...(item.roamer && newPetTraits()) };
 }
 
 /** Coerce anything (old saves, server data, garbage) into a valid iso layout,
@@ -997,6 +1003,7 @@ export function validateIsoLayout(raw) {
       ...(name && { name }),
       ...(temper && { temper }),
       ...(look && { look }),
+      ...(ISO_ITEMS[p.item].roamer && cleanPetTraits(p)),
       ...(ISO_ITEMS[p.item].toggleable && p.off === true && { off: true }),
     });
     if (clean.length >= ISO_MAX_ITEMS) break;

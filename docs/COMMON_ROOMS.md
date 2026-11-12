@@ -292,6 +292,32 @@ Seat interaction uses the projected seat anchors/hit regions. It does not
 need to infer a floor from a pointer and run the home grid-drag engine.
 That is a substantial benefit of limiting interaction to seat selection.
 
+## Pond wildlife
+
+Willow Pond has two authored ducks. The mallard follows a closed swim loop;
+the cream duck leaves by the southwest bank, walks onto the visible lawn beside
+the terrace, and returns along the same corridor. `lib/commonWildlife.js`
+owns their fixed routes relative to the pond prop. These are scene wildlife,
+separate from adopted pets and the editable-home wandering engine.
+
+`CommonWildlife.jsx` draws swimming and walking poses. Browser CSS keyframes
+interpolate locations and switch facing/pose at the authored waypoints; there
+are no JavaScript animation timers or frame-driven React updates. All layers
+share the route's period and phase. Reduced motion shows the authored starting
+pose; widget pause preserves animation progress. Switching reduced motion off
+starts the route again. Leaving the place removes its animation styles.
+
+The garden paints flat surfaces (including water) before ducks, followed by
+bank props, furniture and people. Routes stay clear of seats and use the
+authored bank exit rather than choosing random destinations. Review the
+visible land leg as well as water containment: the first short landing path
+was hidden behind the bench and was extended into the clear lawn.
+
+The production-browser regression samples each route against the actual SVG
+water fill, checks the shore excursion and reduced motion, and verifies that
+visiting does not modify the home layout. Captures:
+[swimming](model-review/willow-swim.webp), [on land](model-review/willow-shore.webp).
+
 ## Delivery and visual acceptance
 
 All three places are implemented. Use the following review sequence when adding a

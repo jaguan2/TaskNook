@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PawPrint } from "lucide-react";
 import { ISO_ITEMS, PET_NAME_MAX, PET_TEMPERS, petLooksFor } from "../lib/isoRoom";
 import { PET_SPRITES } from "./IsoPetItems";
 import Choices from "./ProfileChoiceGroup";
+import { usePetGrowthClock } from "../hooks/usePetGrowthClock";
+import { growthTimeLabel, PET_FORMS, PET_STAGES, petGrowth } from "../lib/pets";
 
 /**
  * Your PETS — who lives here beyond you (owner request, 2026-08-18): every
@@ -14,7 +16,8 @@ import Choices from "./ProfileChoiceGroup";
  * when you pick the pet up in the room.
  */
 export default function ProfilePetsSection({ isoRoom, setPetIdentity, addIsoItem, removeIsoItem }) {
-  const pets = (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer);
+  const pets = useMemo(() => (isoRoom?.placements || []).filter((p) => ISO_ITEMS[p.item]?.roamer), [isoRoom?.placements]);
+  const now = usePetGrowthClock(pets, 60_000);
   // Rehoming confirms in a POPUP over the card (owner, 2026-08-19 — this
   // one outranks the app's armed-button grammar): a pet has a name, and the
   // dialog is where there's room to say plainly that it can't be undone.
@@ -72,6 +75,7 @@ export default function ProfilePetsSection({ isoRoom, setPetIdentity, addIsoItem
         <div className="space-y-2">
           {pets.map((p) => {
             const Sprite = PET_SPRITES[p.item];
+            const growth = petGrowth(p, now);
             return (
               <div
                 key={p.id}
@@ -79,12 +83,12 @@ export default function ProfilePetsSection({ isoRoom, setPetIdentity, addIsoItem
               >
                 <div className="flex items-center gap-3">
                 <svg
-                  viewBox="-9 -26 32 40"
+                  viewBox="-10 -30 34 44"
                   className="h-14 w-12 shrink-0"
                   aria-hidden="true"
                   style={p.tint ? { "--tint": p.tint } : undefined}
                 >
-                  <Sprite awake facing="front" look={p.look} />
+                  <Sprite pet={p} now={now} awake facing="front" look={p.look} />
                 </svg>
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {/* The ✕ shares the name row so it's ALIGNED with
@@ -133,6 +137,29 @@ export default function ProfilePetsSection({ isoRoom, setPetIdentity, addIsoItem
                       onPick={(look) => setPetIdentity(p.id, { look })}
                     />
                   )}
+                  <Choices label="Body form" options={PET_FORMS} value={p.petForm || "natural"}
+                    onPick={(petForm) => setPetIdentity(p.id, { petForm })} />
+                  <Choices label="Life stage" options={PET_STAGES} value={growth.stage.key}
+                    onPick={(stage) => setPetIdentity(p.id, { stage })} />
+                  <label className="flex items-center justify-between gap-2 text-xs text-petal">
+                    Adult size
+                    <input type="range" aria-label="Pet adult size" min="0.75" max="1" step="0.01"
+                      value={p.petSize ?? 1}
+                      onChange={(e) => setPetIdentity(p.id, { petSize: Number(e.target.value) })}
+                      className="w-28 accent-amber" />
+                  </label>
+                  {growth.next ? <>
+                    <label className="flex items-center gap-2 text-xs text-petal">
+                      <input type="checkbox" checked={growth.growing}
+                        onChange={(e) => setPetIdentity(p.id, { growing: e.target.checked })}
+                        className="accent-amber" />
+                      Grow over time
+                    </label>
+                    <p className="text-[11px] text-petal/60" aria-live="polite">
+                      {growth.growing ? `${growth.next.label} in ${growthTimeLabel(growth.remainingMs)}`
+                        : `Growth paused · stays ${growth.stage.label.toLowerCase()}`}
+                    </p>
+                  </> : <p className="text-[11px] text-petal/60">Fully grown</p>}
                 </div>
                 </div>
                 {/* The confirm POPUP, covering just this pet's card — a
@@ -178,6 +205,9 @@ export default function ProfilePetsSection({ isoRoom, setPetIdentity, addIsoItem
             );
           })}
           <p className="text-[11px] text-petal/50">
+            New adoptions start as babies with their own size and form. Growth
+            continues while TaskNook is closed. Turn it off to keep their current age.
+            {" "}
             Temper changes how they wander — curious pets range the whole room,
             sleepy ones barely leave their spot. Pick a pet up in the room to
             carry it somewhere new.

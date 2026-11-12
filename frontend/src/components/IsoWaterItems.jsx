@@ -115,7 +115,7 @@ function PondBody({ width, depth, kind }) {
         <path data-water-part="shallows" d={waterPath} fill="none" stroke="#8c8b70"
           strokeWidth="9" opacity="0.88" />
         <path d={waterPath} fill="none" stroke="#5d8375" strokeWidth="5.5" opacity="0.9" />
-        <path d={waterPath} fill="#285c67" />
+        <path data-water-part="surface" d={waterPath} fill="#285c67" />
         <path d={waterPath} fill="none" stroke="#376d71" strokeWidth="2" opacity="0.92" />
         <path d={highlightPath} fill="#5595a0" opacity="0.56" />
 

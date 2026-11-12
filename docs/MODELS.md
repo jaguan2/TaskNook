@@ -4,7 +4,7 @@ How isometric furniture is drawn here. `docs/DESIGN.md` is the authority on
 the app's *visual* decisions (composition, motion, colour, chrome); this file
 is the authority on the *models* — the `ISO_SPRITES` registry in
 `frontend/src/components/IsoItems.jsx`, its focused `Iso*Items` family modules
-(including café, plants, rugs, outdoors, lighting and seasonal sets),
+(including seating/beds, café, plants, rugs, outdoors, lighting and seasonal sets),
 and the character package in
 `frontend/src/components/character/` (body rig, hair and garment REGISTRIES,
 pose assembly — split out because the character is the fastest-growing
@@ -103,10 +103,12 @@ cushion edge, a gathered fold or a throw that crosses the top and side planes.
 Do not replace these with a dense grid of decorative seams.
 
 `PaddedPanel` draws upright upholstery with a bowed crown, rounded lower
-corners and an offset shell. The armchair/sofa project it onto their back and
-arm planes; the desk chair adds a shallow waist. Rounding a footprint alone
-does not soften a tall extruded side. Keep timber structure separate: the
-upholstered seats expose their frame below the cushions, and the garden bench
+corners and an offset shell; the desk chair adds a shallow waist. Armchairs
+and sofas use one grid-bounded hull with actual back/arm thickness. Their
+42px back contains the ends of the lower 27px arms even in rear projection;
+offset upright shells previously left duplicate crowns and raised tabs.
+Keep timber structure separate: upholstered seats expose their frame below
+the cushions, and the garden bench
 uses individual seat/back slats over an open frame. All existing `seat` heights,
 footprints and front/rear facing rules stay unchanged.
 
@@ -156,8 +158,9 @@ The neckline is fitted to the top: shirt, tie and blouse have two collar
 leaves; knitwear uses a narrow curved band. `Neckline` in `garments.jsx`
 replaces the large assembly-level ellipse that covered the visible neck and
 the blazer opening. Its profile and rear treatments share the same seam.
-Hands keep the existing pose anchor, with a smaller tapered palm and thumb
-instead of a large round mass. Neither change introduces a new seated rig.
+Rest, mug and carried hands keep their existing pose anchors, with a smaller
+tapered palm and thumb instead of a large round mass. Focused workstation
+hands use the keyboard contacts described below. These retain the seated rig.
 
 Idle seated front-facing residents rest their hands toward the lap. Their
 saved `seatPose` supplies one of three authored lower-body silhouettes:
@@ -399,6 +402,21 @@ the build's half-width, or it floats in a gap beside the chest.
 sit on it; `surface` makes `stacks` items rest on it. Both resolve at RENDER
 time only — the stored gx/gy never changes.
 
+Workstation contact follows those same render-only rules. A separately stacked
+computer or laptop replaces the desk's integrated laptop; moving that equipment
+off the desk restores the integrated one. Keyboard deck dimensions in
+`lib/workstations.js` are shared with the artwork. A nearby desk chair facing
+the keyboard supplies two projected hand contacts during focus, with a small
+typing movement. Other seats retain their existing poses. The resident inherits
+the chair's mirror, while soft floor seating stays undirected. Near-side desk
+chairs and their sitters paint after the desktop, including when the chair is
+empty; a wide desktop's front corner must never cover the sitter's head.
+
+The Loft and Cozy study chair cushions tuck 0.08 tile beneath the worktop and
+clear the drawer cabinet. Existing saved furniture coordinates remain intact;
+applying the preset loads its revised chair position. The figure still uses
+the established front/rear silhouette rather than a new quarter-view rig.
+
 ---
 
 ## 3. Construction
@@ -491,6 +509,69 @@ furniture module; its private `PlantBase` wraps the shared pot. A bonsai
 keeps its shallow rectangular tray — that IS what a bonsai grows in.
 
 ---
+
+## Furniture cohesion
+
+`IsoSeatingItems.jsx` owns beds, dining chairs, desk chairs, armchairs and sofas.
+`IsoItems.jsx` keeps their public registry and bed-cover re-export, so scene
+consumers do not need to know their module boundary. Armchair/sofa share a
+joined upholstered hull, short warm timber feet and rounded projected caps.
+Dining chairs and bed woodwork use the same warm timber family. Tints change
+cloth surfaces while timber stays timber.
+
+The November 11 revision joins the actual projected arms and back, correcting
+the exposed ends left by the earlier upright-panel construction. The lower
+arms and higher back meet without horns in the rear view.
+Shared cushion heights remain 22px, desk chairs 24px, dining chairs 19px and
+bed mattresses 15px. The dining pad artwork now actually meets its 19px
+catalog contract. Bed and sleeping foreground cover reuse one duvet drawing,
+with a thin top layer and curved hanging hems rather than a solid cuboid.
+Do not change geometry/seat anchors to compensate for a cosmetic revision.
+
+Review [the furniture family](model-review/furniture-cohesion.webp) in cream,
+dark and sage tints, front/rear seats and the bed's supported mirror views.
+The refreshed [Loft](model-review/loft-focus.webp) and
+[workstation contacts](model-review/workstation-contact.webp) use these models.
+
+## Pet size, form and growth
+
+Pet lifecycle rules live in `lib/pets.js`, separately from the SVG artwork and
+the focus timer. New adoptions sample a permanent adult size (78–100% of the
+classic model) and one of three body forms: natural, slender or round. Profile
+allows changing the form and adult size (75–100%). Existing saves without these
+fields keep their classic adult appearance.
+
+New pets spend two days as babies and five days as teens, reaching adulthood
+after seven days. Each placement stores `growth: { ageMs, startedAt }`: elapsed
+age at the last change and an epoch-millisecond start time, or `null` when
+paused. Pausing snapshots elapsed age; resuming continues from that snapshot.
+Offline time counts while growth is enabled. Profile can select a stage or
+disable growth to keep the current age. No database migration is needed for
+these optional room JSON fields; backend validation bounds their values.
+
+Baby/teen/adult body scales are 58/82/100%, with proportionally larger heads
+for younger pets in standing, rear, resting and carried artwork. Scale around
+the existing ground anchor so feet stay planted. Forms remain within the adult
+footprint; growth never moves furniture or changes pathfinding. Room, carrying,
+Profile and room previews reuse the same appearance calculation. Body form
+changes only the torso: face, ears and paws retain their own proportions.
+
+Pet silhouettes use one connected body mass with clipped coat markings.
+Cats/dogs have one eye and a projecting muzzle in profile, two eyes in front,
+and a faceless rear. Rabbits have authored profile, rear and carried poses;
+their ears live inside the whole head's growth transform. Keep the head
+overlapping the neck and leave visible front paw tips beneath the torso.
+Corgis retain short legs in every facing. Walking torso motion lifts slightly
+while support paws stay outside that animation, preserving floor contact.
+
+`usePetGrowthClock` schedules one next-stage deadline per mounted room, catches
+up on focus/visibility changes, and cleans up on unmount. The open Profile also
+refreshes its countdown labels each minute. Do not attach a ticking interval
+to each pet or involve the focus timer provider.
+
+The art sheet includes 135 stage/form/pose combinations. Reviewed captures:
+[cats](model-review/cat-growth.webp), [dogs](model-review/dog-growth.webp) and
+[rabbits](model-review/bunny-growth.webp).
 
 ## 6. Motion
 

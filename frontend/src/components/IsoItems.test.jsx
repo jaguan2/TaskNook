@@ -248,6 +248,22 @@ describe("the isometric catalog and its artwork agree", () => {
     expect(container.querySelector(".animate-flicker")).toBeNull();
   });
 
+  it.each([false, true])("removes only the desk's integrated laptop when another computer equips it (back=%s)", (back) => {
+    const Desk = ISO_SPRITES.desk;
+    const { container, rerender } = draw(<Desk back={back} />);
+    const classic = container.querySelector("svg").cloneNode(true);
+    const integratedLaptop = classic.querySelector('[data-desk-part="integrated-laptop"]');
+    expect(integratedLaptop).toBeTruthy();
+    expect(integratedLaptop.querySelectorAll("polygon").length).toBeGreaterThan(0);
+    integratedLaptop.remove();
+
+    rerender(<svg><Desk back={back} showLaptop={false} /></svg>);
+    expect(container.querySelector('[data-desk-part="integrated-laptop"]')).toBeNull();
+    // Support panels, drawers, worktop and grain keep precisely their existing
+    // geometry: equipping the surface changes the equipment, not the desk.
+    expect(container.querySelector("svg").innerHTML).toBe(classic.innerHTML);
+  });
+
   it("renders every colourway of every item that has them", () => {
     // Not it.each: the fabric pieces went back to free tinting when they
     // returned to SVG, so this list is legitimately empty now — and an empty

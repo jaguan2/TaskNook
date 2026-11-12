@@ -429,7 +429,7 @@ body {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(1.6px);
+    transform: translateY(var(--type-lift, 1.6px));
   }
 }
 .resident-type {
@@ -448,6 +448,15 @@ body {
   50% {
     transform: translateY(-2.2px);
   }
+}
+/* Only a pet's torso rises; support paws keep their floor baseline. */
+@keyframes pet-step-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.65px); }
+}
+.pet-step-bob {
+  animation: pet-step-bob 0.5s ease-in-out infinite;
+  animation-delay: var(--phase, 0s);
 }
 .leg-step-a {
   animation: leg-step 0.5s ease-in-out infinite;
@@ -1348,6 +1357,7 @@ body {
     .bubble-rise,
     .pond-ripple,
     .resident-type,
+    .pet-step-bob,
     .leg-step-a,
     .leg-step-b,
     .leg-trot-a,

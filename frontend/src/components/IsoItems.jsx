@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { SKEW, TILE_W, project, isoBox, floorPatch } from "../lib/iso";
 import { tinted } from "../lib/tint";
+import { COMPUTER_KEYBOARD, LAPTOP_KEYBOARD } from "../lib/workstations";
 // The little people live in their own package now — hair and garment
 // REGISTRIES, the body rig, the poses. This file is the furniture.
 import { Resident, You } from "./character";
-import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
+import { SoftBox, TintedBox } from "./IsoItemPrimitives";
+import { Armchair, Bed, Chair, DeskChair, Sofa } from "./IsoSeatingItems";
+export { BedTuckCover } from "./IsoSeatingItems";
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
 import { HearthEmbers, SteamWisps } from "./IsoAmbientEffects";
@@ -523,155 +526,6 @@ function Pillar() {
 // wider than the mattress so it drapes over the edge, cushions inset from the
 // arms, and legs leaving a shadow gap under the frame.
 
-const BED_W = 2;
-const BED_D = 2.8;
-// Deliberately shallow. A bed is ~115px across on screen, so a 27px-thick
-// stack of frame + mattress + duvet read as a crate; at 19 it reads as a
-// bed seen from above. Height is for the HEADBOARD to spend, not the base.
-const BED_FRAME = 7;
-const BED_MATTRESS = 8;
-
-function BedDuvet() {
-  return (
-    <>
-      {/* Duvet: drawn from the FRAME top (not the mattress top) and wider
-          than the mattress, so its sides fall past the mattress edge —
-          that's the drape. Stops short of the pillows. */}
-      <SoftBox gx={0.05} gy={1.15} dx={BED_W - 0.1} dy={BED_D - 1.3}
-        h={BED_MATTRESS + 4} fallback="#f2e9dd" dark={0.28} mid={0.15} />
-      {/* A padded turn-back and broad gathers make this read as cloth. */}
-      <g transform={`translate(0,${-(BED_MATTRESS + 4)})`}>
-        <SoftBox gx={0.07} gy={1.15} dx={BED_W - 0.14} dy={0.25} h={2.2}
-          fallback="#f2e9dd" dark={0.2} mid={0.1} radius={0.09} />
-        {/* Three broad gathered folds replace the rigid square quilt grid. */}
-        {[0.28, 0.96, 1.68].map((gx, i) => {
-          const a = project(gx, 1.44);
-          const b = project(gx + 0.12, 1.8 + i * 0.13);
-          const c = project(gx + 0.03, 2.35);
-          return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
-            fill="none" stroke="#000" strokeWidth="1.2" opacity="0.1" />;
-        })}
-        {/* Cream throw at the foot, with a short hem falling over the duvet. */}
-        <SoftBox gx={0.09} gy={2.18} dx={BED_W - 0.18} dy={0.44} h={1.8}
-          fallback="#e8d5b5" tint={false} dark={0.2} mid={0.12} radius={0.1} />
-      </g>
-    </>
-  );
-}
-
-/** Repaint the bed's real duvet above a sleeper, hiding their lower body
- * beneath the same cloth rather than inventing a second body-shaped blanket. */
-export function BedTuckCover() {
-  return (
-    <g data-bed-tuck-cover="true" transform={`translate(0,${-BED_FRAME})`}>
-      <BedDuvet />
-    </g>
-  );
-}
-
-function Bed() {
-  return (
-    <g>
-      {/* Woodwork is tint={false}: the picked colour belongs to the duvet, so
-          a purple bed must not arrive with a purple headboard. */}
-      <TintedBox gx={0} gy={0} dx={BED_W} dy={0.22} h={32} fallback="#8f5d49" tint={false} dark={0.38} mid={0.22} />
-      <TintedBox gx={0} gy={0.22} dx={BED_W} dy={BED_D - 0.22} h={BED_FRAME} fallback="#a87f5f" tint={false} dark={0.34} mid={0.2} />
-      <g transform={`translate(0,${-BED_FRAME})`}>
-        {/* mattress, inset all round so the frame reads as a lip beneath it */}
-        <SoftBox gx={0.13} gy={0.35} dx={BED_W - 0.26} dy={BED_D - 0.5} h={BED_MATTRESS} fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} />
-        <g transform={`translate(0,${-BED_MATTRESS})`}>
-          {/* pillows: small and flat. Chunky ones stopped reading as bedding
-              and started reading as boxes stacked on the bed. */}
-          <SoftBox gx={0.24} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
-          <SoftBox gx={1.16} gy={0.5} dx={0.6} dy={0.42} h={5} fallback="#f7f2ea" tint={false} dark={0.16} mid={0.08} />
-        </g>
-        <BedDuvet />
-      </g>
-    </g>
-  );
-}
-
-/** Soft seating shares a timber frame, rolled arms and bowed upholstery.
- * The seat stays at 22px in both facings; the open frame and curved vertical
- * profiles replace the old floor-to-arm slabs without changing placement. */
-function Upholstered({ w, seats, back = false }) {
-  const D = 0.85, ARM = 0.2, BACK = 0.22;
-  const inner = w - ARM * 2, gap = 0.06;
-  const cw = (inner - gap * (seats - 1)) / seats;
-  const at = (i) => ARM + i * (cw + gap);
-  const arm = (gx) => {
-    const origin = project(gx + ARM, 0.08);
-    return <g transform={`matrix(-1 0.5 0 1 ${origin.x} ${origin.y - 4})`}>
-      <PaddedPanel width={(D - 0.16) * TILE_W / 2} height={25} bottom={11}
-        radius={4.5} thickness={ARM * TILE_W / 2} fallback="#d98a93" mid={0.22} />
-    </g>;
-  };
-  const rest = (() => {
-    const origin = project(0.03, back ? D - 0.02 : BACK);
-    const width = (w - 0.06) * TILE_W / 2;
-    return <g transform={`translate(${origin.x},${origin.y - 4}) skewY(${SKEW})`}>
-      <PaddedPanel width={width} height={31} bottom={8} radius={4.5}
-        thickness={4} fallback="#d98a93" mid={back ? 0.23 : 0.12} />
-      {!back && Array.from({ length: seats }, (_, i) => {
-        const x = (at(i) - 0.03) * TILE_W / 2;
-        const width = cw * TILE_W / 2;
-        return <g key={i}>
-          <path d={`M${x + 2} -26 Q${x + width / 2} -29 ${x + width - 2} -26
-            L${x + width - 1} -13 Q${x + width / 2} -11 ${x + 1} -13 Z`}
-            fill="#fff" opacity="0.08" />
-          <path d={`M${x + 2} -14 Q${x + width / 2} -12 ${x + width - 2} -14`}
-            fill="none" stroke="#000" opacity="0.12" strokeWidth="0.8" />
-        </g>;
-      })}
-      {back && <path d={`M3 -10 Q${width / 2} -8 ${width - 3} -10`}
-        stroke="#000" strokeWidth="0.8" opacity="0.13" fill="none" />}
-    </g>;
-  })();
-  const gy = back ? 0.05 : BACK + 0.05;
-  return <g>
-    {[[0.08, 0.09], [w - 0.2, 0.09], [0.08, 0.64], [w - 0.2, 0.64]].map(([gx, gy]) =>
-      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.12} dy={0.12} h={12}
-        fallback="#6b4a39" tint={false} dark={0.4} mid={0.22} />)}
-    {!back && rest}
-    {arm(0)}
-    <g transform="translate(0,-12)">
-      <TintedBox gx={0.06} gy={0.06} dx={w - 0.12} dy={D - 0.12} h={3}
-        fallback="#8f634b" tint={false} dark={0.36} mid={0.2} />
-    </g>
-    <g transform="translate(0,-15)">
-      {Array.from({ length: seats }, (_, i) => <g key={i}>
-        <SoftBox gx={at(i) + 0.02} gy={gy} dx={cw - 0.04} dy={D - BACK - 0.12}
-          h={7} radius={0.19} fallback="#e8a3a8" dark={0.2} mid={0.1} />
-        <g transform="translate(0,-7)">
-          <path d={`M${project(at(i) + 0.09, gy + 0.06).x},${project(at(i) + 0.09, gy + 0.06).y}
-            l${project(cw - 0.18, 0).x},${project(cw - 0.18, 0).y}`}
-            fill="none" stroke="#000" strokeWidth="0.8" opacity="0.12" strokeLinecap="round" />
-        </g>
-      </g>)}
-    </g>
-    {!back && seats > 1 && (() => {
-      const o = project(ARM + 0.06, BACK + 0.03);
-      return <g transform={`translate(${o.x},${o.y - 4}) skewY(${SKEW})`}>
-        <path d="M1 -14 Q-1 -20 2 -26 Q7 -28 12 -25 Q14 -19 12 -13 Q6 -11 1 -14 Z" fill="#e8d5b5" />
-        <path d="M1 -14 Q6 -12 12 -13 L11 -15 Q5 -14 1 -16 Z" fill="#b8a17f" />
-        <path d="M3 -24 Q6 -26 10 -23" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.45" />
-      </g>;
-    })()}
-    {arm(w - ARM)}
-    {back && rest}
-    {seats > 1 && (() => {
-      const o = project(w, back ? 0.18 : 0.35);
-      return <g transform={`translate(${o.x},${o.y - 28}) skewY(${-SKEW})`}>
-        <path d="M-7 0 Q-3 -1 0 0 L-0.5 13 Q-3.5 15 -7 12 Z" fill="#d4c4a3" />
-        <path d="M-5 1 L-4.6 12 M-2 1 L-2.4 13" fill="none" stroke="#a68f70" strokeWidth="0.7" opacity="0.45" />
-        <path d="M-6 10.5 Q-3 12.5 -0.5 11" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.25" />
-      </g>;
-    })()}
-  </g>;
-}
-
-const Sofa = ({ back }) => <Upholstered w={2} seats={2} back={back} />;
-const Armchair = ({ back }) => <Upholstered w={1} seats={1} back={back} />;
 /** Drawer fronts on a carcass's front-left face. The skew is what turns a
  *  flat rect into something lying on that plane — same trick as the books. */
 function Drawers({ gx, gy, dy, width, rows, top, height, gap = 2 }) {
@@ -722,7 +576,7 @@ function Nightstand() {
 // A desk is a TOP on supports, not a solid block — the gap under it is what
 // separates it from a counter at this size. Side panels rather than four legs:
 // four 3px legs turn to mush, a panel reads at any zoom.
-function Desk({ back = false }) {
+function Desk({ back = false, showLaptop = true }) {
   const W = 2.2;
   const D = 1.2;
   const TOP = 26;
@@ -744,7 +598,9 @@ function Desk({ back = false }) {
         <g transform="translate(0,-4)">
           {/* a bare slab reads as flat-pack — same seams the tables get */}
           <Planks w={W} d={D} n={3} />
-          <Laptop back={back} />
+          {/* A separately placed computer or laptop equips this worktop in
+              the scene. Keep the classic laptop only on an unequipped desk. */}
+          {showLaptop && <g data-desk-part="integrated-laptop"><Laptop back={back} /></g>}
         </g>
       </g>
     </g>
@@ -756,13 +612,13 @@ function Laptop({ back = false }) {
   // Drawn around gx 0..0.7 so it works both as a placeable item and as the
   // thing sitting on the Desk sprite.
   const X = 0.06;
-  const BASE_H = 3;
+  const BASE_H = LAPTOP_KEYBOARD.h;
   const lid = isoBox(X + 0.02, back ? 0.5 : 0.17, 0.56, 0.045, 16);
   const keyRow = (gy, n, w) =>
     Array.from({ length: n }, (_, i) => (
       <polygon
         key={`${gy}-${i}`}
-        points={floorPatch(X + 0.06 + i * w, gy, w * 0.72, 0.032)}
+        points={floorPatch(LAPTOP_KEYBOARD.gx + i * w, gy, w * 0.72, 0.032)}
         fill="#000"
         opacity="0.28"
       />
@@ -774,9 +630,7 @@ function Laptop({ back = false }) {
       <g transform={`translate(0,${-BASE_H})`}>
         {/* Keys and a trackpad. Without them the base is a slab and the whole
             thing reads as a folded card. */}
-        {keyRow(0.25, 8, 0.06)}
-        {keyRow(0.3, 8, 0.06)}
-        {keyRow(0.35, 8, 0.06)}
+        {[0, 0.05, 0.1].map((offset) => keyRow(LAPTOP_KEYBOARD.gy + offset, 8, LAPTOP_KEYBOARD.dx / 8))}
         <polygon points={floorPatch(X + 0.2, 0.42, 0.2, 0.07)} fill="#000" opacity="0.2" />
         <polygon points={floorPatch(X + 0.2, 0.42, 0.2, 0.07)} fill="none" stroke="#fff" strokeWidth="0.4" opacity="0.12" />
       </g>
@@ -837,45 +691,6 @@ function CoffeeTable() {
     </g>
   );
 }
-function Chair({ back = false }) {
-  const W = 0.7;
-  const D = 0.7;
-  const SEAT = 17;
-  const railY = back ? D - 0.15 : 0.06;
-  const frame = <g>
-    {/* Two posts and an open lower back: the room and clothing stay visible
-        through the chair, like the timber chairs in the reference. */}
-    {[0.07, 0.53].map((gx) => <TintedBox key={gx} gx={gx} gy={railY}
-      dx={0.1} dy={0.09} h={43} fallback="#94664e" tint={false} dark={0.36} mid={0.18} />)}
-    <g transform={`translate(${project(0.07, railY + 0.09).x}, ${project(0.07, railY + 0.09).y - SEAT}) skewY(${SKEW})`}>
-      {/* Bowed wooden top rail surrounding one inset padded panel. */}
-      <path d="M0 -24 Q6.7 -28 13.44 -24 L13.44 -12 Q6.7 -10 0 -12 Z" fill="#a87f5f" />
-      <path d="M1.5 -23 Q6.7 -25.8 11.94 -23 L11.94 -14 Q6.7 -12.4 1.5 -14 Z"
-        style={tinted("#c28a65")} />
-      <path d="M2.2 -22.5 Q6.7 -24.7 11.2 -22.5" fill="none" stroke="#fff3e0"
-        strokeWidth="0.75" opacity="0.3" />
-      <path d="M1.5 -14 Q6.7 -12.4 11.94 -14" fill="none" stroke="#221638"
-        strokeWidth="0.8" opacity="0.18" />
-    </g>
-  </g>;
-  return <g>
-    {!back && frame}
-    {[[0.07, 0.09], [0.53, 0.09], [0.07, 0.53], [0.53, 0.53]].map(([gx, gy]) => (
-      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.1} dy={0.1}
-        h={SEAT} fallback="#94664e" tint={false} dark={0.42} mid={0.24} />
-    ))}
-    <g transform={`translate(0,${-SEAT})`}>
-      <TintedBox gx={0.03} gy={0.03} dx={W - 0.06} dy={D - 0.06} h={1.2}
-        fallback="#a87f5f" tint={false} dark={0.32} mid={0.18} />
-      <g transform="translate(0,-1.2)">
-        <SoftBox gx={0.04} gy={0.04} dx={W - 0.08} dy={D - 0.08} h={2.3}
-          fallback="#c28a65" dark={0.24} mid={0.1} radius={0.12} />
-      </g>
-    </g>
-    {back && frame}
-  </g>;
-}
-
 /** Open shelving: no doors, so the recess and what's ON the shelves is the
  *  whole read. */
 function Shelf() {
@@ -1656,53 +1471,6 @@ function Dresser() {
 
 /** Swivel chair: a star base on castors, which is the silhouette that
  *  separates it from the wooden one at a glance. */
-function DeskChair({ back = false }) {
-  const c = project(0.4, 0.4);
-  const SEAT = 19;
-  // The pedestal and star base are symmetric, so only the backrest moves.
-  const restGy = back ? 0.57 : 0.1;
-  return (
-    <g>
-      <g transform={`translate(${c.x}, ${c.y})`}>
-        {[0, 72, 144, 216, 288].map((deg) => {
-          const r = (deg * Math.PI) / 180;
-          return (
-            <g key={deg}>
-              <line x1="0" y1="-2" x2={Math.cos(r) * 13} y2={-2 + Math.sin(r) * 6.5}
-                stroke="#4d4355" strokeWidth="3" strokeLinecap="round" />
-              <line x1="0" y1="-2.6" x2={Math.cos(r) * 13} y2={-2.6 + Math.sin(r) * 6.5}
-                stroke="#a89b98" strokeWidth="1" strokeLinecap="round" />
-              <ellipse cx={Math.cos(r) * 13} cy={-0.8 + Math.sin(r) * 6.5}
-                rx="2.5" ry="1.8" fill="#4d4355" stroke="#a89b98" strokeWidth="0.65" />
-            </g>
-          );
-        })}
-        <rect x="-1.6" y={-SEAT} width="3.2" height={SEAT - 2} fill="#3a3142" />
-        <rect x="0" y={-SEAT + 1} width="1.1" height={SEAT - 4} fill="#a89b98" />
-      </g>
-      <g transform={`translate(0,${-SEAT})`}>
-        <SoftBox gx={0.09} gy={0.1} dx={0.62} dy={0.58} h={1.2} radius={0.17}
-          fallback="#4d4355" tint={false} dark={0.3} mid={0.16} />
-        <g transform="translate(0,-1.2)">
-          <SoftBox gx={0.1} gy={0.12} dx={0.6} dy={0.56} h={3.8} radius={0.18}
-            fallback="#5b6b9b" dark={0.24} mid={0.1} />
-        </g>
-        <g transform="translate(0,-5)">
-          <TintedBox gx={0.37} gy={restGy + 0.03} dx={0.06} dy={0.05} h={8}
-            fallback="#4d4355" tint={false} dark={0.3} mid={0.16} />
-          <g transform={`translate(${project(0.12, restGy + 0.11).x}, ${project(0.12, restGy + 0.11).y}) skewY(${SKEW})`}>
-            <PaddedPanel width={13.44} height={23} bottom={5} radius={4.5}
-              waist={1.1} thickness={2} fallback="#5b6b9b" mid={back ? 0.2 : 0.08} />
-            {!back && <path d="M2.5 -10 Q6.7 -7.5 10.94 -10" fill="none"
-              stroke="#000" strokeWidth="0.8" opacity="0.12" />}
-            {back && <path d="M5.4 -7 h2.6 v-6 h-2.6 Z" fill="#000" opacity="0.18" />}
-          </g>
-        </g>
-      </g>
-    </g>
-  );
-}
-
 /** Nothing in the room is squashy, so this is all ellipses — no flat faces
  *  anywhere, which is exactly what makes it read as beans and not a box. */
 function Beanbag() {
@@ -2256,13 +2024,13 @@ function Computer() {
         <circle cx="3.7" cy="-4" r="0.9" fill="#7faf8f" />
       </g>
       {/* Keyboard with key rows, and a mouse beside it — both nearer still. */}
-      <TintedBox gx={0.22} gy={0.66} dx={0.7} dy={0.22} h={2} fallback="#4a4152" tint={false} dark={0.28} mid={0.14} />
-      <g transform="translate(0,-2)">
-        {[0.69, 0.745, 0.8].map((gy) =>
+      <TintedBox {...COMPUTER_KEYBOARD} fallback="#4a4152" tint={false} dark={0.28} mid={0.14} />
+      <g transform={`translate(0,${-COMPUTER_KEYBOARD.h})`}>
+        {[0.03, 0.085, 0.14].map((offset) =>
           Array.from({ length: 9 }, (_, i) => (
             <polygon
-              key={`${gy}-${i}`}
-              points={floorPatch(0.26 + i * 0.072, gy, 0.05, 0.03)}
+              key={`${offset}-${i}`}
+              points={floorPatch(COMPUTER_KEYBOARD.gx + 0.04 + i * 0.072, COMPUTER_KEYBOARD.gy + offset, 0.05, 0.03)}
               fill="#000"
               opacity="0.26"
             />

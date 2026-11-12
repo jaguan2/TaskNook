@@ -16,11 +16,19 @@ covers setup, desktop builds and user-facing features.
 - [Model spec](MODELS.md): current sprite, character and material contracts.
 - [Artwork workflow](CONTRIBUTING_ART.md): catalog fixtures and visual review.
 - [Modeling roadmap](MODELING_ROADMAP.md): per-item work still to consider.
+- [Standalone 3D catalog study](FURNITURE_3D_PROTOTYPE.md): all 184 catalog
+  entries, illustrated shading, articulated living models, verification and integration limits.
+- [Catalog migration tracker](CATALOG_3D_MIGRATION.md): section-by-section export
+  coverage for the full catalog.
+- [Catalog modelling approach](CATALOG_3D_APPROACH.md): construction, review,
+  source ownership and cleanup policy.
+- [Character and pet review](CHARACTER_PET_REVIEW.md): growth stages, preserved
+  SVG proportions, compact 3D residents, organized files and stability results.
 - [Catalog review](MODEL-REVIEW.md), [reference comparison](ART_REVIEW.md) and
   [furniture observations](REFERENCE_ASSETS.md): art findings and design context.
 - [Screenshots](screenshots/README.md): the app and current character examples.
-- [Model comparison captures](model-review/README.md): reviewed snapshots;
-  older contact sheets retain the proportions documented in their notes.
+- [Model comparison captures](model-review/README.md): refreshed current models
+  and contact sheets, with dated before/after comparisons preserved.
 
 ## Features
 
@@ -40,5 +48,7 @@ snapshots; verify a finding against current code before starting work.
 - [October code-quality review](archive/QUALITY-REVIEW-2026-10-09.md).
 - [October codebase improvements](CODEBASE-REVIEW-2026-10-09.md): 2D furniture,
   decoration controls, saved outfits and durable-write feedback.
+- [November structure review](CODEBASE-REVIEW-2026-11-10.md): ownership boundaries,
+  room synchronization, task history and sprite organization.
 - [August renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md).
 - [Changelog](CHANGELOG.md): dated project history.

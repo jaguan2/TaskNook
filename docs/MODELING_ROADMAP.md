@@ -538,3 +538,15 @@ continuous customization and limb animation contracts. The
 [August renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md) records
 the alternatives and the superseded proportion experiments. Use `MODELS.md`
 for the current rig.
+
+The [November standalone catalog study](FURNITURE_3D_PROTOTYPE.md) covers
+all **184 entries in 18 sections** with explicit authored GLBs. Illustrated
+shading follows the supplied Virtual Cottage 2 references. The generated
+[catalog migration tracker](CATALOG_3D_MIGRATION.md) lists every covered key,
+asset, triangle count and byte size; [the approach](CATALOG_3D_APPROACH.md)
+documents construction and review. Living entries have exported articulated
+Idle/Walk clips, separate from the production wardrobe and pet growth systems.
+Isolated review rooms and fixed-front actual-character checks cover construction,
+export validity, scale/style and browser behavior. No asset section remains to
+author. All-angle character contact, customization parity, production depth
+integration and dense-scene/native performance remain integration work.

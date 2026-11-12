@@ -203,10 +203,12 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const props = resolveCommonProps(scene);
   const layers = (level, part = "all") => {
     const entries = props.filter((p) => (p.level || "ground") === level)
-      .filter((p) => part === "all" || (part === "wall") === !!ISO_ITEMS[p.item].wall)
+      .filter((p) => part === "surface" ? (ISO_ITEMS[p.item].layer || 0) < 0
+        : part === "above-surface" ? (ISO_ITEMS[p.item].layer || 0) >= 0
+        : part === "all" || (part === "wall") === !!ISO_ITEMS[p.item].wall)
       .map((p) => ({ id: p.id, depth: p._depth ?? isoDepth(p),
         layer: ISO_ITEMS[p.item].layer || 0, p }));
-    for (const seat of part === "wall" ? [] : scene.seats.filter((seat) => seat.level === level)) {
+    for (const seat of part === "wall" || part === "surface" ? [] : scene.seats.filter((seat) => seat.level === level)) {
       const person = people.get(seat.id);
       const guest = seat.id === session.guestSeatId;
       if ((!person && !guest) || (guest && dragging)) continue;
@@ -277,7 +279,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
             timeOfDay={timeOfDay} layers={layers} lightPools={lightPools} />
         ) : scene.kind === "garden" ? (
           <CommonGardenScene scene={scene} uid={uid} clip={clip} glow={glow}
-            layers={layers} lightPools={lightPools} />
+            layers={layers} lightPools={lightPools} reduceMotion={reduceMotion} paused={paused} />
         ) : <>
         {/* Rear walls and windows are deliberately behind every floor level. */}
         <polygon data-common-shell-wall="left" points={wallRect("left", 0, scene.d, 0, cottageRoofH)} fill="#a89484" />

@@ -3,8 +3,8 @@
 Captured by driving the real app in a browser, not mocked up: room/UI shots
 show the built SPA talking to the Flask API. Feature examples use tasks and
 focus sessions created through the actual REST endpoints; rooms are entered
-through the same controls you would use. Room/UI captures are WebP, usually 1600×1000;
-the Grand Library captures use the review browser's 1280×720 viewport.
+through the same controls you would use. Room/UI captures are WebP at 1600×1000,
+including the Grand Library views.
 Character examples extract the real editor SVG and render it as a sharp model
 closeup: individual portraits are 600×800, and twelve-look sheets are 1600×1000.
 They contain model artwork and preset labels, without application chrome.
@@ -16,6 +16,12 @@ running the backend against a throwaway `TASKNOOK_DB` so focus minutes don't
 accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
+
+Refreshed November 11, 2026 from the current built app and an isolated capture
+database, including the README hero, furnished rooms, catalog pickers and
+character closeups. These images show the production SVG renderer. The updated
+[standalone 3D catalog sheets](../model-review/catalog-3d/README.md) show the
+separate GLB work; its models have not replaced the app renderer.
 
 Refreshed for the item-modeling pass and restored seated rig. The room gallery rotates through six saved
 character looks, covering both body models, different builds and skin tones,

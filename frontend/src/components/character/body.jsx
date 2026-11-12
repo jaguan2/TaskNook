@@ -635,6 +635,7 @@ export function Arm({
   skin,
   outfit,
   lap = false,
+  reach = null,
   shortSleeve = false,
   sleeveless = false,
   bulk = 0,
@@ -658,15 +659,21 @@ export function Arm({
   // piece's root nests inside the piece it hangs from, and only its far end
   // shows.
   const S = { x: side * (sh - 0.5), y: torsoY + 4.4 }; // shoulder, inside the torso
-  const E = { x: side * (sh + (lap ? 0.1 : 0.45)), y: torsoY + 12 };
-  const H = lap
+  const E = reach
+    ? { x: S.x + (reach.x - S.x) * 0.35, y: Math.max(S.y + 6, reach.y + 4) }
+    : { x: side * (sh + (lap ? 0.1 : 0.45)), y: torsoY + 12 };
+  const H = reach || (lap
     ? { x: side * 3.6, y: torsoY + 17 }
-    : { x: side * (sh + 0.05), y: torsoY + 17.5 };
+    : { x: side * (sh + 0.05), y: torsoY + 17.5 });
   // ONE CONTINUOUS CURVE per layer. Per-segment capsules with per-segment
   // washes grew a lens blob at every joint; the softened control points keep
   // the pose relaxed while the elbow itself remains visually unmarked.
-  const upperControl = { x: side * (sh + (lap ? 0.35 : 0.65)), y: torsoY + 8.1 };
-  const lowerControl = { x: side * (lap ? sh - 1.5 : sh + 0.3), y: torsoY + (lap ? 16 : 14.7) };
+  const upperControl = reach
+    ? { x: (S.x + E.x) / 2, y: (S.y + E.y) / 2 }
+    : { x: side * (sh + (lap ? 0.35 : 0.65)), y: torsoY + 8.1 };
+  const lowerControl = reach
+    ? { x: (E.x + H.x) / 2, y: H.y + 1.5 }
+    : { x: side * (lap ? sh - 1.5 : sh + 0.3), y: torsoY + (lap ? 16 : 14.7) };
   const whole = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y} Q ${lowerControl.x} ${lowerControl.y} ${H.x} ${H.y}`;
   const upper = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y}`;
   // Bare arms should read as anatomy, not as an outfit-coloured sleeve with
@@ -699,7 +706,7 @@ export function Arm({
     return line(`M ${x - px} ${y - py} L ${x + px} ${y + py}`, paint, sw, op);
   };
   return (
-    <g data-arm-pose={lap ? "lap" : "active"} data-arm-width={armW}
+    <g data-arm-pose={reach ? "keyboard" : lap ? "lap" : "active"} data-arm-width={armW}
       data-arm-depth={far ? "far" : "near"}
       data-sleeve={sleeveless ? "none" : shortSleeve ? "short" : "long"}>
       {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}

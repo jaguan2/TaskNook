@@ -14,9 +14,9 @@ from request_validation import clean_str as _clean_str
 from request_validation import json_body as _json_body
 
 
-# Cross-language contracts mirrored in frontend/src/lib/isoRoom.js. The room
-# tests compare them so adding an environment, wall mode, coat or temper cannot
-# silently make a frontend preset unsaveable.
+# Cross-language contracts mirrored in the frontend room catalog and pets model.
+# The room tests compare them so adding an environment, wall mode, coat, temper
+# or pet form cannot silently make a frontend placement unsaveable.
 ISO_ENVS = ("room", "cafe", "library", "terrace", "garden", "snow")
 ISO_WALLS = ("full", "low", "none")
 PET_LOOKS = (
@@ -24,6 +24,9 @@ PET_LOOKS = (
     "golden", "shiba", "corgi", "dalmatian", "husky", "cloud", "snow", "cocoa",
 )
 PET_TEMPERS = ("mellow", "curious", "sleepy")
+PET_FORMS = ("natural", "slender", "round")
+PET_GROWTH_MAX_AGE_MS = 31 * 24 * 60 * 60 * 1000
+PET_GROWTH_MAX_STARTED_AT = 8_640_000_000_000_000
 
 PROFILE_MAX_KEYS = 24
 CHARACTER_MAX_KEYS = 40
@@ -46,6 +49,27 @@ def _hex_color(value):
         and value[0] == "#"
         and all(char in "0123456789abcdefABCDEF" for char in value[1:])
     )
+
+
+def _clean_pet_growth(value):
+    """Bound the persisted clock without advancing it or knowing the catalog."""
+    if not isinstance(value, dict) or set(value) != {"ageMs", "startedAt"}:
+        return None
+    age = value["ageMs"]
+    started = value["startedAt"]
+    if not (
+        isinstance(age, int)
+        and not isinstance(age, bool)
+        and 0 <= age <= PET_GROWTH_MAX_AGE_MS
+    ):
+        return None
+    if started is not None and not (
+        isinstance(started, int)
+        and not isinstance(started, bool)
+        and 0 <= started <= PET_GROWTH_MAX_STARTED_AT
+    ):
+        return None
+    return {"ageMs": age, "startedAt": started}
 
 
 def clean_layout(placements, xkey, ykey):
@@ -102,6 +126,25 @@ def clean_layout(placements, xkey, ykey):
             if look not in PET_LOOKS:
                 return None
             entry["look"] = look
+
+        # Missing fields retain the legacy adult/classic appearance. Provided
+        # fields must be valid, even if the frontend attached them to furniture:
+        # the catalog and growth progression remain frontend knowledge.
+        if "petSize" in placement:
+            size = placement["petSize"]
+            if not _finite_number(size) or not 0.75 <= size <= 1:
+                return None
+            entry["petSize"] = size
+        if "petForm" in placement:
+            form = placement["petForm"]
+            if form not in PET_FORMS:
+                return None
+            entry["petForm"] = form
+        if "growth" in placement:
+            growth = _clean_pet_growth(placement["growth"])
+            if growth is None:
+                return None
+            entry["growth"] = growth
 
         off = placement.get("off")
         if off is not None:

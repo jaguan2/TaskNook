@@ -29,6 +29,7 @@ def test_checkout_keeps_build_text_lf_and_preserves_launcher_and_binary_rules(
         "TaskNook.command": b"#!/bin/sh\necho TaskNook\n",
         "TaskNook.exe": b"MZ\x00\r\n\x1a\n\x00",
         "frontend/public/texture.webp": b"RIFF\x00\r\nWEBP\x00\n",
+        "prototypes/furniture/assets/pet.glb": b"glTF\x02\x00\r\n\x1a\n\x00",
     }
     for name, content in inputs.items():
         path = source / name

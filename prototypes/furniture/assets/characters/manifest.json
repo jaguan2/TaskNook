@@ -1,0 +1,111 @@
+{
+  "version": 2,
+  "sourceFingerprint": "644123a1d648409eabe978f8c12ca07b585c6f018fd92866e2ca8256568d4ce0",
+  "viewBox": [
+    -24,
+    -52,
+    48,
+    78
+  ],
+  "seatHeights": [
+    16,
+    19,
+    20,
+    22,
+    24
+  ],
+  "looks": [
+    {
+      "key": "fall-girl",
+      "label": "Fall style girl"
+    },
+    {
+      "key": "fall-guy",
+      "label": "Fall style guy"
+    },
+    {
+      "key": "office-female",
+      "label": "Office wear female"
+    },
+    {
+      "key": "cozy-gamer",
+      "label": "Cozy gamer"
+    }
+  ],
+  "bodies": [
+    {
+      "key": "authored",
+      "label": "Original build"
+    },
+    {
+      "key": "compact",
+      "label": "Compact"
+    },
+    {
+      "key": "broad",
+      "label": "Broad"
+    }
+  ],
+  "fixtures": {
+    "fall-girl-authored-16": "fall-girl-authored-16.svg",
+    "fall-girl-authored-19": "fall-girl-authored-19.svg",
+    "fall-girl-authored-20": "fall-girl-authored-20.svg",
+    "fall-girl-authored-22": "fall-girl-authored-22.svg",
+    "fall-girl-authored-24": "fall-girl-authored-24.svg",
+    "fall-girl-compact-16": "fall-girl-compact-16.svg",
+    "fall-girl-compact-19": "fall-girl-compact-19.svg",
+    "fall-girl-compact-20": "fall-girl-compact-20.svg",
+    "fall-girl-compact-22": "fall-girl-compact-22.svg",
+    "fall-girl-compact-24": "fall-girl-compact-24.svg",
+    "fall-girl-broad-16": "fall-girl-broad-16.svg",
+    "fall-girl-broad-19": "fall-girl-broad-19.svg",
+    "fall-girl-broad-20": "fall-girl-broad-20.svg",
+    "fall-girl-broad-22": "fall-girl-broad-22.svg",
+    "fall-girl-broad-24": "fall-girl-broad-24.svg",
+    "fall-guy-authored-16": "fall-guy-authored-16.svg",
+    "fall-guy-authored-19": "fall-guy-authored-19.svg",
+    "fall-guy-authored-20": "fall-guy-authored-20.svg",
+    "fall-guy-authored-22": "fall-guy-authored-22.svg",
+    "fall-guy-authored-24": "fall-guy-authored-24.svg",
+    "fall-guy-compact-16": "fall-guy-compact-16.svg",
+    "fall-guy-compact-19": "fall-guy-compact-19.svg",
+    "fall-guy-compact-20": "fall-guy-compact-20.svg",
+    "fall-guy-compact-22": "fall-guy-compact-22.svg",
+    "fall-guy-compact-24": "fall-guy-compact-24.svg",
+    "fall-guy-broad-16": "fall-guy-broad-16.svg",
+    "fall-guy-broad-19": "fall-guy-broad-19.svg",
+    "fall-guy-broad-20": "fall-guy-broad-20.svg",
+    "fall-guy-broad-22": "fall-guy-broad-22.svg",
+    "fall-guy-broad-24": "fall-guy-broad-24.svg",
+    "office-female-authored-16": "office-female-authored-16.svg",
+    "office-female-authored-19": "office-female-authored-19.svg",
+    "office-female-authored-20": "office-female-authored-20.svg",
+    "office-female-authored-22": "office-female-authored-22.svg",
+    "office-female-authored-24": "office-female-authored-24.svg",
+    "office-female-compact-16": "office-female-compact-16.svg",
+    "office-female-compact-19": "office-female-compact-19.svg",
+    "office-female-compact-20": "office-female-compact-20.svg",
+    "office-female-compact-22": "office-female-compact-22.svg",
+    "office-female-compact-24": "office-female-compact-24.svg",
+    "office-female-broad-16": "office-female-broad-16.svg",
+    "office-female-broad-19": "office-female-broad-19.svg",
+    "office-female-broad-20": "office-female-broad-20.svg",
+    "office-female-broad-22": "office-female-broad-22.svg",
+    "office-female-broad-24": "office-female-broad-24.svg",
+    "cozy-gamer-authored-16": "cozy-gamer-authored-16.svg",
+    "cozy-gamer-authored-19": "cozy-gamer-authored-19.svg",
+    "cozy-gamer-authored-20": "cozy-gamer-authored-20.svg",
+    "cozy-gamer-authored-22": "cozy-gamer-authored-22.svg",
+    "cozy-gamer-authored-24": "cozy-gamer-authored-24.svg",
+    "cozy-gamer-compact-16": "cozy-gamer-compact-16.svg",
+    "cozy-gamer-compact-19": "cozy-gamer-compact-19.svg",
+    "cozy-gamer-compact-20": "cozy-gamer-compact-20.svg",
+    "cozy-gamer-compact-22": "cozy-gamer-compact-22.svg",
+    "cozy-gamer-compact-24": "cozy-gamer-compact-24.svg",
+    "cozy-gamer-broad-16": "cozy-gamer-broad-16.svg",
+    "cozy-gamer-broad-19": "cozy-gamer-broad-19.svg",
+    "cozy-gamer-broad-20": "cozy-gamer-broad-20.svg",
+    "cozy-gamer-broad-22": "cozy-gamer-broad-22.svg",
+    "cozy-gamer-broad-24": "cozy-gamer-broad-24.svg"
+  }
+}

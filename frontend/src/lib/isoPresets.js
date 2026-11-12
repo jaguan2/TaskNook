@@ -87,7 +87,7 @@ export function createIsoPresets(defaultIsoSize) {
       // toward the room and its sitter looking along -gx, out the window.
       { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#7f9ec9" },
       { item: "computer", gx: 0, gy: 2, rot: 1 },
-      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 3, tint: "#7f9ec9" },
+      { item: "deskchair", gx: 1, gy: 2.5, rot: 3, tint: "#7f9ec9" },
       // ---- LOUNGE: an L-group, both seats addressing the table -----------
       // The lounge takes the old workstation's bay; the desk now owns the
       // left wall. Keep a gap between the two chairs for carrying residents.
@@ -129,7 +129,7 @@ export function createIsoPresets(defaultIsoSize) {
       { item: "desklamp", gx: 0, gy: 1.5, tint: "#c68d59" },
       { item: "mug", gx: 0.5, gy: 3 },
       // The desk is on the left wall, so its chair faces sideways toward it.
-      { item: "deskchair", gx: 1.5, gy: 2.5, rot: 3, tint: "#71806c" },
+      { item: "deskchair", gx: 1, gy: 2.5, rot: 3, tint: "#71806c" },
       // A fuller back wall makes the room feel built-in and collected.
       { item: "bookshelf", gx: 3, gy: 0, tint: "#9b7659" },
       { item: "frame", gx: 1.5, gy: 0, tint: "#a56f5e" },

@@ -1,6 +1,7 @@
 import { CHARACTER_PRESETS } from "./characterPresets";
 import { deriveNpcCharacter } from "./visiting";
 import { ISO_ITEMS, stackedPlacement } from "./isoRoom";
+import { WILLOW_DUCKS } from "./commonWildlife";
 
 // Fixed places are authored scenes, not editable home layouts. A surface's
 // height lifts its floor, architecture, furniture, shadows AND seat anchors.
@@ -226,6 +227,7 @@ export const COMMON_PLACES = {
   "willow-pond": {
     id: "willow-pond", label: "Willow Pond", icon: "🌿",
     kind: "garden",
+    wildlife: { waterProp: "pond", ducks: WILLOW_DUCKS },
     ariaLabel: "Willow Pond: garden study terrace, pond bench and picnic",
     description: "A leafy pond, stone study terrace and picnic lawn",
     w: 12, d: 9,

@@ -848,10 +848,8 @@ describe("idle gestures read as occasional, not as a loop", () => {
     expect(block[1]).toContain("infinite");
     // It pivots at the base, not about its own middle.
     expect(block[1]).toContain("transform-origin: left bottom;");
-    // Both awake poses use it — the cat's curl and the dog's plume.
-    expect((items.match(/tail-sway/g) || []).length).toBeGreaterThanOrEqual(2);
-    // And the sleeping poses keep the rare flick.
-    expect((items.match(/className="tail-flick"/g) || []).length).toBeGreaterThanOrEqual(2);
+    // Per-pose application is covered by IsoPetItems.test.jsx, which renders
+    // both animals rather than counting copies of a shared tail function.
   });
 
   it("the yawning mouth rests shut without an animation to hold it", () => {

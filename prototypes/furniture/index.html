@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:,">
+  <title>TaskNook · Furniture workshop</title>
+  <link rel="stylesheet" href="/src/viewer/workshop.css">
+  <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <header><a class="brand" href="/">TaskNook<span> / furniture workshop</span></a><span class="badge">Standalone catalog migration</span></header>
+  <main>
+    <aside>
+      <p class="eyebrow">SECTION BY SECTION</p>
+      <h1>Built to belong.</h1>
+      <p class="intro">Standalone catalog pieces with connected construction and illustrated shading. Browse each family as it is completed.</p>
+      <label class="section-picker">Catalog section<select id="catalog-section" aria-label="Catalog section"></select></label>
+      <div class="choices" role="group" aria-label="Furniture"></div>
+      <section aria-label="Materials"><p class="eyebrow" id="finish-label">UPHOLSTERY</p>
+        <div class="swatches" role="group" aria-label="Material colors">
+          <button aria-label="Sage" data-color="#8baba0" style="--swatch:#8baba0" aria-pressed="true"></button>
+          <button aria-label="Cream" data-color="#e7d9bf" style="--swatch:#e7d9bf" aria-pressed="false"></button>
+          <button aria-label="Ink" data-color="#393545" style="--swatch:#393545" aria-pressed="false"></button>
+          <button aria-label="Clay" data-color="#b77963" style="--swatch:#b77963" aria-pressed="false"></button>
+          <label class="custom">Custom<input type="color" id="color" value="#8baba0" aria-label="Custom material color"></label>
+        </div>
+      </section>
+      <section class="details"><p class="eyebrow">CONSTRUCTION</p><p id="construction"></p>
+        <a id="download" class="download" download>Download standalone GLB ↗</a>
+      </section>
+      <details class="references"><summary>Reference &amp; existing artwork</summary><div>
+        <a href="/reference.jpg" target="_blank" rel="noreferrer"><img src="/reference.jpg" alt="Supplied cozy room reference"><span>Design reference</span></a>
+        <a href="/current.webp" target="_blank" rel="noreferrer"><img src="/current.webp" alt="Existing SVG furniture comparison"><span>Existing SVG furniture</span></a>
+      </div></details>
+      <details id="migration-progress"><summary>Catalog migration progress</summary><p>Standalone asset exports. Game integration is a separate stage.</p><table><thead><tr><th>Section</th><th>Assets</th><th>Status</th></tr></thead><tbody></tbody></table></details>
+    </aside>
+    <section class="stage" aria-label="Interactive furniture preview">
+      <div class="stage-head"><div><p class="eyebrow">STANDALONE MODEL</p><h2 id="model-title">Armchair</h2></div>
+        <div class="view-modes" role="group" aria-label="Preview mode"><button data-mode="object" aria-pressed="true">Object</button><button data-mode="room" aria-pressed="false">Furnished room</button><button data-mode="contact" aria-pressed="false">Seating check</button></div>
+      </div>
+      <div class="style-controls" role="group" aria-label="Furniture shading"><button data-style="illustrated" aria-pressed="true">Illustrated</button><button data-style="original" aria-pressed="false">Original lighting</button><button id="light-state" aria-pressed="true" disabled>Light on</button></div>
+      <div id="motion-controls" hidden><label>Motion <select id="motion-clip" aria-label="Motion clip"><option>Idle</option><option>Walk</option></select></label><button id="motion-state" aria-pressed="false">Play motion</button></div>
+      <label id="room-controls" hidden>Room arrangement <select id="room-layout" aria-label="Room arrangement"><option value="lounge">Lounge</option><option value="study">Study</option><option value="cafe">Café</option><option value="storage">Storage nook</option><option value="textiles">Textile lounge</option><option value="lighting">Hearth & lamps</option></select></label>
+      <div id="contact-controls" hidden><label>Look <select id="resident-look" aria-label="Resident look"></select></label><label>Build <select id="resident-body" aria-label="Resident build"></select></label><p>Front-view scale and style check using the existing SVG character.</p></div>
+      <div id="viewport"><p id="status" role="status">Loading furniture…</p></div>
+      <div class="stage-foot"><p id="camera-hint">Drag to orbit · Scroll to zoom</p><div class="views" role="group" aria-label="Camera views">
+        <button data-view="front">Front</button><button data-view="rear">Rear</button><button data-view="under">Underneath</button><button data-view="iso">Room angle</button>
+      </div></div>
+      <p class="asset-info" id="asset-info"></p>
+    </section>
+  </main>
+  <script type="module" src="/src/viewer/index.mjs"></script>
+</body>
+</html>

@@ -18,6 +18,7 @@ import {
 import ExteriorWall from "./ExteriorWall";
 import { ISO_SPRITES } from "./IsoItems";
 import PartitionWall from "./PartitionWall";
+import { orderWorkstationSeats, resolveWorkstations } from "../lib/workstations";
 
 const PREVIEW_FULL_WALL_H = 100;
 
@@ -99,7 +100,8 @@ function IsoPresetPreviewInner({ preset }) {
   // "Cozy study" thumbnail shows its resident standing *inside* the chair, and
   // the depth sort orders them from the wrong spot.
   const placed = preset.items.map((p, i) => ({ ...p, id: `pv${i}` }));
-  const items = sortIso(
+  const workstations = resolveWorkstations(placed);
+  const items = sortIso(orderWorkstationSeats(
     placed.map((p) => {
       if (ISO_ITEMS[p.item]?.stacks) {
         // Same for things on tables, or the thumbnail shows the mug on the
@@ -111,8 +113,8 @@ function IsoPresetPreviewInner({ preset }) {
       const seat = seatFor(p, placed);
       if (!seat) return p;
       return { ...p, ...seatedPlacement(p, seat) };
-    })
-  );
+    }), workstations
+  ));
   const previewWallMode = wallModeOf(preset.size.env, preset.size.walls);
   const previewWallH =
     previewWallMode === "full" ? PREVIEW_FULL_WALL_H : previewWallMode === "low" ? 30 : 0;
@@ -129,10 +131,13 @@ function IsoPresetPreviewInner({ preset }) {
     const at = project(p.gx, p.gy);
     const sprite = item.persona ? (
       <g transform={p._seat ? `translate(0, ${-p._seat})` : undefined}>
-        <Sprite seated={!!p._seat} seatH={p._seat || 0} seatPose={p._seatPose} />
+        <Sprite seated={!!p._seat && !p._lie} lying={!!p._lie}
+          seatH={p._seat || 0} seatPose={p._seatPose} facing={p._facing} />
       </g>
     ) : (
       <Sprite
+        pet={item.roamer ? p : undefined}
+        showLaptop={!workstations.get(p.id)?.equipped}
         rot={(p.rot || 0) % 2}
         back={(p.rot || 0) >= 2}
         variant={item.variants?.[p.tint]}
@@ -144,7 +149,7 @@ function IsoPresetPreviewInner({ preset }) {
         transform={`translate(${at.x},${at.y})`}
         style={p.tint ? { "--tint": p.tint } : undefined}
       >
-        {(p.rot || 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
+        {(p._seatRot ?? p.rot ?? 0) % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
       </g>
     );
   };

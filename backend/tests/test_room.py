@@ -524,6 +524,93 @@ def test_iso_pet_identity_round_trips(client, auth):
     assert saved["placements"][1]["look"] == "corgi"
 
 
+def test_pet_size_form_and_growth_round_trip_without_server_clock_changes(client, auth):
+    """The server keeps both running and paused clocks as authored snapshots."""
+    placements = [
+        {
+            "id": "baby", "item": "cat", "gx": 2, "gy": 3,
+            "name": "Mochi", "temper": "curious", "look": "calico",
+            "petSize": 0.75, "petForm": "slender",
+            "growth": {"ageMs": 0, "startedAt": 1_800_000_000_000},
+        },
+        {
+            "id": "paused", "item": "dog", "gx": 4, "gy": 3,
+            "petSize": 0.875, "petForm": "round",
+            "growth": {"ageMs": 500_000, "startedAt": None},
+        },
+        {
+            "id": "adult", "item": "bunny", "gx": 6, "gy": 3,
+            "petSize": 1, "petForm": "natural",
+            "growth": {"ageMs": 2_678_400_000, "startedAt": 8_640_000_000_000_000},
+        },
+        {"id": "legacy", "item": "cat", "gx": 1, "gy": 5},
+    ]
+    flat = [{
+        "id": "flat", "item": "cat", "x": 100, "y": 200,
+        "petSize": 1.0, "petForm": "natural",
+        "growth": {"ageMs": 0, "startedAt": 0},
+    }]
+    payload = {"placements": flat, "iso": {"w": 9, "d": 7, "placements": placements}}
+    assert client.put("/api/room", json=payload, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json() == payload
+
+    # Pausing/resuming is a new valid snapshot; saving does not reset age, add
+    # elapsed server time, or discard the independently selected form/size.
+    placements[1]["growth"] = {"ageMs": 750_000, "startedAt": 1_800_000_100_000}
+    assert client.put("/api/room", json=payload, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json() == payload
+
+
+def test_pet_growth_envelope_is_bounded_without_catalog_awareness(client, auth):
+    iso = {"w": 9, "d": 7, "placements": [{
+        "id": "future", "item": "future-pet", "gx": 2, "gy": 3,
+        "petSize": 0.9, "petForm": "round",
+        "growth": {"ageMs": 1234, "startedAt": None},
+    }]}
+    payload = {"placements": [], "iso": iso}
+    assert client.put("/api/room", json=payload, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json() == payload
+
+
+def test_room_rejects_malformed_pet_variation_without_replacing_saved_layout(client, auth):
+    assert client.put("/api/room", json={"placements": LAYOUT, "iso": ISO}, headers=auth).status_code == 200
+    malformed = [
+        ("petSize", value) for value in (
+            None, True, False, "0.9", [], {}, 0.749, 1.001, 10**100,
+            float("nan"), float("inf"), float("-inf"),
+        )
+    ] + [("petForm", value) for value in (None, "", "wide", True, 1, [], {})]
+    for field, value in malformed:
+        placement = {"id": "pet", "item": "cat", "gx": 2, "gy": 3, field: value}
+        iso = {"w": 9, "d": 7, "placements": [placement]}
+        res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+        assert res.status_code == 400, f"accepted {field}={value!r}"
+    assert client.get("/api/room", headers=auth).get_json() == {"placements": LAYOUT, "iso": ISO}
+
+
+def test_room_rejects_malformed_pet_growth_without_replacing_saved_layout(client, auth):
+    assert client.put("/api/room", json={"placements": LAYOUT, "iso": ISO}, headers=auth).status_code == 200
+    malformed = [
+        None, [], "baby", True, {}, {"ageMs": 0}, {"startedAt": None},
+        {"ageMs": 0, "startedAt": None, "extra": "discarding me would hide a client bug"},
+    ]
+    malformed += [{"ageMs": age, "startedAt": None} for age in (
+        None, True, False, -1, 2_678_400_001, 1.0, "1000", [], {},
+        float("nan"), float("inf"), 10**100,
+    )]
+    malformed += [{"ageMs": 0, "startedAt": started} for started in (
+        True, False, -1, 8_640_000_000_000_001, 1.0, "1000", [], {},
+        float("nan"), float("inf"), 10**100,
+    )]
+    for value in malformed:
+        iso = {"w": 9, "d": 7, "placements": [{
+            "id": "pet", "item": "cat", "gx": 2, "gy": 3, "growth": value,
+        }]}
+        res = client.put("/api/room", json={"placements": [], "iso": iso}, headers=auth)
+        assert res.status_code == 400, f"accepted growth={value!r}"
+    assert client.get("/api/room", headers=auth).get_json() == {"placements": LAYOUT, "iso": ISO}
+
+
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -562,6 +649,22 @@ def test_pet_tempers_match_frontend():
     from app import PET_TEMPERS
 
     assert keys == set(PET_TEMPERS)
+
+
+@pytest.mark.skipif(
+    not pathlib.Path(__file__).resolve().parents[2].joinpath("frontend").exists(),
+    reason="frontend sources not present",
+)
+def test_pet_forms_match_frontend():
+    source = pathlib.Path(__file__).resolve().parents[2] / "frontend/src/lib/pets.js"
+    js = source.read_text(encoding="utf-8")
+    block = re.search(r"export const PET_FORMS = \[(.*?)\];", js, re.S)
+    assert block, f"couldn't find PET_FORMS in {source} — has it moved?"
+    keys = set(re.findall(r"key: \"(\w+)\"", block.group(1)))
+    assert keys, "found PET_FORMS but parsed no keys out of it"
+    from routes.room_profile import PET_FORMS
+
+    assert keys == set(PET_FORMS)
 
 
 @pytest.mark.skipif(

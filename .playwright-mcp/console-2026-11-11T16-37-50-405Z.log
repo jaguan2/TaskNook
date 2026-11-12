@@ -1,0 +1,2 @@
+[     600ms] [ERROR] Failed to load resource: the server responded with a status of 401 (UNAUTHORIZED) @ http://127.0.0.1:5129/api/auth/me:1
+[     612ms] [ERROR] Failed to load resource: the server responded with a status of 401 (UNAUTHORIZED) @ http://127.0.0.1:5129/api/auth/login:1

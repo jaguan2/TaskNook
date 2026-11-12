@@ -27,6 +27,8 @@ import { GLIDE_EASE, ambienceVars, glideMs } from "../lib/motion";
 import { useNpcActivity } from "../hooks/useNpcActivity";
 import { useIsoCamera } from "../hooks/useIsoCamera";
 import { overSoftSpot, usePetRoaming } from "../hooks/usePetRoaming";
+import { usePetGrowthClock } from "../hooks/usePetGrowthClock";
+import { petAppearance } from "../lib/pets";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoBedTuck from "./IsoBedTuck";
@@ -39,6 +41,7 @@ import RoomTintPicker from "./RoomTintPicker";
 import IsoAtmosphere from "./IsoAtmosphere";
 import IsoContactShadow from "./IsoContactShadow";
 import IsoCarryOverlay from "./IsoCarryOverlay";
+import { orderWorkstationSeats, resolveWorkstations, seatedWorkTarget } from "../lib/workstations";
 
 // The interactive isometric room (beta): a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -161,6 +164,7 @@ const PlacedItem = memo(function PlacedItem({
   p,
   editMode,
   activity,
+  petNow,
   character,
   mood,
   reduceMotion,
@@ -259,7 +263,8 @@ const PlacedItem = memo(function PlacedItem({
           sprites read as sitting IN the room instead of pasted on
           (flat rugs/ponds and wall decor obviously except). */}
       {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest &&
-        <IsoContactShadow foot={foot} height={item.hitH} />}
+        <IsoContactShadow foot={foot} height={item.hitH}
+          scale={item.roamer ? petAppearance(p, petNow).scale : 1} />}
       {/* Mirroring about the origin is a grid TRANSPOSE — the item
           faces the other wall and its footprint swaps to match.
           noMirror items (rendered PNGs) ship a real second render
@@ -270,7 +275,7 @@ const PlacedItem = memo(function PlacedItem({
         // screen-left, so a rightward glide flips them toward where they're
         // going — before this, a figure slid backward while looking at you).
         // XOR, because two mirrors cancel.
-        const flip = ((p.rot || 0) % 2 === 1) !== (glide.facing > 0);
+        const flip = ((p._seatRot ?? p.rot ?? 0) % 2 === 1) !== (glide.facing > 0);
         const spriteFlip = persona && p._lieOn
           ? (p._lieOn.rot || 0) % 2 === 1
           : flip;
@@ -281,6 +286,7 @@ const PlacedItem = memo(function PlacedItem({
               lying={!!p._lie}
               seatH={p._seat || 0}
               seatPose={p._seatPose}
+              workTarget={p._workTarget}
               activity={personaActivity}
               moving={glide.moving}
               facing={p._facing || "front"}
@@ -301,7 +307,7 @@ const PlacedItem = memo(function PlacedItem({
           // Animals are DRAWN in profile — that's their walking pose — so
           // "side" is their default; a vertical-dominant glide turns them
           // toward or away from the camera the same way it turns a person.
-          <Sprite awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} look={p.look} />
+          <Sprite pet={p} now={petNow} awake={!!p._awake} moving={glide.moving} facing={p._facing || "side"} look={p.look} />
         ) : (
           <g transform={p._rest ? `translate(0, ${-p._rest})` : undefined}>
             {/* rot 2/3 are the AWAY-facing pair, and they're a
@@ -310,6 +316,7 @@ const PlacedItem = memo(function PlacedItem({
                 never be faked. `back` picks the real back view;
                 only items with one are ever given a rot ≥ 2. */}
             <Sprite
+              showLaptop={!p._equipped}
               rot={(p.rot || 0) % 2}
               back={(p.rot || 0) >= 2}
               variant={item.variants?.[p.tint]}
@@ -381,6 +388,7 @@ function IsoSceneInner({
   // booleans: the states are exclusive, and it still changes rarely enough that
   // the memo'd scene only re-renders on a phase edge rather than per tick.
   activity = null,
+  petNow,
   character,
   mood = null,
   reduceMotion = false,
@@ -452,6 +460,7 @@ function IsoSceneInner({
   // Pets roam through visual-only offsets, checked against floor and furniture;
   // their stored home positions do not change while roaming.
   const roamOffset = usePetRoaming({ placements, size, editMode, reduceMotion, paused });
+  const workstations = useMemo(() => resolveWorkstations(placements), [placements]);
   // Someone in your hand isn't in the room. Filtered rather than hidden, and
   // that's load-bearing twice over: their name tag (drawn from this same list)
   // goes with them instead of hovering over empty floor, and UNMOUNTING is what
@@ -480,9 +489,13 @@ function IsoSceneInner({
       const on = surfaceFor(p, placements);
       return on ? { ...p, ...stackedPlacement(p, on) } : p;
     }
+    if (p.item === "desk" && workstations.get(p.id)?.equipped) return { ...p, _equipped: true };
     if (!item?.persona) return p;
     const seat = seatFor(p, placements);
-    if (seat) return { ...p, ...seatedPlacement(p, seat) };
+    if (seat) {
+      const seated = { ...p, ...seatedPlacement(p, seat) };
+      return { ...seated, _workTarget: seatedWorkTarget(seated, seat, workstations) };
+    }
     // Whether they're WALKING isn't derived here any more: displacement from
     // home is true forever once someone has wandered, which is how figures
     // came to march in place indefinitely. PlacedItem's useGlide watches the
@@ -492,7 +505,7 @@ function IsoSceneInner({
       ? { ...p, gx: p.gx + off.dx, gy: p.gy + off.dy, _hx: p.gx, _hy: p.gy, _facing: off.facing }
       : p;
   });
-  const sceneLayers = sortIsoScene(effective, partitionRunList);
+  const sceneLayers = sortIsoScene(orderWorkstationSeats(effective, workstations), partitionRunList);
   const selectedPlacement =
     editMode && selectedId ? effective.find((p) => p.id === selectedId) : null;
 
@@ -891,6 +904,7 @@ function IsoSceneInner({
             const p = layer.placement;
             return (
               <PlacedItem
+                petNow={petNow}
                 key={layer.key}
                 p={p}
                 editMode={editMode}
@@ -1028,13 +1042,14 @@ function IsoSceneInner({
 }
 
 const IsoScene = memo(IsoSceneInner);
+const EMPTY_PLACEMENTS = [];
 
 // Camera and input boundary. Panning moves one DOM layer until release;
 // zooming changes the SVG viewBox. Stable scene props keep camera updates
 // out of the memoized IsoScene subtree. App reads timer status, not its tick.
 function IsoRoom({
   size,
-  placements = [],
+  placements = EMPTY_PLACEMENTS,
   editMode = false,
   timeOfDay = "night",
   weather = "off",
@@ -1065,6 +1080,7 @@ function IsoRoom({
   onTintItem,
   onToggleItem,
 }) {
+  const petNow = usePetGrowthClock(placements);
   const [selectedId, setSelectedId] = useState(null);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
@@ -1368,6 +1384,7 @@ function IsoRoom({
       >
         <g ref={panLayerRef} data-pan-layer="true" data-iso-room-art>
           <IsoScene
+          petNow={petNow}
           size={size}
           placements={placements}
           editMode={editMode}
@@ -1393,6 +1410,7 @@ function IsoRoom({
           carriedId={walkTarget?.id ?? null}
           />
           <IsoCarryOverlay
+            petNow={petNow}
             placements={placements}
             target={walkTarget}
             cx={cx}

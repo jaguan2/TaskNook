@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import ProfilePetsSection from "./ProfilePetsSection";
 import { PET_SPRITES } from "./IsoPetItems";
 import { ISO_ITEMS } from "../lib/isoRoom";
+import { newPetTraits } from "../lib/pets";
 
 afterEach(cleanup);
 
@@ -25,6 +26,18 @@ function renderPets(placements = [], overrides = {}) {
 }
 
 describe("ProfilePetsSection", () => {
+  it("offers stage, growth pause and adult size controls for the selected baby", () => {
+    const { setPetIdentity } = renderPets([{ ...cat, ...newPetTraits(Date.now(), () => 0) }]);
+    expect(screen.getByText(/^Teen in /)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Grow over time" }));
+    expect(setPetIdentity).toHaveBeenLastCalledWith(cat.id, { growing: false });
+    fireEvent.click(within(screen.getByRole("group", { name: "Life stage" })).getByRole("button", { name: "Teen" }));
+    expect(setPetIdentity).toHaveBeenLastCalledWith(cat.id, { stage: "teen" });
+    fireEvent.change(screen.getByRole("slider", { name: "Pet adult size" }), { target: { value: "0.85" } });
+    expect(setPetIdentity).toHaveBeenLastCalledWith(cat.id, { petSize: 0.85 });
+    fireEvent.click(within(screen.getByRole("group", { name: "Body form" })).getByRole("button", { name: "Round" }));
+    expect(setPetIdentity).toHaveBeenLastCalledWith(cat.id, { petForm: "round" });
+  });
   it("has preview artwork for every adoptable roaming species", () => {
     const roamers = Object.entries(ISO_ITEMS)
       .filter(([, item]) => item.roamer)

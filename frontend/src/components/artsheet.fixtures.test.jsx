@@ -17,11 +17,13 @@ import FocusWidget from "./FocusWidget";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoRoom from "./IsoRoom";
 import Cottage from "./Cottage";
+import { Duck } from "./CommonWildlife";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
 import { CHARACTER_PRESETS } from "../lib/characterPresets";
 import { BUNNY_COATS, CAT_COATS, DOG_BREEDS, ISO_ITEMS, ISO_ITEM_GROUPS, freeSeatSpot, isoPresetLayout, seatFor, seatedPlacement } from "../lib/isoRoom";
 import { project } from "../lib/iso";
+import { PET_FORMS, PET_STAGES } from "../lib/pets";
 import {
   COATS,
   DEFAULT_CHARACTER,
@@ -72,6 +74,11 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       count += 1;
     };
     const dressed = (extra) => ({ ...DEFAULT_CHARACTER, ...extra });
+    for (const color of ["mallard", "cream"]) {
+      for (const pose of ["swim", "walk"]) {
+        save(`wildlife-duck-${color}-${pose}`, <Duck color={color} swimming={pose === "swim"} />, "-24 -24 48 34");
+      }
+    }
     // The full catalog, including items absent from every preset. Reuse the
     // scene's actual paint definitions so screens, glass and water review as
     // they do in the app, rather than silently rendering black in isolation.
@@ -169,6 +176,31 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       const Sprite = ISO_SPRITES[key];
       save(`furniture-${key}`, <Sprite />, "-80 -120 160 165");
     }
+    // Keep the revised family together at one scale: material isolation can
+    // hide mismatched feet, backrests and upholstery volumes between pieces.
+    for (const [tone, color] of Object.entries({ sage: "#799a8c", dark: "#342b45", cream: "#e8d7b9" })) {
+      for (const key of ["chair", "deskchair", "armchair", "sofa"]) {
+        const Sprite = ISO_SPRITES[key];
+        for (const back of [false, true]) {
+          save(`joins-${key}-${tone}-${back ? "back" : "front"}`,
+            <g style={{ "--tint": color }}><Sprite back={back} /></g>,
+            key === "sofa" ? "-25 -45 80 85" : "-25 -50 55 80");
+        }
+      }
+      for (const back of [false, true]) {
+        save(`cohesion-family-${tone}-${back ? "back" : "front"}`,
+          <g style={{ "--tint": color }}>
+            {["chair", "deskchair", "armchair", "sofa"].map((key, i) => {
+              const Sprite = ISO_SPRITES[key];
+              return <g key={key} transform={`translate(${i * 70},0)`}><Sprite back={back} /></g>;
+            })}
+          </g>, "-25 -55 305 100");
+        const Bed = ISO_SPRITES.bed;
+        // Bed supports the two catalog mirror turns, rather than a rear view.
+        save(`cohesion-bed-${tone}-${back ? "mirror" : "front"}`,
+          <g style={{ "--tint": color }} transform={back ? "scale(-1,1)" : undefined}><Bed /></g>, "-80 -45 160 120");
+      }
+    }
     // Fabric and shelf depth must survive both light and dark user tints.
     for (const key of ["bed", "sofa", "armchair", "chair", "deskchair", "bench", "bookshelf", "monstera"]) {
       const Sprite = ISO_SPRITES[key];
@@ -183,7 +215,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // Review furniture contact using the same anchor, seat height and facing
     // resolver as the room. Front/rear body extremes expose arm and backrest
     // occlusion that an empty chair or an isolated resident cannot show.
-    for (const key of ["armchair", "sofa", "deskchair", "bench"]) {
+    for (const key of ["chair", "armchair", "sofa", "deskchair", "bench"]) {
       const Sprite = ISO_SPRITES[key];
       for (const back of [false, true]) {
         const chair = { id: "seat", item: key, gx: 0, gy: 0, rot: back ? 2 : 0 };
@@ -274,6 +306,32 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       <Resident character={dressed({ hair: "bob", garment: "sweater" })} lying />,
       "-48 -50 96 88"
     );
+    // A typing contact must be judged on its real desk and chair. Bare
+    // resident previews cannot establish keyboard height or backrest occlusion.
+    for (const [name, extra] of Object.entries({
+      compact: { model: "fem", width: 6.2, height: 26, torso: 14, garment: "tee", hair: "bob" },
+      broad: { model: "masc", width: 8.4, height: 32, torso: 20, coat: "puffer", coatColor: "#342b45", skin: "#774c37" },
+      classic: { model: "fem", garment: "blouse", coat: "blazer", hair: "long", hat: "headphones" },
+    })) {
+      for (const rot of [0, 1, 2, 3]) {
+        const seat = { placement: { id: "chair", item: "deskchair", gx: rot % 2 ? 3 : 2.5,
+          gy: rot % 2 ? 2.5 : 3, rot }, height: 24 };
+        // Even facing pairs share a keyboard plane; the other pair is its
+        // grid transpose. One coherent figure stays in its established view.
+        const deskRot = (rot + 2) % 4;
+        const desk = { id: "desk", item: "desk", gx: rot === 1 ? 4 : 2, gy: rot === 0 ? 4 : 2, rot: deskRot };
+        const person = { id: "person", item: "resident", gx: seat.placement.gx, gy: seat.placement.gy };
+        for (const activity of [null, "focus", "break"]) {
+          const markup = renderToStaticMarkup(<IsoRoom size={{ w: 6, d: 6, walls: "none" }}
+            placements={[desk, seat.placement, person]} activity={activity}
+            personas={{ person: { character: dressed(extra) } }} saveView={false} reduceMotion timeOfDay="day" />);
+          writeFileSync(`${DIR}/workstation-${name}-${rot}-${activity || "idle"}.svg`,
+            markup.slice(markup.indexOf("<svg"), markup.lastIndexOf("</svg>") + 6)
+              .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ')
+              .replace('viewBox="0 0 640 480"', 'viewBox="200 164 240 210"'));
+        }
+      }
+    }
     for (const { key } of HAIR_STYLES) {
       save(`hair-front-${key}`, <Resident character={dressed({ hair: key })} />);
       // A light colourway too — the texture pass (flow lines, notch wedges,
@@ -362,22 +420,34 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     // barrel but not the curl is exactly what side-by-side review catches.
     for (const look of CAT_COATS.map((c) => c.key)) {
       for (const f of ["side", "front", "back"]) {
-        save(`cat-${look}-${f}`, <Cat awake facing={f} look={look} />, "-44 -48 88 62");
+        save(`cat-${look}-${f}`, <Cat awake facing={f} look={look} />, "-44 -48 88 72");
       }
-      save(`cat-${look}-held`, <Cat held look={look} />, "-44 -48 88 62");
-      save(`cat-${look}-asleep`, <Cat look={look} />, "-44 -48 88 62");
+      save(`cat-${look}-held`, <Cat held look={look} />, "-44 -48 88 72");
+      save(`cat-${look}-asleep`, <Cat look={look} />, "-44 -48 88 72");
     }
     for (const look of DOG_BREEDS.map((b) => b.key)) {
       for (const f of ["side", "front", "back"]) {
-        save(`dog-${look}-${f}`, <Dog awake facing={f} look={look} />, "-44 -48 88 62");
+        save(`dog-${look}-${f}`, <Dog awake facing={f} look={look} />, "-44 -48 88 72");
       }
-      save(`dog-${look}-held`, <Dog held look={look} />, "-44 -48 88 62");
-      save(`dog-${look}-asleep`, <Dog look={look} />, "-44 -48 88 62");
+      save(`dog-${look}-held`, <Dog held look={look} />, "-44 -48 88 72");
+      save(`dog-${look}-asleep`, <Dog look={look} />, "-44 -48 88 72");
     }
     const Bunny = ISO_SPRITES.bunny;
+    for (const [species, Sprite] of Object.entries({ cat: Cat, dog: Dog, bunny: Bunny })) {
+      for (const stage of PET_STAGES) {
+        for (const form of PET_FORMS) {
+          for (const pose of ["front", "side", "back", "asleep", "held"]) {
+            save(`growth-${species}-${stage.key}-${form.key}-${pose}`,
+              <Sprite pet={{ petSize: 0.9, petForm: form.key, growth: { ageMs: stage.ageMs, startedAt: null } }}
+                awake={pose !== "asleep"} held={pose === "held"} facing={pose} />,
+              "-44 -48 88 72");
+          }
+        }
+      }
+    }
     for (const look of BUNNY_COATS.map((b) => b.key)) {
-      save(`bunny-${look}-awake`, <Bunny awake look={look} />, "-44 -48 88 62");
-      save(`bunny-${look}-asleep`, <Bunny look={look} />, "-44 -48 88 62");
+      save(`bunny-${look}-awake`, <Bunny awake look={look} />, "-44 -48 88 72");
+      save(`bunny-${look}-asleep`, <Bunny look={look} />, "-44 -48 88 72");
     }
     expect(count).toBeGreaterThan(0);
   });

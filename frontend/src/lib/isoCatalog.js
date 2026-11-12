@@ -145,8 +145,8 @@ export const ISO_ITEMS = {
   // `surface: <px>` is a top things can be PUT ON, and `stacks: true` marks an
   // item small enough to be put there — see surfaceFor(). Every value is a
   // real sprite height, so a mug lands on a table top and not in mid-air.
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 37, seat: 22, backView: true },
-  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 37, seat: 22, backView: true },
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 42, seat: 22, backView: true },
+  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 42, seat: 22, backView: true },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, surface: 24 },
   chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19, backView: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },

@@ -822,8 +822,37 @@ describe("presets", () => {
     // The built-in left window spans gy 1.05–3.55. A desk facing the
     // opposite wall can still be near a window, so pin the facing as well.
     expect(loft.find((p) => p.item === "desk")).toMatchObject({ gx: 0, gy: 1.5, rot: 1 });
-    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1.5, gy: 2.5, rot: 3 });
+    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1, gy: 2.5, rot: 3 });
     expect(loft.some((p) => p.item === "mushroomlamp")).toBe(false);
+  });
+
+  it.each(["loft", "classic"])("tucks the %s workstation chair beneath the worktop while clearing the drawer cabinet", (key) => {
+    const items = ISO_PRESETS[key].items;
+    const desk = items.find((p) => p.item === "desk");
+    const chair = items.find((p) => p.item === "deskchair");
+    expect(desk.rot).toBe(1);
+    expect(chair.rot).toBe(3);
+
+    // These bounds describe the actual timber and cushion, rather than their
+    // larger catalog grab footprints. Odd turns transpose the sprite's axes:
+    // the desk's near edge is its 1.2-tile depth, the drawer cabinet ends at
+    // 1.04, and the chair's padded seat spans local gy 0.12..0.68.
+    const desktopEdge = desk.gx + footOf(desk.item, desk.rot)[0];
+    const cabinetEdge = desk.gx + 1.04;
+    const padFront = chair.gx + 0.12;
+    const padBack = chair.gx + 0.68;
+    const tuck = desktopEdge - padFront;
+    expect(tuck).toBeGreaterThan(0);
+    expect(tuck).toBeLessThanOrEqual(0.1);
+    expect(padFront - cabinetEdge).toBeGreaterThanOrEqual(0.05);
+    expect(padBack).toBeGreaterThan(desktopEdge);
+
+    // The two different rooms reserve the same clear chair bay. The desktop
+    // is the only solid footprint allowed to overlap its tucked front edge.
+    const obstructions = items.filter((p) => p !== desk && p !== chair &&
+      !ISO_ITEMS[p.item].wall && !ISO_ITEMS[p.item].stacks &&
+      (ISO_ITEMS[p.item].layer || 0) >= 0);
+    expect(obstructions.filter((p) => footprintsOverlap(chair, p))).toEqual([]);
   });
 
   it("builds Secret garden around one central pond with seating on every side", () => {
