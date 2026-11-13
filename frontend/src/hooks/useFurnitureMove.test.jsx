@@ -43,3 +43,25 @@ it('ignores another pointer and aborts when leaving Decorate', () => {
   expect(result.current.active).toBe(false);
   expect(onMove).not.toHaveBeenCalled();
 });
+
+it('restores the original target when an active drag returns to its press point', () => {
+  const { result, onMove } = setup();
+  act(() => result.current.start(piece, event()));
+  act(() => result.current.move(event({ clientX: 48, clientY: 24, gx: 3 })));
+  act(() => result.current.move(event()));
+  expect(result.current.placements[0]).toMatchObject({ gx: piece.gx, gy: piece.gy });
+  act(() => result.current.end(event({ type: 'pointerup' })));
+  expect(onMove).not.toHaveBeenCalled();
+});
+
+it('preserves a boundary-clamped fractional position when returning to the press point', () => {
+  const sofa = { id: 'sofa', item: 'sofa', gx: 1, gy: 7.15 };
+  const { result, onMove } = setup([sofa]);
+  const start = event({ gx: 1, gy: 7.15 });
+  act(() => result.current.start(sofa, start));
+  act(() => result.current.move(event({ clientX: 48, clientY: -24, gx: 1, gy: 5 })));
+  act(() => result.current.move(start));
+  expect(result.current.placements[0]).toMatchObject({ gx: sofa.gx, gy: sofa.gy });
+  act(() => result.current.end(event({ type: 'pointerup' })));
+  expect(onMove).not.toHaveBeenCalled();
+});

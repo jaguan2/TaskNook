@@ -1,5 +1,4 @@
 import { Copy, Move, Palette, RotateCcw, RotateCw, Scaling, Trash2, X } from 'lucide-react';
-import { furnitureFacingLabel } from '../lib/furnitureFacing';
 import { furnitureDimensions, RESIZABLE_FURNITURE, snapFurnitureDimensions } from '../lib/furnitureDimensions';
 import RoomTintPicker from './RoomTintPicker';
 
@@ -13,8 +12,7 @@ export default function IsoItemInspector({ placement, item, mode, onMode, onRota
   return <section className="iso-item-inspector glass absolute z-40 space-y-2 rounded-2xl p-3 text-cream shadow-soft"
     data-item-inspector role="group" aria-label="Selected furniture controls">
     <header className="flex items-center justify-between gap-2">
-      <div className="min-w-0"><p className="truncate text-xs font-semibold text-cream">{item.icon} {item.label}</p>
-        <p className="text-[10px] text-petal/60">{furnitureFacingLabel(placement)}</p></div>
+      <p className="min-w-0 truncate text-xs font-semibold text-cream">{item.icon} {item.label}</p>
       <button type="button" onClick={onClose} aria-label="Deselect furniture" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/10"><X size={15} /></button>
     </header>
     <div className="grid grid-cols-4 gap-1">
@@ -27,7 +25,7 @@ export default function IsoItemInspector({ placement, item, mode, onMode, onRota
       {tabs.map(([key, Icon, label]) => <button type="button" key={key} aria-pressed={mode === key} onClick={() => onMode(key === 'place' ? 'hidden' : key)}
         className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs ${mode === key ? 'bg-glow text-plum' : 'bg-white/5 text-petal hover:bg-white/10'}`}><Icon size={13} />{label}</button>)}
     </div>
-    {mode === 'place' && <p className="text-[10px] leading-relaxed text-petal/65">Drag the piece or use arrow keys. R turns right; Shift+D copies. Escape deselects.</p>}
+    {mode === 'place' && <p className="text-[10px] leading-relaxed text-petal/65">{limits && !item.wall ? 'Drag the piece to move; drag a corner to resize.' : 'Drag the piece or use arrow keys.'} R turns right; Shift+D copies. Escape deselects.</p>}
     {mode === 'colour' && paintable && <RoomTintPicker placement={placement} item={item} onTint={onTint} onDecor={onDecor} embedded />}
     {mode === 'size' && limits && <div className="space-y-2">
       <p className="text-[10px] text-petal/60">{size.w} × {size.d} tiles · half-tile steps</p>

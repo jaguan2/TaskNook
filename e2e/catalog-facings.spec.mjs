@@ -36,7 +36,7 @@ test('cabinet controls cycle all four GLB facings and preserve them through save
     await page.locator('[data-rotate-item="cabinet"]').focus();
     await page.keyboard.press('Enter');
     await expect(cabinet).toHaveAttribute('data-model-facing', facing);
-    await expect(page.locator('[data-facing-label="cabinet"]')).toHaveText(new RegExp(facing, 'i'));
+    await expect(page.locator('[data-rotate-item="cabinet"]')).toHaveAttribute('aria-label', new RegExp(`Facing ${facing}`, 'i'));
     await ready(page);
     const fingerprint = await cabinet.locator('image').evaluate(async image => {
       const bytes = await (await fetch(image.getAttribute('href'))).arrayBuffer();

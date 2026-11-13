@@ -163,6 +163,10 @@ Captures `63 64 65` in the reusable screenshot script perform real pointer drags
 
 Decorate opens the searchable furniture catalogue first. Adding a piece selects it and returns to the canvas. Labelled turn/copy/remove actions and Move, Colours and Size tools sit in the selected-piece inspector; Furniture, undo, redo and Done remain on the bottom toolbar. Beds retain separate blanket, frame, sheets and pillow colours.
 
+The floating icon row is ordered rotate, resize, then remove. Compass and size labels are hidden; hover and accessible labels retain the control details. Captures 62–66 reflect this simpler selection overlay.
+
+Beds, sofas, desks and floor-standing shelves also show four corner grips. Drag a corner to resize in half-tile steps, or focus it and use the arrow keys. Escape cancels; undo restores size and position together. The ground furniture in captures 62–65 is now resized through its actual front corner. Wall shelves retain their mounted resize control.
+
 ![Selected bed material controls and the Decorate toolbar](66-decorate-controls.webp)
 
 Capture `66` reproduces this editor view. Capture `25` and size examples `62 63 64 65` are refreshed for the current workflow. [Interaction rules, shortcuts and history limits](../ROOM_MODEL_INTEGRATION.md#decorate-interaction-workflow).

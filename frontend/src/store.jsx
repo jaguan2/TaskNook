@@ -1,5 +1,4 @@
 import { useRoomEditHistory } from './hooks/useRoomEditHistory';
-import { RESIZABLE_FURNITURE } from './lib/furnitureDimensions';
 import { cleanShelfDecor } from "./lib/shelfDecor";
 import { withFurnitureColor } from './lib/furnitureColors';
 import {
@@ -103,19 +102,14 @@ import {
 import {
   ISO_ITEMS,
   ISO_MAX_ITEMS,
-  clampIsoPlacement,
   defaultIsoLayout,
-  findFreeSpot,
-  footOf,
-  footprintFree,
   isoPresetLayout,
   freeSeatSpot,
   newIsoPlacement,
-  normalizeRot,
+  rotateIsoPlacements,
   moveIsoPlacements,
   duplicateIsoPlacement,
   resizeIsoPlacements,
-  replaceFurniturePlacement,
   partitionKey,
   PET_TEMPERS,
   cleanPetName,
@@ -490,57 +484,18 @@ export function StoreProvider({ children }) {
       placements: prev.placements.filter((p) => p.id !== id),
     }));
   }, [editIsoRoom]);
-  // Mirror-rotation: the footprint transposes, so re-clamp in the new
-  // orientation (and wall items hop to the other wall).
-  //
-  // Clamping alone is NOT enough. `clampIsoPlacement` is bounds-only by design
-  // ("mask validity is the caller's job"), and a transposed footprint can be
-  // perfectly in bounds while lying across void tiles — so a turn near a painted
-  // away region left the piece hanging over the hole. The drag engine then
-  // refuses any target that isn't fully on floor, so every small nudge was
-  // silently ignored and the item read as stuck; the invalid layout was saved,
-  // and the next reload teleported it somewhere else without a word. That is the
-  // failure `newIsoPlacement` was already fixed for, and it is reachable in the
-  // shipped default room — the Loft is L-shaped, and ~5% of legal positions for
-  // a bed, sofa, desk, bookcase or stairs strand on one turn.
-  // Computed OUTSIDE the updater, like addIsoItem: updaters must stay pure
-  // (StrictMode double-invokes them), and this one toasts on refusal.
+  // Validate the whole turned group before creating an edit. Refusals never
+  // enter history or persistence; the pure rule also handles irregular floors.
   const rotateIsoItem = useCallback(
     (id, direction = 1) => {
       const prev = isoRef.current;
-      let refused = false;
-      const placements = prev.placements.map((p) => {
-        if (p.id !== id) return p;
-        // Four facings for seating that ships a back view, two for everything
-        // else (and for wall decor, where rot picks the wall, not a facing).
-        const rot = normalizeRot(p.item, (p.rot || 0) + (direction < 0 ? -1 : 1));
-        const { rot: _dropped, ...rest } = p;
-        const at = clampIsoPlacement(p, p.gx, p.gy, prev, rot);
-        const turned = { ...rest, ...(rot && { rot }), ...at };
-        // Wall decor is glued to a wall by the clamp and never covers floor,
-        // so the mask doesn't apply to it.
-        if (ISO_ITEMS[p.item]?.wall) return turned;
-        if (footprintFree(at.gx, at.gy, footOf(p, rot), prev)) return turned;
-        // Prefer to keep the turn and move the piece, since the turn is what
-        // was asked for. Only if the drawn floor has nowhere to put it does
-        // the rotation get refused outright.
-        const spot = findFreeSpot(p, rot, prev, at.gx, at.gy, prev.placements.filter(other => other.id !== id));
-        if (spot) return { ...turned, ...spot };
-        refused = true;
-        return p;
-      });
-      if (refused) {
-        // Same rule as the item cap and the reshape drops: a refusal the user
-        // can see beats a control that silently does nothing.
-        showToast("No room to turn that piece — the floor's too tight 🌿");
-        return;
+      const placements = rotateIsoPlacements(prev.placements, id, direction, prev);
+      if (!placements) {
+        showToast("No room to turn that piece — clear some space first 🌿");
+        return false;
       }
-      const before = prev.placements.find(p => p.id === id);
-      const turned = placements.find(p => p.id === id);
-      const next = { ...prev, placements: RESIZABLE_FURNITURE[before?.item]
-        ? replaceFurniturePlacement(prev.placements, before, turned)
-        : placements };
-      editIsoRoom(next);
+      if (placements !== prev.placements) editIsoRoom({ ...prev, placements });
+      return true;
     },
     [showToast, editIsoRoom]
   );
@@ -553,11 +508,11 @@ export function StoreProvider({ children }) {
       }),
     }), `colour:${id}:${part}`);
   }, [editIsoRoom]);
-  const resizeIsoItem = useCallback((id, dimensions) => {
+  const resizeIsoItem = useCallback((id, dimensions, origin) => {
     const prev = isoRef.current;
-    const placements = resizeIsoPlacements(prev.placements, id, dimensions, prev);
+    const placements = resizeIsoPlacements(prev.placements, id, dimensions, prev, origin);
     if (!placements) {
-      showToast("That size needs more clear floor space 🌿");
+      showToast("That size is blocked — check the floor and items on top 🌿");
       return false;
     }
     if (placements !== prev.placements) {

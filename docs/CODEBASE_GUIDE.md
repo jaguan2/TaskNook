@@ -51,7 +51,11 @@ Interactive room actions pass through `useRoomEditHistory`. `roomEditHistory.js`
 
 ## Following a furniture resize
 
-The selected piece's resize handle → `useFurnitureResize` local preview → `resizeIsoItem` → existing room save. `resizeIsoPlacements` checks the floor, partitions, added overlap and supported equipment, then moves the piece's occupants/desktop objects with it. `replaceFurniturePlacement` also carries them through moves/turns. Escape/pointer cancellation discards the preview. Visitors and common places receive no resize callback.
+`IsoResizeHandles` draws four floor-corner grips for beds, sofas, desks and the five floor-standing shelf styles. `furnitureResize.js` maps their screen corners to canonical model dimensions at every facing and computes the new origin. Authored non-half-tile spans snap their opposite edge onto the saved half grid on first resize, avoiding a later reload shift. Wall shelves keep their existing mounted control.
+
+`useFurnitureResize` previews origin and dimensions together. `resizeIsoPlacements` checks the entire footprint against floor, partitions, added overlap and equipment support. `replaceFurniturePlacement` carries occupants/equipment through resizing, moves and turns. `resizeIsoItem(id, dimensions, origin)` commits the pair as one history/save action. Escape, cancelled pointers and lost capture discard both. Corner keys own their arrows, so the scene's nudge shortcut cannot also move the piece. The original floating control and Size steppers keep a fixed origin. Visitors and common places receive no resize callback.
+
+`rotateIsoPlacements` owns rotation geometry and the irregular-floor relocation fallback. Turns, moves and resizes check their resulting carried group for increased intersections, including pairs of tabletop props. Surface clamping is included in that check; its paint-only depth nudge is excluded. A refused turn or shrink creates no history/save action. Returning a drag to its press point restores the original geometry, including implicit authored sizes, and commits no edit.
 
 Optional placement `dimensions: { w, d }` uses canonical tile axes before rotation. Pass the placement to `footOf`, clamping and free-spot helpers so drawing, placement, carrying, pet navigation and floor-plan occupancy agree. Missing dimensions retain the authored footprint; `RESIZABLE_FURNITURE` defines the supported bed, sofa, desk and six shelf limits. Home on the resize handle removes the override. Heights stay fixed.
 

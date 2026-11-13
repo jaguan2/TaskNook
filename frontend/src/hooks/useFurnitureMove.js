@@ -16,7 +16,7 @@ export function useFurnitureMove({ placements, size, editMode, onMove, toGrid, s
     gesture.current = null;
     release(state);
     setPreview(null);
-    if (event.type === 'pointerup' && state.moved) onMove?.(state.id, state.gx, state.gy);
+    if (event.type === 'pointerup' && state.moved && (state.gx !== state.placement.gx || state.gy !== state.placement.gy)) onMove?.(state.id, state.gx, state.gy);
     return true;
   });
   const start = useEventCallback((placement, event) => {
@@ -33,10 +33,14 @@ export function useFurnitureMove({ placements, size, editMode, onMove, toGrid, s
   const move = useEventCallback(event => {
     const state = gesture.current;
     if (!state || (event.pointerId != null && event.pointerId !== state.pointerId)) return false;
-    if (Math.hypot(event.clientX - state.clientX, event.clientY - state.clientY) < 4) return true;
+    const distance = Math.hypot(event.clientX - state.clientX, event.clientY - state.clientY);
+    if (!state.moved && distance < 4) return true;
     const point = toGrid(event);
     if (!point) return true;
-    const at = clampIsoPlacement(state.placement, snapHalf(point.gx - state.dx), snapHalf(point.gy - state.dy), size);
+    // Boundary clamping can leave a non-half position. Returning to the press
+    // area restores it exactly instead of snapping an abandoned move.
+    const at = distance < 4 ? { gx: state.placement.gx, gy: state.placement.gy }
+      : clampIsoPlacement(state.placement, snapHalf(point.gx - state.dx), snapHalf(point.gy - state.dy), size);
     state.moved = true;
     state.gx = at.gx; state.gy = at.gy;
     const valid = !!moveIsoPlacements(placements, state.id, at.gx, at.gy, size);

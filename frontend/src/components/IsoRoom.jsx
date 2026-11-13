@@ -48,6 +48,7 @@ import IsoCarryOverlay from "./IsoCarryOverlay";
 import { orderWorkstationSeats, resolveWorkstations, seatedWorkTarget } from "../lib/workstations";
 import { furnitureDimensions, RESIZABLE_FURNITURE } from '../lib/furnitureDimensions';
 import { useFurnitureResize } from '../hooks/useFurnitureResize';
+import IsoResizeHandles from './IsoResizeHandles';
 
 function canCustomizeFurniture(key) {
   const item = ISO_ITEMS[key];
@@ -1001,6 +1002,9 @@ function IsoSceneInner({
               const at = project(p.gx, p.gy);
               const foot = footOf(p);
               const hitR = project(foot[0], 0);
+              const canResize = RESIZABLE_FURNITURE[p.item] && onStartResize;
+              const removeX = hitR.x + (canResize ? 27 : 4);
+              const remove = () => { onRemoveItem?.(p.id); onClearSelect?.(); };
               return (
                 <g transform={`translate(${at.x},${at.y})`}>
                   <polygon
@@ -1011,9 +1015,8 @@ function IsoSceneInner({
                     strokeDasharray="6 4"
                     opacity="0.9"
                   />
-                  <text x={hitR.x - 18} y={-item.hitH - 16} textAnchor="middle" fill="#ffe9b0" fontSize="9" pointerEvents="none" data-facing-label={p.id}>
-                    {furnitureFacingLabel(p)}
-                  </text>
+                  {canResize && !item.wall && <IsoResizeHandles placement={p} foot={foot} label={item.label}
+                    blocked={resizeBlockedId === p.id} onStart={onStartResize} onKeyboard={onResizeKeyDown} />}
                   <g
                     className="room-remove"
                     data-rotate-item={p.id}
@@ -1030,6 +1033,7 @@ function IsoSceneInner({
                       onRotateItem?.(p.id);
                     }}
                   >
+                    <title>Rotate {item.label.toLowerCase()}</title>
                     <circle cx={hitR.x - 18} cy={-item.hitH - 2} r="9" fill="#8a7ac2" />
                     <path
                       d={`M${hitR.x - 22} ${-item.hitH - 2} a4.5 4.5 0 1 1 1.4 3.2`}
@@ -1043,8 +1047,8 @@ function IsoSceneInner({
                       fill="#fff"
                     />
                   </g>
-                  {RESIZABLE_FURNITURE[p.item] && onStartResize && (() => {
-                    const dimensions = furnitureDimensions(p), x = hitR.x + 27, y = -item.hitH - 2;
+                  {canResize && (() => {
+                    const dimensions = furnitureDimensions(p), x = hitR.x + 4, y = -item.hitH - 2;
                     const blocked = resizeBlockedId === p.id;
                     return <g data-resize-item={p.id} role="button" tabIndex={0}
                       aria-label={`Resize ${item.label.toLowerCase()}. ${dimensions.w} by ${dimensions.d} tiles. Arrow keys adjust width and length. Home restores original size.`}
@@ -1055,8 +1059,8 @@ function IsoSceneInner({
                       <circle cx={x} cy={y} r="10" fill={blocked ? '#b55b70' : '#6c9e96'} />
                       <path d={`M${x - 4} ${y + 4} l8 -8 M${x - 4} ${y + 1} v3 h3 M${x + 1} ${y - 4} h3 v3`}
                         fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <text x={x} y={y - 14} textAnchor="middle" fill={blocked ? '#f0a4b5' : '#ffe9b0'} fontSize="8" pointerEvents="none"
-                        data-resize-label={p.id}>{blocked ? 'No space' : `${dimensions.w}×${dimensions.d}`}</text>
+                      {blocked && <text x={x} y={y - 14} textAnchor="middle" fill="#f0a4b5" fontSize="8" pointerEvents="none"
+                        data-resize-label={p.id}>No space</text>}
                     </g>;
                   })()}
                   {item.toggleable && onToggleItem && (
@@ -1092,15 +1096,24 @@ function IsoSceneInner({
                   )}
                   <g
                     className="room-remove"
+                    data-remove-item={p.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Remove ${item.label.toLowerCase()}`}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault(); e.stopPropagation(); remove();
+                      }
+                    }}
                     onPointerDown={(e) => {
                       e.stopPropagation();
-                      onRemoveItem?.(p.id);
-                      onClearSelect?.();
+                      remove();
                     }}
                   >
-                    <circle cx={hitR.x + 4} cy={-item.hitH - 2} r="9" fill="#d96a6a" />
+                    <title>Remove {item.label.toLowerCase()}</title>
+                    <circle cx={removeX} cy={-item.hitH - 2} r="9" fill="#d96a6a" />
                     <path
-                      d={`M${hitR.x} ${-item.hitH - 6} l8 8 M${hitR.x + 8} ${-item.hitH - 6} l-8 8`}
+                      d={`M${removeX - 4} ${-item.hitH - 6} l8 8 M${removeX + 4} ${-item.hitH - 6} l-8 8`}
                       stroke="#fff"
                       strokeWidth="2"
                       strokeLinecap="round"
@@ -1233,7 +1246,7 @@ function IsoRoom({
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopImmediatePropagation(); setSelectedId(null); return;
       }
-      if (event.target.closest?.('[data-item-inspector], [data-resize-item]')) return;
+      if (event.target.closest?.('[data-item-inspector], [data-resize-item], [data-resize-corner]')) return;
       const placement = placements.find(p => p.id === selectedId);
       if (!placement) return;
       const arrow = { ArrowLeft: [-.5, 0], ArrowRight: [.5, 0], ArrowUp: [0, -.5], ArrowDown: [0, .5] }[event.key];

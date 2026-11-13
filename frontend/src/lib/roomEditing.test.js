@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { duplicateIsoPlacement, moveIsoPlacements, seatFor, surfaceFor } from './isoRoom';
+import { duplicateIsoPlacement, footOf, footprintFree, footprintsOverlap, moveIsoPlacements, resizeIsoPlacements, rotateIsoPlacements, seatFor, surfaceFor } from './isoRoom';
 const size = { w: 8, d: 8 };
 it('allows supported and layered moves while refusing new solid intersections', () => {
   const desk = { id: 'desk', item: 'desk', gx: 1, gy: 1 };
@@ -24,4 +24,41 @@ it('copies size, facing, colours and decorations with a new clear identity', () 
   expect(duplicateIsoPlacement({ ...size, placements: [{ id: 'pet', item: 'cat', gx: 0, gy: 0 }] }, 'pet')).toBeNull();
   const full = { id: 'bed', item: 'bed', gx: 0, gy: 0, dimensions: { w: 4, d: 4 } };
   expect(duplicateIsoPlacement({ w: 4, d: 4, placements: [full] }, full.id)).toBeNull();
+});
+
+it('refuses turns into solid furniture while retaining rugs and seated occupants', () => {
+  const sofa = { id: 'sofa', item: 'sofa', gx: 1, gy: 1 };
+  const chair = { id: 'chair', item: 'chair', gx: 1, gy: 2.5 };
+  expect(footprintsOverlap(sofa, chair)).toBe(false);
+  expect(rotateIsoPlacements([sofa, chair], sofa.id, 1, size)).toBeNull();
+  expect(rotateIsoPlacements([sofa, chair], sofa.id, -1, size)).toBeNull();
+  const sitter = { id: 'sitter', item: 'resident', gx: 1.5, gy: 1 };
+  const rug = { id: 'rug', item: 'squarerug', gx: 1, gy: 1 };
+  const turned = rotateIsoPlacements([sofa, sitter, rug], sofa.id, 1, size);
+  expect(turned[0].rot).toBe(1);
+  expect(seatFor(turned[1], turned).placement.id).toBe(sofa.id);
+  expect(sofa).not.toHaveProperty('rot');
+});
+
+it('keeps the irregular-floor relocation path and carries its occupant safely', () => {
+  const room = { w: 6, d: 6, mask: ['111111', '111111', '111111', '111000', '111000', '111000'] };
+  const bed = { id: 'bed', item: 'bed', gx: 2, gy: 3, dimensions: { w: 1, d: 2 } };
+  const sitter = { id: 'sitter', item: 'resident', gx: 2, gy: 3.5 };
+  const turned = rotateIsoPlacements([bed, sitter], bed.id, 1, room);
+  expect(turned[0].rot).toBe(1);
+  expect(footprintFree(turned[0].gx, turned[0].gy, footOf(turned[0]), room)).toBe(true);
+  expect(seatFor(turned[1], turned).placement.id).toBe(bed.id);
+});
+
+it('refuses a shrink that merges tabletop props and accepts one that keeps them separate', () => {
+  const desk = { id: 'desk', item: 'desk', gx: 1, gy: 1, dimensions: { w: 4, d: 2 } };
+  const mugs = [{ id: 'one', item: 'mug', gx: 3.5, gy: 1.5 }, { id: 'two', item: 'mug', gx: 4.5, gy: 1.5 }];
+  const original = [desk, ...mugs];
+  expect(footprintsOverlap(...mugs)).toBe(false);
+  expect(resizeIsoPlacements(original, desk.id, { w: 2, d: 2 }, size)).toBeNull();
+  const resized = resizeIsoPlacements(original, desk.id, { w: 3.5, d: 2 }, size);
+  expect(resized).not.toBeNull();
+  expect(footprintsOverlap(resized[1], resized[2])).toBe(false);
+  for (const p of resized.slice(1)) expect(surfaceFor(p, resized).placement.id).toBe(desk.id);
+  expect(original[0].dimensions).toEqual({ w: 4, d: 2 });
 });

@@ -709,4 +709,10 @@ Decorate is a temporary editing workspace. Furniture browsing opens first, with 
 
 The selected-piece inspector offers labelled left/right turns, copy and remove, then Move, Colours and Size tools. Colour controls start from the authored material. Beds expose their blanket, frame, sheets and pillows separately. Size uses half-tile steps and retains the drag handle. Move and Drag resize handle collapse the inspector to keep the canvas reachable in short windows; selecting the piece opens it again.
 
+Floating controls above a selected piece stay icon-only, ordered rotate, resize (when supported), then remove. Facing and dimension readouts remain in accessible button labels rather than floating over the furniture. A blocked resize still shows its No space feedback; the explicit Size tool retains its measurements.
+
+Selected beds, sofas, desks and floor-standing shelves also expose four footprint corner grips. Dragging a grip changes the span from that corner while keeping the opposite grid corner fixed. Handles have padded hit targets, directional cursors and keyboard labels; arrows change width/depth and Home restores the original size. No extra measurements float above the piece. In short windows Move collapses the inspector to leave the grips reachable. Wall shelves retain their wall-mounted resize control.
+
+Turning furniture must leave room for the whole resulting arrangement. A desk cannot turn through its chair, and shrinking its top must not merge separate props. Refused changes leave the current arrangement and undo history intact. A blocked resize retains its last clear size; returning a move/resize drag to the press point restores the original arrangement without saving an edit.
+
 The compact bottom toolbar keeps Furniture, undo, redo and Done visible. The inspector scrolls above the bottom rail in narrow windows. Pointer previews use green/red footprint feedback, save only on release, and cancel with Escape. Undo/redo cover room edits during the current session. Keyboard help stays beside the relevant controls; typing in fields never moves, rotates or deletes furniture.

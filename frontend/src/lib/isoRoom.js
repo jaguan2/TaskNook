@@ -640,6 +640,59 @@ function overlapArea(a, b) {
     Math.max(0, Math.min(a.gy + af[1], b.gy + bf[1]) - Math.max(a.gy, b.gy));
 }
 
+// Props collide where they actually sit on a top. The stacking depth-sort
+// nudge is paint-only; it must not create a new floor-space intersection.
+function collisionPlacement(placement, placements) {
+  const on = surfaceFor(placement, placements);
+  if (!on) return placement;
+  const at = stackedPlacement(placement, on);
+  return { ...placement, gx: at.gx, gy: at.gy - 0.1 };
+}
+
+/** Validate the resulting group, including pairs of carried props. Existing
+ * intentional overlap may improve, while new intersections are refused. */
+function replacementIsClear(before, after, support, attached) {
+  const changed = new Set([support.id, ...attached.keys()]);
+  const old = new Map(before.map(p => [p.id, collisionPlacement(p, before)]));
+  const placed = after.map(p => collisionPlacement(p, after));
+  const replacement = after.find(p => p.id === support.id);
+  const restingOn = surfaceFor(replacement, after)?.placement.id || seatFor(replacement, after)?.placement.id;
+  for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) {
+    const a = placed[i], b = placed[j];
+    if (!changed.has(a.id) && !changed.has(b.id)) continue;
+    const ai = ISO_ITEMS[a.item], bi = ISO_ITEMS[b.item];
+    if (!ai || !bi || ai.wall || bi.wall || (ai.layer || 0) < 0 || (bi.layer || 0) < 0) continue;
+    // Support/occupant and support/surface relationships are intentional.
+    if (a.id === support.id && (attached.has(b.id) || b.id === restingOn)) continue;
+    if (b.id === support.id && (attached.has(a.id) || a.id === restingOn)) continue;
+    if (overlapArea(a, b) > overlapArea(old.get(a.id), old.get(b.id)) + 1e-8) return false;
+  }
+  return true;
+}
+
+/** A floor-valid turn stays in place or is refused on collision. Preserve the
+ * existing nearest-clear-floor fallback when an irregular floor forces a move. */
+export function rotateIsoPlacements(placements, id, direction, size) {
+  const support = placements.find(p => p.id === id), item = ISO_ITEMS[support?.item];
+  if (!item) return null;
+  const rot = normalizeRot(support.item, (support.rot || 0) + (direction < 0 ? -1 : 1));
+  if (rot === (support.rot || 0)) return placements;
+  const { rot: _old, ...rest } = support;
+  const turned = { ...rest, ...(rot && { rot }), ...clampIsoPlacement(support, support.gx, support.gy, size, rot) };
+  const carries = !item.wall && (item.layer || 0) >= 0;
+  const attached = carries ? supportedItems(placements, support) : new Map();
+  const at = replacement => {
+    if (!item.wall && !footprintFree(replacement.gx, replacement.gy, footOf(replacement), size)) return null;
+    const next = carries ? replaceFurniturePlacement(placements, support, replacement)
+      : placements.map(p => p.id === id ? replacement : p);
+    return !carries || replacementIsClear(placements, next, support, attached) ? next : null;
+  };
+  if (item.wall || footprintFree(turned.gx, turned.gy, footOf(turned), size)) return at(turned);
+  const others = placements.filter(p => p.id !== id && !attached.has(p.id));
+  const spot = findFreeSpot(support, rot, size, turned.gx, turned.gy, others);
+  return spot ? at({ ...turned, ...spot }) : null;
+}
+
 /** A move is a preview until release. Existing overlaps may improve, while
  * new intersections are refused. Flat rugs, wall mounts and tabletop props
  * retain their intentional layering rather than behaving like solid cabinets. */
@@ -663,7 +716,7 @@ export function moveIsoPlacements(placements, id, gx, gy, size) {
     if (surface && (p.id === surface.placement.id || !other.stacks)) return false;
     return overlapArea(moved, p) > overlapArea(original, p) + 1e-8;
   })) return null;
-  return next;
+  return replacementIsClear(placements, next, original, attached) ? next : null;
 }
 
 /** Copies furniture customization and size, giving it a new identity and a
@@ -690,20 +743,23 @@ export function duplicateIsoPlacement(layout, id) {
 
 /** Resize one piece, keeping its colours and supported items. Added floor must be
  * clear; pre-existing intentional overlap may shrink but cannot grow. */
-export function resizeIsoPlacements(placements, id, value, size) {
+export function resizeIsoPlacements(placements, id, value, size, origin) {
   const support = placements.find(p => p.id === id);
   if (!support || !RESIZABLE_FURNITURE[support.item]) return null;
   const dimensions = cleanFurnitureDimensions(support.item, value);
   if (value != null && !dimensions) return null;
+  if (origin != null && (!Number.isFinite(origin.gx) || !Number.isFinite(origin.gy))) return null;
+  const gx = origin?.gx ?? support.gx, gy = origin?.gy ?? support.gy;
   const old = cleanFurnitureDimensions(support.item, support.dimensions);
-  if (dimensions ? old?.w === dimensions.w && old?.d === dimensions.d : !support.dimensions) return placements;
+  if ((dimensions ? old?.w === dimensions.w && old?.d === dimensions.d : !support.dimensions)
+    && gx === support.gx && gy === support.gy) return placements;
   const { dimensions: _previous, ...rest } = support;
-  const resized = dimensions ? { ...rest, dimensions } : rest;
+  const resized = { ...rest, gx, gy, ...(dimensions && { dimensions }) };
   const foot = footOf(resized);
-  if (!footprintFree(support.gx, support.gy, foot, size)) return null;
+  if (!footprintFree(gx, gy, foot, size)) return null;
   if (ISO_ITEMS[support.item].wall) {
-    const at = clampIsoPlacement(resized, support.gx, support.gy, size);
-    if (at.gx !== support.gx || at.gy !== support.gy) return null;
+    const at = clampIsoPlacement(resized, gx, gy, size);
+    if (at.gx !== gx || at.gy !== gy) return null;
   }
   const attachments = supportedItems(placements, support);
   const oldFoot = footOf(support);
@@ -721,7 +777,8 @@ export function resizeIsoPlacements(placements, id, value, size) {
     if (!!item.wall !== !!ISO_ITEMS[support.item].wall) return false;
     return overlapArea(resized, p) > overlapArea(support, p) + 1e-8;
   })) return null;
-  return replaceFurniturePlacement(placements, support, resized);
+  const next = replaceFurniturePlacement(placements, support, resized);
+  return replacementIsClear(placements, next, support, attachments) ? next : null;
 }
 
 function supportedItems(placements, support) {

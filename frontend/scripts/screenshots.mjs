@@ -575,7 +575,8 @@ async function resizePlacedFurniture(page, cdp, id, w, d) {
     const item = [...document.querySelectorAll('[data-placement-id]')].find(node => node.dataset.placementId === placement.id);
     item.focus(); item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await new Promise(resolve => requestAnimationFrame(resolve));
-    const circle = document.querySelector('[data-resize-item] circle');
+    const circle = document.querySelector('[data-resize-corners] [data-resize-corner="front"] [data-resize-hit]')
+      || document.querySelector('[data-resize-item] circle');
     if (!circle) throw new Error('Furniture resize handle missing: ' + placement.item);
     const box = circle.getBBox(), matrix = circle.getScreenCTM();
     const x = box.x + box.width / 2, y = box.y + box.height / 2;
@@ -1111,7 +1112,7 @@ async function main() {
     await sleep(300);
     await page.shot(join(OUT_DIR, "62-bed-resize-before.webp"));
     const points = await page.evaluate(`(() => {
-      const circle = document.querySelector('[data-resize-item="resize-bed"] circle');
+      const circle = document.querySelector('[data-resize-corners="resize-bed"] [data-resize-corner="front"] [data-resize-hit]');
       if (!circle) throw new Error('Bed resize handle missing');
       const box = circle.getBBox(), matrix = circle.getScreenCTM();
       return [new DOMPoint(box.x + box.width / 2, box.y + box.height / 2),

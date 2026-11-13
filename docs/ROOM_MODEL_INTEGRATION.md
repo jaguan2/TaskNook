@@ -170,6 +170,28 @@ Text fields keep their editing keys. The resize handle retains its own arrow/Hom
 
 Implementation owners and save boundaries are recorded in [the codebase guide](CODEBASE_GUIDE.md#following-a-decorate-action). Browser coverage includes the full persisted workflow, cancellation and compact windows; the screenshot script refreshes capture 25 and furniture size examples 62–65 and adds capture 66 for bed material controls.
 
+### Direct corner resizing — 2026-11-13
+
+Selected beds, sofas, workstations, bookshelves, bookcases, open shelves, ladder shelves and plant displays expose four floor-corner grips. Wall shelves retain their mounted resize control; other fixed-size objects receive no grips. Dimensions keep the existing per-type limits and half-tile steps, with fixed model heights. The rotate/resize/remove icon row and Size steppers remain available.
+
+Dragging a corner holds the opposite grid corner in place at every facing. Legacy authored spans such as the 2.2-tile desk first snap that edge onto the saved half grid; subsequent drags and reloads preserve it. The resize hook previews origin and dimensions together, then the store commits them as one edit through existing persistence. One undo restores both. Occupants/equipment follow their support; blocked growth stops at the last clear footprint. Escape, pointer cancellation and lost capture discard the preview.
+
+Grips have padded hit targets, directional cursors and accessible names that report the current dimensions. Each target is clipped to its own corner quadrant, preventing overlap from stealing touches in small or zoomed-out views. Arrow keys adjust width/depth and Home restores original size. The scene's move shortcuts stand down while a corner owns focus. Move collapses the inspector when a short window needs clear canvas space.
+
+Captures 62–65 now perform real corner drags for ground furniture and verify saved sizes. [Source ownership and grid behavior](CODEBASE_GUIDE.md#following-a-furniture-resize) describe the shared geometry, preview and persistence boundaries.
+
+Verification passes 1,630 frontend tests (one gated generator skipped), the final 47-test scene rerun, lint/build and all 12 targeted browser scenarios. Browser coverage includes every corner at four facings, all eight floor furniture families, mouse/keyboard/native touch, 390px/320px windows, blocked growth, cancellation, undo/redo and saved origin after reload. Main build `c2ca8c868e7942e58c475301b3f85348` matches source/embedded identity and its manifest and passes the isolated frozen self-test. Temporary test data/helpers remain outside shipped files and are removed after review.
+
+### Placement and drag corrections — 2026-11-13
+
+The follow-up review identified three gaps: floor-valid turns could intersect other furniture, shrinking a desk could clamp separate props onto one point, and returning an active drag to its press point could retain a stale preview. All three are corrected through the existing geometry, history and save paths.
+
+`rotateIsoPlacements` owns turning and retains the nearest-clear-floor fallback for irregular rooms. A floor-valid turn into another solid piece is refused. Turns, moves and resizes validate the resulting carried group, including pairs of supported props, using their actual clamped tabletop positions without the render-only depth nudge. Existing intentional overlap and support/seat relationships are preserved; newly increased intersections are refused. A blocked resize keeps the last clear arrangement and its message points to both floor space and items on top.
+
+The drag threshold applies only before movement starts. Returning to the press area restores the original target, including authored sizes without a dimensions override. Such a return, or a refused turn/resize, creates no edit or undo entry. Regression coverage exercises the original three failures, independent prop positions after reload, safe supported turns, irregular-floor relocation and atomic history behavior. The desktop download and manifest are rebuilt together; verification evidence remains ignored under `build/skill-verification/editor-fixes/`.
+
+The final frontend suite passes 1,638 tests (one gated generator skipped), with lint/build passing. The full browser run passes 48 scenarios; the three placement regressions pass again after the final feedback and fractional room-edge return correction. Main build `86d4c5f81cc94fccb970258722dc1e8b` matches source/embedded identity and its manifest and passes the isolated frozen self-test. The executable is 49,358,542 bytes with SHA-256 `2b2e103ddf4d775d92db81fc3ef9bd3c67517a99ff9d2ce6fb9884315b176cc0`. Owned verification data/helpers and raw browser results are removed after review; no commit or push was performed.
+
 ## Shelves, sofas and desks
 
 All eight additional catalog types now use the same Decorate handle, half-tile snapping, keyboard controls, cancellation and original-size reset. Select the piece, choose its Resize button or drag its green handle. Sizes are canonical width/depth before rotation; furniture height, seating height and working height stay fixed.

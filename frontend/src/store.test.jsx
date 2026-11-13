@@ -63,6 +63,37 @@ async function boot(expectedTasks = [original]) {
   await waitFor(() => expect(store.tasks).toEqual(expectedTasks));
 }
 
+it('undoes a corner resize position and dimensions together as one room edit', async () => {
+  api.getRoom.mockResolvedValue({ placements: [], iso: { version: 2, w: 8, d: 8, placements: [
+    { id: 'bed', item: 'bed', gx: 3, gy: 3, dimensions: { w: 1, d: 2 }, tint: '#7799aa' },
+  ] } });
+  await boot();
+  await waitFor(() => expect(store.isoRoom.placements.some(p => p.id === 'bed')).toBe(true));
+  act(() => store.resizeIsoItem('bed', { w: 2, d: 3 }, { gx: 2, gy: 2 }));
+  expect(store.isoRoom.placements[0]).toMatchObject({ gx: 2, gy: 2, dimensions: { w: 2, d: 3 }, tint: '#7799aa' });
+  act(() => store.undoRoomEdit());
+  expect(store.isoRoom.placements[0]).toMatchObject({ gx: 3, gy: 3, dimensions: { w: 1, d: 2 } });
+  expect(store.canUndoRoomEdit).toBe(false);
+  act(() => store.redoRoomEdit());
+  expect(store.isoRoom.placements[0]).toMatchObject({ gx: 2, gy: 2, dimensions: { w: 2, d: 3 } });
+});
+
+it('keeps refused turns and desk shrinks out of room state and undo history', async () => {
+  api.getRoom.mockResolvedValue({ placements: [], iso: { version: 2, w: 12, d: 10, placements: [
+    { id: 'sofa', item: 'sofa', gx: 1, gy: 1 }, { id: 'chair', item: 'chair', gx: 1, gy: 2.5 },
+    { id: 'desk', item: 'desk', gx: 6, gy: 1, dimensions: { w: 4, d: 2 } },
+    { id: 'one', item: 'mug', gx: 8.5, gy: 1.5 }, { id: 'two', item: 'mug', gx: 9.5, gy: 1.5 },
+  ] } });
+  await boot();
+  await waitFor(() => expect(store.isoRoom.placements.some(p => p.id === 'desk')).toBe(true));
+  const before = store.isoRoom;
+  act(() => { expect(store.rotateIsoItem('sofa')).toBe(false); });
+  act(() => { expect(store.resizeIsoItem('desk', { w: 2, d: 2 })).toBe(false); });
+  expect(store.isoRoom).toBe(before);
+  expect(store.canUndoRoomEdit).toBe(false);
+  expect(store.canRedoRoomEdit).toBe(false);
+});
+
 describe("domain subscriptions", () => {
   it("does not rerender a task consumer for a system-only toast", async () => {
     taskRenderCount = 0;

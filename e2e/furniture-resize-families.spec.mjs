@@ -99,6 +99,17 @@ test('desk resizing retains supported equipment and carries it through four turn
   await expect.poll(async () => (await saved()).find(p => p.id === 'desk').dimensions).toEqual({ w: 4, d: 1.5 });
   await ready(page);
   await page.screenshot({ path: info.outputPath('desk-4x1.5.png') });
+  // A quarter turn needs the floor currently occupied by the study chair.
+  // Refuse that turn, then move the chair and its sitter clear before cycling.
+  await page.locator('[data-rotate-item="desk"]').focus(); await page.keyboard.press('Enter');
+  await expect(page.getByText(/No room to turn that piece/)).toBeVisible();
+  await expect(model(page, 'desk')).toHaveAttribute('data-model-facing', 'south');
+  await page.locator('[data-placement-id="chair"]').focus(); await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Move', exact: true }).click();
+  for (let n = 0; n < 4; n++) await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await saved()).find(p => p.id === 'chair').gx).toBe(3.5);
+  await expect(page.locator('[data-placement-id="sitter"] [data-seat-pose]')).toBeVisible();
+  await select(page, 'desk');
   for (const [rot, facing] of [[1, 'east'], [2, 'north'], [3, 'west'], [0, 'south']]) {
     await page.locator('[data-rotate-item="desk"]').focus(); await page.keyboard.press('Enter');
     await expect(model(page, 'desk')).toHaveAttribute('data-model-facing', facing);

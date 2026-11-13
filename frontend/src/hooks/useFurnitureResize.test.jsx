@@ -86,3 +86,56 @@ it('supports keyboard sizes and reset while refusing read-only scenes', () => {
   expect(result.current.active).toBe(false);
   expect(onResize).not.toHaveBeenCalled();
 });
+
+it.each([
+  ['back', -1, -1, 2, 2], ['right', 1, -1, 3, 2],
+  ['front', 1, 1, 3, 3], ['left', -1, 1, 2, 3],
+])('commits a %s corner drag as one position-and-size edit', (corner, dx, dy, gx, gy) => {
+  const placement = { ...bed, gx: 3, gy: 3 };
+  const { result, onResize } = setup({ placements: [placement] });
+  act(() => result.current.start(placement, event(), corner));
+  act(() => result.current.move(event({ clientX: 24, gx: dx, gy: dy })));
+  expect(result.current.placements[0]).toMatchObject({ gx, gy, dimensions: { w: 2, d: 3 } });
+  expect(onResize).not.toHaveBeenCalled();
+  act(() => result.current.end(event({ type: 'pointerup' })));
+  expect(onResize).toHaveBeenCalledTimes(1);
+  if (corner === 'front') expect(onResize).toHaveBeenCalledWith('bed', { w: 2, d: 3 });
+  else expect(onResize).toHaveBeenCalledWith('bed', { w: 2, d: 3 }, { gx, gy });
+});
+
+it('keeps the last clear origin at an obstacle and cancels an anchored preview without saving', () => {
+  const placement = { ...bed, gx: 3, gy: 3 };
+  const obstacle = { id: 'cabinet', item: 'nightstand', gx: 1.5, gy: 3 };
+  const { result, onResize } = setup({ placements: [placement, obstacle] });
+  act(() => result.current.start(placement, event(), 'left'));
+  act(() => result.current.move(event({ clientX: 24, gx: -.5 })));
+  act(() => result.current.move(event({ clientX: 48, gx: -1 })));
+  expect(result.current.blockedId).toBe('bed');
+  expect(result.current.placements[0]).toMatchObject({ gx: 2.5, dimensions: { w: 1.5, d: 2 } });
+  act(() => result.current.end(event({ type: 'pointerup' })));
+  expect(onResize).toHaveBeenCalledWith('bed', { w: 1.5, d: 2 }, { gx: 2.5, gy: 3 });
+  onResize.mockClear();
+  act(() => result.current.start(placement, event(), 'back'));
+  act(() => result.current.move(event({ clientX: 24, gx: 0, gy: -1 })));
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expect(onResize).not.toHaveBeenCalled();
+  expect(result.current.placements[0]).toEqual(placement);
+});
+
+it('keyboard changes use the grabbed corner rather than moving the furniture', () => {
+  const placement = { ...bed, gx: 3, gy: 3, rot: 1 };
+  const { result, onResize } = setup({ placements: [placement] });
+  act(() => result.current.keyboard(placement, { key: 'ArrowRight', preventDefault: vi.fn(), stopPropagation: vi.fn() }, 'back'));
+  expect(onResize).toHaveBeenCalledWith('bed', { w: 1.5, d: 2 }, { gx: 3, gy: 2.5 });
+});
+
+it.each([bed.dimensions, undefined])('restores the original size and origin after returning to the press point (%j)', dimensions => {
+  const placement = { ...bed, gx: 3, gy: 3, dimensions };
+  const { result, onResize } = setup({ placements: [placement] });
+  act(() => result.current.start(placement, event(), 'back'));
+  act(() => result.current.move(event({ clientX: -48, clientY: -24, gx: -1 })));
+  act(() => result.current.move(event()));
+  expect(result.current.placements[0]).toEqual(placement);
+  act(() => result.current.end(event({ type: 'pointerup' })));
+  expect(onResize).not.toHaveBeenCalled();
+});
