@@ -1,19 +1,20 @@
 import { furnitureFacing } from "./furnitureFacing";
 import { project } from "./iso";
-import { footOf, isoDepth, ISO_ITEMS, seatedPlacement, stackedPlacement, surfaceFor } from "./isoRoom";
+import { footOf, isoDepth, ISO_ITEMS, orientSupportPoint, seatedPlacement, stackedPlacement, surfaceFor } from "./isoRoom";
 
 // Keyboard decks are shared by the artwork and the contact resolver. Heights
 // are measured above their supporting desktop, never above the room floor.
 export const COMPUTER_KEYBOARD = { gx: 0.22, gy: 0.66, dx: 0.7, dy: 0.22, h: 2 };
 export const LAPTOP_KEYBOARD = { gx: 0.12, gy: 0.25, dx: 0.48, dy: 0.13, h: 3 };
 
-function keyboardOn(equipment, height) {
+function keyboardOn(equipment, height, support = equipment) {
   const keyboard = equipment.item === "computer" ? COMPUTER_KEYBOARD : LAPTOP_KEYBOARD;
-  const transpose = (equipment.rot || 0) % 2 === 1;
+  const [w, d] = footOf(support, 0);
   const point = (fraction) => {
     const gx = keyboard.gx + keyboard.dx * fraction;
     const gy = keyboard.gy + keyboard.dy / 2;
-    return { gx: equipment.gx + (transpose ? gy : gx), gy: equipment.gy + (transpose ? gx : gy) };
+    const [x, y] = orientSupportPoint(gx, gy, w, d, equipment.rot || 0);
+    return { gx: equipment.gx + x, gy: equipment.gy + y };
   };
   return { hands: [point(0.3), point(0.7)], height: height + keyboard.h, rot: equipment.rot || 0 };
 }
@@ -23,7 +24,7 @@ export function resolveWorkstations(placements) {
   const desks = new Map(placements.filter((p) => p.item === "desk").map((desk) => [desk.id, {
     desk,
     equipped: false,
-    ...keyboardOn({ ...desk, item: "laptop" }, ISO_ITEMS.desk.surface),
+    ...keyboardOn({ ...desk, item: "laptop" }, ISO_ITEMS.desk.surface, desk),
   }]));
   for (const equipment of placements) {
     if (equipment.item !== "computer" && equipment.item !== "laptop") continue;
@@ -40,7 +41,7 @@ export function resolveWorkstations(placements) {
 export function seatedWorkTarget(person, seat, stations) {
   if (seat.soft || seat.lie || seat.placement.item !== "deskchair") return null;
   const rot = seat.placement.rot || 0;
-  const [w, d] = footOf(person.item, person.rot);
+  const [w, d] = footOf(person);
   const centre = { gx: person.gx + w / 2, gy: person.gy + d / 2 };
   const facing = furnitureFacing(seat.placement);
   const direction = [facing.gx, facing.gy];

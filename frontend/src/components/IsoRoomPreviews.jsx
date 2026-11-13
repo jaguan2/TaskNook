@@ -149,6 +149,8 @@ function IsoPresetPreviewInner({ preset }) {
         rot={(p.rot || 0) % 2}
         back={(p.rot || 0) >= 2}
         variant={item.variants?.[p.tint]}
+        colors={p.colors}
+        dimensions={p.dimensions}
       />
     );
     const rotation = (p._lieFacing ?? p._seatRot ?? p.rot ?? 0);
@@ -159,7 +161,7 @@ function IsoPresetPreviewInner({ preset }) {
         style={p.tint ? { "--tint": p.tint } : undefined}
       >
         {hasCatalogModel(p.item)
-          ? <IsoCatalogModel item={p.item} tint={p.tint} decor={p.decor} rot={rotation} lit={!p.off} showLaptop={p.item === 'desk' && !workstations.get(p.id)?.equipped}>
+          ? <IsoCatalogModel item={p.item} tint={p.tint} decor={p.decor} colors={p.colors} dimensions={p.dimensions} rot={rotation} lit={!p.off} showLaptop={p.item === 'desk' && !workstations.get(p.id)?.equipped}>
               {rotation % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}
             </IsoCatalogModel>
           : rotation % 2 ? <g transform="scale(-1,1)">{sprite}</g> : sprite}

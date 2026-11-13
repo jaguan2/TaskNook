@@ -37,7 +37,7 @@ function Prop({ p, scene, uid, lamp, lampGlow }) {
   return <g data-common-prop={p.id} transform={`translate(${at.x},${at.y - z - (p._rest || 0)})`}
     style={{ ...(p.tint && { "--tint": p.tint }), ...ambienceVars(p.gx, p.gy) }}>
     {scene.kind === "cottage" && !item.wall && (item.layer || 0) >= 0 && !p._rest &&
-      <IsoContactShadow foot={footOf(p.item, p.rot)} height={item.hitH} paint={`${uid}-contact`} />}
+      <IsoContactShadow foot={footOf(p)} height={item.hitH} paint={`${uid}-contact`} />}
     <IsoCatalogModel item={p.item} tint={p.tint} rot={p.rot || 0} showLaptop={p.item === 'desk' && !p._equipped}>
     <g transform={p.rot % 2 === 1 ? "scale(-1,1)" : undefined}>
       <Sprite rot={(p.rot || 0) % 2} back={p.rot >= 2} />
@@ -234,7 +234,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     {props.filter((p) => (p.level || "ground") === level).map((p) => {
       const item = ISO_ITEMS[p.item];
       if (!item.glow || p.off) return null;
-      const [w, d] = footOf(p.item, p.rot);
+      const [w, d] = footOf(p);
       const at = project(p.gx + w / 2, p.gy + d / 2);
       const [radius, strength] = item.glow;
       return <g key={`pool-${p.id}`} data-common-light={p.id}

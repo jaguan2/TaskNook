@@ -8,6 +8,15 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 
+FURNITURE_RUNTIME_SOURCES = (
+    "prototypes/furniture/src/viewer/illustrated-style.mjs",
+    *tuple(f"prototypes/furniture/src/models/{name}.mjs" for name in (
+        "bed-models", "geometry", "upholstered-models", "desk-models",
+        "worktop-cabinets", "storage-shelves", "storage-parts",
+        "display-shelf-models", "organic-parts", "shelf-layout", "resizable-models",
+    )),
+)
+
 SOURCE_PATHS = (
     "desktop.py",
     "desktop_updates.py",
@@ -21,7 +30,7 @@ SOURCE_PATHS = (
     "frontend/vite.config.js",
     "frontend/scripts/catalog-model-assets.mjs",
     "prototypes/furniture/assets/manifest.json",
-    "prototypes/furniture/src/viewer/illustrated-style.mjs",
+    *FURNITURE_RUNTIME_SOURCES,
     "scripts/desktop_package.py",
     "scripts/desktop_update_manifest.py",
 )

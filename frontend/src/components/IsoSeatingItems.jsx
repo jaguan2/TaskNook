@@ -1,6 +1,7 @@
 import { SKEW, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
 import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
+import { bedDimensions, bedPillows } from '../lib/furnitureDimensions';
 
 const TIMBER = "#946b50";
 const BED_W = 2;
@@ -8,9 +9,13 @@ const BED_D = 2.8;
 const BED_FRAME = 7;
 const BED_MATTRESS = 8;
 
-function BedDuvet() {
+function BedDuvet({ dimensions }) {
+  const { w, d } = bedDimensions({ item: 'bed', dimensions });
+  const mapX = x => x <= .18 ? x : x >= 1.82 ? w - (2 - x) : .18 + (x - .18) * (w - .36) / 1.64;
+  const mapD = y => 1.15 + (y - 1.15) * (d - 1.15) / (BED_D - 1.15);
+  const at = (gx, gy) => project(mapX(gx), mapD(gy));
   const point = (gx, gy, lift) => {
-    const p = project(gx, gy);
+    const p = at(gx, gy);
     return `${p.x},${p.y - lift}`;
   };
   const frontDrape = `M${point(0.05, 2.5, 11.8)} L${point(0.18, 2.65, 11.8)}
@@ -30,56 +35,60 @@ function BedDuvet() {
       <path d={sideDrape} /><path d={sideDrape} fill="#000" opacity=".23" />
     </g>
     <g transform="translate(0,-10.5)" data-furniture-part="duvet-top">
-      <SoftBox gx={0.05} gy={1.15} dx={BED_W - 0.1} dy={BED_D - 1.3}
+      <SoftBox gx={0.05} gy={1.15} dx={w - 0.1} dy={d - 1.3}
         h={1.5} fallback="#f2e9dd" dark={0.23} mid={0.12} radius={0.13} />
     </g>
     <g transform={`translate(0,${-(BED_MATTRESS + 4)})`}>
-      <SoftBox gx={0.07} gy={1.15} dx={BED_W - 0.14} dy={0.14} h={0.65}
+      <SoftBox gx={0.07} gy={1.15} dx={w - 0.14} dy={0.14} h={0.65}
         fallback="#f2e9dd" dark={0.18} mid={0.08} radius={0.06} />
       {[0.36, 1.46].map((gx, i) => {
-        const a = project(gx, 1.39);
-        const b = project(gx + 0.13, 1.8 + i * 0.12);
-        const c = project(gx + 0.04, 2.38);
+        const a = at(gx, 1.39);
+        const b = at(gx + 0.13, 1.8 + i * 0.12);
+        const c = at(gx + 0.04, 2.38);
         return <path key={gx} d={`M${a.x},${a.y} Q${b.x},${b.y} ${c.x},${c.y}`}
           fill="none" stroke="#000" strokeWidth="1.1" opacity="0.09" />;
       })}
-      <path d={`M${project(0.13, 2.55).x},${project(0.13, 2.55).y}
-        L${project(1.86, 2.55).x},${project(1.86, 2.55).y}`}
+      <path d={`M${at(0.13, 2.55).x},${at(0.13, 2.55).y}
+        L${at(1.86, 2.55).x},${at(1.86, 2.55).y}`}
         fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.13" />
     </g>
   </g>;
 }
 
 /** The foreground cover reuses the very same drape as the unoccupied bed. */
-export function BedTuckCover() {
+export function BedTuckCover({ dimensions } = {}) {
   return <g data-bed-tuck-cover="true" transform={`translate(0,${-BED_FRAME})`}>
-    <BedDuvet />
+    <BedDuvet dimensions={dimensions} />
   </g>;
 }
 
-export function Bed() {
+export function Bed({ colors, dimensions } = {}) {
+  const { w, d } = bedDimensions({ item: 'bed', dimensions });
+  const pillows = w === BED_W ? [.24, 1.16].map(gx => ({ gx, width: .6 })) :
+    bedPillows(w).map(p => ({ gx: w / 2 + p.x - p.width * .41, width: p.width * .82 }));
+  const panelWidth = 42.2 * w / BED_W;
   const head = project(0.12, 0.225);
   return <g data-furniture-family="bed">
     {/* A framed timber headboard belongs to the same warm furniture family
         as the chairs. The main colour remains the duvet, never the wood. */}
-    <TintedBox gx={0} gy={0} dx={BED_W} dy={0.22} h={32}
-      fallback={TIMBER} tint={false} dark={0.34} mid={0.18} />
+    <TintedBox gx={0} gy={0} dx={w} dy={0.22} h={32}
+      fallback={colors?.frame || TIMBER} tint={false} dark={0.34} mid={0.18} />
     <g transform={`translate(${head.x},${head.y}) skewY(${SKEW})`} data-furniture-part="headboard-panel">
-      <path d="M0 -26 H42.2 V-11 H0 Z" fill="#000" opacity="0.12" />
-      <path d="M1 -25 H41.2 M1 -25 V-12" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.14" />
+      <path d={`M0 -26 H${panelWidth} V-11 H0 Z`} fill="#000" opacity="0.12" />
+      <path d={`M1 -25 H${panelWidth - 1} M1 -25 V-12`} fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.14" />
     </g>
-    {[0, BED_W - 0.12].map((gx) => <TintedBox key={gx} gx={gx} gy={0}
-      dx={0.12} dy={0.24} h={33} fallback={TIMBER} tint={false} dark={0.34} mid={0.18} />)}
-    <TintedBox gx={0} gy={0.22} dx={BED_W} dy={BED_D - 0.22} h={BED_FRAME}
-      fallback="#ab8362" tint={false} dark={0.32} mid={0.18} />
+    {[0, w - 0.12].map((gx) => <TintedBox key={gx} gx={gx} gy={0}
+      dx={0.12} dy={0.24} h={33} fallback={colors?.frame || TIMBER} tint={false} dark={0.34} mid={0.18} />)}
+    <TintedBox gx={0} gy={0.22} dx={w} dy={d - 0.22} h={BED_FRAME}
+      fallback={colors?.frame || '#ab8362'} tint={false} dark={0.32} mid={0.18} />
     <g transform={`translate(0,${-BED_FRAME})`}>
-      <SoftBox gx={0.13} gy={0.35} dx={BED_W - 0.26} dy={BED_D - 0.5} h={BED_MATTRESS}
-        fallback="#e9e0d4" tint={false} dark={0.2} mid={0.1} radius={0.14} />
+      <SoftBox gx={0.13} gy={0.35} dx={w - 0.26} dy={d - 0.5} h={BED_MATTRESS}
+        fallback={colors?.sheets || '#e9e0d4'} tint={false} dark={0.2} mid={0.1} radius={0.14} />
       <g transform={`translate(0,${-BED_MATTRESS})`} data-furniture-part="pillows">
-        {[0.24, 1.16].map((gx) => <SoftBox key={gx} gx={gx} gy={0.5} dx={0.6} dy={0.42}
-          h={4.5} fallback="#f7f2ea" tint={false} dark={0.15} mid={0.07} radius={0.14} />)}
+        {pillows.map(({ gx, width }) => <SoftBox key={gx} gx={gx} gy={0.5} dx={width} dy={0.42}
+          h={4.5} fallback={colors?.pillows || '#f7f2ea'} tint={false} dark={0.15} mid={0.07} radius={0.14} />)}
       </g>
-      <BedDuvet />
+      <BedDuvet dimensions={dimensions} />
     </g>
   </g>;
 }
@@ -87,8 +96,8 @@ export function Bed() {
 /** A joined upholstered hull, at the established 22px cushion height.
  * Short timber feet and a narrow rail restore the older compact silhouette;
  * rounded panels and cushions retain the later cloth construction. */
-function Upholstered({ w, seats, back = false }) {
-  const D = 0.85, ARM = 0.2, BACK = 0.22;
+function Upholstered({ w, seats, back = false, depth = .85 }) {
+  const D = depth, ARM = 0.2, BACK = 0.22;
   const inner = w - ARM * 2;
   const gap = 0.06;
   const cw = (inner - gap * (seats - 1)) / seats;
@@ -113,7 +122,7 @@ function Upholstered({ w, seats, back = false }) {
   </g>;
   const gy = back ? 0.05 : BACK + 0.05;
   return <g data-furniture-family="upholstered">
-    {[[0.08, 0.09], [w - 0.2, 0.09], [0.08, 0.64], [w - 0.2, 0.64]].map(([gx, gy]) =>
+    {[[0.08, 0.09], [w - 0.2, 0.09], [0.08, D - .21], [w - 0.2, D - .21]].map(([gx, gy]) =>
       <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.12} dy={0.12} h={4}
         fallback={TIMBER} tint={false} dark={0.36} mid={0.2} />)}
     <g transform="translate(0,-4)" data-furniture-part="timber-rail">
@@ -151,7 +160,8 @@ function Upholstered({ w, seats, back = false }) {
   </g>;
 }
 
-export const Sofa = ({ back }) => <Upholstered w={2} seats={2} back={back} />;
+export const Sofa = ({ back, dimensions }) => <Upholstered w={dimensions?.w || 2} depth={dimensions?.d || .85}
+  seats={dimensions ? Math.round(dimensions.w) : 2} back={back} />;
 export const Armchair = ({ back }) => <Upholstered w={1} seats={1} back={back} />;
 
 export function Chair({ back = false }) {

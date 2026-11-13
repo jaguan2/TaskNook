@@ -1,4 +1,4 @@
-import { stored } from './storage-parts.mjs';
+import { plantDisplay } from './display-shelf-models.mjs';
 import * as THREE from 'three';
 import { beam, bentTube, joint, material, part } from './geometry.mjs';
 import { board } from './storage-parts.mjs';
@@ -96,20 +96,7 @@ const builders = {
     const dome = part(root, 'closed-glass-envelope', new THREE.SphereGeometry(.24, 16, 12), glass, 0, .27, 0); dome.scale.y = 1.03; dome.userData.noCastShadow = true;
     for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; bentTube(root, `glazing-bar-${i}`, [[Math.cos(a) * .21, .09, Math.sin(a) * .21], [Math.cos(a) * .23, .29, Math.sin(a) * .23], [0, .515, 0]], .008, frame); }
   },
-  plantshelf(root, s) {
-    const finish = material(s.colorRole, s.defaultColor), h = 1.65;
-    for (const x of [-.62, .62]) for (const z of [-.21, .21]) board(root, `upright-${x}-${z}`, [.045, h, .045], [x, h / 2, z], finish);
-    for (let row = 0; row < 3; row++) {
-      const top = .10 + row * .52, tray = board(root, `tray-${row}`, [1.32, .045, .49], [0, top - .0225, 0], finish);
-      for (let i = 0; i < 3; i++) {
-        const start = root.children.length;
-        const colors = ['#d58b63', '#69a5a0', '#d7b65e'];
-        const soil = pot(root, `pot-${row}-${i}`, (i - 1) * .43, 0, top - .004, .13, .17, material(`stock-pot-${(row + i) % 3}`, colors[(row + i) % 3]), tray);
-        sprig(root, `plant-${row}-${i}`, soil, [soil.x, soil.y + .19, 0], .14, 4, (row + i) % 3 === 0);
-        for (const node of root.children.slice(start)) if (node.material?.name === "foliage") node.material.color.set(["#74a45c", "#569780", "#8aaf62"][(row + i) % 3]);
-        stored(root, `stock-${row}-${i}`, root.children.slice(start), tray);
-      }
-    }
-  },
+  plantshelf: plantDisplay,
+
 };
 export const BOTANICAL_BUILDERS = Object.fromEntries(Object.entries(builders).map(([key, build]) => [key, (root, spec) => { build(root, spec); fitOrganic(root, spec); }]));

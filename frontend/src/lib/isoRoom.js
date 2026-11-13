@@ -5,6 +5,8 @@ import { furnitureFacingRotation } from "./furnitureFacing";
 // lib/iso.js and the artwork in the components/Iso*Items modules.
 
 import { cleanShelfDecor } from "./shelfDecor";
+import { cleanFurnitureColors } from './furnitureColors';
+import { bedDimensions, cleanFurnitureDimensions, RESIZABLE_FURNITURE } from './furnitureDimensions';
 import { createIsoPresets } from "./isoPresets";
 import { cleanPetTraits, newPetTraits } from "./pets";
 import {
@@ -63,10 +65,10 @@ const TINT_RE = /^#[0-9a-f]{6}$/i;
 
 /** Is `placement`'s centre inside `other`'s footprint? */
 function centreOver(placement, other) {
-  const f = footOf(placement.item, placement.rot);
+  const f = footOf(placement);
   const cx = placement.gx + f[0] / 2;
   const cy = placement.gy + f[1] / 2;
-  const of = footOf(other.item, other.rot);
+  const of = footOf(other);
   return cx >= other.gx && cx <= other.gx + of[0] && cy >= other.gy && cy <= other.gy + of[1];
 }
 
@@ -121,7 +123,7 @@ export function freeSeatSpot(placements, item = "resident") {
     if (s && !s.soft) occupied.add(s.placement.id);
   }
   const centreOn = (p) => {
-    const of = footOf(p.item, p.rot);
+    const of = footOf(p);
     return { gx: p.gx + (of[0] - foot[0]) / 2, gy: p.gy + (of[1] - foot[1]) / 2 };
   };
   // Proper seats before lie-on furniture: the first cut took placement
@@ -175,7 +177,7 @@ export function personaCanSit(gx, gy, layout, placements, selfId) {
   return !others.some((o) => {
     const it = ISO_ITEMS[o.item];
     if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
-    const of = footOf(o.item, o.rot);
+    const of = footOf(o);
     return (
       gx < o.gx + of[0] && o.gx < gx + foot[0] && gy < o.gy + of[1] && o.gy < gy + foot[1]
     );
@@ -195,7 +197,7 @@ export function petCanStand(gx, gy, layout, placements, selfId, item) {
     if (o.id === selfId) return false;
     const it = ISO_ITEMS[o.item];
     if (!it || it.wall || it.persona || it.roamer || it.layer === -1) return false;
-    const of = footOf(o.item, o.rot);
+    const of = footOf(o);
     return (
       gx < o.gx + of[0] && o.gx < gx + foot[0] && gy < o.gy + of[1] && o.gy < gy + foot[1]
     );
@@ -218,12 +220,15 @@ export function petCanStand(gx, gy, layout, placements, selfId, item) {
  * sofa scores lower than it and would sort behind whichever way it faced.
  */
 export function seatedPlacement(persona, seat) {
-  const sf = footOf(seat.placement.item, seat.placement.rot);
-  const pf = footOf(persona.item, persona.rot);
+  const sf = footOf(seat.placement);
+  const pf = footOf(persona);
   const seatRot = seat.placement.rot || 0;
   const seatFacing = furnitureFacingRotation(seat.placement.item, seatRot);
   const away = seatFacing >= 2;
-  const shift = away ? -0.15 : 0.15;
+  // Longer beds keep the unchanged human rig near the pillow end. Width
+  // still centres it; a larger mattress does not scale the character.
+  const extraDepth = seat.placement.item === 'bed' ? Math.max(0, bedDimensions(seat.placement).d - 2.8) / 2 : 0;
+  const shift = (away ? -0.15 : 0.15) + (away ? extraDepth : -extraDepth);
   const alongGx = seatFacing % 2 === 1;
   return {
     gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2 + (alongGx ? shift : 0),
@@ -272,8 +277,8 @@ export function seatedPlacement(persona, seat) {
  * where there is no offset left to preserve.
  */
 export function stackedPlacement(placement, on) {
-  const sf = footOf(on.placement.item, on.placement.rot);
-  const pf = footOf(placement.item, placement.rot);
+  const sf = footOf(on.placement);
+  const pf = footOf(placement);
   const keep = (v, lo, span) =>
     span <= 0 ? lo + span / 2 : Math.min(Math.max(v, lo), lo + span);
   const gx = keep(placement.gx, on.placement.gx, sf[0] - pf[0]);
@@ -340,9 +345,13 @@ export const nextRot = (itemKey, rot = 0) =>
 
 /** Footprint for a rotation. Odd turns transpose it; a half turn doesn't
  *  change which tiles are covered, only which way the thing looks. */
-export const footOf = (itemKey, rot = 0) => {
-  const f = ISO_ITEMS[itemKey]?.foot || [1, 1];
-  return rot % 2 ? [f[1], f[0]] : f;
+export const footOf = (itemOrPlacement, rot) => {
+  const placement = typeof itemOrPlacement === 'object' ? itemOrPlacement : null;
+  const itemKey = placement ? placement.item : itemOrPlacement;
+  const dimensions = placement && cleanFurnitureDimensions(itemKey, placement.dimensions);
+  const f = dimensions ? [dimensions.w, dimensions.d] : ISO_ITEMS[itemKey]?.foot || [1, 1];
+  const rotation = rot ?? placement?.rot ?? 0;
+  return rotation % 2 ? [f[1], f[0]] : f;
 };
 
 /** Half-tile snapping: fine enough to feel free, aligned enough to feel tidy. */
@@ -588,10 +597,12 @@ export function wallSegment(side, size) {
 
 /** Bounds/wall clamp only — mask validity is the caller's job (drags simply
  *  refuse to enter void tiles; validation relocates or drops). */
-export function clampIsoPlacement(itemKey, gx, gy, size, rot = 0) {
+export function clampIsoPlacement(itemOrPlacement, gx, gy, size, rot) {
+  const itemKey = typeof itemOrPlacement === 'object' ? itemOrPlacement.item : itemOrPlacement;
+  rot ??= typeof itemOrPlacement === 'object' ? itemOrPlacement.rot || 0 : 0;
   const item = ISO_ITEMS[itemKey];
   if (!item) return { gx, gy };
-  const f = footOf(itemKey, rot);
+  const f = footOf(itemOrPlacement, rot);
   if (item.wall) {
     // Wall decor is two-way by definition — rot picks the wall, and an odd
     // value is the left one. (rotationsFor keeps 2/3 off wall items, but this
@@ -612,14 +623,99 @@ export function clampIsoPlacement(itemKey, gx, gy, size, rot = 0) {
 /** Nearest half-snapped spot whose footprint is fully on floor, or null. */
 /** Do two placements' footprints overlap on the floor? */
 export function footprintsOverlap(a, b) {
-  const af = footOf(a.item, a.rot);
-  const bf = footOf(b.item, b.rot);
+  const af = footOf(a);
+  const bf = footOf(b);
   return (
     a.gx < b.gx + bf[0] &&
     b.gx < a.gx + af[0] &&
     a.gy < b.gy + bf[1] &&
     b.gy < a.gy + af[1]
   );
+}
+
+function overlapArea(a, b) {
+  const af = footOf(a), bf = footOf(b);
+  return Math.max(0, Math.min(a.gx + af[0], b.gx + bf[0]) - Math.max(a.gx, b.gx)) *
+    Math.max(0, Math.min(a.gy + af[1], b.gy + bf[1]) - Math.max(a.gy, b.gy));
+}
+
+/** Resize one piece, keeping its colours and supported items. Added floor must be
+ * clear; pre-existing intentional overlap may shrink but cannot grow. */
+export function resizeIsoPlacements(placements, id, value, size) {
+  const support = placements.find(p => p.id === id);
+  if (!support || !RESIZABLE_FURNITURE[support.item]) return null;
+  const dimensions = cleanFurnitureDimensions(support.item, value);
+  if (value != null && !dimensions) return null;
+  const old = cleanFurnitureDimensions(support.item, support.dimensions);
+  if (dimensions ? old?.w === dimensions.w && old?.d === dimensions.d : !support.dimensions) return placements;
+  const { dimensions: _previous, ...rest } = support;
+  const resized = dimensions ? { ...rest, dimensions } : rest;
+  const foot = footOf(resized);
+  if (!footprintFree(support.gx, support.gy, foot, size)) return null;
+  if (ISO_ITEMS[support.item].wall) {
+    const at = clampIsoPlacement(resized, support.gx, support.gy, size);
+    if (at.gx !== support.gx || at.gy !== support.gy) return null;
+  }
+  const attachments = supportedItems(placements, support);
+  const oldFoot = footOf(support);
+  // A rotated monitor can need more depth than the minimum desktop. Keep
+  // physical equipment intact and refuse any newly increased overhang.
+  for (const p of placements) {
+    if (!attachments.get(p.id)?.at) continue;
+    const pf = footOf(p);
+    if (pf.some((span, axis) => Math.max(0, span - foot[axis]) > Math.max(0, span - oldFoot[axis]) + 1e-8)) return null;
+  }
+  const occupants = new Set(attachments.keys());
+  if (placements.some(p => {
+    const item = ISO_ITEMS[p.item];
+    if (p.id === id || occupants.has(p.id) || !item || (item.layer || 0) < 0) return false;
+    if (!!item.wall !== !!ISO_ITEMS[support.item].wall) return false;
+    return overlapArea(resized, p) > overlapArea(support, p) + 1e-8;
+  })) return null;
+  return replaceFurniturePlacement(placements, support, resized);
+}
+
+function supportedItems(placements, support) {
+  const attached = new Map();
+  for (const p of placements) {
+    if (p.id === support.id) continue;
+    if (seatFor(p, placements)?.placement.id === support.id) attached.set(p.id, { seated: true });
+    const on = surfaceFor(p, placements);
+    if (on?.placement.id === support.id) attached.set(p.id, { at: stackedPlacement(p, on) });
+  }
+  return attached;
+}
+
+// The saved transpose/rear transforms are their own inverses. Coordinates
+// here use the support's top-left origin, unlike centred authoring geometry.
+export function orientSupportPoint(x, y, w, d, rot) {
+  const sign = rot >= 2 ? -1 : 1;
+  return rot % 2 ? [sign * (y - d / 2) + d / 2, sign * (x - w / 2) + w / 2]
+    : [sign * (x - w / 2) + w / 2, sign * (y - d / 2) + d / 2];
+}
+
+/** Keep occupants and independently sized desktop props with their support.
+ * Props retain local offsets and clamp onto a smaller top; they never scale. */
+export function replaceFurniturePlacement(placements, support, replacement) {
+  const occupants = supportedItems(placements, support), foot = footOf(replacement), oldFoot = footOf(support);
+  const [width, depth] = footOf(replacement, 0);
+  return placements.map(p => {
+    if (p.id === support.id) return replacement;
+    const attachment = occupants.get(p.id);
+    if (!attachment) return p;
+    const pf = footOf(p);
+    if (attachment.seated) return { ...p, gx: snapHalf(replacement.gx + (foot[0] - pf[0]) / 2), gy: snapHalf(replacement.gy + (foot[1] - pf[1]) / 2) };
+    const oldRot = support.rot || 0, newRot = replacement.rot || 0;
+    const [x, y] = orientSupportPoint(attachment.at.gx - support.gx + pf[0] / 2,
+      attachment.at.gy - support.gy + pf[1] / 2, oldFoot[0], oldFoot[1], oldRot);
+    const relativeFoot = footOf(p, (p.rot || 0) ^ oldRot);
+    const keep = (v, span, part) => part >= span ? span / 2 : Math.min(Math.max(v, part / 2), span - part / 2);
+    const [gx, gy] = orientSupportPoint(keep(x, width, relativeFoot[0]), keep(y, depth, relativeFoot[1]), width, depth, newRot);
+    const rot = normalizeRot(p.item, (p.rot || 0) ^ oldRot ^ newRot);
+    const movedFoot = footOf(p, rot), { rot: _old, ...rest } = p;
+    return { ...rest, ...(rot && { rot }), gx: snapHalf(replacement.gx + gx - movedFoot[0] / 2),
+      gy: snapHalf(replacement.gy + gy - movedFoot[1] / 2) };
+  });
 }
 
 /** Is this a piece a new arrival shouldn't be dropped on top of? Flat things
@@ -632,16 +728,16 @@ export function blocksSpawn(itemKey) {
 }
 
 /** On floor AND clear of what's already standing there. */
-export function spotIsClear(gx, gy, itemKey, rot, size, placements) {
-  if (!footprintFree(gx, gy, footOf(itemKey, rot), size)) return false;
-  const me = { item: itemKey, rot, gx, gy };
+export function spotIsClear(gx, gy, itemOrPlacement, rot, size, placements) {
+  if (!footprintFree(gx, gy, footOf(itemOrPlacement, rot), size)) return false;
+  const me = { ...(typeof itemOrPlacement === 'object' ? itemOrPlacement : { item: itemOrPlacement }), rot, gx, gy };
   return !placements.some((p) => blocksSpawn(p.item) && footprintsOverlap(me, p));
 }
 
 /** Nearest half-snapped spot to (nearGx, nearGy) this piece fits in. Pass
  *  `placements` to also require it be clear of the furniture already there. */
-export function findFreeSpot(itemKey, rot, size, nearGx, nearGy, placements = null) {
-  const f = footOf(itemKey, rot);
+export function findFreeSpot(itemOrPlacement, rot, size, nearGx, nearGy, placements = null) {
+  const f = footOf(itemOrPlacement, rot);
   let best = null;
   let bestDist = Infinity;
   for (let x = 0; x <= (size.w - f[0]) * 2; x++) {
@@ -649,7 +745,7 @@ export function findFreeSpot(itemKey, rot, size, nearGx, nearGy, placements = nu
       const gx = x / 2;
       const gy = y / 2;
       const ok = placements
-        ? spotIsClear(gx, gy, itemKey, rot, size, placements)
+        ? spotIsClear(gx, gy, itemOrPlacement, rot, size, placements)
         : footprintFree(gx, gy, f, size);
       if (!ok) continue;
       const dist = (gx - nearGx) ** 2 + (gy - nearGy) ** 2;
@@ -703,7 +799,7 @@ export function cutsToMask(cuts, w, d) {
 
 /** A placement's painter's depth: its footprint's FRONT corner. */
 export function isoDepth(p) {
-  const f = footOf(p.item, p.rot);
+  const f = footOf(p);
   return p.gx + f[0] + p.gy + f[1];
 }
 
@@ -793,7 +889,7 @@ export function occupiedIsoFootprints(placements = [], size = {}) {
   return placements.flatMap((placement, index) => {
     const item = ISO_ITEMS[placement.item];
     if (!item || item.wall) return [];
-    const [fw, fd] = footOf(placement.item, placement.rot);
+    const [fw, fd] = footOf(placement);
     const x0 = Math.max(0, Math.floor(placement.gx));
     const y0 = Math.max(0, Math.floor(placement.gy));
     const x1 = Math.min(maxX, Math.ceil(placement.gx + fw));
@@ -960,11 +1056,11 @@ export function validateIsoLayout(raw) {
     // Wall decor needs a full-height wall to hang on — outdoors, on a
     // low rail, or when the user turned the walls off, there isn't one.
     if (ISO_ITEMS[p.item].wall && !envHasWalls(env, walls)) continue;
-    let { gx, gy } = clampIsoPlacement(p.item, snapHalf(p.gx), snapHalf(p.gy), size, rot);
+    let { gx, gy } = clampIsoPlacement(p, snapHalf(p.gx), snapHalf(p.gy), size, rot);
     // An item over void tiles is relocated to the nearest floor spot, or
     // dropped if the drawn shape has no room for it at all.
-    if (!ISO_ITEMS[p.item].wall && !footprintFree(gx, gy, footOf(p.item, rot), size)) {
-      const spot = findFreeSpot(p.item, rot, size, gx, gy);
+    if (!ISO_ITEMS[p.item].wall && !footprintFree(gx, gy, footOf(p, rot), size)) {
+      const spot = findFreeSpot(p, rot, size, gx, gy);
       if (!spot) continue;
       ({ gx, gy } = spot);
     }
@@ -990,14 +1086,17 @@ export function validateIsoLayout(raw) {
     // The look (coat pattern / breed) follows the temper contract exactly:
     // pets only, per-species whitelist, default stored implicitly.
     const look = isStorableLook(p.item, p.look) ? p.look : undefined;
+    const dimensions = cleanFurnitureDimensions(p.item, p.dimensions);
     clean.push({
       id,
       item: p.item,
       gx,
       gy,
       ...(rot && { rot }),
+      ...(dimensions && { dimensions }),
       ...(tint && { tint }),
       ...(cleanShelfDecor(p.item, p.decor) && { decor: cleanShelfDecor(p.item, p.decor) }),
+      ...(cleanFurnitureColors(p.item, p.colors) && { colors: cleanFurnitureColors(p.item, p.colors) }),
       ...(name && { name }),
       ...(temper && { temper }),
       ...(look && { look }),

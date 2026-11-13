@@ -1,3 +1,6 @@
+import { FURNITURE_COLOR_PARTS } from './furnitureColors.js';
+import { DEFAULT_BED_DIMENSIONS } from './furnitureDimensions.js';
+
 // Static vocabulary for the isometric room engine: environments, item
 // metadata, picker sections and pet customization. Placement behavior and
 // geometry stay in isoRoom.js; that module re-exports this public catalog so
@@ -239,7 +242,8 @@ export const ISO_ITEMS = {
   coffeetable: { label: "Coffee table", icon: "☕", foot: [1.4, 0.9], hitH: 24, surface: 19 },
   // The tint paints the DUVET (mattress and pillows stay linen-white).
   // seat = the duvet's top edge, hitH = clear of the headboard.
-  bed: { label: "Bed", icon: "🛏️", foot: [2, 2.8], hitH: 40, seat: 18, lie: true, tuck: true },
+  bed: { label: "Bed", icon: "🛏️", foot: [DEFAULT_BED_DIMENSIONS.w, DEFAULT_BED_DIMENSIONS.d],
+    hitH: 40, seat: 18, lie: true, tuck: true, colorParts: FURNITURE_COLOR_PARTS.bed },
   cushion: { label: "Floor cushion", icon: "🧶", foot: [0.9, 0.9], hitH: 18, seat: 13 },
   flowercushion: { label: "Flower cushion", icon: "🌼", foot: [1, 1], hitH: 18, seat: 13 },
   // ---- storage & seating ----

@@ -118,6 +118,6 @@ Chair backs are shorter while seat anchors stay fixed. Books have clearer cover 
 
 Shelves export names for their support boards and removable stock. The game offers per-placement contents using actual catalog book/plant meshes, fitted to those supports. Choice validation, persistent save flow, resource ownership and compatibility are documented in the [integration guide](ROOM_MODEL_INTEGRATION.md) and [codebase guide](CODEBASE_GUIDE.md).
 
-Historical SVG furniture reports/images and the early physical-lighting prototype are preserved under [the modelling archive](archive/modeling/README.md). Current character/pet SVGs and runtime error fallbacks remain supported; they are not obsolete furniture references.
+Use the supplied [artwork references](ART_REVIEW.md) and current catalog sheets for future work. Superseded SVG furniture reports and early prototype screenshots were removed during maintenance. Current character/pet SVGs and runtime error fallbacks remain supported.
 
 The [direction and layout audit](ROOM_LAYOUT_DIRECTIONS.md) records the later four-facing integration, native axes, reclined occupant calibration and seating/upholstery rules.

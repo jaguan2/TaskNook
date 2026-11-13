@@ -92,8 +92,8 @@ applicable. No commit or push was made.
 **Performance findings, in proposed implementation order**
 
 1. **P1 — Preset thumbnails animate an entire second collection of rooms.**
-   [RoomPanel.jsx](../frontend/src/components/RoomPanel.jsx#L523) mounts every
-   preset preview together. [IsoRoomPreviews.jsx](../frontend/src/components/IsoRoomPreviews.jsx#L157)
+   [RoomPanel.jsx](../../frontend/src/components/RoomPanel.jsx#L523) mounts every
+   preset preview together. [IsoRoomPreviews.jsx](../../frontend/src/components/IsoRoomPreviews.jsx#L157)
    renders full sprite trees without the existing `cottage-preview` still-art
    treatment. Opening Room produced about **17,700 DOM nodes and 317 running
    animations**, even with the furniture catalog collapsed. Many previews are
@@ -104,14 +104,14 @@ applicable. No commit or push was made.
    approximately **82%**. The visible home remained animated. This is the
    strongest measured first patch: make miniature previews still and retain
    immediately visible preset cards. Those cards are the main discovery
-   surface in [the Room screenshot](screenshots/23-room-panel.webp). Collapsing
+   surface in [the Room screenshot](../screenshots/23-room-panel.webp). Collapsing
    the whole collection behind another click was not justified by the probe:
    it measured animation cost, not mount latency. Measure opening/scrolling
    after the still-preview fix before adding deferred mounting. Keep the
    existing SVG models, selection feedback, and customization.
 
 2. **P2 — Widget mode retains animation work behind its invisible scene.**
-   [App.jsx](../frontend/src/App.jsx#L320) hides the room without pausing its
+   [App.jsx](../../frontend/src/App.jsx#L320) hides the room without pausing its
    animation or scene clocks. The measured library/widget scenario, with the
    seat chooser still open, retained **210 running animations**. A temporary
    `animation-play-state: paused` rule on the invisible region reduced task
@@ -127,7 +127,7 @@ applicable. No commit or push was made.
    native windows before extending this policy to them.
 
 3. **P2 — Grand Library bypasses the dense-scene animation budget.**
-   [App.jsx](../frontend/src/App.jsx#L164) deliberately makes `activeIsoLayout`
+   [App.jsx](../../frontend/src/App.jsx#L164) deliberately makes `activeIsoLayout`
    null in common places. The calm treatment used for large home/visited rooms
    therefore never applies to the 30×20 library. The library had about
    **12,000 DOM nodes and 187–189 running animations**. At 800×600, its normal
@@ -142,7 +142,7 @@ applicable. No commit or push was made.
    dense-home gate to every common place or lower model detail.
 
 4. **P2 — Every task refresh reloads the complete archive.**
-   [GET /api/tasks](../backend/app.py#L482) materializes and serializes all of a
+   [GET /api/tasks](../../backend/app.py#L482) materializes and serializes all of a
    user's tasks. Task writes then call `refreshTasks()`, so ordinary edits get
    more expensive as archived history grows, even with a short active list.
 
@@ -153,15 +153,15 @@ applicable. No commit or push was made.
    | 20 | 10,000 | 10,020 | 3,402,305 | 318.2 ms |
 
    Separate the active working set from requested history. The calendar's
-   [completed-day journal](../frontend/src/components/CalendarPanel.jsx#L137)
+   [completed-day journal](../../frontend/src/components/CalendarPanel.jsx#L137)
    intentionally uses archived completions, so simply filtering archived rows
    out of the existing API would break it. Add a bounded day/history read and
    preserve the task-first daily-routine reset ordering, committed-write
    feedback, request-version guards, and progression credit boundaries.
 
 5. **P2 — Chat history lacks an index matching its cursor order.**
-   [list_messages](../backend/app.py#L1453) filters by conversation and orders
-   by `(created_at DESC, id DESC)`. [Message](../backend/models.py#L256) has
+   [list_messages](../../backend/app.py#L1453) filters by conversation and orders
+   by `(created_at DESC, id DESC)`. [Message](../../backend/models.py#L256) has
    individual indexes, not a matching composite index. SQLite's query plan
    reported `USE TEMP B-TREE FOR ORDER BY` despite the 200-message page limit.
 
@@ -175,9 +175,9 @@ applicable. No commit or push was made.
 Lower-impact or less-proven follow-ups:
 
 - **P3 — Common-room clock and interaction updates rebuild static artwork.**
-  [CommonRoom.jsx](../frontend/src/components/CommonRoom.jsx#L91) updates root
+  [CommonRoom.jsx](../../frontend/src/components/CommonRoom.jsx#L91) updates root
   `now` state every 30 seconds and also owns drag targets and seat selection.
-  [Its layers](../frontend/src/components/CommonRoom.jsx#L185) recreate prop
+  [Its layers](../../frontend/src/components/CommonRoom.jsx#L185) recreate prop
   elements. Function-entry counters confirmed **126 prop renderers, 15
   bookcases, and all 13 people** ran for one clock update. That proves redundant
   work, not a visible stall or repaint. The 70.5 ms diagnostic window included
@@ -187,7 +187,7 @@ Lower-impact or less-proven follow-ups:
   depth interleaving. Do not extract all people into a layer that paints over
   nearer furniture just to obtain a memoization boundary.
 
-- [TaskPanel.jsx](../frontend/src/components/TaskPanel.jsx#L69) subscribes the
+- [TaskPanel.jsx](../../frontend/src/components/TaskPanel.jsx#L69) subscribes the
   whole task editor to the full timer context. Counters confirmed four panel
   renders in four running-timer seconds, although the displayed focus total
   changes only by the minute. Isolate the live goal/break controls so task rows,
@@ -204,8 +204,8 @@ Lower-impact or less-proven follow-ups:
 **Quality and visual findings after the performance pass**
 
 - **P3 — Two statistics implementations disagree about archived completions.**
-  [build_stats_for](../backend/app.py#L1559) excludes archived tasks before all
-  its aggregates; [build_stats](../backend/app.py#L1649) includes them in
+  [build_stats_for](../../backend/app.py#L1559) excludes archived tasks before all
+  its aggregates; [build_stats](../../backend/app.py#L1649) includes them in
   `tasksDoneToday`. With just one task completed and archived today, the same
   user returned **1 completed today** through the self path and **0** through
   the friend path. This is a real API-contract inconsistency, but tracing the
@@ -216,8 +216,8 @@ Lower-impact or less-proven follow-ups:
   behavior. Reuse one aggregation policy and cover both an archived completion
   today and an older completion when this subsystem is next changed.
 - **P2 — Keyboard focus is lost after choosing a seat once the hint expires.**
-  [CommonRoom.jsx](../frontend/src/components/CommonRoom.jsx#L103) focuses the
-  chooser after selection, but [its visibility condition](../frontend/src/components/CommonRoom.jsx#L356)
+  [CommonRoom.jsx](../../frontend/src/components/CommonRoom.jsx#L103) focuses the
+  chooser after selection, but [its visibility condition](../../frontend/src/components/CommonRoom.jsx#L356)
   unmounts that control when the five-second hint has expired and the list
   closes. A fresh real-browser check waited 5.5 seconds, opened the list using
   the guest's Enter control, and selected Gallery window chair using Enter.
@@ -236,10 +236,10 @@ Lower-impact or less-proven follow-ups:
   placement and the room's authored geometry. The native Windows minimum is
   **900×640**, so distinguish this browser-floor defect from desktop coverage.
 - **P3 — Comments still describe retired behavior.**
-  [HudTasks.jsx](../frontend/src/components/HudTasks.jsx#L41) and
-  [SkyOverlay.jsx](../frontend/src/components/SkyOverlay.jsx#L9) still claim the
+  [HudTasks.jsx](../../frontend/src/components/HudTasks.jsx#L41) and
+  [SkyOverlay.jsx](../../frontend/src/components/SkyOverlay.jsx#L9) still claim the
   whole app/HUD rerenders every second. The narrow timer provider already
-  prevents this. [App.jsx](../frontend/src/App.jsx#L319) also names a retired
+  prevents this. [App.jsx](../../frontend/src/App.jsx#L319) also names a retired
   `CLAUDE.md` document. Correct these comments while touching their owners;
   preserve module-scope component definitions and widget mount guarantees.
   The motion sections in `MODELS.md` and `DESIGN.md` also overstate how freely
@@ -259,17 +259,17 @@ The references give a clearer art direction than “more detail”:
 
 | Reference | Visible cue | Meaningful TaskNook follow-up |
 | --- | --- | --- |
-| [Pink loft](inpso/ss_0910e38ff3bd0815ba99786fd63853dc1d8a84cc.1920x1080.jpg), [timber loft](inpso/ss_11568adac20d4baea389a2e0a1c85137ff403955.1920x1080.jpg) | Work, sleeping and lounge areas form usable groups; the raised structure creates a separate occupied volume. | Improve one authored vignette and its light hierarchy before adding more furniture to a preset. A real loft-bed/platform asset is a separate larger feature. |
-| [Shared loft](inpso/ss_82d9f29a63805ec614dc8262cef91726b1238f21.1920x1080.jpg), [close room view](inpso/b603fdd9497a472249116e7dc02960438ef96cee.jpg) | People turn into their laptops/books; feet, hands, seats and work surfaces form one believable pose. | Eventually test one coherent static study pose on real furniture. Do not restart the rejected skewed rig or expand every garment before that pose proves useful at room scale. |
-| [Common study/café](inpso/ss_18f591f3e019a2fa4e390c661167a536b08d6ded.1920x1080.jpg), [reading library](inpso/ss_b75b094d60d1450e578baf36ed8afff65ead884e.1920x1080.jpg) | Light falls across walls and worktops; dark recesses and material masses organize occupied nooks. | Try one static Common Cottage grounding/lighting pass; evaluate it before extending to Grand Library. |
-| [Pond study](inpso/ss_2e86b624b56035de6e9bac0c0320ad7c11326dbf.1920x1080.jpg), [decoration view](inpso/ss_1c3561ee5cf018980ca30228ffaed036ffd20830.1920x1080.jpg) | Distinct plant silhouettes and visible previews carry the design; the room remains the subject. | Preserve readable silhouettes and visual discovery. Do not substitute particle density or hide all choices to improve a benchmark. |
+| [Pink loft](../inpso/ss_0910e38ff3bd0815ba99786fd63853dc1d8a84cc.1920x1080.jpg), [timber loft](../inpso/ss_11568adac20d4baea389a2e0a1c85137ff403955.1920x1080.jpg) | Work, sleeping and lounge areas form usable groups; the raised structure creates a separate occupied volume. | Improve one authored vignette and its light hierarchy before adding more furniture to a preset. A real loft-bed/platform asset is a separate larger feature. |
+| [Shared loft](../inpso/ss_82d9f29a63805ec614dc8262cef91726b1238f21.1920x1080.jpg), [close room view](../inpso/b603fdd9497a472249116e7dc02960438ef96cee.jpg) | People turn into their laptops/books; feet, hands, seats and work surfaces form one believable pose. | Eventually test one coherent static study pose on real furniture. Do not restart the rejected skewed rig or expand every garment before that pose proves useful at room scale. |
+| [Common study/café](../inpso/ss_18f591f3e019a2fa4e390c661167a536b08d6ded.1920x1080.jpg), [reading library](../inpso/ss_b75b094d60d1450e578baf36ed8afff65ead884e.1920x1080.jpg) | Light falls across walls and worktops; dark recesses and material masses organize occupied nooks. | Try one static Common Cottage grounding/lighting pass; evaluate it before extending to Grand Library. |
+| [Pond study](../inpso/ss_2e86b624b56035de6e9bac0c0320ad7c11326dbf.1920x1080.jpg), [decoration view](../inpso/ss_1c3561ee5cf018980ca30228ffaed036ffd20830.1920x1080.jpg) | Distinct plant silhouettes and visible previews carry the design; the room remains the subject. | Preserve readable silhouettes and visual discovery. Do not substitute particle density or hide all choices to improve a benchmark. |
 
 A **bounded Common Cottage art pilot is worth trying**, separately from the
-performance fixes. [CommonRoom's Prop](../frontend/src/components/CommonRoom.jsx#L29)
+performance fixes. [CommonRoom's Prop](../../frontend/src/components/CommonRoom.jsx#L29)
 does not draw the scene-level contact shadows used by
-[the home renderer](../frontend/src/components/IsoRoom.jsx#L300). Current
-[Common Cottage](screenshots/39-common-cottage.webp) and
-[Grand Library](screenshots/48-grand-library.webp) have broader, more evenly
+[the home renderer](../../frontend/src/components/IsoRoom.jsx#L300). Current
+[Common Cottage](../screenshots/39-common-cottage.webp) and
+[Grand Library](../screenshots/48-grand-library.webp) have broader, more evenly
 lit fields than the references. Grounding furniture and making light fall on
 the study area has a concrete visual purpose. Success remains unproven until
 there are room-scale before/after captures.
@@ -280,7 +280,7 @@ light. Keep residents and paths readable; add no blur filters or animation.
 The library must retain its intentionally large capacity: the intimate reference
 does not justify shrinking it or scattering props across its circulation paths.
 The existing compact character silhouettes in
-[the seated looks](screenshots/38-character-presets-seated.webp) do not justify
+[the seated looks](../screenshots/38-character-presets-seated.webp) do not justify
 another global body-proportion rewrite.
 
 **Revised next-work decisions**

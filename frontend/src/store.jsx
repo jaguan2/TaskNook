@@ -1,4 +1,6 @@
+import { RESIZABLE_FURNITURE } from './lib/furnitureDimensions';
 import { cleanShelfDecor } from "./lib/shelfDecor";
+import { withFurnitureColor } from './lib/furnitureColors';
 import {
   useState,
   useEffect,
@@ -109,6 +111,8 @@ import {
   freeSeatSpot,
   newIsoPlacement,
   nextRot,
+  resizeIsoPlacements,
+  replaceFurniturePlacement,
   partitionKey,
   PET_TEMPERS,
   cleanPetName,
@@ -444,7 +448,9 @@ export function StoreProvider({ children }) {
       if (!cur || (cur.gx === gx && cur.gy === gy)) return prev;
       return {
         ...prev,
-        placements: prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
+        placements: RESIZABLE_FURNITURE[cur.item]
+          ? replaceFurniturePlacement(prev.placements, cur, { ...cur, gx, gy })
+          : prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
       };
     });
   }, []);
@@ -511,16 +517,16 @@ export function StoreProvider({ children }) {
         // else (and for wall decor, where rot picks the wall, not a facing).
         const rot = nextRot(p.item, p.rot);
         const { rot: _dropped, ...rest } = p;
-        const at = clampIsoPlacement(p.item, p.gx, p.gy, prev, rot);
+        const at = clampIsoPlacement(p, p.gx, p.gy, prev, rot);
         const turned = { ...rest, ...(rot && { rot }), ...at };
         // Wall decor is glued to a wall by the clamp and never covers floor,
         // so the mask doesn't apply to it.
         if (ISO_ITEMS[p.item]?.wall) return turned;
-        if (footprintFree(at.gx, at.gy, footOf(p.item, rot), prev)) return turned;
+        if (footprintFree(at.gx, at.gy, footOf(p, rot), prev)) return turned;
         // Prefer to keep the turn and move the piece, since the turn is what
         // was asked for. Only if the drawn floor has nowhere to put it does
         // the rotation get refused outright.
-        const spot = findFreeSpot(p.item, rot, prev, at.gx, at.gy, prev.placements);
+        const spot = findFreeSpot(p, rot, prev, at.gx, at.gy, prev.placements.filter(other => other.id !== id));
         if (spot) return { ...turned, ...spot };
         refused = true;
         return p;
@@ -531,25 +537,39 @@ export function StoreProvider({ children }) {
         showToast("No room to turn that piece — the floor's too tight 🌿");
         return;
       }
-      const next = { ...prev, placements };
+      const before = prev.placements.find(p => p.id === id);
+      const turned = placements.find(p => p.id === id);
+      const next = { ...prev, placements: RESIZABLE_FURNITURE[before?.item]
+        ? replaceFurniturePlacement(prev.placements, before, turned)
+        : placements };
       isoRef.current = next;
       setIsoRoom(next);
     },
     [showToast]
   );
-  const setIsoItemTint = useCallback((id, tint) => {
+  const setIsoItemTint = useCallback((id, tint, part = 'main') => {
     setIsoRoom((prev) => ({
       ...prev,
       placements: prev.placements.map((p) => {
         if (p.id !== id) return p;
-        if (!tint) {
-          const { tint: _dropped, ...rest } = p;
-          return rest;
-        }
-        return { ...p, tint };
+        return withFurnitureColor(p, tint, part);
       }),
     }));
   }, []);
+  const resizeIsoItem = useCallback((id, dimensions) => {
+    const prev = isoRef.current;
+    const placements = resizeIsoPlacements(prev.placements, id, dimensions, prev);
+    if (!placements) {
+      showToast("That size needs more clear floor space 🌿");
+      return false;
+    }
+    if (placements !== prev.placements) {
+      const next = { ...prev, placements };
+      isoRef.current = next;
+      setIsoRoom(next);
+    }
+    return true;
+  }, [showToast]);
   const setIsoItemDecor = useCallback((id, value) => {
     setIsoRoom(prev => ({ ...prev, placements: prev.placements.map(p => {
       if (p.id !== id) return p;
@@ -2657,7 +2677,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
-    rotateIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
+    rotateIsoItem, resizeIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
     setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,
@@ -2666,7 +2686,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
-    rotateIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
+    rotateIsoItem, resizeIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
     setPetIdentity, applyIsoPreset, selfInRoom, setSelfInRoom,

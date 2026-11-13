@@ -35,4 +35,4 @@ Room arrangements: [study](furniture-3d-study.png), [café](furniture-3d-cafe.pn
 Current calibration views: [illustrated bed](furniture-illustrated-bed.png) and
 [actual SVG resident seated on the 3D armchair](furniture-illustrated-seated.png).
 
-The [character and pet review](../../CHARACTER_PET_REVIEW.md) covers the preserved production SVGs and the compact 3D resident refinement. Earlier prototype comparisons are in the [modelling archive](../../archive/modeling/README.md).
+The [character and pet review](../../CHARACTER_PET_REVIEW.md) covers the preserved production SVGs and the compact 3D resident refinement. Supplied style photographs are indexed in [artwork references](../../ART_REVIEW.md).

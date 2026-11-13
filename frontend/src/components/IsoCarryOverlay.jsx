@@ -68,7 +68,7 @@ export default function IsoCarryOverlay({
         <polygon
           key={`glow-${placement.id}`}
           className="room-breathe"
-          points={floorPatch(placement.gx, placement.gy, ...footOf(placement.item, placement.rot))}
+          points={floorPatch(placement.gx, placement.gy, ...footOf(placement))}
           fill="#ffe9b0"
           fillOpacity="0.14"
           stroke="#ffe9b0"

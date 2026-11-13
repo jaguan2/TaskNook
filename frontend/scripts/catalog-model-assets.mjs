@@ -25,7 +25,7 @@ export function catalogModelAssets() {
         const filename = `models/catalog/${key}-${spec.sha256.slice(0, 12)}.glb`;
         if (!development) this.emitFile({ type: 'asset', fileName: filename, source: bytes });
         return [key, { url: `${base}${filename}`, width: spec.width, depth: spec.depth, height: spec.height,
-          controlHeight: spec.controlHeight, surface: spec.surface, colorRole: spec.colorRole, defaultColor: spec.defaultColor,
+          controlHeight: spec.controlHeight, seat: spec.seat, surface: spec.surface, colorRole: spec.colorRole, defaultColor: spec.defaultColor,
           tintable: spec.tintable, wall: spec.wall, forward: spec.forward || '+Z' }];
       }));
       return `export default ${JSON.stringify(models)};`;

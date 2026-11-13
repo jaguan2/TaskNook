@@ -170,7 +170,7 @@ def require_release_pair(paths: set[str]) -> None:
         "requirements-desktop-build.txt",
         "scripts/desktop_package.py",
         "scripts/desktop_update_manifest.py",
-        "prototypes/furniture/src/viewer/illustrated-style.mjs",
+        *_manifest_module().FURNITURE_RUNTIME_SOURCES,
     }
 
     def reaches_executable(path: str) -> bool:

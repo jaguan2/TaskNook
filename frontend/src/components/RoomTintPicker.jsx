@@ -43,7 +43,7 @@ function VariantPicker({ placement, item, onTint }) {
   return (
     // bottom-6: the transport bar's spot on the shared bottom rail, which is
     // exactly what this popover replaces while decorating
-    <div className="room-tint-picker glass absolute left-1/2 z-20 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
+    <div className="room-tint-picker glass absolute left-1/2 z-40 -translate-x-1/2 space-y-2 rounded-2xl p-3 shadow-soft">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
         <button
@@ -72,7 +72,7 @@ function VariantPicker({ placement, item, onTint }) {
   );
 }
 
-export default function RoomTintPicker({ placement, item: itemProp, onTint, onDecor, onClose }) {
+export default function RoomTintPicker({ placement, item: itemProp, onTint, onDecor, onClose, onResize }) {
   const item = itemProp || ITEMS[placement.item];
   // A placement whose catalog entry no longer exists (renamed or removed item)
   // must not take the whole app down — the scenes already skip unknown items.
@@ -80,11 +80,17 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint, onDe
   if (item.variants) {
     return <VariantPicker placement={placement} item={item} onTint={onTint} />;
   }
-  return <FullTintPicker placement={placement} item={item} onTint={onTint} onDecor={onDecor} onClose={onClose} />;
+  return <FullTintPicker key={placement.id} placement={placement} item={item} onTint={onTint} onDecor={onDecor} onClose={onClose} onResize={onResize} />;
 }
 
-function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
-  const active = placement.tint || null;
+function FullTintPicker({ placement, item, onTint, onDecor, onClose, onResize }) {
+  const [part, setPart] = useState('main');
+  const partSpec = item.colorParts?.[part];
+  const active = (part === 'main' ? placement.tint : placement.colors?.[part]) || null;
+  const defaultColor = partSpec?.defaultColor || TINT_SWATCHES[0];
+  const commitColor = value => part === 'main'
+    ? onTint(placement.id, value)
+    : onTint(placement.id, value, part);
   // Slider positions are LOCAL STATE, not re-derived from the committed hex on
   // every render. Deriving them was a dead end at both extremes: drag Lightness
   // to 0 and the tint is #000000, whose hue and saturation are 0 *by
@@ -94,7 +100,7 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
   // were working in, so lightness is a round trip.
   // Untinted items start from the first swatch — something sensible to move
   // away from.
-  const [hsl, setHsl] = useState(() => hexToHsl(active || TINT_SWATCHES[0]));
+  const [hsl, setHsl] = useState(() => hexToHsl(active || defaultColor));
   const [hexDraft, setHexDraft] = useState(active || "");
 
   // Re-sync only when the tint changes from OUTSIDE these sliders (a swatch,
@@ -103,10 +109,10 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
   useEffect(() => {
     setHexDraft(active || "");
     setHsl((prev) => {
-      if (!active) return hexToHsl(TINT_SWATCHES[0]);
+      if (!active) return hexToHsl(defaultColor);
       return hslToHex(prev.h, prev.s, prev.l) === active ? prev : hexToHsl(active);
     });
-  }, [active, placement.id]);
+  }, [active, placement.id, part, defaultColor]);
 
   const { h, s, l } = hsl;
 
@@ -115,38 +121,52 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
     // Only commit a COMPLETE 6-digit colour — normalizeHex would expand a
     // 3-digit prefix mid-typing and hijack the field (same as SettingsPanel).
     const raw = value.trim().replace(/^#/, "");
-    if (/^[0-9a-fA-F]{6}$/.test(raw)) onTint(placement.id, `#${raw.toLowerCase()}`);
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) commitColor(`#${raw.toLowerCase()}`);
   };
   const fromSliders = (nh, ns, nl) => {
     setHsl({ h: nh, s: ns, l: nl });
-    onTint(placement.id, hslToHex(nh, ns, nl));
+    commitColor(hslToHex(nh, ns, nl));
   };
 
   return (
-    // Bottom-centre: guaranteed clear while decorating — the focus timer that
-    // normally lives there steps aside in edit mode, and the dock (viewport
-    // left) stays untouched.
-    <div className="room-tint-picker glass absolute left-1/2 z-20 w-60 -translate-x-1/2 max-h-[65vh] overflow-y-auto space-y-2 rounded-2xl p-3 shadow-soft">
-      {onClose && <button type="button" aria-label="Close item customizer" className="float-right text-xs text-petal" onClick={onClose}>Close</button>}
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-cream">🎨 {item.label}</p>
+    // Finished-room clicks and Decorate selection share this bounded popover.
+    <div className="room-tint-picker glass absolute left-1/2 z-40 w-60 -translate-x-1/2 max-h-[65vh] overflow-y-auto space-y-2 rounded-2xl p-3 shadow-soft">
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-xs font-semibold text-cream">🎨 {item.label}</p>
+        <div className="flex shrink-0 items-center gap-2">
         <button
-          onClick={() => onTint(placement.id, null)}
+          type="button"
+          onClick={() => commitColor(null)}
+          aria-label={partSpec ? `Reset ${partSpec.label.toLowerCase()} colour` : undefined}
           disabled={!active}
           className="text-[10px] font-semibold text-petal/60 hover:text-glow disabled:opacity-40"
         >
           Classic ↺
         </button>
+        {onClose && <button type="button" aria-label="Close item customizer" className="text-xs text-petal" onClick={onClose}>Close</button>}
+        </div>
       </div>
 
       {onDecor && SHELF_ITEMS.includes(placement.item) && <ShelfDecorControls placement={placement} onDecor={onDecor} />}
+
+      {onResize && <button type="button" aria-label={`Resize ${item.label.toLowerCase()}`} onClick={onResize}
+        className="w-full rounded-lg bg-white/10 px-2 py-1 text-xs text-cream hover:bg-white/20">
+        ↗ Resize {item.label.toLowerCase()}
+      </button>}
+
+      {item.colorParts && <label className="flex items-center justify-between gap-2 text-xs text-petal">
+        Part
+        <select aria-label="Furniture part" value={part} onChange={e => setPart(e.target.value)} className="rounded bg-night px-2 py-1 text-cream">
+          {Object.entries(item.colorParts).map(([key, spec]) => <option key={key} value={key}>{spec.label}</option>)}
+        </select>
+      </label>}
 
       {/* Finish colour */}
       <div className="flex items-center gap-1.5">
         {TINT_SWATCHES.map((color) => (
           <button
             key={color}
-            onClick={() => onTint(placement.id, color)}
+            onClick={() => commitColor(color)}
             title={color}
             className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
               active === color ? "border-white" : "border-black/30"
@@ -161,7 +181,7 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
         <input
           type="color"
           value={active || hslToHex(h, s, l)}
-          onChange={(e) => onTint(placement.id, e.target.value)}
+          onChange={(e) => commitColor(e.target.value)}
           aria-label="Pick a colour"
           className="h-7 w-7 shrink-0 rounded-md border border-white/20 bg-transparent p-0"
         />
@@ -171,6 +191,7 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose }) {
           onChange={(e) => commitHex(e.target.value)}
           spellCheck="false"
           placeholder="#rrggbb"
+          aria-label={`${partSpec?.label || 'Finish'} colour hex`}
           className={`w-full select-text rounded-lg bg-white/10 px-2 py-1 font-mono text-xs outline-none focus:bg-white/15 ${
             !hexDraft || normalizeHex(hexDraft) ? "text-cream" : "text-danger"
           }`}

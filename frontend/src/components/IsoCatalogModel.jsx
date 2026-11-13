@@ -1,37 +1,74 @@
 import { furnitureFacing } from '../lib/furnitureFacing';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { catalogImages, catalogModelRequest, CATALOG_MODELS } from '../services/catalogModels';
+import IsoResizableFallback from './IsoResizableFallback';
 
-export function hasCatalogModel(key) { return !!CATALOG_MODELS[key]; }
+export function hasCatalogModel(key) {
+  return !!CATALOG_MODELS[key];
+}
 
-export default function IsoCatalogModel({ item, tint, decor, rot = 0, lit = true, part = 'whole', showLaptop = false, children }) {
-  const request = useMemo(() => catalogModelRequest({ item, tint, decor, rot, lit, part, showLaptop }), [item, tint, decor, rot, lit, part, showLaptop]);
-  const subscribe = useCallback(listener => request ? catalogImages.subscribe(request, listener) : () => {}, [request]);
-  const snapshot = useCallback(() => request ? catalogImages.snapshot(request) : catalogImages.serverSnapshot(), [request]);
+export default function IsoCatalogModel({ item, tint, decor, colors, dimensions, rot = 0, lit = true, part = 'whole', showLaptop = false, children }) {
+  const request = useMemo(
+    () => catalogModelRequest({ item, tint, decor, colors, dimensions, rot, lit, part, showLaptop }),
+    [item, tint, decor, colors, dimensions, rot, lit, part, showLaptop],
+  );
+  const subscribe = useCallback(
+    listener => request ? catalogImages.subscribe(request, listener) : () => {},
+    [request],
+  );
+  const snapshot = useCallback(
+    () => request ? catalogImages.snapshot(request) : catalogImages.serverSnapshot(),
+    [request],
+  );
   const frame = useSyncExternalStore(subscribe, snapshot, catalogImages.serverSnapshot);
-  const [held, setHeld] = useState(null);
-  const lease = useRef(null);
+  const [previousFrame, setPreviousFrame] = useState(null);
+  const imageLease = useRef(null);
+
   useLayoutEffect(() => {
     if (!request) {
-      lease.current?.release(); lease.current = null; setHeld(null); return;
+      imageLease.current?.release();
+      imageLease.current = null;
+      setPreviousFrame(null);
+      return;
     }
-    if (frame.image && lease.current?.id !== request?.id) {
+    if (frame.image && imageLease.current?.id !== request.id) {
       // Keep the previous GLB visible while a recolor/turn renders, with a
       // real lease so its URL cannot be evicted before the replacement lands.
       const release = catalogImages.subscribe(request, () => {});
-      lease.current?.release();
-      lease.current = { id: request.id, release };
-      setHeld({ item, part, image: frame.image });
+      imageLease.current?.release();
+      imageLease.current = { id: request.id, release };
+      setPreviousFrame({ item, part, image: frame.image });
     }
   }, [frame, request, item, part]);
-  useEffect(() => () => lease.current?.release(), []);
+
+  useEffect(() => () => {
+    imageLease.current?.release();
+    // Effect replay must acquire a fresh lease, even for the same request ID.
+    imageLease.current = null;
+  }, []);
+
   if (!request) return children;
-  const image = frame.image || (held?.item === item && held.part === part ? held.image : null);
-  return <g data-catalog-model={item} data-model-part={part} data-model-facing={furnitureFacing({ item, rot }).key} data-shelf-layout={request.options.decor?.layout || "original"} data-model-color={request.options.color} data-model-state={frame.status} data-model-source={image ? 'glb' : 'svg-fallback'} data-bed-tuck-cover={part === 'duvet' && image ? 'true' : undefined}>
+  const previousImage = previousFrame?.item === item && previousFrame.part === part
+    ? previousFrame.image
+    : null;
+  const image = frame.image || previousImage;
+  return <g
+    data-catalog-model={item}
+    data-model-part={part}
+    data-model-facing={furnitureFacing({ item, rot }).key}
+    data-shelf-layout={request.options.decor?.layout || 'original'}
+    data-model-color={request.options.color}
+    data-model-state={frame.status}
+    data-model-source={image ? image.source || 'glb' : 'svg-fallback'}
+    data-model-dimensions={request.options.dimensions ? `${request.options.dimensions.w}x${request.options.dimensions.d}` : undefined}
+    data-bed-tuck-cover={part === 'duvet' && image ? 'true' : undefined}
+  >
     {image ? <>
       <image href={image.href} x={image.x} y={image.y} width={image.width} height={image.height} preserveAspectRatio="none" pointerEvents="none" />
       <path data-model-hit-shape d={image.hitPath} transform={`translate(${image.x},${image.y})`} fill="transparent" pointerEvents="all" />
-    </> : children}
+    </> : request.options.dimensions && item !== 'bed'
+      ? <g transform={rot % 2 ? 'scale(-1,1)' : undefined}><IsoResizableFallback item={item} dimensions={request.options.dimensions} decor={decor} rot={rot} /></g>
+      : children}
   </g>;
 }
 

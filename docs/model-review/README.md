@@ -17,4 +17,4 @@ The [app screenshots](../screenshots/README.md) show the actual GLB-backed game.
 - Growth sheets: [cats](cat-growth.webp), [dogs](dog-growth.webp), [rabbits](bunny-growth.webp).
 - [Character/pet review](../CHARACTER_PET_REVIEW.md) and [source-art captures](characters-and-pets/README.md).
 
-Earlier SVG furniture comparisons and the first physical-lighting prototype are preserved in the [modelling archive](../archive/modeling/README.md). They are no longer presented as current furniture references.
+The supplied photographs and reusable visual cues are indexed in [artwork references](../ART_REVIEW.md). Superseded SVG furniture comparisons and the first physical-lighting capture were removed during maintenance.

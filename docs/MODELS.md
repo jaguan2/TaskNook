@@ -1,4 +1,4 @@
-> Current rendering scope: the isometric game uses 179 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Earlier art reports are in the [modelling archive](archive/modeling/README.md).
+> Current rendering scope: the isometric game uses 179 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Supplied inspiration is indexed in [artwork references](ART_REVIEW.md).
 
 # TaskNook model spec
 
@@ -473,6 +473,8 @@ highlight bands—together they make unrelated materials look inflatable.
 
 ## 4. Colour
 
+Production beds have independent blanket, frame, sheet and pillow materials. The blanket keeps the existing tint; secondary choices are saved per bed. Restore authored material defaults before rendering another placement from a shared GLB, and pass the same colours to the sleeping foreground cover and SVG fallback. See [furniture colours](ROOM_MODEL_INTEGRATION.md#furniture-colours) for controls and data ownership.
+
 - Main material: `var(--tint, <fallback>)` via the `tinted()` helper.
 - **Shading is translucent BLACK; highlights are translucent WHITE.** Never a
   fixed darker hue — the user can tint almost anything, and a hard-coded shade
@@ -538,8 +540,8 @@ Do not change geometry/seat anchors to compensate for a cosmetic revision.
 
 Current furniture references: [catalog sheets](model-review/catalog-3d/README.md),
 [Loft workstation](model-review/loft-focus.webp) and
-[front/rear seating contacts](model-review/README.md). Earlier SVG construction
-comparisons are preserved in the [modelling archive](archive/modeling/README.md).
+[front/rear seating contacts](model-review/README.md). Supplied design photographs
+and their useful cues are in [artwork references](ART_REVIEW.md).
 
 ## Pet size, form and growth
 
@@ -775,3 +777,9 @@ Rules, each load-bearing:
 - **Never SVG filters** (feGaussianBlur/feDropShadow): they force
   filter-region re-rasterization every animation frame — gradients are free
   GPU paint servers, filters are the CPU bill the memo'd scene avoids.
+
+## Resizable standalone furniture
+
+The bed builder in `prototypes/furniture/src/models/bed-models.mjs` is shared by the workshop export and the app's size variants. Use explicit closed geometry with fixed material roles and physical edge thicknesses; expand interior spans rather than scaling a complete bed. `furnitureDimensions.js` owns canonical tile bounds and pillow distribution for both mesh and SVG paths. The authored 2×2.8 default remains the GLB; opt-in variants use half tiles from 1×2 to 4×4. Keep seat height and character dimensions fixed, and move long-bed sleepers toward the pillow end. [Integration and controls](ROOM_MODEL_INTEGRATION.md#resizable-beds) describe persistence and renderer ownership.
+
+The shared `resizable-models.mjs` dispatch now also covers sofas, workstation desks and six shelf styles. Add supports when widening a span; distribute cushions with fixed padding thickness. Shelf contents are complete objects/stacks fitted into real board bays, with space around intermediate posts. Desktop equipment never scales with its supporting desk. Wall shelves keep their wall mounts, and height/seat/surface anchors stay fixed. The [coverage table](ROOM_MODEL_INTEGRATION.md#shelves-sofas-and-desks) records every supported type and range. All 225 supported size combinations receive closed-geometry and physical-contact checks.

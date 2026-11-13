@@ -43,7 +43,7 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 | [Beanbag](../prototypes/furniture/assets/beanbag.glb) | beanbag | 1,824 | 34,576 |
 | [Floor cushion](../prototypes/furniture/assets/cushion.glb) | cushion | 1,824 | 34,520 |
 | [Flower cushion](../prototypes/furniture/assets/flowercushion.glb) | flowercushion | 3,776 | 75,740 |
-| [Bed](../prototypes/furniture/assets/bed.glb) | bed | 7,760 | 173,380 |
+| [Bed](../prototypes/furniture/assets/bed.glb) | bed | 7,760 | 173,588 |
 | [Garden bench](../prototypes/furniture/assets/bench.glb) | bench | 3,720 | 116,936 |
 | [Fallen log](../prototypes/furniture/assets/log.glb) | log | 2,112 | 72,748 |
 | [Hammock](../prototypes/furniture/assets/hammock.glb) | hammock | 3,928 | 119,660 |
@@ -76,7 +76,7 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 | [Stacked crates](../prototypes/furniture/assets/crates.glb) | crates | 3,996 | 177,536 |
 | [Laundry basket](../prototypes/furniture/assets/basket.glb) | basket | 4,736 | 109,848 |
 | [Record crate](../prototypes/furniture/assets/vinylcrate.glb) | vinylcrate | 2,652 | 128,680 |
-| [Ladder shelf](../prototypes/furniture/assets/ladder.glb) | ladder | 3,948 | 172,176 |
+| [Ladder shelf](../prototypes/furniture/assets/ladder.glb) | ladder | 3,948 | 172,216 |
 | [Coat rack](../prototypes/furniture/assets/coatrack.glb) | coatrack | 3,660 | 95,092 |
 | [Book trolley](../prototypes/furniture/assets/booktrolley.glb) | booktrolley | 4,620 | 208,728 |
 

@@ -19,6 +19,12 @@ from request_validation import json_body as _json_body
 # or pet form cannot silently make a frontend placement unsaveable.
 ISO_ENVS = ("room", "cafe", "library", "terrace", "garden", "snow")
 ISO_WALLS = ("full", "low", "none")
+FURNITURE_SIZE_LIMITS = {
+    "bed": (1, 4, 2, 4), "sofa": (1.5, 5, 1, 1.5), "desk": (2, 5, 1, 2),
+    "bookshelf": (1, 5, .5, 1.5), "bookcase": (1, 5, .5, 1.5),
+    "shelf": (1, 5, .5, 1.5), "ladder": (1, 5, .5, 1.5),
+    "plantshelf": (1, 5, .5, 1.5), "wallshelf": (1, 5, .5, 1),
+}
 PET_LOOKS = (
     "ink", "ginger", "greytabby", "tuxedo", "calico", "siamese", "tortie",
     "golden", "shiba", "corgi", "dalmatian", "husky", "cloud", "snow", "cocoa",
@@ -98,7 +104,31 @@ def clean_layout(placements, xkey, ykey):
                 return None
             entry["tint"] = tint
 
-        # Shelf contents belong to each placement, alongside its finish tint.
+        if "dimensions" in placement:
+            dimensions = placement["dimensions"]
+            if item not in FURNITURE_SIZE_LIMITS or not isinstance(dimensions, dict) or set(dimensions) != {"w", "d"}:
+                return None
+            w, d = dimensions["w"], dimensions["d"]
+            if not _finite_number(w) or not _finite_number(d):
+                return None
+            min_w, max_w, min_d, max_d = FURNITURE_SIZE_LIMITS[item]
+            if not (min_w <= w <= max_w and min_d <= d <= max_d and w * 2 % 1 == 0 and d * 2 % 1 == 0):
+                return None
+            entry["dimensions"] = {"w": w, "d": d}
+
+        # Bed materials belong to one placement, alongside its blanket tint.
+        if "colors" in placement:
+            colors = placement["colors"]
+            if item != "bed" or not isinstance(colors, dict):
+                return None
+            if set(colors) - {"frame", "sheets", "pillows"}:
+                return None
+            if any(not _hex_color(color) for color in colors.values()):
+                return None
+            if colors:
+                entry["colors"] = {part: color.lower() for part, color in colors.items()}
+
+        # Shelf contents remain independent of the finish and bed materials.
         if "decor" in placement:
             decor = placement["decor"]
             if item not in {"bookshelf", "bookcase", "shelf", "ladder", "wallshelf", "plantshelf"}:

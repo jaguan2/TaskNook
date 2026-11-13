@@ -8,7 +8,7 @@ See the [section ledger](CATALOG_3D_MIGRATION.md) for individual coverage and [c
 
 The game uses one offscreen Three.js renderer to compose real GLBs into its existing isometric depth and interaction layers. This preserves saved placements, continuous character customization, carry/seating contacts and the existing camera. Models load locally in the desktop build. GPU or asset failures expose the SVG fallback and a retry action. See [the integration guide](ROOM_MODEL_INTEGRATION.md) for the complete pipeline and its limits.
 
-The earlier SVG-first and physical-lighting proposals are [archived](archive/modeling/MODELING_ROADMAP.md). They do not describe the default furniture renderer.
+The [renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md) preserves earlier projection constraints. Use the [artwork references](ART_REVIEW.md) for style; superseded furniture roadmaps and prototype captures have been removed.
 
 ## November 12 refinement
 

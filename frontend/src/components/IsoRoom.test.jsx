@@ -17,6 +17,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('clears the colour panel for resizing while preserving selection and keyboard access', () => {
+  const onResizeItem = vi.fn(), onTintItem = vi.fn();
+  const { container, getByRole } = render(<IsoRoom size={{ w: 8, d: 8 }}
+    placements={[{ id: 'bed', item: 'bed', gx: 1, gy: 1 }]} editMode
+    onResizeItem={onResizeItem} onTintItem={onTintItem} saveView={false} />);
+  const bed = container.querySelector('[data-placement-id="bed"]');
+  fireEvent.keyDown(bed, { key: 'Enter' });
+  fireEvent.click(getByRole('button', { name: 'Resize bed', exact: true }));
+  expect(container.querySelector('.room-tint-picker')).toBeNull();
+  const handle = container.querySelector('[data-resize-item="bed"]');
+  expect(document.activeElement).toBe(handle);
+  expect(onResizeItem).not.toHaveBeenCalled();
+  fireEvent.keyDown(handle, { key: 'ArrowRight' });
+  expect(onResizeItem).toHaveBeenCalledWith('bed', { w: 2.5, d: 3 });
+  fireEvent.keyDown(bed, { key: 'Enter' });
+  expect(container.querySelector('.room-tint-picker')).not.toBeNull();
+});
+
 // The grab cursor IS the walk-order affordance, and it's the only part of a
 // walk order a render test can see (jsdom has no getScreenCTM, so the drag
 // itself is verified in a real browser).

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -7,6 +7,51 @@ import { createShelfDecorator } from './catalogShelfDecor';
 import { cleanShelfDecor, SHELF_ITEMS } from '../lib/shelfDecor';
 import { catalogModelRequest } from './catalogModels';
 import { validateIsoLayout } from '../lib/isoRoom';
+import { createFurnitureVariants } from './catalogRenderer';
+
+it.each(SHELF_ITEMS)('refits %s contents into supported bays and releases only owned size resources', async key => {
+  const palette = createIllustratedPalette(), loaded = new Map();
+  const load = async name => {
+    if (!loaded.has(name)) {
+      const bytes = readFileSync(new URL(`../../../prototypes/furniture/assets/${name}.glb`, import.meta.url));
+      const { scene } = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+      palette.apply(scene, 'illustrated'); loaded.set(name, scene);
+    }
+    return loaded.get(name);
+  };
+  const variants = createFurnitureVariants(palette, 1), model = variants(key, { w: 5, d: 1 });
+  const decorate = createShelfDecorator(palette, load), disposed = vi.fn();
+  for (const layout of ['books', 'plants', 'mixed']) {
+    await decorate(model, { layout, bookColor: '#8877aa' });
+    model.updateMatrixWorld(true);
+    const group = model.getObjectByName(`shelf-layout-${layout}`);
+    for (const object of group.children) {
+      const bounds = new THREE.Box3().setFromObject(object);
+      const board = model.userData.shelfDecor.boards.map(name => new THREE.Box3().setFromObject(model.getObjectByName(name)))
+        .find(box => Math.abs(box.max.y - bounds.min.y) < .003);
+      expect(board, `${key}/${layout}: unsupported contents`).toBeDefined();
+      expect(bounds.min.x).toBeGreaterThanOrEqual(board.min.x);
+      expect(bounds.max.x).toBeLessThanOrEqual(board.max.x);
+      expect(bounds.min.z).toBeGreaterThanOrEqual(board.min.z);
+      expect(bounds.max.z).toBeLessThanOrEqual(board.max.z);
+    }
+  }
+  const plant = await load('plant'), borrowed = new Set();
+  plant.traverse(node => { if (node.isMesh) {
+    node.geometry.addEventListener('dispose', disposed);
+    node.material.addEventListener('dispose', disposed);
+    borrowed.add(node.material);
+  } });
+  const accent = model.getObjectByName('shelf-layout-books').children.flatMap(object => {
+    const materials = []; object.traverse(node => { if (node.material?.name === 'shelf-book-accent') materials.push(node.material); }); return materials;
+  })[0];
+  const accentDisposed = vi.fn(); accent.addEventListener('dispose', accentDisposed);
+  variants('bed', { w: 2, d: 2 });
+  expect(disposed).not.toHaveBeenCalled();
+  expect(accentDisposed).toHaveBeenCalledOnce();
+  for (const material of borrowed) expect(palette.materials.has(material)).toBe(true);
+  palette.disposeTexture();
+});
 
 describe('per-placement shelf decorations', () => {
   it('keeps valid decor through layout validation and separates image variants', () => {

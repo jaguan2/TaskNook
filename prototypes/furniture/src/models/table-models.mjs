@@ -1,3 +1,4 @@
+import { buildDesk as desk } from './desk-models.mjs';
 import { beam, foot, joint, material, revolved, rounded, splayedLeg } from './geometry.mjs';
 import { PIXELS_PER_UNIT } from '../catalog.mjs';
 import { cabinetCase, drawerFront, kitchenCounter } from './worktop-cabinets.mjs';
@@ -29,25 +30,6 @@ function cafeTable(root, spec) {
   const pedestal = revolved(root, 'continuous-turned-pedestal', [[.29, 0], [.36, .018], [.36, .04], [.31, .065], [.15, .095], [.075, .15], [.064, h - .12], [.14, h - .075], [.19, h - .06]], timber);
   const top = revolved(root, 'solid-round-tabletop', [[.52, h - .085], [.585, h - .065], [.599, h - .045], [.599, h - .025], [.575, h], [.18, h]], wood);
   joint(root, pedestal, top, [0, h - .07, 0]);
-}
-
-function desk(root, spec) {
-  const wood = material('finish', '#b08a61'), dark = material('frame', '#805d46'), brass = material('hardware', '#baa17b');
-  const { width: w, depth: d, surface: h } = spec;
-  const top = rounded(root, 'solid-rounded-worktop', [w, .09, d], [0, h - .045, 0], wood, .035);
-  const panelX = -w / 2 + .12;
-  const side = rounded(root, 'left-support-panel', [.13, h - .055, d - .20], [panelX, (h - .055) / 2, 0], dark, .022);
-  joint(root, side, top, [panelX, h - .07, 0]);
-  const pedestalX = .65, cabinetTop = h - .065;
-  const cabinet = cabinetCase(root, 'drawer-pedestal', { x: pedestalX, width: .64, depth: d - .22, bottom: 0, top: cabinetTop }, wood);
-  joint(root, cabinet.sides[0], top, [pedestalX - .2925, h - .08, 0]);
-  for (let i = 0; i < 3; i++) {
-    const bottom = .045 + i * (cabinetTop - .08) / 3, height = (cabinetTop - .08) / 3 - .014;
-    drawerFront(root, `desk-drawer-${i}`, { x: pedestalX, y: bottom + height / 2, width: .53, height, z: (d - .22) / 2 - .024 }, wood, brass, cabinet);
-  }
-  const modesty = rounded(root, 'rear-modesty-and-support-rail', [1.45, .22, .055], [-.25, h - .20, -d / 2 + .16], dark, .014);
-  joint(root, modesty, side, [panelX + .025, h - .20, -d / 2 + .16]);
-  joint(root, modesty, cabinet.sides[0], [pedestalX - .30, h - .20, -d / 2 + .16]);
 }
 
 function drawerCabinet(root, spec) {

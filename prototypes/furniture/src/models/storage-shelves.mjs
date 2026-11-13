@@ -17,6 +17,15 @@ function shelfCase(root, spec, levels) {
     joint(root, side, back, [side.position.x - Math.sign(side.position.x) * .015, h / 2, -d / 2 + .04]);
     for (const shelf of shelves) joint(root, side, shelf, [side.position.x, shelf.position.y, .002]);
   }
+  // Broad bookcases need intermediate support; each bay stays under two tiles.
+  const bays = Math.ceil(w / 2);
+  for (let i = 1; i < bays; i++) {
+    const x = -w / 2 + w * i / bays;
+    const divider = board(root, `case-divider-${i}`, [.065, h - .06, d - .025], [x, (h - .06) / 2 + .06, 0], timber, .016);
+    joint(root, divider, plinth, [x, .075, 0]);
+    joint(root, divider, crown, [x, h - .05, 0]);
+    for (const shelf of shelves) joint(root, divider, shelf, [x, shelf.position.y, .002]);
+  }
   return shelves;
 }
 
@@ -53,26 +62,36 @@ export function openShelf(root, spec) {
 }
 
 export function ladderShelf(root, spec) {
-  const timber = material('finish', '#b08a61'), { height: h } = spec, railX = .40;
-  const rails = [-1, 1].map(sign => splayedLeg(root, `continuous-leaning-rail-${sign}`, [sign * railX, .205], [sign * railX, -.205], h, timber, .027));
+  const timber = material('finish', '#b08a61'), { height: h } = spec, railX = .40 + (spec.width - .9) / 2;
+  const dz = spec.depth - .5, frontAt = y => .205 + dz / 2 - (.41 + dz) * y / h;
+  const rails = [-1, 1].map(sign => splayedLeg(root, `continuous-leaning-rail-${sign}`, [sign * railX, .205 + dz / 2], [sign * railX, -.205 - dz / 2], h, timber, .027));
   // Rear uprights make this a stable standalone rack instead of requiring an
   // invisible wall to keep two forward feet from tipping over.
-  const rearHeight = h - .09, rearTop = .205 - .41 * (rearHeight / h);
+  const rearHeight = h - .09, rearTop = frontAt(rearHeight);
   const rearSupports = [-1, 1].map(sign => {
-    const leg = splayedLeg(root, `grounded-rear-support-${sign}`, [sign * railX, -.205], [sign * railX, rearTop], rearHeight, timber, .023);
+    const leg = splayedLeg(root, `grounded-rear-support-${sign}`, [sign * railX, -.205 - dz / 2], [sign * railX, rearTop], rearHeight, timber, .023);
     joint(root, leg, rails[sign === -1 ? 0 : 1], [sign * railX, rearHeight - .01, rearTop]);
     return leg;
   });
   const levels = [.37, .85, 1.33];
   const shelves = levels.map((top, i) => {
-    const front = .205 - .41 * (top / h), rear = -.215, depth = front - rear + .034;
-    const shelf = board(root, `tapered-depth-shelf-${i}`, [.82, .05, depth], [0, top - .025, (front + rear) / 2], timber, .01);
-    for (const [index, rail] of rails.entries()) joint(root, shelf, rail, [index === 0 ? -railX : railX, top - .025, .205 - .41 * ((top - .025) / h)]);
-    for (const [index, leg] of rearSupports.entries()) joint(root, shelf, leg, [index === 0 ? -railX : railX, top - .025, -.205 + (rearTop + .205) * ((top - .025) / rearHeight)]);
+    const front = frontAt(top), rear = -.215 - dz / 2, depth = front - rear + .034 + dz * .035;
+    const shelf = board(root, `tapered-depth-shelf-${i}`, [.82 + spec.width - .9, .05, depth], [0, top - .025, (front + rear) / 2], timber, .01);
+    for (const [index, rail] of rails.entries()) joint(root, shelf, rail, [index === 0 ? -railX : railX, top - .025, frontAt(top - .025)]);
+    for (const [index, leg] of rearSupports.entries()) joint(root, shelf, leg, [index === 0 ? -railX : railX, top - .025, -.205 - dz / 2 + (rearTop + .205 + dz / 2) * ((top - .025) / rearHeight)]);
     return shelf;
   });
-  const crossbar = beam(root, 'upper-receiving-rail', [-railX, h - .035, -.197], [railX, h - .035, -.197], .022, timber);
-  for (const sign of [-1, 1]) joint(root, crossbar, rails[sign === -1 ? 0 : 1], [sign * (railX - .005), h - .035, -.197]);
+  const crossZ = -.197 + frontAt(h - .035) - (.205 - .41 * ((h - .035) / h));
+  const crossbar = beam(root, 'upper-receiving-rail', [-railX, h - .035, crossZ], [railX, h - .035, crossZ], .022, timber);
+  for (const sign of [-1, 1]) joint(root, crossbar, rails[sign === -1 ? 0 : 1], [sign * (railX - .005), h - .035, crossZ]);
+  for (let i = 1; i < Math.ceil(spec.width / 2); i++) {
+    const x = -railX + 2 * railX * i / Math.ceil(spec.width / 2);
+    const rail = splayedLeg(root, `intermediate-support-${i}`, [x, frontAt(0)], [x, frontAt(h)], h, timber, .027);
+    const rear = splayedLeg(root, `intermediate-rear-${i}`, [x, -.205 - dz / 2], [x, rearTop], rearHeight, timber, .023);
+    joint(root, rear, rail, [x, rearHeight - .01, rearTop]);
+    shelves.forEach(shelf => joint(root, rail, shelf, [x, shelf.position.y, frontAt(shelf.position.y)]));
+    joint(root, rail, crossbar, [x, h - .035, crossZ]);
+  }
   const first = folio(root, 'folded-bottom-folio', { x: 0, z: -.02, top: levels[0], width: .44, depth: .22 }, cover(0), shelves[0]);
   folio(root, 'upper-bottom-folio', { x: .01, z: -.02, top: levels[0] + .054, width: .40, depth: .21 }, cover(1), first.top);
   bowl(root, 'ladder-bowl', { x: .05, z: -.08, top: levels[1], radius: .10 }, shelves[1]);

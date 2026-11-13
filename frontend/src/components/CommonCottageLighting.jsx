@@ -43,8 +43,8 @@ export function CottageFloorShade({ surface, clipId }) {
 /** Light falls on the supporting worktop, not only the floor far below it.
  * Draw after the host sprite and before its supported books, mugs and lamp. */
 export function CottageTableLight({ p, lamp, uid, strength }) {
-  const [w, d] = footOf(p.item, p.rot);
-  const [lw, ld] = footOf(lamp.item, lamp.rot);
+  const [w, d] = footOf(p);
+  const [lw, ld] = footOf(lamp);
   const at = project(lamp.gx - p.gx + lw / 2, lamp.gy - p.gy + ld / 2);
   const height = ISO_ITEMS[p.item].surface;
   const clipId = `${uid}-${p.id}-worktop`;

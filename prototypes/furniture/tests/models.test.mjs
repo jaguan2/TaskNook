@@ -7,6 +7,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { validateBytes } from 'gltf-validator';
 import { createFurniture, FURNITURE, PIXELS_PER_UNIT } from '../src/models.mjs';
 import { ISO_ITEMS } from '../../../frontend/src/lib/isoCatalog.js';
+import { FURNITURE_COLOR_PARTS } from '../../../frontend/src/lib/furnitureColors.js';
+import { buildBed } from '../src/models/bed-models.mjs';
+import { buildResizableFurniture } from '../src/models/resizable-models.mjs';
+import { RESIZABLE_FURNITURE } from '../../../frontend/src/lib/furnitureDimensions.js';
+
+test('bed colour channels match distinct authored materials and reset defaults', () => {
+  const bed = createFurniture('bed'), materials = new Map();
+  bed.traverse(node => { if (node.isMesh) materials.set(node.material.name, node.material); });
+  for (const { role, defaultColor } of Object.values(FURNITURE_COLOR_PARTS.bed)) {
+    assert.ok(materials.has(role), `Missing editable bed material ${role}`);
+    assert.equal(`#${materials.get(role).color.getHexString()}`, defaultColor);
+  }
+  assert.notEqual(materials.get('sheets'), materials.get('pillows'));
+});
 
 // The broad support graph below finds isolated parts. These additional solid
 // probes test actual mesh interiors at joints, not overlapping bounding boxes.
@@ -65,6 +79,62 @@ function auditGeometry(geometry) {
   assert.equal(visited.size, identities.size, 'disconnected islands inside one mesh');
   assert.ok(volume > 0, 'inverted or zero-volume mesh');
   return index.length / 3;
+}
+
+for (let w = 1; w <= 4; w += .5) for (let d = 2; d <= 4; d += .5) {
+  test(`resized bed ${w}x${d}: closed meshes, fixed padding and grounded supports`, () => {
+    const root = new THREE.Group(), spec = { ...FURNITURE.bed, width: w, depth: d };
+    buildBed(root, spec);
+    root.updateMatrixWorld(true);
+    root.traverse(node => { if (node.isMesh) auditGeometry(node.geometry); });
+    const bounds = new THREE.Box3().setFromObject(root);
+    assert.ok(Math.abs(bounds.min.y) < 1e-6);
+    assert.ok(Math.abs(bounds.max.y - spec.height) < 1e-6);
+    assert.ok(bounds.getSize(new THREE.Vector3()).x <= w + 1e-6);
+    assert.ok(bounds.getSize(new THREE.Vector3()).z <= d + 1e-6);
+    const mattress = new THREE.Box3().setFromObject(root.getObjectByName('mattress'));
+    assert.ok(Math.abs(mattress.max.y - spec.seat) < 1e-6);
+    const pillows = root.children.filter(node => node.name.startsWith('pillow-'));
+    assert.equal(pillows.length, Math.round(w));
+    for (const pillow of pillows) {
+      const box = new THREE.Box3().setFromObject(pillow);
+      assert.ok(box.getSize(new THREE.Vector3()).x <= .731);
+      assert.ok(box.min.x >= mattress.min.x && box.max.x <= mattress.max.x);
+      assert.ok(box.min.y < mattress.max.y && box.max.y > mattress.max.y);
+    }
+    // Four feet penetrate the frame; the mattress and headboard meet it.
+    for (const node of root.children.filter(n => n.name.startsWith('foot-'))) {
+      const centre = new THREE.Box3().setFromObject(node).getCenter(new THREE.Vector3());
+      const joint = centre.setY(.155);
+      assert.ok(containsPoint(node, joint) && containsPoint(root.getObjectByName('bed-frame'), joint));
+    }
+  });
+}
+
+for (const [key, limits] of Object.entries(RESIZABLE_FURNITURE)) {
+  if (key === 'bed') continue;
+  assert.deepEqual([limits.defaults.w, limits.defaults.d], ISO_ITEMS[key].foot, `${key}: default footprint drift`);
+  for (let w = limits.minW; w <= limits.maxW; w += .5) for (let d = limits.minD; d <= limits.maxD; d += .5) {
+    test(`resized ${key} ${w}x${d}: joined closed pieces and bounded contents`, () => {
+      const root = buildResizableFurniture(key, FURNITURE[key], { w, d });
+      root.traverse(node => { if (node.isMesh) auditGeometry(node.geometry); });
+      const bounds = new THREE.Box3().setFromObject(root);
+      assert.ok(bounds.min.y >= -.025, `${key}: below floor`);
+      assert.ok(bounds.max.y <= FURNITURE[key].height + .03, `${key}: changed height`);
+      assert.ok(bounds.getSize(new THREE.Vector3()).x <= w + .025, `${key}: exceeds width`);
+      assert.ok(bounds.getSize(new THREE.Vector3()).z <= d + .025, `${key}: exceeds depth`);
+      for (const connection of root.userData.joints || []) {
+        const [a, b] = connection.parts.map(name => root.getObjectByName(name));
+        const point = new THREE.Vector3(...connection.point);
+        assert.ok(a && b && containsPoint(a, point) && containsPoint(b, point), `${key}: disconnected ${connection.parts.join(' / ')}`);
+      }
+      if (key === 'sofa') assert.equal(root.children.filter(node => node.name.startsWith('seat-cushion-')).length, Math.round(w));
+      if (key === 'desk') {
+        const top = new THREE.Box3().setFromObject(root.getObjectByName('solid-rounded-worktop'));
+        assert.ok(Math.abs(top.max.y - FURNITURE.desk.surface) < 1e-6);
+      }
+    });
+  }
 }
 
 for (const [key, spec] of Object.entries(FURNITURE)) {

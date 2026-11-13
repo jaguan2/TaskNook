@@ -3,6 +3,13 @@ import { seatedPlacement, surfaceFor } from "./isoRoom";
 import { resolveWorkstations, seatedWorkTarget } from "./workstations";
 
 describe("workstation equipment and physical contact", () => {
+  it('places the built-in keyboard on the correct side of a resized rear-facing desk', () => {
+    const desk = { id: 'sized', item: 'desk', gx: 1, gy: 2, rot: 2, dimensions: { w: 4, d: 1.5 } };
+    const station = resolveWorkstations([desk]).get('sized');
+    expect(station.hands[0].gx).toBeCloseTo(1 + 4 - (.12 + .48 * .3));
+    expect(station.hands[0].gy).toBeCloseTo(2 + 1.5 - (.25 + .13 / 2));
+    expect(station.height).toBe(33);
+  });
   const desk = { id: "desk", item: "desk", gx: 0, gy: 1.5, rot: 1 };
   const computer = { id: "computer", item: "computer", gx: 0, gy: 2, rot: 1 };
   const chair = { id: "chair", item: "deskchair", gx: 1, gy: 2.5, rot: 3 };

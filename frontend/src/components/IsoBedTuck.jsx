@@ -11,14 +11,14 @@ import IsoCatalogModel from './IsoCatalogModel';
 export default function IsoBedTuck({ lieOn, personaAt }) {
   if (!lieOn || !ISO_ITEMS[lieOn.item]?.tuck) return null;
   const bedAt = project(lieOn.gx, lieOn.gy);
-  const cover = <BedTuckCover />;
+  const cover = <BedTuckCover dimensions={lieOn.dimensions} />;
   return (
     <g
       transform={`translate(${bedAt.x - personaAt.x},${bedAt.y - personaAt.y})`}
       // An unpainted bed uses the duvet's own fallback, never its sleeper's tint.
       style={{ "--tint": lieOn.tint || "initial" }}
     >
-      <IsoCatalogModel item="bed" tint={lieOn.tint} rot={lieOn.rot || 0} part="duvet">
+      <IsoCatalogModel item="bed" tint={lieOn.tint} colors={lieOn.colors} dimensions={lieOn.dimensions} rot={lieOn.rot || 0} part="duvet">
         {(lieOn.rot || 0) % 2 === 1 ? <g transform="scale(-1,1)">{cover}</g> : cover}
       </IsoCatalogModel>
     </g>

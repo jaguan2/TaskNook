@@ -149,4 +149,4 @@ Ponds and the trail preserve their fixed catalog palettes. Floor-layer and
 soft-seat metadata are retained, but the workshop does not implement production
 floor-sitting, pet occupancy, swimming or water animation.
 
-Current game behavior and rendering ownership are described in the [live integration guide](../../docs/ROOM_MODEL_INTEGRATION.md) and [codebase guide](../../docs/CODEBASE_GUIDE.md). Earlier experiments are preserved in the [modelling archive](../../docs/archive/modeling/README.md).
+Current game behavior and rendering ownership are described in the [live integration guide](../../docs/ROOM_MODEL_INTEGRATION.md) and [codebase guide](../../docs/CODEBASE_GUIDE.md). Supplied style photographs are indexed in [artwork references](../../docs/ART_REVIEW.md).

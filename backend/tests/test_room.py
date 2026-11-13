@@ -3,16 +3,38 @@ the round trip, and malformed payloads must never reach the database."""
 import json
 import pathlib
 import re
+import subprocess
 
 import pytest
 
 from app import create_app
+from routes.room_profile import FURNITURE_SIZE_LIMITS
 
 
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
     monkeypatch.setenv("TASKNOOK_DB", str(tmp_path / "room.db"))
     return create_app()
+
+
+def test_furniture_size_limits_match_frontend():
+    root = pathlib.Path(__file__).resolve().parents[2]
+    script = "import { RESIZABLE_FURNITURE as r } from './frontend/src/lib/furnitureDimensions.js'; console.log(JSON.stringify(Object.fromEntries(Object.entries(r).map(([k,v]) => [k,[v.minW,v.maxW,v.minD,v.maxD]]))));"
+    actual = json.loads(subprocess.check_output(["node", "--input-type=module", "-e", script], cwd=root, text=True))
+    assert actual == {key: list(bounds) for key, bounds in FURNITURE_SIZE_LIMITS.items()}
+
+
+@pytest.mark.parametrize("item", FURNITURE_SIZE_LIMITS)
+def test_all_resizable_furniture_preserves_sizes_and_customization(client, auth, item):
+    min_w, max_w, min_d, max_d = FURNITURE_SIZE_LIMITS[item]
+    placement = {"id": "sized", "item": item, "gx": 1, "gy": 1, "rot": 1, "tint": "#7799aa"}
+    if item in {"bookshelf", "bookcase", "shelf", "ladder", "plantshelf", "wallshelf"}:
+        placement["decor"] = {"layout": "mixed", "bookColor": "#598fa4"}
+    for w, d in [(min_w, min_d), (max_w, max_d)]:
+        placement["dimensions"] = {"w": w, "d": d}
+        data = {"placements": [], "iso": {"version": 2, "w": 10, "d": 10, "placements": [placement]}}
+        assert client.put("/api/room", json=data, headers=auth).status_code == 200
+        assert client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0] == placement
 
 
 @pytest.fixture()
@@ -706,6 +728,61 @@ def test_legacy_list_config_still_readable(app, client, auth):
 
 
 # The retired unlock ledger is exercised by the migration lifecycle tests.
+
+
+@pytest.mark.parametrize("dimensions", [{"w": 1, "d": 2}, {"w": 2.5, "d": 3.5}, {"w": 4, "d": 4}])
+def test_bed_dimensions_survive_room_roundtrip(client, auth, dimensions):
+    bed = {"id": "bed", "item": "bed", "gx": 1, "gy": 1, "rot": 3,
+           "dimensions": dimensions, "colors": {"pillows": "#aa7788"}}
+    data = {"placements": [], "iso": {"w": 8, "d": 8, "placements": [bed]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 200
+    assert client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0] == bed
+    del bed["dimensions"]
+    assert client.put("/api/room", json=data, headers=auth).status_code == 200
+    assert "dimensions" not in client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0]
+
+
+@pytest.mark.parametrize("item,dimensions", [
+    ("chair", {"w": 1, "d": 2}), ("bed", None), ("bed", []),
+    ("bed", {"w": True, "d": 2}), ("bed", {"w": "2", "d": 2}),
+    ("bed", {"w": 0.5, "d": 2}), ("bed", {"w": 4.5, "d": 2}),
+    ("bed", {"w": 2, "d": 1.5}), ("bed", {"w": 2, "d": 4.5}),
+    ("bed", {"w": 1.25, "d": 2}), ("bed", {"w": 2, "d": 2.8}),
+    ("bed", {"w": 2}), ("bed", {"w": 2, "d": 2, "height": 9}),
+])
+def test_invalid_dimensions_do_not_overwrite_saved_room(client, auth, item, dimensions):
+    assert client.put("/api/room", json={"placements": LAYOUT}, headers=auth).status_code == 200
+    data = {"placements": [], "iso": {"w": 8, "d": 8, "placements": [
+        {"id": "bed", "item": item, "gx": 1, "gy": 1, "dimensions": dimensions}]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 400
+    assert client.get("/api/room", headers=auth).get_json()["placements"] == LAYOUT
+
+
+def test_bed_material_colors_survive_room_roundtrip(client, auth):
+    placement = {"id": "bed-one", "item": "bed", "gx": 1, "gy": 1,
+                 "tint": "#778899", "colors": {"frame": "#AABBCC", "sheets": "#EECCBB", "pillows": "#ABCDEF"}}
+    data = {"placements": [], "iso": {"w": 8, "d": 7, "placements": [placement]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 200
+    saved = client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0]
+    assert saved["tint"] == "#778899"
+    assert saved["colors"] == {"frame": "#aabbcc", "sheets": "#eeccbb", "pillows": "#abcdef"}
+    placement["colors"] = {}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 200
+    assert "colors" not in client.get("/api/room", headers=auth).get_json()["iso"]["placements"][0]
+
+
+@pytest.mark.parametrize("item,colors", [
+    ("chair", {"frame": "#aabbcc"}), ("bed", []), ("bed", None),
+    ("bed", {"frame": "red"}), ("bed", {"sheets": True}),
+    ("bed", {"pillows": 123}), ("bed", {"frame": "#fff"}),
+    ("bed", {"unknown": "#aabbcc"}),
+])
+def test_invalid_bed_colors_do_not_overwrite_saved_room(client, auth, item, colors):
+    assert client.put("/api/room", json={"placements": LAYOUT}, headers=auth).status_code == 200
+    data = {"placements": [], "iso": {"w": 8, "d": 7, "placements": [
+        {"id": "bed-one", "item": item, "gx": 1, "gy": 1, "colors": colors}]}}
+    assert client.put("/api/room", json=data, headers=auth).status_code == 400
+    assert client.get("/api/room", headers=auth).get_json()["placements"] == LAYOUT
 
 
 @pytest.mark.parametrize("item", ["bookshelf", "bookcase", "shelf", "ladder", "wallshelf", "plantshelf"])

@@ -74,6 +74,13 @@ def test_package_args_are_the_single_packaging_definition():
     assert args[-1] == "desktop.py"
 
 
+@pytest.mark.parametrize("source", manifest_module.FURNITURE_RUNTIME_SOURCES)
+def test_shared_furniture_builders_require_matching_artifacts(source):
+    assert source in manifest_module.SOURCE_PATHS
+    with pytest.raises(desktop_package.ArtifactError, match="runtime files changed"):
+        desktop_package.require_release_pair({source})
+
+
 def test_route_package_is_bundled_and_part_of_the_release_fingerprint():
     """Moving a blueprint below backend/ must not omit it from the frozen app."""
     assert ("backend/routes/*.py", "backend/routes") in desktop_package.DATA_SPECS
@@ -97,10 +104,14 @@ def test_verify_rejects_a_stale_bundled_file(tmp_path):
 @pytest.mark.parametrize("source, changed", [
     ("desktop.py", "print('changed after packaging')\n"),
     ("frontend/vite.config.js", "export default {};\n"),
+    ("prototypes/furniture/src/models/bed-models.mjs", "export const changed = true;\n"),
+    ("prototypes/furniture/src/models/geometry.mjs", "export const changed = true;\n"),
 ])
 def test_verify_rejects_stale_desktop_or_build_source(tmp_path, source, changed):
     _manifest, _files, reader = artifact_fixture(tmp_path)
-    (tmp_path / source).write_text(changed, encoding="utf-8")
+    path = tmp_path / source
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(changed, encoding="utf-8")
 
     with pytest.raises(desktop_package.ArtifactError, match="different desktop runtime sources"):
         desktop_package.verify(tmp_path, reader_cls=reader)
@@ -150,6 +161,8 @@ def test_changed_paths_uses_the_merge_base_range(monkeypatch, tmp_path):
         ({"prototypes/furniture/assets/sofa.glb"}, "runtime files changed"),
         ({"prototypes/furniture/assets/manifest.json"}, "runtime files changed"),
         ({"prototypes/furniture/src/viewer/illustrated-style.mjs"}, "runtime files changed"),
+        ({"prototypes/furniture/src/models/bed-models.mjs"}, "runtime files changed"),
+        ({"prototypes/furniture/src/models/geometry.mjs"}, "runtime files changed"),
         ({"TaskNook.exe"}, "must change together"),
         ({"desktop-update.json"}, "must change together"),
     ],

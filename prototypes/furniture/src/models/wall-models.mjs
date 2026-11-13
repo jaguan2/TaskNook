@@ -1,6 +1,7 @@
+import { wallShelf } from './display-shelf-models.mjs';
 import * as THREE from 'three';
 import { beam, bentTube, material } from './geometry.mjs';
-import { board, clothRibbon, stored } from './storage-parts.mjs';
+import { board, clothRibbon } from './storage-parts.mjs';
 import { fitOrganic, leaf, oval, pot } from './organic-parts.mjs';
 import { brass, disc, frame, outlineSolid, ring, warmInk } from './object-parts.mjs';
 import { candleOn, glowingMaterial, shade, source } from './lighting-parts.mjs';
@@ -17,15 +18,7 @@ export function lightString(root, name, width, paint, bulbs = 9, winter = false)
 const builds = {
   frame(root, s) { picture(root, s, 'picture-frame', 1.24, .82, material('canvas', '#c8c4a8')); disc(root, 'painted-sun', .12, .008, [.28, .60, .018], material('sun', '#c8af7a'), 'xy'); outlineSolid(root, 'painted-hills', [[-.56, .06], [-.56, .29], [-.16, .50], [.14, .24], [.55, .44], [.55, .06]], .008, material('hills', '#839782'), [0, 0, .022]); },
   poster(root, s) { picture(root, s, 'poster', .81, 1.10, material(s.colorRole, s.defaultColor)); disc(root, 'poster-moon', .19, .007, [0, .72, .019], material('poster-cream', '#d9caae'), 'xy'); outlineSolid(root, 'poster-mountains', [[-.35, .12], [-.12, .49], [.04, .31], [.19, .51], [.35, .12]], .008, material('poster-ink', '#65766b'), [0, 0, .023]); },
-  wallshelf(root, s) {
-    const paint = material(s.colorRole, s.defaultColor); board(root, 'shelf-board', [1.48, .055, .27], [0, .21, 0], paint);
-    board(root, 'wall-receiving-cleat', [1.43, .22, .035], [0, .12, -.116], paint);
-    for (const x of [-.50, .50]) beam(root, `shelf-bracket-${x}`, [x, .015, -.10], [x, .205, .11], .018, paint);
-    const contentsStart = root.children.length;
-    for (let i = 0; i < 4; i++) board(root, `shelf-book-${i}`, [.075, .27 + i % 2 * .05, .14], [-.39 + i * .08, .371 + i % 2 * .025, -.01], material(`book-cover-${i % 2}`, i % 2 ? '#cf765c' : '#6b986a'), .004);
-    const soil = pot(root, 'shelf-pot', .42, 0, .234, .09, .12, material('pot', '#b69e80')); leaf(root, 'shelf-leaf', [.42, soil.y - .01, 0], [.43, soil.y + .20, 0], .12, material('foliage', '#69915c'));
-    stored(root, 'wall-shelf-contents', root.children.slice(contentsStart), root.getObjectByName('shelf-board'));
-  },
+  wallshelf: wallShelf,
   mirror(root, s) { const radius = s.height / 2; ring(root, 'round-mirror-frame', radius - .018, .018, [0, radius, 0], material(s.colorRole, s.defaultColor)); disc(root, 'round-reflective-panel', radius - .028, .025, [0, radius, 0], material('mirror-glass', '#b1c6be'), 'xy'); },
   wallclock(root, s) {
     const paint = material(s.colorRole, s.defaultColor); disc(root, 'clock-case', .35, .075, [0, .35, 0], paint, 'xy'); disc(root, 'inset-clock-face', .30, .012, [0, .35, .043], material('clock-face', '#dccfb3'), 'xy');

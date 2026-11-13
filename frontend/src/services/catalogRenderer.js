@@ -6,16 +6,44 @@ import { createIllustratedPalette } from '../../../prototypes/furniture/src/view
 import { MODEL_PIXELS_PER_UNIT, MODEL_VERTICAL_SCALE, modelOrigin, modelOrientationMatrix } from '../lib/catalogProjection';
 import { COMPUTER_KEYBOARD, LAPTOP_KEYBOARD } from '../lib/workstations';
 import { modelHitShape } from '../lib/modelHitShape';
+import { FURNITURE_COLOR_PARTS } from '../lib/furnitureColors';
+import { buildResizableFurniture } from '../../../prototypes/furniture/src/models/resizable-models.mjs';
+
+// Source meshes are used only inside the render queue. Keep a small LRU of
+// sizes, and release both GPU geometry and palette entries after eviction.
+export function createFurnitureVariants(palette, limit = 8) {
+  const variants = new Map();
+  return (key, dimensions) => {
+    const id = `${key}:${dimensions.w}x${dimensions.d}`;
+    let model = variants.get(id);
+    if (!model) {
+      model = buildResizableFurniture(key, models[key], dimensions);
+      palette.apply(model, 'illustrated');
+    }
+    variants.delete(id);
+    variants.set(id, model);
+    while (variants.size > limit) {
+      const oldest = variants.keys().next().value, discarded = variants.get(oldest);
+      variants.delete(oldest);
+      palette.release(discarded);
+      const geometries = new Set();
+      discarded.traverse(node => { if (node.isMesh && !node.userData.sharedCatalogGeometry) geometries.add(node.geometry); });
+      geometries.forEach(geometry => geometry.dispose());
+    }
+    return model;
+  };
+}
 
 // One demand-rendered offscreen context for the whole app. Its transparent
-// images fit the existing depth/interaction layers; these are real GLB renders,
-// not copies of the legacy SVG drawings or a continuous GPU loop per placement.
+// images fit the existing depth/interaction layers. Default furniture loads
+// GLBs; resized furniture uses the same authored builders with new dimensions.
 export function createCatalogRenderer() {
   if (typeof WebGL2RenderingContext !== 'function') throw new Error('3D room rendering is unavailable in this browser.');
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
   renderer.setClearColor(0, 0); renderer.toneMapping = THREE.NoToneMapping;
   const scene = new THREE.Scene();
   const palette = createIllustratedPalette();
+  const furnitureVariant = createFurnitureVariants(palette);
   scene.add(new THREE.HemisphereLight('#e6ecff', '#44302e', 1.55));
   for (const [color, intensity, at] of [['#ffe5c3', 2.1, [-3, 6, 4]], ['#c9d6f0', .15, [3, 2, -4]]]) {
     const light = new THREE.DirectionalLight(color, intensity); light.position.set(...at); scene.add(light);
@@ -50,7 +78,9 @@ export function createCatalogRenderer() {
 
   async function paint(options, model) {
     if (renderer.getContext().isContextLost()) throw new Error('The room graphics context was interrupted. Reload the app.');
-    const { key, color, rotation = 0, lit = true, part = 'whole' } = options, spec = models[key];
+    const { key, color, rotation = 0, lit = true, part = 'whole', dimensions } = options;
+    const spec = dimensions ? { ...models[key], width: dimensions.w, depth: dimensions.d } : models[key];
+    if (dimensions) model = furnitureVariant(key, dimensions);
     // Reset the shared source before applying this placement's contents. The
     // queue below owns all scene mutation, including template preparation.
     model.traverse(node => { if (node.isMesh) node.visible = true; });
@@ -58,7 +88,14 @@ export function createCatalogRenderer() {
     elevation.clear(); elevation.add(model);
     orientation.matrix.set(...modelOrientationMatrix(rotation));
     orientation.matrixWorldNeedsUpdate = true;
-    palette.recolor(spec.colorRole, color || spec.defaultColor, model); palette.setLightEnabled(lit);
+    palette.recolor(spec.colorRole, color || spec.defaultColor, model);
+    // Every render starts from authored defaults for secondary materials.
+    // Source meshes are shared; a previous placement must not tint the next.
+    for (const [part, material] of Object.entries(FURNITURE_COLOR_PARTS[key] || {})) {
+      if (part === 'main') continue;
+      palette.recolor(material.role, options.colors?.[part] || material.defaultColor, model);
+    }
+    palette.setLightEnabled(lit);
     if (key === 'desk' && options.showLaptop) {
       const laptop = await load('laptop');
       palette.recolor(models.laptop.colorRole, models.laptop.defaultColor, laptop);
@@ -94,11 +131,12 @@ export function createCatalogRenderer() {
     // The image cache owns this URL and revokes it when its final lease expires.
     const blob = await new Promise((resolve, reject) => renderer.domElement.toBlob(value => value ? resolve(value) : reject(new Error('Could not render this room model.')), 'image/png'));
     const href = URL.createObjectURL(blob), origin = modelOrigin(spec, rotation);
-    return { href, x: left + origin.x, y: top + origin.y, width: right - left, height: bottom - top, hitPath, dispose: () => URL.revokeObjectURL(href) };
+    return { href, x: left + origin.x, y: top + origin.y, width: right - left, height: bottom - top, hitPath,
+      source: dimensions ? 'parametric' : 'glb', dispose: () => URL.revokeObjectURL(href) };
   }
   return {
     async render(options, isNeeded = () => true) {
-      const model = await load(options.key);
+      const model = options.dimensions ? null : await load(options.key);
       const task = queue.then(() => isNeeded() ? paint(options, model) : null);
       queue = task.catch(() => {});
       return task;

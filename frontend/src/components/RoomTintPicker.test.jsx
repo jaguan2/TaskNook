@@ -3,8 +3,28 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import RoomTintPicker from "./RoomTintPicker";
 import { hexToHsl } from "../lib/palette";
+import { FURNITURE_COLOR_PARTS, withFurnitureColor } from '../lib/furnitureColors';
 
 afterEach(cleanup);
+
+it('edits and resets bed materials independently with the same colour controls', () => {
+  let placement = { id: 'bed-one', item: 'bed', tint: '#778899', colors: { frame: '#112233', pillows: '#445566' } };
+  const item = { label: 'Bed', colorParts: FURNITURE_COLOR_PARTS.bed };
+  const onTint = vi.fn((id, value, part) => {
+    placement = withFurnitureColor(placement, value, part);
+    rerender(<RoomTintPicker placement={placement} item={item} onTint={onTint} />);
+  });
+  const { rerender } = render(<RoomTintPicker placement={placement} item={item} onTint={onTint} />);
+  fireEvent.change(screen.getByRole('combobox', { name: 'Furniture part' }), { target: { value: 'sheets' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Sheets colour hex' }), { target: { value: '#abcdef' } });
+  expect(placement).toMatchObject({ tint: '#778899', colors: { frame: '#112233', pillows: '#445566', sheets: '#abcdef' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Reset sheets colour' }));
+  expect(placement.colors).toEqual({ frame: '#112233', pillows: '#445566' });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Furniture part' }), { target: { value: 'main' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Blanket colour hex' }), { target: { value: '#aabbcc' } });
+  expect(placement.tint).toBe('#aabbcc');
+  expect(placement.colors.pillows).toBe('#445566');
+});
 
 // A piece that offers free tinting (SVG art) …
 const PAINTABLE = { label: "Floor cushion" };

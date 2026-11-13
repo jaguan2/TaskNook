@@ -55,6 +55,12 @@ accents without forcing all of them into the Autumn yard preset.
 
 ![Winter decoration catalog](58-winter-decorations.webp) **Winter decorations** — the live catalog group, pairing outdoor snow pieces with gifts, textiles, wall accents and tabletop holiday decor.
 
+## Furniture colours
+
+Click a chair, sofa or bed at home to recolour that placed item. Beds have independent Blanket, Frame, Sheets and Pillows choices using the same colour controls. The catalog still has one bed entry; its saved copies can use different finishes. Classic resets the selected part. See [colour storage and rendering](../ROOM_MODEL_INTEGRATION.md#furniture-colours).
+
+![Independent bed colours](61-furniture-colors.webp)
+
 ## Shelf customization
 
 Click a shelf at home to change its contents and book colours independently of its finish. Bookshelves, bookcases, open shelves, ladders, wall shelves and plant racks support original, books, plants, mixed and open arrangements. Each placement saves its own choices.
@@ -130,6 +136,28 @@ the home remains editable.
 |---|---|
 | ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a separate sofa bay, a broad coffee table within reach, a larger study chair facing the laptop, and accessible desk storage. The expanded floor keeps the central path open. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal across the expanded room. |
 | ![Saved outfits](52-saved-outfits.webp) **My outfits** — save a named look, wear it again and keep the preview visible while navigating the controls. | |
+
+## Bed resizing
+
+Select a bed in Decorate and drag the green resize handle. The colour panel's “Resize bed” button clears the panel and focuses that handle for short windows. Half-tile steps support 1×2 through 4×4; the frame, bedding and pillow layout rebuild together. The bed keeps its colours and sleeping character. Arrow keys resize a focused handle; Home restores the original size when it fits.
+
+| Before | After dragging |
+| --- | --- |
+| ![A one-by-two bed selected in Decorate](62-bed-resize-before.webp) | ![The same bed widened to two-by-two tiles](62-bed-resize-after.webp) |
+
+Capture both with `node --experimental-websocket frontend/scripts/screenshots.mjs 62` against a disposable database. [Implementation and limits](../ROOM_MODEL_INTEGRATION.md#resizable-beds).
+
+## Sofa, desk and shelf resizing
+
+Decorate now resizes the sofa, workstation and all six shelf styles in half-tile steps. Heights stay fixed; cushions, frame supports and contents adapt to the chosen spans. Desktop equipment keeps its size and remains supported. [Covered pieces and limits](../ROOM_MODEL_INTEGRATION.md#shelves-sofas-and-desks).
+
+| Sofa | Desk |
+| --- | --- |
+| ![A widened sofa with its original occupant](63-sofa-resize.webp) | ![A wider desk with its original equipment and sitter](64-desk-resize.webp) |
+
+![All six shelf styles resized and stocked on their receiving boards](65-shelf-resize.webp)
+
+Captures `63 64 65` in the reusable screenshot script perform real pointer drags and check the API-saved sizes before taking these images. The shelf scene is a coverage fixture, not a furnished room preset.
 
 ## Features
 

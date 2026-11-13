@@ -1,5 +1,4 @@
 import { furnitureFacingLabel } from "../lib/furnitureFacing";
-import { SHELF_ITEMS } from "../lib/shelfDecor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
 import {
@@ -45,6 +44,13 @@ import IsoAtmosphere from "./IsoAtmosphere";
 import IsoContactShadow from "./IsoContactShadow";
 import IsoCarryOverlay from "./IsoCarryOverlay";
 import { orderWorkstationSeats, resolveWorkstations, seatedWorkTarget } from "../lib/workstations";
+import { furnitureDimensions, RESIZABLE_FURNITURE } from '../lib/furnitureDimensions';
+import { useFurnitureResize } from '../hooks/useFurnitureResize';
+
+function canCustomizeFurniture(key) {
+  const item = ISO_ITEMS[key];
+  return item && item.tintable !== false && !item.persona && !item.roamer && !item.toggleable;
+}
 
 // The interactive isometric room: a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -187,14 +193,14 @@ const PlacedItem = memo(function PlacedItem({
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
   const at = project(p.gx, p.gy);
-  const customizable = !!onCustomizeItem && SHELF_ITEMS.includes(p.item);
+  const customizable = !!onCustomizeItem && canCustomizeFurniture(p.item);
   const persona = !!item?.persona;
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
   const glide = useGlide(at.x, at.y, glides && !editMode && !reduceMotion);
   const personaActivity = useNpcActivity(personaInfo?.npcUsername, activity, paused);
   if (!item || !Sprite) return null;
-  const foot = footOf(p.item, p.rot);
+  const foot = footOf(p);
   // Wanderers use a CSS transform (transition = the glide);
   // everything else keeps the attribute transform (instant drags).
   //
@@ -332,6 +338,8 @@ const PlacedItem = memo(function PlacedItem({
               item={p.item}
               tint={p.tint}
               decor={p.decor}
+              colors={p.colors}
+              dimensions={p.dimensions}
               rot={p.rot || 0}
               lit={!p.off}
               showLaptop={p.item === 'desk' && !p._equipped}
@@ -343,6 +351,8 @@ const PlacedItem = memo(function PlacedItem({
                   back={(p.rot || 0) >= 2}
                   variant={item.variants?.[p.tint]}
                   lit={!p.off}
+                  colors={p.colors}
+                  dimensions={p.dimensions}
                 />
               </g>
             </IsoCatalogModel>
@@ -421,6 +431,9 @@ function IsoSceneInner({
   onStartDrag,
   onCustomizeItem,
   onRotateItem,
+  onStartResize,
+  onResizeKeyDown,
+  resizeBlockedId,
   onRemoveItem,
   onToggleItem,
   onClearSelect,
@@ -501,7 +514,7 @@ function IsoSceneInner({
       const gy = off ? p.gy + off.dy : p.gy;
       // Awake while out wandering; asleep at home or curled on a rug.
       const moved = !!off && (Math.abs(off.dx) > 0.05 || Math.abs(off.dy) > 0.05);
-      const awake = moved && !overSoftSpot(placements, gx, gy, footOf(p.item, p.rot));
+      const awake = moved && !overSoftSpot(placements, gx, gy, footOf(p));
       // `_hx`/`_hy` carry the STORED square through, because gx/gy no longer
       // hold it. The ambience phase has to come from something that doesn't
       // move, or every step restarts the sprite's animations.
@@ -878,7 +891,7 @@ function IsoSceneInner({
             {effective.map((p) => {
               const glow = ISO_ITEMS[p.item]?.glow;
               if (!glow || p.off || tod.glow <= 0) return null;
-              const f = footOf(p.item, p.rot);
+              const f = footOf(p);
               const at = project(p.gx + f[0] / 2, p.gy + f[1] / 2);
               const [r, strength] = glow;
               // The pool LIVES, and a hearth doesn't live like a desk lamp:
@@ -980,7 +993,7 @@ function IsoSceneInner({
               const p = selectedPlacement;
               const item = ISO_ITEMS[p.item];
               const at = project(p.gx, p.gy);
-              const foot = footOf(p.item, p.rot);
+              const foot = footOf(p);
               const hitR = project(foot[0], 0);
               return (
                 <g transform={`translate(${at.x},${at.y})`}>
@@ -1024,6 +1037,22 @@ function IsoSceneInner({
                       fill="#fff"
                     />
                   </g>
+                  {RESIZABLE_FURNITURE[p.item] && onStartResize && (() => {
+                    const dimensions = furnitureDimensions(p), x = hitR.x + 27, y = -item.hitH - 2;
+                    const blocked = resizeBlockedId === p.id;
+                    return <g data-resize-item={p.id} role="button" tabIndex={0}
+                      aria-label={`Resize ${item.label.toLowerCase()}. ${dimensions.w} by ${dimensions.d} tiles. Arrow keys adjust width and length. Home restores original size.`}
+                      style={{ cursor: 'nwse-resize' }}
+                      onPointerDown={event => onStartResize(p, event)}
+                      onKeyDown={event => onResizeKeyDown?.(p, event)}>
+                      <title>Drag to resize · half tiles · arrow keys · Home resets</title>
+                      <circle cx={x} cy={y} r="10" fill={blocked ? '#b55b70' : '#6c9e96'} />
+                      <path d={`M${x - 4} ${y + 4} l8 -8 M${x - 4} ${y + 1} v3 h3 M${x + 1} ${y - 4} h3 v3`}
+                        fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <text x={x} y={y - 14} textAnchor="middle" fill={blocked ? '#f0a4b5' : '#ffe9b0'} fontSize="8" pointerEvents="none"
+                        data-resize-label={p.id}>{blocked ? 'No space' : `${dimensions.w}×${dimensions.d}`}</text>
+                    </g>;
+                  })()}
                   {item.toggleable && onToggleItem && (
                     <g
                       className="room-remove"
@@ -1115,12 +1144,18 @@ function IsoRoom({
   onMoveItem,
   onRemoveItem,
   onRotateItem,
+  onResizeItem,
   onTintItem,
   onDecorItem,
   onToggleItem,
 }) {
   const petNow = usePetGrowthClock(placements);
   const [selectedId, setSelectedId] = useState(null);
+  const [resizeOnlyId, setResizeOnlyId] = useState(null);
+  const customizeItem = useCallback(id => {
+    setResizeOnlyId(null);
+    setSelectedId(id);
+  }, []);
   const dragRef = useRef(null);
   const walkRef = useRef(null);
   // A powered decoration toggles only when the pointer is released without
@@ -1151,8 +1186,8 @@ function IsoRoom({
   // A freshly-added item arrives SELECTED (highlight + buttons + picker), so
   // the user immediately sees what appeared and where to drag it.
   useEffect(() => {
-    if (highlightId) setSelectedId(highlightId);
-  }, [highlightId]);
+    if (highlightId) customizeItem(highlightId);
+  }, [highlightId, customizeItem]);
 
   // Backspace/Delete removes the selected item (not while typing a hex code).
   useEffect(() => {
@@ -1200,13 +1235,15 @@ function IsoRoom({
     const p = toWorld(e);
     return p ? { x: p.x - cx, y: p.y - cy } : null;
   };
+  const resize = useFurnitureResize({ placements, size, editMode, onResize: onResizeItem, svgRef,
+    toGrid: event => { const point = toScene(event); return point ? unproject(point.x, point.y) : null; } });
 
   // Stable across camera moves (its deps are the room's centring, never the
   // view) — a changing identity here alone would defeat IsoScene's memo.
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
-        if (onDecorItem && SHELF_ITEMS.includes(placement.item)) {
+        if (onTintItem && canCustomizeFurniture(placement.item)) {
           pointerOnItemRef.current = true;
           toggleRef.current = { id: placement.id, customize: true, clientX: e.clientX, clientY: e.clientY };
           return;
@@ -1228,7 +1265,7 @@ function IsoRoom({
         if (!onWalkTo || !walkableBy(placement, { editMode, walkId, walkPersonas })) return;
         e.stopPropagation();
         pointerOnItemRef.current = true;
-        const foot = footOf(placement.item, placement.rot || 0);
+        const foot = footOf(placement);
         // Where on the body you took hold. KEPT for the dangling figure only:
         // without it, grabbing someone by the ankles snaps them 50px up the
         // cursor the instant you move. The landing marker deliberately uses
@@ -1267,7 +1304,7 @@ function IsoRoom({
       // dblclick isn't stopped by the pointerdown's stopPropagation — it still
       // reaches the svg root, where it would recenter the camera mid-decorating.
       pointerOnItemRef.current = true;
-      setSelectedId(placement.id);
+      customizeItem(placement.id);
       const svg = svgRef.current;
       const ctm = svg?.getScreenCTM();
       if (!ctm) return;
@@ -1276,13 +1313,14 @@ function IsoRoom({
       dragRef.current = {
         id: placement.id,
         item: placement.item,
+        dimensions: placement.dimensions,
         rot: placement.rot || 0,
         dgx: g.gx - placement.gx,
         dgy: g.gy - placement.gy,
       };
       svg?.setPointerCapture?.(e.pointerId);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onDecorItem, svgRef]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onTintItem, svgRef, customizeItem]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1303,6 +1341,7 @@ function IsoRoom({
   };
 
   const moveDrag = (e) => {
+    if (resize.move(e)) return;
     const walk = walkRef.current;
     if (walk) {
       const pt = toScene(e);
@@ -1340,7 +1379,7 @@ function IsoRoom({
       if (!p) return;
       const g = unproject(p.x, p.y);
       const { gx, gy } = clampIsoPlacement(
-        drag.item,
+        drag,
         snapHalf(g.gx - drag.dgx),
         snapHalf(g.gy - drag.dgy),
         size,
@@ -1349,7 +1388,7 @@ function IsoRoom({
       // Drags simply refuse void tiles — the item stops at the shape's edge.
       if (
         !ISO_ITEMS[drag.item].wall &&
-        !footprintFree(gx, gy, footOf(drag.item, drag.rot), size)
+        !footprintFree(gx, gy, footOf(drag), size)
       ) {
         return;
       }
@@ -1368,6 +1407,7 @@ function IsoRoom({
   };
 
   const endDrag = (e) => {
+    if (resize.end(e)) return;
     const walk = walkRef.current;
     if (walk) {
       walkRef.current = null;
@@ -1384,7 +1424,7 @@ function IsoRoom({
       e?.type === "pointerup" &&
       Math.hypot(e.clientX - toggle.clientX, e.clientY - toggle.clientY) < 6;
     if (toggleClick) {
-      if (toggle.customize) setSelectedId(toggle.id);
+      if (toggle.customize) customizeItem(toggle.id);
       else onToggleItem?.(toggle.id);
       // A tiny hand wobble within the click threshold is not a camera move.
       cancelPan();
@@ -1432,7 +1472,7 @@ function IsoRoom({
           <IsoScene
           petNow={petNow}
           size={size}
-          placements={placements}
+          placements={resize.placements}
           editMode={editMode}
           timeOfDay={timeOfDay}
           weather={weather}
@@ -1445,8 +1485,11 @@ function IsoRoom({
           cx={cx}
           cy={cy}
           onStartDrag={onStartDrag}
-          onCustomizeItem={onDecorItem ? setSelectedId : undefined}
+          onCustomizeItem={onTintItem ? customizeItem : undefined}
           onRotateItem={onRotateItem}
+          onStartResize={onResizeItem ? resize.start : undefined}
+          onResizeKeyDown={resize.keyboard}
+          resizeBlockedId={resize.blockedId}
           onRemoveItem={onRemoveItem}
           onToggleItem={onToggleItem}
           onClearSelect={onClearSelect}
@@ -1472,7 +1515,7 @@ function IsoRoom({
         </g>
       </svg>
 
-      {selectedRaw &&
+      {selectedRaw && !resize.active && resizeOnlyId !== selectedId &&
         (ISO_ITEMS[selectedRaw.item]?.tintable !== false ||
           ISO_ITEMS[selectedRaw.item]?.variants) && (
           <RoomTintPicker
@@ -1481,6 +1524,12 @@ function IsoRoom({
             onTint={onTintItem}
             onDecor={onDecorItem}
             onClose={() => setSelectedId(null)}
+            onResize={editMode && RESIZABLE_FURNITURE[selectedRaw.item] && onResizeItem ? () => {
+              // A short window's colour panel may cover the scene controls.
+              // Keep selection, clear that panel, and focus its resize handle.
+              setResizeOnlyId(selectedId);
+              svgRef.current?.querySelector('[data-resize-item]')?.focus();
+            } : undefined}
           />
         )}
     </div>

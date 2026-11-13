@@ -50,6 +50,18 @@ export function createIllustratedPalette() {
         pair.original.emissiveIntensity = pair.illustrated.emissiveIntensity = enabled ? pair.emissionStrength : 0;
       }
     },
+    release(root) {
+      const pairs = new Set();
+      root.traverse(node => { if (node.isMesh && !node.userData.sharedCatalogMaterial) {
+        const pair = variants.get(node.material);
+        if (pair) pairs.add(pair);
+      } });
+      for (const pair of pairs) for (const material of [pair.original, pair.illustrated]) {
+        variants.delete(material);
+        materials.delete(material);
+        material.dispose();
+      }
+    },
     disposeTexture() { gradient.dispose(); },
   };
 }

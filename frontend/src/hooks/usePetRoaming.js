@@ -4,7 +4,7 @@ import { ISO_ITEMS, footOf, footprintFree, petTemper } from "../lib/isoRoom";
 export function overSoftSpot(placements, gx, gy, footprint) {
   return placements.some((placement) => {
     if (ISO_ITEMS[placement.item]?.layer !== -1) return false;
-    const otherFoot = footOf(placement.item, placement.rot);
+    const otherFoot = footOf(placement);
     return gx < placement.gx + otherFoot[0] &&
       placement.gx < gx + footprint[0] &&
       gy < placement.gy + otherFoot[1] &&
@@ -30,7 +30,7 @@ export function usePetRoaming({ placements, size, editMode, reduceMotion, paused
       const current = saved && saved.hx === placement.gx && saved.hy === placement.gy
         ? saved
         : { dx: 0, dy: 0 };
-      const footprint = footOf(placement.item, placement.rot);
+      const footprint = footOf(placement);
       const temper = petTemper(placement.temper);
       if (Math.random() > temper.chance) return;
       if (
@@ -53,7 +53,7 @@ export function usePetRoaming({ placements, size, editMode, reduceMotion, paused
         if (other.id === placement.id) return false;
         const item = ISO_ITEMS[other.item];
         if (!item || item.wall || item.persona || item.roamer || item.layer === -1) return false;
-        const otherFoot = footOf(other.item, other.rot);
+        const otherFoot = footOf(other);
         return gx < other.gx + otherFoot[0] && other.gx < gx + footprint[0] &&
           gy < other.gy + otherFoot[1] && other.gy < gy + footprint[1];
       });

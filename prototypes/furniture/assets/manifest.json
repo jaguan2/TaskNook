@@ -789,10 +789,10 @@
       "defaultColor": "#8baba0",
       "description": "A joined timber frame, mattress, two pillows and one continuous draped blanket.",
       "file": "bed.glb",
-      "bytes": 173380,
+      "bytes": 173588,
       "triangles": 7760,
       "meshes": 10,
-      "sha256": "276075c08c7c117747784d5c8627094e7a24ebee658b09c5b0f20a7e8cdfd0e0"
+      "sha256": "cdd4009d46ea945ff57e877141f0218829f7a56e7cf99b9ff0466127f37ae84f"
     },
     "bench": {
       "label": "Garden bench",
@@ -1187,10 +1187,10 @@
       "defaultColor": "#b08a61",
       "description": "Leaning front rails and grounded rear supports receive three shelves of decreasing depth and their contents.",
       "file": "ladder.glb",
-      "bytes": 172176,
+      "bytes": 172216,
       "triangles": 3948,
       "meshes": 35,
-      "sha256": "c77e64d13b46a4c5ed090c3b5eb8f01692da866fd4adec78b7e376dc7eb10eb7"
+      "sha256": "76870e7d5ea0b57c57116749e7c9c23a0fe6a241c26e9a25791c1f67a6427cec"
     },
     "coatrack": {
       "label": "Coat rack",

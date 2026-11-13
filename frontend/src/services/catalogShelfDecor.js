@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { shelfMetadata, shelfSlots } from '../../../prototypes/furniture/src/models/shelf-layout.mjs';
 
 // Custom contents reuse the closed book and plant meshes from the catalog.
 // Each loaded shelf owns a bounded set of layouts. Changing one placement's
@@ -32,6 +33,9 @@ export function createShelfDecorator(palette, load) {
 
   function fit(template, slot, index, count, isBook) {
     const object = template.clone(true);
+    // Shared catalog templates retain their geometry and palette ownership.
+    // A resized shelf may be evicted; only its own accents are released.
+    object.traverse(node => { if (node.isMesh) node.userData = { ...node.userData, sharedCatalogGeometry: true, sharedCatalogMaterial: true }; });
     const box = boundsOf(object), size = box.getSize(new THREE.Vector3());
     const width = slot.width / count * (isBook ? .73 : .88);
     const scale = Math.min(width / size.x, slot.depth / size.z * .85, slot.height / size.y * (isBook ? .86 : .93));
@@ -43,7 +47,7 @@ export function createShelfDecorator(palette, load) {
 
   async function prepare(model) {
     if (shelves.has(model)) return shelves.get(model);
-    const metadata = model.children.find(node => node.userData.shelfDecor)?.userData.shelfDecor;
+    const metadata = shelfMetadata(model);
     if (!metadata) throw new Error('This shelf has no decoration supports.');
     const [books, plant, succulent] = await Promise.all([load('bookshelf'), load('plant'), load('succulent')]);
     // Source assets may still be attached to the last paint. Work in their own
@@ -53,18 +57,14 @@ export function createShelfDecorator(palette, load) {
       source.updateMatrixWorld(true);
     }
     const template = bookTemplate(books);
-    const boxes = metadata.boards.map(name => boundsOf(model.getObjectByName(name)));
-    const top = boundsOf(model).max.y;
-    const slots = boxes.map((box, i) => ({ x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2,
-      top: box.max.y, width: box.max.x - box.min.x - .12, depth: box.max.z - box.min.z,
-      height: Math.max(.10, (boxes[i + 1]?.min.y ?? top) - box.max.y - .025) }));
+    const slots = shelfSlots(model);
     const state = { metadata, slots, template, plant, succulent, layouts: new Map() };
     shelves.set(model, state);
     return state;
   }
 
   return async function decorate(model, decor) {
-    const metadata = model.children.find(node => node.userData.shelfDecor)?.userData.shelfDecor;
+    const metadata = shelfMetadata(model);
     if (!metadata) return;
     // Empty original arrangements still allow book recolouring without replacing
     // the authored bins, stacked folios, bowls and plants.
@@ -79,12 +79,13 @@ export function createShelfDecorator(palette, load) {
       const group = new THREE.Group();
       group.name = `shelf-layout-${layout}`;
       state.slots.forEach((slot, row) => {
-        const count = slot.width > 1 ? 3 : 2;
+        const count = metadata.resized ? Math.max(2, Math.ceil(slot.width / .5)) : slot.width > 1 ? 3 : 2;
         for (let i = 0; i < count; i++) {
           const isBook = layout === 'books' || (layout === 'mixed' && (row + i) % 2 === 0);
           const object = fit(isBook ? state.template : (row + i) % 2 ? state.plant : state.succulent, slot, i, count, isBook);
           if (isBook) object.traverse(node => {
             if (node.isMesh && node.material.name.startsWith('book-cover-')) {
+              node.userData.sharedCatalogMaterial = false;
               node.material = new THREE.MeshStandardMaterial({ name: 'shelf-book-accent', color: node.material.color.clone(), roughness: .85 });
             }
           });

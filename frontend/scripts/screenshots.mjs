@@ -46,6 +46,7 @@
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { RESIZABLE_FURNITURE } from '../src/lib/furnitureDimensions.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -340,14 +341,14 @@ function makePage(cdp) {
   };
 
   const shot = async (file, format = "webp", capture = {}) => {
-    // Room models are now GLBs rendered on demand. Never publish a loading
+    // Standalone and resized room models render on demand. Never publish a loading
     // fallback merely because a fixed screenshot delay happened to expire.
     await evaluate(`(async () => {
       for (let i = 0; i < 200; i++) {
         const failed = document.querySelector('[data-model-state="error"]');
         if (failed) throw new Error('Model capture failed: ' + failed.dataset.catalogModel);
         if (!document.querySelector('[data-model-state="loading"]')) {
-          const urls = [...new Set([...document.querySelectorAll('[data-model-source="glb"] image')].map(node => node.getAttribute('href')))];
+          const urls = [...new Set([...document.querySelectorAll('[data-catalog-model] image')].map(node => node.getAttribute('href')))];
           await Promise.all(urls.map(async url => { const image = new Image(); image.src = url; await image.decode(); }));
           await document.fonts.ready;
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -562,6 +563,51 @@ async function modelShot(cdp, page, file, presets) {
     width: W, height: H, deviceScaleFactor: 1, mobile: false,
   });
   return models.length;
+}
+
+async function resizePlacedFurniture(page, cdp, id, w, d) {
+  const points = await page.evaluate(`(async () => {
+    const response = await fetch('/api/room', { headers: { Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') } });
+    const placement = (await response.json()).iso.placements.find(p => p.id === ${JSON.stringify(id)});
+    const old = placement.dimensions || ${JSON.stringify(Object.fromEntries(Object.entries(RESIZABLE_FURNITURE).map(([key, value]) => [key, value.defaults])))}[placement.item];
+    const dx = placement.rot % 2 ? ${d} - old.d : ${w} - old.w;
+    const dy = placement.rot % 2 ? ${w} - old.w : ${d} - old.d;
+    const item = [...document.querySelectorAll('[data-placement-id]')].find(node => node.dataset.placementId === placement.id);
+    item.focus(); item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const circle = document.querySelector('[data-resize-item] circle');
+    if (!circle) throw new Error('Furniture resize handle missing: ' + placement.item);
+    const box = circle.getBBox(), matrix = circle.getScreenCTM();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    return [new DOMPoint(x, y), new DOMPoint(x + (dx - dy) * 24, y + (dx + dy) * 12)]
+      .map(p => { const q = p.matrixTransform(matrix); return { x: q.x, y: q.y }; });
+  })()`);
+  for (const [type, point, buttons] of [['mousePressed', points[0], 1], ['mouseMoved', points[1], 1], ['mouseReleased', points[1], 0]]) {
+    await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', buttons, clickCount: 1 });
+  }
+  await page.evaluate(`(async () => {
+    for (let i = 0; i < 60; i++) {
+      const response = await fetch('/api/room', { headers: { Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') } });
+      const item = (await response.json()).iso.placements.find(p => p.id === ${JSON.stringify(id)});
+      if (item?.dimensions?.w === ${w} && item.dimensions.d === ${d}) return;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    throw new Error('Dragged furniture size was not saved');
+  })()`);
+}
+
+async function showResizeRoom(page, placements, w = 8, d = 8, view = '') {
+  await page.setStorage({ 'tasknook.isoView': view, 'tasknook.isoPreview': '1' });
+  await page.evaluate(`(async () => {
+    const response = await fetch('/api/room', { method: 'PUT', headers: {
+      'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') },
+      body: JSON.stringify(${JSON.stringify({ placements: [], iso: { version: 2, w, d, placements } })}) });
+    if (!response.ok) throw new Error('Resize showcase seed failed: ' + response.status);
+  })()`);
+  await page.load();
+  await page.clickText('Room', { exact: true });
+  await page.clickText('Decorate the room');
+  await page.closePanels();
 }
 
 async function main() {
@@ -988,6 +1034,134 @@ async function main() {
     })()`);
     await page.shot(join(OUT_DIR, "60-shelf-customization.webp"));
     console.log("  60-shelf-customization.webp");
+  }
+
+  // One placed bed, four independent materials, edited through the real UI.
+  if (want("61")) {
+    await page.setStorage({ ...ambient({ weather: "off", time: "day" }), "tasknook.isoView": "", "tasknook.isoPreview": "1" });
+    await setCharacter(page, "casual");
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await page.clickText("Loft");
+    await sleep(1800);
+    await page.closePanels();
+    await page.evaluate(`(() => {
+      const bed = document.querySelector('[data-iso-room-scene] [data-item="bed"][role="button"]');
+      if (!bed) throw new Error('No customizable bed');
+      bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    for (const [part, label, color] of [
+      ["main", "Blanket", "#506b9c"], ["frame", "Frame", "#885533"],
+      ["sheets", "Sheets", "#d8b8a8"], ["pillows", "Pillows", "#d891a9"],
+    ]) {
+      await page.evaluate(`(() => {
+        const select = document.querySelector('[aria-label="Furniture part"]');
+        if (!select) throw new Error('Furniture part selector missing');
+        select.value = ${JSON.stringify(part)};
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      })()`);
+      await sleep(150);
+      await page.evaluate(`(() => {
+        const input = document.querySelector('[aria-label="${label} colour hex"]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(color)});
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await sleep(200);
+    }
+    await sleep(1200);
+    await page.evaluate(`(async () => {
+      const response = await fetch('/api/room', { headers: { Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') } });
+      const bed = (await response.json()).iso.placements.find(p => p.item === 'bed');
+      if (bed?.tint !== '#506b9c' || bed.colors?.frame !== '#885533' || bed.colors?.sheets !== '#d8b8a8' || bed.colors?.pillows !== '#d891a9') {
+        throw new Error('Bed material colours were not saved by the controls');
+      }
+    })()`);
+    await page.shot(join(OUT_DIR, "61-furniture-colors.webp"));
+    console.log("  61-furniture-colors.webp");
+  }
+
+  // A dedicated throwaway room keeps the before/after size demonstration
+  // reproducible without changing the shipped presets or a user's layout.
+  if (want("62")) {
+    await page.setStorage({ ...ambient({ weather: "off", time: "day" }), "tasknook.isoView": "", "tasknook.isoPreview": "1" });
+    await setCharacter(page, "casual");
+    await page.evaluate(`(async () => {
+      const response = await fetch('/api/room', { method: 'PUT', headers: {
+        'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') },
+        body: JSON.stringify({ placements: [], iso: { version: 2, w: 8, d: 7, placements: [
+          { id: 'resize-bed', item: 'bed', gx: 2, gy: 1, dimensions: { w: 1, d: 2 },
+            tint: '#506b9c', colors: { frame: '#885533', sheets: '#d8b8a8', pillows: '#d891a9' } },
+          { id: 'sleeper', item: 'resident', gx: 2, gy: 1.5 },
+          { id: 'side', item: 'nightstand', gx: .5, gy: 1 },
+          { id: 'plant', item: 'monstera', gx: 6, gy: 1 },
+        ] } }) });
+      if (!response.ok) throw new Error('Resize showcase seed failed: ' + response.status);
+    })()`);
+    await page.load();
+    await page.clickText("Room", { exact: true });
+    await page.clickText("Decorate the room");
+    await page.closePanels();
+    await page.evaluate(`(() => {
+      const bed = document.querySelector('[data-placement-id="resize-bed"]');
+      bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await sleep(300);
+    await page.shot(join(OUT_DIR, "62-bed-resize-before.webp"));
+    const points = await page.evaluate(`(() => {
+      const circle = document.querySelector('[data-resize-item="resize-bed"] circle');
+      if (!circle) throw new Error('Bed resize handle missing');
+      const box = circle.getBBox(), matrix = circle.getScreenCTM();
+      return [new DOMPoint(box.x + box.width / 2, box.y + box.height / 2),
+        new DOMPoint(box.x + box.width / 2 + 24, box.y + box.height / 2 + 12)]
+        .map(p => { const q = p.matrixTransform(matrix); return { x: q.x, y: q.y }; });
+    })()`);
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...points[0], button: 'left', buttons: 1, clickCount: 1 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...points[1], button: 'left', buttons: 1 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...points[1], button: 'left', buttons: 0, clickCount: 1 });
+    await page.evaluate(`(async () => {
+      for (let i = 0; i < 60; i++) {
+        const response = await fetch('/api/room', { headers: { Authorization: 'Bearer ' + localStorage.getItem('tasknook.token') } });
+        const bed = (await response.json()).iso.placements.find(p => p.id === 'resize-bed');
+        if (bed?.dimensions?.w === 2 && bed.dimensions.d === 2) return;
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      throw new Error('Dragged bed size was not saved');
+    })()`);
+    await page.shot(join(OUT_DIR, "62-bed-resize-after.webp"));
+    console.log("  62-bed-resize-before.webp / 62-bed-resize-after.webp");
+  }
+
+  for (const n of ['63', '64', '65']) {
+    if (!want(n)) continue;
+    await page.setStorage(ambient({ weather: 'off', time: 'day' }));
+    if (n === '63') {
+      await showResizeRoom(page, [
+        { id: 'sofa', item: 'sofa', gx: 1, gy: 1, tint: '#7799aa' },
+        { id: 'sitter', item: 'resident', gx: 1.5, gy: 1 },
+        { id: 'comparison', item: 'sofa', gx: 1, gy: 5, tint: '#7799aa' },
+      ]);
+      await resizePlacedFurniture(page, cdp, 'sofa', 3.5, 1);
+      await page.shot(join(OUT_DIR, '63-sofa-resize.webp'));
+    } else if (n === '64') {
+      await showResizeRoom(page, [
+        { id: 'desk', item: 'desk', gx: 1, gy: 1, tint: '#9d8971' },
+        { id: 'computer', item: 'computer', gx: 1.5, gy: 1 },
+        { id: 'mug', item: 'mug', gx: 2.5, gy: 1.5, tint: '#9977aa' },
+        { id: 'chair', item: 'deskchair', gx: 1.5, gy: 2.5, rot: 2 },
+        { id: 'sitter', item: 'resident', gx: 1.5, gy: 2.5 },
+      ]);
+      await resizePlacedFurniture(page, cdp, 'desk', 4, 1.5);
+      await page.shot(join(OUT_DIR, '64-desk-resize.webp'));
+    } else {
+      const shelves = [['bookshelf', 1, 2, 0], ['bookcase', 6, 2, 1], ['shelf', 11, 2, 0],
+        ['ladder', 1, 6, 0], ['plantshelf', 6, 6, 0], ['wallshelf', 1, 0, 0]];
+      await showResizeRoom(page, shelves.map(([item, gx, gy, rot]) => ({ id: item, item, gx, gy, rot,
+        tint: '#82917b', decor: { layout: 'mixed', bookColor: '#8975af' } })), 16, 14,
+      JSON.stringify({ x: -180, y: -80, w: 1000, h: 650 }));
+      for (const [item] of shelves) await resizePlacedFurniture(page, cdp, item, 3.5, 1);
+      await page.shot(join(OUT_DIR, '65-shelf-resize.webp'));
+    }
+    console.log(`  ${n}: resized furniture`);
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

@@ -8,6 +8,7 @@ covers setup, desktop builds and user-facing features.
 ## Engineering workflow
 
 - [Codebase guide](CODEBASE_GUIDE.md): state owners, model data flow, file responsibilities and comment conventions.
+- [Maintenance](MAINTENANCE.md): stability checks, image lifetimes and file-retention policy.
 
 - [Agent skills](../.agents/SKILLS.md): installed pstack/Thermos workflows,
   structural self-review, verification and pinned GitHub source updates.
@@ -21,6 +22,7 @@ covers setup, desktop builds and user-facing features.
 - [Design rules](DESIGN.md): composition, controls, motion and widget behavior.
 - [Model spec](MODELS.md): current sprite, character and material contracts.
 - [Artwork workflow](CONTRIBUTING_ART.md): catalog fixtures and visual review.
+- [Artwork references](ART_REVIEW.md): supplied style photographs and reusable design cues.
 - [Modeling roadmap](MODELING_ROADMAP.md): per-item work still to consider.
 - [Catalog migration tracker](CATALOG_3D_MIGRATION.md): section-by-section export
   coverage for the full catalog.
@@ -39,19 +41,5 @@ covers setup, desktop builds and user-facing features.
 
 ## Historical records
 
-- [Earlier modelling reports and furniture images](archive/modeling/README.md).
-
-These records retain decisions and review evidence from their dates. Their
-test totals, build IDs, repository state and remaining-opportunity lists are
-snapshots; verify a finding against current code before starting work.
-
-- [September functionality review](archive/REVIEW-2026-09-20.md).
-- [October character and common-room handoff](archive/HANDOFF-2026-10-06.md).
-- [October stability review](archive/STABILITY-REVIEW-2026-10-06.md).
-- [October code-quality review](archive/QUALITY-REVIEW-2026-10-09.md).
-- [October codebase improvements](CODEBASE-REVIEW-2026-10-09.md): 2D furniture,
-  decoration controls, saved outfits and durable-write feedback.
-- [November structure review](CODEBASE-REVIEW-2026-11-10.md): ownership boundaries,
-  room synchronization, task history and sprite organization.
-- [August renderer evaluation](archive/RENDERER-EVALUATION-2026-08-19.md).
+- [Retained review history](archive/README.md): persistence, performance and design reasoning from earlier passes. These are dated snapshots; check findings against current source before acting.
 - [Changelog](CHANGELOG.md): dated project history.

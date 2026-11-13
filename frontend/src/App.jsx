@@ -127,6 +127,7 @@ export default function App() {
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
+    resizeIsoItem,
     setIsoItemTint,
     setIsoItemDecor,
     toggleIsoItem,
@@ -436,6 +437,7 @@ export default function App() {
                 onMoveItem={moveIsoItem}
                 onRemoveItem={removeIsoItem}
                 onRotateItem={rotateIsoItem}
+                onResizeItem={resizeIsoItem}
                 onTintItem={setIsoItemTint}
                 onDecorItem={setIsoItemDecor}
                 onToggleItem={toggleIsoItem}

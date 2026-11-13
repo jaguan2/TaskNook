@@ -101,7 +101,7 @@ The GLBs export support-board names and removable-content names. `catalogShelfDe
 
 The Loft's isolated dark side cabinet and lamp were removed from the preset, and the desk chair moved along the desk bay. Armchair, wooden-chair and desk-chair backs are shorter; physical seat anchors remain unchanged. Plant racks have larger pots/leaves and varied ceramic colours. Book covers and foliage now have clearer colour at room scale. Existing saved custom layouts are preserved; reapply a preset to adopt its composition changes.
 
-See the [codebase guide](CODEBASE_GUIDE.md) for file ownership and the [modelling archive](archive/modeling/README.md) for superseded furniture references. Runtime SVG fallback and current character/pet documentation are intentionally retained.
+See the [codebase guide](CODEBASE_GUIDE.md) for file ownership and [artwork references](ART_REVIEW.md) for supplied style photographs. Runtime SVG fallback and current character/pet documentation remain supported.
 
 ### Refinement verification — November 12
 
@@ -116,3 +116,60 @@ All ground GLBs now retain `rot: 0..3`; SVG fallback `backView` flags no longer 
 The preset and fixed-place audit corrects outward seating/storage, matches couch upholstery and makes newly added couches inherit the room's existing colour. Existing custom rooms are preserved. See [the full direction/layout audit](ROOM_LAYOUT_DIRECTIONS.md) for every reviewed room, persistence details and verification.
 
 The subsequent [personal-room composition pass](ROOM_LAYOUT_COMPOSITION.md) consolidates all fourteen furnished presets into compact activity groups, retains the three common-place capacities and replaces fixed visit-owner coordinates with actual seat/counter anchors. The current screenshot gallery reflects those arrangements.
+
+## Furniture colours
+
+A chair, sofa or bed remains one catalog item. At home, click a paintable piece or focus it and press Enter/Space to open its colour controls; dragging it still pans outside Decorate. Powered decorations retain their click-to-toggle behavior and can be recoloured in Decorate. Visitors and common places do not receive home customization callbacks.
+
+Beds offer a Part selector for Blanket, Frame, Sheets and Pillows. Each part uses the existing swatches, hex field and H/S/L sliders. Classic resets the selected part independently. The blanket keeps the existing `tint`; optional `colors: { frame?, sheets?, pillows? }` holds the other choices. Legacy beds retain their colours, and the room JSON needs no schema migration. Choices belong to the placed bed, so two copies can look different.
+
+`lib/furnitureColors.js` declares the material roles, defaults and bounded placement values. The existing `setIsoItemTint(id, hex, part)` action updates one part through the same room save queue. Both frontend normalization and backend validation preserve valid colours and reject unsupported keys or values. The bed GLB has separate frame, linen, sheet and pillow materials; its dimensions and seat anchors are unchanged.
+
+Model requests include normalized colours in their cache identity. Every serialized render restores secondary materials to authored defaults before applying that placement's colours, preventing a shared source mesh from carrying one bed's finish into another. The occupied bed's foreground duvet/headboard receives the same choices. SVG fallback and preset previews also receive the saved colours.
+
+The [current gallery](screenshots/README.md#furniture-colours) shows the actual controls. Browser coverage edits every material on an occupied bed, compares the rendered pixels, verifies an unchanged second bed, reloads the saved choices, resets a single part, recolours a chair and checks a small window.
+
+The colour pass verified 1,581 frontend tests (one gated generator skipped), 125 room API tests, 581 model checks and all 33 browser scenarios. After refining the popover header and foreground layer, seven picker tests and two focused bed/shelf browser checks passed again, including a real close-button click at 320×360. Lint/build pass; the existing visual baseline is unchanged. Main-channel build `6b108e298eae4a9b8c9f136e09ed3f28` matches its embedded/source identity and manifest and passes the isolated frozen self-test with exit 0. Evidence stays ignored under `build/skill-verification/furniture-colors/`.
+
+## Resizable beds
+
+In Decorate, select a bed and drag the green diagonal-arrow handle beside Rotate/Remove. “Resize bed” in its colour panel clears that panel and focuses the handle, keeping it usable in short windows. Select the bed again to reopen its colours. Width snaps from 1–4 tiles and length from 2–4 tiles, both in half-tile steps. Focus the handle for Left/Right width, Up/Down length, or Home to restore the original authored size. The label shows the size; “No space” means the attempted size crosses an obstacle, a partition or missing floor. A blocked drag keeps its last clear preview. Escape or pointer cancellation discards a drag; releasing commits once through the existing room save queue.
+
+The first pass covered beds. Existing beds stay 2×2.8 until explicitly resized. Each bed remains one catalog item with optional canonical `dimensions: { w, d }` before rotation. Room JSON carries this alongside `tint` and `colors`; both frontend and backend bound the dimensions. No schema migration, preset replacement or saved-room reset is needed. Restoring the original size also checks that it fits. The following extension adds sofas, desks and shelves.
+
+The shared bed builder produces the exported default GLB and resized standalone meshes. Only the flat interiors expand: frame thickness, rounded edges, cloth thickness and pillow sizes stay physical. Wider beds gain evenly spaced pillows. The frame, mattress, headboard, feet and draped blanket remain joined at every supported size. The unchanged character rig stays near the pillow end of longer beds; sleepers follow resizing, moving and turning. Foreground bedding, SVG fallback and previews receive the same dimensions and colours.
+
+The existing single renderer paints sized meshes into the same image/alpha-hit layers. Size belongs to the image-cache identity. An eight-size source-mesh LRU releases evicted geometry and palette materials inside the serialized render queue; the existing image-lease cache remains responsible for PNG URLs. Default beds still load their GLB. No per-bed canvas or continuous GPU loop is added.
+
+The [gallery](screenshots/README.md#bed-resizing) records a real 1×2 → 2×2 drag. `screenshots.mjs 62` reproduces both images against an isolated database and checks that the dragged size was saved. Verification covers all 35 size combinations, bounded mesh disposal, floor/partition/obstacle rules, drag cancellation, all four facings, independent colours, sleepers and reloads. Logs and final release identity stay ignored under `build/skill-verification/furniture-resize/`.
+
+This pass verified 1,592 tests in the full frontend run (one gated generator skipped), 141 room API tests, 616 workshop checks, 32 packaging/checkout checks and all 35 browser scenarios. After the compact-window refinement, 56 focused component/hook tests, lint/build and five real-browser bed/colour/facing checks passed again, including pointer access at 320×360. All 516 local documentation links resolve and 112 referenced images decode. Temporary capture databases, helpers and raw browser results are removed after inspection.
+
+Main-channel build `3675d56211324aac99428b9d08a1bf4c` matches its embedded/source identity and manifest SHA-256 and passes the isolated frozen self-test with exit 0. The executable is 49,341,700 bytes with SHA-256 `b08494a0223defe6bd6b1c50ac39aca5731b477c883a907ca5191a857f45d977`. No commit or push is part of this pass.
+
+## Shelves, sofas and desks
+
+All eight additional catalog types now use the same Decorate handle, half-tile snapping, keyboard controls, cancellation and original-size reset. Select the piece, choose its Resize button or drag its green handle. Sizes are canonical width/depth before rotation; furniture height, seating height and working height stay fixed.
+
+| Covered pieces | Width | Depth | Construction that adapts |
+| --- | --- | --- | --- |
+| Sofa | 1.5–5 | 1–1.5 | Continuous upholstered shell, evenly sized cushion pairs, timber base and extra middle feet on wide sofas |
+| Workstation desk | 2–5 | 1–2 | Worktop and rear rail spans, right-side drawer pedestal, left panel and a rear middle support for broad tops |
+| Bookshelf, Wide bookcase, Open shelf | 1–5 | 0.5–1.5 | Joined boards/case, extra support dividers and contents fitted within the resulting bays |
+| Ladder shelf | 1–5 | 0.5–1.5 | Leaning and rear rails, tapered boards, intermediate supports and refitted complete objects |
+| Plant display | 1–5 | 0.5–1.5 | Uprights, trays, additional supports and pots/plants resting on the actual tray tops |
+| Wall shelf | 1–5 | 0.5–1 | Board, wall cleat, bracket spacing/count and fitted contents; keeps its two wall orientations |
+
+The original footprints remain implicit until edited, including the 2×0.85 sofa and 2.2×1.2 desk. Defaults are checked against the catalog. The frontend registry and backend limits are checked against each other. Resize metadata stays on one placement alongside its tint and shelf decorations; no extra catalog entries or database migration are introduced.
+
+Sofa occupants follow resizing, moving and turning. Independent desktop equipment keeps its size and local position, clamping onto a smaller top; it follows desk moves/turns with the matching orientation. A rotated monitor can require extra depth, so a resize refuses newly increased equipment overhang. Keyboard contacts use the same transpose/rear coordinate transform as the models, including the built-in laptop on a wide rear-facing desk. Floor/partition/obstacle rules still apply; a wall shelf stays on its wall and may hang above floor furniture.
+
+`resizable-models.mjs` dispatches the shared builders. Sofa and desk builders are extracted from their original source; storage and display shelves share their authored construction. `shelf-layout.mjs` owns receiving boards, bay slots and complete-object/stack refitting. Books and pots retain physical proportions, and custom layouts still use the real catalog templates. Default GLBs remain the normal path. Sized SVG fallback rebuilds spans rather than scaling the original drawing.
+
+The renderer's eight-entry LRU is shared across all sized furniture. A shelf's own meshes, materials and book accents are released on eviction; borrowed catalog plant/book geometry and materials retain their original owner. Tests exercise every shelf layout and eviction, so resizing does not dispose resources still used by other models. `FURNITURE_RUNTIME_SOURCES` is the single desktop fingerprint/release-gate list for the shared modelling modules.
+
+See [the updated gallery](screenshots/README.md#sofa-desk-and-shelf-resizing). Captures 63–65 reproduce real pointer resizing and check the saved dimensions for the sofa, desk and all six shelves. Evidence stays ignored under `build/skill-verification/furniture-resize-round2/`; capture databases, raw results and process helpers are removed after review.
+
+Verification: 1,606 frontend tests pass (one gated generator skipped), plus lint/build, 151 room API tests, 806 workshop checks and 44 packaging/checkout checks. All 38 browser scenarios are covered: the broad run passed 37, with one preset reload interrupted by an in-progress production rebuild returning 404; the fixed final build then passed all seven preset/furniture/colour scenarios. All 522 local documentation links resolve and 115 referenced images decode.
+
+Main-channel build `24e275a28ba54818843a67c7750cf800` matches its embedded/source identity and update manifest and passes the isolated frozen self-test with exit 0. The executable is 49,353,450 bytes with SHA-256 `c33ea6aa9db845911826d6469f3c3ccdcf30b769583a26cbff226f70632aabf2`. Owned capture/frozen databases, helpers, raw browser results and the generated root spec are removed; verification ports are free. No commit or push was performed.
