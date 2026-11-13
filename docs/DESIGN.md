@@ -702,3 +702,11 @@ chair, because a preview that lies is worse than no preview.
 Compose each conversation or dining group around its actual table. Opposing and adjacent seats turn toward the same activity; edge shelves open into the usable room, and scenic benches face their view. A room's couches share a default upholstery, with independent manual recolouring available. New couches inherit existing upholstery at creation.
 
 Direction is stored in `rot`, preserved across saves, and rendered from the model's real geometry. Occupants follow that same direction, including native X-axis recliners and hammocks. See [the direction contract and layout audit](ROOM_LAYOUT_DIRECTIONS.md) before editing a preset or common place.
+
+## Decorate workflow
+
+Decorate is a temporary editing workspace. Furniture browsing opens first, with searchable categories; room dimensions, floor plans and presets sit under Room setup. Adding a piece closes the drawer and selects it on the canvas. The Furniture button reopens the remembered search/category.
+
+The selected-piece inspector offers labelled left/right turns, copy and remove, then Move, Colours and Size tools. Colour controls start from the authored material. Beds expose their blanket, frame, sheets and pillows separately. Size uses half-tile steps and retains the drag handle. Move and Drag resize handle collapse the inspector to keep the canvas reachable in short windows; selecting the piece opens it again.
+
+The compact bottom toolbar keeps Furniture, undo, redo and Done visible. The inspector scrolls above the bottom rail in narrow windows. Pointer previews use green/red footprint feedback, save only on release, and cancel with Escape. Undo/redo cover room edits during the current session. Keyboard help stays beside the relevant controls; typing in fields never moves, rotates or deletes furniture.

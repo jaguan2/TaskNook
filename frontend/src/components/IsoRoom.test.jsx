@@ -17,6 +17,39 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('exposes labelled edit tools and shortcuts while keeping colour-input keys local', () => {
+  const onRotateItem = vi.fn(), onDuplicateItem = vi.fn(), onMoveItem = vi.fn(), onRemoveItem = vi.fn(), onUndo = vi.fn(), onRedo = vi.fn();
+  const { container, getByRole } = render(<IsoRoom size={{ w: 8, d: 8 }}
+    placements={[{ id: 'bed', item: 'bed', gx: 1, gy: 1 }]} editMode saveView={false}
+    onRotateItem={onRotateItem} onDuplicateItem={onDuplicateItem} onMoveItem={onMoveItem}
+    onRemoveItem={onRemoveItem} onTintItem={vi.fn()} onUndo={onUndo} onRedo={onRedo} />);
+  const bed = container.querySelector('[data-placement-id="bed"]');
+  fireEvent.keyDown(bed, { key: 'Enter' });
+  expect(getByRole('button', { name: 'Turn left', exact: true })).toBeTruthy();
+  fireEvent.keyDown(bed, { key: 'r' });
+  expect(onRotateItem).toHaveBeenLastCalledWith('bed', -1);
+  fireEvent.keyDown(bed, { key: 'R', shiftKey: true });
+  expect(onRotateItem).toHaveBeenLastCalledWith('bed', 1);
+  fireEvent.keyDown(bed, { key: 'D', shiftKey: true });
+  expect(onDuplicateItem).toHaveBeenCalledWith('bed');
+  fireEvent.keyDown(bed, { key: 'ArrowRight' });
+  expect(onMoveItem).toHaveBeenCalledWith('bed', 1.5, 1);
+  fireEvent.keyDown(bed, { key: 'z', ctrlKey: true });
+  fireEvent.keyDown(bed, { key: 'z', ctrlKey: true, shiftKey: true });
+  expect(onUndo).toHaveBeenCalledTimes(1);
+  expect(onRedo).toHaveBeenCalledTimes(1);
+  fireEvent.click(getByRole('button', { name: 'Colours', exact: true }));
+  const hex = getByRole('textbox', { name: 'Blanket colour hex' });
+  fireEvent.keyDown(hex, { key: 'Delete' });
+  fireEvent.keyDown(hex, { key: 'r' });
+  fireEvent.keyDown(hex, { key: 'z', ctrlKey: true });
+  expect(onRemoveItem).not.toHaveBeenCalled();
+  expect(onRotateItem).toHaveBeenCalledTimes(2);
+  expect(onUndo).toHaveBeenCalledTimes(1);
+  fireEvent.keyDown(hex, { key: 'Escape' });
+  expect(container.querySelector('[data-item-inspector]')).toBeNull();
+});
+
 it('clears the colour panel for resizing while preserving selection and keyboard access', () => {
   const onResizeItem = vi.fn(), onTintItem = vi.fn();
   const { container, getByRole } = render(<IsoRoom size={{ w: 8, d: 8 }}
@@ -24,7 +57,8 @@ it('clears the colour panel for resizing while preserving selection and keyboard
     onResizeItem={onResizeItem} onTintItem={onTintItem} saveView={false} />);
   const bed = container.querySelector('[data-placement-id="bed"]');
   fireEvent.keyDown(bed, { key: 'Enter' });
-  fireEvent.click(getByRole('button', { name: 'Resize bed', exact: true }));
+  fireEvent.click(getByRole('button', { name: 'Size', exact: true }));
+  fireEvent.click(getByRole('button', { name: 'Drag resize handle', exact: true }));
   expect(container.querySelector('.room-tint-picker')).toBeNull();
   const handle = container.querySelector('[data-resize-item="bed"]');
   expect(document.activeElement).toBe(handle);
@@ -32,7 +66,7 @@ it('clears the colour panel for resizing while preserving selection and keyboard
   fireEvent.keyDown(handle, { key: 'ArrowRight' });
   expect(onResizeItem).toHaveBeenCalledWith('bed', { w: 2.5, d: 3 });
   fireEvent.keyDown(bed, { key: 'Enter' });
-  expect(container.querySelector('.room-tint-picker')).not.toBeNull();
+  expect(container.querySelector('[data-item-inspector]')).not.toBeNull();
 });
 
 // The grab cursor IS the walk-order affordance, and it's the only part of a

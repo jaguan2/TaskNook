@@ -7,6 +7,13 @@ import { FURNITURE_COLOR_PARTS, withFurnitureColor } from '../lib/furnitureColor
 
 afterEach(cleanup);
 
+it('shows the authored default colour before tinting instead of a different swatch', () => {
+  render(<RoomTintPicker placement={{ id: 'sofa', item: 'sofa' }}
+    item={{ label: 'Sofa', defaultColor: '#8baba0' }} onTint={vi.fn()} />);
+  expect(screen.getByRole('textbox', { name: 'Finish colour hex' }).value).toBe('#8baba0');
+  expect(screen.getAllByRole('slider')[0].value).toBe(String(Math.round(hexToHsl('#8baba0').h)));
+});
+
 it('edits and resets bed materials independently with the same colour controls', () => {
   let placement = { id: 'bed-one', item: 'bed', tint: '#778899', colors: { frame: '#112233', pillows: '#445566' } };
   const item = { label: 'Bed', colorParts: FURNITURE_COLOR_PARTS.bed };

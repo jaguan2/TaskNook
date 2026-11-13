@@ -1,4 +1,5 @@
-import { useCallback, useId, useMemo, useState } from "react";
+import { useEventCallback } from '../hooks/useEventCallback';
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Boxes, Check, ChevronDown, Eraser, Search, Sofa } from "lucide-react";
 import { useRoomStore, useSocialStore } from "../store";
 import { useArmed } from "../hooks/useArmed";
@@ -73,7 +74,7 @@ function ItemPreview({ itemKey }) {
   );
 }
 
-export default function RoomPanel() {
+export default function RoomPanel({ catalogRequest = 0, onItemPlaced, catalogState, onCatalogState }) {
   const { label, locale, t } = useI18n();
   const {
     cottageView,
@@ -109,8 +110,19 @@ export default function RoomPanel() {
   // one of ~150 previews on drawer-open, which was enough to stall WebView2.
   const [floorPlanOpen, setFloorPlanOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [catalogGroupOpen, setCatalogGroupOpen] = useState(null);
-  const [catalogQuery, setCatalogQuery] = useState("");
+  const [localGroup, setLocalGroup] = useState(null);
+  const [localQuery, setLocalQuery] = useState('');
+  const catalogGroupOpen = catalogState?.group ?? localGroup;
+  const catalogQuery = catalogState?.query ?? localQuery;
+  const setCatalogGroupOpen = useCallback(group => {
+    if (onCatalogState) onCatalogState(previous => ({ ...previous, group })); else setLocalGroup(group);
+  }, [onCatalogState]);
+  const setCatalogQuery = useCallback(query => {
+    if (onCatalogState) onCatalogState(previous => ({ ...previous, query })); else setLocalQuery(query);
+  }, [onCatalogState]);
+  const [panelTab, setPanelTab] = useState(roomEditMode ? 'furniture' : 'setup');
+  const catalogVisible = catalogOpen || (roomEditMode && panelTab === 'furniture');
+  const CatalogHeading = roomEditMode ? 'div' : 'button';
   // Clearing the room destroys an arrangement outright — armed like a delete.
   const [armedId, arm] = useArmed();
   const maskRows =
@@ -158,6 +170,15 @@ export default function RoomPanel() {
     })).filter((group) => group.keys.length);
   }, [catalogQuery, isoEnv, isoRoom.walls, isoItemLabel, matchesCatalogQuery]);
   const visibleItemCount = visibleItemGroups.reduce((total, group) => total + group.keys.length, 0);
+
+  const showCatalog = useEventCallback(() => {
+    setPanelTab('furniture'); setCatalogOpen(true);
+    if (!catalogGroupOpen) setCatalogGroupOpen(visibleItemGroups[0]?.label || null);
+  });
+  useEffect(() => { if (roomEditMode || catalogRequest) showCatalog(); }, [roomEditMode, catalogRequest, showCatalog]);
+  useEffect(() => {
+    if (catalogQuery.trim()) setCatalogGroupOpen(visibleItemGroups[0]?.label || null);
+  }, [catalogQuery, visibleItemGroups, setCatalogGroupOpen]);
 
   // While VISITING, the whole panel stands down — not just the Decorate
   // toggle. The review caught the trap a per-button gate leaves open: every
@@ -219,6 +240,11 @@ export default function RoomPanel() {
         </p>
       </section>
 
+      {roomEditMode && isoPreview && <div className="flex gap-1 rounded-xl bg-white/5 p-1" role="group" aria-label="Decorate panels">
+        <button type="button" aria-pressed={panelTab === 'furniture'} onClick={showCatalog} className={`flex-1 rounded-lg px-3 py-2 text-xs ${panelTab === 'furniture' ? 'bg-glow text-plum' : 'text-petal'}`}>Furniture</button>
+        <button type="button" aria-pressed={panelTab === 'setup'} onClick={() => setPanelTab('setup')} className={`flex-1 rounded-lg px-3 py-2 text-xs ${panelTab === 'setup' ? 'bg-glow text-plum' : 'text-petal'}`}>Room setup</button>
+      </div>}
+      {(!roomEditMode || !isoPreview || panelTab === 'setup') && <>
       {/* Isometric room (beta) */}
       <section className="space-y-2 rounded-2xl border border-glow/20 bg-glow/5 p-3">
         <div className="flex items-center justify-between">
@@ -554,13 +580,15 @@ export default function RoomPanel() {
         </section>
       )}
 
+      </>}
+
       {/* Iso furniture (its own catalog while the iso room is active) */}
-      {isoPreview && (
+      {isoPreview && (!roomEditMode || panelTab === 'furniture') && (
         <section>
-          <button
-            type="button"
-            onClick={() => setCatalogOpen((open) => !open)}
-            aria-expanded={catalogOpen}
+          <CatalogHeading
+            type={roomEditMode ? undefined : "button"}
+            onClick={roomEditMode ? undefined : () => setCatalogOpen((open) => !open)}
+            aria-expanded={roomEditMode ? undefined : catalogVisible}
             className="mb-2 flex w-full items-center justify-between gap-2 text-left"
           >
             <span>
@@ -575,8 +603,8 @@ export default function RoomPanel() {
               size={15}
               className={`shrink-0 text-petal/50 transition-transform ${catalogOpen ? "rotate-180" : ""}`}
             />
-          </button>
-          {catalogOpen && (
+          </CatalogHeading>
+          {catalogVisible && (
             <>
               <label className="relative mb-2 block min-w-0">
                 <Search
@@ -585,6 +613,7 @@ export default function RoomPanel() {
                 />
                 <input
                   type="search"
+                  autoFocus={roomEditMode}
                   value={catalogQuery}
                   onChange={(e) => setCatalogQuery(e.target.value)}
                   placeholder={t("room.catalog.search")}
@@ -623,7 +652,7 @@ export default function RoomPanel() {
                           {keys.map((key) => (
                             <button
                               key={key}
-                              onClick={() => addIsoItem(key)}
+                              onClick={() => { if (addIsoItem(key)) onItemPlaced?.(); }}
                               title={t("room.catalog.addTitle", { name: isoItemLabel(key) })}
                               className="group flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/15"
                             >

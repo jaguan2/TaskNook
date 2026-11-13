@@ -582,6 +582,8 @@ async function resizePlacedFurniture(page, cdp, id, w, d) {
     return [new DOMPoint(x, y), new DOMPoint(x + (dx - dy) * 24, y + (dx + dy) * 12)]
       .map(p => { const q = p.matrixTransform(matrix); return { x: q.x, y: q.y }; });
   })()`);
+  await page.clickText('Size', { exact: true });
+  await page.clickText('Drag resize handle', { exact: true });
   for (const [type, point, buttons] of [['mousePressed', points[0], 1], ['mouseMoved', points[1], 1], ['mouseReleased', points[1], 0]]) {
     await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', buttons, clickCount: 1 });
   }
@@ -1105,6 +1107,7 @@ async function main() {
       const bed = document.querySelector('[data-placement-id="resize-bed"]');
       bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     })()`);
+    await page.clickText('Size', { exact: true });
     await sleep(300);
     await page.shot(join(OUT_DIR, "62-bed-resize-before.webp"));
     const points = await page.evaluate(`(() => {
@@ -1115,6 +1118,7 @@ async function main() {
         new DOMPoint(box.x + box.width / 2 + 24, box.y + box.height / 2 + 12)]
         .map(p => { const q = p.matrixTransform(matrix); return { x: q.x, y: q.y }; });
     })()`);
+    await page.clickText('Drag resize handle', { exact: true });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...points[0], button: 'left', buttons: 1, clickCount: 1 });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...points[1], button: 'left', buttons: 1 });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...points[1], button: 'left', buttons: 0, clickCount: 1 });
@@ -1127,6 +1131,11 @@ async function main() {
       }
       throw new Error('Dragged bed size was not saved');
     })()`);
+    await page.evaluate(`(() => {
+      const bed = document.querySelector('[data-placement-id="resize-bed"]');
+      bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await page.clickText('Size', { exact: true });
     await page.shot(join(OUT_DIR, "62-bed-resize-after.webp"));
     console.log("  62-bed-resize-before.webp / 62-bed-resize-after.webp");
   }
@@ -1162,6 +1171,31 @@ async function main() {
       await page.shot(join(OUT_DIR, '65-shelf-resize.webp'));
     }
     console.log(`  ${n}: resized furniture`);
+  }
+
+  // Selected-piece controls are captured through the same inspector a player
+  // uses. The room fixture is disposable; source presets remain unchanged.
+  if (want('66')) {
+    await page.setStorage(ambient({ weather: 'off', time: 'day' }));
+    await showResizeRoom(page, [
+      { id: 'editor-sofa', item: 'sofa', gx: 1, gy: 1, tint: '#7799aa', dimensions: { w: 3, d: 1 } },
+      { id: 'editor-bed', item: 'bed', gx: 1, gy: 5, dimensions: { w: 2, d: 2 },
+        tint: '#8baba0', colors: { frame: '#946b50', sheets: '#d8b8a8', pillows: '#d891a9' } },
+      { id: 'editor-shelf', item: 'bookcase', gx: 5, gy: 1, decor: { layout: 'mixed' } },
+      { id: 'editor-plant', item: 'monstera', gx: 6, gy: 5 },
+    ]);
+    await page.evaluate(`(() => {
+      const bed = document.querySelector('[data-placement-id="editor-bed"]');
+      bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await page.clickText('Colours', { exact: true });
+    await page.evaluate(`(() => {
+      const part = document.querySelector('select[aria-label="Furniture part"]');
+      if (!part) throw new Error('Furniture material selector missing');
+      part.value = 'pillows'; part.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await page.shot(join(OUT_DIR, '66-decorate-controls.webp'));
+    console.log('  66-decorate-controls.webp');
   }
 
   if (cdp.errors.length) throw new Error("page errors: " + cdp.errors.slice(0, 5).join(" | "));

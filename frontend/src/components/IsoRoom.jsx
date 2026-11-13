@@ -1,3 +1,6 @@
+import { CATALOG_MODELS } from '../services/catalogModels';
+import IsoItemInspector from './IsoItemInspector';
+import { useFurnitureMove } from '../hooks/useFurnitureMove';
 import { furnitureFacingLabel } from "../lib/furnitureFacing";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TILE_W, WALL_H, project, floorPoints, floorPatch, wallRect } from "../lib/iso";
@@ -7,7 +10,6 @@ import {
   clampIsoPlacement,
   envOf,
   footOf,
-  footprintFree,
   lipRuns,
   personaCanSit,
   partitionPieces,
@@ -189,6 +191,7 @@ const PlacedItem = memo(function PlacedItem({
   // Powered decorations can be clicked in the finished room. Decorate mode
   // keeps the normal select/drag gesture and exposes a power button instead.
   toggleable = false,
+  placing = false,
 }) {
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
@@ -249,12 +252,13 @@ const PlacedItem = memo(function PlacedItem({
       {...placeProps}
       data-placement-id={p.id}
       data-item={p.item}
-      role={customizable ? "button" : undefined}
-      tabIndex={customizable ? 0 : undefined}
-      aria-label={customizable ? `Customize ${item.label}` : undefined}
-      onKeyDown={customizable ? e => {
+      opacity={placing ? .72 : undefined}
+      role={customizable || editMode ? "button" : undefined}
+      tabIndex={customizable || editMode ? 0 : undefined}
+      aria-label={editMode ? `Select ${item.label}` : customizable ? `Customize ${item.label}` : undefined}
+      onKeyDown={customizable || editMode ? e => {
         if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault(); e.stopPropagation(); onCustomizeItem(p.id);
+          e.preventDefault(); e.stopPropagation(); onCustomizeItem?.(p.id);
         }
       } : undefined}
       className={editMode ? "room-item" : undefined}
@@ -434,6 +438,7 @@ function IsoSceneInner({
   onStartResize,
   onResizeKeyDown,
   resizeBlockedId,
+  movePreview,
   onRemoveItem,
   onToggleItem,
   onClearSelect,
@@ -946,6 +951,7 @@ function IsoSceneInner({
                 key={layer.key}
                 p={p}
                 editMode={editMode}
+                placing={movePreview?.id === p.id}
                 activity={activity}
                 character={character}
                 mood={mood}
@@ -1000,7 +1006,7 @@ function IsoSceneInner({
                   <polygon
                     points={floorPatch(0, 0, foot[0], foot[1])}
                     fill="none"
-                    stroke="#ffe9b0"
+                    stroke={movePreview ? (movePreview.valid ? '#9dd2ac' : '#ed8393') : '#ffe9b0'}
                     strokeWidth="1.5"
                     strokeDasharray="6 4"
                     opacity="0.9"
@@ -1145,18 +1151,20 @@ function IsoRoom({
   onRemoveItem,
   onRotateItem,
   onResizeItem,
+  onDuplicateItem,
+  onUndo,
+  onRedo,
   onTintItem,
   onDecorItem,
   onToggleItem,
 }) {
   const petNow = usePetGrowthClock(placements);
   const [selectedId, setSelectedId] = useState(null);
-  const [resizeOnlyId, setResizeOnlyId] = useState(null);
+  const [inspectorMode, setInspectorMode] = useState("place");
   const customizeItem = useCallback(id => {
-    setResizeOnlyId(null);
+    setInspectorMode("place");
     setSelectedId(id);
   }, []);
-  const dragRef = useRef(null);
   const walkRef = useRef(null);
   // A powered decoration toggles only when the pointer is released without
   // becoming a pan. Pointer-down is too early: touch users commonly begin a
@@ -1189,39 +1197,6 @@ function IsoRoom({
     if (highlightId) customizeItem(highlightId);
   }, [highlightId, customizeItem]);
 
-  // Backspace/Delete removes the selected item (not while typing a hex code).
-  useEffect(() => {
-    if (!editMode) return undefined;
-    const onKey = (e) => {
-      if (e.key !== "Backspace" && e.key !== "Delete") return;
-      // Shared with App's Escape handler. This one used to check only
-      // INPUT/TEXTAREA, so Backspace deleted the selected furniture while you
-      // were typing in a `<select>` or a contenteditable.
-      if (isTypingTarget(e.target)) return;
-      if (!selectedId) return;
-      e.preventDefault();
-      onRemoveItem?.(selectedId);
-      setSelectedId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [editMode, selectedId, onRemoveItem]);
-
-  // Escape deselects first (closing the tint picker); only the NEXT press
-  // reaches App's handler and exits decorating. Capture + stopPropagation
-  // keeps App's window listener out of this one (same trick as TopBar's
-  // weather popover).
-  useEffect(() => {
-    if (!selectedId) return undefined;
-    const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      setSelectedId(null);
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [editMode, selectedId]);
-
   // Centre the room around world (320,240), whatever its dimensions (the
   // bounding rect, ignoring cuts — a stable centre while cuts toggle).
   // IsoScene derives the same centre; the wrapper needs it for hit-testing.
@@ -1235,8 +1210,48 @@ function IsoRoom({
     const p = toWorld(e);
     return p ? { x: p.x - cx, y: p.y - cy } : null;
   };
+  const movement = useFurnitureMove({ placements, size, editMode, onMove: onMoveItem, svgRef,
+    toGrid: event => { const point = toScene(event); return point ? unproject(point.x, point.y) : null; } });
+  const { start: startMove, isDragging: isMoving } = movement;
   const resize = useFurnitureResize({ placements, size, editMode, onResize: onResizeItem, svgRef,
     toGrid: event => { const point = toScene(event); return point ? unproject(point.x, point.y) : null; } });
+
+  useEffect(() => {
+    if (!editMode && !selectedId) return;
+    const onKey = event => {
+      if (event.defaultPrevented || isMoving() || resize.active) return;
+      if (event.key === 'Escape' && selectedId) {
+        event.preventDefault(); event.stopImmediatePropagation(); setSelectedId(null); return;
+      }
+      if (!editMode || isTypingTarget(event.target)) return;
+      const command = event.ctrlKey || event.metaKey;
+      if (command && event.key.toLowerCase() === 'z') {
+        event.preventDefault(); (event.shiftKey ? onRedo : onUndo)?.(); return;
+      }
+      if (command && event.key.toLowerCase() === 'y') { event.preventDefault(); onRedo?.(); return; }
+      if (!selectedId || command || event.altKey) return;
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopImmediatePropagation(); setSelectedId(null); return;
+      }
+      if (event.target.closest?.('[data-item-inspector], [data-resize-item]')) return;
+      const placement = placements.find(p => p.id === selectedId);
+      if (!placement) return;
+      const arrow = { ArrowLeft: [-.5, 0], ArrowRight: [.5, 0], ArrowUp: [0, -.5], ArrowDown: [0, .5] }[event.key];
+      if (arrow) { event.preventDefault(); onMoveItem?.(selectedId, placement.gx + arrow[0], placement.gy + arrow[1]); }
+      else if (event.key.toLowerCase() === 'r' || event.key === ',' || event.key === '.') {
+        event.preventDefault(); onRotateItem?.(selectedId, event.shiftKey || event.key === ',' ? 1 : -1);
+      } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
+        event.preventDefault(); onDuplicateItem?.(selectedId);
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault(); onRemoveItem?.(selectedId); setSelectedId(null);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [editMode, selectedId, placements, onMoveItem, onRotateItem, onRemoveItem, onDuplicateItem, onUndo, onRedo, isMoving, resize.active]);
+  useEffect(() => {
+    if (selectedId && !placements.some(p => p.id === selectedId)) setSelectedId(null);
+  }, [placements, selectedId]);
 
   // Stable across camera moves (its deps are the room's centring, never the
   // view) — a changing identity here alone would defeat IsoScene's memo.
@@ -1305,22 +1320,9 @@ function IsoRoom({
       // reaches the svg root, where it would recenter the camera mid-decorating.
       pointerOnItemRef.current = true;
       customizeItem(placement.id);
-      const svg = svgRef.current;
-      const ctm = svg?.getScreenCTM();
-      if (!ctm) return;
-      const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-      const g = unproject(pt.x - cx, pt.y - cy);
-      dragRef.current = {
-        id: placement.id,
-        item: placement.item,
-        dimensions: placement.dimensions,
-        rot: placement.rot || 0,
-        dgx: g.gx - placement.gx,
-        dgy: g.gy - placement.gy,
-      };
-      svg?.setPointerCapture?.(e.pointerId);
+      startMove(placement, e);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onTintItem, svgRef, customizeItem]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onTintItem, svgRef, customizeItem, startMove]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1341,7 +1343,7 @@ function IsoRoom({
   };
 
   const moveDrag = (e) => {
-    if (resize.move(e)) return;
+    if (movement.move(e) || resize.move(e)) return;
     const walk = walkRef.current;
     if (walk) {
       const pt = toScene(e);
@@ -1373,41 +1375,11 @@ function IsoRoom({
       setWalkTarget({ gx: at.gx, gy: at.gy, foot: walk.foot, ok, id: walk.id });
       return;
     }
-    const drag = dragRef.current;
-    if (drag) {
-      const p = toScene(e);
-      if (!p) return;
-      const g = unproject(p.x, p.y);
-      const { gx, gy } = clampIsoPlacement(
-        drag,
-        snapHalf(g.gx - drag.dgx),
-        snapHalf(g.gy - drag.dgy),
-        size,
-        drag.rot
-      );
-      // Drags simply refuse void tiles — the item stops at the shape's edge.
-      if (
-        !ISO_ITEMS[drag.item].wall &&
-        !footprintFree(gx, gy, footOf(drag), size)
-      ) {
-        return;
-      }
-      // Belt as well as braces: remember the last position SENT so a no-op
-      // never even reaches the store. The store bails out too (see
-      // moveIsoItem), but stopping here also skips the clamp/collision work's
-      // downstream call entirely and keeps the drag ref honest about what the
-      // store believes.
-      if (drag.sentGx === gx && drag.sentGy === gy) return;
-      drag.sentGx = gx;
-      drag.sentGy = gy;
-      onMoveItem?.(drag.id, gx, gy);
-      return;
-    }
     movePan(e);
   };
 
   const endDrag = (e) => {
-    if (resize.end(e)) return;
+    if (movement.end(e) || resize.end(e)) return;
     const walk = walkRef.current;
     if (walk) {
       walkRef.current = null;
@@ -1416,7 +1388,6 @@ function IsoRoom({
       // interrupted, capture lost, cursor gone) is an abort, not an order.
       if (e?.type === "pointerup" && walk.ok) onWalkTo?.(walk.id, walk.gx, walk.gy);
     }
-    dragRef.current = null;
     const toggle = toggleRef.current;
     toggleRef.current = null;
     const toggleClick =
@@ -1460,6 +1431,7 @@ function IsoRoom({
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
         onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
         onPointerDown={startPan}
         onDoubleClick={() => {
           // Recenter only from empty space — double-clicking furniture (two
@@ -1472,7 +1444,7 @@ function IsoRoom({
           <IsoScene
           petNow={petNow}
           size={size}
-          placements={resize.placements}
+          placements={movement.active ? movement.placements : resize.placements}
           editMode={editMode}
           timeOfDay={timeOfDay}
           weather={weather}
@@ -1485,11 +1457,12 @@ function IsoRoom({
           cx={cx}
           cy={cy}
           onStartDrag={onStartDrag}
-          onCustomizeItem={onTintItem ? customizeItem : undefined}
+          onCustomizeItem={editMode || onTintItem ? customizeItem : undefined}
           onRotateItem={onRotateItem}
           onStartResize={onResizeItem ? resize.start : undefined}
           onResizeKeyDown={resize.keyboard}
           resizeBlockedId={resize.blockedId}
+          movePreview={movement.preview}
           onRemoveItem={onRemoveItem}
           onToggleItem={onToggleItem}
           onClearSelect={onClearSelect}
@@ -1515,23 +1488,23 @@ function IsoRoom({
         </g>
       </svg>
 
-      {selectedRaw && !resize.active && resizeOnlyId !== selectedId &&
-        (ISO_ITEMS[selectedRaw.item]?.tintable !== false ||
-          ISO_ITEMS[selectedRaw.item]?.variants) && (
-          <RoomTintPicker
-            placement={selectedRaw}
-            item={ISO_ITEMS[selectedRaw.item]}
-            onTint={onTintItem}
-            onDecor={onDecorItem}
-            onClose={() => setSelectedId(null)}
-            onResize={editMode && RESIZABLE_FURNITURE[selectedRaw.item] && onResizeItem ? () => {
-              // A short window's colour panel may cover the scene controls.
-              // Keep selection, clear that panel, and focus its resize handle.
-              setResizeOnlyId(selectedId);
-              svgRef.current?.querySelector('[data-resize-item]')?.focus();
-            } : undefined}
-          />
-        )}
+      {movement.preview && <p role="status" className={`pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-night/90 px-3 py-2 text-xs ${movement.preview.valid ? 'text-glow' : 'text-rose'}`}>
+        {movement.preview.valid ? 'Release to place' : 'Blocked — release to cancel'}
+      </p>}
+      {selectedRaw && editMode && !movement.active && !resize.active && inspectorMode !== 'hidden' && <IsoItemInspector
+        placement={selectedRaw} item={{ ...ISO_ITEMS[selectedRaw.item], defaultColor: CATALOG_MODELS[selectedRaw.item]?.defaultColor }} mode={inspectorMode} onMode={mode => {
+          setInspectorMode(mode);
+          if (mode === 'hidden') [...(svgRef.current?.querySelectorAll('[data-placement-id]') || [])].find(node => node.dataset.placementId === selectedId)?.focus();
+        }}
+        onRotate={onRotateItem} onDuplicate={onDuplicateItem} onRemove={id => { onRemoveItem?.(id); setSelectedId(null); }}
+        onTint={onTintItem} onDecor={onDecorItem} onResize={onResizeItem}
+        onDragResize={() => { setInspectorMode('hidden'); svgRef.current?.querySelector('[data-resize-item]')?.focus(); }}
+        onClose={() => setSelectedId(null)} />}
+      {selectedRaw && !editMode &&
+        (ISO_ITEMS[selectedRaw.item]?.tintable !== false || ISO_ITEMS[selectedRaw.item]?.variants) && <RoomTintPicker
+          placement={selectedRaw} item={{ ...ISO_ITEMS[selectedRaw.item], defaultColor: CATALOG_MODELS[selectedRaw.item]?.defaultColor }} onTint={onTintItem} onDecor={onDecorItem}
+          onClose={() => setSelectedId(null)} />}
+
     </div>
   );
 }

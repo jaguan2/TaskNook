@@ -42,6 +42,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   store.isoPreview = true;
+  store.roomEditMode = false;
 });
 
 const presetPreviews = (container) => container.querySelectorAll("svg.h-24");
@@ -49,6 +50,22 @@ const itemPreviews = (container) => container.querySelectorAll("svg.h-9");
 const floorCells = (container) => container.querySelectorAll(".cursor-crosshair");
 
 describe("RoomPanel progressive rendering", () => {
+  it('opens furniture first while decorating and reveals matching search results', () => {
+    store.roomEditMode = true;
+    store.addIsoItem.mockReturnValue('new-piece');
+    const onItemPlaced = vi.fn();
+    const { container } = render(<RoomPanel onItemPlaced={onItemPlaced} />);
+    expect(presetPreviews(container)).toHaveLength(0);
+    expect(itemPreviews(container).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'bookcase' } });
+    fireEvent.click(screen.getByRole('button', { name: /wide bookcase/i }));
+    expect(store.addIsoItem).toHaveBeenCalledWith('bookcase');
+    expect(onItemPlaced).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Room setup', exact: true }));
+    expect(presetPreviews(container)).toHaveLength(ISO_PRESET_KEYS.length);
+    expect(itemPreviews(container)).toHaveLength(0);
+    store.addIsoItem.mockReset();
+  });
   it("previews cottage layouts with independent paint definitions and applies a preset", () => {
     store.isoPreview = false;
     const { container } = render(<RoomPanel />);

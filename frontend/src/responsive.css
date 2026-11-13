@@ -16,6 +16,27 @@
 .room-visitors-chip,
 .profile-chip { left: 1.5rem; bottom: 1.5rem; }
 .room-tint-picker { bottom: 1.5rem; }
+.iso-item-inspector {
+  bottom: 5rem;
+  left: 50%;
+  width: min(20rem, calc(100vw - 1.5rem));
+  max-height: min(65vh, 34rem);
+  overflow-y: auto;
+  transform: translateX(-50%);
+}
+.editor-item-action {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .25rem; min-height: 2.75rem; border-radius: .6rem; font-size: .65rem;
+  background: rgb(255 255 255 / .05); color: inherit;
+}
+.editor-item-action:hover:not(:disabled), .editor-toolbar-icon:hover:not(:disabled), .editor-size-step:hover:not(:disabled) { background: rgb(255 255 255 / .13); }
+.editor-item-action:disabled, .editor-toolbar-icon:disabled, .editor-size-step:disabled { opacity: .35; cursor: default; }
+.editor-toolbar-icon, .editor-size-step { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .5rem; }
+.editor-size-step { background: rgb(255 255 255 / .08); font-size: 1rem; }
+@media (max-width: 599px) {
+  .iso-item-inspector { bottom: max(8.5rem, calc(env(safe-area-inset-bottom) + 7.75rem)); max-height: calc(100dvh - 10rem); }
+  .decorate-toolbar { max-width: calc(100vw - 1.5rem); }
+}
 .cottage-item-controls { right: 1.5rem; top: 1.5rem; }
 .toast-rail { top: 1.25rem; }
 
@@ -152,10 +173,17 @@
 @media (max-width: 459px) {
   .topbar-clock { display: none; }
   .music-dock { left: max(0.75rem, env(safe-area-inset-left)); }
+  .iso-item-inspector {
+    bottom: max(8.5rem, calc(env(safe-area-inset-bottom) + 7.75rem));
+    max-height: calc(100dvh - 10rem);
+  }
   .room-action-chip,
   .room-visitors-chip {
     bottom: max(8.75rem, calc(env(safe-area-inset-bottom) + 8rem));
   }
+  /* Music stands down in Decorate. Keep this toolbar directly above the dock
+     instead of reserving the finished-room transport row across the canvas. */
+  .decorate-toolbar { bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4.25rem)); }
   .common-room-chat {
     bottom: max(12.5rem, calc(env(safe-area-inset-bottom) + 11.75rem));
   }

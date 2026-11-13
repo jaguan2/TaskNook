@@ -147,6 +147,29 @@ This pass verified 1,592 tests in the full frontend run (one gated generator ski
 
 Main-channel build `3675d56211324aac99428b9d08a1bf4c` matches its embedded/source identity and manifest SHA-256 and passes the isolated frozen self-test with exit 0. The executable is 49,341,700 bytes with SHA-256 `b08494a0223defe6bd6b1c50ac39aca5731b477c883a907ca5191a857f45d977`. No commit or push is part of this pass.
 
+## Decorate interaction workflow
+
+The editor now groups browsing, placement and customization into one flow. Enter Decorate to browse searchable furniture categories; Room setup contains room shape, floors, walls, lighting and presets. A successful addition closes the drawer and selects the new piece. Furniture on the bottom toolbar reopens the remembered catalogue search/category.
+
+Select a piece for labelled Turn left, Turn right, Copy and Remove actions, plus Move, Colours and Size tools. Copy retains the selected finish, bed material colours, shelf contents, dimensions and facing, then finds clear nearby space. Characters, pets and unique pieces cannot be copied. Colours starts at the authored material; beds retain independent blanket, frame, sheets and pillow channels. Size offers half-tile steppers, the drag handle and Original size within the existing per-type limits.
+
+Movement uses a local ghost with green/red footprint feedback. Only a real release commits; Escape, cancelled pointers or lost capture restore the original. Rugs and wall mounts retain layering, surface props can rest on furniture, and attached occupants/equipment travel with their support. New solid intersections are refused. Move and Drag resize handle collapse the inspector so short windows retain usable canvas space; selecting the piece reopens it.
+
+| Shortcut | Action in Decorate |
+| --- | --- |
+| R / Shift+R | Turn right / left |
+| Period / comma | Turn right / left |
+| Arrow keys | Move half a tile |
+| Shift+D | Copy the selected furniture |
+| Delete / Backspace | Remove selected furniture |
+| Ctrl/Cmd+Z | Undo |
+| Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y | Redo |
+| Escape | Cancel a gesture or deselect |
+
+Text fields keep their editing keys. The resize handle retains its own arrow/Home controls. Undo/redo holds 40 room edits during the current session, groups continuous colour adjustments, and preserves unrelated automatic pet/character updates using property patches. Reload/account bootstrap clears history. Existing room persistence, visit/common-place read-only boundaries and widget behavior remain in place.
+
+Implementation owners and save boundaries are recorded in [the codebase guide](CODEBASE_GUIDE.md#following-a-decorate-action). Browser coverage includes the full persisted workflow, cancellation and compact windows; the screenshot script refreshes capture 25 and furniture size examples 62–65 and adds capture 66 for bed material controls.
+
 ## Shelves, sofas and desks
 
 All eight additional catalog types now use the same Decorate handle, half-tile snapping, keyboard controls, cancellation and original-size reset. Select the piece, choose its Resize button or drag its green handle. Sizes are canonical width/depth before rotation; furniture height, seating height and working height stay fixed.
@@ -173,3 +196,11 @@ See [the updated gallery](screenshots/README.md#sofa-desk-and-shelf-resizing). C
 Verification: 1,606 frontend tests pass (one gated generator skipped), plus lint/build, 151 room API tests, 806 workshop checks and 44 packaging/checkout checks. All 38 browser scenarios are covered: the broad run passed 37, with one preset reload interrupted by an in-progress production rebuild returning 404; the fixed final build then passed all seven preset/furniture/colour scenarios. All 522 local documentation links resolve and 115 referenced images decode.
 
 Main-channel build `24e275a28ba54818843a67c7750cf800` matches its embedded/source identity and update manifest and passes the isolated frozen self-test with exit 0. The executable is 49,353,450 bytes with SHA-256 `c33ea6aa9db845911826d6469f3c3ccdcf30b769583a26cbff226f70632aabf2`. Owned capture/frozen databases, helpers, raw browser results and the generated root spec are removed; verification ports are free. No commit or push was performed.
+
+## Decorate workflow verification — 2026-11-13
+
+The [interaction workflow](#decorate-interaction-workflow) is implemented and documented, with refreshed captures 25 and 62–65 and new capture 66. Visual review covers the desktop inspector and small windows. In narrow Decorate windows the music controls stand down, letting the toolbar sit directly above the dock; the inspector scrolls above it. Move and Drag resize handle return the full canvas.
+
+Verification: 1,619 frontend tests pass (one gated generator skipped), followed by a passing rerun of 49 gesture tests after the final pointer-capture change. Lint/build and 44 packaging/checkout checks pass. The full browser run passed 40 of 41 scenarios; one existing recolouring test still expected immediate colour fields after selection. It now opens Colours explicitly. The final build passes all six targeted model/editor/bed scenarios, including actual clicks at 890×650, 390×720 and 320×360 and inspector/toolbar bounds. Together these runs cover all 41 browser scenarios. Initial new-test material selectors and a narrow toolbar overlap were corrected during verification; no production rebuild ran during a browser suite.
+
+Main-channel build `26ec199aa16e41499d09eb78abf47996` matches the embedded/source identity and update manifest and passes the isolated frozen self-test with exit 0. The executable is 49,358,958 bytes with SHA-256 `53c441818b786dae3a029fc5b92ef207d4100f473d92a9eca25bc787fee3da26`. Documentation checks resolve 518 local links and decode 67 unique referenced raster images. Evidence is ignored under `build/skill-verification/decorate-ux/`; owned disposable databases, raw browser output directories, helper scripts and the generated root packaging spec are removed after review. No commit or push was performed.

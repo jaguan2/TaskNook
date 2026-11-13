@@ -87,7 +87,7 @@ export function useFurnitureResize({ placements, size, editMode, onResize, toGri
     const cancel = event => {
       if (event.key !== 'Escape' || !active.current) return;
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       end({ type: 'pointercancel' });
     };
     window.addEventListener('keydown', cancel, true);

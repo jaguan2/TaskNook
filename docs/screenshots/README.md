@@ -159,6 +159,14 @@ Decorate now resizes the sofa, workstation and all six shelf styles in half-tile
 
 Captures `63 64 65` in the reusable screenshot script perform real pointer drags and check the API-saved sizes before taking these images. The shelf scene is a coverage fixture, not a furnished room preset.
 
+## Decorate controls
+
+Decorate opens the searchable furniture catalogue first. Adding a piece selects it and returns to the canvas. Labelled turn/copy/remove actions and Move, Colours and Size tools sit in the selected-piece inspector; Furniture, undo, redo and Done remain on the bottom toolbar. Beds retain separate blanket, frame, sheets and pillow colours.
+
+![Selected bed material controls and the Decorate toolbar](66-decorate-controls.webp)
+
+Capture `66` reproduces this editor view. Capture `25` and size examples `62 63 64 65` are refreshed for the current workflow. [Interaction rules, shortcuts and history limits](../ROOM_MODEL_INTEGRATION.md#decorate-interaction-workflow).
+
 ## Features
 
 | | |

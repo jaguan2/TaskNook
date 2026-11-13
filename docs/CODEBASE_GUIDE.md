@@ -41,6 +41,14 @@ The [direction and layout guide](ROOM_LAYOUT_DIRECTIONS.md) covers four-view mod
 
 The [personal-room composition guide](ROOM_LAYOUT_COMPOSITION.md) records each preset's purpose, dimensions, covered pieces and visual review method. Keep group comments beside explicit placements; fit the floor to the furniture. Group destinations and their capacity belong in `commonRooms.js`.
 
+## Following a Decorate action
+
+`DecorateToolbar` opens the furniture catalogue or invokes undo/redo/Done. `RoomPanel` opens on Furniture during editing, remembers search/category through the shell, and closes after a successful addition. Room setup retains the floor, wall, lighting and preset tools. `IsoItemInspector` owns labelled selected-piece actions and Move, Colours and Size tools; `RoomTintPicker` is shared with finished-room customization.
+
+`useFurnitureMove` owns captured-pointer previews and cancellation. It validates against `moveIsoPlacements`, then calls the store once on release. `useFurnitureResize` follows the same local-preview boundary. Supported occupants and desktop equipment travel with their parent furniture. Shortcuts live in `IsoRoom` and stand down for text inputs, active gestures and resize-handle keys; visits, common places and widget mode receive no active home editing controls.
+
+Interactive room actions pass through `useRoomEditHistory`. `roomEditHistory.js` records property patches rather than whole room snapshots so undo preserves unrelated automatic pet/character updates. Continuous changes to one colour channel group within 700ms; history holds 40 edits, clears redo after a new edit, and resets on account/bootstrap changes. History is session-local. The existing room persistence effect remains the only save path.
+
 ## Following a furniture resize
 
 The selected piece's resize handle → `useFurnitureResize` local preview → `resizeIsoItem` → existing room save. `resizeIsoPlacements` checks the floor, partitions, added overlap and supported equipment, then moves the piece's occupants/desktop objects with it. `replaceFurniturePlacement` also carries them through moves/turns. Escape/pointer cancellation discards the preview. Visitors and common places receive no resize callback.

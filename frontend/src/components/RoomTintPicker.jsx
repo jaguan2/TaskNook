@@ -72,7 +72,7 @@ function VariantPicker({ placement, item, onTint }) {
   );
 }
 
-export default function RoomTintPicker({ placement, item: itemProp, onTint, onDecor, onClose, onResize }) {
+export default function RoomTintPicker({ placement, item: itemProp, onTint, onDecor, onClose, onResize, embedded = false }) {
   const item = itemProp || ITEMS[placement.item];
   // A placement whose catalog entry no longer exists (renamed or removed item)
   // must not take the whole app down — the scenes already skip unknown items.
@@ -80,14 +80,14 @@ export default function RoomTintPicker({ placement, item: itemProp, onTint, onDe
   if (item.variants) {
     return <VariantPicker placement={placement} item={item} onTint={onTint} />;
   }
-  return <FullTintPicker key={placement.id} placement={placement} item={item} onTint={onTint} onDecor={onDecor} onClose={onClose} onResize={onResize} />;
+  return <FullTintPicker key={placement.id} placement={placement} item={item} onTint={onTint} onDecor={onDecor} onClose={onClose} onResize={onResize} embedded={embedded} />;
 }
 
-function FullTintPicker({ placement, item, onTint, onDecor, onClose, onResize }) {
+function FullTintPicker({ placement, item, onTint, onDecor, onClose, onResize, embedded }) {
   const [part, setPart] = useState('main');
   const partSpec = item.colorParts?.[part];
   const active = (part === 'main' ? placement.tint : placement.colors?.[part]) || null;
-  const defaultColor = partSpec?.defaultColor || TINT_SWATCHES[0];
+  const defaultColor = partSpec?.defaultColor || item.defaultColor || TINT_SWATCHES[0];
   const commitColor = value => part === 'main'
     ? onTint(placement.id, value)
     : onTint(placement.id, value, part);
@@ -98,16 +98,16 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose, onResize })
   // then wrote black wherever you dragged them (same at 100 with white). Only a
   // swatch or the hex field could escape. Local state remembers the hue you
   // were working in, so lightness is a round trip.
-  // Untinted items start from the first swatch — something sensible to move
-  // away from.
+  // Untinted items start from the authored material, with a swatch fallback
+  // for catalog entries that do not provide a default colour.
   const [hsl, setHsl] = useState(() => hexToHsl(active || defaultColor));
-  const [hexDraft, setHexDraft] = useState(active || "");
+  const [hexDraft, setHexDraft] = useState(active || defaultColor);
 
   // Re-sync only when the tint changes from OUTSIDE these sliders (a swatch,
   // the hex field, "Classic ↺", or selecting a different item). A slider's own
   // change already agrees with `active`, so this never fights a drag.
   useEffect(() => {
-    setHexDraft(active || "");
+    setHexDraft(active || defaultColor);
     setHsl((prev) => {
       if (!active) return hexToHsl(defaultColor);
       return hslToHex(prev.h, prev.s, prev.l) === active ? prev : hexToHsl(active);
@@ -130,9 +130,9 @@ function FullTintPicker({ placement, item, onTint, onDecor, onClose, onResize })
 
   return (
     // Finished-room clicks and Decorate selection share this bounded popover.
-    <div className="room-tint-picker glass absolute left-1/2 z-40 w-60 -translate-x-1/2 max-h-[65vh] overflow-y-auto space-y-2 rounded-2xl p-3 shadow-soft">
+    <div className={embedded ? 'space-y-2' : 'room-tint-picker glass absolute left-1/2 z-40 w-60 -translate-x-1/2 max-h-[65vh] overflow-y-auto space-y-2 rounded-2xl p-3 shadow-soft'}>
       <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-semibold text-cream">🎨 {item.label}</p>
+        <p className="min-w-0 truncate text-xs font-semibold text-cream">{embedded ? 'Colour' : `🎨 ${item.label}`}</p>
         <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"

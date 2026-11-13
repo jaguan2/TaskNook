@@ -1,3 +1,4 @@
+import { useRoomEditHistory } from './hooks/useRoomEditHistory';
 import { RESIZABLE_FURNITURE } from './lib/furnitureDimensions';
 import { cleanShelfDecor } from "./lib/shelfDecor";
 import { withFurnitureColor } from './lib/furnitureColors';
@@ -110,7 +111,9 @@ import {
   isoPresetLayout,
   freeSeatSpot,
   newIsoPlacement,
-  nextRot,
+  normalizeRot,
+  moveIsoPlacements,
+  duplicateIsoPlacement,
   resizeIsoPlacements,
   replaceFurniturePlacement,
   partitionKey,
@@ -421,6 +424,8 @@ export function StoreProvider({ children }) {
     return defaultIsoLayout();
   });
   const isoRef = useRef(isoRoom);
+  const { commit: editIsoRoom, undo: undoRoomEdit, redo: redoRoomEdit, canUndo: canUndoRoomEdit, canRedo: canRedoRoomEdit } =
+    useRoomEditHistory(isoRef, setIsoRoom, `${user?.id || "guest"}:${booting}`);
   // The interactive isometric home is the default; the flat cottage is an
   // alternative. Keep the legacy isoPreview key for preference compatibility.
   const [isoPreview, setIsoPreviewState] = useState(
@@ -433,27 +438,12 @@ export function StoreProvider({ children }) {
 
   // ---------- Isometric room actions ----------
   const moveIsoItem = useCallback((id, gx, gy) => {
-    setIsoRoom((prev) => {
-      // Bail out when nothing moved. Positions snap to HALF TILES — about 25-30
-      // screen pixels — so the large majority of the 60-120 pointermoves in a
-      // drag resolve to the coordinates the item already has. Building a new
-      // layout for those rebuilt the whole store context (re-rendering every
-      // useStore consumer: the dock, the to-do list, the music bar, every open
-      // panel, and RoomPanel's ~132 catalog sprites, which is necessarily on
-      // screen while you drag) and re-ran the save effect: two whole-layout
-      // JSON.stringify calls plus two SYNCHRONOUS localStorage writes, per
-      // pointer event. Returning `prev` unchanged means React bails on the
-      // identical reference and none of that happens.
-      const cur = prev.placements.find((p) => p.id === id);
-      if (!cur || (cur.gx === gx && cur.gy === gy)) return prev;
-      return {
-        ...prev,
-        placements: RESIZABLE_FURNITURE[cur.item]
-          ? replaceFurniturePlacement(prev.placements, cur, { ...cur, gx, gy })
-          : prev.placements.map((p) => (p.id === id ? { ...p, gx, gy } : p)),
-      };
-    });
-  }, []);
+    const prev = isoRef.current;
+    const placements = moveIsoPlacements(prev.placements, id, gx, gy, prev);
+    if (!placements) { showToast("That spot is blocked — choose clear floor or a supporting surface 🌿"); return false; }
+    if (placements !== prev.placements) editIsoRoom({ ...prev, placements });
+    return true;
+  }, [editIsoRoom, showToast]);
   // The id of the most recently added iso item — the scene auto-selects it
   // so the user can see what just appeared.
   const [lastIsoAddedId, setLastIsoAddedId] = useState(null);
@@ -480,18 +470,26 @@ export function StoreProvider({ children }) {
         showToast("No floor free for that one — paint more tiles or try something smaller 🧩");
         return;
       }
-      setIsoRoom({ ...prev, placements: [...prev.placements, placement] });
+      editIsoRoom({ ...prev, placements: [...prev.placements, placement] });
       setLastIsoAddedId(placement.id);
       setRoomEditMode(true);
+      return placement.id;
     },
-    [showToast]
+    [showToast, editIsoRoom]
   );
+  const duplicateIsoItem = useCallback(id => {
+    const prev = isoRef.current, copy = duplicateIsoPlacement(prev, id);
+    if (!copy) { showToast("No clear space to copy that piece 🌿"); return; }
+    editIsoRoom({ ...prev, placements: [...prev.placements, copy] });
+    setLastIsoAddedId(copy.id);
+    return copy.id;
+  }, [editIsoRoom, showToast]);
   const removeIsoItem = useCallback((id) => {
-    setIsoRoom((prev) => ({
+    editIsoRoom((prev) => ({
       ...prev,
       placements: prev.placements.filter((p) => p.id !== id),
     }));
-  }, []);
+  }, [editIsoRoom]);
   // Mirror-rotation: the footprint transposes, so re-clamp in the new
   // orientation (and wall items hop to the other wall).
   //
@@ -508,14 +506,14 @@ export function StoreProvider({ children }) {
   // Computed OUTSIDE the updater, like addIsoItem: updaters must stay pure
   // (StrictMode double-invokes them), and this one toasts on refusal.
   const rotateIsoItem = useCallback(
-    (id) => {
+    (id, direction = 1) => {
       const prev = isoRef.current;
       let refused = false;
       const placements = prev.placements.map((p) => {
         if (p.id !== id) return p;
         // Four facings for seating that ships a back view, two for everything
         // else (and for wall decor, where rot picks the wall, not a facing).
-        const rot = nextRot(p.item, p.rot);
+        const rot = normalizeRot(p.item, (p.rot || 0) + (direction < 0 ? -1 : 1));
         const { rot: _dropped, ...rest } = p;
         const at = clampIsoPlacement(p, p.gx, p.gy, prev, rot);
         const turned = { ...rest, ...(rot && { rot }), ...at };
@@ -542,20 +540,19 @@ export function StoreProvider({ children }) {
       const next = { ...prev, placements: RESIZABLE_FURNITURE[before?.item]
         ? replaceFurniturePlacement(prev.placements, before, turned)
         : placements };
-      isoRef.current = next;
-      setIsoRoom(next);
+      editIsoRoom(next);
     },
-    [showToast]
+    [showToast, editIsoRoom]
   );
   const setIsoItemTint = useCallback((id, tint, part = 'main') => {
-    setIsoRoom((prev) => ({
+    editIsoRoom((prev) => ({
       ...prev,
       placements: prev.placements.map((p) => {
         if (p.id !== id) return p;
         return withFurnitureColor(p, tint, part);
       }),
-    }));
-  }, []);
+    }), `colour:${id}:${part}`);
+  }, [editIsoRoom]);
   const resizeIsoItem = useCallback((id, dimensions) => {
     const prev = isoRef.current;
     const placements = resizeIsoPlacements(prev.placements, id, dimensions, prev);
@@ -565,21 +562,20 @@ export function StoreProvider({ children }) {
     }
     if (placements !== prev.placements) {
       const next = { ...prev, placements };
-      isoRef.current = next;
-      setIsoRoom(next);
+      editIsoRoom(next);
     }
     return true;
-  }, [showToast]);
+  }, [showToast, editIsoRoom]);
   const setIsoItemDecor = useCallback((id, value) => {
-    setIsoRoom(prev => ({ ...prev, placements: prev.placements.map(p => {
+    editIsoRoom(prev => ({ ...prev, placements: prev.placements.map(p => {
       if (p.id !== id) return p;
       const decor = cleanShelfDecor(p.item, value);
       const { decor: _previous, ...rest } = p;
       return decor ? { ...rest, decor } : rest;
     }) }));
-  }, []);
+  }, [editIsoRoom]);
   const toggleIsoItem = useCallback((id) => {
-    setIsoRoom((prev) => ({
+    editIsoRoom((prev) => ({
       ...prev,
       placements: prev.placements.map((p) => {
         if (p.id !== id || !ISO_ITEMS[p.item]?.toggleable) return p;
@@ -590,7 +586,7 @@ export function StoreProvider({ children }) {
         return { ...p, off: true };
       }),
     }));
-  }, []);
+  }, [editIsoRoom]);
   // Reshaping the room runs the layout back through the validator, and the
   // validator is allowed to DELETE: wall art has nowhere to hang outdoors, and
   // a floor that just shrank may have no free spot left for a piece. That's
@@ -606,10 +602,9 @@ export function StoreProvider({ children }) {
       const next = validateIsoLayout({ ...prev, ...change });
       const gone = prev.placements.length - next.placements.length;
       if (gone > 0) showToast(lost(gone, gone === 1 ? "piece" : "pieces"));
-      isoRef.current = next;
-      setIsoRoom(next);
+      editIsoRoom(next);
     },
-    [showToast]
+    [showToast, editIsoRoom]
   );
   const setIsoSize = useCallback(
     (w, d) =>
@@ -632,14 +627,14 @@ export function StoreProvider({ children }) {
   );
   const setIsoWallColor = useCallback((side, color) => {
     if (!["left", "right"].includes(side)) return;
-    setIsoRoom((prev) => validateIsoLayout({
+    editIsoRoom((prev) => validateIsoLayout({
       ...prev,
       wallColors: { ...prev.wallColors, [side]: color },
     }));
-  }, []);
+  }, [editIsoRoom]);
   const setIsoLighting = useCallback((lighting) => {
-    setIsoRoom((prev) => validateIsoLayout({ ...prev, lighting }));
-  }, []);
+    editIsoRoom((prev) => validateIsoLayout({ ...prev, lighting }));
+  }, [editIsoRoom]);
   // Floor-plan painting (irregular shapes): toggle one tile of the mask.
   const setIsoTile = useCallback(
     // Outside the updater like the others — doubly important here, because
@@ -669,10 +664,9 @@ export function StoreProvider({ children }) {
           } gone 📦`
         );
       }
-      isoRef.current = next;
-      setIsoRoom(next);
+      editIsoRoom(next);
     },
-    [showToast]
+    [showToast, editIsoRoom]
   );
   const setIsoPartition = useCallback((plane, at, from, on) => {
     if (!["gx", "gy"].includes(plane)) return;
@@ -690,9 +684,8 @@ export function StoreProvider({ children }) {
       partitions: [...nextKeys],
       arches: [...nextArches],
     });
-    isoRef.current = next;
-    setIsoRoom(next);
-  }, []);
+    editIsoRoom(next);
+  }, [editIsoRoom]);
   const setIsoArch = useCallback((plane, at, from, on) => {
     if (!["gx", "gy"].includes(plane)) return;
     const prev = isoRef.current;
@@ -708,18 +701,16 @@ export function StoreProvider({ children }) {
       partitions: [...nextWalls],
       arches: [...nextArches],
     });
-    isoRef.current = next;
-    setIsoRoom(next);
-  }, []);
+    editIsoRoom(next);
+  }, [editIsoRoom]);
   const resetIsoPartitions = useCallback(() => {
     const prev = isoRef.current;
     const next = validateIsoLayout({ ...prev, partitions: undefined, arches: undefined });
-    isoRef.current = next;
-    setIsoRoom(next);
-  }, []);
+    editIsoRoom(next);
+  }, [editIsoRoom]);
   const resetIsoShape = useCallback(
-    () => setIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
-    []
+    () => editIsoRoom((prev) => validateIsoLayout({ ...prev, mask: undefined })),
+    [editIsoRoom]
   );
   // Presets replace the whole iso layout, floor size included (validated so
   // preset `cuts` shorthand becomes a mask immediately).
@@ -763,9 +754,9 @@ export function StoreProvider({ children }) {
         showToast("No room for you right now — free up a piece or paint more tiles 🧩");
         return;
       }
-      if (next !== prev) setIsoRoom(next);
+      if (next !== prev) editIsoRoom(next);
     },
-    [withSelf, showToast]
+    [withSelf, showToast, editIsoRoom]
   );
 
   const applyIsoPreset = useCallback(
@@ -783,10 +774,9 @@ export function StoreProvider({ children }) {
       if (carried === null)
         showToast("No space for you in that room — add yourself back once there's floor 🧩");
       const next = carried ?? base;
-      isoRef.current = next;
-      setIsoRoom(next);
+      editIsoRoom(next);
     },
-    [withSelf, showToast]
+    [withSelf, showToast, editIsoRoom]
   );
   const roomRef = useRef(roomPlacements);
   const roomWriteRef = useRef(null);
@@ -2677,6 +2667,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    duplicateIsoItem, undoRoomEdit, redoRoomEdit, canUndoRoomEdit, canRedoRoomEdit,
     rotateIsoItem, resizeIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,
@@ -2686,6 +2677,7 @@ export function StoreProvider({ children }) {
     moveRoomItem, addRoomItem, duplicateRoomItem, removeRoomItem,
     applyRoomPreset, clearRoom, setRoomItemTint, isoPreview, setIsoPreview,
     isoRoom, lastIsoAddedId, moveIsoItem, addIsoItem, removeIsoItem,
+    duplicateIsoItem, undoRoomEdit, redoRoomEdit, canUndoRoomEdit, canRedoRoomEdit,
     rotateIsoItem, resizeIsoItem, setIsoItemTint, setIsoItemDecor, toggleIsoItem, setIsoSize, setIsoTile,
     setIsoPartition, setIsoArch, resetIsoPartitions, resetIsoShape, setIsoEnv,
     setIsoWalls, setIsoWallColor, setIsoLighting, walkIsoPersona,

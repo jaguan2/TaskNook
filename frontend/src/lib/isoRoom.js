@@ -158,8 +158,9 @@ export function freeSeatSpot(placements, item = "resident") {
  *     characters anywhere and they are just standing"). Standing is a spot
  *     you chose, not a walk — nobody moves until carried again.
  *
- * Still not the edit-mode drag rule (that one only refuses void tiles —
- * decorating is deliberate, overlap included).
+ * Decorate mode uses this same standing/seating rule for characters. Other
+ * furniture moves use moveIsoPlacements so rugs and surface props keep their
+ * intentional layering without introducing new solid intersections.
  */
 export function personaCanSit(gx, gy, layout, placements, selfId) {
   const foot = footOf("resident", 0);
@@ -637,6 +638,54 @@ function overlapArea(a, b) {
   const af = footOf(a), bf = footOf(b);
   return Math.max(0, Math.min(a.gx + af[0], b.gx + bf[0]) - Math.max(a.gx, b.gx)) *
     Math.max(0, Math.min(a.gy + af[1], b.gy + bf[1]) - Math.max(a.gy, b.gy));
+}
+
+/** A move is a preview until release. Existing overlaps may improve, while
+ * new intersections are refused. Flat rugs, wall mounts and tabletop props
+ * retain their intentional layering rather than behaving like solid cabinets. */
+export function moveIsoPlacements(placements, id, gx, gy, size) {
+  const original = placements.find(p => p.id === id), item = ISO_ITEMS[original?.item];
+  if (!item || !Number.isFinite(gx) || !Number.isFinite(gy)) return null;
+  if (original.gx === gx && original.gy === gy) return placements;
+  const moved = { ...original, gx, gy }, foot = footOf(moved);
+  const at = clampIsoPlacement(moved, gx, gy, size);
+  if (at.gx !== gx || at.gy !== gy) return null;
+  if (!item.wall && !footprintFree(gx, gy, foot, size)) return null;
+  if (item.persona) return personaCanSit(gx, gy, size, placements, id)
+    ? placements.map(p => p.id === id ? moved : p) : null;
+  const attached = supportedItems(placements, original);
+  const next = replaceFurniturePlacement(placements, original, moved);
+  const surface = surfaceFor(moved, next);
+  if ((item.layer || 0) < 0) return next;
+  if (placements.some(p => {
+    const other = ISO_ITEMS[p.item];
+    if (p.id === id || attached.has(p.id) || !other || (other.layer || 0) < 0 || !!other.wall !== !!item.wall) return false;
+    if (surface && (p.id === surface.placement.id || !other.stacks)) return false;
+    return overlapArea(moved, p) > overlapArea(original, p) + 1e-8;
+  })) return null;
+  return next;
+}
+
+/** Copies furniture customization and size, giving it a new identity and a
+ * clear nearby footprint. Characters and pets keep their own identity. */
+export function duplicateIsoPlacement(layout, id) {
+  const source = layout.placements.find(p => p.id === id), item = ISO_ITEMS[source?.item];
+  if (!item || item.unique || item.persona || item.roamer || layout.placements.length >= ISO_MAX_ITEMS) return null;
+  let at;
+  if (item.wall) {
+    const horizontal = (source.rot || 0) % 2 === 0;
+    const length = horizontal ? layout.w : layout.d;
+    for (let n = 0; n <= length * 2; n++) {
+      const candidate = { ...source, ...(horizontal ? { gx: n / 2 } : { gy: n / 2 }) };
+      const clamp = clampIsoPlacement(candidate, candidate.gx, candidate.gy, layout);
+      if (clamp.gx !== candidate.gx || clamp.gy !== candidate.gy) continue;
+      if (layout.placements.some(p => ISO_ITEMS[p.item]?.wall && footprintsOverlap(candidate, p))) continue;
+      if (!at || Math.hypot(candidate.gx - source.gx, candidate.gy - source.gy) < Math.hypot(at.gx - source.gx, at.gy - source.gy)) at = candidate;
+    }
+  } else {
+    at = findFreeSpot(source, source.rot || 0, layout, source.gx + .5, source.gy + .5, layout.placements);
+  }
+  return at ? { ...source, gx: at.gx, gy: at.gy, id: makeId() } : null;
 }
 
 /** Resize one piece, keeping its colours and supported items. Added floor must be

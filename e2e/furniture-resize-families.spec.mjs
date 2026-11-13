@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+test.use({ actionTimeout: 10000 });
 
 async function ready(page) {
   await expect(page.locator('[data-model-state="loading"]')).toHaveCount(0, { timeout: 60000 });
@@ -58,7 +59,8 @@ test('a wider sofa keeps its occupant and independent colour through every facin
   ]);
   const before = await digest(model(page, 'other'));
   await select(page, 'sofa');
-  await page.getByRole('button', { name: 'Resize sofa', exact: true }).click();
+  await page.getByRole('button', { name: 'Size', exact: true }).click();
+  await page.getByRole('button', { name: 'Drag resize handle', exact: true }).click();
   await drag(page, 'sofa', 1.5, .15);
   await expect(model(page, 'sofa')).toHaveAttribute('data-model-dimensions', '3.5x1');
   await expect.poll(async () => (await saved()).find(p => p.id === 'sofa').dimensions).toEqual({ w: 3.5, d: 1 });
@@ -71,6 +73,7 @@ test('a wider sofa keeps its occupant and independent colour through every facin
     await ready(page);
   }
   await select(page, 'sofa');
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   await page.getByRole('textbox', { name: 'Finish colour hex' }).fill('#8b759f');
   await ready(page);
   expect(await digest(model(page, 'other'))).toBe(before);
@@ -90,7 +93,8 @@ test('desk resizing retains supported equipment and carries it through four turn
     { id: 'sitter', item: 'resident', gx: 1.5, gy: 2.5 },
   ]);
   await select(page, 'desk');
-  await page.getByRole('button', { name: 'Resize workstation', exact: true }).click();
+  await page.getByRole('button', { name: 'Size', exact: true }).click();
+  await page.getByRole('button', { name: 'Drag resize handle', exact: true }).click();
   await drag(page, 'desk', 1.8, .3);
   await expect.poll(async () => (await saved()).find(p => p.id === 'desk').dimensions).toEqual({ w: 4, d: 1.5 });
   await ready(page);
@@ -119,7 +123,8 @@ test('all six shelf styles resize with saved decoration and still support changi
   for (const [item, , , rot, w, d] of shelves) {
     await select(page, item);
     const before = await digest(model(page, item));
-    await page.locator('.room-tint-picker').getByRole('button', { name: /^Resize / }).click();
+    await page.getByRole('button', { name: 'Size', exact: true }).click();
+    await page.getByRole('button', { name: 'Drag resize handle', exact: true }).click();
     await drag(page, item, rot % 2 ? 1 - d : 3.5 - w, rot % 2 ? 3.5 - w : 1 - d);
     await expect(model(page, item)).toHaveAttribute('data-model-dimensions', '3.5x1');
     await ready(page);
@@ -129,6 +134,7 @@ test('all six shelf styles resize with saved decoration and still support changi
   }
   await page.screenshot({ path: info.outputPath('six-resized-shelves.png') });
   await select(page, 'bookcase');
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   await page.getByRole('combobox', { name: 'Shelf contents' }).selectOption('plants'); await ready(page);
   await expect.poll(async () => (await saved()).find(p => p.id === 'bookcase').decor.layout).toBe('plants');
   await page.locator('[data-resize-item="bookcase"]').focus(); await page.keyboard.press('Home');

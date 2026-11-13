@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+test.use({ actionTimeout: 10000 });
 
 async function setup(page, request, placements) {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -121,8 +122,9 @@ test('bed drag rebuilds its model, saves once on release, and keeps colours and 
   await ready(page);
   await page.screenshot({ path: info.outputPath('bed-original-small-window.png') });
   await page.setViewportSize({ width: 320, height: 360 });
-  await page.getByRole('button', { name: 'Resize bed', exact: true }).click();
-  await expect(page.locator('.room-tint-picker')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Size', exact: true }).click();
+  await page.getByRole('button', { name: 'Drag resize handle', exact: true }).click();
+  await expect(page.locator('[data-item-inspector]')).toHaveCount(0);
   await grip(page).locator('circle').click({ trial: true, timeout: 5000 });
   await page.screenshot({ path: info.outputPath('bed-original-compact-window.png') });
 });

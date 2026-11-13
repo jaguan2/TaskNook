@@ -1,3 +1,4 @@
+import DecorateToolbar from './components/DecorateToolbar';
 import { lazy, Suspense, useEffect, useState } from "react";
 import { CatalogModelStatus } from './components/IsoCatalogModel';
 import { AnimatePresence, motion } from "framer-motion";
@@ -127,6 +128,7 @@ export default function App() {
     moveIsoItem,
     removeIsoItem,
     rotateIsoItem,
+    duplicateIsoItem, undoRoomEdit, redoRoomEdit, canUndoRoomEdit, canRedoRoomEdit,
     resizeIsoItem,
     setIsoItemTint,
     setIsoItemDecor,
@@ -157,6 +159,8 @@ export default function App() {
   // item is clicked instead of being replaced by it.
   const [openPanels, setOpenPanels] = useState([]);
   const [frontKey, setFrontKey] = useState(null);
+  const [catalogRequest, setCatalogRequest] = useState(0);
+  const [catalogState, setCatalogState] = useState({ query: "", group: null });
   // Resolved once here and threaded down: the setting wins over the OS
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
@@ -241,6 +245,12 @@ export default function App() {
       return [...prev.filter((p) => p.pinned), { key, pinned: false }];
     });
     setFrontKey(key);
+  };
+  const openFurnitureCatalog = () => {
+    setCatalogRequest(value => value + 1);
+    setOpenPanels(previous => previous.some(panel => panel.key === 'room') ? previous
+      : [...previous.filter(panel => panel.pinned), { key: 'room', pinned: false }]);
+    setFrontKey('room');
   };
   const closePanel = (key) => setOpenPanels((prev) => prev.filter((p) => p.key !== key));
   const togglePin = (key) =>
@@ -425,7 +435,7 @@ export default function App() {
                 key="home"
                 size={homeScene.layout}
                 placements={homeScene.layout.placements}
-                editMode={roomEditMode}
+                editMode={roomEditMode && !widgetMode}
                 timeOfDay={timeOfDay}
                 weather={weatherMode}
                 highlightId={lastIsoAddedId}
@@ -438,6 +448,9 @@ export default function App() {
                 onRemoveItem={removeIsoItem}
                 onRotateItem={rotateIsoItem}
                 onResizeItem={resizeIsoItem}
+                onDuplicateItem={duplicateIsoItem}
+                onUndo={undoRoomEdit}
+                onRedo={redoRoomEdit}
                 onTintItem={setIsoItemTint}
                 onDecorItem={setIsoItemDecor}
                 onToggleItem={toggleIsoItem}
@@ -455,7 +468,7 @@ export default function App() {
                 timeOfDay={timeOfDay}
                 setting={cottageView}
                 room={roomPlacements}
-                editMode={roomEditMode}
+                editMode={roomEditMode && !widgetMode}
                 onMoveItem={moveRoomItem}
                 onDuplicateItem={duplicateRoomItem}
                 onRemoveItem={removeRoomItem}
@@ -541,25 +554,15 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Decorating chip: visible whenever edit mode is on, so there's always
-          a way out even with the Room panel closed. */}
+      {/* Editor controls keep a labelled exit and recovery actions visible. */}
       <AnimatePresence>
-        {roomEditMode && (
-          <motion.button
-            initial={{ y: 24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
-            onClick={() => setRoomEditMode(false)}
-            className="room-action-chip pill glass absolute z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10"
-          >
-            {/* The chip doubles as the cheat-sheet for the mode's hidden keys —
-                ⌫ only works in the iso scene (the flat one has per-item ✕). */}
-            <Sofa size={15} className="shrink-0" />
-            {isoPreview
-              ? "Decorating — drag items · ⌫ removes · Esc or click to finish"
-              : "Decorating — drag items · Esc or click to finish"}
-          </motion.button>
-        )}
+        {roomEditMode && !widgetMode && !visiting && !commonRoom && (isoPreview ? <DecorateToolbar
+          onBrowse={openFurnitureCatalog} onDone={() => setRoomEditMode(false)}
+          onUndo={undoRoomEdit} onRedo={redoRoomEdit} canUndo={canUndoRoomEdit} canRedo={canRedoRoomEdit} /> :
+          <motion.button initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
+            onClick={() => setRoomEditMode(false)} className="room-action-chip pill glass absolute z-30 flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-glow shadow-soft hover:bg-white/10">
+            <Sofa size={15} /> Done decorating
+          </motion.button>)}
       </AnimatePresence>
 
       {/* The bottom-right rail is fixed in the same lane as a newly-opened
@@ -630,7 +633,11 @@ export default function App() {
               <Suspense
                 fallback={<p className="px-1 py-4 text-xs text-petal/40">{t("common.opening", undefined, "Opening…")}</p>}
               >
-                <Def.Comp />
+                <Def.Comp {...(key === 'room' ? {
+                  catalogRequest,
+                  catalogState, onCatalogState: setCatalogState,
+                  onItemPlaced: () => closePanel('room'),
+                } : {})} />
               </Suspense>
             </Drawer>
           );

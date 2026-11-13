@@ -149,6 +149,7 @@ test('real model hit targets, recoloring and light switches preserve the saved r
   const seat = page.locator('[data-placement-id="seat"] [data-catalog-model]');
   await seat.locator('[data-model-hit-shape]').click();
   const before = await hash('[data-placement-id="seat"] image');
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   await page.getByPlaceholder('#rrggbb', { exact: true }).fill('#c78d65');
   await expect(seat).toHaveAttribute('data-model-color', '#c78d65');
   await expect(seat).toHaveAttribute('data-model-source', 'glb');
