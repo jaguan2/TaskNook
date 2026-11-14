@@ -60,7 +60,16 @@ test('one bed has independent saved material colours, including its sleeping cov
   await ready(page);
   const originalBed = await imageDigest(model('two'));
   await clickPaintedItem(page, model('one'));
-  const customizer = page.locator('.room-tint-picker');
+  await expect(page.locator('[data-item-inspector]')).toHaveCount(0);
+  const enterDecorate = async () => {
+    await page.getByRole('button', { name: 'Room', exact: true }).click();
+    await page.getByRole('button', { name: /Decorate the room/ }).click();
+    await page.locator('.app-drawer').getByRole('button', { name: /^Close/ }).click();
+  };
+  await enterDecorate();
+  await clickPaintedItem(page, model('one'));
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
+  const customizer = page.locator('[data-item-inspector]');
   for (const [part, label, hex] of [
     ['frame', 'Frame', '#885533'], ['sheets', 'Sheets', '#d8b8a8'],
     ['pillows', 'Pillows', '#d891a9'], ['main', 'Blanket', '#506b9c'],
@@ -88,22 +97,25 @@ test('one bed has independent saved material colours, including its sleeping cov
   expect(await imageDigest(model('two'))).toBe(originalBed);
 
   // Keyboard access uses the same item customizer as a pointer click.
+  await enterDecorate();
   await page.locator('[data-placement-id="one"]').focus();
   await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   await page.getByRole('combobox', { name: 'Furniture part' }).selectOption('pillows');
   await expect(page.getByRole('textbox', { name: 'Pillows colour hex' })).toHaveValue('#d891a9');
   await page.getByRole('button', { name: 'Reset pillows colour' }).click();
   await expect.poll(async () => (await savedRoom()).placements.find(p => p.id === 'one').colors)
     .toEqual({ frame: '#885533', sheets: '#d8b8a8' });
-  await page.getByRole('button', { name: 'Close item customizer' }).click();
+  await page.getByRole('button', { name: 'Deselect furniture' }).click();
 
   await clickPaintedItem(page, model('chair'));
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   const chairBefore = await imageDigest(model('chair'));
   await page.getByRole('textbox', { name: 'Finish colour hex' }).fill('#b385b8');
   await ready(page);
   expect(await imageDigest(model('chair'))).not.toBe(chairBefore);
   await expect.poll(async () => (await savedRoom()).placements.find(p => p.id === 'chair').tint).toBe('#b385b8');
-  await page.getByRole('button', { name: 'Close item customizer' }).click();
+  await page.getByRole('button', { name: 'Deselect furniture' }).click();
   await expect(customizer).toHaveCount(0);
 
   // The occupied bed's foreground cover survives saving and reload as well.
@@ -112,17 +124,16 @@ test('one bed has independent saved material colours, including its sleeping cov
   await ready(page);
   await page.screenshot({ path: testInfo.outputPath('occupied-material-colors.png') });
 
+  await enterDecorate();
   await page.setViewportSize({ width: 390, height: 720 });
   await page.locator('[data-placement-id="one"]').focus();
   await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Colours', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Furniture part' })).toBeVisible();
   const bounds = await customizer.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(720);
-  const reset = await page.getByRole('button', { name: 'Reset blanket colour' }).boundingBox();
-  const close = await page.getByRole('button', { name: 'Close item customizer' }).boundingBox();
-  expect(close.x).toBeGreaterThanOrEqual(reset.x + reset.width);
   await page.screenshot({ path: testInfo.outputPath('bed-colors-small-window.png') });
   await page.setViewportSize({ width: 320, height: 360 });
   const compact = await customizer.boundingBox();
@@ -133,6 +144,6 @@ test('one bed has independent saved material colours, including its sleeping cov
   await page.screenshot({ path: testInfo.outputPath('bed-colors-compact-window.png') });
   // A box inside the viewport can still be covered by the timer/HUD.
   // Pointer actionability verifies the actual compact-window stacking order.
-  await page.getByRole('button', { name: 'Close item customizer' }).click();
+  await page.getByRole('button', { name: 'Deselect furniture' }).click();
   await expect(customizer).toHaveCount(0);
 });

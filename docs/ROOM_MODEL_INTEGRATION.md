@@ -93,7 +93,7 @@ See the [asset ledger](CATALOG_3D_MIGRATION.md),
 
 ## Shelf and composition refinement
 
-Click a shelf at home to open its item customizer, or select it while decorating. Choose original contents, books, plants, mixed or open shelves. Finish colour remains independent; book colours apply to the chosen shelf. Escape/Close dismiss the controls. A drag beginning on the shelf still pans outside edit mode. Visiting provides no customization callback and cannot write these choices.
+Enter Decorate, select a shelf and choose Colours to edit its contents. Choose original contents, books, plants, mixed or open shelves. Finish colour remains independent; book colours apply to the chosen shelf. Deselect or Done dismisses the controls. Outside Decorate, a shelf click opens no editing controls and a drag pans the room. Visiting provides no customization callback and cannot write these choices.
 
 `decor: { layout?, bookColor? }` is optional placement data. `shelfDecor.js` normalizes it, the room store writes through its existing save path, and the backend bounds the fields and allowed shelf keys. No database migration or save reset is needed. Preset thumbnails forward the same data. Missing decor keeps the original authored arrangement.
 
@@ -119,7 +119,7 @@ The subsequent [personal-room composition pass](ROOM_LAYOUT_COMPOSITION.md) cons
 
 ## Furniture colours
 
-A chair, sofa or bed remains one catalog item. At home, click a paintable piece or focus it and press Enter/Space to open its colour controls; dragging it still pans outside Decorate. Powered decorations retain their click-to-toggle behavior and can be recoloured in Decorate. Visitors and common places do not receive home customization callbacks.
+A chair, sofa or bed remains one catalog item. Enter Decorate, select a paintable piece by pointer or Enter/Space, then choose Colours. Outside Decorate, furniture clicks open no editing controls and dragging pans the room. Powered decorations retain their click-to-toggle behavior and can be recoloured in Decorate. Visitors and common places do not receive home customization callbacks.
 
 Beds offer a Part selector for Blanket, Frame, Sheets and Pillows. Each part uses the existing swatches, hex field and H/S/L sliders. Classic resets the selected part independently. The blanket keeps the existing `tint`; optional `colors: { frame?, sheets?, pillows? }` holds the other choices. Legacy beds retain their colours, and the room JSON needs no schema migration. Choices belong to the placed bed, so two copies can look different.
 
@@ -226,3 +226,91 @@ The [interaction workflow](#decorate-interaction-workflow) is implemented and do
 Verification: 1,619 frontend tests pass (one gated generator skipped), followed by a passing rerun of 49 gesture tests after the final pointer-capture change. Lint/build and 44 packaging/checkout checks pass. The full browser run passed 40 of 41 scenarios; one existing recolouring test still expected immediate colour fields after selection. It now opens Colours explicitly. The final build passes all six targeted model/editor/bed scenarios, including actual clicks at 890×650, 390×720 and 320×360 and inspector/toolbar bounds. Together these runs cover all 41 browser scenarios. Initial new-test material selectors and a narrow toolbar overlap were corrected during verification; no production rebuild ran during a browser suite.
 
 Main-channel build `26ec199aa16e41499d09eb78abf47996` matches the embedded/source identity and update manifest and passes the isolated frozen self-test with exit 0. The executable is 49,358,958 bytes with SHA-256 `53c441818b786dae3a029fc5b92ef207d4100f473d92a9eca25bc787fee3da26`. Documentation checks resolve 518 local links and decode 67 unique referenced raster images. Evidence is ignored under `build/skill-verification/decorate-ux/`; owned disposable databases, raw browser output directories, helper scripts and the generated root packaging spec are removed after review. No commit or push was performed.
+
+## Screen, chair and pet proportions; explicit editing — 2026-11-13
+
+The folding screen now forms a connected three-leaf accordion. Each linen panel
+starts at the previous panel's edge, with shared brass hinge pins, slim timber
+stiles and grounded feet. Its footprint stays 1.6×0.4 tiles. Joint probes test
+actual interior contact between hinges and both adjacent stiles.
+
+Wooden and desk-chair backs are shorter: total heights are 36px and 40px,
+respectively. Their seat layers are thinner, with fitted supports and legs.
+Physical seat anchors remain 19px and 24px, so the existing seated characters
+retain their cushion contact. These are production GLB changes; the older SVG
+furniture remains the supported graphics-failure fallback.
+
+Cats render 20% smaller and rabbits 24% smaller through the shared
+`PET_DISPLAY_SCALE` constant. Contact shadows use the same factor. Saved adult
+sizes, body forms, growth timing, ground anchors and placement footprints keep
+their existing meaning. Source comparison sheets and the separate Blender pet
+pilots were regenerated from the smaller live drawings. See the
+[pet review](CHARACTER_PET_REVIEW.md#november-13-smaller-cats-and-rabbits).
+
+Furniture customization now requires explicit Decorate mode. `IsoRoom` gates
+both the customization callback and its selection/keyboard path on `editMode`;
+ordinary clicks cannot open a colour picker or inspector. Lights still toggle,
+pets/people can still be carried, and dragging pans outside editing. In
+Decorate, selection, Colours, shelf contents, rotation and resizing retain their
+existing controls and save path. Leaving Decorate removes editing controls.
+
+Verification passes 1,639 frontend tests (one gated generator skipped), frontend
+lint/build and all 823 workshop tests. The catalog and furniture-colour browser
+scenarios pass, including saved shelf/bed choices, ordinary click/pan behavior,
+keyboard access and 390px/320px windows. Workshop QA passes 216 affected-section
+colour/view checks; pet QA covers 27 age/form combinations, 12 pose views and
+162 comparison bounds. A real-room fixture was inspected at all four furniture
+rotations with occupied chairs and all three species. These are sampled visual
+checks. The shared review toolkit is unavailable; structural self-review follows
+the local project boundaries.
+
+The existing seating/decoration and cat/rabbit review images, Loft gallery and
+captures 60–61 are refreshed. The capture script enters Decorate explicitly.
+Evidence stays ignored under `build/skill-verification/room-refinements/`;
+temporary capture helpers, disposable databases and raw test outputs are removed
+after review.
+
+Main-channel build `2e30909ad1c14792bfa8b51d96fceb14` matches its source, embedded
+bundle and update manifest and passes the isolated frozen self-test with exit 0.
+The executable is 49,365,713 bytes with SHA-256
+`4c2798c2e205b4afead78df2baf6681451e61d7eba168d5925684af26d36323a`.
+
+## Chair base correction — 2026-11-13
+
+The earlier pass shortened chair backs and thinned their seat layers while
+retaining seat height. The requested correction lowers the bases themselves:
+wooden chair seat 19→17px and desk-chair seat 24→21px. Total model heights become
+34px and 37px. The existing builders shorten the timber legs and caster pedestal
+from the catalog seat value; the backrest above each cushion retains its size.
+Footprints, caster spread, saved placements and the thin seat layers are preserved.
+
+`ISO_ITEMS` owns the physical seat heights. GLB contact metadata and the retained
+SVG fallback consume them. Common places now derive occupant height from their
+supporting furniture instead of duplicating heights in authored seat slots.
+Home/visit seating already uses this catalog contract; workstation hand targets
+include the lower hip height and keep the keyboard at the unchanged desk height.
+No saved-room migration or preset reapplication is needed for this model revision.
+
+The workshop's current contact fixtures were regenerated for all required heights;
+obsolete 24px fixtures are removed by the existing generator. Source comparisons
+and the seating review sheet are refreshed, as are the Loft, Common Cottage,
+Willow Pond and Grand Library screenshots. The separate resident mesh pilot keeps
+its existing fixed 19px calibration; its production comparison fingerprint is
+refreshed without changing the pilot mesh or clips.
+
+Verification passes 1,643 frontend tests (one gated generator skipped), lint/build,
+all 823 workshop tests, 117 seating colour/view checks and 14 browser scenarios
+covering live models, resident carrying and common-room loading/seating. Visual
+review includes occupied desk chairs and the lower dining chairs in the actual
+rooms. The first workshop run identified stale generated contact/source fixtures
+and restricted loopback access; regenerated fixtures and the loopback-enabled
+recheck pass. Structural self-review follows the local project boundaries; the
+separately installed shared toolkit remains unavailable. Verification evidence
+stays ignored under `build/skill-verification/chair-base/`; disposable databases,
+capture helpers and raw test output are removed after review.
+
+Installed November 14 after the running app released the executable lock:
+main-channel build `508059f752fd42cab7e7142d5dfa7016`, 49,367,122 bytes, SHA-256
+`7effecc15a3508df8a3a1015198096d4cdeb1598d8fd22fce30d7ee49b99d9ed`.
+Its embedded identity, source fingerprint and all 234 bundled files match, and
+the installed executable passes its isolated frozen self-test with exit 0.

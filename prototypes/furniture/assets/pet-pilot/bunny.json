@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "species": "bunny",
+  "status": "workshop pilot",
+  "authoringTool": "4.5.16 LTS",
+  "source": "bunny.blend",
+  "model": "bunny.glb",
+  "sourceSha256": "f25523176be211edc3dd24e15ac142fefe71cbd321b7717f3a18e4a2b7b52ba0",
+  "modelSha256": "757c62630086237ea465a86a0739409d0d0fc2fb225a10e3b05a457d31070586",
+  "clips": [
+    "Idle",
+    "Walk",
+    "Rest"
+  ],
+  "morphTargets": [
+    "Slender",
+    "Round"
+  ],
+  "forward": "+X",
+  "productionEnabled": false
+}

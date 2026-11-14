@@ -31,7 +31,7 @@ import { useNpcActivity } from "../hooks/useNpcActivity";
 import { useIsoCamera } from "../hooks/useIsoCamera";
 import { overSoftSpot, usePetRoaming } from "../hooks/usePetRoaming";
 import { usePetGrowthClock } from "../hooks/usePetGrowthClock";
-import { petAppearance } from "../lib/pets";
+import { PET_DISPLAY_SCALE, petAppearance } from "../lib/pets";
 import { isTypingTarget } from "../lib/typing";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoCatalogModel, { hasCatalogModel } from './IsoCatalogModel';
@@ -41,7 +41,6 @@ import FloorSurface, { floorClipRuns } from "./IsoFloorSurface";
 import PartitionWall from "./PartitionWall";
 import PersonaNameTag from "./PersonaNameTag";
 import { levelFor } from "../lib/friendship";
-import RoomTintPicker from "./RoomTintPicker";
 import IsoAtmosphere from "./IsoAtmosphere";
 import IsoContactShadow from "./IsoContactShadow";
 import IsoCarryOverlay from "./IsoCarryOverlay";
@@ -49,11 +48,6 @@ import { orderWorkstationSeats, resolveWorkstations, seatedWorkTarget } from "..
 import { furnitureDimensions, RESIZABLE_FURNITURE } from '../lib/furnitureDimensions';
 import { useFurnitureResize } from '../hooks/useFurnitureResize';
 import IsoResizeHandles from './IsoResizeHandles';
-
-function canCustomizeFurniture(key) {
-  const item = ISO_ITEMS[key];
-  return item && item.tintable !== false && !item.persona && !item.roamer && !item.toggleable;
-}
 
 // The interactive isometric room: a resizable W×D tile floor whose
 // items are dragged ON the grid with half-tile snapping. Same engine shape as
@@ -197,7 +191,7 @@ const PlacedItem = memo(function PlacedItem({
   const item = ISO_ITEMS[p.item];
   const Sprite = ISO_SPRITES[p.item];
   const at = project(p.gx, p.gy);
-  const customizable = !!onCustomizeItem && canCustomizeFurniture(p.item);
+  const customizable = editMode && !!onCustomizeItem;
   const persona = !!item?.persona;
   const glides = persona || !!item?.roamer;
   // Before the early return — a hook must run on every render.
@@ -288,7 +282,7 @@ const PlacedItem = memo(function PlacedItem({
           (flat rugs/ponds and wall decor obviously except). */}
       {!item.wall && (item.layer || 0) >= 0 && !p._seat && !p._rest &&
         <IsoContactShadow foot={foot} height={item.hitH}
-          scale={item.roamer ? petAppearance(p, petNow).scale : 1} />}
+          scale={item.roamer ? petAppearance(p, petNow).scale * (PET_DISPLAY_SCALE[p.item] || 1) : 1} />}
       {/* Mirroring about the origin is a grid TRANSPOSE — the item
           faces the other wall and its footprint swaps to match.
           GLBs own their orientation in the model renderer. Apply this SVG
@@ -1175,9 +1169,10 @@ function IsoRoom({
   const [selectedId, setSelectedId] = useState(null);
   const [inspectorMode, setInspectorMode] = useState("place");
   const customizeItem = useCallback(id => {
+    if (!editMode) return;
     setInspectorMode("place");
     setSelectedId(id);
-  }, []);
+  }, [editMode]);
   const walkRef = useRef(null);
   // A powered decoration toggles only when the pointer is released without
   // becoming a pan. Pointer-down is too early: touch users commonly begin a
@@ -1271,11 +1266,6 @@ function IsoRoom({
   const onStartDrag = useCallback(
     (placement, e) => {
       if (!editMode) {
-        if (onTintItem && canCustomizeFurniture(placement.item)) {
-          pointerOnItemRef.current = true;
-          toggleRef.current = { id: placement.id, customize: true, clientX: e.clientX, clientY: e.clientY };
-          return;
-        }
         if (ISO_ITEMS[placement.item]?.toggleable && onToggleItem) {
           pointerOnItemRef.current = true;
           toggleRef.current = {
@@ -1335,7 +1325,7 @@ function IsoRoom({
       customizeItem(placement.id);
       startMove(placement, e);
     },
-    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, onTintItem, svgRef, customizeItem, startMove]
+    [editMode, cx, cy, walkId, walkPersonas, onWalkTo, onToggleItem, svgRef, customizeItem, startMove]
   );
   const onClearSelect = useCallback(() => setSelectedId(null), []);
 
@@ -1408,8 +1398,7 @@ function IsoRoom({
       e?.type === "pointerup" &&
       Math.hypot(e.clientX - toggle.clientX, e.clientY - toggle.clientY) < 6;
     if (toggleClick) {
-      if (toggle.customize) customizeItem(toggle.id);
-      else onToggleItem?.(toggle.id);
+      onToggleItem?.(toggle.id);
       // A tiny hand wobble within the click threshold is not a camera move.
       cancelPan();
       return;
@@ -1470,7 +1459,7 @@ function IsoRoom({
           cx={cx}
           cy={cy}
           onStartDrag={onStartDrag}
-          onCustomizeItem={editMode || onTintItem ? customizeItem : undefined}
+          onCustomizeItem={editMode ? customizeItem : undefined}
           onRotateItem={onRotateItem}
           onStartResize={onResizeItem ? resize.start : undefined}
           onResizeKeyDown={resize.keyboard}
@@ -1513,11 +1502,6 @@ function IsoRoom({
         onTint={onTintItem} onDecor={onDecorItem} onResize={onResizeItem}
         onDragResize={() => { setInspectorMode('hidden'); svgRef.current?.querySelector('[data-resize-item]')?.focus(); }}
         onClose={() => setSelectedId(null)} />}
-      {selectedRaw && !editMode &&
-        (ISO_ITEMS[selectedRaw.item]?.tintable !== false || ISO_ITEMS[selectedRaw.item]?.variants) && <RoomTintPicker
-          placement={selectedRaw} item={{ ...ISO_ITEMS[selectedRaw.item], defaultColor: CATALOG_MODELS[selectedRaw.item]?.defaultColor }} onTint={onTintItem} onDecor={onDecorItem}
-          onClose={() => setSelectedId(null)} />}
-
     </div>
   );
 }

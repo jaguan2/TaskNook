@@ -9,6 +9,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 header { height: 82px; padding: 0 42px; border-bottom: 1px solid #ffffff0d; display: flex; align-items: center; justify-content: space-between; }
 .brand { text-decoration: none; font: 24px Georgia, serif; }
 .brand span { color: #afa3af; font: 13px 'Segoe UI', sans-serif; margin-left: 10px; }
+.pilot-links { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; }
+@media (max-width: 1000px) { header>.badge { display: none; } }
+@media (max-width: 680px) { header { flex-wrap: wrap; gap: 12px; } }
 .badge, .eyebrow { letter-spacing: .16em; font-size: 10px; font-weight: 600; color: #b4a6aa; }
 .badge { border: 1px solid #ffffff1c; border-radius: 30px; padding: 9px 14px; letter-spacing: .05em; }
 main { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 40px; padding: 42px; max-width: 1720px; margin: auto; }

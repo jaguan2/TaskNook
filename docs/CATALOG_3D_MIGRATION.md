@@ -36,8 +36,8 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 | --- | --- | ---: | ---: |
 | [Sofa](../prototypes/furniture/assets/sofa.glb) | sofa | 13,320 | 269,164 |
 | [Armchair](../prototypes/furniture/assets/armchair.glb) | armchair | 9,672 | 201,692 |
-| [Wooden chair](../prototypes/furniture/assets/chair.glb) | chair | 3,972 | 115,500 |
-| [Desk chair](../prototypes/furniture/assets/deskchair.glb) | deskchair | 5,980 | 164,876 |
+| [Wooden chair](../prototypes/furniture/assets/chair.glb) | chair | 3,972 | 115,496 |
+| [Desk chair](../prototypes/furniture/assets/deskchair.glb) | deskchair | 5,980 | 164,872 |
 | [Stool](../prototypes/furniture/assets/stool.glb) | stool | 576 | 12,124 |
 | [Wooden stool](../prototypes/furniture/assets/woodstool.glb) | woodstool | 544 | 41,000 |
 | [Beanbag](../prototypes/furniture/assets/beanbag.glb) | beanbag | 1,824 | 34,576 |
@@ -139,7 +139,7 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 | --- | --- | ---: | ---: |
 | [Upright piano](../prototypes/furniture/assets/piano.glb) | piano | 5,292 | 226,032 |
 | [Easel](../prototypes/furniture/assets/easel.glb) | easel | 968 | 50,132 |
-| [Folding screen](../prototypes/furniture/assets/screen.glb) | screen | 2,592 | 111,380 |
+| [Folding screen](../prototypes/furniture/assets/screen.glb) | screen | 3,108 | 142,172 |
 | [Birdcage](../prototypes/furniture/assets/birdcage.glb) | birdcage | 7,992 | 180,192 |
 | [Standing mirror](../prototypes/furniture/assets/standmirror.glb) | standmirror | 972 | 42,204 |
 | [Aquarium](../prototypes/furniture/assets/aquarium.glb) | aquarium | 2,796 | 122,464 |

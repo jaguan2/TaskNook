@@ -174,6 +174,14 @@ full rear silhouette inside the head group so recolours and gestures stay
 attached. Hatted views still use the separate length under the hat.
 ## Focused pet and resident review
 
+For the complete wardrobe fit sample, run `npm.cmd run qa:wardrobe` from
+`prototypes/furniture/`. It renders every clothing/hair option at compact and
+broad body sizes, front/profile/rear and two seated poses, plus every cut with
+a beanie/headphones. Browser geometry checks guard the curly/afro face openings;
+inspect the generated images as well. See the [coverage and 3D fitting notes](WARDROBE_FIT_REVIEW.md).
+Coily styles use `compactUnderHat` to compress their crown beneath replacing
+headwear; long falls remain unconstrained below the hat.
+
 After installing the frontend and standalone workshop dependencies, run
 `npm.cmd run qa:source-art` from `prototypes/furniture/`. It regenerates the
 production art and checks all three pet growth stages, body forms and five poses

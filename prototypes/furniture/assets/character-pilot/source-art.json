@@ -1,0 +1,41 @@
+{
+  "sourceFingerprint": "bb131578f29c4f606c2a58855227e01959f42f5436b74a5e1915d5c3d86617e6",
+  "character": {
+    "model": "masc",
+    "skin": "#edc39e",
+    "hair": "short",
+    "hairColor": "#3a3142",
+    "outfit": "#7faf8f",
+    "garment": "sweater",
+    "coat": "none",
+    "coatColor": "#8a5346",
+    "inner": "#f2e9dd",
+    "trouser": "#4a3a5b",
+    "pants": "trousers",
+    "shoes": "sneakers",
+    "shoeColor": "#2b2350",
+    "hat": "none",
+    "scarf": "none",
+    "scarfColor": "#8e3a3f",
+    "glasses": "none",
+    "print": "none",
+    "expression": "calm",
+    "eyeColor": "#3a3142",
+    "eyeX": 3.3,
+    "eyeY": 2,
+    "seatPose": "relaxed",
+    "build": "average",
+    "width": 6.8,
+    "shoulders": -0.6,
+    "height": 29,
+    "torso": 17
+  },
+  "viewBox": [
+    -48,
+    -64,
+    96,
+    88
+  ],
+  "seatHeight": 19,
+  "motion": "Static comparison frames; production CSS animation is not embedded."
+}

@@ -17,6 +17,12 @@ accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
+The [room loading screen](67-room-loading.webp) and its
+[390px composition](67-room-loading-small.webp) are captured by
+`e2e/room-loading.spec.mjs` at 1440×900 and 390×720. The test holds a real Library
+asset while the app reports preparation progress, then verifies entry,
+cancellation and reuse. See [the loading approach and measurements](../COMMON_ROOMS.md#loading-a-place--november-13-2026).
+
 Refreshed November 12, 2026 from the current built app and an isolated capture
 database, including the README hero, furnished rooms, catalog pickers and
 character closeups. Isometric furniture now comes from the actual GLBs, composed
@@ -57,13 +63,13 @@ accents without forcing all of them into the Autumn yard preset.
 
 ## Furniture colours
 
-Click a chair, sofa or bed at home to recolour that placed item. Beds have independent Blanket, Frame, Sheets and Pillows choices using the same colour controls. The catalog still has one bed entry; its saved copies can use different finishes. Classic resets the selected part. See [colour storage and rendering](../ROOM_MODEL_INTEGRATION.md#furniture-colours).
+Enter Decorate, select a chair, sofa or bed and choose Colours to recolour that placed item. Beds have independent Blanket, Frame, Sheets and Pillows choices using the same colour controls. The catalog still has one bed entry; its saved copies can use different finishes. Classic resets the selected part. See [colour storage and rendering](../ROOM_MODEL_INTEGRATION.md#furniture-colours).
 
 ![Independent bed colours](61-furniture-colors.webp)
 
 ## Shelf customization
 
-Click a shelf at home to change its contents and book colours independently of its finish. Bookshelves, bookcases, open shelves, ladders, wall shelves and plant racks support original, books, plants, mixed and open arrangements. Each placement saves its own choices.
+In Decorate, select a shelf and choose Colours to change its contents and book colours independently of its finish. Bookshelves, bookcases, open shelves, ladders, wall shelves and plant racks support original, books, plants, mixed and open arrangements. Each placement saves its own choices. Ordinary room clicks leave editing closed.
 
 ![Shelf customization](60-shelf-customization.webp)
 
@@ -108,6 +114,16 @@ seated poses.
 | ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 
 ## Friends & visiting
+
+Click a neighbour's name or avatar to open their profile, including birthday,
+gender/pronouns, their joined date, interests and daily/weekly focus totals.
+Only one profile opens at a time. Close or Escape returns to its trigger; Chat
+and Visit remain separate actions. Character facts stay consistent across reloads.
+See [the implementation and verification notes](../CODEBASE_GUIDE.md#following-a-neighbour-profile).
+
+| | |
+|---|---|
+| ![Neighbour profile](68-friend-profile.webp) **Neighbour profile** — character details and the same study totals used elsewhere. | ![Profile on a small screen](68-friend-profile-small.webp) **Touch layout** — the existing drawer scrolls to the expanded profile. |
 
 | | |
 |---|---|

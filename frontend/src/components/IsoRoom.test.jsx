@@ -17,6 +17,33 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('keeps furniture customization inside Decorate mode, including after leaving a selected item', () => {
+  const onTintItem = vi.fn(), onDecorItem = vi.fn(), onMoveItem = vi.fn(), onResizeItem = vi.fn();
+  const props = { size: { w: 8, d: 8 }, placements: [{ id: 'shelf', item: 'bookshelf', gx: 2, gy: 2 }],
+    onTintItem, onDecorItem, onMoveItem, onResizeItem, saveView: false };
+  const { container, rerender } = render(<IsoRoom {...props} />);
+  const shelf = () => container.querySelector('[data-placement-id="shelf"]');
+  expect(shelf().hasAttribute('tabindex')).toBe(false);
+  expect(shelf().hasAttribute('role')).toBe(false);
+  fireEvent.pointerDown(shelf(), { pointerId: 1, clientX: 80, clientY: 80 });
+  fireEvent.pointerUp(container.querySelector('svg'), { pointerId: 1, clientX: 80, clientY: 80 });
+  fireEvent.keyDown(shelf(), { key: 'Enter' });
+  expect(container.querySelector('.room-tint-picker')).toBeNull();
+  expect(container.querySelector('[data-item-inspector]')).toBeNull();
+  expect(onTintItem).not.toHaveBeenCalled();
+  expect(onDecorItem).not.toHaveBeenCalled();
+  expect(onMoveItem).not.toHaveBeenCalled();
+  expect(onResizeItem).not.toHaveBeenCalled();
+
+  rerender(<IsoRoom {...props} editMode />);
+  fireEvent.keyDown(shelf(), { key: 'Enter' });
+  expect(container.querySelector('[data-item-inspector]')).not.toBeNull();
+  rerender(<IsoRoom {...props} editMode={false} />);
+  expect(container.querySelector('[data-item-inspector]')).toBeNull();
+  expect(container.querySelector('.room-tint-picker')).toBeNull();
+  expect(shelf().hasAttribute('tabindex')).toBe(false);
+});
+
 it('exposes labelled edit tools and shortcuts while keeping colour-input keys local', () => {
   const onRotateItem = vi.fn(), onDuplicateItem = vi.fn(), onMoveItem = vi.fn(), onRemoveItem = vi.fn(), onUndo = vi.fn(), onRedo = vi.fn();
   const { container, getByRole } = render(<IsoRoom size={{ w: 8, d: 8 }}

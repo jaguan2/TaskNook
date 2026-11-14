@@ -639,47 +639,47 @@
       "label": "Wooden chair",
       "width": 0.7,
       "depth": 0.7,
-      "height": 1.1785113019775793,
-      "controlHeight": 46,
-      "seat": 0.5597928684393502,
+      "height": 1.0017346066809425,
+      "controlHeight": 44,
+      "seat": 0.5008673033404712,
       "backView": true,
       "section": "seating-beds",
       "colorRole": "upholstery",
       "defaultColor": "#8baba0",
       "description": "Splayed timber legs, joined stretchers, a padded seat and a framed upholstered back.",
       "contact": {
-        "seatHeight": 19,
+        "seatHeight": 17,
         "x": 0,
         "z": 0.335
       },
       "file": "chair.glb",
-      "bytes": 115500,
+      "bytes": 115496,
       "triangles": 3972,
       "meshes": 12,
-      "sha256": "99cacf7791c6f47618df60f3638f642d44735e84953dd54df13d52c7e6b4ab8f"
+      "sha256": "f429df2fc3415ca360172dae610db499b1c340a2236e111ecaaf74afedc2cc7f"
     },
     "deskchair": {
       "label": "Desk chair",
       "width": 0.8,
       "depth": 0.8,
-      "height": 1.2963624321753373,
-      "controlHeight": 50,
-      "seat": 0.7071067811865476,
+      "height": 1.0901229543292608,
+      "controlHeight": 47,
+      "seat": 0.6187184335382291,
       "backView": true,
       "section": "seating-beds",
       "colorRole": "upholstery",
       "defaultColor": "#8baba0",
       "description": "Five casters connect to a hub and stem, with a supported seat and a shaped padded back.",
       "contact": {
-        "seatHeight": 24,
+        "seatHeight": 21,
         "x": 0,
         "z": 0.34
       },
       "file": "deskchair.glb",
-      "bytes": 164876,
+      "bytes": 164872,
       "triangles": 5980,
       "meshes": 18,
-      "sha256": "3f0f9e818ff94643c8ce6866c030d5530671b4b7ca552524b87d9f318d5d06e4"
+      "sha256": "0a9bf0d79941bcf363103d81a52fdf1163de1715b8785aae0ef46fd7769cf587"
     },
     "stool": {
       "label": "Stool",
@@ -2056,12 +2056,12 @@
       "section": "decoration",
       "colorRole": "screen-frame",
       "defaultColor": "#a48a67",
-      "description": "Three angled timber frames contain inset cloth and supported lattice rails.",
+      "description": "Three alternating linen panels meet at shared brass hinges, with slim timber frames and grounded feet.",
       "file": "screen.glb",
-      "bytes": 111380,
-      "triangles": 2592,
-      "meshes": 24,
-      "sha256": "cc8c75767c68b980c738d138e26138e133a2daa962a89c74e139b23918748f96"
+      "bytes": 142172,
+      "triangles": 3108,
+      "meshes": 31,
+      "sha256": "14cac2bccadcc341b7571ca53cbd8e8dae3228c1db358b25cdd19551058070c3"
     },
     "birdcage": {
       "label": "Birdcage",

@@ -4,6 +4,9 @@ export const PET_FORMS = [
   { key: "slender", label: "Slender" },
   { key: "round", label: "Round" },
 ];
+// Artwork scale only: saved adult size, growth timing and placement footprints
+// keep their existing meaning. Room shadows use the same species adjustment.
+export const PET_DISPLAY_SCALE = { cat: 0.8, dog: 1, bunny: 0.76 };
 export const PET_STAGES = [
   { key: "baby", label: "Baby", ageMs: 0, scale: 0.58, head: 1.22 },
   { key: "teen", label: "Teen", ageMs: 2 * 86_400_000, scale: 0.82, head: 1.08 },

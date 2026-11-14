@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seatedPlacement, surfaceFor } from "./isoRoom";
+import { ISO_ITEMS, seatedPlacement, surfaceFor } from "./isoRoom";
 import { resolveWorkstations, seatedWorkTarget } from "./workstations";
 
 describe("workstation equipment and physical contact", () => {
@@ -14,7 +14,7 @@ describe("workstation equipment and physical contact", () => {
   const computer = { id: "computer", item: "computer", gx: 0, gy: 2, rot: 1 };
   const chair = { id: "chair", item: "deskchair", gx: 1, gy: 2.5, rot: 3 };
   const person = { id: "person", item: "you", gx: 1, gy: 2.5 };
-  const seat = { placement: chair, height: 24, lie: false };
+  const seat = { placement: chair, height: ISO_ITEMS.deskchair.seat, lie: false };
 
   it("replaces only the desk equipment supported by the actual surface", () => {
     expect(resolveWorkstations([desk]).get("desk").equipped).toBe(false);
@@ -30,11 +30,11 @@ describe("workstation equipment and physical contact", () => {
     const seated = { ...person, ...seatedPlacement(person, seat) };
     const contact = seatedWorkTarget(seated, seat, resolveWorkstations([desk, computer]));
     // Independent world-space keyboard points: x=.77, y=2.53/2.81,
-    // 32px above floor, against hip centre(1.25,2.9) at height24.
+    // 32px above floor, against hip centre(1.25,2.9) at height21.
     expect(contact.hands[0].x).toBeCloseTo(2.64);
-    expect(contact.hands[0].y).toBeCloseTo(-18.2);
+    expect(contact.hands[0].y).toBeCloseTo(-21.2);
     expect(contact.hands[1].x).toBeCloseTo(9.36);
-    expect(contact.hands[1].y).toBeCloseTo(-14.84);
+    expect(contact.hands[1].y).toBeCloseTo(-17.84);
     expect(seated._seatRot).toBe(3);
     expect(person.rot).toBeUndefined(); // no stored placement mutation
   });

@@ -1,0 +1,29 @@
+:root { color-scheme: light; color: #423746; background: #eee8dd; font-family: system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+header { padding: 20px 4vw; display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid #cec4b6; font-size: 13px; }
+a { color: #4a6a59; text-underline-offset: 4px; }
+main { max-width: 1320px; margin: auto; padding: 28px 4vw 36px; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+h1 { font-family: Georgia, serif; font-weight: 400; font-size: clamp(28px, 4vw, 44px); margin: 8px 0; }
+h2 { font-size: 14px; font-weight: 600; margin: 16px 0 0; }
+p { font-size: 13px; line-height: 1.6; }
+.eyebrow { letter-spacing: .14em; font-size: 10px; color: #746775; }
+.toolbar, .materials, .views { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 22px 0; }
+label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+button, select { font: inherit; color: inherit; padding: 9px 13px; border: 1px solid #b8ad9f; background: #f8f3e9; border-radius: 18px; cursor: pointer; }
+button[aria-pressed="true"] { background: #536c5e; color: #fff8e9; border-color: #536c5e; }
+:focus-visible { outline: 3px solid #b87c3b; outline-offset: 4px; }
+button:disabled { opacity: .55; cursor: default; }
+.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.comparison section { min-width: 0; text-align: center; background: #e4dccf; border-radius: 20px; padding: 0 12px 6px; }
+.source-stage, #viewport { height: 370px; position: relative; }
+#source { width: 100%; height: 100%; object-fit: contain; }
+#viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#status { position: absolute; inset: 40% 0 auto; }
+#viewport[data-ready="true"] #status { display: none; }
+input[type="color"] { width: 36px; height: 30px; border: 0; padding: 0; background: transparent; cursor: pointer; }
+input[type="range"] { width: 110px; accent-color: #536c5e; }
+.scope { max-width: 850px; color: #716571; }
+body[data-native="true"] .source-stage, body[data-native="true"] #viewport { height: 88px; margin: 140px 0 142px; }
+@media (max-width: 650px) { header, .heading { align-items: flex-start; flex-direction: column; } .comparison { grid-template-columns: 1fr; } .source-stage, #viewport { height: 300px; } body[data-native="true"] .source-stage, body[data-native="true"] #viewport { margin: 100px 0; } }

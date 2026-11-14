@@ -699,6 +699,17 @@ body {
   animation: held-dangle 2.4s linear infinite;
 }
 
+/* Carried residents keep their knees/feet in one authored pose. A small sway
+   and lift belong to the whole figure; independent limb swings can pull boots
+   and hips apart. Pets retain their own dangling pose above. */
+@keyframes resident-held {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-0.65px) rotate(1.2deg); }
+}
+.resident-held {
+  animation: resident-held 3.2s ease-in-out infinite;
+}
+
 /* ---- idle gestures: the little things that make someone look ALIVE ----
    A person who only breathes is a mannequin that breathes. Every so often a
    resident yawns, stretches, glances around or rubs an eye.
@@ -1369,6 +1380,7 @@ body {
     .walk-arm-a,
     .walk-arm-b,
     .held-dangle,
+    .resident-held,
     .cat-breathe,
     .tail-flick,
     .flame-dance,

@@ -4,18 +4,18 @@ import { beam, bentTube, cushionGeometry, foot, joint, material, part, revolved,
 function woodenChair(root, spec) {
   const wood = material('frame', '#946b50'), cloth = material('upholstery', '#8baba0');
   const { seat, height } = spec;
-  const frame = rounded(root, 'underframe', [.61, .065, .60], [0, seat - .0915, 0], wood);
-  const pad = rounded(root, 'seat-cushion-1', [.60, .065, .58], [0, seat - .0325, .015], cloth, .03, true);
+  const frame = rounded(root, 'underframe', [.61, .045, .60], [0, seat - .066, 0], wood);
+  const pad = rounded(root, 'seat-cushion-1', [.60, .045, .58], [0, seat - .0225, .015], cloth, .02, true);
   // The soft crown is included in the physical seat anchor.
   pad.geometry.computeBoundingBox(); pad.position.y = seat - pad.geometry.boundingBox.max.y;
   for (const x of [-1, 1]) for (const z of [-1, 1]) {
-    const leg = splayedLeg(root, `chair-leg-${x}-${z}`, [x * .285, z * .275], [x * .235, z * .22], seat - .075, wood);
-    joint(root, leg, frame, [x * .236, seat - .085, z * .221]);
+    const leg = splayedLeg(root, `chair-leg-${x}-${z}`, [x * .285, z * .275], [x * .235, z * .22], seat - .055, wood);
+    joint(root, leg, frame, [x * .236, seat - .066, z * .221]);
   }
   for (const z of [-1, 1]) beam(root, `stretcher-${z}`, [-.27, .18, z * .26], [.27, .18, z * .26], .021, wood);
   for (const x of [-1, 1]) {
     const post = beam(root, `back-post-${x}`, [x * .235, seat - .11, -.22], [x * .235, height - .06, -.28], .032, wood);
-    joint(root, post, frame, [x * .235, seat - .09, -.222]);
+    joint(root, post, frame, [x * .235, seat - .066, -.222]);
   }
   const rail = rounded(root, 'framed-back', [.57, .23, .085], [0, height - .115, -.28], wood, .035);
   rounded(root, 'back-pad', [.43, .16, .035], [0, height - .12, -.23], cloth, .016);
@@ -26,7 +26,7 @@ function deskChair(root, spec) {
   const cloth = material('upholstery', '#8baba0'), metal = material('metal', '#706878'), rubber = material('rubber', '#393545');
   const { seat, height } = spec;
   const hub = part(root, 'caster-hub', new THREE.CylinderGeometry(.065, .075, .09, 16), metal, 0, .095, 0);
-  const stem = part(root, 'adjustable-stem', new THREE.CylinderGeometry(.027, .035, seat - .16, 12), metal, 0, (seat - .16) / 2 + .09, 0);
+  const stem = part(root, 'adjustable-stem', new THREE.CylinderGeometry(.027, .035, seat - .18, 12), metal, 0, (seat - .18) / 2 + .09, 0);
   joint(root, stem, hub, [0, .115, 0]);
   for (let i = 0; i < 5; i++) {
     const a = i / 5 * Math.PI * 2, x = Math.cos(a) * .30, z = Math.sin(a) * .30;
@@ -35,16 +35,16 @@ function deskChair(root, spec) {
     wheel.rotation.x = Math.PI / 2; wheel.rotation.z = -a;
     joint(root, spoke, hub, [x * .1, .102, z * .1]); joint(root, wheel, spoke, [x * .98, .0756, z * .98]);
   }
-  const base = rounded(root, 'seat-shell', [.66, .06, .64], [0, seat - .10, 0], metal, .026);
-  joint(root, stem, base, [0, seat - .08, 0]);
-  const socket = part(root, 'under-seat-socket', new THREE.CylinderGeometry(.07, .05, .055, 16), metal, 0, seat - .135, 0);
-  joint(root, socket, base, [0, seat - .12, 0]); joint(root, socket, stem, [0, seat - .14, 0]);
-  const pad = rounded(root, 'seat-cushion-1', [.64, .115, .62], [0, 0, 0], cloth, .05, true);
+  const base = rounded(root, 'seat-shell', [.66, .04, .64], [0, seat - .092, 0], metal, .018);
+  joint(root, stem, base, [0, seat - .10, 0]);
+  const socket = part(root, 'under-seat-socket', new THREE.CylinderGeometry(.06, .045, .05, 16), metal, 0, seat - .125, 0);
+  joint(root, socket, base, [0, seat - .107, 0]); joint(root, socket, stem, [0, seat - .135, 0]);
+  const pad = rounded(root, 'seat-cushion-1', [.64, .075, .62], [0, 0, 0], cloth, .035, true);
   pad.geometry.computeBoundingBox(); pad.position.y = seat - pad.geometry.boundingBox.max.y;
-  const backSupport = bentTube(root, 'continuous-back-support', [[0, seat - .12, -.12], [0, seat - .06, -.30], [0, seat + .15, -.34], [0, height - .18, -.32]], .027, metal);
-  joint(root, backSupport, base, [0, seat - .105, -.15]);
-  const back = rounded(root, 'shaped-back', [.62, .53, .095], [0, height - .265, -.315], metal, .043);
-  const padding = rounded(root, 'back-pad', [.55, .46, .10], [0, height - .27, -.26], cloth, .045, true);
+  const backSupport = bentTube(root, 'continuous-back-support', [[0, seat - .10, -.12], [0, seat - .045, -.30], [0, seat + .13, -.34], [0, height - .18, -.32]], .027, metal);
+  joint(root, backSupport, base, [0, seat - .095, -.15]);
+  const back = rounded(root, 'shaped-back', [.62, .48, .095], [0, height - .24, -.315], metal, .043);
+  const padding = rounded(root, 'back-pad', [.55, .41, .10], [0, height - .245, -.26], cloth, .04, true);
   joint(root, backSupport, back, [0, height - .20, -.321]);
   joint(root, back, padding, [0, height - .27, -.28]);
 }

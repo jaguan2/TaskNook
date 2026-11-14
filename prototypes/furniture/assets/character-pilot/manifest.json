@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "status": "workshop pilot",
+  "authoringTool": "4.5.16 LTS",
+  "source": "resident.blend",
+  "model": "resident.glb",
+  "sourceSha256": "0eb426c3c4e9181b4b56455ebda6ddf45c6502dc66f38837d505d7b075a7a44a",
+  "modelSha256": "145822b4cc804742335165a8f9849bef7c8d70457b91b9036e1911dbca409730",
+  "clips": [
+    "Idle",
+    "Walk",
+    "Sit",
+    "Type",
+    "Sleep",
+    "AnklesCrossed"
+  ],
+  "appearance": {
+    "skin": "#edc39e",
+    "outfit": "#7faf8f",
+    "trouser": "#4a3a5b",
+    "hairColor": "#3a3142",
+    "shoeColor": "#2b2350",
+    "sole": "#ddcfb8",
+    "eyeColor": "#3a3142",
+    "mouth": "#916850"
+  },
+  "supportedLook": {
+    "hair": "short",
+    "garment": "sweater",
+    "pants": "trousers",
+    "shoes": "sneakers"
+  },
+  "morphTargets": [
+    "TorsoFullness"
+  ],
+  "productionEnabled": false
+}

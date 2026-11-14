@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "species": "dog",
+  "status": "workshop pilot",
+  "authoringTool": "4.5.16 LTS",
+  "source": "dog.blend",
+  "model": "dog.glb",
+  "sourceSha256": "658bcfc836c6e65fa8b219a8891e96f0a778f7b0c47b9d1082d6a862748be220",
+  "modelSha256": "8f9bc1d9008a05116bbbc45cb5d878b9bcfc5f4cf75a8d2afd1e3894c7106b20",
+  "clips": [
+    "Idle",
+    "Walk",
+    "Rest"
+  ],
+  "morphTargets": [
+    "Slender",
+    "Round"
+  ],
+  "forward": "+X",
+  "productionEnabled": false
+}

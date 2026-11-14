@@ -649,6 +649,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   curly: {
+    compactUnderHat: true,
     // A same-tone backing dome with coils riding its edge — the coils ARE
     // the outline's teeth, in circle form.
     // From behind the coils still tooth the outline down to the nape — the
@@ -698,37 +699,25 @@ export const HAIR_REGISTRY = {
         ))}
       </>
     ),
-    // Profile: the cloud shifts back off the face; coils walk the outline
-    // from the fringe over the crown down to the nape.
+    // Carve the face opening into the cloud itself. A filled backing circle
+    // here painted over the cheek even though the eyes were drawn last.
     side: ({ headY, color }) => (
-      <>
-        <circle cx="1" cy={headY - 1.4} r={R + 1.5} fill={color} />
-        {[
-          [-5.4, -4.4, 3.2],
-          [-1.4, -6.2, 3.4],
-          [3, -5.8, 3.4],
-          [6.6, -3.2, 3.2],
-          [8.2, 0.6, 2.8],
-          [7.4, 4.2, 2.6],
-        ].map(([cx, dy, r]) => (
-          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
-        ))}
-        {sideBrow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-6 -1.8 Q-8.7 -3.6 -7 -6.4 Q-7 -9 -3.9 -9
+          Q-1.6 -11.4 1 -9.5 Q4.6 -10.5 6.2 -7.3 Q9.4 -7 9.4 -3.9
+          Q12 -2.2 10.4 0.5 Q11.4 3.8 8.8 4.8 Q7.1 7.8 4.3 5.6
+          L2.9 3.8 Q3.1 0.4 0.6 -0.8 Q-1.5 -2.4 -3.5 -1.5
+          Q-4.8 -0.5 -6 -1.8 Z" fill={color} />
+      </g>
     ),
     front: ({ headY, color }) => (
       <>
-        <circle cx="0" cy={headY - 1.2} r={R + 1.6} fill={color} />
-        {[
-          [-5.8, -3.6, 3.3],
-          [-2, -5.6, 3.4],
-          [1.9, -5.5, 3.4],
-          [5.4, -3.5, 3.3],
-          [7, -0.6, 2.7],
-          [-7, -0.7, 2.7],
-        ].map(([cx, dy, r]) => (
-          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
-        ))}
+        <path transform={`translate(0 ${headY})`}
+          d="M-7.1 2 Q-10 2.2 -9.5 -0.6 Q-11.1 -3 -8.8 -5.2
+          Q-8.8 -8.8 -5.6 -8.7 Q-3.7 -11 0 -9.2 Q3.3 -10.5 5.4 -8.1
+          Q8.8 -8.4 8.8 -5.1 Q11.1 -3.1 9.4 -0.4 Q10 2.4 7.1 2
+          L6.2 -0.9 Q5.1 -2.7 3.5 -1.6 Q1.5 -0.3 0 -2
+          Q-1.6 -0.6 -3.2 -1.6 Q-5.1 -2.7 -6.3 -0.8 Z" fill={color} />
         {/* interior curl marks — small C-arcs echoing the outline's coils;
             straight flow lines are the wrong grammar for curls */}
         {[
@@ -882,6 +871,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   afro: {
+    compactUnderHat: true,
     // The widest silhouette: a scalloped cloud, one tone, its own hairline
     // arc across the forehead — afros sit ON the hairline, they don't drape.
     // From behind the cloud is unchanged — an afro is round from every
@@ -933,53 +923,30 @@ export const HAIR_REGISTRY = {
         ))}
       </>
     ),
-    // Profile: the same cloud, shifted a touch back; the hairline arc only
-    // shows on the face side.
+    // Keep the broad crown and nape, with a continuous edge around the face.
     side: ({ headY, color }) => (
-      <>
-        <circle cx="0.8" cy={headY - 2.8} r={R + 3} fill={color} />
-        {[
-          [-7, -6, 3.7],
-          [-2.4, -8.4, 4],
-          [3, -8.2, 4],
-          [7.6, -5.4, 3.8],
-          [9.6, -0.8, 3.3],
-          [8, 3.6, 3],
-        ].map(([cx, dy, r]) => (
-          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
-        ))}
-        <path
-          d={`M ${-R + 0.6} ${headY + 0.8} a ${R - 0.6} ${R - 0.6} 0 0 1 6.4 -6.8 l -1.2 -2.4
-              a ${R + 1} ${R + 1} 0 0 0 -6.6 7.4 z`}
-          fill={color}
-        />
-        {sideBrow(headY)}
-      </>
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-6.7 -1.6 Q-10.8 -3 -10.4 -6.4 Q-10.4 -10 -6.7 -10.1
+          Q-5.1 -13.8 -1.2 -12 Q2.4 -14 5.3 -11.5 Q9.4 -12 10 -8.2
+          Q13.3 -6.6 12.2 -3 Q14 -0.4 11.4 2 Q11.5 5.6 8.4 6.1
+          Q5.9 7.6 3.1 4.6 Q3.2 0.7 1.1 -0.7 Q-1.6 -3.1 -4 -2
+          Q-5.5 -0.7 -6.7 -1.6 Z" fill={color} />
+      </g>
     ),
     front: ({ headY, color }) => (
       <>
-        <circle cx="0" cy={headY - 2.6} r={R + 3.1} fill={color} />
-        {[
-          [-8, -5.4, 3.7],
-          [-3.6, -8, 4],
-          [1.6, -8.2, 4],
-          [6.6, -5.6, 3.8],
-          [9, -1, 3.3],
-          [-9.4, -1.2, 3.3],
-        ].map(([cx, dy, r]) => (
-          <circle key={`${cx},${dy}`} cx={cx} cy={headY + dy} r={r} fill={color} />
-        ))}
-        <path
-          d={`M${-R + 0.6} ${headY + 0.6} a${R - 0.6} ${R - 0.6} 0 0 1 ${(R - 0.6) * 2} 0 l0 -2.6
-              a${R - 0.6} ${R + 1} 0 0 0 ${-(R - 0.6) * 2} 0 z`}
-          fill={color}
-        />
+        <path transform={`translate(0 ${headY})`}
+          d="M-7.1 2.5 Q-10.7 3.3 -11.8 0 Q-14 -2.4 -11.7 -5.3
+          Q-12.3 -9.2 -8.5 -9.9 Q-7.4 -13.6 -3.4 -12.2
+          Q0 -14.2 3.3 -12 Q7.6 -13.2 8.6 -9.5 Q12.5 -8.7 11.9 -5
+          Q14 -2.2 11.7 0.4 Q10.6 3.4 7.1 2.5 L6.4 -1.7
+          Q5 -3.5 3.4 -2.6 Q1.6 -3.5 0 -2.9 Q-1.8 -3.7 -3.5 -2.7
+          Q-5 -3.6 -6.4 -1.7 Z" fill={color} />
         {/* coil marks, spread wider than the curly cut's — same grammar */}
         {[
           [-5.6, -4.6, 2.2],
           [1.2, -6.6, 2.4],
           [5.8, -2.2, 2],
-          [-1.8, -1.6, 1.8],
         ].map(([x, dy, r]) => (
           <path
             key={`${x},${dy}`}
@@ -1467,15 +1434,15 @@ export function HairSideLength({ style, headY, color }) {
   return HAIR_REGISTRY[style]?.sideLength?.({ headY, color }) ?? null;
 }
 
-/** A hat fits the skull, while the haircut's nape/fall remains unconstrained.
- * Keeping the skull as well as the lower fall avoids skin strips under high
- * beret rims. Each resident needs its own clip in a shared scene SVG. */
-function HairUnderHat({ headY, children }) {
+/** Keep long falls beneath a replacing crown; short coily crowns compress
+ * inside the skull instead of leaving a wide, flat shelf below the hat.
+ * Each resident needs its own clip in a shared scene SVG. */
+function HairUnderHat({ headY, compact, children }) {
   const id = useId();
   return <g clipPath={`url(#${id}-hat-hair)`}>
     <defs><clipPath id={`${id}-hat-hair`}>
       <circle cy={headY} r={HEAD_R} />
-      <rect x="-24" y={headY - 0.5} width="48" height="48" />
+      {!compact && <rect x="-24" y={headY - 0.5} width="48" height="48" />}
     </clipPath></defs>
     {children}
   </g>;
@@ -1491,7 +1458,7 @@ export function HairSide({ style, headY, color, covered = false }) {
       {sideBrow(headY)}
     </>
   );
-  return covered ? <HairUnderHat headY={headY}>{art}</HairUnderHat> : art;
+  return covered ? <HairUnderHat headY={headY} compact={HAIR_REGISTRY[style]?.compactUnderHat}>{art}</HairUnderHat> : art;
 }
 
 /**
@@ -1513,5 +1480,5 @@ export function HairBack({ style, headY, color, covered = false }) {
       />
     </>
   );
-  return covered ? <HairUnderHat headY={headY}>{art}</HairUnderHat> : art;
+  return covered ? <HairUnderHat headY={headY} compact={entry?.compactUnderHat}>{art}</HairUnderHat> : art;
 }

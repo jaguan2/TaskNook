@@ -30,12 +30,30 @@ const builds = {
     disc(root, 'painted-sun', .07, .012, [.12, 1.09, .002], material('artwork-sun', '#c6ad7e'), 'xy');
   },
   screen(root, s) {
-    const wood = finish(s), cloth = material('screen-cloth', '#c8bba0');
+    const wood = finish(s), cloth = material('screen-cloth', '#ded2b7');
+    const width = .53, height = 1.60, angle = THREE.MathUtils.degToRad(25);
+    const hingeAt = new THREE.Vector3(-1.5 * width * Math.cos(angle), 0, width * Math.sin(angle) / 2);
+    let previous;
     for (let i = 0; i < 3; i++) {
       const panel = new THREE.Group(); panel.name = `hinged-panel-${i}`; root.add(panel);
-      panel.position.set((i - 1) * .47, 0, i === 1 ? -.055 : .04); panel.rotation.y = (i - 1) * .25;
-      frame(panel, `panel-${i}`, .49, 1.35, 0, 0, wood, { backing: cloth });
-      for (let j = 1; j < 4; j++) board(panel, `lattice-${i}-${j}`, [.46, .014, .016], [0, j * .31, .018], wood, .003);
+      // Each leaf starts at the previous leaf's edge. Independent centre
+      // offsets left large gaps between what should have been shared hinges.
+      panel.position.copy(hingeAt); panel.rotation.y = i % 2 ? -angle : angle;
+      frame(panel, `panel-${i}`, width, height - .11, .11, 0, wood,
+        { x: width / 2, thickness: .032, depth: .045, backing: cloth });
+      for (const x of [.016, width - .016]) board(panel, `grounded-stile-${i}-${x}`, [.032, .13, .045], [x, .065, 0], wood, .004);
+      board(panel, `lower-timber-band-${i}`, [width - .04, .15, .025], [width / 2, .205, 0], wood, .004);
+      board(panel, `cross-rail-${i}`, [width - .035, .018, .048], [width / 2, .91, 0], wood, .004);
+      if (previous) for (const y of [.36, 1.29]) {
+        const pin = beam(root, `receiving-hinge-${i}-${y}`, [hingeAt.x, y - .055, hingeAt.z], [hingeAt.x, y + .055, hingeAt.z], .020, brass());
+        root.updateMatrixWorld(true);
+        for (const [leaf, x, side] of [[previous, width - .009, 1], [panel, .009, -1]]) {
+          const point = new THREE.Vector3(x, y, 0).applyMatrix4(leaf.matrixWorld);
+          joint(root, pin, leaf.getObjectByName(`panel-${i - (leaf === previous ? 1 : 0)}-stile-${side}`), point.toArray());
+        }
+      }
+      hingeAt.add(new THREE.Vector3(width * Math.cos(panel.rotation.y), 0, -width * Math.sin(panel.rotation.y)));
+      previous = panel;
     }
   },
   birdcage(root, s) {

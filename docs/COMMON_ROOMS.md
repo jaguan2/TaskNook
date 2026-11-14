@@ -6,6 +6,60 @@ hint for accessible buttons), and use the bottom-left back arrow or Escape to le
 The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
 
+## Loading a place — November 13, 2026
+
+Opening a common place now shows a named loading screen with progress from that
+place's actual image requests. Return home and Escape remain available, and the
+focus timer stays usable. The lazy scene chunk has the same feedback before
+model preparation can begin. The strings are translated in all five languages.
+
+`CommonRoomEntry` resolves the authored props and leases each unique image from
+the existing `catalogImages` cache before mounting `CommonRoom`. Both paths use
+`commonPropModelOptions`, so preparation includes the same colour, rotation and
+desk equipment as the final scene. Repeated furniture shares work. This avoids
+first drawing hundreds of legacy furniture SVG elements and then replacing them
+as model renders finish. The existing bounded cache and serialized renderer
+still own URLs, source meshes and GPU mutation.
+
+Progress belongs to this place: a drawer or an abandoned visit cannot hold its
+loading screen open. Unmounting releases preparation leases; late work cannot
+reopen a cancelled visit. Errors settle to the existing SVG fallback and Retry
+models action. Once opened, a place stays mounted through retries and seat
+changes. A fully cached return opens immediately without an artificial delay.
+The seat hint's five seconds begin when the scene appears. Entry and cancellation
+use the existing visit state; home layout/camera and timer state stay with their
+existing owners.
+
+The same local Edge measurement before/after this change recorded Grand Library
+first entry at approximately **2.15s → 1.08s**, with cached returns **0.23s →
+0.26s**. Both scenes had 126 catalog model placements and roughly 5,070 final
+DOM nodes. Long tasks over 50ms fell from five to two during the first visit.
+These are single-run development-machine observations, including navigation and
+a 100ms screenshot-settling interval; they are not a WebView2 hardware benchmark.
+The architecture and resident artwork still have their normal mounting cost.
+
+Verification passes 1,643 frontend tests (one optional generator skipped), lint,
+build and 17 browser scenarios across loading, existing model integration and
+startup/small-window smoke coverage. New cases hold an actual Library asset or
+the lazy chunk, test partial progress, cancel a visit, open Willow Pond while an
+old Library request is pending, and retry a failed model without resetting the
+guest. Unit tests also cover StrictMode, unrelated requests, warm entry and image
+disposal. Structural self-review follows the local project boundaries because
+the separately installed shared toolkit is unavailable.
+
+Current loading captures: [desktop](screenshots/67-room-loading.webp) and
+[390px window](screenshots/67-room-loading-small.webp). They come from
+`e2e/room-loading.spec.mjs` with a real isolated backend and a deliberately held
+runner GLB, rather than a simulated screen. Running that test recreates both PNGs
+under its Playwright output directory; the documentation copies are WebP.
+
+Main-channel desktop build `44bf3b449ae840379f9f929fd32e501a` matches its source,
+embedded bundle and update manifest and passes its isolated frozen self-test.
+Evidence is kept under ignored `build/skill-verification/room-loading/`;
+temporary capture helpers, raw outputs and disposable databases are removed.
+
+## Shared visit behavior
+
 Each place card names everyone currently in its live simulated gathering before
 you join. Inside, close-set labels identify every seated neighbour and mark your
 own character as `You`; each neighbour's outlined heart fills with the existing

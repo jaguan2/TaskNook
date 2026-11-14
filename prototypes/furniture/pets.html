@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,"><title>TaskNook · Pet pilots</title>
+  <link rel="stylesheet" href="/src/pets/preview.css">
+  <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <header><a href="/">TaskNook / model workshop</a><span>Pet mesh pilots · Production pets remain SVG</span></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">CONNECTED ANATOMY / FAMILIAR LITTLE COMPANIONS</p><h1>A softer kind of company.</h1><p>Three editable pets with joined silhouettes, weighted joints and their existing growth proportions.</p></div><a id="blend" download>Editable Blender source ↓</a></div>
+    <div class="toolbar">
+      <label>Pet <select id="species"><option value="cat">Cat</option><option value="dog">Dog</option><option value="bunny">Rabbit</option></select></label>
+      <label>Age <select id="age"></select></label><label>Body <select id="form"></select></label>
+      <label>Pose <select id="pose"><option value="Idle">Standing</option><option value="Walk">Walking</option><option value="Rest">Resting</option></select></label>
+      <button id="play" aria-pressed="false">Play motion</button>
+      <label><input type="checkbox" id="native-scale"> Room scale</label>
+      <label>Coat <input type="color" id="coat" value="#4b3e50"></label>
+    </div>
+    <div class="comparison">
+      <section><h2>Current SVG</h2><div class="source-stage"><img id="source" alt="Actual production pet with matching age and form"></div><p>Generated from the live pet artwork.</p></section>
+      <section><h2>Rigged 3D pilot</h2><div id="viewport"><p id="status" role="status">Loading pets…</p></div><p>Drag to turn · Scroll to zoom · Motion starts paused</p></section>
+    </div>
+    <div class="views" role="group" aria-label="Pet view"><button data-view="front" aria-pressed="true">Front</button><button data-view="side" aria-pressed="false">Side</button><button data-view="back" aria-pressed="false">Back</button><button data-view="room" aria-pressed="false">Room angle</button><button id="reset">Reset view</button></div>
+    <p class="scope">Pilot coverage: classic cat, floppy-eared dog and rabbit; baby, medium and adult proportions; Natural, Slender and Round bodies. Coat colour changes the 3D study. Named breeds, carrying, live room integration and saved pet controls remain separate work. These controls do not change your pets or their growth clock.</p>
+    <a id="glb" download>Download animated GLB ↓</a>
+  </main>
+  <script type="module" src="/src/pets/preview.mjs"></script>
+</body>
+</html>

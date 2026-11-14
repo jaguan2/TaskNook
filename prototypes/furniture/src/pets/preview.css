@@ -1,0 +1,2 @@
+@import url('../characters/preview.css');
+body[data-native="true"] .source-stage, body[data-native="true"] #viewport { height: 50px; margin: 160px 0; }

@@ -9,6 +9,15 @@ interactions. Existing image paths are preserved. Run `npm.cmd run qa` from
 `prototypes/furniture/` to regenerate section sheets under the ignored
 `build/skill-verification/furniture-3d/` directory.
 
+November 13 refresh: the seating and decoration sheets now show the shorter,
+slimmer wooden/desk chairs and connected folding screen. The affected sections
+pass 216 colour/view checks plus geometry contacts and browser interactions.
+See [the refinement record](../../ROOM_MODEL_INTEGRATION.md#screen-chair-and-pet-proportions-explicit-editing--2026-11-13).
+
+The seating sheet also includes the subsequent chair-base correction: wooden
+and desk-chair seats are now 17px and 21px above the floor, with shorter legs
+and pedestal. Seat and occupant contact checks use those same catalog heights.
+
 | Section | Review sheet |
 | --- | --- |
 | Seating & beds | [Open sheet](furniture-seating-section.png) |

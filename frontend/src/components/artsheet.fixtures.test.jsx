@@ -18,6 +18,7 @@ import { ISO_SPRITES } from "./IsoItems";
 import IsoRoom from "./IsoRoom";
 import Cottage from "./Cottage";
 import { Duck } from "./CommonWildlife";
+import { HairFront, HairSide } from "./character/hair";
 import { PRESETS, presetPlacements } from "../lib/room";
 import { resolveVisitRoom } from "../lib/visiting";
 import { CHARACTER_PRESETS } from "../lib/characterPresets";
@@ -315,7 +316,7 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
     })) {
       for (const rot of [0, 1, 2, 3]) {
         const seat = { placement: { id: "chair", item: "deskchair", gx: rot % 2 ? 3 : 2.5,
-          gy: rot % 2 ? 2.5 : 3, rot }, height: 24 };
+          gy: rot % 2 ? 2.5 : 3, rot }, height: ISO_ITEMS.deskchair.seat };
         // Even facing pairs share a keyboard plane; the other pair is its
         // grid transpose. One coherent figure stays in its established view.
         const deskRot = (rot + 2) % 4;
@@ -330,6 +331,88 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
               .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ')
               .replace('viewBox="0 0 640 480"', 'viewBox="200 164 240 210"'));
         }
+      }
+    }
+    // Full figures, rather than isolated sleeves/soles: joins must survive
+    // both body extremes, turning around, and the two supported 3D sit styles.
+    // This is a fit sample per item, not the Cartesian product of all outfits.
+    const fitBodies = {
+      compact: { model: "fem", width: 6.2, shoulders: -1.6, height: 26, torso: 14 },
+      broad: { model: "masc", width: 8.4, shoulders: 1, height: 32, torso: 20 },
+    };
+    const fitViews = {
+      front: {}, side: { facing: "side" }, back: { facing: "back" },
+      seated: { seated: true, seatH: 19 },
+      ankles: { seated: true, seatH: 19 },
+    };
+    for (const [slot, items] of Object.entries({ garment: OUTFITS, coat: COATS, pants: PANTS, shoes: SHOES, hair: HAIR_STYLES })) {
+      for (const { key } of items) {
+        for (const [body, metrics] of Object.entries(fitBodies)) {
+          for (const [view, pose] of Object.entries(fitViews)) {
+            save(`wardrobe-${slot}-${key}-${body}-${view}`, <Resident {...pose}
+              character={dressed({ ...metrics, [slot]: key, seatPose: view === "ankles" ? "ankles" : "relaxed",
+                outfit: "#799a8c", coatColor: "#ad6a57", trouser: "#514564", shoeColor: "#986b4d" })} />,
+            "-32 -75 64 115");
+          }
+        }
+      }
+    }
+    // Calf/boot contacts need complete seated figures at real furniture heights;
+    // isolated upright shoe icons cannot catch a cuff separating from a crossed shin.
+    for (const seatH of [13, 17, 21, 26]) for (const seatPose of ['relaxed', 'ankles', 'crossed']) {
+      for (const pants of ['skirt', 'shorts', 'trousers']) for (const facing of ['front', 'back']) {
+        for (const [body, metrics] of Object.entries(fitBodies)) {
+          save(`seated-boots-${seatH}-${seatPose}-${pants}-${facing}-${body}`,
+            <Resident seated seatH={seatH} facing={facing}
+              character={dressed({ ...metrics, pants, seatPose, shoes: 'boots', shoeColor: '#986b4d' })} />,
+            '-32 -75 64 115');
+        }
+      }
+    }
+    // Opt-in motion simulation: the complete bottom/shoe cross-product at
+    // body extremes. Keep thousands of QA-only frames out of ordinary sheets.
+    if (globalThis.process?.env?.CHARACTER_MOTION_SHEET === "1") {
+      // Complete looks cover coats, scarves, hats and loose hair together.
+      for (const preset of CHARACTER_PRESETS) for (const facing of ["front", "side", "back"]) {
+        save(`motion-held-preset-${preset.key}-${facing}`,
+          <Resident character={preset.character} facing={facing} held />, "-36 -80 72 95");
+      }
+      for (const { key: pants } of PANTS) for (const { key: shoes } of SHOES) {
+        for (const [body, metrics] of Object.entries(fitBodies)) {
+          const character = dressed({ ...metrics, pants, shoes, shoeColor: "#986b4d", hair: "long" });
+          for (const facing of ["front", "side", "back"]) {
+            for (const pose of ["standing", "walking", "held"]) {
+              save(`motion-${pose}-${pants}-${shoes}-${body}-${facing}`,
+                <Resident character={character} facing={facing} moving={pose === "walking"} held={pose === "held"} />,
+                "-36 -80 72 95");
+            }
+          }
+          for (const seatH of [13, 17, 21, 26]) for (const seatPose of ["relaxed", "ankles", "crossed"]) {
+            for (const facing of ["front", "back"]) {
+              save(`motion-seat${seatH}-${seatPose}-${pants}-${shoes}-${body}-${facing}`,
+                <Resident character={{ ...character, seatPose }} facing={facing} seated seatH={seatH} />,
+                "-36 -58 72 98");
+            }
+          }
+        }
+      }
+    }
+    // All cuts beneath a replacing crown and an overlay accessory. Other
+    // headwear shapes remain covered by the existing hair-fit-* samples.
+    for (const { key: hair } of HAIR_STYLES) {
+      for (const hat of ["beanie", "headphones"]) {
+        for (const facing of ["front", "side", "back"]) {
+          save(`wardrobe-headwear-${hair}-${hat}-${facing}`,
+            <Resident character={dressed({ hair, hat, hairColor: "#9a6b46" })} facing={facing} />);
+        }
+      }
+    }
+    // Browser QA probes the actual filled hair geometry at eyes/cheeks,
+    // where drawing the face last previously hid an occluded skin surface.
+    for (const style of ["curly", "afro"]) {
+      for (const [view, Hair] of Object.entries({ front: HairFront, side: HairSide })) {
+        save(`hair-opening-${style}-${view}`, <Hair style={style} headY={0} color="#805336" />,
+          "-20 -20 40 40");
       }
     }
     for (const { key } of HAIR_STYLES) {

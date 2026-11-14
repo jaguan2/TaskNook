@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Heart } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Heart } from "lucide-react";
 import { useSettingsStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
 import { useArmed } from "../hooks/useArmed";
 import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
@@ -8,6 +8,7 @@ import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 import { COMMON_PLACES } from "../lib/commonRooms";
 import FriendsLeaderboard from "./FriendsLeaderboard";
+import FriendProfile from './FriendProfile';
 import { useI18n } from "../i18n/I18nProvider";
 
 const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
@@ -57,6 +58,13 @@ export default function FriendsPanel() {
   } = useSocialStore();
   const [username, setUsername] = useState("");
   const [section, setSection] = useState("friends");
+  const [profileId, setProfileId] = useState(null);
+  const profileUid = useId();
+  const profileTrigger = useRef(null);
+  const closeProfile = () => {
+    setProfileId(null);
+    profileTrigger.current?.focus({ preventScroll: true });
+  };
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -409,33 +417,38 @@ export default function FriendsPanel() {
             <div
               key={f.id}
               className="group rounded-2xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10"
+              onKeyDown={event => {
+                if (profileId === f.id && event.key === 'Escape') {
+                  event.preventDefault(); event.stopPropagation(); closeProfile();
+                }
+              }}
             >
               <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-wine text-lg">
-                  {f.avatar}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="truncate text-sm font-semibold text-cream">
-                      {f.displayName}
-                    </p>
-                    <button
-                      onClick={() => arm(f.id, () => remove(f.id))}
-                      title="Remove friend"
-                      aria-label="Remove friend"
-                      className={`hover-reveal shrink-0 transition ${
-                        armedId === f.id
-                          ? "confirming text-[10px] font-bold text-danger"
-                          : "text-sm text-petal/40 hover:text-danger"
-                      }`}
-                    >
-                      {armedId === f.id ? "sure?" : "✕"}
-                    </button>
-                  </div>
-                  <p className="text-xs text-petal/60">
-                    {hours > 0 ? `${hours}h ` : ""}{mins}m focused · {sim.tasksDone}/{sim.tasksTotal} tasks
-                  </p>
-                </div>
+                <button type="button" aria-expanded={profileId === f.id} aria-controls={`${profileUid}-${f.id}`}
+                  aria-label={t('friends.profile.open', { name: f.displayName })}
+                  onClick={event => { profileTrigger.current = event.currentTarget; setProfileId(profileId === f.id ? null : f.id); }}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl text-left hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-glow">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-wine text-lg" aria-hidden>{f.avatar}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-cream">{f.displayName}</span>
+                    <span className="block text-xs text-petal/60">
+                      {hours > 0 ? `${hours}h ` : ""}{mins}m focused · {sim.tasksDone}/{sim.tasksTotal} tasks
+                    </span>
+                  </span>
+                  {profileId === f.id ? <ChevronUp aria-hidden size={14} className="shrink-0 text-petal/60" /> : <ChevronDown aria-hidden size={14} className="shrink-0 text-petal/60" />}
+                </button>
+                <button
+                  onClick={() => arm(f.id, () => remove(f.id))}
+                  title="Remove friend"
+                  aria-label="Remove friend"
+                  className={`hover-reveal shrink-0 transition ${
+                    armedId === f.id
+                      ? "confirming text-[10px] font-bold text-danger"
+                      : "text-sm text-petal/40 hover:text-danger"
+                  }`}
+                >
+                  {armedId === f.id ? "sure?" : "✕"}
+                </button>
               </div>
               <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
@@ -534,6 +547,7 @@ export default function FriendsPanel() {
                   );
                 })()}
               </div>
+              {profileId === f.id && <FriendProfile id={`${profileUid}-${f.id}`} friend={f} stats={sim} now={now} onClose={closeProfile} />}
             </div>
           );
         })}

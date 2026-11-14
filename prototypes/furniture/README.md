@@ -3,8 +3,9 @@
 An isolated 3D catalog design study for TaskNook, covering all 184 entries in
 18 sections. The generated GLBs
 are real, independently loadable models, generated from editable mesh source.
-They can be imported into Blender or another glTF-compatible editor. Blender
-is not required to regenerate them: the authoring scripts use Three.js.
+They can be imported into Blender or another glTF-compatible editor. The 184
+catalog entries regenerate with Three.js. The separate deforming character
+pilot described below uses Blender for its editable source.
 
 Since November 12, the 179 furniture/prop exports also power the actual
 isometric game. See [live room integration](../../docs/ROOM_MODEL_INTEGRATION.md).
@@ -25,6 +26,9 @@ src/catalog*.mjs     Catalog metadata and physical-height decisions
 src/models.mjs      Stable authoring entry point
 src/models/         Family builders and geometry/material helpers
 src/viewer/         Browser entry, styling, rooms and character calibration
+src/characters/     Blender source generation, deforming rig and pilot preview
+src/pets/           Connected pet anatomy, growth/form preview and Blender export
+src/blender_geometry.py  Shared Blender mesh/material construction
 scripts/            Export, review and scoped cleanup commands
 tests/              Geometry, catalog, animation and server contracts
 assets/             Generated portable GLBs and comparison fixtures
@@ -48,6 +52,35 @@ The five living entries have articulated rigid-part Idle/Walk clips. Select
 one and use Motion → Play motion; stopping restores the authored pose and
 returns to demand rendering. These are standalone starter rigs, separate from
 the production Resident's wardrobe/body customization and pet growth system.
+
+## Deforming resident pilot
+
+The header's **Character pilot** opens a separate Blender-authored resident with
+connected skinned clothing, six pose clips, material colours and a torso
+fullness adjustment. It includes actual production SVG comparisons and links to
+the supplied Virtual Cottage 2 references. The editable `.blend`, animated GLB,
+source ownership, editing commands and QA are documented in the
+[pilot guide](src/characters/README.md). This additional study does not change
+the 184 catalog entries or the production character renderer.
+
+## Connected pet pilots
+
+The header's **Pet pilots** opens the classic cat, dog and rabbit mesh studies.
+Their bodies, limbs, ears and tails use connected, weighted surfaces, with baby,
+medium and adult proportions plus Natural/Slender/Round forms. Source SVGs and
+measured heights come from the live pet artwork. See the
+[pet guide](src/pets/README.md) for editable Blender assets, commands and scope.
+These studies do not replace the production pet renderer or growth logic.
+
+## Wardrobe fit review
+
+The [wardrobe fit review](../../docs/WARDROBE_FIT_REVIEW.md) checks the actual
+production clothing/hair. `npm.cmd run qa:wardrobe` creates eight focused sheets
+and checks 714 fit frames plus four face-opening cases. Evidence stays under
+ignored `build/skill-verification/wardrobe-fit/`. This audit does not add new 3D
+wardrobe meshes.
+
+## Catalog export and review
 
 To edit and regenerate:
 
@@ -150,3 +183,9 @@ soft-seat metadata are retained, but the workshop does not implement production
 floor-sitting, pet occupancy, swimming or water animation.
 
 Current game behavior and rendering ownership are described in the [live integration guide](../../docs/ROOM_MODEL_INTEGRATION.md) and [codebase guide](../../docs/CODEBASE_GUIDE.md). Supplied style photographs are indexed in [artwork references](../../docs/ART_REVIEW.md).
+
+Production character contact/motion regression: `npm.cmd run qa:character-motion`
+renders the full bottom/shoe matrix with production CSS, seeks fixed animation
+times and checks actual painted joints, footwear and reduced motion. The
+[coverage and source owners](../../docs/CHARACTER_MOTION_FIT.md) explain the
+limits and selected review images. This does not run or change the 3D pilots.

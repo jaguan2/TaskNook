@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
-const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
+const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), visitFriend: vi.fn(), knockFriend: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
 vi.mock("../store", () => {
   const useMockStore = () => ({
     user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
@@ -31,6 +31,41 @@ beforeEach(() => {
   mocks.removeFriend.mockResolvedValue(true);
 });
 afterEach(cleanup);
+
+describe('neighbour profiles', () => {
+  it('opens one profile at a time without starting a visit or conversation', () => {
+    render(<FriendsPanel />);
+    const luna = screen.getByRole('button', { name: "View Luna's profile" });
+    fireEvent.click(luna);
+    expect(luna.getAttribute('aria-expanded')).toBe('true');
+    const details = screen.getByRole('region', { name: 'About Luna' });
+    expect(details.id).toBe(luna.getAttribute('aria-controls'));
+    expect(within(details).getByText('October 12, 1997')).toBeTruthy();
+    expect(within(details).getByText('she/her')).toBeTruthy();
+    expect(within(details).getByText('September 18, 2023')).toBeTruthy();
+    expect(within(details).getByText('Focus this week')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: "View Kai's profile" }));
+    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'About Kai' })).toBeTruthy();
+    expect(mocks.visitFriend).not.toHaveBeenCalled();
+    expect(mocks.openChatWith).not.toHaveBeenCalled();
+    expect(mocks.enterCommonRoom).not.toHaveBeenCalled();
+  });
+
+  it('closes with Escape or Close and returns focus to the profile trigger', () => {
+    render(<FriendsPanel />);
+    const trigger = screen.getByRole('button', { name: "View Luna's profile" });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: "Close Luna's profile" }));
+    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+});
 
 describe("opening conversations", () => {
   it("opens on friends and keeps the three destinations mutually exclusive", () => {

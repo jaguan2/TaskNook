@@ -10,6 +10,12 @@
     "preview": "node server.mjs",
     "qa": "node scripts/browser-qa.mjs",
     "qa:source-art": "node scripts/review-source-characters.mjs",
+    "qa:wardrobe": "node scripts/review-wardrobe.mjs",
+    "qa:character-motion": "node scripts/review-character-motion.mjs",
+    "characters:source": "node scripts/export-pilot-source.mjs",
+    "qa:character-pilot": "node scripts/review-character-pilot.mjs",
+    "pets:source": "node scripts/export-pet-source.mjs",
+    "qa:pet-pilot": "node scripts/review-pet-pilot.mjs",
     "qa:clean": "node scripts/cleanup-qa.mjs"
   },
   "dependencies": { "three": "0.187.0" },

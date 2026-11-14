@@ -82,12 +82,12 @@ const authoredPlaces = {
       nook: { gx: 0, gy: 0, dx: 4.4, dy: 3.1, z: 36, color: "#c8a27a" },
     },
     seats: [
-      { id: "window-left", label: "Window armchair", level: "nook", gx: 0.875, gy: 1.25, height: 22, furniture: "nook-chair-left" },
-      { id: "window-right", label: "Reading armchair", level: "nook", gx: 2.575, gy: 1.25, height: 22, furniture: "nook-chair-right" },
-      { id: "study-left", label: "Left study desk", level: "ground", gx: 6.4, gy: 2.8, height: 24, facing: "back", furniture: "study-chair-left" },
-      { id: "study-right", label: "Right study desk", level: "ground", gx: 8.6, gy: 2.8, height: 24, facing: "back", furniture: "study-chair-right" },
-      { id: "lounge-left", label: "Sofa by the plants", level: "ground", gx: 2.65, gy: 5.975, height: 22, furniture: "lounge-sofa" },
-      { id: "lounge-right", label: "Sofa by the lamp", level: "ground", gx: 3.85, gy: 5.975, height: 22, furniture: "lounge-sofa" },
+      { id: "window-left", label: "Window armchair", level: "nook", gx: 0.875, gy: 1.25, furniture: "nook-chair-left" },
+      { id: "window-right", label: "Reading armchair", level: "nook", gx: 2.575, gy: 1.25, furniture: "nook-chair-right" },
+      { id: "study-left", label: "Left study desk", level: "ground", gx: 6.4, gy: 2.8, facing: "back", furniture: "study-chair-left" },
+      { id: "study-right", label: "Right study desk", level: "ground", gx: 8.6, gy: 2.8, facing: "back", furniture: "study-chair-right" },
+      { id: "lounge-left", label: "Sofa by the plants", level: "ground", gx: 2.65, gy: 5.975, furniture: "lounge-sofa" },
+      { id: "lounge-right", label: "Sofa by the lamp", level: "ground", gx: 3.85, gy: 5.975, furniture: "lounge-sofa" },
     ],
     arrivalSeat: "study-right",
     neighbours: [
@@ -161,14 +161,14 @@ const authoredPlaces = {
     },
     seats: [
       ...libraryGallery.map(({ id, label, gx, gy }) => ({ id, label, level: "gallery", gx: gx + .1, gy: gy + .175,
-        height: 22, furniture: `${id}-chair` })),
-      ...libraryTableSeats.map((seat) => ({ ...seat, level: "ground", height: 19, furniture: `${seat.id}-chair` })),
+        furniture: `${id}-chair` })),
+      ...libraryTableSeats.map((seat) => ({ ...seat, level: "ground", furniture: `${seat.id}-chair` })),
       ...libraryArmchairs.map(({ id, label, gx, gy, rot = 0 }) => {
         const pose = seatedPlacement({ item: "resident" }, { placement: { id, item: "armchair", gx, gy, rot }, height: 22 });
-        return { id, label, level: "ground", gx: pose.gx, gy: pose.gy, height: 22, furniture: `${id}-chair` };
+        return { id, label, level: "ground", gx: pose.gx, gy: pose.gy, furniture: `${id}-chair` };
       }),
       ...librarySofas.flatMap(({ id, gx, gy, seats }) => seats.map((seat, i) => ({ ...seat, level: "ground",
-        gx: gx + i * 1.2, gy: gy + .175, height: 22, furniture: id }))),
+        gx: gx + i * 1.2, gy: gy + .175, furniture: id }))),
     ],
     arrivalSeat: "table-right",
     neighbours: [
@@ -239,12 +239,12 @@ const authoredPlaces = {
       patio: { gx: 0.5, gy: 4.6, dx: 5.2, dy: 3.7, z: 4, color: "#b79a78", style: "stone" },
     },
     seats: [
-      { id: "patio-left", label: "Terrace study chair", level: "patio", gx: 1.3, gy: 5.9, height: 19, facing: "back", furniture: "patio-chair-left" },
-      { id: "patio-right", label: "Garden study chair", level: "patio", gx: 4, gy: 5.2, height: 19, furniture: "patio-chair-right" },
-      { id: "pond-bench-left", label: "Willow bench left", level: "ground", gx: 7.45, gy: 4.5, height: 16, furniture: "pond-bench" },
-      { id: "pond-bench-right", label: "Willow bench right", level: "ground", gx: 8.2, gy: 4.5, height: 16, furniture: "pond-bench" },
-      { id: "picnic-left", label: "Picnic cushion left", level: "ground", gx: 9.3, gy: 6.25, height: 13, furniture: "picnic-cushion-left" },
-      { id: "picnic-right", label: "Picnic cushion right", level: "ground", gx: 10.35, gy: 6.75, height: 13, furniture: "picnic-cushion-right" },
+      { id: "patio-left", label: "Terrace study chair", level: "patio", gx: 1.3, gy: 5.9, facing: "back", furniture: "patio-chair-left" },
+      { id: "patio-right", label: "Garden study chair", level: "patio", gx: 4, gy: 5.2, furniture: "patio-chair-right" },
+      { id: "pond-bench-left", label: "Willow bench left", level: "ground", gx: 7.45, gy: 4.5, furniture: "pond-bench" },
+      { id: "pond-bench-right", label: "Willow bench right", level: "ground", gx: 8.2, gy: 4.5, furniture: "pond-bench" },
+      { id: "picnic-left", label: "Picnic cushion left", level: "ground", gx: 9.3, gy: 6.25, furniture: "picnic-cushion-left" },
+      { id: "picnic-right", label: "Picnic cushion right", level: "ground", gx: 10.35, gy: 6.75, furniture: "picnic-cushion-right" },
     ],
     arrivalSeat: "patio-right",
     neighbours: [
@@ -307,17 +307,22 @@ const authoredPlaces = {
   },
 };
 
-// The support owns each occupant's direction. Keep authored multi-seat sofa
-// slots, but derive front/rear pose and mirroring from the furniture's rot so
-// a later layout edit cannot leave people looking through their backrests.
+// The support owns each occupant's height and direction. Keep authored sofa
+// slots, but derive seat height and facing so model/layout changes cannot
+// leave people floating above cushions or looking through their backrests.
 export const COMMON_PLACES = Object.fromEntries(Object.entries(authoredPlaces).map(([id, scene]) => [id, {
   ...scene,
   seats: scene.seats.map(seat => {
     const support = scene.props.find(p => p.id === seat.furniture);
     const rot = furnitureFacingRotation(support.item, support.rot);
-    return { ...seat, rot, facing: rot >= 2 ? "back" : "front" };
+    return { ...seat, height: ISO_ITEMS[support.item].seat, rot, facing: rot >= 2 ? "back" : "front" };
   }),
 }]));
+
+// Both entry preparation and the scene must request exactly the same images.
+export function commonPropModelOptions(p) {
+  return { item: p.item, tint: p.tint, rot: p.rot || 0, showLaptop: p.item === 'desk' && !p._equipped };
+}
 
 // Reuse the home renderer's support and depth rules so tabletop details sit
 // on the catalog's actual surface and paint after their supporting furniture.

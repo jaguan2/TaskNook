@@ -1,6 +1,7 @@
 import DecorateToolbar from './components/DecorateToolbar';
 import { lazy, Suspense, useEffect, useState } from "react";
 import { CatalogModelStatus } from './components/IsoCatalogModel';
+import RoomLoadingScreen from './components/RoomLoadingScreen';
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Sofa, X } from "lucide-react";
 import {
@@ -34,7 +35,7 @@ import SkyOverlay from "./components/SkyOverlay";
 // keeps common-place architecture out of every home visit.
 const Cottage = lazy(() => import("./components/Cottage"));
 const IsoRoom = lazy(() => import("./components/IsoRoom"));
-const CommonRoom = lazy(() => import("./components/CommonRoom"));
+const CommonRoom = lazy(() => import("./components/CommonRoomEntry"));
 
 // Panels are lazy: all of them shipped in the first chunk even though most
 // sessions open one or two, and several are heavy (the calendar, the room
@@ -398,13 +399,15 @@ export default function App() {
             </div>
           )}
         >
-          <Suspense fallback={null}>
+          <Suspense fallback={<RoomLoadingScreen
+            roomName={commonRoom ? label('commonPlaces', commonRoom.sceneId, COMMON_PLACES[commonRoom.sceneId].label) : undefined}
+            onCancel={commonRoom || visiting ? leaveVisit : undefined} />}>
             {commonRoom ? (
               <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
                 activity={running ? phase : null} timeOfDay={timeOfDay}
                 reduceMotion={sceneReduceMotion} friendship={friendship}
                 paused={widgetMode}
-                onChooseSeat={chooseCommonSeat} />
+                onChooseSeat={chooseCommonSeat} onCancel={leaveVisit} />
             ) : visiting ? (
             /* A friend's room: read-only (no edit, no move/remove/tint
                callbacks), their people drawn and named via `personas`.

@@ -542,6 +542,15 @@ describe("the isometric catalog and its artwork agree", () => {
       }
     });
 
+    it.each(["front", "side", "back"])("picking up from any activity owns the complete %s pose", (facing) => {
+      const { container } = draw(<Resident held seated lying moving activity="focus" facing={facing} />);
+      expect(container.querySelector('[data-resident-pose="held"]')).not.toBeNull();
+      expect(container.querySelectorAll('[data-held-leg]')).toHaveLength(2);
+      expect(container.querySelectorAll('[data-leg-shin]')).toHaveLength(2);
+      expect(container.querySelectorAll('.resident-held')).toHaveLength(1);
+      expect(container.querySelector('[data-seat-pose], .held-dangle, .body-breathe, .resident-type, .walk-bob, .leg-stride-a, .gesture-look, .gesture-yawn, .gesture-stretch, .gesture-rub')).toBeNull();
+    });
+
     it.each(
       MODELS.flatMap((m) => HAIR_STYLES.map((h) => [m.key, h.key]))
     )("%s × %s renders standing and seated without throwing", (model, hair) => {

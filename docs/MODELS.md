@@ -94,7 +94,7 @@ piece so a new item sits correctly beside the existing ones.
 | Class | px | Examples |
 |---|---|---|
 | On a table | 9–20 | pie 9, kettle 15, mug 16, microwave 18, laptop 20 |
-| Seat height | 12–26 | log 12, cushion 13, bench 16, chair 19, haybale 26 |
+| Seat height | 12–26 | log 12, cushion 13, bench 16, chair 17, desk chair 21, haybale 26 |
 | Low furniture | 19–32 | coffeetable 19*, cafetable 21*, sidetable 28 |
 | Table / worktop | 26–40 | diningtable 26.5*, counter 29.5*, desk 30*, oven 40* |
 | Tall furniture | 76–96 | coatrack 76, floorlamp 84, wardrobe 92, bookshelf 96 |
@@ -117,8 +117,9 @@ and sofas use one grid-bounded hull with actual back/arm thickness. Their
 offset upright shells previously left duplicate crowns and raised tabs.
 Keep timber structure separate: upholstered seats expose their frame below
 the cushions, and the garden bench
-uses individual seat/back slats over an open frame. All existing `seat` heights,
-footprints and front/rear facing rules stay unchanged.
+uses individual seat/back slats over an open frame. `ISO_ITEMS` owns seat height;
+any physical height revision must update model contacts, fallback and occupant
+placement together. Footprints and front/rear facing rules stay unchanged.
 
 Chair frames leave negative space below their bowed, upholstered back rails.
 Bookshelves use a continuous dark recess behind the rails and varied books,
@@ -181,6 +182,13 @@ furniture contracts. `softSeat: true` is deliberate catalog metadata; generic
 flat layers such as pools, ponds, snow angels, pet beds and door mats are not
 human seats. The pose artwork lives in `character/seated.jsx`, not in
 the standing/profile body module.
+
+Tall boot shafts follow the actual seated calf angle independently of the
+foot's small turn. Standing boot geometry keeps its normal alignment. Crossed
+poses leave enough space between the soles for both feet to remain readable;
+rotating a whole boot to fit the shin would tilt the foot off its floor contact.
+The wardrobe review probes the actual filled cuff/shaft geometry at two calf
+points for both legs, across seat heights, body sizes, pants and facings.
 
 The lap pose is disabled while typing, holding a break mug, moving, being carried,
 or facing away. Arm stretch and eye-rub gestures stand down together with
@@ -311,7 +319,9 @@ Two rules that come out of it:
   where round caps overlap, translucent layers double into lens-shaped blobs
   and the limb reads as sausage links (v2 shipped exactly that; the owner's
   in-app screenshot caught it). Each limb stays ONE `<g>` so the
-  walk/gesture/held wrappers rotate it whole; a short sleeve ends AT the
+  walk/gesture wrappers rotate it whole. Carrying instead shares explicit
+  hip/knee/ankle anchors, with one whole-body sway and no leg rotation about
+  drawing bounds; see [pickup fit](CHARACTER_MOTION_FIT.md). A short sleeve ends AT the
   elbow, which is what makes bare forearms read. **Parts NEST, and one light
   runs through them** (owner: "it should look like one cohesive piece"): a
   limb's root is buried INSIDE the part it hangs from — the shoulder starts
@@ -532,11 +542,18 @@ cloth surfaces while timber stays timber.
 The November 11 revision joins the actual projected arms and back, correcting
 the exposed ends left by the earlier upright-panel construction. The lower
 arms and higher back meet without horns in the rear view.
-Shared cushion heights remain 22px, desk chairs 24px, dining chairs 19px and
-bed mattresses 15px. The dining pad artwork now actually meets its 19px
-catalog contract. Bed and sleeping foreground cover reuse one duvet drawing,
+Shared cushion heights are 22px, desk chairs 21px, dining chairs 17px and
+bed mattresses 15px. Chair bases were lowered on November 13; the seat pad
+and occupant follow the catalog height. Bed and sleeping foreground cover reuse one duvet drawing,
 with a thin top layer and curved hanging hems rather than a solid cuboid.
 Do not change geometry/seat anchors to compensate for a cosmetic revision.
+
+The November 13 base correction lowers wooden/desk chairs to 17px/21px seats
+and 34px/37px total height. Legs and pedestal shorten; backrest height above
+the seat and the thin seat layers are preserved. Common places derive occupant
+height from the same catalog. The folding screen has three
+linen leaves joined at shared hinge axes, with grounded timber stiles. See
+[the refinement record](ROOM_MODEL_INTEGRATION.md#chair-base-correction--2026-11-13).
 
 Current furniture references: [catalog sheets](model-review/catalog-3d/README.md),
 [Loft workstation](model-review/loft-focus.webp) and
@@ -544,6 +561,13 @@ Current furniture references: [catalog sheets](model-review/catalog-3d/README.md
 and their useful cues are in [artwork references](ART_REVIEW.md).
 
 ## Pet size, form and growth
+
+`PET_DISPLAY_SCALE` in `lib/pets.js` applies an additional render-only species
+factor: cat 0.8, dog 1, rabbit 0.76. The SVG assembly and room contact shadow
+share it; carrying and appearance previews inherit the same artwork transform.
+These smaller silhouettes retain the ground anchor, saved adult size, growth
+stages and placement footprints. Regenerate the pet pilot's source comparisons
+before exporting meshes so its measured adult heights follow the live drawings.
 
 Pet lifecycle rules live in `lib/pets.js`, separately from the SVG artwork and
 the focus timer. New adoptions sample a permanent adult size (78–100% of the

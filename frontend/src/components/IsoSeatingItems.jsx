@@ -2,6 +2,7 @@ import { SKEW, project } from "../lib/iso";
 import { tinted } from "../lib/tint";
 import { PaddedPanel, SoftBox, TintedBox } from "./IsoItemPrimitives";
 import { bedDimensions, bedPillows } from '../lib/furnitureDimensions';
+import { ISO_ITEMS } from '../lib/isoCatalog';
 
 const TIMBER = "#946b50";
 const BED_W = 2;
@@ -165,12 +166,12 @@ export const Sofa = ({ back, dimensions }) => <Upholstered w={dimensions?.w || 2
 export const Armchair = ({ back }) => <Upholstered w={1} seats={1} back={back} />;
 
 export function Chair({ back = false }) {
-  // 15.5 timber + 1.2 seat board + 2.3 cushion = the catalog's 19px seat.
-  const SEAT = 15.5;
+  // Keep the fallback's legs below the catalog seat, including board and pad.
+  const SEAT = ISO_ITEMS.chair.seat - 1.2 - 2.3;
   const railY = back ? 0.55 : 0.06;
   const frame = <g data-furniture-part="backrest">
     {[0.07, 0.53].map((gx) => <TintedBox key={gx} gx={gx} gy={railY}
-      dx={0.1} dy={0.09} h={41.8} fallback={TIMBER} tint={false} dark={0.34} mid={0.18} />)}
+      dx={0.1} dy={0.09} h={SEAT + 26.3} fallback={TIMBER} tint={false} dark={0.34} mid={0.18} />)}
     <g transform={`translate(${project(0.07, railY + 0.09).x}, ${project(0.07, railY + 0.09).y - SEAT}) skewY(${SKEW})`}>
       <path d="M0 -26.5 Q6.7 -29 13.44 -26.5 L13.44 -13 Q6.7 -11.5 0 -13 Z" fill={TIMBER} />
       <path d="M1.5 -25 Q6.7 -26.8 11.94 -25 L11.94 -14.5 Q6.7 -13.3 1.5 -14.5 Z"
@@ -198,7 +199,7 @@ export function Chair({ back = false }) {
 
 export function DeskChair({ back = false }) {
   const c = project(0.4, 0.4);
-  const SEAT = 19;
+  const SEAT = ISO_ITEMS.deskchair.seat - 5;
   const restGy = back ? 0.57 : 0.1;
   return <g data-furniture-family="desk-chair">
     <g transform={`translate(${c.x}, ${c.y})`}>

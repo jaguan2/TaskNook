@@ -16,7 +16,7 @@ export const ADDITIONAL_DESIGNS = {
   terrarium: { height: 24, colorRole: 'terrarium-frame', defaultColor: '#a38f70', description: 'A fitted glass vessel contains a grounded soil bed, stones and a rooted miniature plant.' },
   piano: { height: 66, colorRole: 'piano-finish', defaultColor: '#77666e', description: 'An upright cabinet has a clear top at the catalog surface, a projecting keybed, separate keys and joined pedals.' },
   easel: { height: 58, colorRole: 'finish', defaultColor: '#ad8e67', description: 'Three planted struts support a receiving ledge and framed painted canvas.' },
-  screen: { height: 58, colorRole: 'screen-frame', defaultColor: '#a48a67', description: 'Three angled timber frames contain inset cloth and supported lattice rails.' },
+  screen: { height: 58, colorRole: 'screen-frame', defaultColor: '#a48a67', description: 'Three alternating linen panels meet at shared brass hinges, with slim timber frames and grounded feet.' },
   birdcage: { height: 56, colorRole: 'cage-metal', defaultColor: '#a49270', description: 'A weighted stand carries a domed wire cage, perch, small bird and protected light bead.' },
   standmirror: { height: 62, colorRole: 'mirror-frame', defaultColor: '#ac9473', description: 'Two planted feet and swivel posts support a complete framed mirror.' },
   aquarium: { height: 60, colorRole: 'aquarium-finish', defaultColor: '#9f896b', description: 'A paneled cabinet supports a framed tank with contained water, gravel, fish and a fitted illuminated lid.' },

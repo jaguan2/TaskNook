@@ -43,7 +43,7 @@ const catalogPiece = (n) => {
 const escape = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
 const groupOf = (n) => catalogPiece(n)
   ? `Catalog: ${catalogPiece(n).item.group}`
-  : n.split("-").slice(0, n.startsWith("hair-") || n.startsWith("pants-side") || n.startsWith("shoes-side") ? 2 : 1).join("-");
+  : n.split("-").slice(0, /^(hair-|wardrobe-|pants-side|shoes-side)/.test(n) ? 2 : 1).join("-");
 const labelOf = (n) => {
   const piece = catalogPiece(n);
   return piece ? `${piece.item.label} (${piece.item.key}, ${piece.view})` : n;

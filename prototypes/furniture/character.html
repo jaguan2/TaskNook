@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>TaskNook · Character pilot</title>
+  <link rel="stylesheet" href="/src/characters/preview.css">
+  <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <header><a href="/">TaskNook / model workshop</a><span>Character pilot · Production characters are unchanged</span></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">CONNECTED SURFACES / SHARED SKELETON</p><h1>A softer little resident.</h1><p>The familiar face and palette, with clothing and joints that bend in three dimensions.</p></div><a href="/assets/character-pilot/resident.blend" download>Editable Blender source ↓</a></div>
+    <div class="toolbar">
+      <label>Pose <select id="pose"><option value="Idle">Standing</option><option value="Walk">Walking</option><option value="Sit">Seated</option><option value="AnklesCrossed">Ankles crossed</option><option value="Type">Typing</option><option value="Sleep">Sleeping</option></select></label>
+      <button id="play" aria-pressed="false">Play motion</button>
+      <label><input id="furniture" type="checkbox" checked> Show furniture</label>
+      <label><input id="native-scale" type="checkbox"> Room scale</label>
+      <button id="reset">Reset view</button>
+    </div>
+    <div class="comparison">
+      <section><h2>Current SVG</h2><div class="source-stage"><img id="source" alt="Actual production resident with the matching pose"></div><p>Generated from the live React artwork.</p></section>
+      <section><h2>Rigged 3D pilot</h2><div id="viewport"><p id="status" role="status">Loading the resident…</p></div><p id="hint">Drag to turn · Scroll to zoom · Motion starts paused</p></section>
+    </div>
+    <div class="materials" role="group" aria-label="Pilot materials">
+      <label>Sweater <input type="color" data-material="outfit" value="#7faf8f"></label>
+      <label>Trousers <input type="color" data-material="trouser" value="#4a3a5b"></label>
+      <label>Hair <input type="color" data-material="hairColor" value="#3a3142"></label>
+      <label>Skin <input type="color" data-material="skin" value="#edc39e"></label>
+      <label>Shoes <input type="color" data-material="shoeColor" value="#2b2350"></label>
+      <label>Torso fullness <input type="range" id="fullness" min="0" max="1" step="0.05" value="0"></label>
+    </div>
+    <div class="views" role="group" aria-label="Character view"><button data-view="front" aria-pressed="true">Front</button><button data-view="side" aria-pressed="false">Side</button><button data-view="back" aria-pressed="false">Back</button><button data-view="room" aria-pressed="false">Room angle</button></div>
+    <p class="scope">Pilot coverage: short hair, sweater, trousers and sneakers. Colour and fullness controls affect the 3D study. Wardrobe parity, room-layer integration and the remaining activities still need implementation before replacing the live character. Style references: <a href="/reference.jpg" target="_blank" rel="noreferrer">Virtual Cottage 2 room ↗</a> · <a href="/character-reference.jpg" target="_blank" rel="noreferrer">Seated characters ↗</a>.</p>
+    <a href="/assets/character-pilot/resident.glb" download>Download animated GLB ↓</a>
+  </main>
+  <script type="module" src="/src/characters/preview.mjs"></script>
+</body>
+</html>

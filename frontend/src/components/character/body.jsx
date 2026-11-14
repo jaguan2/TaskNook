@@ -1,5 +1,5 @@
 // The character's BODY: palette constants, the leg drawings (front and
-// profile), the two faces, and the held-pose limb helper. The geometry itself
+// profile), connected carry poses and the two faces. The geometry itself
 // (half-widths, torso curve, anchors) lives in lib/body.js — this file is the
 // artwork that reads those numbers. See docs/MODELS.md for the silhouette
 // rules it answers to.
@@ -81,7 +81,7 @@ const farShoe = (hex) => (hex === SHOE ? SHOE_FAR : farColor(hex));
 const SOLE = "#ded5c4";
 const SOCK = "#f2ede4";
 
-export function FrontShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false }) {
+export function FrontShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false, shaftAngle = 0 }) {
   // Far depth comes from DERIVING each material darker (farColor), never
   // from a wash rect over the whole piece — a rect is wider than the leg,
   // and its spill painted a grey slab onto the floor beside the far foot
@@ -112,17 +112,23 @@ export function FrontShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, fa
     return (
       <g>
         {/* shaft with a folded cuff, over a chunky block sole */}
-        <rect x={cx - 3.2} y="-8.6" width="6.4" height="8.2" rx="1.1" fill={c} />
-        <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill={c} />
-        <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill="#fff" opacity="0.2" />
-        <rect x={cx - 2.8} y="-6.2" width="1.1" height="4.6" fill="#fff" opacity="0.09" />
-        <path
+        {/* The calf can lean without tilting the planted foot. Sitting supplies
+            the shaft angle around the ankle; standing keeps the authored boot. */}
+        <g data-boot-shaft transform={shaftAngle ? `rotate(${shaftAngle} ${cx} -1.1)` : undefined}>
+          <rect x={cx - 3.2} y="-8.6" width="6.4" height="8.2" rx="1.1" fill={c} />
+          <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill={c} />
+          <rect x={cx - 3.6} y="-9.2" width="7.2" height="2.5" rx="1.1" fill="#fff" opacity="0.2" />
+          <rect x={cx - 2.8} y="-6.2" width="1.1" height="4.6" fill="#fff" opacity="0.09" />
+        </g>
+        <g data-boot-foot>
+          <path
           d={`M ${cx - 4.5} 1.4 Q ${cx - 4.6} -1 ${cx - 1.6} -1.6 L ${cx + 1.6} -1.6
               Q ${cx + 4.6} -1 ${cx + 4.5} 1.4 z`}
           fill={c}
         />
         <rect x={cx - 4.7} y="1.2" width="9.4" height="1.7" rx="0.8" fill="#000" opacity="0.32" />
         <ellipse cx={cx} cy="-0.4" rx="2.6" ry="0.9" fill="#fff" opacity="0.16" />
+        </g>
       </g>
     );
   }
@@ -192,7 +198,7 @@ export function FrontShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, fa
  * The shoe in PROFILE, toe pointing -x — same modelled construction, and
  * the view where each silhouette really earns its name.
  */
-export function SideShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false }) {
+export function SideShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far = false, shaftAngle = 0 }) {
   // Same far rule as FrontShoe: derive materials darker, no wash rect.
   const c = far ? farShoe(color) : color;
   const sole = far ? farColor(SOLE) : SOLE;
@@ -216,15 +222,19 @@ export function SideShoe({ cx, kind = "sneakers", color = SHOE, skin = SKIN, far
   if (kind === "boots") {
     return (
       <g>
+        <g data-boot-shaft transform={shaftAngle ? `rotate(${shaftAngle} ${cx} -1.1)` : undefined}>
         <rect x={cx - 2.7} y="-8.8" width="5.4" height="8.6" rx="1" fill={c} />
         <rect x={cx - 3.1} y="-9.4" width="6.2" height="2.4" rx="1" fill={c} />
         <rect x={cx - 3.1} y="-9.4" width="6.2" height="2.4" rx="1" fill="#fff" opacity="0.2" />
-        <path
+        </g>
+        <g data-boot-foot>
+          <path
           d={`M ${cx - 7.2} 1.6 Q ${cx - 7.2} 0 ${cx - 4.6} -0.6 L ${cx + 2.7} -0.6 L ${cx + 2.7} 1.6 z`}
           fill={c}
         />
         <rect x={cx - 7.5} y="1.4" width="10.4" height="1.6" rx="0.7" fill="#000" opacity="0.3" />
         <ellipse cx={cx - 5} cy="0.3" rx="1.9" ry="0.8" fill="#fff" opacity="0.18" />
+        </g>
       </g>
     );
   }
@@ -340,6 +350,7 @@ export const pantsFormOf = (key) => PANTS_FORM[key] || PANTS_FORM.trousers;
  */
 export function StandingLeg({
   side,
+  held = false,
   legW = 5.6,
   legH = LEG_H,
   far = false,
@@ -360,10 +371,17 @@ export function StandingLeg({
   // never a straight column), 0.46 up from the ankle, where a knee actually
   // sits; the BEND is the articulation, and the edge tones follow the same
   // bent path as single strokes so no layer ever overlaps another.
-  const K = { x: cx + (form.straight ? 0 : side * 0.9), y: -legH * 0.46 };
+  // Carrying uses a soft knee bend, not a rotation of the whole standing leg.
+  // Hip, calf and shoe share these anchors, including tall boot shafts.
+  const K = { x: held ? side * 3.8 : cx + (form.straight ? 0 : side * 0.9), y: -legH * (held ? 0.52 : 0.46) };
+  const ax = held ? side * 5.5 : cx;
+  // Low vamps need the ankle to reach the shoe; a fixed sneaker-height
+  // endpoint left a gap under slim trousers and bare calves.
+  const floorAnkle = ["loafers", "heels", "sandals"].includes(shoes) ? -1.1 : -3.2;
+  const ay = held ? -5.8 : floorAnkle;
   const w = legW + 0.4 + (form.wide || 0) + (form.slim || 0);
   const bent = (off) =>
-    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
+    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${ax + off} ${ay}`;
   // Shorts: the cloth stops just past the knee; the shin below is skin.
   const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
   const clothD = form.shorts ? upper : bent;
@@ -373,11 +391,12 @@ export function StandingLeg({
   // reference pass, 2026-08-19). Flush ends tucked inside the cloth are
   // what let a translucent stroke read as form instead of cellophane.
   const bentEdge = (off) =>
-    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${cx + off} ${-3.6}`;
+    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${ax + off} ${ay - 0.4}`;
   const upperEdge = (off) => `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y + 0.8}`;
   const edgeD = form.shorts ? upperEdge : bentEdge;
   const line = (d, paint, width, opacity, cap = "round") => (
     <path
+      data-leg-shin={d === bent(0) && opacity === undefined ? "" : undefined}
       d={d}
       stroke={paint}
       strokeWidth={width}
@@ -387,21 +406,28 @@ export function StandingLeg({
       opacity={opacity}
     />
   );
+  const shoeTurn = side * 3;
+  const shoe = held ? (
+    <g data-held-shoe={shoes} transform={`translate(${ax} ${ay + 1.1}) rotate(${shoeTurn})`}>
+      <FrontShoe cx={0} kind={shoes} color={shoeColor} skin={skin} far={far}
+        shaftAngle={Math.atan2(K.x - ax, ay - K.y) * 180 / Math.PI - shoeTurn} />
+    </g>
+  ) : <g data-leg-shoe={shoes}><FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} skin={skin} far={far} /></g>;
   // The skirt kinds: the LEG is just a leg — skin, knee, shoe — and the
   // flare above it belongs to the assembly.
   if (form.bare) {
     return (
-      <g>
+      <g data-leg-view="front" data-held-leg={held ? side : undefined}>
         {line(bent(0), skinTone, legW - 0.5)}
         {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.06, "butt")}
         <ellipse cx={K.x - side * 1.2} cy={K.y + 0.5} rx="1" ry="0.6" fill="#000" opacity="0.06" />
-        <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} skin={skin} far={far} />
+        {shoe}
       </g>
     );
   }
   const tone = toneFor(trouser);
   return (
-    <g>
+    <g data-leg-view="front" data-held-leg={held ? side : undefined}>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
       {/* ONE shade down the away-from-light edge and nothing else — the
@@ -426,17 +452,17 @@ export function StandingLeg({
           opacity={form.turnup ? 0.16 : 0.1}
         />
       ) : form.turnup ? (
-        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
+        <rect x={ax - w / 2 + 0.4} y={ay - 3.2} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
       ) : form.cuffBand ? (
-        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
+        <rect x={ax - w / 2 + 0.6} y={ay - 2.8} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
       ) : form.cleanHem ? null : (
-        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
+        <rect x={ax - w / 2 + 0.4} y={ay - 1.7} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
       )}
       {/* denim's contrast topstitch, riding above the hem or shorts hem */}
       {form.stitch && (
         <path
-          d={`M ${(form.shorts ? K.x : cx) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : -7}
-              L ${(form.shorts ? K.x : cx) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : -7}`}
+          d={`M ${(form.shorts ? K.x : ax) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : ay - 3.8}
+              L ${(form.shorts ? K.x : ax) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : ay - 3.8}`}
           stroke={STITCH}
           strokeWidth="0.55"
           strokeDasharray="0.9 0.8"
@@ -452,7 +478,7 @@ export function StandingLeg({
       {/* The shoe has to TERMINATE the leg (the sneaker's bright sole and
           top catch exist so the foot doesn't dissolve into a dark trouser
           on a dark floor) — and it's a wardrobe slot now, see FrontShoe. */}
-      <FrontShoe cx={cx + side * 0.5} kind={shoes} color={shoeColor} skin={skin} far={far} />
+      {shoe}
     </g>
   );
 }
@@ -469,6 +495,7 @@ export function StandingLeg({
  */
 export function SideLeg({
   far = false,
+  held = false,
   legW = 5.6,
   legH = LEG_H,
   trouser = TROUSER,
@@ -481,20 +508,24 @@ export function SideLeg({
   const cloth = far ? farColor(trouser) : trouser;
   const form = pantsFormOf(pants);
   const skinTone = far ? farColor(skin) : skin;
-  const K = { x: cx - (form.straight ? 0 : 1.3), y: -legH * 0.46 };
+  const K = { x: cx - (held ? 3.6 : form.straight ? 0 : 1.3), y: -legH * (held ? 0.54 : 0.46) };
+  const ax = held ? cx + (far ? 2.4 : 0.8) : cx;
+  const floorAnkle = ["loafers", "heels", "sandals"].includes(shoes) ? -1.1 : shoes === "sneakers" ? -2.4 : -3.2;
+  const ay = held ? (far ? -7.8 : -5.8) : floorAnkle;
   const w = legW + 0.4 + (form.wide || 0) + (form.slim || 0);
   const bent = (off) =>
-    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${cx + off} ${-3.2}`;
+    `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y} L ${ax + off} ${ay}`;
   const upper = (off) => `M ${cx + off} ${-legH + 1.5} L ${K.x + off} ${K.y + 1.2}`;
   const clothD = form.shorts ? upper : bent;
   // Trimmed flat-capped copies for the edge tones — same de-glassing rule
   // as StandingLeg: round caps stick wash blobs past the hem.
   const bentEdge = (off) =>
-    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${cx + off} ${-3.6}`;
+    `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y} L ${ax + off} ${ay - 0.4}`;
   const upperEdge = (off) => `M ${cx + off} ${-legH + 2.8} L ${K.x + off} ${K.y + 0.8}`;
   const edgeD = form.shorts ? upperEdge : bentEdge;
   const line = (d, paint, width, opacity, cap = "round") => (
     <path
+      data-leg-shin={d === bent(0) && opacity === undefined ? "" : undefined}
       d={d}
       stroke={paint}
       strokeWidth={width}
@@ -505,10 +536,16 @@ export function SideLeg({
     />
   );
   // toe forward, heel behind — the asymmetry is the profile
-  const shoe = <SideShoe cx={cx} kind={shoes} color={shoeColor} skin={skin} far={far} />;
+  const shoeTurn = -10;
+  const shoe = held ? (
+    <g data-held-shoe={shoes} transform={`translate(${ax} ${ay + 1.1}) rotate(${shoeTurn})`}>
+      <SideShoe cx={0} kind={shoes} color={shoeColor} skin={skin} far={far}
+        shaftAngle={Math.atan2(K.x - ax, ay - K.y) * 180 / Math.PI - shoeTurn} />
+    </g>
+  ) : <g data-leg-shoe={shoes}><SideShoe cx={cx} kind={shoes} color={shoeColor} skin={skin} far={far} /></g>;
   if (form.bare) {
     return (
-      <g>
+      <g data-leg-view="side" data-held-leg={held ? (far ? "far" : "near") : undefined}>
         {line(bent(0), skinTone, legW - 0.5)}
         {line(bentEdge(-(legW - 0.5) / 4), "#000", (legW - 0.5) / 3, 0.06, "butt")}
         <ellipse cx={K.x + 1.3} cy={K.y + 0.5} rx="1" ry="0.6" fill="#000" opacity="0.06" />
@@ -518,7 +555,7 @@ export function SideLeg({
   }
   const tone = toneFor(trouser);
   return (
-    <g>
+    <g data-leg-view="side" data-held-leg={held ? (far ? "far" : "near") : undefined}>
       {form.shorts && line(bent(0), skinTone, legW - 0.7)}
       {line(clothD(0), cloth, w)}
       {/* shade only, flush-capped — the glint stripe made glass tubes of
@@ -527,8 +564,8 @@ export function SideLeg({
       {form.crease && line(edgeD(0), GLINT, 0.8, (far ? 0.07 : 0.12) * tone.glint, "butt")}
       {form.stitch && (
         <path
-          d={`M ${(form.shorts ? K.x : cx) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : -7}
-              L ${(form.shorts ? K.x : cx) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : -7}`}
+          d={`M ${(form.shorts ? K.x : ax) - w / 2 + 0.7} ${form.shorts ? K.y - 1.2 : ay - 3.8}
+              L ${(form.shorts ? K.x : ax) + w / 2 - 0.7} ${form.shorts ? K.y - 1.2 : ay - 3.8}`}
           stroke={STITCH}
           strokeWidth="0.55"
           strokeDasharray="0.9 0.8"
@@ -551,11 +588,11 @@ export function SideLeg({
           opacity={form.turnup ? 0.16 : 0.1}
         />
       ) : form.turnup ? (
-        <rect x={cx - w / 2 + 0.4} y={-6.4} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
+        <rect x={ax - w / 2 + 0.4} y={ay - 3.2} width={w - 0.8} height="2.6" fill="#fff" opacity="0.16" />
       ) : form.cuffBand ? (
-        <rect x={cx - w / 2 + 0.6} y={-6} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
+        <rect x={ax - w / 2 + 0.6} y={ay - 2.8} width={w - 1.2} height="2.2" fill="#fff" opacity="0.13" />
       ) : form.cleanHem ? null : (
-        <rect x={cx - w / 2 + 0.4} y={-4.9} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
+        <rect x={ax - w / 2 + 0.4} y={ay - 1.7} width={w - 0.8} height="1.7" fill="#000" opacity="0.1" />
       )}
       {shoe}
     </g>
@@ -857,23 +894,3 @@ export function Face({ expression, headY, eyeX = 3.3, eyeY = 2, eyeColor = INK }
     </>
   );
 }
-
-/**
- * A limb going limp while its owner dangles: a few degrees off vertical from
- * the joint at its top, dead still.
- *
- * Always on its OWN wrapper, never on the element carrying a walk class — an
- * animation and a transform can't share an element (the animation wins outright
- * and the offset is silently lost). `held` and `moving` happen to be mutually
- * exclusive, but structure beats an invariant a reader has to go and verify.
- * The CSS property rather than the attribute, so `transform-origin` definitely
- * applies to it.
- */
-export const hangLimb = (held, deg) =>
-  held
-    ? {
-        transform: `rotate(${deg}deg)`,
-        transformBox: "fill-box",
-        transformOrigin: "center top",
-      }
-    : undefined;

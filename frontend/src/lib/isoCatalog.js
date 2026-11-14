@@ -145,7 +145,7 @@ export const ISO_ITEMS = {
   sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 42, seat: 22, backView: true },
   armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 42, seat: 22, backView: true },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, surface: 24 },
-  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 46, seat: 19, backView: true },
+  chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 44, seat: 17, backView: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
   plantshelf: { label: "Plant display", icon: "🌿", foot: [1.5, 0.6], hitH: 74 },
   bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
@@ -249,7 +249,7 @@ export const ISO_ITEMS = {
   // ---- storage & seating ----
   wardrobe: { label: "Wardrobe", icon: "🚪", foot: [1.4, 0.7], hitH: 92 },
   dresser: { label: "Dresser", icon: "🧦", foot: [1.6, 0.6], hitH: 42, surface: 34 },
-  deskchair: { label: "Desk chair", icon: "💺", foot: [0.8, 0.8], hitH: 50, seat: 24, backView: true },
+  deskchair: { label: "Desk chair", icon: "💺", foot: [0.8, 0.8], hitH: 47, seat: 21, backView: true },
   beanbag: { label: "Beanbag", icon: "🫘", foot: [1.1, 1.1], hitH: 26, seat: 15 },
   standmirror: { label: "Standing mirror", icon: "🪞", foot: [0.6, 0.4], hitH: 70 },
   // ---- the small stuff that makes a room look lived in ----

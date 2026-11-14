@@ -30,6 +30,7 @@ def test_checkout_keeps_build_text_lf_and_preserves_launcher_and_binary_rules(
         "TaskNook.exe": b"MZ\x00\r\n\x1a\n\x00",
         "frontend/public/texture.webp": b"RIFF\x00\r\nWEBP\x00\n",
         "prototypes/furniture/assets/pet.glb": b"glTF\x02\x00\r\n\x1a\n\x00",
+        "prototypes/furniture/assets/character-pilot/resident.blend": b"BLENDER-v450\x00\r\n\x1a\n\x00",
     }
     for name, content in inputs.items():
         path = source / name
@@ -37,13 +38,14 @@ def test_checkout_keeps_build_text_lf_and_preserves_launcher_and_binary_rules(
         path.write_bytes(content)
 
     def git(*args):
-        subprocess.run(
+        return subprocess.run(
             ("git", "-c", f"core.autocrlf={autocrlf}", *args),
             cwd=source, check=True, capture_output=True,
-        )
+        ).stdout.decode()
 
     git("init", "--quiet")
     git("add", ".")
+    assert "text: unset" in git("check-attr", "text", "--", "prototypes/furniture/assets/character-pilot/resident.blend")
     checkout = tmp_path / "checkout"
     git("checkout-index", "--all", f"--prefix={checkout.as_posix()}/")
 

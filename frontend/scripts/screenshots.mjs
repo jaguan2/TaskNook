@@ -1023,12 +1023,14 @@ async function main() {
     await page.clickText("Room", { exact: true });
     await page.clickText("Plant shop");
     await sleep(1800);
+    await page.clickText("Decorate the room");
     await page.closePanels();
     await page.evaluate(`(() => {
       const shelf = document.querySelector('[data-iso-room-scene] [data-item="plantshelf"][role="button"]');
       if (!shelf) throw new Error('No customizable plant rack');
       shelf.focus(); shelf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     })()`);
+    await page.clickText('Colours', { exact: true });
     await sleep(300);
     await page.evaluate(`(() => {
       const select = document.querySelector('[aria-label="Shelf contents"]');
@@ -1047,12 +1049,14 @@ async function main() {
     await page.clickText("Room", { exact: true });
     await page.clickText("Loft");
     await sleep(1800);
+    await page.clickText("Decorate the room");
     await page.closePanels();
     await page.evaluate(`(() => {
       const bed = document.querySelector('[data-iso-room-scene] [data-item="bed"][role="button"]');
       if (!bed) throw new Error('No customizable bed');
       bed.focus(); bed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     })()`);
+    await page.clickText('Colours', { exact: true });
     for (const [part, label, color] of [
       ["main", "Blanket", "#506b9c"], ["frame", "Frame", "#885533"],
       ["sheets", "Sheets", "#d8b8a8"], ["pillows", "Pillows", "#d891a9"],

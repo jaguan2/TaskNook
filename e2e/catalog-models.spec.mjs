@@ -200,7 +200,7 @@ for (const rotation of [0, 1, 2, 3]) {
 }
 
 
-test('clicking a shelf customizes its own contents, preserves panning, and survives reload', async ({ page, request }, testInfo) => {
+test('shelves customize only in Decorate, preserve normal panning, and survive reload', async ({ page, request }, testInfo) => {
   await setup(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   const registered = await request.post('/api/auth/register', { data: { username: `shelf${Date.now()}`, password: 'shelves-test-only' } });
@@ -229,6 +229,27 @@ test('clicking a shelf customizes its own contents, preserves panning, and survi
     await page.mouse.click(point.x, point.y);
   };
   await clickShelf();
+  await expect(page.locator('[data-item-inspector]')).toHaveCount(0);
+  await expect(page.getByLabel('Shelf contents', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.tasknook-shell')).toHaveAttribute('data-room-editing', 'false');
+  await expect(page.locator('[data-placement-id="one"]')).not.toHaveAttribute('tabindex', '0');
+  const scene = page.locator('[data-iso-room-scene]'), viewBefore = await scene.getAttribute('viewBox');
+  const hit = await shelf.boundingBox();
+  await page.mouse.move(hit.x + hit.width / 2, hit.y + hit.height / 2);
+  await page.mouse.down(); await page.mouse.move(hit.x + hit.width / 2 + 40, hit.y + hit.height / 2, { steps: 5 }); await page.mouse.up();
+  await expect(scene).not.toHaveAttribute('viewBox', viewBefore);
+  await expect(page.getByLabel('Shelf contents', { exact: true })).toHaveCount(0);
+  const enterDecorate = async () => {
+    await page.getByRole('button', { name: 'Room', exact: true }).click();
+    await page.getByRole('button', { name: /Decorate the room/ }).click();
+    await page.locator('.app-drawer').getByRole('button', { name: /^Close/ }).click();
+  };
+  const editShelf = async () => {
+    await clickShelf();
+    await page.getByRole('button', { name: 'Colours', exact: true }).click();
+  };
+  await enterDecorate();
+  await editShelf();
   await expect(page.getByRole('group', { name: 'Shelf decorations', exact: true })).toBeVisible();
   const originalOther = await other.locator('image').getAttribute('href');
   await page.getByLabel('Shelf contents', { exact: true }).selectOption('mixed');
@@ -238,11 +259,14 @@ test('clicking a shelf customizes its own contents, preserves panning, and survi
   expect(await other.locator('image').getAttribute('href')).toBe(originalOther);
   await page.screenshot({ path: testInfo.outputPath('shelf-customization.png') });
   await expect.poll(async () => (await (await request.get('/api/room', { headers })).json()).iso.placements.find(p => p.id === 'one').decor).toEqual({ layout: 'mixed', bookColor: '#8a79b5' });
-  await page.getByRole('button', { name: 'Close item customizer' }).click();
+  await page.getByRole('button', { name: 'Deselect furniture' }).click();
   await page.reload();
   await ready(page);
   await expect(shelf).toHaveAttribute('data-shelf-layout', 'mixed');
   await clickShelf();
+  await expect(page.getByLabel('Shelf contents', { exact: true })).toHaveCount(0);
+  await enterDecorate();
+  await editShelf();
   await expect(page.getByLabel('Shelf contents', { exact: true })).toHaveValue('mixed');
   await page.getByLabel('Shelf contents', { exact: true }).selectOption('empty');
   await ready(page);
@@ -250,17 +274,15 @@ test('clicking a shelf customizes its own contents, preserves panning, and survi
   await page.getByRole('button', { name: 'Reset decorations', exact: true }).click();
   await ready(page);
   await expect(shelf).toHaveAttribute('data-shelf-layout', 'original');
-  await page.getByRole('button', { name: 'Close item customizer' }).click();
-  const hit = await shelf.boundingBox();
-  await page.mouse.move(hit.x + hit.width / 2, hit.y + hit.height / 2);
-  await page.mouse.down(); await page.mouse.move(hit.x + hit.width / 2 + 40, hit.y + hit.height / 2, { steps: 5 }); await page.mouse.up();
+  await page.getByRole('button', { name: 'Deselect furniture' }).click();
   await expect(page.getByLabel('Shelf contents', { exact: true })).toHaveCount(0);
   for (const viewport of [{ width: 390, height: 720 }, { width: 320, height: 360 }]) {
     await page.setViewportSize(viewport);
     await page.locator('[data-placement-id="one"]').focus();
     await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Colours', exact: true }).click();
     await expect(page.getByLabel('Shelf contents', { exact: true })).toBeVisible();
-    const box = await page.locator('.room-tint-picker').boundingBox();
+    const box = await page.locator('[data-item-inspector]').boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);

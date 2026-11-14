@@ -372,27 +372,15 @@ describe("the walk shares one clock", () => {
     expect(frames).toContain("animation-timing-function: ease-out");
   });
 
-  it("a carried figure dangles instead of standing in mid-air", () => {
-    // Drag-and-drop lifts the character off the floor, so every cue that says
-    // "my feet are on something" has to go: the limbs hang from their joints and
-    // the body swings from the scruff of the neck.
+  it("carries residents with one small sway and no phase offset", () => {
     const items = spriteSources();
-    // Every limb on its OWN wrapper — sharing an element with a walk class
-    // would let the animation silently eat the offset. Four limbs in the front
-    // pose plus the profile's three visible ones (two legs, one arm).
-    expect((items.match(/hangLimb\(held, -?\d+(?:\.\d+)?\)/g) || []).length).toBe(7);
+    const carry = css.match(/\.resident-held \{([^}]*)\}/);
+    expect(carry).toBeTruthy();
+    expect(carry[1]).toContain("3.2s");
+    expect(carry[1]).toContain("infinite");
+    expect(carry[1]).not.toContain("--phase");
+    expect(items).toMatch(/className=\{held \? "resident-held" : undefined\}/);
     expect(items).toMatch(/transformOrigin: "center top"/);
-    // The swing is a cue, so no --phase (it starts when you pick someone up),
-    // and it pivots where the fingers are: the top of the head.
-    const dangle = css.match(/\.held-dangle \{([^}]*)\}/);
-    expect(dangle, ".held-dangle is missing").toBeTruthy();
-    expect(dangle[1]).toContain("infinite");
-    expect(dangle[1]).not.toContain("--phase");
-    expect(items).toMatch(/className=\{held \? "held-dangle" : undefined\}/);
-    // Reduced motion is NOT asserted here: "silences every animated class, by
-    // construction" above already derives that obligation for anything with an
-    // `animation:` declaration, which is a stronger guarantee than naming this
-    // one class would be.
   });
 
   it("the glide's easing stays near constant speed", () => {
@@ -809,10 +797,10 @@ describe("idle gestures read as occasional, not as a loop", () => {
       expect(gateFor("gesture-stretch"), `stretch must stand down for ${term}`).toContain(term);
       expect(gateFor("gesture-rub"), `the eye-rub must stand down for ${term}`).toContain(term);
     }
-    // The head keeps its own gestures through all of it — yawning at your desk
-    // is the whole charm, and so is yawning on the way across the room.
-    expect(items).toMatch(/className="gesture-yawn"/);
-    expect(items).toMatch(/className="gesture-look"/);
+    // Head gestures can continue while typing/walking; pickup suppresses them
+    // so carrying has exactly one clock and stable head/neck contact.
+    expect(items).toMatch(/className=\{held \? undefined : "gesture-yawn"\}/);
+    expect(items).toMatch(/className=\{held \? undefined : "gesture-look"\}/);
   });
 
   it("a break is visible in the room, not just in the HUD", () => {
@@ -857,7 +845,7 @@ describe("idle gestures read as occasional, not as a loop", () => {
     // presentation attribute that keyframes outrank while running and that takes
     // over when they're switched off. Get this wrong and reduced motion leaves
     // every character permanently gaping.
-    const mouth = items.match(/className="gesture-yawn-mouth"[\s\S]{0,220}?\/>/);
+    const mouth = items.match(/className=\{held \? undefined : "gesture-yawn-mouth"\}[\s\S]{0,220}?\/>/);
     expect(mouth).toBeTruthy();
     expect(mouth[0]).toMatch(/opacity="0"/);
   });

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "species": "cat",
+  "status": "workshop pilot",
+  "authoringTool": "4.5.16 LTS",
+  "source": "cat.blend",
+  "model": "cat.glb",
+  "sourceSha256": "7c3593b8b2f5536164d3af600f9984da6245b4e613a15fa5d34a615719a3502a",
+  "modelSha256": "a8b84c7d77e211d952bddca97f961efd9c189ac494311dbe65c4cfd46154925b",
+  "clips": [
+    "Idle",
+    "Walk",
+    "Rest"
+  ],
+  "morphTargets": [
+    "Slender",
+    "Round"
+  ],
+  "forward": "+X",
+  "productionEnabled": false
+}

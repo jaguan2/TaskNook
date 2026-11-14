@@ -16,6 +16,10 @@ test('preview serves local assets, rejects writes, and contains file access', as
       assert.equal(response.headers.get('content-type'), mime);
     }
     assert.equal((await fetch(`${base}/game.webp`)).headers.get('content-type'), 'image/webp');
+    assert.equal((await fetch(`${base}/character-reference.jpg`)).headers.get('content-type'), 'image/jpeg');
+    assert.match(await (await fetch(`${base}/character.html`)).text(), /Character pilot/);
+    assert.match(await (await fetch(`${base}/pets.html`)).text(), /Pet mesh pilots/);
+    assert.equal((await fetch(`${base}/assets/character-pilot/resident.blend`, { method: 'HEAD' })).headers.get('content-type'), 'application/octet-stream');
     assert.equal((await fetch(`${base}/current.webp`)).status, 404);
     const asset = await fetch(`${base}/assets/armchair.glb`, { method: 'HEAD' });
     assert.equal(asset.headers.get('content-type'), 'model/gltf-binary');

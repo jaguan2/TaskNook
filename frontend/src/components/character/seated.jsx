@@ -17,13 +17,15 @@ import {
   pantsFormOf,
 } from "./body";
 
+// The shins cross, while the chunky soles retain enough space to read as two feet.
+const CROSSED_FOOT_X = 4.2;
 const geometryFor = (pose, side, floorAnkle) => {
   if (pose === "ankles") {
     return {
       hipX: side * 3.4,
       kneeX: side * (SEAT_KNEE_X + 0.2),
       kneeY: SEAT_KNEE_Y,
-      ankleX: side * -1.8,
+      ankleX: side * -CROSSED_FOOT_X,
       ankleY: floorAnkle,
       shoeTurn: side * -7,
     };
@@ -33,7 +35,7 @@ const geometryFor = (pose, side, floorAnkle) => {
       hipX: side * 3.2,
       kneeX: side * (SEAT_KNEE_X + 2.1),
       kneeY: SEAT_KNEE_Y + 0.8,
-      ankleX: side * -3.1,
+      ankleX: side * -CROSSED_FOOT_X,
       ankleY: SEAT_KNEE_Y + 6.2,
       shoeTurn: side * -13,
     };
@@ -99,6 +101,9 @@ export function SeatedLeg({
   const clothWidth = (form.shorts ? thighW : shinW) + extra;
   const dx = ankleX - kneeX;
   const dy = ankleY - kneeY;
+  // Match the boot upper to this calf, independently of the foot's small turn.
+  // Keeping an upright shaft on a crossed shin leaves the boot beside the leg.
+  const shaftAngle = Math.atan2(-dx, dy) * 180 / Math.PI - shoeTurn;
   const length = Math.hypot(dx, dy);
   const ux = dx / length;
   const uy = dy / length;
@@ -116,15 +121,15 @@ export function SeatedLeg({
   const creaseA = at(1);
   const creaseB = at(Math.max(2, length - 2));
   return (
-    <g>
+    <g data-seated-leg={far ? 'far' : 'near'}>
       {bareShin && (
-        <path d={`M${kneeX} ${kneeY} L${ankleX} ${ankleY}`}
+        <path data-seated-shin d={`M${kneeX} ${kneeY} L${ankleX} ${ankleY}`}
           stroke={far ? farColor(skin) : skin} strokeWidth={shinW - 1.4}
           strokeLinecap="round" fill="none" />
       )}
       <path d={`M${hipX} 0 L${kneeX} ${kneeY}`}
         stroke={thighPaint} strokeWidth={thighW + extra} strokeLinecap="round" fill="none" />
-      {!bareShin && <path d={`M${kneeX} ${kneeY} L${ankleX} ${ankleY}`}
+      {!bareShin && <path data-seated-shin d={`M${kneeX} ${kneeY} L${ankleX} ${ankleY}`}
         stroke={cloth} strokeWidth={shinW + extra} strokeLinecap="round" fill="none" />}
       {!form.bare && (
         <g>
@@ -145,8 +150,8 @@ export function SeatedLeg({
           )}
         </g>
       )}
-      <g transform={`translate(${ankleX}, ${ankleY + 1.1}) rotate(${shoeTurn})`}>
-        <FrontShoe cx={0} kind={shoes} color={shoeColor} skin={skin} far={far} />
+      <g data-seated-shoe={shoes} transform={`translate(${ankleX}, ${ankleY + 1.1}) rotate(${shoeTurn})`}>
+        <FrontShoe cx={0} kind={shoes} color={shoeColor} skin={skin} far={far} shaftAngle={shaftAngle} />
       </g>
     </g>
   );

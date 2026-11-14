@@ -32,7 +32,6 @@ import {
   SideHeadSkin,
   SideLeg,
   StandingLeg,
-  hangLimb,
   pantsFormOf,
 } from "./body";
 import { SeatedLeg, SeatedSkirt } from "./seated";
@@ -93,6 +92,12 @@ export function Resident({
   held = false,
   character,
 }) {
+  if (held) {
+    seated = false;
+    lying = false;
+    moving = false;
+    activity = null;
+  }
   const c = project(0.4, 0.4);
   // Per-instance id for the torso clip the print pattern needs — SVG ids are
   // document-global and a room holds many residents.
@@ -154,7 +159,7 @@ export function Resident({
               override an SVG transform attribute when both occupy one node,
               which would silently stand the sleeper back up. */}
           <g
-            className="body-breathe"
+            className={held ? undefined : "body-breathe"}
             style={{ transformBox: "fill-box", transformOrigin: "center" }}
           >
             <g transform={`translate(${-c.x}, ${-c.y})`}>
@@ -252,21 +257,17 @@ export function Resident({
     const sWa = Math.max(4.4, wa * 0.62);
     const sHem = Math.max(4.6, hem * 0.62);
     return (
-      <g transform={`translate(${c.x}, ${c.y})`}>
+      <g data-resident-pose={held ? "held" : undefined} transform={`translate(${c.x}, ${c.y})`}>
         <VolumeDefs id={clipId} />
         <g
-          className={held ? "held-dangle" : undefined}
+          className={held ? "resident-held" : undefined}
           style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
         >
           <g className={moving ? "leg-stride-a" : undefined}>
-            <g style={hangLimb(held, -5)}>
-              <SideLeg far legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
-            </g>
+            <SideLeg held={held} far legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
-            <g style={hangLimb(held, 6)}>
-              <SideLeg legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
-            </g>
+            <SideLeg held={held} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
           </g>
           <g className={moving ? "walk-bob" : undefined}>
             <g className={moving ? "walk-roll" : undefined}>
@@ -303,7 +304,7 @@ export function Resident({
                 </g>
               )}
               <g
-                className="body-breathe"
+                className={held ? undefined : "body-breathe"}
                 style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}
               >
                 {(() => {
@@ -340,7 +341,7 @@ export function Resident({
                     Q ${sSh + 0.4} ${top + 0.5} ${sSh - 3.5} ${top} Z`;
                   return (
                     <>
-                      <path d={body} style={outfit} />
+                      <path data-character-torso d={body} style={outfit} />
                       {/* Wrap-around prints show side-on too — same shapes,
                           clipped to the narrow torso. */}
                       {ch.print && ch.print !== "none" && (
@@ -426,7 +427,7 @@ export function Resident({
                     same wrappers, so the shadow swings with the arm): without
                     one the sleeve read as a stripe painted down the body. */}
                 <g className={moving ? "walk-arm-a" : undefined}>
-                  <g style={hangLimb(held, 8)}>
+                  <g transform={held ? `rotate(3 1.7 ${torsoY + 4.4})` : undefined}>
                     <path
                       d={`M 0.8 ${torsoY + 5.2} L 3.2 ${torsoY + 12.6} L 2.2 ${torsoY + 18}`}
                       stroke="#000"
@@ -473,8 +474,8 @@ export function Resident({
                     along); an attribute transform can't share
                     the animated gesture elements, hence its own <g>. */}
                 <g transform={`translate(-0.2 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
-                <g className="gesture-yawn">
-                  <g className="gesture-look">
+                <g className={held ? undefined : "gesture-yawn"}>
+                  <g className={held ? undefined : "gesture-look"}>
                     <SideHeadSkin headY={headY} skin={skin} />
                     {/* the EAR — a profile skull without one reads as an egg
                         (VC2 reference pass). Mid-skull, slightly aft of
@@ -510,14 +511,14 @@ export function Resident({
     );
   }
   return (
-    <g transform={`translate(${c.x}, ${c.y})`}>
+    <g data-resident-pose={held ? "held" : undefined} transform={`translate(${c.x}, ${c.y})`}>
       <VolumeDefs id={clipId} />
       {/* Held: ONE wrapper for the whole body, pivoting at the top of the head
           (`center top` of the fill-box — the scruff your fingers have hold of).
           It can't share the element with the translate above, per the
           attribute-vs-animation rule, so it's its own <g>. */}
       <g
-        className={held ? "held-dangle" : undefined}
+        className={held ? "resident-held" : undefined}
         style={held ? { transformBox: "fill-box", transformOrigin: "center top" } : undefined}
       >
       {seated ? (
@@ -538,19 +539,12 @@ export function Resident({
               While moving they SCISSOR from the hip — a stiff clay-toy stride,
               swing fore-and-aft, not the old vertical piston that hopped each
               trouser leg straight up and read as pedalling in place. */}
-          {/* Held, the legs hang: a few degrees apart from the hip, dead
-              still. Feet that stay parallel and level read as standing on
-              something, which is the one thing they must not read as when
-              there's no floor under them. */}
+          {/* Carry knees and ankles stay joined without separate limb clocks. */}
           <g className={moving ? "leg-stride-a" : undefined}>
-            <g style={hangLimb(held, -5)}>
-              <StandingLeg side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
-            </g>
+            <StandingLeg held={held} side={-1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
           </g>
           <g className={moving ? "leg-stride-b" : undefined}>
-            <g style={hangLimb(held, 6)}>
-              <StandingLeg side={1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
-            </g>
+            <StandingLeg held={held} side={1} legW={legW} legH={legH} trouser={trouser} pants={pants} skin={skin} shoes={ch.shoes} shoeColor={ch.shoeColor} />
           </g>
         </>
       )}
@@ -613,7 +607,7 @@ export function Resident({
             ))}
         </g>
       )}
-      <g className="body-breathe" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
+      <g className={held ? undefined : "body-breathe"} style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}>
         {/* The torso TAPERS: shoulders proud, waist drawn in. As a plain rect
             it was the same width top to bottom, which is what made the body
             read as a pill with a head on it rather than a person. */}
@@ -628,7 +622,7 @@ export function Resident({
           });
           return (
             <>
-              <path d={body} style={outfit} />
+              <path data-character-torso d={body} style={outfit} />
               {/* The PRINT: pattern shapes in the inner colour, clipped to
                   the torso so they can never spill past the silhouette. Under
                   the garment layer — an outer shell covers its print exactly
@@ -796,7 +790,7 @@ export function Resident({
                   (which is A) — contralateral swing, the thing that separates
                   walking from being wheeled along. */}
               <g className={moving ? "walk-arm-b" : undefined}>
-                <g style={hangLimb(held, -7)}>
+                <g transform={held ? `rotate(-3 ${-(sh - 0.5)} ${torsoY + 4.4})` : undefined}>
                 {/* Two segments and an elbow — see Arm. A short sleeve stops
                     AT the joint and the forearm shows as skin. */}
                 <Arm
@@ -822,7 +816,7 @@ export function Resident({
                   upside down. */}
               <g className={moving ? "walk-arm-a" : undefined}>
               <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub"}>
-              <g style={hangLimb(held, 8)}>
+              <g transform={held ? `rotate(3 ${sh - 0.5} ${torsoY + 4.4})` : undefined}>
                 <Arm
                   side={1}
                   reach={typing ? workTarget?.hands[1] : null}
@@ -894,14 +888,14 @@ export function Resident({
             along. Its own wrapper: an attribute transform may never share
             the gesture elements' animations. */}
         <g transform={`translate(0 ${headY * (1 - HEAD_SCALE)}) scale(${HEAD_SCALE})`}>
-        <g className="gesture-yawn">
+        <g className={held ? undefined : "gesture-yawn"}>
           {/* Both halves of the rub take the same gate, `moving` included: the
               arm half stands down mid-stride, and a head leaning into a hand
               that isn't raised is worse than no gesture at all. The yawn and
               the glance above are head-only and keep playing — yawning on the
               way across the room is fine. */}
           <g className={typing || resting || moving || held || lap ? undefined : "gesture-rub-head"}>
-            <g className="gesture-look">
+            <g className={held ? undefined : "gesture-look"}>
               {/* Inside the gesture wrappers on purpose: hair turns with the
                   head. Behind the face is what matters, not behind the body.
                   Turned away, the face side of the skull IS the back of the
@@ -940,7 +934,7 @@ export function Resident({
                   rather than a character left permanently gaping. */}
               {!back && (
                 <ellipse
-                  className="gesture-yawn-mouth"
+                  className={held ? undefined : "gesture-yawn-mouth"}
                   cx="0"
                   cy={headY + 5.1}
                   rx="1.9"

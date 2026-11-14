@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { project } from "../lib/iso";
-import { petAppearance } from "../lib/pets";
+import { PET_DISPLAY_SCALE, petAppearance } from "../lib/pets";
 import { VolumeDefs, sphereFill } from "./character/volume";
 
 // Palettes remain catalog-specific; only the classic coat accepts --tint.
@@ -280,7 +280,7 @@ function petSprite(species, gx, gy, baseScale) {
     const id = useId();
     const props = { species, coat: paletteFor(species, look), vol: sphereFill(id), appearance, awake, moving, facing, held };
     return <g data-pet-stage={appearance.stage} data-pet-form={appearance.form}
-      transform={`translate(${anchor.x},${anchor.y}) scale(${appearance.scale * baseScale})`}>
+      transform={`translate(${anchor.x},${anchor.y}) scale(${appearance.scale * baseScale * PET_DISPLAY_SCALE[species]})`}>
       <VolumeDefs id={id} />
       {species === "bunny" ? <Rabbit {...props} /> : <Quadruped {...props} />}
     </g>;

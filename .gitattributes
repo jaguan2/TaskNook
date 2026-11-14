@@ -11,6 +11,7 @@
 *.exe binary
 *.png binary
 *.glb binary
+*.blend binary
 *.ico binary
 *.db binary
 *.otf binary

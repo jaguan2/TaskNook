@@ -71,8 +71,8 @@ const contact = (height, z, x = 0) => ({ seatHeight: height, x, z });
 const ready = {
   sofa: { height: 42, contact: contact(22, .395, -.4235) },
   armchair: { height: 38, contact: contact(22, .395) },
-  chair: { height: 40, contact: contact(19, .335) },
-  deskchair: { height: 44, contact: contact(24, .34) },
+  chair: { height: 34, contact: contact(ISO_ITEMS.chair.seat, .335) },
+  deskchair: { height: 37, contact: contact(ISO_ITEMS.deskchair.seat, .34) },
   stool: { height: 20, contact: contact(20, .425) },
   woodstool: { height: 19, colorRole: 'finish', defaultColor: '#b08a61', contact: contact(19, .37) },
   beanbag: { height: 26 },
