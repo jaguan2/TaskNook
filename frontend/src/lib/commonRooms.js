@@ -164,7 +164,7 @@ const authoredPlaces = {
         furniture: `${id}-chair` })),
       ...libraryTableSeats.map((seat) => ({ ...seat, level: "ground", furniture: `${seat.id}-chair` })),
       ...libraryArmchairs.map(({ id, label, gx, gy, rot = 0 }) => {
-        const pose = seatedPlacement({ item: "resident" }, { placement: { id, item: "armchair", gx, gy, rot }, height: 22 });
+        const pose = seatedPlacement({ item: "resident" }, { placement: { id, item: "armchair", gx, gy, rot }, height: ISO_ITEMS.armchair.seat });
         return { id, label, level: "ground", gx: pose.gx, gy: pose.gy, furniture: `${id}-chair` };
       }),
       ...librarySofas.flatMap(({ id, gx, gy, seats }) => seats.map((seat, i) => ({ ...seat, level: "ground",

@@ -3,18 +3,70 @@ import { StrictMode } from "react";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useChallenges } from "./useChallenges";
-import { CHALLENGES_KEY, challengeFor, dailyChallengeIds } from "../lib/challenges";
-import { readJSON, removeStored, writeJSON } from "../services/storage";
+import { CHALLENGES_KEY, CHALLENGES_ENABLED_KEY, challengeFor, dailyChallengeIds } from "../lib/challenges";
+import { readJSON, readStored, removeStored, writeJSON } from "../services/storage";
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 9, 7, 23, 59));
   removeStored(CHALLENGES_KEY);
+  removeStored(CHALLENGES_ENABLED_KEY);
 });
 afterEach(() => {
-  cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); removeStored(CHALLENGES_KEY);
+  cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); removeStored(CHALLENGES_KEY); removeStored(CHALLENGES_ENABLED_KEY);
 });
 const goal = (cadence = "ongoing") => ({ title: "Read chapters", target: 3, tracking: "manual", cadence });
+
+it('pauses immediately, restores the setting on relaunch, and resumes without replaying missed actions', () => {
+  const progress = vi.fn();
+  const first = renderHook(() => useChallenges(undefined, progress));
+  act(() => { first.result.current.addChallenge(goal()); });
+  const id = first.result.current.challenges.custom[0].id;
+  act(() => first.result.current.advanceChallenge(id));
+  const saved = first.result.current.challenges;
+  progress.mockClear();
+  act(() => {
+    first.result.current.setChallengesEnabled(false);
+    first.result.current.recordChallengeEvent('task-created');
+    first.result.current.advanceChallenge(id);
+  });
+  expect(first.result.current.challenges).toBe(saved);
+  expect(progress).not.toHaveBeenCalled();
+  expect(readStored(CHALLENGES_ENABLED_KEY)).toBe('0');
+  first.unmount();
+  const next = renderHook(() => useChallenges(undefined, progress));
+  expect(next.result.current.challengesEnabled).toBe(false);
+  expect(next.result.current.challenges).toEqual(saved);
+  act(() => next.result.current.setChallengesEnabled(true));
+  expect(progress).not.toHaveBeenCalled();
+  act(() => next.result.current.recordChallengeEvent('task-created'));
+  expect(next.result.current.challenges.daily.find(entry => entry.id === 'plan-one-task').progress).toBe(1);
+  expect(next.result.current.challenges.custom[0].progress).toBe(1);
+  expect(progress).toHaveBeenCalledTimes(1);
+});
+
+it('reconciles the local day on resuming while preserving ongoing personal progress', () => {
+  const { result } = renderHook(() => useChallenges());
+  act(() => result.current.addChallenge(goal()));
+  act(() => result.current.advanceChallenge(result.current.challenges.custom[0].id));
+  act(() => result.current.setChallengesEnabled(false));
+  const paused = result.current.challenges;
+  act(() => { vi.setSystemTime(new Date(2026, 9, 8)); window.dispatchEvent(new Event('focus')); });
+  expect(result.current.challenges).toBe(paused);
+  act(() => result.current.setChallengesEnabled(true));
+  expect(result.current.challenges.day).toBe('2026-10-08');
+  expect(result.current.challenges.daily.every(entry => entry.progress === 0)).toBe(true);
+  expect(result.current.challenges.custom[0].progress).toBe(1);
+});
+
+it('warns if the toggle cannot be saved while still pausing in this session', () => {
+  const error = vi.fn();
+  const { result } = renderHook(() => useChallenges(error));
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+  act(() => result.current.setChallengesEnabled(false));
+  expect(result.current.challengesEnabled).toBe(false);
+  expect(error).toHaveBeenCalledWith(expect.stringContaining('challenge setting'));
+});
 
 it("persists a replacement and consecutive custom actions immediately, then restores on relaunch", () => {
   const first = renderHook(() => useChallenges(), { wrapper: StrictMode });

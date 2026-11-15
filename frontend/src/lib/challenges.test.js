@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHALLENGE_TITLE_MAX, CUSTOM_CHALLENGE_LIMIT, DAILY_CHALLENGES, addCustomChallenge,
   challengeFor, changeCustomProgress, dailyChallengeIds, normalizeChallenges,
-  recordChallenge, removeCustomChallenge, replaceDailyChallenge, resetCustomChallenge,
+  recordChallenge, removeCustomChallenge, replaceDailyChallenge, resetCustomChallenge, SIMPLE_DAILY_IDS, canReplaceChallenge,
 } from "./challenges";
 
 const today = new Date(2026, 9, 7, 23, 45);
@@ -13,26 +13,25 @@ const draft = (patch = {}) => ({ title: "Read a chapter", target: 3, tracking: "
 const add = (state, patch = {}, id = "custom-one") => addCustomChallenge(state, draft(patch), id, today);
 
 describe("daily variety and migration", () => {
-  it("changes every category between adjacent LOCAL days and stays stable through a day", () => {
-    const seen = new Set();
+  it("offers the same four small goals on every local day", () => {
     for (let i = 0; i < 366; i++) {
-      const day = new Date(2026, 0, 1 + i, 0, 1);
-      const late = new Date(2026, 0, 1 + i, 23, 59);
-      const ids = dailyChallengeIds(day), next = dailyChallengeIds(new Date(2026, 0, 2 + i));
-      expect(dailyChallengeIds(late)).toEqual(ids);
-      expect(new Set(ids).size).toBe(3);
-      expect(ids.map((id) => challengeFor(id).category)).toEqual(["focus", "tasks", "social"]);
-      ids.forEach((id, index) => { expect(next[index]).not.toBe(id); seen.add(id); });
+      expect(dailyChallengeIds(new Date(2026, 0, 1 + i))).toEqual(SIMPLE_DAILY_IDS);
     }
-    expect(seen.size).toBe(DAILY_CHALLENGES.length);
+    expect(new Set(dailyChallengeIds()).size).toBe(4);
+    expect(dailyChallengeIds().map(id => challengeFor(id).event)).toEqual([
+      'friend-message', 'common-visited', 'task-created', 'focus-minutes',
+    ]);
+    expect(challengeFor('short-study').target).toBe(5);
     expect(empty().day).toBe("2026-10-07");
+    expect(canReplaceChallenge(empty().daily, 'short-study')).toBe(false);
+    expect(replaceDailyChallenge(empty(), 'short-study', today)).toEqual(empty());
   });
 
   it("migrates the first release without replacing today's prompts or erasing completed ones", () => {
     const progress = normalizeChallenges({ version: 1, day: "2026-10-07", completed: ["start-study", "start-study", "unknown"] }, today);
     expect(progress.version).toBe(2);
     expect(progress.daily).toEqual([
-      { id: "talk-to-friend", progress: 0 }, { id: "start-study", progress: 1 }, { id: "update-todos", progress: 0 },
+      { id: "talk-to-friend", progress: 0 }, { id: "start-study", progress: 1 }, { id: "update-todos", progress: 0 }, { id: "join-common-place", progress: 0 },
     ]);
     expect(normalizeChallenges(progress, today)).toBe(progress);
     expect(normalizeChallenges(progress, tomorrow).daily).toEqual(dailyChallengeIds(tomorrow).map((id) => ({ id, progress: 0 })));
@@ -42,7 +41,7 @@ describe("daily variety and migration", () => {
     "repairs malformed progress %j", (saved) => {
       const normalized = normalizeChallenges(saved, today);
       expect(normalized.day).toBe("2026-10-07");
-      expect(normalized.daily).toHaveLength(3);
+      expect(normalized.daily).toHaveLength(4);
       expect(normalized.daily.every(({ id, progress }) => !!challengeFor(id) && progress === 0)).toBe(true);
     }
   );
@@ -72,7 +71,7 @@ describe("replacing a prompt", () => {
       expect(state.daily[0].id).not.toBe(old);
       expect(state.daily[0].progress).toBe(0);
       expect(state.daily.slice(1)).toEqual(before);
-      expect(new Set(state.daily.map(({ id }) => id)).size).toBe(3);
+      expect(new Set(state.daily.map(({ id }) => id)).size).toBe(4);
       expect(state.seen.length).toBeLessThanOrEqual(DAILY_CHALLENGES.length);
       expect(normalizeChallenges(state, today)).toBe(state);
     }
@@ -82,12 +81,12 @@ describe("replacing a prompt", () => {
 
   it("uses unseen prompts before recycling earlier choices and gives no retroactive credit", () => {
     let state = legacy();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 2; i++) {
       const before = state.seen;
       state = replaceDailyChallenge(state, state.daily[0].id, today);
       expect(before).not.toContain(state.daily[0].id);
     }
-    expect(state.seen).toHaveLength(9);
+    expect(state.seen).toHaveLength(6);
   });
 });
 

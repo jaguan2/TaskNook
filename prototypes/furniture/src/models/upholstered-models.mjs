@@ -5,9 +5,9 @@ const PIXELS_PER_UNIT = 48 / Math.SQRT2;
 // A SINGLE closed sweep forms both arms and the back. The rounded cross-section
 // follows the U-shaped centerline; its crown rises continuously into the back.
 // No intersecting back/arm boxes, hidden corner gaps or view-dependent patches.
-function upholsteredShell(width, depth, height) {
+function upholsteredShell(width, depth, height, armTop, bottom) {
   const thickness = .15, side = width / 2 - thickness / 2;
-  const rear = -depth / 2 + thickness / 2, front = depth / 2 - .07;
+  const rear = -depth / 2 + thickness / 2, front = depth / 2 - .20;
   const corner = .16;
   const path = new THREE.Path();
   path.moveTo(-side, front);
@@ -23,8 +23,8 @@ function upholsteredShell(width, depth, height) {
     const t = i / rings, p = path.getPointAt(t), tangent = path.getTangentAt(t);
     const normal = new THREE.Vector2(tangent.y, -tangent.x).normalize();
     const rise = THREE.MathUtils.smoothstep(-p.y, .02 + (depth - .85) / 2, .26 + (depth - .85) / 2);
-    const top = THREE.MathUtils.lerp(27 / PIXELS_PER_UNIT, height, rise);
-    const bottom = .155, radius = .047;
+    const top = THREE.MathUtils.lerp(armTop, height, rise);
+    const radius = .047;
     const centers = [
       [thickness / 2 - radius, top - radius, 0],
       [-thickness / 2 + radius, top - radius, Math.PI / 2],
@@ -79,18 +79,23 @@ function upholsteredShell(width, depth, height) {
 export function buildSeating(root, spec, seats) {
   const cloth = material('upholstery', '#8baba0'), timber = material('frame', '#805334', .68);
   const { width, depth, height, seat } = spec;
-  part(root, 'continuous-arm-and-back-shell', upholsteredShell(width, depth, height), cloth);
-  rounded(root, 'underframe', [width - .08, .07, depth - .08], [0, .135, 0], timber, .028);
-  rounded(root, 'upholstered-seat-deck', [width - .16, .38, depth - .12], [0, .345, .005], cloth, .065);
+  // A shallow deck replaces the old 13px plinth. Derive every support from
+  // the physical cushion plane so fixed and resized sofas stay connected.
+  const cushionHeight = .145, deckHeight = .16, railHeight = .045;
+  const deckTop = seat - cushionHeight + .01, deckBottom = deckTop - deckHeight;
+  const railTop = deckBottom + .008, railBottom = railTop - railHeight;
+  part(root, 'continuous-arm-and-back-shell', upholsteredShell(width, depth, height, seat + 5 / PIXELS_PER_UNIT, railBottom + .005), cloth);
+  rounded(root, 'underframe', [width - .08, railHeight, depth - .08], [0, railTop - railHeight / 2, 0], timber, .018);
+  rounded(root, 'upholstered-seat-deck', [width - .16, deckHeight, depth - .12], [0, deckBottom + deckHeight / 2, .005], cloth, .035);
   const supports = width > 3 ? [-1, 0, 1] : [-1, 1];
   for (const x of supports) for (const z of [-1, 1]) {
-    foot(root, `foot-${x}-${z}`, x * (width / 2 - .125), z * (depth / 2 - .125), .13, timber);
+    foot(root, `foot-${x}-${z}`, x * (width / 2 - .125), z * (depth / 2 - .125), railBottom + .015, timber);
   }
   const innerWidth = width - .32, gap = .014;
   const cushionWidth = (innerWidth - gap * (seats - 1)) / seats;
   for (let i = 0; i < seats; i++) {
     const x = -innerWidth / 2 + cushionWidth / 2 + i * (cushionWidth + gap);
-    const pad = rounded(root, `seat-cushion-${i + 1}`, [cushionWidth, .145, depth - .26], [x, 0, .052], cloth, .065, true);
+    const pad = rounded(root, `seat-cushion-${i + 1}`, [cushionWidth, cushionHeight, depth - .26], [x, 0, .052], cloth, .065, true);
     pad.geometry.computeBoundingBox();
     pad.position.y = seat - pad.geometry.boundingBox.max.y;
     const backHeight = Math.min(.51, height - seat - .04);

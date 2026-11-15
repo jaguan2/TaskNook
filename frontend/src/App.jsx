@@ -114,6 +114,7 @@ export default function App() {
     setHudVisibility,
     widgetMode,
     setWidgetMode,
+    challengesEnabled = true,
   } = useSettingsStore();
   const {
     cottageView,
@@ -147,6 +148,7 @@ export default function App() {
     moveHomePersona,
     kickHomeVisitor,
     friendship,
+    friends,
   } = useSocialStore();
   // The NARROW timer context: running/phase only. Reading the full one here
   // would re-render App — and with it the dock, the HUD and every open panel —
@@ -162,6 +164,10 @@ export default function App() {
   const [frontKey, setFrontKey] = useState(null);
   const [catalogRequest, setCatalogRequest] = useState(0);
   const [catalogState, setCatalogState] = useState({ query: "", group: null });
+  useEffect(() => {
+    if (!challengesEnabled) setOpenPanels(panels => panels.some(panel => panel.key === 'challenges')
+      ? panels.filter(panel => panel.key !== 'challenges') : panels);
+  }, [challengesEnabled]);
   // Resolved once here and threaded down: the setting wins over the OS
   // preference, and framer-motion's own hook only knows about the latter.
   const reduceMotion = useReducedMotionPref(motionMode);
@@ -237,6 +243,7 @@ export default function App() {
   }, [colorScheme, customColor, customSurface, backdropStyle]);
 
   const toggleDockPanel = (key) => {
+    if (key === 'challenges' && !challengesEnabled) return;
     setOpenPanels((prev) => {
       const existing = prev.find((p) => p.key === key);
       if (existing) {
@@ -405,7 +412,7 @@ export default function App() {
             {commonRoom ? (
               <CommonRoom key={commonRoom.sceneId} session={commonRoom} character={character}
                 activity={running ? phase : null} timeOfDay={timeOfDay}
-                reduceMotion={sceneReduceMotion} friendship={friendship}
+                reduceMotion={sceneReduceMotion} friendship={friendship} friends={friends}
                 paused={widgetMode}
                 onChooseSeat={chooseCommonSeat} onCancel={leaveVisit} />
             ) : visiting ? (
@@ -582,7 +589,7 @@ export default function App() {
       >
         <TopBar clockVisibility={hudVisibility.clock} />
       </div>
-      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} onWarm={warmPanel} />
+      <Dock active={openPanels.map((p) => p.key)} onSelect={toggleDockPanel} onWarm={warmPanel} challengesEnabled={challengesEnabled} />
       </div>
 
       {/* Shared error toast — top-centre (the one HUD zone nothing owns).

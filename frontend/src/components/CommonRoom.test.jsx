@@ -1,12 +1,29 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CommonRoom from "./CommonRoom";
 import { COMMON_PLACES, createCommonSession, resolveCommonProps, settleCommonGuest } from "../lib/commonRooms";
 import { floorPatch, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf } from "../lib/isoRoom";
 import { DEFAULT_CHARACTER } from "../lib/profile";
+
+// jsdom has no modal API. Only emulate open/close here; the native browser
+// journey verifies top-layer placement, inertness, focus and Escape behavior.
+const dialogMethods = Object.fromEntries(['showModal', 'close'].map(name =>
+  [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)]));
+beforeAll(() => {
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: { configurable: true, value() { this.open = true; } },
+    close: { configurable: true, value() { this.open = false; } },
+  });
+});
+afterAll(() => {
+  for (const [name, descriptor] of Object.entries(dialogMethods)) {
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else delete HTMLDialogElement.prototype[name];
+  }
+});
 
 afterEach(() => {
   cleanup();
@@ -32,6 +49,55 @@ const resolvedClip = (container, group) => {
   const definition = [...container.querySelectorAll("clipPath")].find((clip) => clip.id === id);
   return scenePoints(group, points(definition.querySelector("polygon").getAttribute("points")));
 };
+
+describe("common-room profiles", () => {
+  it.each(Object.keys(COMMON_PLACES))("opens the same read-only profile from a figure or name in %s", (sceneId) => {
+    const onChooseSeat = vi.fn();
+    const { container } = render(<CommonRoom session={createCommonSession(sceneId)} character={DEFAULT_CHARACTER}
+      friends={[{ username: "luna", displayName: "Luna", avatar: "🌸" }]} onChooseSeat={onChooseSeat} />);
+    for (const [selector, key] of [['[data-common-person="luna"]', null], ['[data-common-profile-name="luna"]', null],
+      ['[data-common-person="luna"]', 'Enter'], ['[data-common-person="luna"]', ' ']]) {
+      const trigger = container.querySelector(selector);
+      expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+      if (key) fireEvent.keyDown(trigger, { key });
+      else fireEvent.click(trigger);
+      const dialog = screen.getByRole('dialog', { name: 'About Luna' });
+      expect(dialog.textContent).toContain('October 12, 1997');
+      expect(dialog.textContent).toContain('she/her');
+      fireEvent.click(screen.getByRole('button', { name: "Close Luna's profile" }));
+      expect(document.activeElement).toBe(trigger);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    }
+    expect(onChooseSeat).not.toHaveBeenCalled();
+  });
+
+  it("keeps an opened identity stable through departures and restores focus to your character", () => {
+    const session = createCommonSession('grand-library');
+    const onChooseSeat = vi.fn();
+    const { container, rerender } = render(<CommonRoom session={session} character={DEFAULT_CHARACTER} onChooseSeat={onChooseSeat} />);
+    const ivy = container.querySelector('[data-common-person="ivy"]');
+    fireEvent.click(ivy);
+    const facts = screen.getByRole('dialog', { name: 'About Ivy' }).textContent;
+    rerender(<CommonRoom session={{ ...session, occupants: session.occupants.map(person => person.username === 'ivy'
+      ? { ...person, username: 'new-neighbour', label: 'New neighbour' } : person) }}
+      character={DEFAULT_CHARACTER} onChooseSeat={onChooseSeat} />);
+    expect(screen.getByRole('dialog', { name: 'About Ivy' }).textContent).toBe(facts);
+    fireEvent.click(screen.getByRole('button', { name: "Close Ivy's profile" }));
+    expect(document.activeElement).toBe(container.querySelector('[data-common-person="you"]'));
+    rerender(<CommonRoom session={session} character={DEFAULT_CHARACTER} onChooseSeat={onChooseSeat} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onChooseSeat).not.toHaveBeenCalled();
+  });
+
+  it("keeps occupied-person profiles inactive while choosing a seat", () => {
+    const { container } = render(<CommonRoom session={createCommonSession('common-cottage')} character={DEFAULT_CHARACTER} />);
+    fireEvent.keyDown(container.querySelector('[data-common-person="you"]'), { key: 'Enter' });
+    fireEvent.click(container.querySelector('[data-common-person="luna"]'));
+    fireEvent.click(container.querySelector('[data-common-profile-name="luna"]'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('group', { name: 'Common room seats' })).toBeTruthy();
+  });
+});
 
 describe("common-room seats", () => {
   it("shows the seat hint at the top for five seconds, then clears it away", () => {
@@ -232,7 +298,7 @@ describe("common-room seats", () => {
     const onChooseSeat = vi.fn();
     const { container } = render(<CommonRoom session={createCommonSession("willow-pond")}
       character={DEFAULT_CHARACTER} timeOfDay="night" onChooseSeat={onChooseSeat} />);
-    expect(screen.getByRole("img", { name: /Willow Pond/ })).toBeTruthy();
+    expect(screen.getByRole("group", { name: /Willow Pond/ })).toBeTruthy();
     expect(container.querySelector('[data-garden-architecture="willow-pond"]')).toBeTruthy();
     expect(container.querySelector('[data-garden-path="stepping-stones"]')).toBeTruthy();
     expect(container.querySelector('[data-garden-details="meadow"]')).toBeTruthy();
@@ -250,7 +316,7 @@ describe("common-room seats", () => {
     const onChooseSeat = vi.fn((id) => { session = settleCommonGuest(session, id); });
     const { container, rerender } = render(<CommonRoom session={session}
       character={DEFAULT_CHARACTER} timeOfDay="night" reduceMotion onChooseSeat={onChooseSeat} />);
-    expect(screen.getByRole("img", { name: /Grand Library/ })).toBeTruthy();
+    expect(screen.getByRole("group", { name: /Grand Library/ })).toBeTruthy();
     expect(container.querySelector("svg").classList.contains("cottage-preview")).toBe(true);
     const neighbours = [...container.querySelectorAll('[data-common-person]:not([data-common-person="you"])')]
       .map((p) => p.getAttribute("transform"));

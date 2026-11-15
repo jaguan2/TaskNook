@@ -19,6 +19,7 @@ export const CATALOGS = {
     cottagePresets: { lounge: "Salón acogedor", default: "Estudio clásico", greenhouse: "Invernadero", library: "Biblioteca", nightowl: "Noctámbulo", reading: "Rincón del bosque", seaside: "Estudio costero" },
     cottageZones: { wall: "En la pared", desk: "En el escritorio", floor: "En el suelo", ceiling: "Techo" },
     isoItems: {
+      spindlechair: "Silla de husillos", foldingchair: "Silla plegable", loungechair: "Sillón de descanso",
       rug: "Alfombra redonda", squarerug: "Alfombra cuadrada", desk: "Puesto de trabajo", stool: "Taburete", sofa: "Sofá", armchair: "Sillón", nightstand: "Mesita de noche", chair: "Silla de madera",
       shelf: "Estantería abierta", plantshelf: "Expositor de plantas", bookcase: "Librería ancha", sidetable: "Mesa auxiliar", tv: "Televisor", laptop: "Portátil", mapletree: "Arce", leafpile: "Montón de hojas",
       haybale: "Fardo de heno", pumpkin: "Calabaza", jackolantern: "Calabaza iluminada", rake: "Rastrillo", scarecrow: "Espantapájaros", turkey: "Pavo", wreath: "Corona", cornstalks: "Hojas de maíz atadas",
@@ -56,6 +57,7 @@ export const CATALOGS = {
     cottagePresets: { lounge: "温馨客厅", default: "经典书房", greenhouse: "温室", library: "图书馆", nightowl: "夜猫子", reading: "林间阅读角", seaside: "海边工作室" },
     cottageZones: { wall: "墙面", desk: "桌面", floor: "地面", ceiling: "天花板" },
     isoItems: {
+      spindlechair: "细条靠背椅", foldingchair: "折叠椅", loungechair: "休闲椅",
       rug: "圆形地毯", squarerug: "方形地毯", desk: "工作台", stool: "凳子", sofa: "沙发", armchair: "扶手椅", nightstand: "床头柜", chair: "木椅", shelf: "开放式搁架", plantshelf: "植物展示架", bookcase: "宽书柜", sidetable: "边桌", tv: "电视", laptop: "笔记本电脑", mapletree: "枫树", leafpile: "落叶堆",
       haybale: "干草捆", pumpkin: "南瓜", jackolantern: "南瓜灯", rake: "耙子", scarecrow: "稻草人", turkey: "火鸡", wreath: "花环", cornstalks: "玉米秆束", applecrate: "苹果箱", mushroompatch: "蘑菇丛", leafgarland: "树叶花环", leafbarrow: "落叶手推车", mums: "盆栽菊花", harvestbasket: "丰收篮", acornbowl: "橡果碗", harvestsign: "丰收标牌", ciderset: "热苹果酒套装",
       snowpine: "雪松", snowman: "雪人", snowdrift: "雪堆", snowballs: "雪球", christmastree: "圣诞树", snowangel: "雪天使", christmaslights: "圣诞彩灯", chimney: "积雪烟囱", logstack: "木柴", icelantern: "冰灯", icicles: "冰柱", sled: "木雪橇", giftstack: "礼物堆", snowglobe: "雪花球", evergreengarland: "常青花环", stocking: "针织圣诞袜", blanketbasket: "毛毯篮",
@@ -86,6 +88,7 @@ export const CATALOGS = {
     cottagePresets: { lounge: "くつろぎラウンジ", default: "クラシック書斎", greenhouse: "温室", library: "図書室", nightowl: "夜ふかし", reading: "森の読書コーナー", seaside: "海辺のスタジオ" },
     cottageZones: { wall: "壁", desk: "机の上", floor: "床", ceiling: "天井" },
     isoItems: {
+      spindlechair: "スピンドルチェア", foldingchair: "折りたたみ椅子", loungechair: "ラウンジチェア",
       rug: "丸いラグ", squarerug: "四角いラグ", desk: "ワークデスク", stool: "スツール", sofa: "ソファ", armchair: "アームチェア", nightstand: "ナイトテーブル", chair: "木の椅子", shelf: "オープンシェルフ", plantshelf: "植物ディスプレイ", bookcase: "ワイド本棚", sidetable: "サイドテーブル", tv: "テレビ", laptop: "ノートパソコン", mapletree: "カエデ", leafpile: "落ち葉の山",
       haybale: "干し草の束", pumpkin: "カボチャ", jackolantern: "ジャック・オー・ランタン", rake: "熊手", scarecrow: "かかし", turkey: "七面鳥", wreath: "リース", cornstalks: "トウモロコシの束", applecrate: "リンゴ箱", mushroompatch: "キノコ畑", leafgarland: "落ち葉のガーランド", leafbarrow: "落ち葉の手押し車", mums: "鉢植えの菊", harvestbasket: "収穫かご", acornbowl: "どんぐりボウル", harvestsign: "収穫祭の看板", ciderset: "ホットサイダーセット",
       snowpine: "雪の松", snowman: "雪だるま", snowdrift: "雪の吹きだまり", snowballs: "雪玉", christmastree: "クリスマスツリー", snowangel: "スノーエンジェル", christmaslights: "クリスマスライト", chimney: "雪の煙突", logstack: "薪", icelantern: "氷のランタン", icicles: "つらら", sled: "木のそり", giftstack: "プレゼントの山", snowglobe: "スノードーム", evergreengarland: "常緑樹のガーランド", stocking: "編み物の靴下", blanketbasket: "ブランケットかご",
@@ -116,6 +119,7 @@ export const CATALOGS = {
     cottagePresets: { lounge: "아늑한 라운지", default: "클래식 서재", greenhouse: "온실", library: "도서관", nightowl: "밤샘 공간", reading: "숲속 독서 공간", seaside: "해변 스튜디오" },
     cottageZones: { wall: "벽", desk: "책상 위", floor: "바닥", ceiling: "천장" },
     isoItems: {
+      spindlechair: "스핀들 의자", foldingchair: "접이식 의자", loungechair: "라운지 의자",
       rug: "원형 러그", squarerug: "사각 러그", desk: "작업대", stool: "스툴", sofa: "소파", armchair: "안락의자", nightstand: "협탁", chair: "나무 의자", shelf: "오픈 선반", plantshelf: "식물 진열대", bookcase: "넓은 책장", sidetable: "사이드 테이블", tv: "텔레비전", laptop: "노트북", mapletree: "단풍나무", leafpile: "낙엽 더미",
       haybale: "건초 더미", pumpkin: "호박", jackolantern: "잭오랜턴", rake: "갈퀴", scarecrow: "허수아비", turkey: "칠면조", wreath: "리스", cornstalks: "옥수숫대 묶음", applecrate: "사과 상자", mushroompatch: "버섯밭", leafgarland: "낙엽 가랜드", leafbarrow: "낙엽 손수레", mums: "화분 국화", harvestbasket: "수확 바구니", acornbowl: "도토리 그릇", harvestsign: "수확 표지판", ciderset: "따뜻한 사과주 세트",
       snowpine: "눈 덮인 소나무", snowman: "눈사람", snowdrift: "눈더미", snowballs: "눈덩이", christmastree: "크리스마스트리", snowangel: "눈 천사", christmaslights: "크리스마스 조명", chimney: "눈 덮인 굴뚝", logstack: "장작", icelantern: "얼음 등불", icicles: "고드름", sled: "나무 썰매", giftstack: "포장 선물 더미", snowglobe: "스노 글로브", evergreengarland: "상록수 가랜드", stocking: "뜨개 양말", blanketbasket: "담요 바구니",

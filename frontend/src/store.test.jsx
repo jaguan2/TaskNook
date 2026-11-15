@@ -47,6 +47,7 @@ beforeEach(() => {
   removeStored("tasknook.progression");
   removeStored("tasknook.taskGroups");
   removeStored("tasknook.backdrop");
+  removeStored("tasknook.challenges.enabled");
   writeJSON("tasknook.challenges", { version: 1, day: localTodayISO(), completed: [] });
   api.me.mockResolvedValue({ user: { id: 1, username: "you" } });
   api.listTasks.mockResolvedValue([original]);
@@ -62,6 +63,24 @@ async function boot(expectedTasks = [original]) {
   render(<StoreProvider><Reader /></StoreProvider>);
   await waitFor(() => expect(store.tasks).toEqual(expectedTasks));
 }
+
+it('pauses challenge rewards without losing goals or awarding completed goals again after toggles', async () => {
+  await boot();
+  const before = store.challenges;
+  const xp = store.progression.bonusXP;
+  act(() => {
+    store.setChallengesEnabled(false);
+    store.recordChallengeEvent('focus-started');
+  });
+  expect(store.challenges).toBe(before);
+  expect(store.progression.bonusXP).toBe(xp);
+  act(() => store.setChallengesEnabled(true));
+  act(() => store.recordChallengeEvent('focus-started'));
+  expect(store.progression.bonusXP).toBe(xp + 10);
+  act(() => { store.setChallengesEnabled(false); store.setChallengesEnabled(true); });
+  act(() => store.recordChallengeEvent('focus-started'));
+  expect(store.progression.bonusXP).toBe(xp + 10);
+});
 
 it('undoes a corner resize position and dimensions together as one room edit', async () => {
   api.getRoom.mockResolvedValue({ placements: [], iso: { version: 2, w: 8, d: 8, placements: [

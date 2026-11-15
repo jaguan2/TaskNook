@@ -5,6 +5,8 @@ import {
   FRIENDSHIP_LEVELS,
   clampBond,
   levelFor,
+  FRIENDSHIP_GROWTH,
+  friendshipGrowthFor,
 } from "./friendship";
 
 describe("the friendship vocabulary", () => {
@@ -25,6 +27,46 @@ describe("the friendship vocabulary", () => {
 
   it("the top level is reachable under the cap", () => {
     expect(FRIENDSHIP_LEVELS[FRIENDSHIP_LEVELS.length - 1].at).toBeLessThanOrEqual(BOND_CAP);
+  });
+});
+
+describe('personal friendship growth', () => {
+  it('keeps every curve ascending and preserves all previously earned levels', () => {
+    for (const thresholds of Object.values(FRIENDSHIP_GROWTH)) {
+      expect(thresholds).toHaveLength(FRIENDSHIP_LEVELS.length);
+      expect(thresholds[0]).toBe(0);
+      thresholds.forEach((at, i) => {
+        expect(at).toBeLessThanOrEqual(FRIENDSHIP_LEVELS[i].at);
+        if (i) expect(at).toBeGreaterThan(thresholds[i - 1]);
+      });
+    }
+    for (const name of ['luna', 'kai', 'sora', 'mochi', 'fern', '__proto__']) {
+      for (let pts = 0; pts <= BOND_CAP; pts++) expect(levelFor(pts, name).level).toBeGreaterThanOrEqual(levelFor(pts).level);
+    }
+  });
+
+  it('gives familiar characters different stable growth patterns', () => {
+    expect(levelFor(60, 'kai').level).toBe(3);
+    expect(levelFor(60, 'luna').level).toBe(2);
+    expect(levelFor(160, 'luna').level).toBe(4);
+    expect(levelFor(160, 'mochi').level).toBe(3);
+    expect(friendshipGrowthFor(' Luna ')).toBe(friendshipGrowthFor('luna'));
+    for (const name of ['ivy', 'fern', 'new-neighbour', '__proto__']) {
+      expect(FRIENDSHIP_GROWTH[friendshipGrowthFor(name)]).toBeTruthy();
+      expect(friendshipGrowthFor(name)).toBe(friendshipGrowthFor(name.toUpperCase()));
+    }
+  });
+
+  it('tracks progress within a level and resets it exactly at a milestone', () => {
+    for (const name of ['luna', 'kai', 'mochi']) {
+      const thresholds = FRIENDSHIP_GROWTH[friendshipGrowthFor(name)];
+      for (let i = 0; i < thresholds.length - 1; i++) {
+        const start = thresholds[i], end = thresholds[i + 1];
+        expect(levelFor(start, name)).toMatchObject({ level: i + 1, earned: 0, required: end - start, progress: 0, next: end - start });
+        expect(levelFor(end - 1, name).next).toBe(1);
+      }
+      expect(levelFor(BOND_CAP, name)).toMatchObject({ level: 5, frac: 1, progress: 1, next: null, required: 0 });
+    }
   });
 });
 

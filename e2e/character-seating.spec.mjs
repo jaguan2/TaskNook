@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { CHARACTER_PRESETS } from '../frontend/src/lib/characterPresets.js';
 
 async function checkBootFit(root) {
   const pairs = await root.locator('[data-seated-leg]').evaluateAll(legs => legs.map(leg => {
@@ -58,3 +59,32 @@ test('crossed boots stay joined in the editor, save correctly and fit both lower
     if (rot === 0) await page.screenshot({ path: testInfo.outputPath(`seated-boots-${item}.png`) });
   }
 });
+
+
+for (const item of ['spindlechair', 'foldingchair', 'loungechair', 'sofa', 'armchair']) {
+  test(`booted residents fit the ${item} at every facing`, async ({ page, request }, info) => {
+    test.setTimeout(60000);
+    const registered = await request.post('/api/auth/register', { data: { username: `seat${item}${Date.now()}`, password: 'seat-fit-only' } });
+    expect(registered.status()).toBe(201);
+    const { token } = await registered.json(), headers = { Authorization: `Bearer ${token}` };
+    const character = CHARACTER_PRESETS.find(preset => preset.key === 'fall-girl').character;
+    expect((await request.put('/api/profile', { headers, data: { character } })).ok()).toBe(true);
+    await page.addInitScript(token => {
+      localStorage.setItem('tasknook.token', token); localStorage.setItem('tasknook.isoPreview', '1');
+      localStorage.setItem('tasknook.motion', 'reduced'); localStorage.setItem('tasknook.music.on', '0');
+      localStorage.setItem('tasknook.autoResumeMusic', '0');
+    }, token);
+    for (const rot of [0, 1, 2, 3]) {
+      expect((await request.put('/api/room', { headers, data: { placements: [], iso: { w: 7, d: 6, walls: 'none', placements: [
+        { id: 'support', item, gx: 2, gy: 2, rot }, { id: 'you', item: 'you', gx: 2, gy: 2 },
+      ] } } })).ok()).toBe(true);
+      await page.goto('/');
+      const person = page.locator('[data-placement-id="you"]');
+      await expect(person.locator('[data-seat-pose]')).toHaveAttribute('data-seat-pose', 'ankles');
+      await checkBootFit(person);
+      await expect(page.locator(`[data-placement-id="support"] [data-catalog-model="${item}"]`)).toHaveAttribute('data-model-source', 'glb');
+      await expect(page.locator('[data-model-state="loading"]')).toHaveCount(0, { timeout: 60000 });
+      if (rot === 0) await page.screenshot({ path: info.outputPath(`seated-boots-${item}.png`) });
+    }
+  });
+}

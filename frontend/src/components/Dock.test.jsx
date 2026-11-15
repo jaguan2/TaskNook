@@ -5,6 +5,14 @@ import Dock from "./Dock";
 
 afterEach(() => cleanup());
 
+it('hides disabled challenges while keeping Settings available to restore them', () => {
+  const { rerender } = render(<Dock active={[]} onSelect={vi.fn()} challengesEnabled={false} />);
+  expect(screen.queryByRole('button', { name: 'Challenges' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();
+  rerender(<Dock active={[]} onSelect={vi.fn()} challengesEnabled />);
+  expect(screen.getByRole('button', { name: 'Challenges' })).toBeTruthy();
+});
+
 it("warms a panel before selecting it", () => {
   const warm = vi.fn();
   const select = vi.fn();

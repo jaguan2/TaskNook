@@ -48,7 +48,7 @@ import { useChallengeStore, useSocialStore, useSystemStore, useTaskStore } from 
 //                      would put App back on a 1Hz re-render and drag its whole
 //                      subtree along with it — the exact thing this split fixes.
 
-const FOCUS_PRESETS = [15, 30, 45, 60];
+const FOCUS_PRESETS = [5, 15, 30, 45, 60];
 
 // Long enough to read without hurrying, since this one arrives unprompted
 // while your eyes are on the work rather than on the app.

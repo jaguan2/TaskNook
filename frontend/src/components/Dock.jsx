@@ -31,7 +31,7 @@ const ITEMS = [
   { key: "settings", Icon: Settings, labelKey: "panel.settings.title" },
 ];
 
-export default function Dock({ active, onSelect, onWarm }) {
+export default function Dock({ active, onSelect, onWarm, challengesEnabled = true }) {
   const { t } = useI18n();
   // Collapsible so the scene can breathe (VC2 keeps its chrome ghosted and
   // minimal). Persisted per device — it's a display preference.
@@ -90,7 +90,7 @@ export default function Dock({ active, onSelect, onWarm }) {
             </button>
             <div className="dock-items flex min-h-0 flex-col gap-1.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onScroll={() => setTooltip(null)}>
-            {ITEMS.map((item) => (
+            {ITEMS.filter(item => item.key !== 'challenges' || challengesEnabled).map((item) => (
               <button
                 key={item.key}
                 onClick={() => onSelect(item.key)}

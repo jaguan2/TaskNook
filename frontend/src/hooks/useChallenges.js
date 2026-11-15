@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CHALLENGES_KEY, addCustomChallenge, changeCustomProgress, normalizeChallenges,
+  CHALLENGES_KEY, CHALLENGES_ENABLED_KEY, addCustomChallenge, changeCustomProgress, normalizeChallenges,
   recordChallenge, removeCustomChallenge, replaceDailyChallenge, resetCustomChallenge,
 } from "../lib/challenges";
-import { readJSON, writeJSON } from "../services/storage";
+import { readJSON, readStored, writeJSON, writeStored } from "../services/storage";
 
 export function useChallenges(onSaveError, onProgress) {
+  const [challengesEnabled, setEnabled] = useState(() => readStored(CHALLENGES_ENABLED_KEY) !== '0');
+  const enabledRef = useRef(challengesEnabled);
   const [challenges, setChallenges] = useState(() =>
     normalizeChallenges(readJSON(CHALLENGES_KEY))
   );
   const progressRef = useRef(challenges);
   const commit = useCallback((next) => {
+    if (!enabledRef.current) return;
     if (next === progressRef.current) return;
     const previous = progressRef.current;
     progressRef.current = next;
@@ -20,7 +23,16 @@ export function useChallenges(onSaveError, onProgress) {
     setChallenges(next);
     onProgress?.(previous, next);
   }, [onSaveError, onProgress]);
+  const setChallengesEnabled = useCallback((enabled) => {
+    if (typeof enabled !== 'boolean' || enabled === enabledRef.current) return;
+    // The ref gates actions immediately, including later calls in this event.
+    enabledRef.current = enabled;
+    if (!writeStored(CHALLENGES_ENABLED_KEY, enabled ? '1' : '0')) onSaveError?.("Couldn't save the challenge setting — changed for this session.");
+    setEnabled(enabled);
+    if (enabled) commit(normalizeChallenges(progressRef.current));
+  }, [commit, onSaveError]);
   const recordChallengeEvent = useCallback((event, amount = 1) => {
+    if (!enabledRef.current) return;
     commit(recordChallenge(progressRef.current, event, amount));
   }, [commit]);
   const replaceChallenge = useCallback((id) => commit(replaceDailyChallenge(progressRef.current, id)), [commit]);
@@ -34,6 +46,7 @@ export function useChallenges(onSaveError, onProgress) {
 
   useEffect(() => {
     writeJSON(CHALLENGES_KEY, progressRef.current);
+    if (!challengesEnabled) return undefined;
     const checkDay = () => commit(normalizeChallenges(progressRef.current));
     const onVisible = () => {
       if (document.visibilityState === "visible") checkDay();
@@ -48,8 +61,8 @@ export function useChallenges(onSaveError, onProgress) {
       window.removeEventListener("focus", checkDay);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [commit]);
+  }, [commit, challengesEnabled]);
 
-  return { challenges, recordChallengeEvent, replaceChallenge, addChallenge,
+  return { challenges, challengesEnabled, setChallengesEnabled, recordChallengeEvent, replaceChallenge, addChallenge,
     advanceChallenge, resetChallenge, removeChallenge };
 }

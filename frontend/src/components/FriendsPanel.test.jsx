@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import FriendsPanel from "./FriendsPanel";
 
 const mocks = vi.hoisted(() => ({ enterCommonRoom: vi.fn(), visitFriend: vi.fn(), knockFriend: vi.fn(), openGroupChat: vi.fn(), openChatWith: vi.fn(), addFriend: vi.fn(), removeFriend: vi.fn(), refreshChats: vi.fn(), chatsError: false }));
+// jsdom has no modal API. Only emulate open/close here; the native browser
+// journey verifies top-layer placement, inertness, focus and Escape behavior.
+const dialogMethods = Object.fromEntries(['showModal', 'close'].map(name =>
+  [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)]));
+beforeAll(() => {
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: { configurable: true, value() { this.open = true; } },
+    close: { configurable: true, value() { this.open = false; } },
+  });
+});
+afterAll(() => {
+  for (const [name, descriptor] of Object.entries(dialogMethods)) {
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else delete HTMLDialogElement.prototype[name];
+  }
+});
 vi.mock("../store", () => {
   const useMockStore = () => ({
     user: { id: 9, username: "you", displayName: "Taylor", avatar: "🌿" },
@@ -27,26 +43,50 @@ beforeEach(() => {
   mocks.chatsError = false;
   mocks.commonRoom = null;
   mocks.commonPresence = undefined;
+  mocks.friendship = {};
   mocks.addFriend.mockResolvedValue({ id: 3, username: "sora" });
   mocks.removeFriend.mockResolvedValue(true);
 });
 afterEach(cleanup);
 
 describe('neighbour profiles', () => {
-  it('opens one profile at a time without starting a visit or conversation', () => {
+  it('uses a card-sized profile control with separate action buttons and personal level progress', () => {
+    mocks.friendship = { luna: 60, kai: 60 };
+    render(<FriendsPanel />);
+    const trigger = screen.getByRole('button', { name: "View Luna's profile" });
+    const card = trigger.closest('[data-friend-card]');
+    expect(card.querySelectorAll('button button')).toHaveLength(0);
+    const meter = within(card).getByRole('progressbar', { name: 'Luna friendship' });
+    expect(meter.getAttribute('data-friendship-level')).toBe('2');
+    expect(within(card).getByText('35 / 55')).toBeTruthy();
+    const kai = screen.getByRole('button', { name: "View Kai's profile" }).closest('[data-friend-card]');
+    expect(within(kai).getByRole('progressbar').getAttribute('data-friendship-level')).toBe('3');
+    fireEvent.click(within(card).getByRole('button', { name: 'Remove friend' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(trigger);
+    const popup = screen.getByRole('dialog');
+    expect(within(popup).getByRole('progressbar').getAttribute('data-friendship-level')).toBe('2');
+    expect(within(popup).getByText('Takes time to open up, then grows closer more quickly.')).toBeTruthy();
+  });
+
+  it('opens profiles in a separate dialog without expanding the row or starting another action', () => {
     render(<FriendsPanel />);
     const luna = screen.getByRole('button', { name: "View Luna's profile" });
     fireEvent.click(luna);
     expect(luna.getAttribute('aria-expanded')).toBe('true');
-    const details = screen.getByRole('region', { name: 'About Luna' });
+    expect(luna.getAttribute('aria-haspopup')).toBe('dialog');
+    const details = screen.getByRole('dialog', { name: 'About Luna' });
+    expect(details.parentElement).toBe(document.body);
+    expect(details.closest('.group')).toBeNull();
     expect(details.id).toBe(luna.getAttribute('aria-controls'));
     expect(within(details).getByText('October 12, 1997')).toBeTruthy();
     expect(within(details).getByText('she/her')).toBeTruthy();
     expect(within(details).getByText('September 18, 2023')).toBeTruthy();
     expect(within(details).getByText('Focus this week')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: "Close Luna's profile" }));
     fireEvent.click(screen.getByRole('button', { name: "View Kai's profile" }));
-    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
-    expect(screen.getByRole('region', { name: 'About Kai' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'About Luna' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'About Kai' })).toBeTruthy();
     expect(mocks.visitFriend).not.toHaveBeenCalled();
     expect(mocks.openChatWith).not.toHaveBeenCalled();
     expect(mocks.enterCommonRoom).not.toHaveBeenCalled();
@@ -56,12 +96,14 @@ describe('neighbour profiles', () => {
     render(<FriendsPanel />);
     const trigger = screen.getByRole('button', { name: "View Luna's profile" });
     fireEvent.click(trigger);
-    fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
+    // Escape's native dialog default dispatches cancel; actual key handling and
+    // focus containment are covered in the real-browser profile journey.
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
+    expect(screen.queryByRole('dialog', { name: 'About Luna' })).toBeNull();
     expect(document.activeElement).toBe(trigger);
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: "Close Luna's profile" }));
-    expect(screen.queryByRole('region', { name: 'About Luna' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'About Luna' })).toBeNull();
     expect(document.activeElement).toBe(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });

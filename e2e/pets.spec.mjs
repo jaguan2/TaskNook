@@ -1,5 +1,55 @@
 import { expect, test } from "@playwright/test";
 
+test('resting pets have connected floor poses in both room orientations without entering decorate mode', async ({ page, request }, info) => {
+  const registered = await request.post('/api/auth/register', {
+    data: { username: `petposes${Date.now()}`, password: 'pet-poses-test-only' },
+  });
+  expect(registered.status()).toBe(201);
+  const { token } = await registered.json(), headers = { Authorization: `Bearer ${token}` };
+  const pets = [['cat', 'tuxedo', 1.5], ['dog', 'corgi', 3], ['bunny', 'cocoa', 4.5]]
+    .flatMap(([item, look, gy]) => [0, 1].map(rot => ({
+      id: `${item}-${rot}`, item, look, gx: rot ? 3.5 : 1.2, gy, rot,
+      petForm: 'slender', petSize: 1, growth: { ageMs: 7 * 86_400_000, startedAt: null },
+    })));
+  const savedRoom = await request.put('/api/room', { headers, data: {
+    placements: [], iso: { w: 6, d: 6, walls: 'full', placements: [
+      { id: 'sofa', item: 'sofa', gx: .5, gy: .2, tint: '#8baba0' }, ...pets,
+    ] },
+  } });
+  expect(savedRoom.status(), await savedRoom.text()).toBe(200);
+  await page.addInitScript(token => {
+    localStorage.setItem('tasknook.token', token);
+    localStorage.setItem('tasknook.motion', 'reduced');
+    localStorage.setItem('tasknook.isoPreview', '1');
+    localStorage.setItem('tasknook.music.on', '0');
+    localStorage.setItem('tasknook.autoResumeMusic', '0');
+  }, token);
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('[data-iso-room-scene]')).toBeVisible();
+  await expect(page.locator('[data-model-state="loading"]')).toHaveCount(0, { timeout: 60000 });
+  for (const { id, item, rot } of pets) {
+    const sprite = page.locator(`[data-placement-id="${id}"] [data-pet-stage="adult"]`);
+    await expect(sprite).toBeVisible();
+    await expect(sprite.locator('[data-pet-head="side"]')).toHaveCount(1);
+    await expect(sprite.locator('[data-pet-paw]')).toHaveCount(item === 'bunny' ? 2 : 3);
+    await expect(sprite.locator('.cat-breathe [data-pet-paw]')).toHaveCount(0);
+    expect(await sprite.evaluate(node => Math.sign(node.getScreenCTM().a))).toBe(rot ? -1 : 1);
+    await sprite.click();
+    await expect(page.getByRole('button', { name: 'Done decorating', exact: true })).toHaveCount(0);
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: info.outputPath('pet-resting-room.png') });
+  await page.reload();
+  for (const { id } of pets) await expect(page.locator(`[data-placement-id="${id}"] [data-pet-stage="adult"]`)).toBeVisible();
+  const saved = await (await request.get('/api/room', { headers })).json();
+  for (const pet of pets) expect(saved.iso.placements.find(p => p.id === pet.id)).toMatchObject({
+    item: pet.item, gx: pet.gx, gy: pet.gy, ...(pet.rot ? { rot: pet.rot } : {}),
+    petForm: pet.petForm, petSize: pet.petSize, growth: pet.growth,
+  });
+  expect(errors).toEqual([]);
+});
+
 test("adopted pets retain their traits, pause independently, and grow while closed", async ({ page, request }) => {
   const registered = await request.post("/api/auth/register", {
     data: { username: `pets${Date.now()}`, password: "pets-test-only" },

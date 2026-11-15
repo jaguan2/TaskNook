@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { beam, bentTube, cushionGeometry, foot, joint, material, part, revolved, rounded, splayedLeg } from './geometry.mjs';
+import { CHAIR_VARIANTS } from './chair-variants.mjs';
 
 function woodenChair(root, spec) {
   const wood = material('frame', '#946b50'), cloth = material('upholstery', '#8baba0');
@@ -178,5 +179,5 @@ function hammock(root, spec) {
   }
 }
 
-export const SEATING_BUILDERS = { chair: woodenChair, deskchair: deskChair, stool: ottoman, woodstool: woodStool,
+export const SEATING_BUILDERS = { ...CHAIR_VARIANTS, chair: woodenChair, deskchair: deskChair, stool: ottoman, woodstool: woodStool,
   cushion: floorCushion, flowercushion: flowerCushion, beanbag, bench: gardenBench, log: fallenLog, hammock };

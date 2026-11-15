@@ -142,10 +142,13 @@ export const ISO_ITEMS = {
   // `surface: <px>` is a top things can be PUT ON, and `stacks: true` marks an
   // item small enough to be put there — see surfaceFor(). Every value is a
   // real sprite height, so a mug lands on a table top and not in mid-air.
-  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 42, seat: 22, backView: true },
-  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 42, seat: 22, backView: true },
+  sofa: { label: "Sofa", icon: "🛋️", foot: [2, 0.85], hitH: 38, seat: 17, backView: true },
+  armchair: { label: "Armchair", icon: "💺", foot: [1, 0.85], hitH: 38, seat: 18, backView: true },
   nightstand: { label: "Nightstand", icon: "🗄️", foot: [0.7, 0.7], hitH: 30, surface: 24 },
   chair: { label: "Wooden chair", icon: "🪑", foot: [0.7, 0.7], hitH: 44, seat: 17, backView: true },
+  spindlechair: { label: "Spindle chair", icon: "🪑", foot: [0.7, 0.7], hitH: 42, seat: 17, backView: true },
+  foldingchair: { label: "Folding chair", icon: "🪑", foot: [0.7, 0.75], hitH: 39, seat: 16, backView: true },
+  loungechair: { label: "Lounge chair", icon: "💺", foot: [0.9, 0.9], hitH: 38, seat: 18, backView: true },
   shelf: { label: "Open shelf", icon: "🪜", foot: [1, 0.5], hitH: 60 },
   plantshelf: { label: "Plant display", icon: "🌿", foot: [1.5, 0.6], hitH: 74 },
   bookcase: { label: "Wide bookcase", icon: "📚", foot: [2, 0.6], hitH: 66 },
@@ -394,7 +397,7 @@ export const ISO_ITEMS = {
 export const ISO_ITEM_GROUPS = [
   {
     label: "Seating & beds",
-    keys: ["sofa", "armchair", "chair", "deskchair", "stool", "woodstool", "beanbag",
+    keys: ["sofa", "armchair", "loungechair", "chair", "spindlechair", "foldingchair", "deskchair", "stool", "woodstool", "beanbag",
       "cushion", "flowercushion", "bed", "bench", "log", "hammock"],
   },
   {

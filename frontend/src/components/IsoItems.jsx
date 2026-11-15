@@ -7,6 +7,7 @@ import { COMPUTER_KEYBOARD, LAPTOP_KEYBOARD } from "../lib/workstations";
 import { Resident, You } from "./character";
 import { SoftBox, TintedBox } from "./IsoItemPrimitives";
 import { Armchair, Bed, Chair, DeskChair, Sofa } from "./IsoSeatingItems";
+import { FoldingChair, LoungeChair, SpindleChair } from './IsoChairVariants';
 export { BedTuckCover } from "./IsoSeatingItems";
 import { Bunny, Cat, Dog } from "./IsoPetItems";
 import { FairyLights } from "./IsoLightingItems";
@@ -2579,6 +2580,9 @@ export const ISO_SPRITES = {
   armchair: Armchair,
   nightstand: Nightstand,
   chair: Chair,
+  spindlechair: SpindleChair,
+  foldingchair: FoldingChair,
+  loungechair: LoungeChair,
   shelf: Shelf,
   plantshelf: PlantShelf,
   bookcase: Bookcase,

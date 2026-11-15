@@ -15,6 +15,7 @@ The [app screenshots](../screenshots/README.md) show the actual GLB-backed game.
 
 - [Front looks](seated-front.webp), [rear looks](seated-back.webp): all twelve current SVG character looks.
 - Growth sheets: [cats](cat-growth.webp), [dogs](dog-growth.webp), [rabbits](bunny-growth.webp).
+- [Side/resting coats](pet-side-poses.webp) and [profile refinement coverage](../PET_PROFILE_REFINEMENT.md): current grounded poses, including all three ages/forms and walking.
 - [Character/pet review](../CHARACTER_PET_REVIEW.md) and [source-art captures](characters-and-pets/README.md).
 
 The supplied photographs and reusable visual cues are indexed in [artwork references](../ART_REVIEW.md). Superseded SVG furniture comparisons and the first physical-lighting capture were removed during maintenance.

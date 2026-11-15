@@ -9,7 +9,7 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 
 | Order | Catalog section | Exported | Total | Status |
 | --- | --- | ---: | ---: | --- |
-| 1 | Seating & beds | 13 | 13 | Export coverage complete |
+| 1 | Seating & beds | 16 | 16 | Export coverage complete |
 | 2 | Tables & desks | 9 | 9 | Export coverage complete |
 | 3 | Storage | 13 | 13 | Export coverage complete |
 | 4 | Rugs & floor | 13 | 13 | Export coverage complete |
@@ -34,9 +34,12 @@ Sections with complete export coverage: **Seating & beds, Tables & desks, Storag
 
 | Asset | Catalog key | Triangles | GLB bytes |
 | --- | --- | ---: | ---: |
-| [Sofa](../prototypes/furniture/assets/sofa.glb) | sofa | 13,320 | 269,164 |
-| [Armchair](../prototypes/furniture/assets/armchair.glb) | armchair | 9,672 | 201,692 |
+| [Sofa](../prototypes/furniture/assets/sofa.glb) | sofa | 13,320 | 269,232 |
+| [Armchair](../prototypes/furniture/assets/armchair.glb) | armchair | 9,672 | 201,776 |
+| [Lounge chair](../prototypes/furniture/assets/loungechair.glb) | loungechair | 5,304 | 141,332 |
 | [Wooden chair](../prototypes/furniture/assets/chair.glb) | chair | 3,972 | 115,496 |
+| [Spindle chair](../prototypes/furniture/assets/spindlechair.glb) | spindlechair | 1,712 | 78,136 |
+| [Folding chair](../prototypes/furniture/assets/foldingchair.glb) | foldingchair | 3,356 | 117,224 |
 | [Desk chair](../prototypes/furniture/assets/deskchair.glb) | deskchair | 5,980 | 164,872 |
 | [Stool](../prototypes/furniture/assets/stool.glb) | stool | 576 | 12,124 |
 | [Wooden stool](../prototypes/furniture/assets/woodstool.glb) | woodstool | 544 | 41,000 |

@@ -9,6 +9,9 @@ const descriptions = {
   sofa: 'A continuous upholstered arm-and-back shell, two cushion pairs and a supported timber base.',
   armchair: 'One continuous upholstered shell, soft seat and back cushions, a timber underframe and four feet.',
   chair: 'Splayed timber legs, joined stretchers, a padded seat and a framed upholstered back.',
+  spindlechair: 'Four splayed legs support a shaped timber seat and five spindles joined to a bowed crest rail.',
+  foldingchair: 'Crossed timber side frames meet at metal hinges and receive a thin canvas seat and back panel.',
+  loungechair: 'An open timber frame supports a low cushion, gently reclined back and connected arm rails.',
   deskchair: 'Five casters connect to a hub and stem, with a supported seat and a shaped padded back.',
   stool: 'A single rounded upholstered ottoman body, grounded at its base.',
   woodstool: 'A thick round seat with splayed timber legs and connecting stretchers.',
@@ -69,9 +72,12 @@ const descriptions = {
 };
 const contact = (height, z, x = 0) => ({ seatHeight: height, x, z });
 const ready = {
-  sofa: { height: 42, contact: contact(22, .395, -.4235) },
-  armchair: { height: 38, contact: contact(22, .395) },
+  sofa: { height: 34, contact: contact(ISO_ITEMS.sofa.seat, .395, -.4235) },
+  armchair: { height: 34, contact: contact(ISO_ITEMS.armchair.seat, .395) },
   chair: { height: 34, contact: contact(ISO_ITEMS.chair.seat, .335) },
+  spindlechair: { height: 34, colorRole: 'finish', defaultColor: '#b08a61', contact: contact(ISO_ITEMS.spindlechair.seat, .335) },
+  foldingchair: { height: 31, colorRole: 'canvas', defaultColor: '#aaa786', contact: contact(ISO_ITEMS.foldingchair.seat, .36) },
+  loungechair: { height: 34, contact: contact(ISO_ITEMS.loungechair.seat, .42) },
   deskchair: { height: 37, contact: contact(ISO_ITEMS.deskchair.seat, .34) },
   stool: { height: 20, contact: contact(20, .425) },
   woodstool: { height: 19, colorRole: 'finish', defaultColor: '#b08a61', contact: contact(19, .37) },

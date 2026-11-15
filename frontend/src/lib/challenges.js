@@ -1,7 +1,8 @@
 import { toISO } from "./dates";
 
 export const CHALLENGES_KEY = "tasknook.challenges";
-export const DAILY_CHALLENGE_COUNT = 3;
+export const CHALLENGES_ENABLED_KEY = "tasknook.challenges.enabled";
+export const DAILY_CHALLENGE_COUNT = 4;
 export const CUSTOM_CHALLENGE_LIMIT = 12;
 export const CHALLENGE_TITLE_MAX = 120;
 export const CHALLENGE_TARGET_MAX = 999;
@@ -31,24 +32,29 @@ export const DAILY_CHALLENGES = [
     title: "Update your to-do list", description: "Add a task, edit one, or check something off.",
     hint: "Make one change to a task in your list." },
   { id: "plan-one-task", category: "tasks", event: "task-created", target: 1, icon: "tasks",
-    title: "Plan one small task", description: "Add something manageable to your to-do list.",
+    title: "Add a task", description: "Add one small task to your list.",
     hint: "A small next step is enough." },
   { id: "finish-a-task", category: "tasks", event: "task-completed", target: 1, icon: "tasks",
     title: "Check off one task", description: "Finish a task you've been working on.",
     hint: "Check its box once it's done." },
   { id: "talk-to-friend", category: "social", event: "friend-message", target: 1, icon: "friends",
-    title: "Talk to a friend today", description: "Send a message to a neighbour in a chat or a group.",
+    title: "Message your friend", description: "Send one message to a friend.",
     hint: "Open Friends and choose someone to chat with." },
   { id: "visit-neighbour", category: "social", event: "friend-visited", target: 1, icon: "friends",
     title: "Visit a neighbour", description: "Pop into a friend's room for a change of scenery.",
     hint: "Choose an open room in Friends, or knock on a door." },
   { id: "join-common-place", category: "social", event: "common-visited", target: 1, icon: "friends",
-    title: "Settle into a common place", description: "Try the Common Cottage or Willow Pond.",
+    title: "Go to a common room", description: "Visit any common room from Friends.",
     hint: "Choose a common place in Friends. Your home will be waiting." },
+  { id: "short-study", category: "focus", event: "focus-minutes", target: 5, unit: "minutes", icon: "focus",
+    title: "Study for 5 minutes", description: "Save five minutes of focused time.",
+    hint: "Finish a short timer or save time with the stopwatch. Breaks don't count." },
 ];
 
 export const challengeFor = (id) => DAILY_CHALLENGES.find((challenge) => challenge.id === id);
-const categories = ["focus", "tasks", "social"];
+// Old definitions stay readable until today's saved board rolls over. New
+// boards and replacements use only these four small, predictable goals.
+export const SIMPLE_DAILY_IDS = ['talk-to-friend', 'join-common-place', 'plan-one-task', 'short-study'];
 const legacyIds = ["talk-to-friend", "start-study", "update-todos"];
 const knownEvents = new Set([
   ...DAILY_CHALLENGES.map(({ event }) => event),
@@ -63,15 +69,8 @@ const same = (a, b) => {
   try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
 };
 
-/** One prompt per category. Each category changes between adjacent local days. */
-export function dailyChallengeIds(now = new Date()) {
-  const day = dayNumber(now);
-  return categories.map((category, index) => {
-    const pool = DAILY_CHALLENGES.filter((challenge) => challenge.category === category);
-    const pick = (day + Math.floor(day / (7 + index * 4)) + index) % pool.length;
-    return pool[(pick + pool.length) % pool.length].id;
-  });
-}
+/** The same four gentle goals each day; completion is always optional. */
+export function dailyChallengeIds() { return [...SIMPLE_DAILY_IDS]; }
 
 function normalizeCustom(saved) {
   if (!Array.isArray(saved)) return [];
@@ -134,12 +133,18 @@ export function recordChallenge(saved, event, amount = 1, now = new Date()) {
   return same(next, progress) ? progress : next;
 }
 
-/** Replace just this prompt; prefer unseen choices, then cycle without duplicates. */
+const replacementsFor = (daily) => SIMPLE_DAILY_IDS.map(challengeFor)
+  .filter(challenge => !daily.some(entry => entry.id === challenge.id));
+export const canReplaceChallenge = (daily, id) => daily.some(entry => entry.id === id && entry.progress < challengeFor(id).target)
+  && replacementsFor(daily).length > 0;
+
+/** Saved older prompts can be exchanged for a simple goal without duplicates. */
 export function replaceDailyChallenge(saved, id, now = new Date()) {
   const progress = normalizeChallenges(saved, now);
   const index = progress.daily.findIndex((entry) => entry.id === id);
   if (index < 0 || progress.daily[index].progress >= challengeFor(id).target) return progress;
-  const available = DAILY_CHALLENGES.filter((challenge) => !progress.daily.some((entry) => entry.id === challenge.id));
+  const available = replacementsFor(progress.daily);
+  if (!available.length) return progress;
   const unseen = available.filter((challenge) => !progress.seen.includes(challenge.id));
   const pool = unseen.length ? unseen : available;
   const replacement = pool[(dayNumber(now) + progress.seen.length + index) % pool.length];

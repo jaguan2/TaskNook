@@ -5,7 +5,7 @@ import { useChallengeStore } from "../store";
 import { useArmed } from "../hooks/useArmed";
 import {
   CHALLENGE_TARGET_MAX, CHALLENGE_TITLE_MAX, CHALLENGE_TRACKING,
-  CUSTOM_CHALLENGE_LIMIT, challengeFor,
+  CUSTOM_CHALLENGE_LIMIT, challengeFor, canReplaceChallenge,
 } from "../lib/challenges";
 
 const ICONS = { friends: Users, focus: Play, tasks: ClipboardList };
@@ -76,7 +76,7 @@ function ProgressLine({ progress, target, unit }) {
 
 export default function ChallengesPanel() {
   const { t: ui, formatDate } = useI18n();
-  const { challenges, replaceChallenge, addCustomChallenge,
+  const { challenges, challengesEnabled = true, replaceChallenge, addCustomChallenge,
     advanceChallenge, resetChallenge, removeChallenge } = useChallengeStore();
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState("daily");
@@ -95,6 +95,8 @@ export default function ChallengesPanel() {
     setView(next);
     event.currentTarget.querySelector(`#challenges-${next}-tab`)?.focus({ preventScroll: true });
   };
+
+  if (!challengesEnabled) return <p className="text-sm leading-relaxed text-petal/70">{ui('challenges.disabled')}</p>;
 
   return (
     <div className="space-y-5">
@@ -144,7 +146,7 @@ export default function ChallengesPanel() {
                     {done ? ui("challenges.completedToday") : ui(`prompt.${id}.hint`)}
                   </p>
                   <ProgressLine progress={progress} target={challenge.target} unit={challenge.unit} />
-                  {!done && <button type="button" aria-label={ui("challenges.replaceName", { name: ui(`prompt.${id}.title`) })}
+                  {!done && canReplaceChallenge(challenges.daily, id) && <button type="button" aria-label={ui("challenges.replaceName", { name: ui(`prompt.${id}.title`) })}
                     onClick={() => progress ? arm(`replace:${id}`, () => replaceChallenge(id)) : replaceChallenge(id)}
                     className={`${actionClass} ${armed === `replace:${id}` ? "text-danger" : ""}`}>
                     <RefreshCw size={12} aria-hidden="true" />{armed === `replace:${id}` ? ui("challenges.replaceConfirm") : ui("challenges.replace")}

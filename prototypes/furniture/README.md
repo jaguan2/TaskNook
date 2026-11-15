@@ -1,13 +1,13 @@
 # Standalone catalog workshop
 
-An isolated 3D catalog design study for TaskNook, covering all 184 entries in
+An isolated 3D catalog design study for TaskNook, covering all 187 entries in
 18 sections. The generated GLBs
 are real, independently loadable models, generated from editable mesh source.
-They can be imported into Blender or another glTF-compatible editor. The 184
+They can be imported into Blender or another glTF-compatible editor. The 187
 catalog entries regenerate with Three.js. The separate deforming character
 pilot described below uses Blender for its editable source.
 
-Since November 12, the 179 furniture/prop exports also power the actual
+The 182 furniture/prop exports also power the actual
 isometric game. See [live room integration](../../docs/ROOM_MODEL_INTEGRATION.md).
 Customized people/pets keep their existing SVG rigs; the five living GLBs
 remain standalone starter-rig studies.
@@ -61,7 +61,7 @@ fullness adjustment. It includes actual production SVG comparisons and links to
 the supplied Virtual Cottage 2 references. The editable `.blend`, animated GLB,
 source ownership, editing commands and QA are documented in the
 [pilot guide](src/characters/README.md). This additional study does not change
-the 184 catalog entries or the production character renderer.
+the 187 catalog entries or the production character renderer.
 
 ## Connected pet pilots
 
@@ -135,10 +135,10 @@ are removed when regenerating.
   supports, and a shaped tabletop. X/Z are floor axes; Y is up; +Z is front.
 - `scripts/export.mjs`: deterministic binary glTF export, Khronos validation,
   triangle/byte counts and SHA-256 manifest.
-- `assets/`: all 184 catalog entries, including the 124 pieces added after the
+- `assets/`: all 187 catalog entries, including the 127 pieces added after the
   first five furniture sections. Every key has an explicit builder.
   GLBs have no external textures. The manifest also carries progress for all
-  18 catalog sections (184 entries), material roles and declared seat anchors.
+  18 catalog sections (187 entries), material roles and declared seat anchors.
 - `src/catalog.mjs` and `src/catalog-additions.mjs`: authoring metadata derived
   from the production catalog, keeping control bounds distinct from physical height.
 - `src/models/geometry.mjs` and `src/models/seating-models.mjs`: closed primitives and the seating family.
@@ -189,3 +189,9 @@ renders the full bottom/shoe matrix with production CSS, seeks fixed animation
 times and checks actual painted joints, footwear and reduced motion. The
 [coverage and source owners](../../docs/CHARACTER_MOTION_FIT.md) explain the
 limits and selected review images. This does not run or change the 3D pilots.
+
+Production pet profile regression: `npm.cmd run qa:pet-profiles` reviews all
+fifteen looks, ages and forms with the actual SVG rigs and animation CSS.
+It checks filled-part intersections and ground contact through eight phases,
+then writes contact sheets and a report under ignored verification output.
+[Coverage and selected images](../../docs/PET_PROFILE_REFINEMENT.md).

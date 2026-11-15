@@ -85,9 +85,9 @@ test('every prop in the live furniture picker uses its exported GLB', async ({ p
     }
     await heading.click();
   }
-  expect(rendered.size).toBe(179);
+  expect(rendered.size).toBe(Object.keys(manifest.models).filter(key => !actors.has(key)).length);
   expect([...glbs].sort()).toEqual([...rendered].sort());
-  expect(glbRequests).toHaveLength(179);
+  expect(glbRequests).toHaveLength(rendered.size);
   expect(await page.evaluate(() => window.__catalogContexts)).toBe(1);
   expect(errors).toEqual([]);
 });

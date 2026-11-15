@@ -74,6 +74,9 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
   useEffect(() => {
     const onKeyDown = (event) => {
       if (disabled) return;
+      // Modal profiles own their keys before this document-capture shortcut.
+      // In particular Escape must close the profile while chat stays open.
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]')) return;
       if (event.key === "Escape" && open) {
         event.preventDefault();
         event.stopPropagation();
@@ -167,7 +170,7 @@ export default function CommonRoomChat({ session, roomName, user, friendship = {
         (person) => person.username === responder.username
       );
       if (!stillPresent || deafenedRef.current || mutedRef.current.has(responder.username)) return;
-      const bond = levelFor(friendship[responder.username] || 0).level;
+      const bond = levelFor(friendship[responder.username] || 0, responder.username).level;
       setMessages((current) => appendCommonChatMessage(current, {
         id: pendingId,
         kind: "npc",

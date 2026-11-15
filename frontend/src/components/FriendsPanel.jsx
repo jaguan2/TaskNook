@@ -1,33 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Heart } from "lucide-react";
 import { useSettingsStore, useSocialStore, useSystemStore, useTaskStore } from "../store";
 import { useArmed } from "../hooks/useArmed";
-import { VISIT_ACCESS, npcActivity, npcDailyStats } from "../lib/visiting";
-import { levelFor } from "../lib/friendship";
+import { npcDailyStats } from "../lib/visiting";
+import FriendCard from "./FriendCard";
 import { chatTitle, whenLabel } from "../lib/chat";
 import ChatThread from "./ChatThread";
 import { COMMON_PLACES } from "../lib/commonRooms";
 import FriendsLeaderboard from "./FriendsLeaderboard";
 import FriendProfile from './FriendProfile';
 import { useI18n } from "../i18n/I18nProvider";
-
-const doorHint = (key) => VISIT_ACCESS.find((v) => v.key === key)?.hint;
-
-// The presence line: what a friend is doing RIGHT NOW, beside their door.
-// Same honest theater as the rest of visiting — npcActivity derives it from
-// the clock, deterministically, so it holds still while you look at it.
-const ACTIVITY_LINE = {
-  focus: (m) => `📖 focusing — ${m}m left`,
-  break: () => "☕ on a break",
-  idle: () => "🪴 pottering about",
-};
-// A quiet dot by default; the row that says what it means only on hover
-// (`.hover-reveal`, same convention as the row's own delete control — touch
-// devices have no hover, so it stays legible there). There's no real privacy
-// question to gate this behind: every "friend" here is a simulated bot row
-// in your own local SQLite file, not another person's live session, so this
-// is purely a decluttering choice, not an opt-in.
-const ACTIVITY_DOT = { focus: "bg-glow", break: "bg-sage", idle: "bg-petal/40" };
 
 export default function FriendsPanel() {
   const { label, language, t } = useI18n();
@@ -60,6 +41,7 @@ export default function FriendsPanel() {
   const [section, setSection] = useState("friends");
   const [profileId, setProfileId] = useState(null);
   const profileUid = useId();
+  const profileFriend = friends.find(friend => friend.id === profileId);
   const profileTrigger = useRef(null);
   const closeProfile = () => {
     setProfileId(null);
@@ -247,6 +229,7 @@ export default function FriendsPanel() {
   }
 
   return (
+    <>
     <div className="space-y-4">
       <nav
         className="sticky top-0 z-10 grid grid-cols-3 gap-1 rounded-2xl bg-night/90 p-1 backdrop-blur"
@@ -399,160 +382,22 @@ export default function FriendsPanel() {
             No cottage neighbours yet. Add a friend to cheer each other on! 🫶
           </p>
         )}
-        {friends.map((f) => {
-          // The DISPLAYED day is simulated (lib/visiting.js), not the seeded
-          // rows: the API's numbers never change, so every bot showed
-          // "0m focused" forever beside a presence line claiming they were
-          // mid-block. npcDailyStats rolls a fresh list per local day and
-          // ticks the minutes up through it, on the same 30s clock as the
-          // presence line — one simulation, one story.
-          const sim = npcDailyStats(f.username, now);
-          const hours = Math.floor(sim.focusMinutes / 60);
-          const mins = sim.focusMinutes % 60;
-          const completion = sim.tasksTotal
-            ? Math.round((sim.tasksDone / sim.tasksTotal) * 100)
-            : 0;
-          const bond = levelFor(friendship[f.username] || 0);
-          return (
-            <div
-              key={f.id}
-              className="group rounded-2xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10"
-              onKeyDown={event => {
-                if (profileId === f.id && event.key === 'Escape') {
-                  event.preventDefault(); event.stopPropagation(); closeProfile();
-                }
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <button type="button" aria-expanded={profileId === f.id} aria-controls={`${profileUid}-${f.id}`}
-                  aria-label={t('friends.profile.open', { name: f.displayName })}
-                  onClick={event => { profileTrigger.current = event.currentTarget; setProfileId(profileId === f.id ? null : f.id); }}
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl text-left hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-glow">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-wine text-lg" aria-hidden>{f.avatar}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-cream">{f.displayName}</span>
-                    <span className="block text-xs text-petal/60">
-                      {hours > 0 ? `${hours}h ` : ""}{mins}m focused · {sim.tasksDone}/{sim.tasksTotal} tasks
-                    </span>
-                  </span>
-                  {profileId === f.id ? <ChevronUp aria-hidden size={14} className="shrink-0 text-petal/60" /> : <ChevronDown aria-hidden size={14} className="shrink-0 text-petal/60" />}
-                </button>
-                <button
-                  onClick={() => arm(f.id, () => remove(f.id))}
-                  title="Remove friend"
-                  aria-label="Remove friend"
-                  className={`hover-reveal shrink-0 transition ${
-                    armedId === f.id
-                      ? "confirming text-[10px] font-bold text-danger"
-                      : "text-sm text-petal/40 hover:text-danger"
-                  }`}
-                >
-                  {armedId === f.id ? "sure?" : "✕"}
-                </button>
-              </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-sage to-glow transition-all duration-700"
-                  style={{ width: `${completion}%` }}
-                />
-              </div>
-              {/* The friendship bar: one bar that fills over the whole
-                  friendship, not per level — level colour lives in the label.
-                  Rose DECORATES here (the meaning is the width + label, which
-                  survive any theme's re-tint of rose). */}
-              <div
-                className="mt-1 flex items-center gap-1.5"
-                title={`Friendship grows as you chat, visit and spend time together${
-                  bond.next ? ` — ${bond.next} to the next level` : " — as close as it gets"
-                }`}
-              >
-                <Heart size={9} className="shrink-0 text-rose" fill="currentColor" />
-                <div
-                  className="h-1 w-24 max-w-28 overflow-hidden rounded-full bg-white/10"
-                  role="progressbar"
-                  aria-label={`${f.displayName} friendship`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(bond.frac * 100)}
-                  aria-valuetext={bond.label}
-                >
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-rose to-blush transition-all duration-700"
-                    style={{ width: `${Math.round(bond.frac * 100)}%` }}
-                  />
-                </div>
-                <span className="shrink-0 text-[10px] text-petal/50">{bond.label}</span>
-              </div>
-              {/* Two ways to reach them on the left, what they're doing on the
-                  right. The ACTIONS are their own group: as three children of
-                  one `justify-between` row, the door button floated in the
-                  middle and landed at a different x on every card, because its
-                  position was set by the length of the presence text beside it
-                  ("pottering about" vs "focusing — 6m left"). Chat and the door
-                  are a pair and now sit as one. */}
-              <div className="mt-1.5 flex items-center justify-between gap-2">
-                <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  onClick={() => chatWith(f)}
-                  disabled={chatBusy}
-                  title={`Message ${f.displayName}`}
-                  className="pill inline-flex shrink-0 items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20"
-                >
-                  💬 Chat
-                  {unreadByFriend[f.id] > 0 && hudVisibility.chat !== "hidden" && (
-                    <span
-                      className={`grid h-4 min-w-[1rem] place-items-center rounded-full bg-glow px-1 text-[10px] font-bold text-plum ${
-                        hudVisibility.chat === "faded" ? "opacity-40" : ""
-                      }`}
-                    >
-                      {unreadByFriend[f.id]}
-                    </span>
-                  )}
-                </button>
-                {f.visitAccess === "private" ? (
-                  <span
-                    title={doorHint("private")}
-                    className="pill inline-flex cursor-default items-center gap-1 bg-white/5 px-3 py-1 text-xs font-semibold text-petal/40"
-                  >
-                    🔒 private
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => visit(f)}
-                    disabled={knockingId !== null}
-                    title={doorHint(f.visitAccess)}
-                    className="pill inline-flex items-center gap-1 bg-white/10 px-3 py-1 text-xs font-semibold text-cream transition hover:bg-white/20 disabled:opacity-50"
-                  >
-                    {knockingId === f.id
-                      ? "🚪 knocking…"
-                      : f.visitAccess === "invite"
-                      ? "🚪 Knock"
-                      : "🚪 Visit"}
-                  </button>
-                )}
-                </div>
-                {(() => {
-                  const a = npcActivity(f.username, now);
-                  const line = ACTIVITY_LINE[a.state](a.minutesLeft);
-                  return (
-                    <span
-                      className="flex shrink-0 items-center gap-1.5 text-right text-[11px] text-petal/60"
-                      title={line}
-                    >
-                      <span className="hover-reveal whitespace-nowrap">{line}</span>
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_DOT[a.state]}`}
-                      />
-                    </span>
-                  );
-                })()}
-              </div>
-              {profileId === f.id && <FriendProfile id={`${profileUid}-${f.id}`} friend={f} stats={sim} now={now} onClose={closeProfile} />}
-            </div>
-          );
-        })}
+        {friends.map(f => <FriendCard key={f.id} friend={f} now={now}
+          points={friendship[f.username] || 0}
+          profileId={profileId === f.id ? `${profileUid}-${f.id}` : null}
+          onProfile={event => { profileTrigger.current = event.currentTarget; setProfileId(f.id); }}
+          onRemove={() => arm(f.id, () => remove(f.id))} armed={armedId === f.id}
+          onChat={() => chatWith(f)} onVisit={() => visit(f)} chatBusy={chatBusy}
+          knockingId={knockingId} unread={unreadByFriend[f.id] || 0} chatVisibility={hudVisibility.chat} />)}
       </div>
       </>}
     </div>
+      {/* Profile state belongs to this panel; FriendProfile portals its modal
+          outside the HUD and restores focus to the card trigger on close. */}
+      {section === "friends" && profileFriend && <FriendProfile
+        id={`${profileUid}-${profileFriend.id}`} friend={profileFriend}
+        stats={npcDailyStats(profileFriend.username, now)} now={now} onClose={closeProfile}
+        friendshipPoints={friendship[profileFriend.username] || 0} />}
+    </>
   );
 }

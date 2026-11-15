@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import ChallengesPanel from "./ChallengesPanel";
 import { useChallenges } from "../hooks/useChallenges";
-import { CHALLENGES_KEY } from "../lib/challenges";
+import { CHALLENGES_KEY, CHALLENGES_ENABLED_KEY } from "../lib/challenges";
 import { removeStored, writeJSON } from "../services/storage";
 
 let store;
@@ -21,8 +21,9 @@ beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 7, 12));
   writeJSON(CHALLENGES_KEY, { version: 1, day: "2026-10-07", completed: [] });
   error.mockClear();
+  removeStored(CHALLENGES_ENABLED_KEY);
 });
-afterEach(() => { cleanup(); vi.useRealTimers(); removeStored(CHALLENGES_KEY); });
+afterEach(() => { cleanup(); vi.useRealTimers(); removeStored(CHALLENGES_KEY); removeStored(CHALLENGES_ENABLED_KEY); });
 function create(title, cadence = "daily", tracking = "manual", target = 1) {
   fireEvent.click(screen.getByRole("tab", { name: "My challenges" }));
   fireEvent.click(screen.getByRole("button", { name: "New challenge" }));
@@ -36,13 +37,13 @@ function create(title, cadence = "daily", tracking = "manual", target = 1) {
 it("replaces the selected unwanted daily prompt without touching other progress", () => {
   writeJSON(CHALLENGES_KEY, { version: 1, day: "2026-10-07", completed: ["start-study"] });
   render(<Harness />);
-  const replace = screen.getByRole("button", { name: "Replace Talk to a friend today" });
+  const replace = screen.getByRole("button", { name: "Replace Message your friend" });
   replace.focus();
   fireEvent.click(replace);
   expect(document.activeElement).toBe(replace);
-  expect(screen.queryByRole("heading", { name: "Talk to a friend today" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Message your friend" })).toBeNull();
   expect(screen.getByRole("heading", { name: "Start a study session" })).toBeTruthy();
-  expect(screen.getByRole("status").textContent).toBe("1 of 3 completed");
+  expect(screen.getByRole("status").textContent).toBe("1 of 4 completed");
   expect(screen.queryByRole("button", { name: "Replace Start a study session" })).toBeNull();
 });
 

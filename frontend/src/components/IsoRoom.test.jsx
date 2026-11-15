@@ -11,6 +11,7 @@ import { npcActivity, resolveVisitRoom } from "../lib/visiting";
 import { footOf } from "../lib/isoRoom";
 import { furnitureFacingRotation } from "../lib/furnitureFacing";
 import { validateCharacter } from "../lib/profile";
+import { levelFor } from "../lib/friendship";
 
 afterEach(() => {
   cleanup();
@@ -157,7 +158,7 @@ describe("IsoRoom while visiting", () => {
     expect(texts).toContain("Luna");
     expect(texts).toContain("You");
     expect(container.querySelector('[data-friendship-heart="luna"]')?.getAttribute("data-heart-fill"))
-      .toBe("0.25");
+      .toBe(String(levelFor(80, 'luna').frac));
     expect(container.querySelector('[data-friendship-heart="you"]')).toBeNull();
   });
 

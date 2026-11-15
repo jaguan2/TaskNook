@@ -10,7 +10,10 @@
       "keys": [
         "sofa",
         "armchair",
+        "loungechair",
         "chair",
+        "spindlechair",
+        "foldingchair",
         "deskchair",
         "stool",
         "woodstool",
@@ -25,7 +28,10 @@
       "exported": [
         "sofa",
         "armchair",
+        "loungechair",
         "chair",
+        "spindlechair",
+        "foldingchair",
         "deskchair",
         "stool",
         "woodstool",
@@ -38,7 +44,7 @@
         "hammock"
       ],
       "pending": [],
-      "total": 13,
+      "total": 16,
       "complete": true
     },
     {
@@ -593,47 +599,47 @@
       "label": "Sofa",
       "width": 2,
       "depth": 0.85,
-      "height": 1.2374368670764582,
-      "controlHeight": 42,
-      "seat": 0.6481812160876687,
+      "height": 1.0017346066809425,
+      "controlHeight": 38,
+      "seat": 0.5008673033404712,
       "backView": true,
       "section": "seating-beds",
       "colorRole": "upholstery",
       "defaultColor": "#8baba0",
       "description": "A continuous upholstered arm-and-back shell, two cushion pairs and a supported timber base.",
       "contact": {
-        "seatHeight": 22,
+        "seatHeight": 17,
         "x": -0.4235,
         "z": 0.395
       },
       "file": "sofa.glb",
-      "bytes": 269164,
+      "bytes": 269232,
       "triangles": 13320,
       "meshes": 11,
-      "sha256": "404edfce0a11f9a93e871286b0d7ec283ae70fbdc5a755244612948ca8964fc8"
+      "sha256": "16ee10f7c2438301461070c3e94f837342d5b97e74797d78ca73ecfd83cc0297"
     },
     "armchair": {
       "label": "Armchair",
       "width": 1,
       "depth": 0.85,
-      "height": 1.1195857368787003,
-      "controlHeight": 42,
-      "seat": 0.6481812160876687,
+      "height": 1.0017346066809425,
+      "controlHeight": 38,
+      "seat": 0.5303300858899107,
       "backView": true,
       "section": "seating-beds",
       "colorRole": "upholstery",
       "defaultColor": "#8baba0",
       "description": "One continuous upholstered shell, soft seat and back cushions, a timber underframe and four feet.",
       "contact": {
-        "seatHeight": 22,
+        "seatHeight": 18,
         "x": 0,
         "z": 0.395
       },
       "file": "armchair.glb",
-      "bytes": 201692,
+      "bytes": 201776,
       "triangles": 9672,
       "meshes": 9,
-      "sha256": "037d65f4470a0ba36670c8819d249b4ca88f02f3057c9327bca37b896ce0c261"
+      "sha256": "0d98262c997deb1aa085ad1d16c6a9b2faca10d84a26756398e4cc7a11cc8644"
     },
     "chair": {
       "label": "Wooden chair",
@@ -657,6 +663,75 @@
       "triangles": 3972,
       "meshes": 12,
       "sha256": "f429df2fc3415ca360172dae610db499b1c340a2236e111ecaaf74afedc2cc7f"
+    },
+    "spindlechair": {
+      "label": "Spindle chair",
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.0017346066809425,
+      "controlHeight": 42,
+      "seat": 0.5008673033404712,
+      "backView": true,
+      "section": "seating-beds",
+      "colorRole": "finish",
+      "defaultColor": "#b08a61",
+      "description": "Four splayed legs support a shaped timber seat and five spindles joined to a bowed crest rail.",
+      "contact": {
+        "seatHeight": 17,
+        "x": 0,
+        "z": 0.335
+      },
+      "file": "spindlechair.glb",
+      "bytes": 78136,
+      "triangles": 1712,
+      "meshes": 15,
+      "sha256": "49c74ff9e1c48b485d4e6d36c939d771aa87efa32424a956b5147651d911a09e"
+    },
+    "foldingchair": {
+      "label": "Folding chair",
+      "width": 0.7,
+      "depth": 0.75,
+      "height": 0.913346259032624,
+      "controlHeight": 39,
+      "seat": 0.47140452079103173,
+      "backView": true,
+      "section": "seating-beds",
+      "colorRole": "canvas",
+      "defaultColor": "#aaa786",
+      "description": "Crossed timber side frames meet at metal hinges and receive a thin canvas seat and back panel.",
+      "contact": {
+        "seatHeight": 16,
+        "x": 0,
+        "z": 0.36
+      },
+      "file": "foldingchair.glb",
+      "bytes": 117224,
+      "triangles": 3356,
+      "meshes": 13,
+      "sha256": "563fbe423dd273c350c52bf3bc033bc4a96db74af3658b666cc169a2393308da"
+    },
+    "loungechair": {
+      "label": "Lounge chair",
+      "width": 0.9,
+      "depth": 0.9,
+      "height": 1.0017346066809425,
+      "controlHeight": 38,
+      "seat": 0.5303300858899107,
+      "backView": true,
+      "section": "seating-beds",
+      "colorRole": "upholstery",
+      "defaultColor": "#8baba0",
+      "description": "An open timber frame supports a low cushion, gently reclined back and connected arm rails.",
+      "contact": {
+        "seatHeight": 18,
+        "x": 0,
+        "z": 0.42
+      },
+      "file": "loungechair.glb",
+      "bytes": 141332,
+      "triangles": 5304,
+      "meshes": 14,
+      "sha256": "62df1e6d88e8311c089682d8c8952238b5ce8ad0e98737c751831e349feeb248"
     },
     "deskchair": {
       "label": "Desk chair",

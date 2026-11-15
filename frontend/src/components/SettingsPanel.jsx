@@ -96,6 +96,8 @@ export default function SettingsPanel() {
     hudVisibility,
     setHudVisibility,
     setAllHudVisibility,
+    challengesEnabled = true,
+    setChallengesEnabled,
   } = useSettingsStore();
   const { autoResumeMusic, setAutoResumeMusic } = useAudioStore();
 
@@ -117,6 +119,15 @@ export default function SettingsPanel() {
   return (
     <div className="space-y-5">
       <LanguageSettings />
+      <section className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 text-sm font-semibold text-cream">
+          <span>{t('settings.challenges.title')}</span>
+          <input type="checkbox" role="switch" checked={challengesEnabled} aria-describedby="settings-challenges-description"
+            onChange={event => setChallengesEnabled(event.target.checked)}
+            className="h-5 w-5 shrink-0 accent-[#ffe9b0]" />
+        </label>
+        <p id="settings-challenges-description" className="text-xs leading-relaxed text-petal/65">{t('settings.challenges.description')}</p>
+      </section>
 
       <hr className="border-white/10" />
 

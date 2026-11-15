@@ -22,7 +22,7 @@ describe('GLB room projection', () => {
     }
   });
   it('covers every production prop while retaining customized actors', () => {
-    expect(Object.keys(CATALOG_MODELS)).toHaveLength(179);
+    expect(Object.keys(CATALOG_MODELS)).toHaveLength(Object.values(ISO_ITEMS).filter(item => !item.persona && !item.roamer).length);
     for (const [key, item] of Object.entries(ISO_ITEMS)) {
       expect(!!CATALOG_MODELS[key]).toBe(!item.persona && !item.roamer);
     }

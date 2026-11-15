@@ -5,7 +5,7 @@
  * part of that simulation that REMEMBERS you: points accrue for doing things
  * together — saying something in a chat, stepping through a door, minutes
  * spent in the same room — and the level read off them warms the dialogue
- * and fills a small bar in the Friends panel. Mostly cosmetic, deliberately:
+ * and fills the level meter in the Friends panel. Mostly cosmetic, deliberately:
  * it's a reason to interact, not a grind with rewards. Tangible rewards are
  * deliberately not built; add them only if the social loop grows beyond its
  * current cosmetic purpose.
@@ -47,7 +47,26 @@ export const FRIENDSHIP_LEVELS = [
   { level: 5, label: "Kindred spirits", at: 320 },
 ];
 
-const TOP = FRIENDSHIP_LEVELS[FRIENDSHIP_LEVELS.length - 1];
+// Curves change the spacing between milestones, not the points awarded. Every
+// threshold stays at or below the original curve, preserving earned levels.
+export const FRIENDSHIP_GROWTH = {
+  steady: FRIENDSHIP_LEVELS.map(({ at }) => at),
+  slowBurn: [0, 25, 80, 155, 275],
+  quickStart: [0, 12, 45, 150, 320],
+};
+const NEIGHBOUR_GROWTH = { luna: 'slowBurn', kai: 'quickStart', sora: 'slowBurn', mochi: 'steady' };
+
+/** Authored personalities for familiar neighbours; other names get a stable
+ * curve. No randomness, clock or storage is involved in reading a level. */
+export function friendshipGrowthFor(username) {
+  const name = String(username || '').trim().toLowerCase();
+  if (!name) return 'steady';
+  if (Object.hasOwn(NEIGHBOUR_GROWTH, name)) return NEIGHBOUR_GROWTH[name];
+  let hash = 0;
+  for (const character of name) hash = (Math.imul(hash, 31) + character.codePointAt(0)) >>> 0;
+  const patterns = Object.keys(FRIENDSHIP_GROWTH);
+  return patterns[hash % patterns.length];
+}
 
 /** Clamp a stored tally to something the vocabulary understands. */
 export function clampBond(points) {
@@ -57,22 +76,27 @@ export function clampBond(points) {
 }
 
 /**
- * Where `points` puts you: `{level, label, frac, next}`.
- *
- * `frac` is overall progress toward the top level (0..1) — one bar that fills
- * over the friendship's whole life reads better at a glance than one that
- * resets at every level. `next` is points still needed for the next level,
- * null at the top.
+ * One level calculation for cards, profiles, room hearts and chat replies.
+ * `frac` remains lifetime progress for room hearts; `progress` and the local
+ * earned/required pair describe the CURRENT level. Saved tallies are unchanged.
  */
-export function levelFor(points) {
+export function levelFor(points, username) {
   const pts = clampBond(points);
-  let entry = FRIENDSHIP_LEVELS[0];
-  for (const lvl of FRIENDSHIP_LEVELS) if (pts >= lvl.at) entry = lvl;
-  const nextEntry = FRIENDSHIP_LEVELS[FRIENDSHIP_LEVELS.indexOf(entry) + 1] || null;
+  const growth = friendshipGrowthFor(username);
+  const thresholds = FRIENDSHIP_GROWTH[growth];
+  let index = 0;
+  for (let i = 1; i < thresholds.length; i++) if (pts >= thresholds[i]) index = i;
+  const entry = FRIENDSHIP_LEVELS[index];
+  const nextEntry = FRIENDSHIP_LEVELS[index + 1] || null;
+  const required = nextEntry ? thresholds[index + 1] - thresholds[index] : 0;
+  const earned = nextEntry ? pts - thresholds[index] : 0;
   return {
     level: entry.level,
     label: entry.label,
-    frac: Math.min(1, pts / TOP.at),
-    next: nextEntry ? nextEntry.at - pts : null,
+    frac: Math.min(1, pts / thresholds[thresholds.length - 1]),
+    next: nextEntry ? required - earned : null,
+    nextLevel: nextEntry?.level ?? null,
+    earned, required, growth,
+    progress: nextEntry ? earned / required : 1,
   };
 }

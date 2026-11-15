@@ -13,6 +13,19 @@ afterEach(() => {
 });
 
 describe("common-room chat", () => {
+  it("leaves modal keys alone while the room composer is open", () => {
+    render(<><CommonRoomChat session={room()} roomName="Common Cottage" user={user} />
+      <div role="dialog" aria-modal="true"><button>Modal action</button></div></>);
+    fireEvent.keyDown(document.body, { key: '/' });
+    const input = screen.getByRole('textbox', { name: 'Message the room' });
+    fireEvent.change(input, { target: { value: 'Keep my draft' } });
+    const modal = screen.getByRole('button', { name: 'Modal action' });
+    expect(fireEvent.keyDown(modal, { key: 'Escape' })).toBe(true);
+    expect(screen.getByRole('textbox', { name: 'Message the room' }).value).toBe('Keep my draft');
+    expect(fireEvent.keyDown(modal, { key: '/' })).toBe(true);
+    expect(document.activeElement).toBe(input);
+  });
+
   it("opens from slash or Enter without stealing Enter from another control", () => {
     render(<CommonRoomChat session={room()} roomName="Common Cottage" user={user} />);
     expect(screen.getByText("Welcome Mina to Common Cottage")).toBeTruthy();

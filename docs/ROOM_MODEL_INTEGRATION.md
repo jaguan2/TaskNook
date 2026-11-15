@@ -1,11 +1,11 @@
 # Live room models — November 12, 2026
 
-The default isometric game now uses the authored GLBs for **all 179 furniture
+The default isometric game now uses the authored GLBs for **all 182 furniture
 and prop keys**. This includes home presets such as Loft, visited rooms, the
 catalog picker, preset thumbnails and catalog furniture in common places.
 No new setting or saved-room conversion is required.
 
-The catalog has 184 exports. The other five keys — `you`, `resident`, `cat`,
+The catalog has 187 exports. The other five keys — `you`, `resident`, `cat`,
 `dog`, `bunny` — retain the existing customized SVG artwork in the game.
 Their 3D starter rigs do not reproduce the wardrobe, body sliders, growth
 stages, coats, held poses or pet forms. The separate classic 2D Cottage and
@@ -68,7 +68,7 @@ and update manifest.
 
 ## Verification and future changes
 
-`e2e/catalog-models.spec.mjs` checks actual requests for all 179 props through
+`e2e/catalog-models.spec.mjs` checks actual requests for all 182 props through
 the live picker, one shared graphics context, failure/retry, actual hit targets,
 color/light controls, seating at four rotations and unchanged saved-room data
 after reload. Bedding checks cover the actual GLB cover in both orientations.
@@ -314,3 +314,13 @@ main-channel build `508059f752fd42cab7e7142d5dfa7016`, 49,367,122 bytes, SHA-256
 `7effecc15a3508df8a3a1015198096d4cdeb1598d8fd22fce30d7ee49b99d9ed`.
 Its embedded identity, source fingerprint and all 234 bundled files match, and
 the installed executable passes its isolated frozen self-test with exit 0.
+
+
+## Lower upholstery and chair options — November 14, 2026
+
+The catalog now includes spindle, folding and open-frame lounge chairs. The
+sofa seat is 17px and its back 34px; the closed armchair seat is 18px. A shallow
+deck, narrow timber rail and setback arms replace the old deep base. Current
+footprints, four-direction rotation, tint storage and saved sofa dimensions are
+preserved. Common-room heights follow the same catalog. See the
+[seating revision](SEATING_REFRESH.md) for the sources, current images and tests.

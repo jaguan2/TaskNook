@@ -1,4 +1,4 @@
-> Current rendering scope: the isometric game uses 179 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Supplied inspiration is indexed in [artwork references](ART_REVIEW.md).
+> Current rendering scope: the isometric game uses 182 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Supplied inspiration is indexed in [artwork references](ART_REVIEW.md).
 
 # TaskNook model spec
 
@@ -113,8 +113,8 @@ Do not replace these with a dense grid of decorative seams.
 `PaddedPanel` draws upright upholstery with a bowed crown, rounded lower
 corners and an offset shell; the desk chair adds a shallow waist. Armchairs
 and sofas use one grid-bounded hull with actual back/arm thickness. Their
-42px back contains the ends of the lower 27px arms even in rear projection;
-offset upright shells previously left duplicate crowns and raised tabs.
+34px back meets low, setback arms; the seat cushions extend ahead of the arm
+ends. The joined shell keeps the rear crown clear without raised tabs.
 Keep timber structure separate: upholstered seats expose their frame below
 the cushions, and the garden bench
 uses individual seat/back slats over an open frame. `ISO_ITEMS` owns seat height;
@@ -136,6 +136,16 @@ rim and a single draped cloth. These preserve their original placement bounds.
 book trolley and open journal: the trolley's books are fixed lower-shelf art,
 while its clear upper tray is a normal catalog surface at 32 px. The journal
 uses ordinary tabletop stacking; neither piece needs special scene behavior.
+
+### Seating catalog expansion — November 14
+
+The spindle, folding and open-frame lounge chairs are standalone GLBs with
+matching SVG fallback silhouettes. Seats are 17px, 16px and 18px respectively.
+Sofas now sit at 17px with a 34px back, a shallow deck and setback arms; closed
+armchairs use an 18px cushion with the same lighter construction. Footprints and
+four-direction facing remain stable, including saved/resized sofas. The
+[seating revision](SEATING_REFRESH.md) records source owners, contact checks and
+current room/catalog captures.
 
 ### Persona proportions
 
@@ -542,7 +552,7 @@ cloth surfaces while timber stays timber.
 The November 11 revision joins the actual projected arms and back, correcting
 the exposed ends left by the earlier upright-panel construction. The lower
 arms and higher back meet without horns in the rear view.
-Shared cushion heights are 22px, desk chairs 21px, dining chairs 17px and
+Sofa cushions are 17px, armchairs 18px, desk chairs 21px, dining chairs 17px and
 bed mattresses 15px. Chair bases were lowered on November 13; the seat pad
 and occupant follow the catalog height. Bed and sleeping foreground cover reuse one duvet drawing,
 with a thin top layer and curved hanging hems rather than a solid cuboid.
@@ -606,6 +616,13 @@ to each pet or involve the focus timer provider.
 The art sheet includes 135 stage/form/pose combinations. Reviewed captures:
 [cats](model-review/cat-growth.webp), [dogs](model-review/dog-growth.webp) and
 [rabbits](model-review/bunny-growth.webp).
+
+The November 14 [profile/resting refinement](PET_PROFILE_REFINEMENT.md) replaces
+the upright sleeping-tail loop and oversized belly marking with grounded tucked
+poses, a clipped chest marking and connected profile anatomy. The current growth
+review sheets include six poses per age/form, including walking; the general art
+sheet retains its five-pose fixture set. `npm.cmd run qa:pet-profiles` in the
+furniture workshop checks all fifteen looks through sampled animation phases.
 
 ## 6. Motion
 

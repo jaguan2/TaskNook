@@ -382,7 +382,7 @@ function PersonaTag({ p, label, glides, npcUsername, friendship }) {
   // above its person. These sit the tag just over the hair for the default
   // body in both poses.
   const lift = p._seat ? p._seat + 27 : 51;
-  const bond = npcUsername ? levelFor(friendship?.[npcUsername] || 0) : null;
+  const bond = npcUsername ? levelFor(friendship?.[npcUsername] || 0, npcUsername) : null;
   const relationship = {
     heartProgress: bond?.frac,
     heartId: npcUsername,

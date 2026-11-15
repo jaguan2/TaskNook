@@ -202,7 +202,7 @@ export function StoreProvider({ children }) {
 
   const { progression, syncStudy, recordNeighbour, recordChallenges } = useProgression(!!user && !booting, showToast);
   const { savedLooks, saveCharacterLook, removeCharacterLook } = useSavedLooks(showToast);
-  const { challenges, recordChallengeEvent, replaceChallenge,
+  const { challenges, challengesEnabled, setChallengesEnabled, recordChallengeEvent, replaceChallenge,
     addChallenge, advanceChallenge, resetChallenge, removeChallenge } = useChallenges(showToast, recordChallenges);
   const addCustomChallenge = useCallback((draft) => {
     try { addChallenge(draft); return true; }
@@ -1389,7 +1389,7 @@ export function StoreProvider({ children }) {
     friendshipRef.current = friendship;
   }, [friendship]);
   const bondLevelOf = useCallback(
-    (username) => levelFor(friendshipRef.current[username] || 0).level,
+    (username) => levelFor(friendshipRef.current[username] || 0, username).level,
     []
   );
 
@@ -2552,10 +2552,10 @@ export function StoreProvider({ children }) {
   }), [user, booting, bootError, toast, showToast, dismissToast]);
 
   const challengeStore = useMemo(() => ({
-    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    challenges, challengesEnabled, setChallengesEnabled, recordChallengeEvent, replaceChallenge, addCustomChallenge,
     advanceChallenge, resetChallenge, removeChallenge,
   }), [
-    challenges, recordChallengeEvent, replaceChallenge, addCustomChallenge,
+    challenges, challengesEnabled, setChallengesEnabled, recordChallengeEvent, replaceChallenge, addCustomChallenge,
     advanceChallenge, resetChallenge, removeChallenge,
   ]);
 
@@ -2682,11 +2682,13 @@ export function StoreProvider({ children }) {
   ]);
 
   const settingsStore = useMemo(() => ({
+    challengesEnabled, setChallengesEnabled,
     widgetMode, setWidgetMode, brightness, setBrightness,
     colorScheme, setColorScheme, customColor, setCustomColor, customSurface,
     setCustomSurface, backdropStyle, setBackdropStyle, motionMode,
     setMotionMode, hudVisibility, setHudVisibility, setAllHudVisibility,
   }), [
+    challengesEnabled, setChallengesEnabled,
     widgetMode, setWidgetMode, brightness, setBrightness, colorScheme,
     setColorScheme, customColor, setCustomColor, customSurface,
     setCustomSurface, backdropStyle, setBackdropStyle, motionMode,

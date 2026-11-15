@@ -94,10 +94,12 @@ export function Bed({ colors, dimensions } = {}) {
   </g>;
 }
 
-/** A joined upholstered hull, at the established 22px cushion height.
- * Short timber feet and a narrow rail restore the older compact silhouette;
- * rounded panels and cushions retain the later cloth construction. */
-function Upholstered({ w, seats, back = false, depth = .85 }) {
+/** A low joined shell with a shallow base. Cushion anchors come from the
+ * catalog, shared by actors, GLBs and this graphics-failure fallback. */
+function Upholstered({ w, seats, seatHeight, back = false, depth = .85 }) {
+  const padH = 5, baseH = 5, railH = 2;
+  const baseTop = seatHeight - padH, baseBottom = baseTop - baseH;
+  const footH = baseBottom - railH, armTop = seatHeight + 5, backTop = 34;
   const D = depth, ARM = 0.2, BACK = 0.22;
   const inner = w - ARM * 2;
   const gap = 0.06;
@@ -106,12 +108,12 @@ function Upholstered({ w, seats, back = false, depth = .85 }) {
   // Real grid-space thickness joins the arms to the back. Screen-offset
   // upright shells left duplicate crowns and far arm ends above the rear
   // silhouette; a .22-tile back now contains both side-panel endpoints.
-  const arm = (gx) => <g transform="translate(0,-7)" data-furniture-part="arm">
-    <SoftBox gx={gx} gy={0.04} dx={ARM} dy={D - 0.08} h={20}
+  const arm = (gx) => <g transform={`translate(0,${-baseBottom})`} data-furniture-part="arm">
+    <SoftBox gx={gx} gy={back ? .20 : .04} dx={ARM} dy={D - .24} h={armTop - baseBottom}
       radius={0.06} fallback="#d98a93" dark={0.26} mid={0.15} />
   </g>;
-  const rest = <g transform="translate(0,-7)" data-furniture-part="backrest">
-    <SoftBox gx={0} gy={back ? D - BACK : 0} dx={w} dy={BACK} h={35}
+  const rest = <g transform={`translate(0,${-baseBottom})`} data-furniture-part="backrest">
+    <SoftBox gx={0} gy={back ? D - BACK : 0} dx={w} dy={BACK} h={backTop - baseBottom}
       radius={0.065} fallback="#d98a93" dark={0.26} mid={back ? 0.18 : 0.1} />
     {!back && Array.from({ length: seats }, (_, i) => {
       const p = project(at(i) + 0.06, BACK);
@@ -124,26 +126,26 @@ function Upholstered({ w, seats, back = false, depth = .85 }) {
   const gy = back ? 0.05 : BACK + 0.05;
   return <g data-furniture-family="upholstered">
     {[[0.08, 0.09], [w - 0.2, 0.09], [0.08, D - .21], [w - 0.2, D - .21]].map(([gx, gy]) =>
-      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.12} dy={0.12} h={4}
+      <TintedBox key={`${gx}-${gy}`} gx={gx} gy={gy} dx={0.12} dy={0.12} h={footH}
         fallback={TIMBER} tint={false} dark={0.36} mid={0.2} />)}
-    <g transform="translate(0,-4)" data-furniture-part="timber-rail">
-      <TintedBox gx={0.04} gy={0.05} dx={w - 0.08} dy={D - 0.1} h={3}
+    <g transform={`translate(0,${-footH})`} data-furniture-part="timber-rail">
+      <TintedBox gx={0.04} gy={0.05} dx={w - 0.08} dy={D - 0.1} h={railH}
         fallback={TIMBER} tint={false} dark={0.34} mid={0.18} />
     </g>
     {!back && rest}
     {arm(0)}
-    <g transform="translate(0,-7)" data-furniture-part="upholstered-base">
+    <g transform={`translate(0,${-baseBottom})`} data-furniture-part="upholstered-base">
       <SoftBox gx={ARM - 0.02} gy={0.05} dx={inner + 0.04} dy={D - 0.1}
-        h={8} radius={0.09} fallback="#d98a93" dark={0.3} mid={0.17} />
+        h={baseH} radius={0.09} fallback="#d98a93" dark={0.3} mid={0.17} />
     </g>
-    <g transform="translate(0,-15)" data-furniture-part="seat-pad">
+    <g transform={`translate(0,${-baseTop})`} data-furniture-part="seat-pad">
       {Array.from({ length: seats }, (_, i) => <SoftBox key={i}
         gx={at(i) + 0.02} gy={gy} dx={cw - 0.04} dy={D - BACK - 0.12}
-        h={7} radius={0.15} fallback="#e8a3a8" dark={0.2} mid={0.1} />)}
+        h={padH} radius={0.15} fallback="#e8a3a8" dark={0.2} mid={0.1} />)}
     </g>
     {!back && seats > 1 && (() => {
       const o = project(ARM + 0.06, BACK + 0.03);
-      return <g transform={`translate(${o.x},${o.y - 7}) skewY(${SKEW})`}>
+      return <g transform={`translate(${o.x},${o.y - (seatHeight - 11)}) skewY(${SKEW})`}>
         <path d="M1 -14 Q-1 -20 2 -26 Q7 -28 12 -25 Q14 -19 12 -13 Q6 -11 1 -14 Z" fill="#e8d5b5" />
         <path d="M1 -14 Q6 -12 12 -13 L11 -15 Q5 -14 1 -16 Z" fill="#b8a17f" />
         <path d="M3 -24 Q6 -26 10 -23" fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.3" />
@@ -153,7 +155,7 @@ function Upholstered({ w, seats, back = false, depth = .85 }) {
     {back && rest}
     {seats > 1 && (() => {
       const o = project(w, back ? 0.18 : 0.35);
-      return <g transform={`translate(${o.x},${o.y - 27}) skewY(${-SKEW})`}>
+      return <g transform={`translate(${o.x},${o.y - armTop}) skewY(${-SKEW})`}>
         <path d="M-7 0 Q-3 -1 0 0 L-0.5 13 Q-3.5 15 -7 12 Z" fill="#d4c4a3" />
         <path d="M-5 1 L-4.6 12 M-2 1 L-2.4 13" fill="none" stroke="#a68f70" strokeWidth="0.7" opacity="0.4" />
       </g>;
@@ -162,8 +164,8 @@ function Upholstered({ w, seats, back = false, depth = .85 }) {
 }
 
 export const Sofa = ({ back, dimensions }) => <Upholstered w={dimensions?.w || 2} depth={dimensions?.d || .85}
-  seats={dimensions ? Math.round(dimensions.w) : 2} back={back} />;
-export const Armchair = ({ back }) => <Upholstered w={1} seats={1} back={back} />;
+  seats={dimensions ? Math.round(dimensions.w) : 2} seatHeight={ISO_ITEMS.sofa.seat} back={back} />;
+export const Armchair = ({ back }) => <Upholstered w={1} seats={1} seatHeight={ISO_ITEMS.armchair.seat} back={back} />;
 
 export function Chair({ back = false }) {
   // Keep the fallback's legs below the catalog seat, including board and pad.

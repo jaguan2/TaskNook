@@ -27,6 +27,8 @@ const mockStore = vi.hoisted(() => ({
   setAllHudVisibility: vi.fn(),
   autoResumeMusic: true,
   setAutoResumeMusic: vi.fn(),
+  challengesEnabled: true,
+  setChallengesEnabled: vi.fn(),
 }));
 
 vi.mock("../store", () => ({
@@ -37,6 +39,15 @@ vi.mock("../store", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+});
+
+it('offers a challenge on/off switch with clear pause and preservation wording', () => {
+  render(<SettingsPanel />);
+  const toggle = screen.getByRole('switch', { name: 'Challenges' });
+  expect(toggle.checked).toBe(true);
+  fireEvent.click(toggle);
+  expect(mockStore.setChallengesEnabled).toHaveBeenCalledWith(false);
+  expect(screen.getByText(/Your progress and personal goals are kept/)).toBeTruthy();
 });
 
 describe("HUD visibility controls", () => {

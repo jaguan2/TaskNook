@@ -15,6 +15,7 @@
     "characters:source": "node scripts/export-pilot-source.mjs",
     "qa:character-pilot": "node scripts/review-character-pilot.mjs",
     "pets:source": "node scripts/export-pet-source.mjs",
+    "qa:pet-profiles": "node scripts/review-pet-profiles.mjs",
     "qa:pet-pilot": "node scripts/review-pet-pilot.mjs",
     "qa:clean": "node scripts/cleanup-qa.mjs"
   },

@@ -7,7 +7,7 @@ Start with the state owner for the behavior you want to change. `App.jsx` compos
 | App composition | `frontend/src/App.jsx` | Home/visit boundaries, panels and scene props |
 | Room entry | `frontend/src/components/CommonRoomEntry.jsx`, `RoomLoadingScreen.jsx` | Common-place image preparation, scoped progress and cancellation; shared scene-chunk loading feedback |
 | Shared state | `frontend/src/store.jsx` | User actions and state ownership; existing storage gateway handles durable saves |
-| Neighbour profiles | `frontend/src/lib/npcProfiles.js`, `components/FriendProfile.jsx` | Stable fictional facts and inline details; existing daily/weekly simulation supplies study totals |
+| Neighbour profiles | `frontend/src/lib/npcProfiles.js`, `components/FriendProfile.jsx` | Stable fictional facts and a shared Friends/common-room modal profile; existing daily/weekly simulation supplies study totals |
 | Room data | `frontend/src/lib/isoRoom.js`, `isoCatalog.js`, `isoPresets.js`, `isoSeasonalPresets.js` | Catalog contracts, validated placements and grouped personal presets |
 | Visit arrivals | `frontend/src/lib/visiting.js` | Stored owner positions, available seats and café counter anchors |
 | Room interactions | `frontend/src/components/IsoRoom.jsx` | Scene ordering, item selection, carrying and camera input |
@@ -30,11 +30,34 @@ The separate timer provider owns its ticking state; avoid subscribing the whole 
 
 ## Following a neighbour profile
 
-In Friends, the name/avatar button expands one inline `FriendProfile`.
-`FriendsPanel` owns the selected friend ID and returns focus to that button when
-Close or Escape dismisses the details. Chat, Visit and removal are separate
-buttons. The disclosure stays within the existing scrolling drawer and uses its
-normal keyboard/touch flow; it adds no visit, profile-save or storage action.
+In Friends, the whole `FriendCard` opens one centered `FriendProfile` popup;
+Chat, Visit and Remove remain separate buttons above the stretched profile
+control. `FriendshipMeter` spans the card with five milestones, current-level
+progress and a personal growth curve. [Rules and coverage](FRIENDSHIP_LEVELS.md).
+`FriendsPanel` owns the selected friend ID; the profile renders once outside the
+rows, so opening it cannot expand or shift the list. Buttons advertise a dialog
+through `aria-haspopup` and identify its current instance while open. Chat,
+Visit and removal remain separate row actions.
+
+`FriendProfile` portals its dialog directly into `document.body`, outside the
+HUD's layout and inherited styles. It centers on the whole app window, including
+after dragging Friends or resizing the window. `showModal()` places it in the
+browser's top layer and makes the background inert. Close,
+Escape or a click/tap on the backdrop closes the dialog before returning focus
+to the original card's profile button. Keyboard events stay with the modal so
+Escape cannot also dismiss Friends or leave a visited room. Clicking padding or
+releasing a drag outside the card does not dismiss it. The header remains fixed
+inside the card while the details scroll in short windows. There is no popup
+animation or additional timer, and the native modal handles focus navigation.
+
+Common-room figures and name tags open the same popup, including occupants who
+are outside the Friends list. `CommonRoom` owns a snapshot of the selected
+identity and uses its existing room clock; `App` supplies known friend metadata.
+The scene exposes keyboard buttons inside an accessible SVG group. Pickup and
+seat selection retain their own handlers. If an occupant is replaced while the
+profile is open, focus falls back to your character instead of the replacement.
+Common-room chat's document-capture shortcut leaves modal keys alone. See
+[common-room profile ownership and coverage](COMMON_ROOMS.md#occupant-profiles--november-14-2026).
 
 `npcProfiles.js` owns character-world birthdays, gender/pronouns, joined dates
 and a short interest description. The four familiar neighbours have authored
@@ -45,27 +68,27 @@ changes without storing another copy. Dates parse as local calendar parts before
 locale formatting, avoiding UTC birthday shifts. All five interface languages
 provide the labels, gender text and interest descriptions.
 
-The expanded card receives the row's existing `npcDailyStats` result and obtains
-week-to-date minutes through `npcWeeklyFocusMinutes`, the same policy as the
-Weekly board. The panel retains its existing 30-second clock; the profile does
-not subscribe to the focus timer or schedule another clock. Current captures are
-[desktop](screenshots/68-friend-profile.webp) and
+The popup uses `npcDailyStats` and `npcWeeklyFocusMinutes`, the same policies as
+the friend rows and Weekly board. The panel retains its existing 30-second clock;
+the profile does not subscribe to the focus timer or schedule another clock.
+Current captures are [desktop](screenshots/68-friend-profile.webp) and
 [390px touch layout](screenshots/68-friend-profile-small.webp), generated by
 `e2e/friend-profiles.spec.mjs` against an isolated real backend.
 
-Verification covers stable dates and generated identities (including unusual
-usernames), a single open profile, keyboard focus/close, touch at 390px/320px,
-reload, localized dates, independent Chat/Visit and weekly-board agreement.
-The full frontend suite passes 1,647 tests (one optional generator skipped), plus
-lint/build and all five profile browser scenarios. Review preserves the existing
-store, visit and timer boundaries; the separately installed shared toolkit is
-unavailable. Ignored evidence is under `build/skill-verification/friend-profiles/`;
-temporary browser outputs, helper configuration and frozen-test data are removed.
-
-The November 14 main build `ec088e354cb549398ac5fdc4d269e581` includes these
-profiles and the corrected chair bases. Source/bundle/manifest verification and
-the installed executable's isolated startup self-test pass. Its SHA-256 is
-`16e3c03ea0d3c7e83ec44d69927b148a571c96eace2209df8a560e10b84a632f`.
+Verification covers 42 targeted component/data tests, lint/build and eight native
+browser scenarios: stable facts and weekly totals, modal placement without row
+expansion, focus and Escape behavior, backdrop/padding/drag dismissal, independent
+Chat/Visit actions, localized dates, a dragged HUD, window resizing and 390px/320px
+touch layouts. The window-level portal change additionally rechecks 40 Friends,
+common-room and chat component tests. jsdom emulates
+only dialog open/close; the real browser proves modal behavior. Local structural
+self-review preserves store, visit and timer boundaries; the separately installed
+shared toolkit is unavailable. Evidence is ignored under
+`build/skill-verification/friend-profile-popup/`, `build/skill-verification/common-profiles/`
+and `build/skill-verification/profile-window/`. Temporary browser output,
+helper configuration and frozen-test data are removed after keeping current
+review images. Runtime delivery includes a matching main-channel executable and
+update manifest, exact package verification and an isolated frozen startup test.
 
 ## Following a shelf edit
 

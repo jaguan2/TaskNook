@@ -13,7 +13,7 @@ function HeldFigure({ walk, pet, petNow, character, personaInfo, label, friendsh
     <Sprite held pet={pet} now={petNow} character={item.self ? character : personaInfo?.character} look={walk.look} />
   );
   const bond = personaInfo?.npcUsername
-    ? levelFor(friendship?.[personaInfo.npcUsername] || 0)
+    ? levelFor(friendship?.[personaInfo.npcUsername] || 0, personaInfo.npcUsername)
     : null;
   return (
     <g style={walk.tint ? { "--tint": walk.tint } : undefined}>

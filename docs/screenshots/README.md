@@ -113,17 +113,53 @@ seated poses.
 | ![Furniture](24-furniture.webp) **Furniture** — themed sections, each button a live miniature of the thing it places. | ![Decorating](25-decorating.webp) **Decorating** — draw the floor plan tile by tile, then drag furniture across the grid. |
 | ![Floor plan](29-floor-plan.webp) **Floor plan** — paint solid walls or passable archways along individual tile edges; occupied tiles remain marked while reshaping. | |
 
+## Chair options and low upholstery
+
+The seating catalog includes spindle, folding and open-frame lounge chairs.
+Sofas and armchairs have lower seats and a shallower base. These captures use the
+actual game renderer; see [the construction and checks](../SEATING_REFRESH.md).
+
+| | |
+|---|---|
+| ![Chair options](70-seating-options.webp) **Chair options** — independent colours and the low sofa. | ![Low sofa with a seated character](70-low-sofa-occupied.webp) **Seated fit** — the revised cushion and character use the same height. |
+
+## Pet resting poses
+
+[Current pet anatomy review](../PET_PROFILE_REFINEMENT.md) covers the profile
+and resting silhouettes, growth stages, coat markings and contact checks.
+
+![Cat, corgi and rabbit resting in both room orientations](71-pet-resting-poses.webp)
+
 ## Friends & visiting
 
-Click a neighbour's name or avatar to open their profile, including birthday,
+Click anywhere on a neighbour's card to open a profile popup centered on the whole app
+window, independently of the Friends HUD's position. It includes birthday,
 gender/pronouns, their joined date, interests and daily/weekly focus totals.
-Only one profile opens at a time. Close or Escape returns to its trigger; Chat
-and Visit remain separate actions. Character facts stay consistent across reloads.
+Only one profile opens at a time. Close, Escape or a backdrop tap returns to its trigger; Chat
+and Visit remain separate actions, alongside Remove. Character facts stay consistent across reloads.
 See [the implementation and verification notes](../CODEBASE_GUIDE.md#following-a-neighbour-profile).
 
 | | |
 |---|---|
-| ![Neighbour profile](68-friend-profile.webp) **Neighbour profile** — character details and the same study totals used elsewhere. | ![Profile on a small screen](68-friend-profile-small.webp) **Touch layout** — the existing drawer scrolls to the expanded profile. |
+| ![Neighbour profile](68-friend-profile.webp) **Neighbour profile** — character details and the same study totals used elsewhere. | ![Profile on a small screen](68-friend-profile-small.webp) **Touch layout** — profile details scroll inside the popup while Close stays visible. |
+
+The friendship meter spans the full card with five named milestones. Each
+character has a stable growth pattern; the score shows progress to the next
+level. [Growth rules and existing-save compatibility](../FRIENDSHIP_LEVELS.md).
+
+| Desktop | Touch |
+| --- | --- |
+| ![Personal friendship levels on full-width cards](72-friendship-cards.webp) | ![Whole-card profiles and friendship levels on touch](72-friendship-cards-small.webp) |
+
+![Kai reaches Good friends after an accepted chat message](72-friendship-level-up.webp)
+
+The same popup opens from common-room figures and name tags, including occupants
+outside the Friends list. See [common-room profile behavior](../COMMON_ROOMS.md#occupant-profiles--november-14-2026).
+
+| | |
+|---|---|
+| ![Library occupant profile](69-common-profile.webp) **Common-room profile** — Ivy's generated character facts. | ![Common-room profile on touch](69-common-profile-small.webp) **Touch layout** — tap a name to view their profile. |
+
 
 | | |
 |---|---|
@@ -194,7 +230,7 @@ Capture `66` reproduces this editor view. Capture `25` and size examples `62 63 
 | ![Tasks](15-tasks.webp) **Tasks** — groups, priorities, durations, routines, six ordering algorithms | ![Timer](16-focus-timer.webp) **Focus timer** — durations, Pomodoro, stopwatch, daily goal and streak (and the room notices you working) |
 | ![Sounds](17-sounds.webp) **Sounds** — lofi stations plus a procedural ambient mixer | ![Calendar](19-calendar.webp) **Calendar** — days shaded by how much you focused, and a breakdown of what each one went on |
 | ![Weather](20-weather.webp) **Weather** — real conditions via Open-Meteo, and the scene matrix | ![Settings](21-settings.webp) **Settings** — colour schemes, gradient or solid backdrop, brightness and motion |
-| ![Challenges](45-challenges.webp) **Daily challenges** — three varied prompts, automatic progress and individual replacements. | ![Personal challenges](46-personal-challenges.webp) **My challenges** — write daily or ongoing goals with manual or automatic progress. |
+| ![Challenges](45-challenges.webp) **Daily challenges** — four small optional goals: message, visit a common room, add a task and save five study minutes. | ![Personal challenges](46-personal-challenges.webp) **My challenges** — write daily or ongoing goals with manual or automatic progress. |
 | ![Profile levels](47-profile-levels.webp) **Levels** — increasing XP requirements, saved study credit, challenge/NPC bonuses and daily login streaks. | |
 
 The composition pass refreshed the gallery and README hero after reviewing every personal preset. Grouped seats face their activity, couch upholstery matches, and common places retain their larger group layouts. [Room composition](../ROOM_LAYOUT_COMPOSITION.md) records the approach and completed coverage; [furniture directions](../ROOM_LAYOUT_DIRECTIONS.md) documents persistent facings.

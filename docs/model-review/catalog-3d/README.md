@@ -1,6 +1,11 @@
 # Standalone catalog review sheets
 
-Current illustrated GLB snapshots for all 184 catalog keys. The [coverage ledger](../../CATALOG_3D_MIGRATION.md) lists each source key and asset; [the approach](../../CATALOG_3D_APPROACH.md) describes construction and checks. The 179 prop GLBs also power the [actual isometric game](../../ROOM_MODEL_INTEGRATION.md); customized actors keep their SVG artwork.
+Current illustrated GLB snapshots for all 187 catalog keys. The [coverage ledger](../../CATALOG_3D_MIGRATION.md) lists each source key and asset; [the approach](../../CATALOG_3D_APPROACH.md) describes construction and checks. The 182 prop GLBs also power the [actual isometric game](../../ROOM_MODEL_INTEGRATION.md); customized actors keep their SVG artwork.
+
+November 14 seating refresh: the [current seating sheet](furniture-seating-section.png)
+contains sixteen entries, including spindle, folding and lounge chairs. Sofas and
+armchairs use the new low, shallow-base construction. See the
+[approach and validation](../../SEATING_REFRESH.md).
 
 Refreshed November 12, 2026: all 18 section sheets, five illustrated room
 arrangements and the bed/seated calibration views were rendered from the current

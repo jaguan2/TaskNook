@@ -902,14 +902,14 @@ async function main() {
   if (want("45") || want("46")) {
     // These are daily device markers, not seeded task/session totals. Reset
     // them on the throwaway capture profile for a reproducible first look.
-    await page.evaluate(`localStorage.removeItem('tasknook.challenges')`);
+    await page.evaluate(`localStorage.removeItem('tasknook.challenges'); localStorage.setItem('tasknook.challenges.enabled', '1')`);
     await page.setStorage({ "tasknook.timerMode": "timer" });
     await page.load();
     await page.clickText("Challenges", { exact: true });
     await sleep(1000);
     if (want("45")) {
       await page.shot(join(OUT_DIR, "45-challenges.webp"));
-      console.log("  challenges: varied daily developer prompts");
+      console.log("  challenges: four small daily goals");
     }
     if (want("46")) {
       await page.clickText("My challenges", { exact: true });

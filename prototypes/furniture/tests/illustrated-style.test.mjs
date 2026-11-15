@@ -77,7 +77,7 @@ test('section coverage follows the actual catalog and completed families have no
   assert.deepEqual(manifest.sections, sections);
   assert.equal(sections[0].label, 'Seating & beds');
   assert.equal(sections[0].complete, true);
-  assert.equal(sections[0].exported.length, 13);
+  assert.equal(sections[0].exported.length, 16);
   assert.equal(sections[1].label, 'Tables & desks');
   assert.equal(sections[1].complete, true);
   assert.equal(sections[1].exported.length, 9);

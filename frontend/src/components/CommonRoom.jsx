@@ -2,7 +2,7 @@ import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from "react
 import { COMMON_PLACES, commonPropModelOptions, resolveCommonProps } from "../lib/commonRooms";
 import { floorPatch, isoBox, project, wallRect, WALL_H } from "../lib/iso";
 import { footOf, isoDepth, ISO_ITEMS } from "../lib/isoRoom";
-import { npcActivity } from "../lib/visiting";
+import { npcActivity, npcDailyStats } from "../lib/visiting";
 import { levelFor } from "../lib/friendship";
 import { ambienceVars } from "../lib/motion";
 import { ISO_SPRITES } from "./IsoItems";
@@ -12,6 +12,8 @@ import CommonGardenScene from "./CommonGardenScene";
 import CommonLibraryScene from "./CommonLibraryScene";
 import PersonaNameTag from "./PersonaNameTag";
 import IsoContactShadow from "./IsoContactShadow";
+import FriendProfile from "./FriendProfile";
+import { useI18n } from "../i18n/I18nProvider";
 import { CottageFloorShade, CottageLightDefs, CottageTableLight, CottageWallLight } from "./CommonCottageLighting";
 
 function Surface({ surface, clipId }) {
@@ -47,23 +49,28 @@ function Prop({ p, scene, uid, lamp, lampGlow }) {
   </g>;
 }
 
-function SeatedPerson({ seat, scene, person, character, activity, now, guest, guestRef, onGrab, onChoose }) {
+function SeatedPerson({ seat, scene, person, character, activity, now, guest, guestRef, onGrab, onChoose, onInspect, profileLabel }) {
   const Resident = ISO_SPRITES.resident;
   const at = project(seat.gx, seat.gy);
   const z = scene.surfaces[seat.level].z;
   return <g ref={guest ? guestRef : undefined} data-common-person={guest ? "you" : person.username} data-seat={seat.id}
     transform={`translate(${at.x},${at.y - z})`}
-    role={guest ? "button" : undefined} tabIndex={guest ? 0 : undefined}
-    aria-label={guest ? "Move your character. Drag to an open seat or press Enter to choose." : undefined}
-    pointerEvents={guest ? "all" : undefined}
+    role={guest || onInspect ? "button" : undefined} tabIndex={guest || onInspect ? 0 : undefined}
+    aria-label={guest ? "Move your character. Drag to an open seat or press Enter to choose." : profileLabel}
+    aria-haspopup={!guest && onInspect ? "dialog" : undefined}
+    pointerEvents={guest || onInspect ? "all" : "none"}
     onPointerDown={guest ? onGrab : undefined}
-    onKeyDown={guest ? (e) => {
+    onClick={!guest && onInspect ? (event) => onInspect(person, event.currentTarget) : undefined}
+    onKeyDown={guest || onInspect ? (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
-      onChoose();
+      e.stopPropagation();
+      if (guest) onChoose();
+      else onInspect(person, e.currentTarget);
     } : undefined}
-    className={guest ? "cursor-grab active:cursor-grabbing" : undefined}
+    className={guest ? "cursor-grab active:cursor-grabbing" : onInspect ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-glow" : undefined}
     style={{ ...ambienceVars(seat.gx, seat.gy), ...(guest && { touchAction: "none" }) }}>
+    {!guest && onInspect && <rect x="-15" y={-seat.height - 47} width="30" height={seat.height + 59} fill="transparent" />}
     <ellipse cx="0" cy="10" rx="9" ry="2.5" fill="#302433" opacity=".18" />
     <g transform={`translate(0,${-seat.height})`}>
       <g transform={seat.rot % 2 ? "scale(-1,1)" : undefined}>
@@ -74,21 +81,36 @@ function SeatedPerson({ seat, scene, person, character, activity, now, guest, gu
   </g>;
 }
 
-function SeatedName({ seat, scene, person, guest, friendship }) {
+function SeatedName({ seat, scene, person, guest, friendship, onInspect, profileLabel }) {
   const at = project(seat.gx, seat.gy);
   const z = scene.surfaces[seat.level].z;
-  const bond = guest ? null : levelFor(friendship?.[person.username] || 0);
-  return <PersonaNameTag data-common-name={guest ? "you" : person.username}
-    x={at.x} y={at.y - z - seat.height - 27}
+  const bond = guest ? null : levelFor(friendship?.[person.username] || 0, person.username);
+  const x = at.x, y = at.y - z - seat.height - 27;
+  const labelWidth = Math.max(30, (person?.label.length || 0) * 6 + 24);
+  return <g data-common-profile-name={!guest ? person.username : undefined}
+    role={!guest && onInspect ? "button" : undefined} tabIndex={!guest && onInspect ? -1 : undefined}
+    aria-label={!guest ? profileLabel : undefined} aria-haspopup={!guest && onInspect ? "dialog" : undefined}
+    pointerEvents={!guest && onInspect ? "all" : "none"}
+    className={!guest && onInspect ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-glow" : undefined}
+    onClick={!guest && onInspect ? event => onInspect(person, event.currentTarget) : undefined}
+    onKeyDown={!guest && onInspect ? event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault(); event.stopPropagation(); onInspect(person, event.currentTarget);
+    } : undefined}>
+    {!guest && onInspect && <rect x={x - labelWidth / 2} y={y - 14} width={labelWidth} height="20" rx="4" fill="transparent" />}
+    <PersonaNameTag data-common-name={guest ? "you" : person.username}
+    x={x} y={y}
     heartProgress={bond?.frac} heartId={guest ? null : person.username}
     heartLabel={bond ? `${person.label}: ${bond.label}` : undefined}>
     {guest ? "You" : person.label}
-  </PersonaNameTag>;
+    </PersonaNameTag>
+  </g>;
 }
 
-/** An authored split-level scene. Only seat selection is interactive; neither
- * its architecture nor the user's home layout enters the decoration pipeline. */
-export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, paused = false, friendship, onChooseSeat }) {
+/** Authored scenery with seat movement and read-only occupant profiles. Neither
+ * interaction enters the user's home decoration/persistence pipeline. */
+export default memo(function CommonRoom({ session, character, activity, timeOfDay, reduceMotion, paused = false, friendship, friends = [], onChooseSeat }) {
+  const { t } = useI18n();
   const scene = COMMON_PLACES[session.sceneId];
   const uid = useId();
   const svgRef = useRef(null);
@@ -101,7 +123,26 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const [hintVisible, setHintVisible] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [dragTargetId, setDragTargetId] = useState(null);
+  // Keep the identity being read if presence changes while the modal is open.
+  const [profilePerson, setProfilePerson] = useState(null);
+  const profileTrigger = useRef(null);
   const [now, setNow] = useState(Date.now);
+  const inspect = (person, trigger) => {
+    if (choosing || dragRef.current || paused) return;
+    profileTrigger.current = trigger;
+    setProfilePerson({ username: person.username, displayName: person.label,
+      avatar: person.avatar || person.label.slice(0, 1) });
+  };
+  const closeProfile = () => {
+    setProfilePerson(null);
+    const trigger = profileTrigger.current;
+    // Seat-keyed SVG nodes can survive a turnover and represent someone else.
+    const samePerson = trigger?.dataset.commonPerson === profilePerson.username
+      || trigger?.dataset.commonProfileName === profilePerson.username;
+    (trigger?.isConnected && samePerson ? trigger : guestRef.current)?.focus({ preventScroll: true });
+  };
+  const onInspect = choosing || dragging || paused ? undefined : inspect;
+  const profileFriend = profilePerson && (friends.find(friend => friend.username === profilePerson.username) || profilePerson);
   useEffect(() => {
     if (paused) return undefined;
     setNow(Date.now());
@@ -226,6 +267,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
           ? props.find((p) => p.on === entry.id && ISO_ITEMS[p.item].glow && !p.off) : null} /> :
         <SeatedPerson key={entry.id} {...entry} scene={scene} character={character} activity={activity} now={now}
           guestRef={guestRef}
+          onInspect={onInspect} profileLabel={entry.person ? t('friends.profile.open', { name: entry.person.label }) : undefined}
           onGrab={startGuestDrag} onChoose={() => setChoosing(true)} />);
   };
   // Floor lift and clip share one coordinate space. Lifting only each pool
@@ -260,7 +302,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
     <svg ref={svgRef} data-room-renderer="glb-composite" viewBox={scene.viewBox || "-260 -190 580 470"}
-      className={`h-full w-full ${reduceMotion ? "cottage-preview" : scene.kind === "library" ? "common-library-calm" : ""}`} role="img" aria-label={scene.ariaLabel}
+      className={`h-full w-full ${reduceMotion ? "cottage-preview" : scene.kind === "library" ? "common-library-calm" : ""}`} role="group" aria-label={scene.ariaLabel}
       onPointerMove={moveGuestDrag} onPointerUp={endGuestDrag} onPointerCancel={endGuestDrag}
       onLostPointerCapture={endGuestDrag}>
       <defs>
@@ -375,7 +417,8 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         const guest = seat.id === session.guestSeatId;
         if ((!person && !guest) || (guest && dragging)) return null;
         return <SeatedName key={`name-${seat.id}`} seat={seat} scene={scene}
-          person={person} guest={guest} friendship={friendship} />;
+          person={person} guest={guest} friendship={friendship} onInspect={onInspect}
+          profileLabel={person ? t('friends.profile.open', { name: person.label }) : undefined} />;
       })}
       {dragging && <g data-common-held="true" pointerEvents="none" ref={(node) => {
         heldRef.current = node;
@@ -410,5 +453,8 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         </button>; })}
       </div>}
     </div>}
+    {profileFriend && <FriendProfile id={`${uid}-profile`} friend={profileFriend}
+      friendshipPoints={friendship?.[profileFriend.username] || 0}
+      stats={npcDailyStats(profileFriend.username, now)} now={now} onClose={closeProfile} />}
   </div>;
 });

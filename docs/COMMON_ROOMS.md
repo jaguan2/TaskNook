@@ -6,6 +6,44 @@ hint for accessible buttons), and use the bottom-left back arrow or Escape to le
 The personal home remains independently editable.
 This document records the feature direction and the remaining art work.
 
+## Occupant profiles — November 14, 2026
+
+Click another occupant's figure or name tag to open the same centered profile
+popup used by Friends. Figure buttons also support Enter/Space. All three places
+support this, including neighbours such as Ivy who are outside the Friends list.
+Your own character keeps its pickup/seat-selection controls. Profile targets are
+inactive during seat selection or a carry, so reading a profile cannot change
+your seat or intercept a drop.
+
+`CommonRoom` owns the selected identity and invocation target; the shared
+`FriendProfile` owns its native dialog lifecycle and dismissal. Known friends
+reuse their account display name/avatar. Other occupants use their authored name
+and an initial, with the same deterministic username-based facts. The existing
+30-second room clock supplies the same daily/weekly study policies. Opening a
+profile adds no timer, home-room write, camera change or chat/visit request.
+
+The selected identity stays readable if presence changes while the popup is
+open. Closing returns focus to the invoking figure/name if it still represents
+that person; if the seat now belongs to someone else, focus returns to your own
+character. The SVG scene is an accessible group containing named buttons.
+Common-room chat's capture shortcut yields to modal events, so Escape closes the
+profile while retaining an open composer and its draft. The normal room/chat
+Escape flow resumes after dismissal.
+
+Verification covers 42 focused component/data tests, lint/build and seven native
+profile browser scenarios, including all three places, name/figure/keyboard/touch
+activation, matching Friends facts, non-friend profiles, unchanged home/camera,
+chat draft retention and guest pickup/drop. Unit coverage also replaces an
+occupant in the same seat while their profile is open. The final common-room
+browser cases are rechecked after the focus-identity guard. Local structural
+self-review follows project boundaries; the shared toolkit remains unavailable.
+The matching main-channel EXE is rebuilt and package/startup checked. Evidence is
+ignored under `build/skill-verification/common-profiles/`; temporary helpers,
+browser output and test data are removed after saving the selected captures.
+
+Current popup captures: [Library occupant](screenshots/69-common-profile.webp)
+and [390px touch layout](screenshots/69-common-profile-small.webp).
+
 ## Loading a place — November 13, 2026
 
 Opening a common place now shows a named loading screen with progress from that

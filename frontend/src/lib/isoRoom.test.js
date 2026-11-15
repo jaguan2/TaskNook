@@ -590,7 +590,7 @@ describe("a sitter is placed by which way the seat faces", () => {
   const sit = (rot) => {
     const sofa = { id: "s", item: "sofa", gx: 2, gy: 2, rot };
     const person = { id: "p", item: "resident", gx: 2.5, gy: 2 };
-    return { sofa, out: seatedPlacement(person, { placement: sofa, height: 22, lie: false }) };
+    return { sofa, out: seatedPlacement(person, { placement: sofa, height: ISO_ITEMS.sofa.seat, lie: false }) };
   };
 
   it("towards-facing seats put the sitter in FRONT of the backrest", () => {
