@@ -229,7 +229,10 @@ export function seatedPlacement(persona, seat) {
   // Longer beds keep the unchanged human rig near the pillow end. Width
   // still centres it; a larger mattress does not scale the character.
   const extraDepth = seat.placement.item === 'bed' ? Math.max(0, bedDimensions(seat.placement).d - 2.8) / 2 : 0;
-  const shift = (away ? -0.15 : 0.15) + (away ? extraDepth : -extraDepth);
+  // The GLB office cushion is centred on its footprint. The older generic
+  // forward shift put the sitter visibly beside that cushion in rear views.
+  const seatShift = seat.placement.item === 'deskchair' ? 0 : .15;
+  const shift = (away ? -seatShift : seatShift) + (away ? extraDepth : -extraDepth);
   const alongGx = seatFacing % 2 === 1;
   return {
     gx: seat.placement.gx + sf[0] / 2 - pf[0] / 2 + (alongGx ? shift : 0),

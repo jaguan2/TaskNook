@@ -4,6 +4,7 @@
 // artwork that reads those numbers. See docs/MODELS.md for the silhouette
 // rules it answers to.
 import { HEAD_R, LEG_H, farColor } from "../../lib/body";
+import { typingArm } from '../../lib/typingArms';
 import { toneFor } from "../../lib/tint";
 
 export const SKIN = "#edc39e";
@@ -673,6 +674,8 @@ export function Arm({
   outfit,
   lap = false,
   reach = null,
+  handDirection = null,
+  torsoH = 17,
   shortSleeve = false,
   sleeveless = false,
   bulk = 0,
@@ -696,20 +699,21 @@ export function Arm({
   // piece's root nests inside the piece it hangs from, and only its far end
   // shows.
   const S = { x: side * (sh - 0.5), y: torsoY + 4.4 }; // shoulder, inside the torso
-  const E = reach
-    ? { x: S.x + (reach.x - S.x) * 0.35, y: Math.max(S.y + 6, reach.y + 4) }
+  const keyboard = reach && typingArm({ shoulder: S, contact: reach, direction: handDirection, side, torsoH });
+  const E = keyboard
+    ? keyboard.elbow
     : { x: side * (sh + (lap ? 0.1 : 0.45)), y: torsoY + 12 };
-  const H = reach || (lap
+  const H = keyboard?.wrist || (lap
     ? { x: side * 3.6, y: torsoY + 17 }
     : { x: side * (sh + 0.05), y: torsoY + 17.5 });
   // ONE CONTINUOUS CURVE per layer. Per-segment capsules with per-segment
   // washes grew a lens blob at every joint; the softened control points keep
   // the pose relaxed while the elbow itself remains visually unmarked.
-  const upperControl = reach
+  const upperControl = keyboard
     ? { x: (S.x + E.x) / 2, y: (S.y + E.y) / 2 }
     : { x: side * (sh + (lap ? 0.35 : 0.65)), y: torsoY + 8.1 };
-  const lowerControl = reach
-    ? { x: (E.x + H.x) / 2, y: H.y + 1.5 }
+  const lowerControl = keyboard
+    ? { x: (E.x + H.x) / 2, y: (E.y + H.y) / 2 }
     : { x: side * (lap ? sh - 1.5 : sh + 0.3), y: torsoY + (lap ? 16 : 14.7) };
   const whole = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y} Q ${lowerControl.x} ${lowerControl.y} ${H.x} ${H.y}`;
   const upper = `M ${S.x} ${S.y} Q ${upperControl.x} ${upperControl.y} ${E.x} ${E.y}`;
@@ -743,7 +747,10 @@ export function Arm({
     return line(`M ${x - px} ${y - py} L ${x + px} ${y + py}`, paint, sw, op);
   };
   return (
-    <g data-arm-pose={reach ? "keyboard" : lap ? "lap" : "active"} data-arm-width={armW}
+    <g data-arm-pose={keyboard ? "keyboard" : lap ? "lap" : "active"} data-arm-width={armW}
+      data-arm-shoulder={keyboard ? `${S.x},${S.y}` : undefined}
+      data-arm-elbow={keyboard ? `${E.x},${E.y}` : undefined}
+      data-arm-wrist={keyboard ? `${H.x},${H.y}` : undefined}
       data-arm-depth={far ? "far" : "near"}
       data-sleeve={sleeveless ? "none" : shortSleeve ? "short" : "long"}>
       {/* skin under, sleeve over — a short sleeve simply stops at the elbow */}
@@ -781,6 +788,12 @@ export function Arm({
       {/* A softly tapered mitten rather than a perfect ball. At room scale
           separate fingers become noise, but a thumb-side bump keeps the hand
           from reading as another joint capsule. */}
+      {keyboard ? <g data-typing-hand="true" data-key-contact={`${reach.x},${reach.y}`}
+        transform={`matrix(${keyboard.forward.x} ${keyboard.forward.y} ${keyboard.forward.x} ${-keyboard.forward.y} ${reach.x} ${reach.y})`}>
+        <path d="M-2.4 -.85 Q-1.4 -1.2 .2 -.9 Q1 -.7 .75 .05 Q.8 .8 -.2 .85 L-1 .7 Q-1.5 1.55 -1.9 .8 L-2.4 .5Z" fill={skin} />
+        <path d="M-.15 -.55 L.35 -.45 M-.1 .35 L.35 .3" fill="none" stroke={SHADE} strokeWidth=".2" opacity=".2" />
+        {far && <path d="M-2.4 -.85 Q-1.4 -1.2 .2 -.9 Q1 -.7 .75 .05 Q.8 .8 -.2 .85 L-1 .7 Q-1.5 1.55 -1.9 .8 L-2.4 .5Z" fill="#000" opacity=".08" />}
+      </g> : <>
       <path d={`M${H.x - 1.15} ${H.y - 1.2} Q${H.x - 1.55} ${H.y + 0.12} ${H.x - 0.8} ${H.y + 1.55} Q${H.x + 0.3} ${H.y + 2.02} ${H.x + 1.15} ${H.y + 0.82} L${H.x + 1.28} ${H.y - 0.92} Z`} fill={skin} />
       <circle cx={H.x - side * 1.05} cy={H.y + 0.22} r="0.58" fill={skin} />
       {far && (
@@ -789,6 +802,7 @@ export function Arm({
           <circle cx={H.x - side * 1.05} cy={H.y + 0.22} r="0.58" fill="#000" opacity="0.1" />
         </>
       )}
+      </>}
     </g>
   );
 }
@@ -813,7 +827,7 @@ export function HeadSkin({ headY, skin, volume, back = false }) {
     C0.6 ${headY + 7.25} -0.6 ${headY + 7.25} -1.8 ${headY + 7.05}
     C-4.8 ${headY + 6.6} -7.2 ${headY + 4} -7.2 ${headY}
     C-7.2 ${headY - 4.4} -4.9 ${headY - HEAD_R} 0 ${headY - HEAD_R} Z`;
-  if (back) return <><circle cy={headY} r={HEAD_R} fill={skin} /><circle cy={headY} r={HEAD_R} fill={volume} opacity="0.55" /></>;
+  if (back) return <><path data-character-head="back" d={outline} fill={skin} /><path d={outline} fill={volume} opacity="0.55" /></>;
   return <>
     {[-1, 1].map((side) => <g key={side}>
       <ellipse cx={side * 6.5} cy={headY + 1.1} rx="1.1" ry="1.65" fill={skin} />

@@ -819,7 +819,7 @@ describe("presets", () => {
     // The built-in left window spans gy 1.05–3.55. A desk facing the
     // opposite wall can still be near a window, so pin the facing as well.
     expect(loft.find((p) => p.item === "desk")).toMatchObject({ gx: 0, gy: 1.5, rot: 1 });
-    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1, gy: 2, rot: 3 });
+    expect(loft.find((p) => p.item === "deskchair")).toMatchObject({ gx: 1, gy: 2.5, rot: 3 });
     expect(loft.some((p) => p.item === "mushroomlamp")).toBe(false);
     expect(loft.some((p) => p.item === "sidetable")).toBe(false);
   });

@@ -47,7 +47,7 @@ it("uses the same equipment ownership in the Loft preset thumbnail", () => {
   expect(container.querySelectorAll('[data-desk-part="integrated-laptop"]')).toHaveLength(0);
 });
 
-it("keeps a sitter in front of a broad desk, with their backrest in front of them", () => {
+it("keeps the sitter and backrest above a broad desk without stretching to its distant laptop", () => {
   const rows = [
     { id: "desk", item: "desk", gx: 2, gy: 2 },
     { id: "chair", item: "deskchair", gx: 2.5, gy: 3, rot: 2 },
@@ -56,7 +56,7 @@ it("keeps a sitter in front of a broad desk, with their backrest in front of the
   const { container, rerender } = render(scene(rows));
   const order = [...container.querySelectorAll('[data-placement-id]')].map((el) => el.dataset.placementId);
   expect(order).toEqual(["desk", "person", "chair"]);
-  expect(container.querySelectorAll('[data-item="you"] [data-arm-pose="keyboard"]')).toHaveLength(2);
+  expect(container.querySelectorAll('[data-item="you"] [data-arm-pose="keyboard"]')).toHaveLength(0);
   rerender(scene(rows.slice(0, 2)));
   expect([...container.querySelectorAll('[data-placement-id]')].map((el) => el.dataset.placementId))
     .toEqual(["desk", "chair"]);

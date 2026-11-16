@@ -425,10 +425,11 @@ describe.skipIf(!DIR)("art sheet fixtures", () => {
       );
       save(`hair-side-${key}`, <Resident character={dressed({ hair: key })} facing="side" />);
       save(`hair-back-${key}`, <Resident character={dressed({ hair: key })} facing="back" />);
+      save(`hair-back-${key}-silver`, <Resident character={dressed({ hair: key, hairColor: '#8a8a94' })} facing="back" />);
     }
     // Silhouette review at both body extremes: headwear keeps its authored
     // fit, and long hair must still clear the shoulders when worn loose.
-    for (const hair of ["short", "bob", "long"]) {
+    for (const hair of ["short", "bob", "long", "curtains"]) {
       for (const [name, extra] of Object.entries({
         light: { model: "fem", skin: "#f2d3bb", hairColor: "#e7dcc7", width: 6.2, shoulders: -1.6, height: 26, torso: 14 },
         dark: { model: "masc", skin: "#774c37", hairColor: "#302329", width: 8.4, shoulders: 1, height: 32, torso: 20 },

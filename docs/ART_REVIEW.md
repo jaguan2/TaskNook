@@ -15,7 +15,16 @@ Use the supplied photographs in [`inpso/`](inpso/) for style and composition. Th
 
 ## Current implementation
 
-The isometric game uses 179 standalone GLB props alongside the existing customized SVG characters and pets. The separate classic cottage and graphics-failure fallback also use SVG. Those supported render paths remain runtime code.
+The [isometric wall-depth pass](ISOMETRIC_WALL_DEPTH.md) gives the GLB-backed
+rooms projected wall caps and exposed end faces, following the reference
+cutaways' solid outline. Wall thickness extends outward from saved inner faces.
+
+The isometric game uses 182 standalone GLB props alongside the existing customized SVG characters and pets. The separate classic cottage and graphics-failure fallback also use SVG. Those supported render paths remain runtime code.
+
+The [classic 2D remodel](CLASSIC_ROOM_REMODEL.md) adds shallow room perspective,
+connected furniture, illustrated prints, stocked shelves and seven activity-based
+preset arrangements. Its [37-item contact sheet](model-review/classic-catalog.webp)
+covers the separate classic catalog.
 
 Start with [model integration](ROOM_MODEL_INTEGRATION.md), [construction approach](CATALOG_3D_APPROACH.md), [the model specification](MODELS.md) and [room composition](ROOM_LAYOUT_COMPOSITION.md). Review the [current model gallery](model-review/README.md) and [actual app screenshots](screenshots/README.md), then verify new work in the running app. Geometry tests establish bounds and contacts; screenshots establish readability and style.
 

@@ -44,7 +44,7 @@ export function createIsoPresets(defaultIsoSize) {
         // Window workstation and books.
         { item: "desk", gx: 0, gy: 1.5, rot: 1, tint: "#7f9ec9" },
         { item: "computer", gx: 0, gy: 2, rot: 1 },
-        { item: "deskchair", gx: 1, gy: 2, rot: 3, tint: "#7f9ec9" },
+        { item: "deskchair", gx: 1, gy: 2.5, rot: 3, tint: "#7f9ec9" },
         { item: "bookshelf", gx: 0, gy: 0 },
         // Sleeping bay.
         { item: "bed", gx: 6, gy: 0, tint: "#7f9ec9" },

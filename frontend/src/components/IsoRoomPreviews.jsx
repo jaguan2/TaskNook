@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { floorPatch, floorPoints, project } from "../lib/iso";
+import { floorPatch, floorPoints, project, TILE_W } from "../lib/iso";
 import {
   ISO_ITEMS,
   cutsToMask,
@@ -16,6 +16,7 @@ import {
   wallRuns,
 } from "../lib/isoRoom";
 import ExteriorWall from "./ExteriorWall";
+import { WALL_THICKNESS } from "../lib/wallSection";
 import { ISO_SPRITES } from "./IsoItems";
 import IsoCatalogModel, { hasCatalogModel } from './IsoCatalogModel';
 import PartitionWall from "./PartitionWall";
@@ -171,9 +172,10 @@ function IsoPresetPreviewInner({ preset }) {
   const L = project(0, d);
   const R = project(w, 0);
   const F = project(w, d);
+  const wallMargin = WALL_THICKNESS * TILE_W / 2 + 6;
   return (
     <svg
-      viewBox={`${L.x - 6} -118 ${R.x - L.x + 12} ${F.y + 132}`}
+      viewBox={`${L.x - wallMargin} -118 ${R.x - L.x + wallMargin * 2} ${F.y + 132}`}
       className="cottage-preview h-24 w-full"
       aria-hidden="true"
     >
@@ -181,6 +183,7 @@ function IsoPresetPreviewInner({ preset }) {
         <ExteriorWall
           key={`shell-${index}`}
           run={run}
+          runs={shellRuns}
           height={previewWallH}
           fill={wallColor(run.plane)}
           compact

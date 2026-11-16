@@ -17,6 +17,22 @@ accumulate between runs).
 
 The README's hero image is `../preview.png` — the same capture, as PNG.
 
+The [character workstation review](../CHARACTER_WORKSTATION_REVIEW.md) refreshes
+Loft and adds a [seated close-up](77-character-workstation.webp) plus a
+[rear-hair sheet](../model-review/hair-rear.webp). The November 16 captures use
+the real chair/keyboard models and the source character artwork.
+
+The [frosted task HUD](../TASK_HUD_READABILITY.md) is captured by
+`e2e/task-hud-surface.spec.mjs`: [short list](75-task-hud-short.webp),
+[long list](75-task-hud-long.webp), [600px window](75-task-hud-small.webp)
+and [isometric room](75-task-hud-isometric.webp). These November 15 captures
+show content growth and the readable surface above the room artwork.
+
+The fourteen isometric room gallery captures, Common Cottage and Grand Library
+were refreshed November 15 for the [solid wall sections](../ISOMETRIC_WALL_DEPTH.md).
+`e2e/isometric-wall-depth.spec.mjs` drives the actual presets, waits for GLBs and
+checks saved layouts, cutaways and framing before taking those images.
+
 The [room loading screen](67-room-loading.webp) and its
 [390px composition](67-room-loading-small.webp) are captured by
 `e2e/room-loading.spec.mjs` at 1440×900 and 390×720. The test holds a real Library
@@ -186,8 +202,12 @@ the home remains editable.
 
 | | |
 |---|---|
-| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — a separate sofa bay, a broad coffee table within reach, a larger study chair facing the laptop, and accessible desk storage. The expanded floor keeps the central path open. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — keyboard nudging, duplication, recolouring and two-tap removal across the expanded room. |
+| ![Cozy 2D lounge](50-cottage-lounge.webp) **Cozy lounge** — warm plaster, perspective floorboards, recessed window trim, a low sofa, woven rug, illustrated print and stocked shelf. | ![2D decoration controls](51-cottage-controls.webp) **Placement controls** — the remodeled sofa recoloured and nudged through the real Decorate controls. |
+| ![Classic greenhouse](50-cottage-greenhouse.webp) **Greenhouse** — rooted plants, hanging ceramics and a floor-cushion tea spot give the room a clear activity. | ![Classic catalog](../model-review/classic-catalog.webp) **Classic catalog** — all 37 separate SVG decorations; 17 sprites redrawn in this pass. |
 | ![Saved outfits](52-saved-outfits.webp) **My outfits** — save a named look, wear it again and keep the preview visible while navigating the controls. | |
+
+See [the remodel approach, preset coverage and compatibility notes](../CLASSIC_ROOM_REMODEL.md).
+Existing custom positions stay saved; choose a Room preset to apply a refreshed arrangement.
 
 ## Bed resizing
 

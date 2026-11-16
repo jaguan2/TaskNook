@@ -1,5 +1,7 @@
 import { furnitureFacing } from "./furnitureFacing";
 import { project } from "./iso";
+import { figureMetrics } from './body';
+import { typingArm } from './typingArms';
 import { footOf, isoDepth, ISO_ITEMS, orientSupportPoint, seatedPlacement, stackedPlacement, surfaceFor } from "./isoRoom";
 
 // Keyboard decks are shared by the artwork and the contact resolver. Heights
@@ -38,13 +40,13 @@ export function resolveWorkstations(placements) {
 }
 
 /** Keyboard contacts in the seated sprite's own coordinate system. */
-export function seatedWorkTarget(person, seat, stations) {
+export function seatedWorkTarget(person, seat, stations, character) {
   if (seat.soft || seat.lie || seat.placement.item !== "deskchair") return null;
   const rot = seat.placement.rot || 0;
   const [w, d] = footOf(person);
   const centre = { gx: person.gx + w / 2, gy: person.gy + d / 2 };
   const facing = furnitureFacing(seat.placement);
-  const direction = [facing.gx, facing.gy];
+  const heading = [facing.gx, facing.gy];
   let best = null;
   let distance = Infinity;
   for (const station of stations.values()) {
@@ -53,8 +55,8 @@ export function seatedWorkTarget(person, seat, stations) {
     const b = station.hands[1];
     const dx = (a.gx + b.gx) / 2 - centre.gx;
     const dy = (a.gy + b.gy) / 2 - centre.gy;
-    const ahead = dx * direction[0] + dy * direction[1];
-    const across = Math.abs(dx * direction[1] - dy * direction[0]);
+    const ahead = dx * heading[0] + dy * heading[1];
+    const across = Math.abs(dx * heading[1] - dy * heading[0]);
     const reach = Math.hypot(dx, dy);
     // Facing the keyboard matters. Do not reach through the backrest, across
     // another bay, or toward a desk too far away for this small seated body.
@@ -69,7 +71,11 @@ export function seatedWorkTarget(person, seat, stations) {
     const at = project(hand.gx, hand.gy);
     return { x: (at.x - origin.x) * mirror, y: at.y - origin.y + seat.height - best.height };
   }).sort((a, b) => a.x - b.x);
-  return { hands, deskDepth: isoDepth(best.desk) };
+  const direction = { x: (facing.gx - facing.gy) * mirror, y: (facing.gx + facing.gy) * .5 };
+  const { sh, seatTorsoY, torsoH } = figureMetrics(character || {});
+  const reachable = hands.every((contact, index) => typingArm({ contact, direction,
+    shoulder: { x: (index ? 1 : -1) * (sh - .5), y: seatTorsoY + 4.4 }, side: index ? 1 : -1, torsoH }));
+  return { hands, direction, reachable, deskDepth: isoDepth(best.desk) };
 }
 
 /** A wide desktop's front corner must not bury a sitter on its near edge. */

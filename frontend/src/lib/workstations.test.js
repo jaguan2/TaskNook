@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ISO_ITEMS, seatedPlacement, surfaceFor } from "./isoRoom";
+import { ISO_ITEMS, isoPresetLayout, seatedPlacement, surfaceFor } from "./isoRoom";
 import { resolveWorkstations, seatedWorkTarget } from "./workstations";
 
 describe("workstation equipment and physical contact", () => {
@@ -30,11 +30,12 @@ describe("workstation equipment and physical contact", () => {
     const seated = { ...person, ...seatedPlacement(person, seat) };
     const contact = seatedWorkTarget(seated, seat, resolveWorkstations([desk, computer]));
     // Independent world-space keyboard points: x=.77, y=2.53/2.81,
-    // 32px above floor, against hip centre(1.25,2.9) at height21.
-    expect(contact.hands[0].x).toBeCloseTo(2.64);
-    expect(contact.hands[0].y).toBeCloseTo(-21.2);
-    expect(contact.hands[1].x).toBeCloseTo(9.36);
-    expect(contact.hands[1].y).toBeCloseTo(-17.84);
+    // 32px above floor, against the cushion centre(1.4,2.9) at height21.
+    expect(contact.hands[0].x).toBeCloseTo(6.24);
+    expect(contact.hands[0].y).toBeCloseTo(-23);
+    expect(contact.hands[1].x).toBeCloseTo(12.96);
+    expect(contact.hands[1].y).toBeCloseTo(-19.64);
+    expect(contact.reachable).toBe(true);
     expect(seated._seatRot).toBe(3);
     expect(person.rot).toBeUndefined(); // no stored placement mutation
   });
@@ -50,5 +51,23 @@ describe("workstation equipment and physical contact", () => {
   it("does not reach through a reversed monitor", () => {
     const reversed = resolveWorkstations([desk, { ...computer, rot: 0 }]);
     expect(seatedWorkTarget(person, seat, reversed)).toBeNull();
+  });
+
+  it('keeps the sitter centred and refuses the old offset Loft keyboard reach', () => {
+    const oldChair = { ...chair, gy: 2 };
+    const oldSeat = { ...seat, placement: oldChair };
+    const seated = { ...person, ...seatedPlacement(person, oldSeat) };
+    expect(seated.gx).toBeCloseTo(oldChair.gx);
+    expect(seated.gy).toBeCloseTo(oldChair.gy);
+    const target = seatedWorkTarget(seated, oldSeat, resolveWorkstations([desk, computer]));
+    expect(target).not.toBeNull(); // still owns the desk/chair depth ordering
+    expect(target.reachable).toBe(false);
+  });
+  it('keeps the actual Loft preset within keyboard reach', () => {
+    const layout = isoPresetLayout('loft');
+    const chair = layout.placements.find(p => p.item === 'deskchair');
+    const seat = { placement: chair, height: ISO_ITEMS.deskchair.seat };
+    const sitter = { item: 'you', ...seatedPlacement({ item: 'you' }, seat) };
+    expect(seatedWorkTarget(sitter, seat, resolveWorkstations(layout.placements)).reachable).toBe(true);
   });
 });

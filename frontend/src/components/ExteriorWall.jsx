@@ -1,16 +1,20 @@
 import { project } from "../lib/iso";
 import { exteriorWallHeight } from "../lib/isoRoom";
+import WallSection from "./WallSection";
 
 const coords = (point) => `${point.x},${point.y}`;
 
 /**
- * One run of the room shell, shared by the live room and preset thumbnails.
+ * One run of the solid room shell, shared by the live room and thumbnails.
+ * The decorated inside plane stays fixed; WallSection extrudes outward and
+ * joins its cap to neighbouring runs without consuming usable floor space.
  * Original gx/gy 0 runs are full walls. Recessed runs are automatically low
  * cutaway edges with finished end posts, so an asymmetric wing reads as an
  * open architectural step rather than a tall slab dropping into the void.
  */
 export default function ExteriorWall({
   run,
+  runs = [],
   height,
   fill,
   compact = false,
@@ -22,7 +26,6 @@ export default function ExteriorWall({
   const wallH = exteriorWallHeight(run, height);
   const cutaway = run.at > 0 || height <= 48;
   const faceFill = fill || (run.plane === "gy" ? "url(#isoWallR)" : "url(#isoWallL)");
-  const cap = compact ? 4 : 6;
   const base = Math.min(9, wallH * 0.24);
   const topA = { x: a.x, y: a.y - wallH };
   const topB = { x: b.x, y: b.y - wallH };
@@ -41,12 +44,6 @@ export default function ExteriorWall({
         points={`${coords(topA)} ${coords(topB)} ${coords(b)} ${coords(a)}`}
         fill="rgb(var(--color-petal))"
         opacity={run.plane === "gy" ? 0.07 : 0.09}
-      />
-      <polygon
-        points={`${topA.x},${topA.y - cap} ${topB.x},${topB.y - cap} ${coords(topB)} ${coords(topA)}`}
-        style={{
-          fill: `rgb(var(--color-void) / ${run.plane === "gy" ? 0.42 : 0.52})`,
-        }}
       />
 
       {!cutaway && Array.from(
@@ -90,7 +87,7 @@ export default function ExteriorWall({
             <line
               key={`end-${index}`}
               x1={point.x}
-              y1={point.y - wallH - cap}
+              y1={point.y - wallH}
               x2={point.x}
               y2={point.y}
               stroke="rgb(var(--color-void))"
@@ -123,6 +120,9 @@ export default function ExteriorWall({
           opacity={liftOpacity * (run.plane === "gy" ? 0.75 : 1)}
         />
       )}
+      <WallSection run={run} height={wallH}
+        runs={runs.map(other => ({ ...other, height: exteriorWallHeight(other, height) }))}
+        fill={faceFill} compact={compact} />
     </g>
   );
 }

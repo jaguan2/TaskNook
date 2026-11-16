@@ -1,4 +1,4 @@
-> Current rendering scope: the isometric game uses 182 authored GLB props; the character/pet rigs and graphics-failure fallback remain SVG. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Supplied inspiration is indexed in [artwork references](ART_REVIEW.md).
+> Current rendering scope: the isometric game uses 182 authored GLB props; the character/pet rigs, separate classic 2D cottage and graphics-failure fallback remain SVG. The [classic remodel](CLASSIC_ROOM_REMODEL.md) documents its 37-item catalog and seven presets. Grid, seating, surface and palette contracts below still apply. SVG furniture construction examples describe the retained fallback. Start with [room integration](ROOM_MODEL_INTEGRATION.md), [code ownership](CODEBASE_GUIDE.md) and [current catalog sheets](model-review/catalog-3d/README.md). Supplied inspiration is indexed in [artwork references](ART_REVIEW.md).
 
 # TaskNook model spec
 
@@ -148,6 +148,11 @@ four-direction facing remain stable, including saved/resized sofas. The
 current room/catalog captures.
 
 ### Persona proportions
+
+The [workstation/rear-hair review](CHARACTER_WORKSTATION_REVIEW.md) centres
+office-chair sitters on the real cushion, bounds keyboard arm reach, and gives
+every hairstyle authored rear artwork with restrained clump/flow texture.
+Saved furniture coordinates stay intact; unreachable keyboards use rest poses.
 
 The front face keeps the existing crown size for hair and hats, but its
 cheeks now flow through one continuous curve into a softly rounded chin.

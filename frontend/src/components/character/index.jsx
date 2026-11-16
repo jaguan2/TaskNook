@@ -238,7 +238,7 @@ export function Resident({
   // wig. LENGTH survives — drapes, plaits and tails keep falling from under
   // the rim, which is what makes the hat read as worn over a hairstyle.
   const hatted = ch.hat && ch.hat !== "none" && hatOf(ch.hat).coversHair !== false;
-  const typing = activity === "focus" && seated;
+  const typing = activity === "focus" && seated && workTarget?.reachable !== false;
   // A break used to be indistinguishable from idle in the room: the phase
   // reached the app and stopped at the thought bubble. Now they put the keyboard
   // down, pick up a mug and stretch — the one moment the room should notice.
@@ -796,6 +796,8 @@ export function Resident({
                 <Arm
                   side={-1}
                   reach={typing ? workTarget?.hands[0] : null}
+                  handDirection={workTarget?.direction}
+                  torsoH={torsoH}
                   lap={lap}
                   sh={sh}
                   armW={armW}
@@ -820,6 +822,8 @@ export function Resident({
                 <Arm
                   side={1}
                   reach={typing ? workTarget?.hands[1] : null}
+                  handDirection={workTarget?.direction}
+                  torsoH={torsoH}
                   lap={lap}
                   sh={sh}
                   armW={armW}

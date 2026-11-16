@@ -532,7 +532,8 @@ function IsoSceneInner({
     const seat = seatFor(p, placements);
     if (seat) {
       const seated = { ...p, ...seatedPlacement(p, seat) };
-      return { ...seated, _workTarget: seatedWorkTarget(seated, seat, workstations) };
+      return { ...seated, _workTarget: seatedWorkTarget(seated, seat, workstations,
+        item.self ? character : personas?.[p.id]?.character) };
     }
     // Whether they're WALKING isn't derived here any more: displacement from
     // home is true forever once someone has wandered, which is how figures
@@ -660,6 +661,7 @@ function IsoSceneInner({
               <ExteriorWall
                 key={`wall-${i}`}
                 run={run}
+                runs={wallRunList}
                 height={wallH}
                 lift={tod.lift}
                 liftOpacity={tod.liftOpacity}
@@ -1193,7 +1195,7 @@ function IsoRoom({
     cancelPan,
     commitPan,
     resetView,
-  } = useIsoCamera({ size, saveView });
+  } = useIsoCamera({ size, saveView, enabled: !paused });
 
   useEffect(() => {
     if (!editMode) setSelectedId(null);

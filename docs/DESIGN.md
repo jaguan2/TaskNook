@@ -16,6 +16,11 @@ panels and dialogs. The app should read as *a cozy place that happens to
 track tasks*, not a tracker with a mascot. Panels exist only for infrequent
 configuration; anything touched daily lives on the scene.
 
+Task readability is a deliberate exception to bare scene text: the To-Do list
+uses a content-sized frosted surface above the room (owner decision, November
+15, 2026). It grows with tasks, then scrolls its rows while the heading and
+quick-add field remain visible. See [the readability contract](TASK_HUD_READABILITY.md).
+
 ## Screen composition
 
 The screen has an ownership map — respect it:
@@ -23,7 +28,7 @@ The screen has an ownership map — respect it:
 | Zone | Owner |
 |---|---|
 | Top-left | Focus timer card + goal/streak chip |
-| Top-right | To-Do list (chromeless) |
+| Top-right | To-Do list on a content-sized frosted surface |
 | Bottom-center | Music transport bar (and the tint picker while decorating) |
 | Bottom-right | Clock / toggles / account cluster |
 | Bottom-left | Signature; decorating chip while editing |
@@ -79,6 +84,10 @@ The screen has an ownership map — respect it:
   (a short dark band where a box meets what it stands on) is the clearest
   case: without it every object looks pasted onto the floor rather than
   resting on it, and it cost one function to fix everywhere.
+- **Exterior walls have a section.** Project their thickness outward from the
+  saved inner plane, with visible top caps and shaded near ends. Perpendicular
+  caps share an outer corner; low cutaways keep a finished section. Previews
+  and indoor common places use the same construction. See [wall depth](ISOMETRIC_WALL_DEPTH.md).
 - **A border has to be an area, not a line.** The five base rugs were a solid
   diamond with a hairline stroke inside and read as flat shapes with no
   pattern at all; the fix is an inset lighter field, so the border is the rim
@@ -572,6 +581,10 @@ chair, because a preview that lies is worse than no preview.
 - **Gesture-first**: wheel = zoom (cursor-anchored), drag empty space = pan,
   double-click = recenter, drag item = move, Backspace = delete selection,
   Escape = exit mode (before closing panels).
+  Ctrl/Command + `+`/`−` zooms the room around its current centre; Ctrl/Command
+  + `0` resets its view. These camera commands preserve HUD size and focused
+  drafts, and stand down behind modals. Classic and common rooms share the
+  shortcuts; preview cards do not. See [zoom ownership and checks](ROOM_ZOOM_SHORTCUTS.md).
 - **Forgiving targets**: iso hit-testing is painted pixels + the footprint
   diamond — never bounding boxes (tall sprites blanket everything behind
   them).

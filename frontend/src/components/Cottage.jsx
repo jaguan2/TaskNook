@@ -1,12 +1,14 @@
 import { memo, useId, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import CottageLandscape from "./CottageLandscape";
+import CottageArchitecture from "./CottageArchitecture";
 import { COTTAGE_DESK, COTTAGE_FRAME, GRID, ITEMS, clampToRoom, snap, sortForRender } from "../lib/room";
 import { ambienceVars } from "../lib/motion";
 import { ITEM_SPRITES } from "./RoomItems";
 import RoomTintPicker from "./RoomTintPicker";
 import CottageItemControls from "./CottageItemControls";
 import { isTypingTarget } from "../lib/typing";
+import { useRoomZoom } from "../hooks/useRoomZoom";
 
 // A wider room fits a study area, separate seating and an open foreground.
 // Fit the whole authored frame so furniture and access paths remain visible
@@ -91,12 +93,13 @@ function Cottage({
   // (The ref drives the maths; this drives the visuals.)
   const [draggingId, setDraggingId] = useState(null);
   const svgRef = useRef(null);
+  const zoomViewBox = useRoomZoom({ viewBox: VIEW_BOX, enabled: !preview && !paused });
   // { id, dx, dy } while a drag is in flight — offset keeps the grab point
   // under the cursor instead of snapping the origin to it.
   const dragRef = useRef(null);
   const uid = useId();
   const time = { ...(TIME_PRESETS[timeOfDay] || TIME_PRESETS.night),
-    static: preview || reduceMotion, lampPool: `${uid}-lampPool`, lampCone: `${uid}-lampCone` };
+    static: preview || reduceMotion || paused, lampPool: `${uid}-lampPool`, lampCone: `${uid}-lampCone` };
 
   useEffect(() => {
     // Gated for reduced motion too — the flash is a photosensitivity
@@ -204,6 +207,7 @@ function Cottage({
     return (
       <g
         key={p.id}
+        data-cottage-placement={p.id} data-cottage-item={p.item}
         transform={`translate(${p.x},${p.y})`}
         // The user's colour choice rides a CSS variable; sprites paint
         // their main material with var(--tint, <classic colour>).
@@ -246,6 +250,7 @@ function Cottage({
           transition={{ type: "spring", stiffness: 420, damping: 26 }}
           style={{ transformBox: "fill-box", transformOrigin: "center" }}
         >
+          {item.zone === "desk" && <ellipse data-cottage-contact="surface" cy="1" rx={Math.min(item.hit.w * .36, 34)} ry="2" fill="#30232c" opacity=".16" />}
           <Sprite time={time} />
         </motion.g>
         {selected && (
@@ -280,7 +285,7 @@ function Cottage({
         aria-hidden={preview || undefined}
         aria-label={preview ? undefined : "Classic cottage scene"}
         ref={svgRef}
-        viewBox={VIEW_BOX}
+        viewBox={zoomViewBox}
         preserveAspectRatio={preview ? "xMidYMid meet" : "xMidYMax meet"}
         className="h-full w-full"
         style={{
@@ -297,25 +302,10 @@ function Cottage({
         onPointerDown={() => editMode && setSelectedId(null)}
       >
         <defs>
-          {/* Room surfaces follow the active color scheme (CSS variables from
-              index.css) so "re-tint the whole app" includes the scene. var()
-              only resolves in style=, not SVG presentation attributes. */}
-          <linearGradient id={`${uid}-wallGrad`} gradientUnits="userSpaceOnUse" x1="0" y1="-240" x2="0" y2="480">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-plum))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-night))" }} />
-          </linearGradient>
           <linearGradient id={`${uid}-nightSky`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={time.skyTop} />
             <stop offset="1" stopColor={time.skyBottom} />
           </linearGradient>
-          <linearGradient id={`${uid}-floorGrad`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: "rgb(var(--color-wine))" }} />
-            <stop offset="1" style={{ stopColor: "rgb(var(--color-void))" }} />
-          </linearGradient>
-          <pattern id={`${uid}-floorBoards`} patternUnits="userSpaceOnUse" x="-640" y="398" width="400" height="52">
-            <path d="M0 0 H400 M0 26 H400" stroke="#26122a" strokeWidth="1.5" opacity=".4" />
-            <path d="M100 0 V26 M300 0 V26 M0 26 V52 M200 26 V52 M400 26 V52" stroke="#26122a" strokeWidth="1.5" opacity=".3" />
-          </pattern>
           <linearGradient id={`${uid}-screenGrad`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#4a3a6b" />
             <stop offset="1" stopColor="#2c2148" />
@@ -334,26 +324,15 @@ function Cottage({
           </clipPath>
         </defs>
 
-        {/* Backdrop extends beyond the frame to fill tall and wide windows. */}
-        <rect x="-640" y="-960" width="2560" height="1356" fill={`url(#${uid}-wallGrad)`} />
-
-        {/* Low wall panels give the furniture a grounded backdrop. */}
-        <rect x="-640" y="320" width="2560" height="70" fill="#000" opacity=".06" />
-        <path d="M-640 320 H1920 M-640 324 H1920" stroke="#f7e9e2" opacity=".08" />
-        {Array.from({ length: 32 }, (_, i) => <path key={i} d={`M${-628 + i * 80} 333 h64 v45 h-64Z`} fill="none" stroke="#f7e9e2" opacity=".055" />)}
-
-        {/* ---------- Floor ---------- */}
-        <g>
-          <rect x="-640" y="390" width="2560" height="8" style={{ fill: "rgb(var(--color-petal) / 0.16)" }} />
-          <rect x="-640" y="396" width="2560" height={COTTAGE_FRAME.h - 396} fill={`url(#${uid}-floorGrad)`} />
-          {/* floorboards */}
-          <rect x="-640" y="396" width="2560" height={COTTAGE_FRAME.h - 396} fill={`url(#${uid}-floorBoards)`} />
-          {/* soft shadow the desk casts */}
-          <ellipse cx="320" cy="402" rx="290" ry="10" fill="#000" opacity="0.18" />
-        </g>
+        <CottageArchitecture uid={uid} period={timeOfDay} />
 
         {/* ================= WINDOW ================= */}
-        <rect x="88" y="36" width="340" height="232" rx="6" fill="#46396f" />
+        <rect x="90" y="39" width="345" height="238" rx="4" fill="#201923" opacity=".2" />
+        <rect x="85" y="33" width="346" height="238" rx="3" fill="#a58070" />
+        <path d="M85 33 H431 L418 46 H98Z" fill="#d4b59b" />
+        <path d="M85 33 L98 46 V258 L85 271Z" fill="#c7a48a" />
+        <path d="M418 46 L431 33 V271 L418 258Z" fill="#70576a" />
+        <rect x="95" y="43" width="326" height="218" rx="2" fill="#50415e" />
         <rect x="98" y="46" width="320" height="212" fill={`url(#${uid}-nightSky)`} />
 
         <g clipPath={`url(#${uid}-skyClip)`}>
@@ -450,7 +429,10 @@ function Cottage({
         <rect x="98" y="149" width="320" height="6" fill="#46396f" />
 
         {/* windowsill */}
-        <rect x="82" y="268" width="352" height="14" rx="4" fill="#8a5346" />
+        <path d="M85 263 H431 L440 273 H77Z" fill="#d0aa83" />
+        <path d="M77 273 H440 V281 H77Z" fill="#9a715a" />
+        <path d="M82 274 H435" stroke="#ead0aa" opacity=".5" />
+        <path d="M90 282 H427" stroke="#281e2a" strokeWidth="3" opacity=".2" />
 
         {/* curtains */}
         <line x1="50" y1="22" x2="466" y2="22" stroke="#2b2350" strokeWidth="4" strokeLinecap="round" />
@@ -466,6 +448,10 @@ function Cottage({
         <rect x={COTTAGE_DESK.kneeLeft - 14} y="316" width="14" height={COTTAGE_DESK.floorY - 318} rx="2" fill="#8f5d49" />
         <line x1="65" y1="318" x2="65" y2="396" stroke="#6e4435" strokeWidth="1.5" opacity="0.6" />
 
+        <path d="M68 318 H444 V327 H68Z" fill="#8b624c" />
+        <path d="M68 319 H444" stroke="#d8b38b" opacity=".35" />
+        {/* The cabinet has a receiving side panel and an inset face. */}
+        <path d="M594 316 L608 310 V393 L594 400Z" fill="#84604e" />
         {/* drawer cabinet */}
         <rect x={COTTAGE_DESK.drawers.x} y={COTTAGE_DESK.drawers.y} width={COTTAGE_DESK.drawers.w} height={COTTAGE_DESK.floorY - COTTAGE_DESK.drawers.y} rx="4" fill="#a87f5f" stroke="#8a5346" />
         {[325, 361].map((y, i) => (
@@ -479,7 +465,9 @@ function Cottage({
         <polygon points={`${COTTAGE_DESK.left + 14},292 ${COTTAGE_DESK.right - 14},292 ${COTTAGE_DESK.right},306 ${COTTAGE_DESK.left},306`} fill="#caa07f" />
         <path d="M80 299 q130 -3 250 0 t 220 0" stroke="#b8895f" strokeWidth="1.5" fill="none" opacity="0.5" />
         <path d="M140 295 q90 2 180 0" stroke="#b8895f" strokeWidth="1" fill="none" opacity="0.4" />
-        <rect x="30" y="306" width="580" height="12" rx="2" fill="#a87f5f" />
+        <path d="M30 306 H610 V317 H30Z" fill="#a87f5f" />
+        <path d="M30 306 L44 292 V306Z" fill="#e1bd95" />
+        <path d="M607 306 V317" stroke="#735344" strokeWidth="2" opacity=".45" />
         <line x1="32" y1="307" x2="608" y2="307" stroke="#d8b28c" strokeWidth="1" opacity="0.5" />
 
         {/* the laptop's cool light pool (the lamp's travels with the lamp) */}

@@ -790,7 +790,7 @@ describe("idle gestures read as occasional, not as a loop", () => {
     // the exact string means every new state has to come and edit this test,
     // which is how it fails for the boring reason instead of the real one. What
     // matters is that no busy-hands state is missing.
-    expect(items).toMatch(/const typing = activity === "focus" && seated;/);
+    expect(items).toMatch(/const typing = activity === "focus" && seated\b/);
     const gateFor = (cls) =>
       items.match(new RegExp(`\\{([^{}]+) \\? undefined : "${cls}"\\}`))[1];
     for (const term of ["typing", "moving", "held"]) {

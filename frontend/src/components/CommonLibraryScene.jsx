@@ -1,6 +1,7 @@
 import { floorPatch, isoBox, project, wallRect } from "../lib/iso";
 import { ambienceVars } from "../lib/motion";
 import FloorSurface from "./IsoFloorSurface";
+import WallSection from "./WallSection";
 
 const bookColors = ["#877453", "#62746b", "#8f5555", "#6a657c", "#b19769", "#556875", "#9a7353"];
 const bookcases = [
@@ -142,6 +143,7 @@ export default function CommonLibraryScene({ scene, uid, clip, glow, lampGlow, t
   const galleryDepth = scene.surfaces.gallery.dy;
   const stairX = scene.w - 2.1;
   const railEnd = stairX - .4;
+  const shellRuns = [{ plane: 'gx', at: 0, from: 0, to: scene.d }, { plane: 'gy', at: 0, from: 0, to: scene.w }];
   const glass = timeOfDay === "night" ? ["#29364c", "#737587"] : timeOfDay === "sunset" ? ["#927c82", "#e5ba8a"] : ["#809fa9", "#dce1c5"];
   return <g data-library-architecture="grand-library">
     <defs>
@@ -151,6 +153,8 @@ export default function CommonLibraryScene({ scene, uid, clip, glow, lampGlow, t
     </defs>
     <polygon points={wallRect("left", 0, scene.d, 0, 240)} fill="#99907d" />
     <polygon points={wallRect("right", 0, scene.w, 0, 240)} fill="#7d7469" />
+    {shellRuns.map(run => <WallSection key={run.plane} run={run} runs={shellRuns}
+      height={240} fill={run.plane === 'gx' ? '#99907d' : '#7d7469'} />)}
     {["left", "right"].map((wall) => <g key={wall}>
       <polygon points={wallRect(wall, 0, wall === "left" ? scene.d : scene.w, 0, 49)} fill="#614b3d" />
       <polygon points={wallRect(wall, 0, wall === "left" ? scene.d : scene.w, 47, 5)} fill="#b89466" />

@@ -10,10 +10,12 @@ import IsoCatalogModel from './IsoCatalogModel';
 import FloorSurface from "./IsoFloorSurface";
 import CommonGardenScene from "./CommonGardenScene";
 import CommonLibraryScene from "./CommonLibraryScene";
+import WallSection from "./WallSection";
 import PersonaNameTag from "./PersonaNameTag";
 import IsoContactShadow from "./IsoContactShadow";
 import FriendProfile from "./FriendProfile";
 import { useI18n } from "../i18n/I18nProvider";
+import { useRoomZoom } from "../hooks/useRoomZoom";
 import { CottageFloorShade, CottageLightDefs, CottageTableLight, CottageWallLight } from "./CommonCottageLighting";
 
 function Surface({ surface, clipId }) {
@@ -114,6 +116,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   const scene = COMMON_PLACES[session.sceneId];
   const uid = useId();
   const svgRef = useRef(null);
+  const zoomViewBox = useRoomZoom({ viewBox: scene.viewBox || "-260 -190 580 470", enabled: !paused });
   const chooserRef = useRef(null);
   const guestRef = useRef(null);
   const returnFocusRef = useRef(false);
@@ -291,6 +294,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
   // a tower-like step in the cottage silhouette. Keep its existing ceiling
   // clearance, but carry that roof elevation continuously across both walls.
   const cottageRoofH = WALL_H + (scene.surfaces.nook?.z || 0);
+  const shellRuns = [{ plane: 'gx', at: 0, from: 0, to: scene.d }, { plane: 'gy', at: 0, from: 0, to: scene.w }];
   const partitionStart = project(6.5, 0);
   const partitionEnd = project(6.5, 4);
   const partitionBulbs = Array.from({ length: 8 }, (_, i) => {
@@ -301,7 +305,7 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
     };
   });
   return <div className="absolute inset-0 overflow-hidden" data-common-room={scene.id}>
-    <svg ref={svgRef} data-room-renderer="glb-composite" viewBox={scene.viewBox || "-260 -190 580 470"}
+    <svg ref={svgRef} data-room-renderer="glb-composite" viewBox={zoomViewBox}
       className={`h-full w-full ${reduceMotion ? "cottage-preview" : scene.kind === "library" ? "common-library-calm" : ""}`} role="group" aria-label={scene.ariaLabel}
       onPointerMove={moveGuestDrag} onPointerUp={endGuestDrag} onPointerCancel={endGuestDrag}
       onLostPointerCapture={endGuestDrag}>
@@ -331,6 +335,8 @@ export default memo(function CommonRoom({ session, character, activity, timeOfDa
         {/* Rear walls and windows are deliberately behind every floor level. */}
         <polygon data-common-shell-wall="left" points={wallRect("left", 0, scene.d, 0, cottageRoofH)} fill="#a89484" />
         <polygon data-common-shell-wall="right" points={wallRect("right", 0, scene.w, 0, cottageRoofH)} fill="#8f817c" />
+        {shellRuns.map(run => <WallSection key={run.plane} run={run} runs={shellRuns}
+          height={cottageRoofH} fill={run.plane === 'gx' ? '#a89484' : '#8f817c'} />)}
         {/* Panelling and a continuous rail make the walls feel furnished even
             where a shelf cannot fit, echoing the reference's blue wainscot. */}
         <polygon points={wallRect("left", 0, 9, 0, 43)} fill="#746e69" opacity=".55" />

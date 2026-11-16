@@ -242,6 +242,19 @@ describe("copying decorations", () => {
 });
 
 describe("presets", () => {
+  it('gives each preset a usable study seat and a distinct furnished activity bay', () => {
+    for (const [name, preset] of Object.entries(PRESETS)) {
+      const seats = preset.placements.filter(p => p.item === 'deskchair');
+      expect(seats, name).toHaveLength(1);
+      expect(seats[0].x).toBeGreaterThan(COTTAGE_DESK.kneeLeft + 68);
+      expect(seats[0].x).toBeLessThan(COTTAGE_DESK.drawers.x - 68);
+      expect(preset.placements.some(p => p.x > COTTAGE_DESK.right && ['sofa', 'armchair', 'beanbag', 'floorcushion'].includes(p.item)), name).toBe(true);
+      expect(preset.placements.some(p => p.x > COTTAGE_DESK.right && ['coffeetable', 'sidetable'].includes(p.item)), name).toBe(true);
+      for (const p of preset.placements.filter(p => ['frame', 'mirror', 'poster', 'shelf'].includes(p.item))) {
+        expect(p.x + ITEMS[p.item].hit.x, `${name}: wall decor should not cover the window`).toBeGreaterThan(434);
+      }
+    }
+  });
   it("keeps authored floor furniture out of the desk drawers and their opening space", () => {
     const drawers = COTTAGE_DESK.drawers;
     // Includes the cabinet face and floor in front of it; users remain free

@@ -14,8 +14,8 @@ import { useArmed } from "../hooks/useArmed";
 import { toISO } from "../lib/dates";
 import ConfirmDialog from "./ConfirmDialog";
 
-// The top-right to-do list, drawn straight onto the backdrop (no card/dialog
-// chrome) — Virtual Cottage-style. Checked tasks stay visible, crossed out;
+// The top-right to-do list sits on a content-sized frosted surface so room
+// artwork cannot compete with its text. Checked tasks stay visible, crossed out;
 // rows can be deleted with ✕ (two-tap: arm then confirm, like the Tasks
 // panel), re-ordered by dragging the ⠿ handle, marked as a daily routine with
 // ↻, and organised under group headers (VC2's "New Group"). The full Tasks
@@ -422,7 +422,7 @@ export default function HudTasks({ onOpenTasks }) {
     // display:none would replay its 1.5s boot animation every time the window
     // crossed the threshold (docs/DESIGN.md).
     */}
-    <div className="intro-chrome absolute right-6 top-5 z-20 flex max-h-[52vh] w-72 flex-col max-[599px]:invisible">
+    <section aria-label={ui("hud.title")} className="hud-tasks intro-chrome absolute right-6 top-5 z-20 flex w-80 flex-col p-3 max-[599px]:invisible">
       <header className="flex items-center justify-between px-1 pb-1.5">
         <p className="font-display text-base font-bold tracking-wide text-cream drop-shadow">
           {ui("hud.title")}{" "}
@@ -463,7 +463,7 @@ export default function HudTasks({ onOpenTasks }) {
         </div>
       </header>
 
-      <div className="cozy-scroll cozy-scroll--bare min-h-0 flex-1 overflow-y-auto">
+      <div data-hud-task-list="" className="cozy-scroll cozy-scroll--bare min-h-0 flex-auto overflow-y-auto overscroll-contain">
         {currentTasks.length === 0 && taskGroups.length === 0 && (
           <p className="px-2 py-3 text-xs text-petal/50">{ui("hud.clear")}</p>
         )}
@@ -582,7 +582,7 @@ export default function HudTasks({ onOpenTasks }) {
           </select>
         )}
       </form>
-    </div>
+    </section>
     <ConfirmDialog open={!!deleting} title={ui("tasks.deleteTitle")}
       message={ui("tasks.deleteMessage", { name: deleting?.name || ui("tasks.thisTask") })}
       onCancel={() => setDeleting(null)}

@@ -204,19 +204,29 @@ body {
   background-attachment: local, local, scroll, scroll;
 }
 
-/* Chrome drawn straight ON THE BACKDROP rather than inside a glass card — the
-   HUD to-do list. There the plum wash above has nothing to blend into, so it
-   reads as a dark slab laid over the room: a panel nobody asked for, in an app
-   whose north star is chromeless on-scene UI.
-
-   The scroll-fade cue is dropped rather than reproduced. A mask-image version
-   works but fades unconditionally: the wrapper is auto-height under a
-   max-h cap, so with two or three tasks nothing scrolls and the first and last
-   rows are washed out anyway — a permanent cost to hint at an occasional
-   state. The gradients can't simply be recoloured either; any colour is the
-   slab again. */
+/* Scroll areas on a surrounding surface need no extra wash or edge fade.
+   Short lists must keep their first and last rows fully readable. */
 .cozy-scroll--bare {
   background: none;
+}
+
+/* One backdrop layer covers the whole content-sized list, including its
+   fixed heading and quick-add row. The opaque fallback also works without
+   backdrop-filter; supported browsers reveal a little of the softened room. */
+.hud-tasks {
+  max-height: min(72vh, calc(100vh - 7rem));
+  max-height: min(72dvh, calc(100dvh - 7rem));
+  background: rgb(var(--color-plum) / 0.94);
+  border: 1px solid rgb(var(--color-petal) / 0.16);
+  border-radius: 1.25rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.22), inset 0 1px rgb(var(--color-petal) / 0.06);
+}
+@supports ((backdrop-filter: blur(16px)) or (-webkit-backdrop-filter: blur(16px))) {
+  .hud-tasks {
+    background: rgb(var(--color-plum) / 0.76);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
 }
 
 /* Frosted glass panel look */

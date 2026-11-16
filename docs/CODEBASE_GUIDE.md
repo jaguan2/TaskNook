@@ -11,6 +11,9 @@ Start with the state owner for the behavior you want to change. `App.jsx` compos
 | Room data | `frontend/src/lib/isoRoom.js`, `isoCatalog.js`, `isoPresets.js`, `isoSeasonalPresets.js` | Catalog contracts, validated placements and grouped personal presets |
 | Visit arrivals | `frontend/src/lib/visiting.js` | Stored owner positions, available seats and café counter anchors |
 | Room interactions | `frontend/src/components/IsoRoom.jsx` | Scene ordering, item selection, carrying and camera input |
+| Room zoom | `frontend/src/hooks/useIsoCamera.js`, `useRoomZoom.js`, `frontend/src/lib/roomZoom.js` | Shared keyboard commands, bounded camera geometry, home persistence and visit-local views; [shortcuts and coverage](ROOM_ZOOM_SHORTCUTS.md) |
+| Isometric wall volume | `frontend/src/lib/wallSection.js`, `components/WallSection.jsx`, `ExteriorWall.jsx` | Outward wall sections, joined corners and exposed ends shared with previews and indoor common places; [construction and verification](ISOMETRIC_WALL_DEPTH.md) |
+| Classic 2D room | `frontend/src/components/Cottage.jsx`, `CottageArchitecture.jsx`, `CottageFurniture.jsx`, `CottageDecor.jsx`, `RoomItems.jsx`, `frontend/src/lib/room.js` | Separate illustrated scene, stable sprite registry and seven presets; [ownership and remodel coverage](CLASSIC_ROOM_REMODEL.md) |
 | Model display | `frontend/src/components/IsoCatalogModel.jsx` | Image subscriptions, previous-image leases and SVG fallback |
 | Image lifecycle | `frontend/src/services/catalogImageCache.js` | Shared lazy renderer, active leases, bounded unused images and URL disposal |
 | Model rendering | `frontend/src/services/catalogRenderer.js` | GLB loading, serialized GPU work, orientation, framing and hit masks |
@@ -21,6 +24,7 @@ Start with the state owner for the behavior you want to change. `App.jsx` compos
 | Artwork source | `prototypes/furniture/src/models/` | Standalone closed meshes, materials and explicit contact probes |
 | Character mesh pilot | `prototypes/furniture/src/characters/` | Isolated Blender authoring, weighted skeleton, export and live comparison preview; production actors remain SVG |
 | Wardrobe fit | `frontend/src/components/character/`, `prototypes/furniture/scripts/review-wardrobe.mjs` | Live SVG clothing/hair and repeatable full-figure fit samples; coverage and future mesh interfaces in [the review](WARDROBE_FIT_REVIEW.md) |
+| Seated keyboard pose | `frontend/src/lib/workstations.js`, `typingArms.js`, `components/character/body.jsx` | Reachable keyboard contacts, bounded arm segments and centred office-chair seating; [review and coverage](CHARACTER_WORKSTATION_REVIEW.md) |
 | Pet mesh pilots | `prototypes/furniture/src/pets/` | Connected animal anatomy, weighted rigs and source-calibrated age/form previews; shared Blender primitives live in `src/blender_geometry.py` |
 | Asset delivery | `frontend/scripts/catalog-model-assets.mjs` | Hash-checked authoring exports emitted as offline app assets |
 | Room API | `backend/routes/room_profile.py` | Validates and stores JSON layouts; no separate shelf database |

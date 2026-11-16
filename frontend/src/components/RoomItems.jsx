@@ -1,11 +1,11 @@
-import { motion } from "framer-motion";
+import { DeskPlant, Books, Mug, PencilCup, Frame, Polaroids, Shelf, Cactus, HangPlant, Monstera } from "./CottageDecor";
+import { Sofa, Armchair, StudyChair, Bookshelf, Rug, RugStripe } from "./CottageFurniture";
 
 // SVG sprites for every placeable room item. Each is drawn around an ORIGIN at
 // (0,0) — the point that touches its surface (base of a pot, centre of a wall
-// frame) — so the scene can place it with a single translate. Items that were
-// originally hand-placed in Cottage.jsx keep their exact artwork, wrapped in a
-// translate that moves the old coordinates onto the origin; the "default"
-// preset keeps that desk-decoration arrangement alongside newer furniture.
+// frame) — so the scene can place it with a single translate. Architecture,
+// furniture and detailed props have separate owners; this registry keeps saved
+// item keys stable while the classic artwork evolves.
 //
 // Every sprite receives `time` (the active TIME_PRESETS entry) so lamps and
 // lights can dim with the sky.
@@ -20,65 +20,6 @@ const tinted = (fallback) => ({ fill: `var(--tint, ${fallback})` });
 const tintedStroke = (fallback) => ({ stroke: `var(--tint, ${fallback})` });
 
 /* ---------------- desk items ---------------- */
-
-function DeskPlant() {
-  return (
-    <g transform="translate(-86,-302)">
-      {/* The translate lives on a wrapper, NOT the animated path: the sway's
-          CSS `transform` property overrides the SVG transform *attribute*, so
-          putting both on one element silently drops the translate and the
-          foliage falls 16px into the pot (measured, not theoretical). */}
-      <g transform="translate(0,-16)">
-        <path
-          className="room-sway"
-          d="M78 300 q-14 -40 -3 -68 q8 20 14 24 q-11 -27 1 -46 q6 27 13 32 q0 -22 9 -33 q3 32 -5 59 q-5 24 -18 32 z"
-          fill="#3f7f63"
-        />
-      </g>
-      <polygon points="70,282 104,282 100,305 74,305" style={tinted("#c0563f")} />
-      <polygon points="70,282 104,282 102,287 72,287" fill="#000" opacity="0.18" />
-    </g>
-  );
-}
-
-function Books() {
-  return (
-    <g transform="translate(-156,-300)">
-      <rect x="128" y="286" width="58" height="14" rx="2" fill="#7faf8f" transform="rotate(-2 157 293)" />
-      <rect x="132" y="274" width="54" height="13" rx="2" fill="#e8a3a8" transform="rotate(1.5 159 280)" />
-      <rect x="126" y="262" width="56" height="13" rx="2" style={tinted("#9b8bd6")} transform="rotate(-1 154 268)" />
-    </g>
-  );
-}
-
-function Mug({ time }) {
-  return (
-    <g transform="translate(-394,-300)">
-      <path d="M380 300 h30 v-20 h-30 z" style={tinted("#d98a93")} />
-      <path d="M410 286 q10 -2 10 6 t-10 8" fill="none" style={tintedStroke("#d98a93")} strokeWidth="3" />
-      <motion.path
-        d="M388 276 q4 -10 0 -18 M398 276 q4 -10 0 -18"
-        stroke="#f7e9e2"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-        animate={time?.static ? undefined : { opacity: [0, 0.6, 0], y: [0, -10, -16] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeOut" }}
-      />
-    </g>
-  );
-}
-
-function PencilCup() {
-  return (
-    <g transform="translate(-438,-304)">
-      <path d="M425 286 h26 l-3 26 h-20 z" style={tinted("#cf8f93")} transform="translate(0,-8)" />
-      <line x1="431" y1="278" x2="427" y2="250" stroke="#e8b04b" strokeWidth="3" strokeLinecap="round" />
-      <line x1="439" y1="278" x2="443" y2="244" stroke="#7faf8f" strokeWidth="3" strokeLinecap="round" />
-      <line x1="445" y1="278" x2="450" y2="254" stroke="#9b8bd6" strokeWidth="3" strokeLinecap="round" />
-    </g>
-  );
-}
 
 function Notebook() {
   return (
@@ -108,19 +49,6 @@ function DeskLamp({ time }) {
         fill={`url(#${time.lampCone || "lampCone"})`}
         opacity={time.lampGlow * 0.55}
       />
-    </g>
-  );
-}
-
-function Cactus() {
-  return (
-    <g>
-      <path d="M0 -14 q-7 0 -7 -9 q0 -8 7 -8 q7 0 7 8 q0 9 -7 9 z" fill="#56a07c" />
-      <path d="M-6 -22 q-7 -1 -7 -8 q5 -1 8 3 z" fill="#56a07c" />
-      <path d="M6 -24 q7 -2 7 -8 q-5 -1 -8 3 z" fill="#56a07c" />
-      <path d="M-2 -26 v4 M2 -22 v3" stroke="#cbe6d3" strokeWidth="1" strokeLinecap="round" />
-      <polygon points="-10,-14 10,-14 8,0 -8,0" style={tinted("#d98a93")} />
-      <polygon points="-10,-14 10,-14 9,-10 -9,-10" fill="#000" opacity="0.15" />
     </g>
   );
 }
@@ -206,33 +134,6 @@ function FlowerVase() {
 
 /* ---------------- wall items ---------------- */
 
-function Frame() {
-  return (
-    <g transform="translate(-496,-88)">
-      <rect x="474" y="58" width="46" height="60" rx="4" style={{ fill: "var(--tint, rgb(var(--color-petal)))" }} opacity="0.9" />
-      <rect x="481" y="65" width="32" height="46" rx="2" fill="#7a5a6e" />
-    </g>
-  );
-}
-
-function HangPlant() {
-  return (
-    <g transform="translate(-544,-76)">
-      <line x1="544" y1="50" x2="544" y2="70" stroke="#8a5346" strokeWidth="1.5" />
-      <g className="room-sway-hanging">
-        <ellipse cx="544" cy="76" rx="12" ry="7" style={tinted("#c0563f")} />
-        <path
-          d="M535 74 q3 22 -2 32 M544 78 q1 26 0 38 M553 74 q-2 22 3 30"
-          stroke="#56a07c"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-        />
-      </g>
-    </g>
-  );
-}
-
 function Clock() {
   return (
     <g transform="translate(-496,-158)">
@@ -257,33 +158,6 @@ function Poster() {
       <path d="M-17 12 l10 -12 l7 8 l6 -7 l11 13 z" fill="#2a2038" />
       <path d="M-17 12 l10 -12 l7 8 l6 -7 l11 13" fill="none" stroke="#d9784f" strokeWidth="1.5" />
       <rect x="-12" y="16" width="24" height="3" rx="1.5" fill="#f3c6c0" opacity="0.7" />
-    </g>
-  );
-}
-
-function Polaroids() {
-  return (
-    <g>
-      <line x1="-24" y1="-14" x2="24" y2="-14" stroke="#8a5346" strokeWidth="1.5" />
-      {[-16, 2].map((x, i) => (
-        <g key={i} transform={`rotate(${i === 0 ? -4 : 3} ${x + 8} 0)`}>
-          <rect x={x} y="-12" width="17" height="20" rx="1" fill="#f7e9e2" />
-          <rect x={x + 2} y="-10" width="13" height="12" fill={i === 0 ? "#7a5a6e" : "#5b6b9b"} />
-          <rect x={x + 6} y="-15" width="5" height="4" fill="#e8b04b" opacity="0.8" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
-function Shelf() {
-  return (
-    <g>
-      <rect x="-34" y="0" width="68" height="6" rx="2" style={tinted("#8a5346")} />
-      <rect x="-30" y="-16" width="10" height="16" rx="1" fill="#7faf8f" />
-      <rect x="-18" y="-14" width="9" height="14" rx="1" fill="#e8a3a8" />
-      <path d="M14 -8 q-5 0 -5 -6 q0 -5 5 -5 q5 0 5 5 q0 6 -5 6 z" fill="#56a07c" />
-      <polygon points="8,-8 20,-8 19,0 9,0" fill="#c0563f" />
     </g>
   );
 }
@@ -323,41 +197,6 @@ function Bunting() {
 
 /* ---------------- floor items ---------------- */
 
-function Rug() {
-  return (
-    <g transform="translate(-320,-440)">
-      <ellipse cx="320" cy="440" rx="225" ry="24" style={{ fill: "var(--tint, rgb(var(--color-rose)))" }} opacity="0.4" />
-      <ellipse cx="320" cy="440" rx="200" ry="18" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="3" opacity="0.3" />
-    </g>
-  );
-}
-
-function RugStripe() {
-  return (
-    <g>
-      <ellipse cx="0" cy="0" rx="105" ry="19" style={{ fill: "var(--tint, rgb(var(--color-rose)))" }} opacity="0.45" />
-      <ellipse cx="0" cy="0" rx="82" ry="14" fill="none" style={{ stroke: "rgb(var(--color-petal))" }} strokeWidth="4" opacity="0.35" />
-      <ellipse cx="0" cy="0" rx="55" ry="9" fill="none" style={{ stroke: "rgb(var(--color-blush))" }} strokeWidth="4" opacity="0.4" />
-    </g>
-  );
-}
-
-function Monstera() {
-  return (
-    <g>
-      <g className="room-sway">
-        <path d="M-4 -34 q-26 -10 -26 -40 q18 0 26 16 z" fill="#3f7f63" />
-        <path d="M4 -34 q26 -12 24 -44 q-18 2 -26 20 z" fill="#56a07c" />
-        <path d="M0 -30 q-4 -34 6 -58 q12 18 4 44 z" fill="#3f7f63" />
-        <path d="M-2 -64 l8 -6 M-16 -52 l-8 -4 M16 -56 l8 -8" stroke="#2c5b46" strokeWidth="1.5" opacity="0.6" />
-        <path d="M-3 -30 q1 -20 3 -34 M1 -30 q6 -14 14 -24" stroke="#2c5b46" strokeWidth="2" fill="none" strokeLinecap="round" />
-      </g>
-      <polygon points="-18,-32 18,-32 14,0 -14,0" style={tinted("#c0563f")} />
-      <polygon points="-18,-32 18,-32 17,-26 -17,-26" fill="#000" opacity="0.18" />
-    </g>
-  );
-}
-
 function FloorLamp({ time }) {
   return (
     <g>
@@ -379,38 +218,18 @@ function FloorLamp({ time }) {
 }
 
 function Cat({ time }) {
-  return (
-    <g>
-      <ellipse cx="0" cy="-8" rx="26" ry="13" style={tinted("#3a3142")} />
-      <circle cx="-18" cy="-16" r="9" style={tinted("#3a3142")} />
-      <polygon points="-25,-21 -22,-30 -17,-23" style={tinted("#3a3142")} />
-      <polygon points="-13,-24 -9,-31 -6,-22" style={tinted("#3a3142")} />
-      <path d="M24 -10 q12 -2 10 -14" fill="none" style={tintedStroke("#3a3142")} strokeWidth="5" strokeLinecap="round" />
-      <path d="M-24 -15 q2 2 4 0 M-16 -15 q2 2 4 0" stroke="#1e1926" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <motion.g animate={time?.static ? undefined : { opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity }}>
-        <path d="M6 -26 q2 -4 0 -7 M11 -24 q2 -4 0 -7" stroke="#f3c6c0" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
-      </motion.g>
+  return <g>
+    <ellipse cy="1" rx="29" ry="3" fill="#201923" opacity=".15" />
+    <path d="M20 -6 Q34 -5 30 0 Q26 3 19 0" fill="none" style={tintedStroke('#4b3e50')} strokeWidth="4" strokeLinecap="round" />
+    <g className={time?.static ? undefined : 'cat-breathe'}>
+      <path d="M-23 -3 Q-28 -14 -12 -19 Q4 -26 20 -17 Q30 -11 24 -2 Q17 2 -3 1Z" style={tinted('#4b3e50')} />
+      <path d="M9 -13 Q21 -11 18 -2" stroke="#e3d3bc" strokeWidth="1" opacity=".14" fill="none" />
     </g>
-  );
-}
-
-function Bookshelf() {
-  return (
-    <g>
-      <rect x="-40" y="-100" width="80" height="100" rx="4" style={tinted("#a87f5f")} stroke="#8a5346" />
-      <rect x="-33" y="-92" width="66" height="36" fill="#6e4435" />
-      <rect x="-33" y="-48" width="66" height="38" fill="#6e4435" />
-      {[[-31, -78, "#7faf8f"], [-21, -80, "#e8a3a8"], [-12, -76, "#9b8bd6"], [-2, -79, "#e8b04b"], [8, -77, "#cf8f93"]].map(([x, y, c], i) => (
-        <rect key={`t-${i}`} x={x} y={y} width="8" height={-56 - y} rx="1" fill={c} />
-      ))}
-      <rect x="20" y="-64" width="12" height="8" rx="1" fill="#f7e9e2" opacity="0.85" />
-      {[[-31, -34, "#e8b04b"], [-22, -38, "#7faf8f"], [-13, -33, "#d98a93"], [-3, -36, "#5b6b9b"]].map(([x, y, c], i) => (
-        <rect key={`b-${i}`} x={x} y={y} width="8" height={-12 - y} rx="1" fill={c} />
-      ))}
-      <path d="M18 -20 q-4 0 -4 -5 q0 -4 4 -4 q4 0 4 4 q0 5 -4 5 z" fill="#56a07c" />
-      <polygon points="13,-20 23,-20 22,-13 14,-13" fill="#c0563f" />
-    </g>
-  );
+    <ellipse cx="-17" cy="0" rx="7" ry="2" fill="#b8a39a" />
+    <path d="M-27 -9 Q-29 -19 -20 -20 L-19 -28 L-13 -22 L-6 -26 L-6 -16 Q-5 -7 -14 -5 L-27 -6Z" style={tinted('#4b3e50')} />
+    <path d="M-25 -11 q2 2 4 0" fill="none" stroke="#decda8" strokeWidth="1.2" strokeLinecap="round" />
+    <path d="M-29 -7 l-5 1 M-29 -9 l-5 -1" stroke="#e3d3bc" strokeWidth=".7" opacity=".7" />
+  </g>;
 }
 
 function Beanbag() {
@@ -489,22 +308,6 @@ function Garland({ time }) {
   );
 }
 
-function Armchair() {
-  return <g transform="scale(1.4)">
-    <ellipse cy="0" rx="47" ry="5" fill="#000" opacity=".16" />
-    <path d="M-33 -17 l-3 17 M33 -17 l3 17" stroke="#493444" strokeWidth="6" />
-    <rect x="-37" y="-84" width="74" height="65" rx="18" style={tinted("#9b8bd6")} />
-    <rect x="-29" y="-76" width="58" height="42" rx="12" fill="#fff" opacity=".1" />
-    <path d="M0 -70 v30" stroke="#35283e" opacity=".18" />
-    <rect x="-37" y="-38" width="74" height="25" rx="9" style={tinted("#9b8bd6")} />
-    <rect x="-37" y="-25" width="74" height="12" rx="5" fill="#000" opacity=".13" />
-    <rect x="-47" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
-    <rect x="30" y="-52" width="17" height="38" rx="8" style={tinted("#9b8bd6")} />
-    <path d="M10 -49 Q23 -53 30 -44 L28 -16 Q16 -13 9 -20Z" fill="#eed8b9" />
-    <path d="M14 -40 l12 2 M13 -33 l13 2 M12 -26 l14 2" stroke="#af8b79" strokeWidth="2" opacity=".5" />
-  </g>;
-}
-
 function SideTable() {
   return <g>
     <ellipse cy="0" rx="29" ry="4" fill="#000" opacity=".15" />
@@ -541,35 +344,7 @@ function Mirror() {
   </g>;
 }
 
-function Sofa() {
-  return <g>
-    <ellipse cy="0" rx="135" ry="5" fill="#000" opacity=".16" />
-    <path d="M-111 -17 l-4 17 M111 -17 l4 17" stroke="#694b52" strokeWidth="7" />
-    <path d="M-120 -35 V-101 Q-120 -124 -96 -124 H96 Q120 -124 120 -101 V-35Z" style={tinted("#7faf8f")} />
-    {[-107, -34, 39].map((x) => <rect key={x} x={x} y="-113" width="68" height="67" rx="15" fill="#fff" opacity=".1" />)}
-    <rect x="-119" y="-45" width="238" height="29" rx="12" style={tinted("#7faf8f")} />
-    <path d="M-113 -22 H113 M-39 -43 v21 M39 -43 v21" stroke="#000" strokeWidth="2" opacity=".16" />
-    <path d="M-116 -43 Q0 -50 116 -43" fill="none" stroke="#fff" strokeWidth="2" opacity=".15" />
-    <rect x="-135" y="-73" width="32" height="57" rx="15" style={tinted("#7faf8f")} />
-    <rect x="103" y="-73" width="32" height="57" rx="15" style={tinted("#7faf8f")} />
-    <path d="M72 -78 Q94 -88 110 -72 L104 -31 Q84 -23 69 -37Z" fill="#eed8b9" />
-    <path d="M75 -66 l29 4 M73 -54 l29 4 M72 -43 l28 4" stroke="#af8b79" strokeWidth="2" opacity=".5" />
-  </g>;
-}
-
 // Rear view: the upholstered back is between the viewer and the desk.
-function StudyChair() {
-  return <g>
-    <ellipse cy="0" rx="66" ry="5" fill="#000" opacity=".15" />
-    <path d="M-42 -60 l-11 60 M42 -60 l11 60 M-30 -60 l8 49 M30 -60 l-8 49" fill="none" stroke="#694b52" strokeWidth="7" strokeLinecap="round" />
-    <path d="M-59 -70 Q0 -82 59 -70 L62 -51 Q0 -34 -62 -51Z" style={tinted("#9b8bd6")} />
-    <path d="M-60 -55 Q0 -40 60 -55" fill="none" stroke="#000" opacity=".16" strokeWidth="2" />
-    <path d="M-41 -68 l-7 -35 M41 -68 l7 -35" stroke="#694b52" strokeWidth="6" />
-    <path d="M-53 -78 L-58 -106 Q-61 -133 -24 -133 H24 Q61 -133 58 -106 L53 -78 Q0 -60 -53 -78Z" style={tinted("#9b8bd6")} />
-    <path d="M-47 -109 Q-47 -125 -22 -125 H22 Q47 -125 47 -109" fill="none" stroke="#fff" strokeWidth="3" opacity=".15" strokeLinecap="round" />
-    <path d="M-51 -79 Q0 -64 51 -79" fill="none" stroke="#000" strokeWidth="2" opacity=".14" />
-  </g>;
-}
 
 function CoffeeTable() {
   return <g>

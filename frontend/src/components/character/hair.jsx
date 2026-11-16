@@ -1,3 +1,5 @@
+import { rearHair } from './hairRear';
+
 // Every hairstyle's ARTWORK — one registry entry per style, built with the
 // WIG METHOD (researched 2026-08-16 from professional stylized-hair craft and
 // the avataaars/OpenPeeps production SVG sources):
@@ -328,7 +330,10 @@ export const HAIR_REGISTRY = {
     // The one style with no wig: the hairline band IS the haircut, scalp
     // reading through. A crescent alone read as balding (research).
     back: ({ headY, color }) => (
-      <circle cx="0" cy={headY - 0.3} r={R + 0.3} fill={color} opacity="0.55" />
+      <g transform={`translate(0 ${headY})`}>
+        <path d="M-7.4 -.4 Q-7.8 -7.9 -.4 -8.2 Q7.4 -8.8 7.5 -.4 Q7.1 4.5 3.9 6 Q0 7.2 -3.9 6 Q-7.1 4.5 -7.4 -.4Z" fill={color} opacity=".62" />
+        <path d="M-4.3 -3.8 l.3 .7 M-.7 -5.7 l.3 .7 M3.7 -3.1 l-.1 .7 M1.3 .6 l.1 .7" stroke={color} strokeWidth=".6" strokeLinecap="round" opacity=".5" />
+      </g>
     ),
     // Profile: the same three marks as the front — stubble (back half),
     // hairline band, and the SOLID crescent along the crown. Without the
@@ -374,6 +379,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   messy: {
+    back: rearHair.messy,
     // The short wig with a rougher edge, plus two tufts CROSSING the top
     // silhouette — a wobbly outline alone reads as "short" (research).
     side: ({ headY, color }) => (
@@ -528,6 +534,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   ponytail: {
+    back: rearHair.ponytail,
     // Slick wig with the gathering knot welded at the crown; the tail hangs
     // to one side in the shadow tone.
     // Profile is this style's best angle: the tail swings clear behind the
@@ -753,6 +760,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   braids: {
+    back: rearHair.braids,
     // Tight crown, roots at the temples, two plaits behind the body in the
     // shadow tone with their knots reading as segments.
     // Profile: ONE plait shows — the near one hides the far one exactly.
@@ -979,6 +987,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   pigtails: {
+    back: rearHair.pigtails,
     // Crown wig with the side bunches welded on; the tails beneath hang in
     // the shadow tone, well clear of the shoulders.
     // Profile: the NEAR bunch faces the viewer, sitting behind the ear, its
@@ -1080,6 +1089,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   wolf: {
+    back: rearHair.wolf,
     // Tall broken crown over thin dark shag — the identity is the contrast
     // between the lifted choppy top and the ragged ends (research).
     // Profile: the tall broken crown, with the shag flicking out at the nape.
@@ -1142,6 +1152,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   curtains: {
+    back: rearHair.curtains,
     // The centre part carved with the same tooth grammar — one wide tooth
     // cutting UP forms the notch of bare forehead; the deep side teeth are
     // the drapes, kicked slightly outward at the tips.
@@ -1184,6 +1195,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   mullet: {
+    back: rearHair.mullet,
     // Business in front — a crisp short wig — party behind: the squared nape
     // curtain in the shadow tone, corners flicking out past the shoulders.
     // Profile shows the mullet's whole joke at once: crisp on the face side,
@@ -1274,6 +1286,7 @@ export const HAIR_REGISTRY = {
     ),
   },
   locs: {
+    back: rearHair.locs,
     // Rounded crown breaking into ropes of varied thickness and staggered
     // length — alternating tones so the strands separate (uniform clean
     // ropes read as a wig, the research's exact warning).
@@ -1463,22 +1476,11 @@ export function HairSide({ style, headY, color, covered = false }) {
 
 /**
  * The BACK of the head — what replaces the face and hairline when a persona
- * turns away. From behind, nearly every style is simply hair: a full cover a
- * touch wider than the skull. Styles whose backs genuinely differ override
- * `back` (the buzz's stubble); everyone else gets the default.
+ * turns away. Each supported cut owns its rear silhouette. Unknown styles
+ * use the short cut instead of reintroducing a smooth circular cap.
  */
 export function HairBack({ style, headY, color, covered = false }) {
   const entry = HAIR_REGISTRY[style];
-  const art = entry?.back ? entry.back({ headY, color, R }) : (
-    <>
-      <circle cx="0" cy={headY - 0.5} r={R + HAIR_LIFT} fill={color} />
-      {shine(headY, R + 2)}
-      <path
-        d={`M${-6.2} ${headY + 4.6} q6.2 3.4 12.4 0 q-6.2 1.9 -12.4 0 z`}
-        fill="#000"
-        opacity="0.12"
-      />
-    </>
-  );
+  const art = (entry?.back || HAIR_REGISTRY.short.back)({ headY, color, R });
   return covered ? <HairUnderHat headY={headY} compact={entry?.compactUnderHat}>{art}</HairUnderHat> : art;
 }
